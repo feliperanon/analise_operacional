@@ -101,15 +101,20 @@
             <template x-if="!loading && list.length === 0"><p class="text-slate-500 py-4">Nenhuma devolução no período.</p></template>
             <div class="space-y-2" x-show="!loading && list.length">
                 <template x-for="item in list" :key="item.id">
-                    <article class="rounded-xl overflow-hidden shadow-sm transition-colors"
-                        :class="item.edited ? 'border-2 border-amber-500/80 bg-amber-950/30' : 'border border-slate-700/80 bg-slate-800/70'"
-                        :style="item.edited ? 'border-left-width: 4px; border-left-color: rgb(245, 158, 11);' : 'border-left-width: 3px; border-left-color: rgba(249, 115, 22, 0.5);'">
+                    <article class="rounded-xl overflow-hidden shadow-sm transition-all duration-300"
+                        :class="item.cardFeedbackKind === 'resp' ? 'border-2 border-emerald-500/70 bg-emerald-950/25' : (item.cardFeedbackKind === 'edit' ? 'border-2 border-violet-500/70 bg-violet-950/25' : (item.edited ? 'border-2 border-emerald-500/80 bg-emerald-950/30' : 'border border-slate-700/80 bg-slate-800/70'))"
+                        :style="item.cardFeedbackKind === 'resp' ? 'border-left-width: 4px; border-left-color: rgb(16, 185, 129);' : (item.cardFeedbackKind === 'edit' ? 'border-left-width: 4px; border-left-color: rgb(139, 92, 246);' : (item.edited ? 'border-left-width: 4px; border-left-color: rgb(16, 185, 129);' : 'border-left-width: 3px; border-left-color: rgba(249, 115, 22, 0.5);'))">
                         <div class="p-3 flex flex-col gap-2">
+                            <p x-show="item.cardFeedbackMsg" class="text-xs font-medium px-2 py-1.5 rounded-lg mb-0.5"
+                               :class="item.cardFeedbackKind === 'resp' ? 'text-emerald-200 bg-emerald-900/50 border border-emerald-500/40' : 'text-violet-200 bg-violet-900/50 border border-violet-500/40'"
+                               x-text="item.cardFeedbackMsg"></p>
                             <div class="flex items-start justify-between gap-2">
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <p class="text-sm font-semibold text-white truncate" x-text="item.client_name"></p>
-                                        <span x-show="item.edited" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-600/80 text-amber-100 border border-amber-500/50">Alterado</span>
+                                        <span x-show="item.edited && !item.cardFeedbackKind" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-600/80 text-emerald-100 border border-emerald-500/50">Alterado</span>
+                                        <span x-show="item.cardFeedbackKind === 'resp'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-600/80 text-emerald-100 border border-emerald-500/50">M/A salvo</span>
+                                        <span x-show="item.cardFeedbackKind === 'edit'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-600/80 text-violet-100 border border-violet-500/50">Edição salva</span>
                                     </div>
                                     <p class="text-xs text-slate-500 mt-0.5" x-text="'Cod ' + (item.client_code || '-') + ' · Pedido ' + (item.order_number || '-') + (item.data_romaneio_pt ? ' · ' + item.data_romaneio_pt : '')"></p>
                                 </div>
@@ -172,9 +177,13 @@
                         </thead>
                         <tbody class="divide-y divide-slate-700/80 text-sm">
                             <template x-for="r in resumo" :key="r.motorista_id">
-                                <tr class="hover:bg-slate-700/20 transition-colors"
-                                    :class="r.devolucoes_total > 0 ? 'cursor-pointer' : ''"
-                                    @click="r.devolucoes_total > 0 && (resumoDetailMotorista = r, resumoDetailOpen = true)">
+                                <tr class="hover:bg-slate-700/20 transition-colors outline-none"
+                                    :class="Number(r.devolucoes_total) > 0 ? 'cursor-pointer active:bg-slate-700/40' : ''"
+                                    role="button"
+                                    :tabindex="Number(r.devolucoes_total) > 0 ? 0 : -1"
+                                    @click="openResumoMotorista(r)"
+                                    @keydown.enter.prevent="openResumoMotorista(r)"
+                                    @keydown.space.prevent="openResumoMotorista(r)">
                                     <td class="px-4 py-3 font-medium text-white" x-text="r.motorista_name"></td>
                                     <td class="px-4 py-3 text-right text-slate-300" x-text="r.entregues"></td>
                                     <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_total"></td>
@@ -191,17 +200,25 @@
             </div>
 
             <!-- Modal: detalhes das devoluções do motorista (data, motivo, observação) -->
-            <div x-show="resumoDetailOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" @keydown.escape.window="resumoDetailOpen = false">
+            <div x-show="resumoDetailOpen" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60" @keydown.escape.window="fecharResumoMotorista()" @click.self="fecharResumoMotorista()">
                 <div class="rounded-xl border border-slate-700 bg-slate-800 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-xl" @click.stop>
                     <div class="p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
                         <h2 class="text-base font-semibold text-white" x-text="resumoDetailMotorista ? 'Devoluções · ' + resumoDetailMotorista.motorista_name : 'Devoluções'"></h2>
-                        <button type="button" @click="resumoDetailOpen = false; resumoDetailMotorista = null" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition text-lg leading-none">×</button>
+                        <button type="button" @click="fecharResumoMotorista()" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition text-lg leading-none">×</button>
                     </div>
                     <div class="p-3 text-slate-500 text-xs border-b border-slate-700 shrink-0" x-text="'Período: ' + formatPeriodo(dateFrom, dateTo)"></div>
                     <div class="overflow-y-auto flex-1 min-h-0 p-3 space-y-2">
-                        <p class="text-slate-400 text-xs mb-2 px-1">Marque responsabilidade (M = motorista, A = ajudante). Clique na linha para abrir edição completa.</p>
-                        <template x-for="item in (resumoDetailMotorista ? list.filter(i => String(i.motorista_id) === String(resumoDetailMotorista.motorista_id)) : [])" :key="item.id">
-                            <div class="rounded-lg border border-slate-600 bg-slate-800/80 p-3 transition-colors text-left flex flex-col gap-2">
+                        <p x-show="resumoDetailLoading" class="text-slate-400 text-sm py-6 text-center">Carregando devoluções…</p>
+                        <template x-if="!resumoDetailLoading && resumoDetailMotorista && resumoDetailList.length === 0">
+                            <p class="text-slate-500 text-sm py-4">Nenhuma devolução encontrada para este motorista no período.</p>
+                        </template>
+                        <p class="text-slate-400 text-xs mb-2 px-1" x-show="!resumoDetailLoading && resumoDetailList.length">Marque responsabilidade (M = motorista, A = ajudante). Clique na linha para abrir edição completa.</p>
+                        <template x-for="item in resumoDetailList" :key="item.id">
+                            <div class="rounded-lg border p-3 transition-all duration-300 text-left flex flex-col gap-2"
+                                 :class="item.cardFeedbackKind === 'resp' ? 'border-emerald-500/70 bg-emerald-950/25 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]' : (item.cardFeedbackKind === 'edit' ? 'border-violet-500/70 bg-violet-950/25 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]' : (item.edited ? 'border-emerald-500/60 bg-emerald-950/20 shadow-[0_0_0_1px_rgba(16,185,129,0.15)]' : 'border-slate-600 bg-slate-800/80'))">
+                                <p x-show="item.cardFeedbackMsg" class="text-xs font-medium px-2 py-1 rounded-md order-first"
+                                   :class="item.cardFeedbackKind === 'resp' ? 'text-emerald-200 bg-emerald-900/45 border border-emerald-500/35' : 'text-violet-200 bg-violet-900/45 border border-violet-500/35'"
+                                   x-text="item.cardFeedbackMsg"></p>
                                 <div @click="resumoDetailOpen = false; openEdit(item)" class="cursor-pointer flex-1 min-w-0">
                                     <div class="flex flex-wrap items-center gap-2 mb-1">
                                         <span class="font-mono text-xs text-amber-400 font-medium" x-text="item.data_romaneio_pt || item.data_romaneio || '-'"></span>
@@ -227,14 +244,13 @@
                                 </div>
                             </div>
                         </template>
-                        <p x-show="resumoDetailMotorista && list.filter(i => String(i.motorista_id) === String(resumoDetailMotorista.motorista_id)).length === 0" class="text-slate-500 text-sm py-4">Nenhuma devolução na lista para este motorista no período.</p>
                     </div>
                     <div class="p-3 border-t border-slate-700 shrink-0 flex justify-between items-center gap-2 flex-wrap">
-                        <p class="text-slate-500 text-xs">Alterações são salvas ao marcar M/A. Use Salvar para atualizar o resumo na tabela.</p>
+                        <p class="text-slate-500 text-xs">Alterações são salvas ao marcar M/A. Use Atualizar resumo para recarregar a tabela.</p>
                         <div class="flex gap-2">
-                            <button type="button" @click="loadResumo()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">Salvar</button>
-                            <button type="button" @click="tab = 'lista'; resumoDetailOpen = false; resumoDetailMotorista = null" class="px-4 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">Ver na lista</button>
-                            <button type="button" @click="resumoDetailOpen = false; resumoDetailMotorista = null" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors">Fechar</button>
+                            <button type="button" @click="loadResumo()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">Atualizar resumo</button>
+                            <button type="button" @click="tab = 'lista'; fecharResumoMotorista(); loadList();" class="px-4 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">Ver na lista</button>
+                            <button type="button" @click="fecharResumoMotorista()" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors">Fechar</button>
                         </div>
                     </div>
                 </div>
@@ -242,16 +258,18 @@
 
             <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
                 <h2 class="text-base font-semibold text-white mb-1">Resumo por ajudante</h2>
-                <p class="text-slate-500 text-xs mb-3">Original vs ajustado (apenas devoluções marcadas como resp. do ajudante).</p>
+                <p class="text-slate-500 text-xs mb-3"><strong>Entregues</strong> = paradas <em>entregue</em> em que o ajudante entra pela rota, pela sessão do dia ou por outra parada do mesmo motorista/data. % original = devoluções ÷ (entregues + devoluções); % ajustado = só devoluções com resp. do ajudante.</p>
                 <template x-if="resumoLoading"><p class="text-slate-500 py-2">Carregando...</p></template>
                 <div class="overflow-x-auto rounded-lg border border-slate-700" x-show="!resumoLoading && resumoAjudantes.length">
-                    <table class="w-full text-left border-collapse min-w-[560px]">
+                    <table class="w-full text-left border-collapse min-w-[720px]">
                         <thead class="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider">
                             <tr>
                                 <th class="px-4 py-3 font-semibold">Ajudante</th>
+                                <th class="px-4 py-3 text-right">Entregues</th>
                                 <th class="px-4 py-3 text-right">Dev. total</th>
-                                <th class="px-4 py-3 text-right">Dev. atribuídas</th>
-                                <th class="px-4 py-3 text-right">% atribuído</th>
+                                <th class="px-4 py-3 text-right">Dev. atr. A</th>
+                                <th class="px-4 py-3 text-right">% original</th>
+                                <th class="px-4 py-3 text-right">% ajustado</th>
                                 <th class="px-4 py-3 text-right">Valor original</th>
                                 <th class="px-4 py-3 text-right">Valor ajustado</th>
                             </tr>
@@ -260,9 +278,11 @@
                             <template x-for="r in resumoAjudantes" :key="r.ajudante_id">
                                 <tr class="hover:bg-slate-700/20 transition-colors">
                                     <td class="px-4 py-3 font-medium text-white" x-text="r.ajudante_name"></td>
+                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.entregues != null ? r.entregues : 0"></td>
                                     <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_total"></td>
                                     <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_attributed"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-emerald-400" x-text="r.pct_attributed + '%'"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-amber-400" x-text="(r.pct_original != null ? r.pct_original : 0) + '%'"></td>
+                                    <td class="px-4 py-3 text-right font-mono text-emerald-400" x-text="(r.pct_ajustado != null ? r.pct_ajustado : 0) + '%'"></td>
                                     <td class="px-4 py-3 text-right font-mono text-slate-300" x-text="'R$ ' + formatValor(r.valor_original)"></td>
                                     <td class="px-4 py-3 text-right font-mono text-white font-medium" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
                                 </tr>
@@ -354,6 +374,8 @@ function devolucoesAvaliar(init) {
         editValor: '',
         resumoDetailOpen: false,
         resumoDetailMotorista: null,
+        resumoDetailList: [],
+        resumoDetailLoading: false,
         dateFrom: '{{ date_from }}',
         dateTo: '{{ date_to }}',
         filterClienteNome: '',
@@ -401,6 +423,17 @@ function devolucoesAvaliar(init) {
             if (v == null || v === '') return '0,00';
             return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         },
+        touchCardFeedback(item, kind, msg) {
+            if (!item) return;
+            if (item._cardFbT) clearTimeout(item._cardFbT);
+            item.cardFeedbackKind = kind;
+            item.cardFeedbackMsg = msg;
+            item._cardFbT = setTimeout(() => {
+                item.cardFeedbackKind = null;
+                item.cardFeedbackMsg = '';
+                item._cardFbT = null;
+            }, 5000);
+        },
         loadList() {
             this.loading = true;
             let url = '/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo);
@@ -433,6 +466,29 @@ function devolucoesAvaliar(init) {
                 })
                 .catch(() => { this.resumoLoading = false; this.resumo = []; this.resumoAjudantes = []; });
         },
+        openResumoMotorista(r) {
+            const n = Number(r && r.devolucoes_total);
+            if (!r || r.motorista_id == null || n <= 0) return;
+            this.resumoDetailMotorista = r;
+            this.resumoDetailOpen = true;
+            this.resumoDetailList = [];
+            this.resumoDetailLoading = true;
+            const url = '/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo) + '&motorista_ids=' + encodeURIComponent(String(r.motorista_id));
+            fetch(url, { credentials: 'same-origin' })
+                .then(x => x.json())
+                .then(j => {
+                    this.resumoDetailLoading = false;
+                    if (j.ok) this.resumoDetailList = j.data || [];
+                    else this.resumoDetailList = [];
+                })
+                .catch(() => { this.resumoDetailLoading = false; this.resumoDetailList = []; });
+        },
+        fecharResumoMotorista() {
+            this.resumoDetailOpen = false;
+            this.resumoDetailMotorista = null;
+            this.resumoDetailList = [];
+            this.resumoDetailLoading = false;
+        },
         setResponsavel(devolucaoId, responsavelMotorista, responsavelAjudante) {
             const ra = responsavelAjudante !== undefined ? responsavelAjudante : true;
             fetch('/api/devolucoes/avaliar/consolidado', {
@@ -446,12 +502,16 @@ function devolucoesAvaliar(init) {
                 credentials: 'same-origin'
             }).then(r => r.json()).then(j => {
                 if (j.ok) {
-                    const item = this.list.find(x => x.id === devolucaoId);
-                    if (item) {
+                    const patch = (item) => {
+                        if (!item) return;
                         item.responsavel_motorista = !!responsavelMotorista;
                         item.responsavel_ajudante = !!ra;
                         item.edited = true;
-                    }
+                        const m = !!responsavelMotorista, a = !!ra;
+                        this.touchCardFeedback(item, 'resp', 'Responsabilidade salva — Motorista: ' + (m ? 'marcado' : 'desmarcado') + ' · Ajudante: ' + (a ? 'marcado' : 'desmarcado'));
+                    };
+                    patch(this.list.find(x => x.id === devolucaoId));
+                    patch(this.resumoDetailList.find(x => x.id === devolucaoId));
                     this.loadResumo();
                 }
             }).catch(() => {});
@@ -490,11 +550,15 @@ function devolucoesAvaliar(init) {
                 if (j.ok) {
                     this.editOpen = false;
                     this.editItem = null;
-                    const idx = this.list.findIndex(x => x.id === id);
-                    if (idx >= 0 && j.data) {
-                        this.list[idx] = j.data;
-                        this.list[idx].edited = true;
-                    }
+                    const apply = (arr, i) => {
+                        if (i >= 0 && j.data) {
+                            arr[i] = j.data;
+                            arr[i].edited = true;
+                            this.touchCardFeedback(arr[i], 'edit', 'Cadastro atualizado (motivo, motorista, ajudante, valores ou observação).');
+                        }
+                    };
+                    apply(this.list, this.list.findIndex(x => x.id === id));
+                    apply(this.resumoDetailList, this.resumoDetailList.findIndex(x => x.id === id));
                     this.loadResumo();
                 } else alert(j.error || 'Erro ao salvar');
             });

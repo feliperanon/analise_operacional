@@ -107,45 +107,74 @@
             </div>
         </section>
 
-        <!-- 2. Separação ativa (Cockpit de Navegação) -->
-        <section class="container-mobile mt-4" x-show="hasActiveRoutes" x-cloak>
-            <template x-for="(route, idx) in activeRoutes" :key="'route-'+idx">
-                <div class="surface-futuristic p-5 mb-4 border-l-4 border-blue-500 relative overflow-hidden touch-scale">
-                    <div class="absolute -right-10 -top-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                    <div class="flex justify-between items-start relative z-10 mb-3">
-                        <div>
-                            <span class="text-[10px] uppercase tracking-widest text-blue-400 font-bold">Operação em curso</span>
-                            <h3 class="text-lg font-bold mt-1" style="color: var(--color-text);" x-text="route.client_name"></h3>
-                        </div>
-                        <div class="flex gap-1">
-                            <button @click="openEditModal(route)" class="touch-target-icon rounded-lg icon-wrap flex items-center justify-center haptic-light">
-                                <i data-lucide="pencil" class="w-4 h-4"></i>
-                            </button>
-                            <button @click="openDeleteModal(route)" class="touch-target-icon rounded-lg flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
+        {% if delivery_summary and delivery_summary.enabled %}
+        <section class="container-mobile mt-4">
+            <div class="surface p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-primary);">Entregas de Hoje</p>
+                        <h2 class="text-section mt-1" style="color: var(--color-text);">
+                            {% if delivery_summary.total_today > 0 %}
+                            {{ delivery_summary.total_today }} parada(s) lançada(s)
+                            {% else %}
+                            Nenhuma rota lançada hoje
+                            {% endif %}
+                        </h2>
+                        {% if delivery_summary.assigned_plate %}
+                        <p class="text-caption-lg mt-1">Placa planejada: <strong>{{ delivery_summary.assigned_plate }}</strong></p>
+                        {% endif %}
                     </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-mono text-blue-600 bg-blue-500/20 px-2 py-1 rounded" x-text="formatTimer(route.start_time)"></span>
-                        <button @click="openStopModal(route)" class="p-3 rounded-lg text-white transition-all active:scale-95 min-h-[48px] min-w-[48px] flex items-center justify-center" style="background: var(--color-danger);">
-                            <i data-lucide="square" class="w-5 h-5 fill-current"></i>
-                        </button>
+                    <a href="/mobile/delivery" class="touch-target-icon flex items-center justify-center rounded-lg text-white flex-shrink-0" style="background: var(--color-primary);">
+                        <i data-lucide="truck" class="w-5 h-5"></i>
+                    </a>
+                </div>
+                <div class="grid grid-cols-3 gap-3 mt-4">
+                    <div class="rounded-xl p-3 text-center" style="background: var(--color-border-light);">
+                        <p class="text-caption">Total</p>
+                        <p class="text-title mt-1" style="color: var(--color-text);">{{ delivery_summary.total_today }}</p>
                     </div>
-                    <div class="mt-4 flex items-center gap-4">
-                        <div class="flex-1">
-                            <div class="flex justify-between text-[10px] mb-1">
-                                <span class="uppercase" style="color: var(--color-text-muted);">CARGA</span>
-                                <span class="text-blue-600 font-mono font-semibold" x-text="(route.tonnage || 0) + ' KG'"></span>
-                            </div>
-                            <div class="h-1.5 rounded-full overflow-hidden" style="background: var(--color-border-light);">
-                                <div class="h-full bg-gradient-to-r from-blue-600 to-cyan-400 animate-pulse-slow rounded-full" :style="`width: ${(route.tonnage || 0) > 0 ? Math.min(100, (route.tonnage/500)*100) : 33}%`"></div>
-                            </div>
-                        </div>
+                    <div class="rounded-xl p-3 text-center" style="background: rgba(245,158,11,0.12);">
+                        <p class="text-caption">Em aberto</p>
+                        <p class="text-title mt-1" style="color: #f59e0b;">{{ delivery_summary.open_today }}</p>
+                    </div>
+                    <div class="rounded-xl p-3 text-center" style="background: rgba(16,185,129,0.12);">
+                        <p class="text-caption">Concluídas</p>
+                        <p class="text-title mt-1" style="color: #10b981;">{{ delivery_summary.completed_today }}</p>
                     </div>
                 </div>
-            </template>
+                <a href="/mobile/delivery" class="interactive block w-full surface mt-3 p-3 text-center font-semibold" style="color: var(--color-text); border: 1px solid var(--color-border);">
+                    <span x-text="deliverySessionOpen ? 'Continuar rota' : 'Abrir rota do dia'"></span>
+                </a>
+            </div>
         </section>
+        {% endif %}
+
+        {% if returns_alert_data and returns_alert_data.enabled %}
+        <section class="container-mobile mt-4">
+            <div class="surface p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-warning);">Devoluções</p>
+                        <h2 class="text-section mt-1" style="color: var(--color-text);">
+                            {{ returns_alert_data.actual_percent|fmt_br_2 }}% no período
+                        </h2>
+                        <p class="text-caption-lg mt-1">
+                            Meta: {{ returns_alert_data.target_percent|fmt_br_2 }}%
+                            {% if returns_alert_data.is_above_target %}
+                            • acima da meta
+                            {% else %}
+                            • dentro da meta
+                            {% endif %}
+                        </p>
+                    </div>
+                    <a href="/mobile/returns" class="touch-target-icon flex items-center justify-center rounded-lg text-white flex-shrink-0" style="background: var(--color-warning);">
+                        <i data-lucide="package" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
     </div>
 
     <!-- 3. Módulos (ação principal) -->
@@ -1138,9 +1167,19 @@
                         const allRoutes = Array.isArray(data.routes) ? data.routes : [];
                         const completedRoutes = allRoutes.filter(r => this.isCompletedDeliveryRoute(r));
                         const activeRoutes = allRoutes.filter(r => !this.isCompletedDeliveryRoute(r));
+                        const normalize = (r) => {
+                            r.tonnage = r.tonnage ?? r.weight;
+                            const st = r.started_at || r.start_time;
+                            r.start_time = (typeof st === 'string' && st.length >= 5) ? st.slice(0, 19).replace('T', ' ').trim().slice(11, 16) : (st || '');
+                            return r;
+                        };
+                        activeRoutes.forEach(normalize);
+                        completedRoutes.forEach(normalize);
 
                         this.deliveryCompletedCount = completedRoutes.length;
                         this.deliveryRoutes = activeRoutes;
+                        this.activeRoutes = activeRoutes;
+                        this.completedRoutes = completedRoutes;
                         this.deliveryDayCards = this.buildDeliveryDayCards(activeRoutes);
                         if (!this.selectedDeliveryDay) {
                             this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';

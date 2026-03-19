@@ -61,6 +61,12 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
         session.commit()
         session.refresh(motivo)
 
+        _gps = dict(
+            driver_lat_start=-19.926,
+            driver_lon_start=-43.950,
+            driver_lat_end=-19.927,
+            driver_lon_end=-43.951,
+        )
         session.add_all(
             [
                 models.Route(
@@ -96,6 +102,7 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
                     delivery_started_at="08:00",
                     delivery_finished_at="09:00",
                     status="pending",
+                    **_gps,
                 ),
                 models.Route(
                     date="2026-03-05",
@@ -116,6 +123,7 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
                     delivery_return_category="Logistica",
                     delivery_reopen_count=1,
                     status="pending",
+                    **_gps,
                 ),
                 models.Route(
                     date="2026-03-11",
@@ -131,6 +139,7 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
                     delivery_started_at="08:00",
                     delivery_finished_at="08:45",
                     status="pending",
+                    **_gps,
                 ),
                 models.Route(
                     date="2026-03-04",

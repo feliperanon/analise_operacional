@@ -57,6 +57,7 @@ class Employee(SQLModel, table=True):
     mobile_access_admin_start: bool = Field(default=False) # Permissão para líder abrir rota manualmente
     mobile_access_returns: bool = Field(default=False) # Dashboard de devoluções (avaliação do colaborador)
     mobile_access_helper: bool = Field(default=False)  # Pode ser selecionado como ajudante nas rotas
+    mobile_access_gatehouse: bool = Field(default=False)  # Módulo Portaria
     
     # Gamification
     total_xp: float = Field(default=0.0) # Accumulated Tonnage/Score
@@ -150,9 +151,17 @@ class CargoMaster(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.now)
 
 
+class ClientGroup(SQLModel, table=True):
+    """Agrupa vários cadastros de cliente (rede, bandeira) para análise consolidada nos BIs."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
 class Client(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True)  # Nome principal (Razão Social ou Nome Fantasia)
+    client_group_id: Optional[int] = Field(default=None, foreign_key="clientgroup.id", index=True)
     # Campos de cadastro completo
     nb: Optional[str] = Field(default=None, index=True)  # Número/código do cliente
     setor: Optional[str] = Field(default=None, index=True)
@@ -370,6 +379,21 @@ class DeliverySession(SQLModel, table=True):
     started_at: datetime = Field(default_factory=datetime.now)
     ended_at: Optional[datetime] = None
     reopen_reason: Optional[str] = None  # Motivo ao reabrir rota fechada no mesmo dia
+
+
+class DeliveryAuthRequest(SQLModel, table=True):
+    """Solicitação de autorização para iniciar entrega fora do raio de 300 m."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    route_id: int = Field(foreign_key="route.id", index=True)
+    driver_id: int = Field(foreign_key="employee.id", index=True)
+    client_name: Optional[str] = None
+    distancia_metros: Optional[float] = None
+    motivo: Optional[str] = None
+    status: str = Field(default="pending", index=True)  # pending | approved | denied
+    requested_at: datetime = Field(default_factory=datetime.now, index=True)
+    resolved_at: Optional[datetime] = None
+    resolved_by: Optional[int] = None
+    obs: Optional[str] = None
 
 
 class VehicleLocation(SQLModel, table=True):
@@ -862,6 +886,10 @@ class Devolucao(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now, index=True)
     # Idempotência: hash para evitar duplicatas
     idempotency_hash: Optional[str] = Field(default=None, index=True, unique=True)
+    # Duplicata de planilha quando já existe registro mobile/rota (mobile prevalece)
+    duplicate_of_id: Optional[int] = Field(default=None, foreign_key="devolucao.id", index=True)
+    # DUPLICATE_EXCEL | ORPHAN_ROUTE | ""
+    validation_status: str = Field(default="", index=True)
 
 
 class DevolucaoImportBatch(SQLModel, table=True):

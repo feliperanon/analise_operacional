@@ -26,7 +26,7 @@ from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col, delete, text, or_, desc
 from sqlalchemy import func, inspect, not_, and_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from typing import List
 from database import create_db_and_tables, get_session, engine
 import models
@@ -104,7 +104,7 @@ from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(dotenv_path=BASE_DIR / ".env", override=True)
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=False)
 # Performance: Use INFO level in production, DEBUG only when explicitly enabled
 LOG_LEVEL = logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO
 
@@ -576,12 +576,14 @@ async def lifespan(app: FastAPI):
         ensure_vehicle_schema()
         ensure_checklist_odometer_schema()
         ensure_client_schema()
+        ensure_client_group_schema()
         ensure_route_schema()
         ensure_devolucao_route_id()
         # Employee schema compatibility must run before auth/bootstrap queries
         ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "mobile_access_helper", "BOOLEAN DEFAULT FALSE")
+        ensure_column(engine, "employee", "mobile_access_gatehouse", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
         ensure_column(engine, "deliverysession", "reopen_reason", "VARCHAR(512)")
     except Exception as e:
@@ -666,20 +668,37 @@ async def global_exception_handler(request: Request, call_next):
         from fastapi import HTTPException as FastAPIHTTPException
         if isinstance(e, (StarletteHTTPException, FastAPIHTTPException)):
             raise e
-            
+
+        # Banco indisponível (offline, DNS, Render pausado) → 503 em vez de 500
+        oe = e if isinstance(e, OperationalError) else (e.__cause__ if hasattr(e, "__cause__") and e.__cause__ else None)
+        if isinstance(e, OperationalError) or (oe and type(oe).__name__ == "OperationalError"):
+            err_str = str(oe or e).lower()
+            if "could not translate host" in err_str or "connection refused" in err_str or "timeout" in err_str or "name or service not known" in err_str:
+                logger.warning("DB indisponível [503]: %s", str(e)[:200])
+                if "application/json" in request.headers.get("accept", "") or request.url.path.startswith("/api/"):
+                    return JSONResponse(
+                        status_code=503,
+                        content={"error": "Banco de dados indisponível. Verifique sua conexão ou aguarde o banco inicializar."}
+                    )
+                return JSONResponse(
+                    status_code=503,
+                    content="Banco de dados indisponível. Verifique sua conexão.",
+                    media_type="text/plain"
+                )
+
         import traceback
         import uuid
-        
+
         trace_id = str(uuid.uuid4())[:8]
         error_msg = str(e)
         stack_trace = traceback.format_exc()
-        
+
         # Log Full Trace (Removed emoji to prevent UnicodeEncodeError on Windows)
         logger.error(f"[500] {request.method} {request.url} | Trace: {trace_id} | Error: {error_msg}\n{stack_trace}")
-        
+
         # Determine Response Type
         accept = request.headers.get("accept", "")
-        
+
         if "application/json" in accept or request.url.path.startswith("/api/"):
             return JSONResponse(
                 status_code=500,
@@ -689,9 +708,9 @@ async def global_exception_handler(request: Request, call_next):
                     "trace_id": trace_id
                 }
             )
-        
+
         return templates.TemplateResponse("error_500.html", {
-            "request": request, 
+            "request": request,
             "error_detail": error_msg if LOG_LEVEL == logging.DEBUG else None,
             "trace_id": trace_id
         }, status_code=500)
@@ -702,42 +721,77 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
+    return RedirectResponse(url="/static/favicon-32x32.png", status_code=307)
 
 
 @app.get("/apple-touch-icon.png", include_in_schema=False)
 async def apple_touch_icon():
-    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
+    return RedirectResponse(url="/static/icons/pwa-192.png", status_code=307)
+
+
+@app.get("/api/debug/db-info", include_in_schema=False)
+async def api_debug_db_info(session: Session = Depends(get_session)):
+    """Diagnóstico: qual banco está ativo e contagem de registros (para investigar dados vazios)."""
+    from sqlalchemy import func
+    db_source = os.environ.get("ACTIVE_DATABASE_SOURCE", "unknown")
+    url = str(engine.url)
+    if "postgresql" in url:
+        try:
+            from urllib.parse import urlparse
+            p = urlparse(url)
+            url_obfuscated = f"postgresql://{p.hostname or ''}{f':{p.port}' if p.port else ''}/{p.path or ''}"
+        except Exception:
+            url_obfuscated = "postgresql://..."
+    else:
+        url_obfuscated = url
+    counts = {}
+    for model, key in [
+        (models.Route, "Route"),
+        (models.Devolucao, "Devolucao"),
+        (models.Event, "Event"),
+        (models.Employee, "Employee"),
+    ]:
+        try:
+            n = session.exec(select(func.count()).select_from(model)).one()
+            counts[key] = n
+        except Exception:
+            counts[key] = None
+    return JSONResponse({
+        "database_source": db_source,
+        "url_obfuscated": url_obfuscated,
+        "counts": counts,
+        "hint": "Se Route/Devolucao/Event estao 0, o app pode estar usando outro banco (ex: SQLite local) ou os dados foram apagados (ex: reset_delivery_data.py).",
+    })
 
 
 @app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
 async def apple_touch_icon_precomposed():
-    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
+    return RedirectResponse(url="/static/icons/pwa-192.png", status_code=307)
 
 
 @app.get("/favicon-16x16.png", include_in_schema=False)
 async def favicon_16():
-    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
+    return RedirectResponse(url="/static/favicon-32x32.png", status_code=307)
 
 
 @app.get("/favicon-32x32.png", include_in_schema=False)
 async def favicon_32():
-    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
+    return RedirectResponse(url="/static/favicon-32x32.png", status_code=307)
 
 
 @app.get("/android-chrome-192x192.png", include_in_schema=False)
 async def android_chrome_192():
-    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
+    return RedirectResponse(url="/static/icons/pwa-192.png", status_code=307)
 
 
 @app.get("/android-chrome-512x512.png", include_in_schema=False)
 async def android_chrome_512():
-    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
+    return RedirectResponse(url="/static/icons/pwa-512.png", status_code=307)
 
 
 @app.get("/mstile-150x150.png", include_in_schema=False)
 async def mstile_150():
-    return RedirectResponse(url="/static/logo-souza-pinto.png", status_code=307)
+    return RedirectResponse(url="/static/icons/pwa-192.png", status_code=307)
 
 
 @app.get("/site.webmanifest", include_in_schema=False)
@@ -790,6 +844,18 @@ async def sitemap_xml():
 
 @app.get("/service-worker.js", include_in_schema=False)
 async def service_worker():
+    sw_path = BASE_DIR / "static" / "sw.js"
+    if sw_path.exists():
+        return FileResponse(
+            sw_path,
+            media_type="application/javascript",
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "Service-Worker-Allowed": "/mobile/",
+            },
+        )
     return Response(content="", media_type="application/javascript")
 
 
@@ -939,12 +1005,45 @@ def fmt_br_datetime(val):
         return str(val) if val else "—"
 
 
+def fmt_br_date(val):
+    """Data em dd/mm/yyyy (str YYYY-MM-DD, date ou datetime)."""
+    if val is None:
+        return "—"
+    try:
+        if isinstance(val, datetime):
+            return val.strftime("%d/%m/%Y")
+        if isinstance(val, str) and len(val.strip()) >= 10:
+            d = datetime.strptime(val.strip()[:10], "%Y-%m-%d").date()
+            return d.strftime("%d/%m/%Y")
+        if hasattr(val, "year") and hasattr(val, "month") and hasattr(val, "day") and not isinstance(val, datetime):
+            return val.strftime("%d/%m/%Y")
+    except Exception:
+        pass
+    return str(val) if val else "—"
+
+
+def fmt_nb_br(nb):
+    """NB numérico com separador de milhar (padrão BR); texto alfanumérico sem alterar."""
+    if nb is None or str(nb).strip() == "":
+        return "—"
+    s = str(nb).strip()
+    digits = s.replace(".", "").replace(",", "")
+    if digits.isdigit() and len(digits) <= 12:
+        try:
+            return fmt_br_int(int(digits))
+        except Exception:
+            pass
+    return s
+
+
 templates.env.filters["fmt_br"] = fmt_br
 templates.env.filters["fmt_br_int"] = fmt_br_int
 templates.env.filters["fmt_br_pct"] = fmt_br_pct
 templates.env.filters["fmt_br_2"] = fmt_br_2
 templates.env.filters["fmt_br_duracao"] = fmt_br_duracao
 templates.env.filters["fmt_br_datetime"] = fmt_br_datetime
+templates.env.filters["fmt_br_date"] = fmt_br_date
+templates.env.filters["fmt_nb_br"] = fmt_nb_br
 
 def _emp_name_upper(val):
     """Padroniza nome de colaborador em MAIÚSCULAS para exibição."""
@@ -1631,10 +1730,12 @@ def ensure_employee_access_schema():
     existing = {col["name"] for col in inspector.get_columns("employee")}
     missing = {
         "mobile_access_separation": "BOOLEAN",
-        "mobile_access_checklist": "BOOLEAN"
+        "mobile_access_checklist": "BOOLEAN",
+        "mobile_access_gatehouse": "BOOLEAN DEFAULT FALSE",
     }
     added_separation = False
     added_checklist = False
+    added_gatehouse = False
     with engine.begin() as conn:
         for col_name, col_type in missing.items():
             if col_name in existing:
@@ -1644,10 +1745,14 @@ def ensure_employee_access_schema():
                 added_separation = True
             if col_name == "mobile_access_checklist":
                 added_checklist = True
+            if col_name == "mobile_access_gatehouse":
+                added_gatehouse = True
         if "mobile_access_separation" in existing or added_separation:
             conn.execute(text("UPDATE employee SET mobile_access_separation = mobile_access WHERE mobile_access_separation IS NULL"))
         if "mobile_access_checklist" in existing or added_checklist:
             conn.execute(text("UPDATE employee SET mobile_access_checklist = FALSE WHERE mobile_access_checklist IS NULL"))
+        if "mobile_access_gatehouse" in existing or added_gatehouse:
+            conn.execute(text("UPDATE employee SET mobile_access_gatehouse = FALSE WHERE mobile_access_gatehouse IS NULL"))
 
 
 def ensure_employee_replaced_by_schema():
@@ -2048,9 +2153,11 @@ def require_login(request: Request):
 
 def require_mobile_module(employee, module: str):
     if module == "separation":
-        allowed = bool(getattr(employee, "mobile_access_separation", False))
+        allowed = _has_mobile_delivery_driver_access(employee)
     elif module == "checklist":
-        allowed = bool(getattr(employee, "mobile_access_checklist", False))
+        allowed = _has_mobile_checklist_access(employee)
+    elif module == "gatehouse":
+        allowed = _has_mobile_gatehouse_access(employee)
     else:
         raise HTTPException(status_code=400, detail="Módulo inválido.")
 
@@ -2063,10 +2170,122 @@ def _has_mobile_flags(employee) -> bool:
         return False
     return bool(
         getattr(employee, "mobile_access", False)
+        or getattr(employee, "mobile_access_returns", False)
+        or getattr(employee, "mobile_access_helper", False)
         or getattr(employee, "mobile_access_separation", False)
         or getattr(employee, "mobile_access_checklist", False)
         or getattr(employee, "mobile_access_admin_start", False)
+        or getattr(employee, "mobile_access_gatehouse", False)
     )
+
+
+def _has_explicit_mobile_module_flags(employee) -> bool:
+    if not employee:
+        return False
+    return bool(
+        getattr(employee, "mobile_access_separation", False)
+        or getattr(employee, "mobile_access_checklist", False)
+        or getattr(employee, "mobile_access_admin_start", False)
+        or getattr(employee, "mobile_access_returns", False)
+        or getattr(employee, "mobile_access_helper", False)
+        or getattr(employee, "mobile_access_gatehouse", False)
+    )
+
+
+def _normalized_employee_role(employee) -> str:
+    if not employee:
+        return ""
+    role_value = str(getattr(employee, "role", "") or "").strip()
+    return (
+        unicodedata.normalize("NFKD", role_value)
+        .encode("ascii", "ignore")
+        .decode()
+        .upper()
+    )
+
+
+def _is_delivery_driver_role(employee) -> bool:
+    role_value = _normalized_employee_role(employee)
+    return ("MOTORISTA" in role_value) and ("AJUDANTE" not in role_value)
+
+
+def _is_delivery_helper_role(employee) -> bool:
+    role_value = _normalized_employee_role(employee)
+    return "AJUDANTE DE MOTORISTA" in role_value
+
+
+def _is_gatehouse_role(employee) -> bool:
+    role_value = _normalized_employee_role(employee)
+    return ("PORTEIRO" in role_value) or ("PORTARIA" in role_value)
+
+
+def _use_mobile_role_fallback(employee) -> bool:
+    if not employee:
+        return False
+    return (
+        not _has_explicit_mobile_module_flags(employee)
+        and (_is_delivery_driver_role(employee) or _is_delivery_helper_role(employee))
+    )
+
+
+def _has_mobile_delivery_driver_access(employee) -> bool:
+    if not employee:
+        return False
+    return bool(
+        getattr(employee, "mobile_access_separation", False)
+        or (_use_mobile_role_fallback(employee) and _is_delivery_driver_role(employee))
+    )
+
+
+def _has_mobile_delivery_helper_access(employee) -> bool:
+    if not employee:
+        return False
+    return bool(
+        getattr(employee, "mobile_access_helper", False)
+        or (_use_mobile_role_fallback(employee) and _is_delivery_helper_role(employee))
+    )
+
+
+def _has_mobile_delivery_history_access(employee) -> bool:
+    if not employee:
+        return False
+    return bool(
+        _has_mobile_delivery_driver_access(employee)
+        or getattr(employee, "mobile_access_admin_start", False)
+        or _has_mobile_delivery_helper_access(employee)
+    )
+
+
+def _has_mobile_checklist_access(employee) -> bool:
+    if not employee:
+        return False
+    return bool(
+        getattr(employee, "mobile_access_checklist", False)
+        or (_use_mobile_role_fallback(employee) and _is_delivery_driver_role(employee))
+    )
+
+
+def _has_mobile_returns_access(employee) -> bool:
+    if not employee:
+        return False
+    return bool(
+        getattr(employee, "mobile_access_returns", False)
+        or getattr(employee, "mobile_access_admin_start", False)
+        or _has_mobile_delivery_driver_access(employee)
+    )
+
+
+def _has_mobile_gatehouse_access(employee) -> bool:
+    if not employee:
+        return False
+    return bool(
+        getattr(employee, "mobile_access_gatehouse", False)
+        or (
+            not _has_explicit_mobile_module_flags(employee)
+            and _is_gatehouse_role(employee)
+        )
+    )
+
 
 def _is_mobile_allowed(employee) -> bool:
     if not employee:
@@ -2076,8 +2295,7 @@ def _is_mobile_allowed(employee) -> bool:
         return False
     if _has_mobile_flags(employee):
         return True
-    role_value = str(getattr(employee, "role", "") or "").strip().upper()
-    return "MOTORISTA" in role_value
+    return bool(_use_mobile_role_fallback(employee) or _has_mobile_gatehouse_access(employee))
 
 def require_roles(request: Request, allowed_roles: set):
     user = require_login(request)
@@ -2395,7 +2613,13 @@ async def dashboard_entry(
     live_separation = list(live_buckets.values())
     live_separation.sort(key=_live_sort_key)
     rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
-    rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered", "route_started"))
+    # Ativas = ainda entregando ou só iniciou; concluídas (100% ou sessão encerrada) saem das ativas
+    rotas_ativas_count = sum(
+        1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "route_started")
+    )
+    rotas_concluidas_count = sum(
+        1 for b in live_separation if (b.get("route_state") or "") in ("closed", "all_delivered")
+    )
     _tv_shift_kv = tv_shift_alert_counts(live_separation, now_br)
 
     # Alertas tempo real: clientes com parada iniciada há mais de 20 minutos (só rotas iniciadas via mobile)
@@ -2475,6 +2699,14 @@ async def dashboard_entry(
 
     clientes_alto_indice = []
     if is_tv:
+        # Só rota do dia: paradas de hoje ainda não entregues (pendente/iniciada) e com alto índice de devolução (30d).
+        pending_today = [
+            (r.client_id, r.employee_id)
+            for r in routes
+            if r.client_id is not None
+            and r.employee_id is not None
+            and (r.delivery_status or "").strip().lower() not in ("entregue", "devolucao")
+        ]
         date_30d_ago = (selected_date - timedelta(days=30)).strftime("%Y-%m-%d")
         devolucoes_30d = session.exec(
             select(models.Devolucao)
@@ -2483,31 +2715,25 @@ async def dashboard_entry(
             .order_by(desc(models.Devolucao.data_romaneio), desc(models.Devolucao.id))
         ).all()
         client_dev_count = {}
-        client_last_driver = {}
-        client_last_driver_id = {}
-        emp_all_ids = list({d.motorista_id for d in devolucoes_30d if d.motorista_id})
-        emp_all_map = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(emp_all_ids))).all()} if emp_all_ids else {}
         for d in devolucoes_30d:
             cid = d.client_id
             client_dev_count[cid] = client_dev_count.get(cid, 0) + 1
-            if cid not in client_last_driver:
-                client_last_driver[cid] = emp_all_map.get(d.motorista_id).name if emp_all_map.get(d.motorista_id) else f"Motorista #{d.motorista_id}"
-                client_last_driver_id[cid] = d.motorista_id
-        delivered_today = set((r.client_id, r.employee_id) for r in routes if (r.delivery_status or "").lower() == "entregue")
-        cli_ids_30 = list(client_dev_count.keys())
-        clients_30 = session.exec(select(models.Client).where(models.Client.id.in_(cli_ids_30))).all() if cli_ids_30 else []
-        client_name_by_id_30 = {c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}") for c in clients_30}
-        for cid, cnt in sorted(client_dev_count.items(), key=lambda x: -x[1]):
-            if cnt < 2:
-                break
-            driver_id = client_last_driver_id.get(cid)
-            if driver_id is not None and (cid, driver_id) in delivered_today:
+        client_name_today = {
+            c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}")
+            for c in clients
+        }
+        seen_pair = set()
+        for cid, driver_id in pending_today:
+            if (cid, driver_id) in seen_pair or client_dev_count.get(cid, 0) < 2:
                 continue
+            seen_pair.add((cid, driver_id))
+            emp = employee_by_id.get(driver_id)
             clientes_alto_indice.append({
-                "client_name": client_name_by_id_30.get(cid) or f"Cliente #{cid}",
-                "driver_name": client_last_driver.get(cid) or "—",
-                "count": cnt,
+                "client_name": client_name_today.get(cid) or f"Cliente #{cid}",
+                "driver_name": emp.name if emp else f"Motorista #{driver_id}",
+                "count": client_dev_count[cid],
             })
+        clientes_alto_indice.sort(key=lambda x: -x["count"])
         clientes_alto_indice = clientes_alto_indice[:10]
 
     dashboard_payload = {
@@ -2521,6 +2747,7 @@ async def dashboard_entry(
             "target_headcount": selected_target,
             "rotas_paradas": rotas_paradas_count,
             "rotas_ativas": rotas_ativas_count,
+            "rotas_concluidas": rotas_concluidas_count,
         },
         "alerts": {
             "ausentes": ausentes,
@@ -2587,7 +2814,7 @@ async def api_dashboard_tv_data(
             "date": selected_date_str,
             "cost_center": selected_cc or "Todos",
             "dashboard": {
-                "kpi": {"rotas_paradas": 0, "rotas_ativas": 0},
+                "kpi": {"rotas_paradas": 0, "rotas_ativas": 0, "rotas_concluidas": 0},
                 "alerts": {"clients_over_20min": []},
                 "live_separation": [],
                 "devolucao_dia": {},
@@ -2708,7 +2935,12 @@ async def api_dashboard_tv_data(
     live_separation = list(live_buckets.values())
     live_separation.sort(key=_live_sort_key)
     rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
-    rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "all_delivered", "route_started"))
+    rotas_ativas_count = sum(
+        1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "route_started")
+    )
+    rotas_concluidas_count = sum(
+        1 for b in live_separation if (b.get("route_state") or "") in ("closed", "all_delivered")
+    )
     _tsa_api = tv_shift_alert_counts(live_separation, now_br)
 
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
@@ -2775,7 +3007,7 @@ async def api_dashboard_tv_data(
             continue
     alerts_over_20min.sort(key=lambda x: -x["minutes"])
 
-    # Clientes com alto índice de devolução (últimos 30 dias): top por quantidade
+    # Alto índice devolução: só rota do dia — paradas de hoje ainda não entregues e com 2+ devoluções em 30d.
     date_30d_ago = (now_br.date() - timedelta(days=30)).strftime("%Y-%m-%d")
     devolucoes_30d = session.exec(
         select(models.Devolucao)
@@ -2784,32 +3016,33 @@ async def api_dashboard_tv_data(
         .order_by(desc(models.Devolucao.data_romaneio), desc(models.Devolucao.id))
     ).all()
     client_dev_count = {}
-    client_last_driver = {}
-    emp_all_ids = list({d.motorista_id for d in devolucoes_30d if d.motorista_id})
-    emp_all_map = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(emp_all_ids))).all()} if emp_all_ids else {}
-    client_last_driver_id = {}
     for d in devolucoes_30d:
         cid = d.client_id
         client_dev_count[cid] = client_dev_count.get(cid, 0) + 1
-        if cid not in client_last_driver:
-            client_last_driver[cid] = emp_all_map.get(d.motorista_id).name if emp_all_map.get(d.motorista_id) else f"Motorista #{d.motorista_id}"
-            client_last_driver_id[cid] = d.motorista_id
-    delivered_today = set((r.client_id, r.employee_id) for r in routes if (r.delivery_status or "").lower() == "entregue")
-    cli_ids_30 = list(client_dev_count.keys())
-    clients_30 = session.exec(select(models.Client).where(models.Client.id.in_(cli_ids_30))).all() if cli_ids_30 else []
-    client_name_by_id_30 = {c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}") for c in clients_30}
+    pending_today = [
+        (r.client_id, r.employee_id)
+        for r in routes
+        if r.client_id is not None
+        and r.employee_id is not None
+        and (r.delivery_status or "").strip().lower() not in ("entregue", "devolucao")
+    ]
+    client_name_today = {
+        c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}")
+        for c in clients
+    }
+    seen_pair = set()
     clientes_alto_indice = []
-    for cid, cnt in sorted(client_dev_count.items(), key=lambda x: -x[1]):
-        if cnt < 2:
-            break
-        driver_id = client_last_driver_id.get(cid)
-        if driver_id is not None and (cid, driver_id) in delivered_today:
+    for cid, driver_id in pending_today:
+        if (cid, driver_id) in seen_pair or client_dev_count.get(cid, 0) < 2:
             continue
+        seen_pair.add((cid, driver_id))
+        emp = employee_by_id.get(driver_id)
         clientes_alto_indice.append({
-            "client_name": client_name_by_id_30.get(cid) or f"Cliente #{cid}",
-            "driver_name": client_last_driver.get(cid) or "—",
-            "count": cnt,
+            "client_name": client_name_today.get(cid) or f"Cliente #{cid}",
+            "driver_name": emp.name if emp else f"Motorista #{driver_id}",
+            "count": client_dev_count[cid],
         })
+    clientes_alto_indice.sort(key=lambda x: -x["count"])
     clientes_alto_indice = clientes_alto_indice[:10]
 
     selected_headcount = sum(1 for e in employees if (e.status or "").lower() not in {"away", "vacation", "sick", "day_off"})
@@ -2835,6 +3068,7 @@ async def api_dashboard_tv_data(
                 "target_headcount": selected_headcount,
                 "rotas_paradas": rotas_paradas_count,
                 "rotas_ativas": rotas_ativas_count,
+                "rotas_concluidas": rotas_concluidas_count,
             },
             "alerts": {"clients_over_20min": alerts_over_20min},
             "live_separation": live_separation,
@@ -3302,10 +3536,7 @@ async def mobile_auth(
     if not employee:
         return RedirectResponse(url="/mobile/login?error=invalid_registration", status_code=303)
 
-    has_mobile_flags = _has_mobile_flags(employee)
-    status_value = str(getattr(employee, "status", "") or "").strip().lower()
-    role_value = str(getattr(employee, "role", "") or "").strip().upper()
-    role_mobile_fallback = (status_value == "active") and ("MOTORISTA" in role_value) and (not has_mobile_flags)
+    role_mobile_fallback = _use_mobile_role_fallback(employee)
     has_mobile_access = _is_mobile_allowed(employee)
     if not has_mobile_access:
         return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
@@ -3741,6 +3972,289 @@ def _build_returns_alert_payload(
     }
 
 
+def _build_mobile_dashboard_delivery_summary(session: Session, employee: Any) -> Dict[str, Any]:
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    if not employee or not _has_mobile_delivery_history_access(employee):
+        return {
+            "enabled": False,
+            "date": today_str,
+            "total_today": 0,
+            "open_today": 0,
+            "completed_today": 0,
+            "assigned_plate": "",
+            "routes_today_list": [],
+        }
+
+    routes_today = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.employee_id == employee.id)
+        .where(models.Route.date == today_str)
+        .order_by(models.Route.id)
+    ).all()
+
+    open_statuses = {"pendente", "iniciada", "reaberta"}
+    completed_statuses = {"entregue", "devolucao"}
+    open_today = sum(
+        1
+        for route in routes_today
+        if str(getattr(route, "delivery_status", "") or "").strip().lower() in open_statuses
+    )
+    completed_today = sum(
+        1
+        for route in routes_today
+        if str(getattr(route, "delivery_status", "") or "").strip().lower() in completed_statuses
+    )
+    assigned_plate = next(
+        (
+            str(route.delivery_vehicle_plate or "").strip()
+            for route in routes_today
+            if str(route.delivery_vehicle_plate or "").strip()
+        ),
+        "",
+    )
+
+    # Lista serializável para o dashboard (active_routes / completed_routes e API-like para o JS)
+    client_ids = list({r.client_id for r in routes_today if r.client_id})
+    client_map = {}
+    if client_ids:
+        clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all()
+        client_map = {c.id: c for c in clients}
+    routes_today_list = []
+    for r in routes_today:
+        c = client_map.get(r.client_id)
+        client_name = (getattr(c, "razao_social", None) or getattr(c, "name", None) or "Cliente") if c else "Cliente"
+        status_raw = str(getattr(r, "delivery_status", "") or "pendente").strip().lower()
+        start_time = (r.delivery_started_at or getattr(r, "start_time", None) or "")
+        if start_time and hasattr(start_time, "strftime"):
+            start_time = start_time.strftime("%H:%M") if hasattr(start_time, "strftime") else str(start_time)[:5]
+        routes_today_list.append({
+            "id": r.id,
+            "date": r.date,
+            "client_name": str(client_name),
+            "status": status_raw,
+            "tonnage": float(r.tonnage or 0),
+            "start_time": start_time or (getattr(r, "start_time", None) or ""),
+        })
+
+    return {
+        "enabled": True,
+        "date": today_str,
+        "total_today": len(routes_today),
+        "open_today": open_today,
+        "completed_today": completed_today,
+        "assigned_plate": assigned_plate,
+        "routes_today_list": routes_today_list,
+    }
+
+
+def _build_mobile_gatehouse_data(session: Session) -> Dict[str, Any]:
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    routes_today = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == today_str)
+        .order_by(models.Route.employee_id, models.Route.delivery_vehicle_plate, models.Route.id)
+    ).all()
+
+    if not routes_today:
+        return {
+            "enabled": True,
+            "date": today_str,
+            "summary": {
+                "total_lines": 0,
+                "checklists_done": 0,
+                "checklists_missing": 0,
+                "sessions_open": 0,
+            },
+            "entries": [],
+        }
+
+    employee_ids = sorted({int(r.employee_id) for r in routes_today if r.employee_id is not None})
+    client_ids = sorted({int(r.client_id) for r in routes_today if r.client_id is not None})
+    plates = sorted({
+        str(getattr(r, "delivery_vehicle_plate", "") or "").strip().upper()
+        for r in routes_today
+        if str(getattr(r, "delivery_vehicle_plate", "") or "").strip()
+    })
+
+    employees = session.exec(select(models.Employee).where(models.Employee.id.in_(employee_ids))).all() if employee_ids else []
+    emp_map = {int(e.id): _emp_name_upper(e.name) for e in employees if e.id is not None}
+
+    clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+    client_map = {int(c.id): c for c in clients if c.id is not None}
+
+    sessions_today = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.employee_id.in_(employee_ids))
+    ).all() if employee_ids else []
+    session_by_employee = {int(ds.employee_id): ds for ds in sessions_today if ds.employee_id is not None}
+
+    checklists_today = session.exec(
+        select(models.TranspalletChecklist)
+        .where(models.TranspalletChecklist.date == today_str)
+        .where(models.TranspalletChecklist.equipment_code.in_(plates))
+        .order_by(desc(models.TranspalletChecklist.submitted_at))
+    ).all() if plates else []
+    checklist_by_plate: Dict[str, models.TranspalletChecklist] = {}
+    for checklist in checklists_today:
+        plate = str(getattr(checklist, "equipment_code", "") or "").strip().upper()
+        if plate and plate not in checklist_by_plate:
+            checklist_by_plate[plate] = checklist
+
+    status_labels = {
+        "pendente": "Pendente",
+        "iniciada": "Iniciada",
+        "reaberta": "Reaberta",
+        "entregue": "Entregue",
+        "devolucao": "Devolução",
+        "cancelada": "Cancelada",
+    }
+    status_tones = {
+        "pendente": "background: rgba(245,158,11,0.14); color: #f59e0b;",
+        "iniciada": "background: rgba(59,130,246,0.14); color: #60a5fa;",
+        "reaberta": "background: rgba(96,165,250,0.14); color: #93c5fd;",
+        "entregue": "background: rgba(16,185,129,0.14); color: #34d399;",
+        "devolucao": "background: rgba(239,68,68,0.14); color: #f87171;",
+        "cancelada": "background: rgba(100,116,139,0.18); color: #cbd5e1;",
+    }
+
+    grouped: Dict[tuple[int, str], Dict[str, Any]] = {}
+    for route in routes_today:
+        driver_id = int(route.employee_id or 0)
+        plate = str(getattr(route, "delivery_vehicle_plate", "") or "").strip().upper()
+        group_key = (driver_id, plate or "")
+        bucket = grouped.setdefault(group_key, {
+            "driver_id": driver_id,
+            "driver_name": emp_map.get(driver_id, f"Motorista #{driver_id}") if driver_id else "Motorista",
+            "plate": plate,
+            "session": session_by_employee.get(driver_id),
+            "helper_ids": set(),
+            "helper_names": [],
+            "routes_count": 0,
+            "pending_count": 0,
+            "completed_count": 0,
+            "routes": [],
+        })
+
+        bucket["routes_count"] += 1
+        status_raw = str(getattr(route, "delivery_status", "") or "pendente").strip().lower()
+        if status_raw in {"entregue", "devolucao"}:
+            bucket["completed_count"] += 1
+        else:
+            bucket["pending_count"] += 1
+
+        for helper_id in _parse_route_helper_ids(getattr(route, "delivery_helpers_json", None)):
+            if helper_id:
+                bucket["helper_ids"].add(int(helper_id))
+
+        client = client_map.get(int(route.client_id)) if route.client_id is not None else None
+        client_name = (
+            getattr(client, "razao_social", None)
+            or getattr(client, "name", None)
+            or "Cliente"
+        ) if client else "Cliente"
+        address_parts = [
+            str(getattr(route, "delivery_address", "") or "").strip(),
+            str(getattr(route, "delivery_neighborhood", "") or "").strip(),
+        ]
+        city_state = " / ".join(
+            [p for p in [
+                str(getattr(route, "delivery_city", "") or "").strip(),
+                str(getattr(route, "delivery_state", "") or "").strip(),
+            ] if p]
+        )
+        if city_state:
+            address_parts.append(city_state)
+        address_line = " • ".join([part for part in address_parts if part])
+        bucket["routes"].append({
+            "id": int(route.id or 0),
+            "client_name": str(client_name),
+            "client_code": str(getattr(route, "delivery_client_code", "") or "").strip(),
+            "order_number": str(getattr(route, "delivery_order_number", "") or "").strip(),
+            "status_label": status_labels.get(status_raw, status_raw.title() or "Pendente"),
+            "status_style": status_tones.get(status_raw, "background: rgba(148,163,184,0.14); color: #cbd5e1;"),
+            "address_line": address_line,
+        })
+
+    entries: List[Dict[str, Any]] = []
+    for (_, plate), bucket in grouped.items():
+        delivery_session = bucket.get("session")
+        helper_names = _parse_session_helpers(delivery_session.helpers_json) if delivery_session and getattr(delivery_session, "helpers_json", None) else []
+        if not helper_names:
+            helper_names = [emp_map.get(helper_id, "") for helper_id in sorted(bucket["helper_ids"]) if emp_map.get(helper_id)]
+        helper_names = [name for name in helper_names if name]
+        bucket["helper_names"] = helper_names
+
+        checklist = checklist_by_plate.get(plate or "")
+        if not plate:
+            checklist_state = "missing"
+            checklist_label = "Sem placa definida"
+            checklist_style = "background: rgba(100,116,139,0.18); color: #cbd5e1;"
+        elif not checklist:
+            checklist_state = "missing"
+            checklist_label = "Checklist pendente"
+            checklist_style = "background: rgba(239,68,68,0.14); color: #f87171;"
+        else:
+            checklist_time = _format_hhmm_sao_paulo(checklist.submitted_at, checklist.date) or "--:--"
+            if bool(getattr(checklist, "critical_flag", False) or getattr(checklist, "nonconforming_keys", None)):
+                checklist_state = "alert"
+                checklist_label = f"Feito com alerta às {checklist_time}"
+                checklist_style = "background: rgba(245,158,11,0.14); color: #f59e0b;"
+            else:
+                checklist_state = "done"
+                checklist_label = f"Feito às {checklist_time}"
+                checklist_style = "background: rgba(16,185,129,0.14); color: #34d399;"
+
+        session_status = "nao_iniciada"
+        session_label = "Sessão não iniciada"
+        if delivery_session:
+            is_open = str(getattr(delivery_session, "status", "") or "").strip().lower() == "open"
+            session_time = _format_hhmm_sao_paulo(delivery_session.started_at, delivery_session.date) or "--:--"
+            if is_open:
+                session_status = "aberta"
+                session_label = f"Sessão aberta às {session_time}"
+            else:
+                ended_at = _format_hhmm_sao_paulo(getattr(delivery_session, "ended_at", None), delivery_session.date) or "--:--"
+                session_status = "encerrada"
+                session_label = f"Sessão encerrada às {ended_at}"
+
+        entries.append({
+            "driver_name": bucket["driver_name"],
+            "helpers_text": ", ".join(helper_names) if helper_names else "Sem ajudante informado",
+            "plate": plate or "Sem placa",
+            "checklist_state": checklist_state,
+            "checklist_label": checklist_label,
+            "checklist_style": checklist_style,
+            "session_status": session_status,
+            "session_label": session_label,
+            "routes_count": bucket["routes_count"],
+            "pending_count": bucket["pending_count"],
+            "completed_count": bucket["completed_count"],
+            "routes": bucket["routes"],
+        })
+
+    entries.sort(key=lambda row: (
+        0 if row["checklist_state"] == "missing" else 1,
+        0 if row["session_status"] == "aberta" else 1,
+        row["driver_name"],
+        row["plate"],
+    ))
+
+    return {
+        "enabled": True,
+        "date": today_str,
+        "summary": {
+            "total_lines": len(entries),
+            "checklists_done": sum(1 for row in entries if row["checklist_state"] in {"done", "alert"}),
+            "checklists_missing": sum(1 for row in entries if row["checklist_state"] == "missing"),
+            "sessions_open": sum(1 for row in entries if row["session_status"] == "aberta"),
+        },
+        "entries": entries,
+    }
+
+
 @app.get("/mobile/dashboard", response_class=HTMLResponse)
 async def mobile_dashboard(
     request: Request,
@@ -3762,7 +4276,7 @@ async def mobile_dashboard(
     error_value = (error or "").strip().lower()
     if error_value == "no_permission":
         module_notice = "Você não possui permissão para este módulo."
-    elif module_value in {"checklist", "separation"}:
+    elif module_value in {"checklist", "separation", "portaria"}:
         module_notice = f"Módulo '{module_value}' indisponível para seu perfil."
 
     has_any_mobile_access = _is_mobile_allowed(employee)
@@ -3770,33 +4284,43 @@ async def mobile_dashboard(
         request.session.pop("user_id", None)
         return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
 
+    has_delivery_driver_access = _has_mobile_delivery_driver_access(employee)
+    has_delivery_helper_access = _has_mobile_delivery_helper_access(employee)
+    has_checklist_access = _has_mobile_checklist_access(employee)
+    has_history_access = _has_mobile_delivery_history_access(employee)
+    has_returns_access = _has_mobile_returns_access(employee)
+    has_gatehouse_access = _has_mobile_gatehouse_access(employee)
+    has_admin_start_access = bool(getattr(employee, "mobile_access_admin_start", False))
+
     modules = []
-    if bool(getattr(employee, "mobile_access_separation", False)):
+    if has_delivery_driver_access:
         modules.append({
             "label": "Iniciar Entregas",
             "description": "Abrir rota de entregas.",
             "icon": "play-circle",
             "action": "start_separation",
         })
-    if bool(getattr(employee, "mobile_access_checklist", False)):
+    if has_checklist_access:
         modules.append({
             "label": "Checklist",
             "description": "Executar checklist operacional, histórico e chamados.",
             "icon": "clipboard-check",
             "href": "/mobile/routine/checklist",
         })
-    if bool(getattr(employee, "mobile_access_admin_start", False)):
+    if has_gatehouse_access:
+        modules.append({
+            "label": "Portaria",
+            "description": "Conferir motorista, ajudantes, placa, checklist e rota do dia.",
+            "icon": "shield",
+            "href": "/mobile/portaria",
+        })
+    if has_admin_start_access:
         modules.append({
             "label": "Gerenciar Rotas",
             "description": "Editar e iniciar rotas manualmente.",
             "icon": "route",
             "action": "manage_routes",
         })
-    has_returns_access = (
-        bool(getattr(employee, "mobile_access_returns", False))
-        or bool(getattr(employee, "mobile_access_separation", False))
-        or bool(getattr(employee, "mobile_access_admin_start", False))
-    )
     if has_returns_access:
         modules.append({
             "label": "Devolução",
@@ -3804,21 +4328,16 @@ async def mobile_dashboard(
             "icon": "package",
             "href": "/mobile/returns",
         })
-    has_delivery_module_check = (
-        bool(getattr(employee, "mobile_access_separation", False))
-        or bool(getattr(employee, "mobile_access_admin_start", False))
-        or bool(getattr(employee, "mobile_access_helper", False))
-    )
-    if has_delivery_module_check:
+    if has_history_access:
         modules.append({
             "label": "Histórico de Entregas",
             "description": "Histórico de entregas com filtro por período.",
             "icon": "truck",
             "href": "/mobile/entregas",
         })
-    is_helper_only = bool(getattr(employee, "mobile_access_helper", False)) and not (
-        bool(getattr(employee, "mobile_access_separation", False))
-        or bool(getattr(employee, "mobile_access_admin_start", False))
+    is_helper_only = has_delivery_helper_access and not (
+        has_delivery_driver_access
+        or has_admin_start_access
     )
     if is_helper_only:
         modules.append({
@@ -3842,9 +4361,28 @@ async def mobile_dashboard(
         "next_level": None,
     }
 
-    has_delivery_module = bool(getattr(employee, "mobile_access_separation", False)) or bool(getattr(employee, "mobile_access_admin_start", False))
+    has_delivery_module = has_delivery_driver_access or has_admin_start_access
     returns_metrics = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), days=30)
     returns_alert = _build_returns_alert_payload(returns_metrics, target_percent=2.0, days_window=30)
+    delivery_summary = _build_mobile_dashboard_delivery_summary(session, employee)
+    routes_today_list = delivery_summary.get("routes_today_list") or []
+    open_st = {"pendente", "iniciada", "reaberta"}
+    done_st = {"entregue", "devolucao"}
+    active_routes_list = [r for r in routes_today_list if (r.get("status") or "").lower() in open_st]
+    completed_routes_list = [r for r in routes_today_list if (r.get("status") or "").lower() in done_st]
+    clients_for_modal = session.exec(
+        select(models.Client.id, models.Client.name).order_by(models.Client.name).limit(500)
+    ).all()
+    clients_payload = [{"id": c[0], "name": (c[1] or "").strip()} for c in clients_for_modal]
+    employees_for_modal = session.exec(
+        select(models.Employee.id, models.Employee.name, models.Employee.seller_code)
+        .where(models.Employee.status != "fired")
+        .order_by(models.Employee.name)
+    ).all()
+    employees_payload = [
+        {"id": e[0], "name": (e[1] or "").strip(), "registration_id": (e[2] or "").strip() or str(e[0])}
+        for e in employees_for_modal
+    ]
     return templates.TemplateResponse(
         "mobile/dashboard.html",
         {
@@ -3858,16 +4396,48 @@ async def mobile_dashboard(
             "time_bonuses": [],
             "upcoming_events": [],
             "xp_history": [],
-            "clients_json": json.dumps([], ensure_ascii=False),
-            "employees_json": json.dumps([], ensure_ascii=False),
-            "active_routes": json.dumps([], ensure_ascii=False),
-            "completed_routes": json.dumps([], ensure_ascii=False),
+            "clients_json": json.dumps(clients_payload, ensure_ascii=False),
+            "employees_json": json.dumps(employees_payload, ensure_ascii=False),
+            "active_routes": json.dumps(active_routes_list, ensure_ascii=False),
+            "completed_routes": json.dumps(completed_routes_list, ensure_ascii=False),
             "daily_xp_gain": 0,
             "chart_labels": json.dumps([], ensure_ascii=False),
             "chart_daily_kg": json.dumps([], ensure_ascii=False),
             "chart_daily_kgh": json.dumps([], ensure_ascii=False),
             "chart_bg_colors": json.dumps([], ensure_ascii=False),
             "returns_alert": json.dumps(returns_alert, ensure_ascii=False),
+            "returns_alert_data": returns_alert if has_returns_access else None,
+            "delivery_summary": delivery_summary,
+        },
+    )
+
+
+@app.get("/mobile/portaria", response_class=HTMLResponse)
+async def mobile_gatehouse_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    if not isinstance(user, dict) or user.get("type") != "employee":
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    employee_id = user.get("id")
+    employee = session.get(models.Employee, employee_id)
+    if not employee:
+        request.session.pop("user_id", None)
+        return RedirectResponse(url="/mobile/login", status_code=303)
+
+    try:
+        require_mobile_module(employee, "gatehouse")
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            return RedirectResponse(url="/mobile/dashboard?module=portaria", status_code=303)
+        raise
+
+    gatehouse_data = _build_mobile_gatehouse_data(session)
+    return templates.TemplateResponse(
+        "mobile/portaria.html",
+        {
+            "request": request,
+            "employee": employee,
+            "gatehouse_data": gatehouse_data,
         },
     )
 
@@ -3875,38 +4445,50 @@ async def mobile_dashboard(
 @app.get("/mobile/delivery", response_class=HTMLResponse)
 async def mobile_delivery_page(request: Request, session: Session = Depends(get_session)):
     """Página de rotas de entregas do colaborador (mobile)."""
-    user = get_current_user(request)
-    if not isinstance(user, dict) or user.get("type") != "employee":
-        return RedirectResponse(url="/mobile/login", status_code=303)
-    employee = session.get(models.Employee, user.get("id"))
-    if not employee:
-        request.session.pop("user_id", None)
-        return RedirectResponse(url="/mobile/login", status_code=303)
-    helpers_eligible_rows = session.exec(
-        select(models.Employee.id, models.Employee.name)
-        .where(models.Employee.status == "active")
-        .where(models.Employee.mobile_access_helper == True)
-        .where(models.Employee.id != employee.id)
-        .order_by(models.Employee.name)
-    ).all()
-    employees_json = json.dumps(
-        [{"id": helper_id, "name": _emp_name_upper(helper_name)} for helper_id, helper_name in helpers_eligible_rows],
-        ensure_ascii=False
-    )
-    now_sp_delivery = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    month_start = now_sp_delivery.replace(day=1).strftime("%Y-%m-%d")
-    month_end = now_sp_delivery.strftime("%Y-%m-%d")
-    returns_metrics_delivery = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), date_from=month_start, date_to=month_end)
-    returns_alert = _build_returns_alert_payload(returns_metrics_delivery, target_percent=2.0, period_label="Mês atual")
-    return templates.TemplateResponse(
-        "mobile/delivery.html",
-        {
-            "request": request,
-            "employee": employee,
-            "employees_json": employees_json,
-            "returns_alert_json": json.dumps(returns_alert, ensure_ascii=False),
-        },
-    )
+    try:
+        user = get_current_user(request)
+        if not isinstance(user, dict) or user.get("type") != "employee":
+            return RedirectResponse(url="/mobile/login", status_code=303)
+        employee = session.get(models.Employee, user.get("id"))
+        if not employee:
+            request.session.pop("user_id", None)
+            return RedirectResponse(url="/mobile/login", status_code=303)
+        helper_candidates = session.exec(
+            select(models.Employee)
+            .where(models.Employee.status == "active")
+            .where(models.Employee.id != employee.id)
+            .order_by(models.Employee.name)
+        ).all()
+        helpers_eligible_rows = [
+            (helper.id, helper.name)
+            for helper in helper_candidates
+            if _has_mobile_delivery_helper_access(helper)
+        ]
+        employees_json = json.dumps(
+            [{"id": helper_id, "name": _emp_name_upper(helper_name)} for helper_id, helper_name in helpers_eligible_rows],
+            ensure_ascii=False
+        )
+        now_sp_delivery = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        month_start = now_sp_delivery.replace(day=1).strftime("%Y-%m-%d")
+        month_end = now_sp_delivery.strftime("%Y-%m-%d")
+        returns_metrics_delivery = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), date_from=month_start, date_to=month_end)
+        returns_alert = _build_returns_alert_payload(returns_metrics_delivery, target_percent=2.0, period_label="Mês atual")
+        return templates.TemplateResponse(
+            "mobile/delivery.html",
+            {
+                "request": request,
+                "employee": employee,
+                "employees_json": employees_json,
+                "returns_alert_json": json.dumps(returns_alert, ensure_ascii=False),
+            },
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("mobile_delivery_page error: %s", e, exc_info=True)
+        return HTMLResponse(
+            content="""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Indisponível</title></head><body style="font-family:sans-serif;padding:24px;text-align:center;"><p>Serviço temporariamente indisponível. Tente novamente ou use o app offline.</p><p><a href="/mobile/delivery">Recarregar</a></p></body></html>""",
+            status_code=503,
+        )
 
 
 @app.get("/mobile/achievements", response_class=HTMLResponse)
@@ -3979,11 +4561,7 @@ async def mobile_returns_page(request: Request, session: Session = Depends(get_s
     if not employee:
         request.session.pop("user_id", None)
         return RedirectResponse(url="/mobile/login", status_code=303)
-    has_returns_access = (
-        bool(getattr(employee, "mobile_access_returns", False))
-        or bool(getattr(employee, "mobile_access_separation", False))
-        or bool(getattr(employee, "mobile_access_admin_start", False))
-    )
+    has_returns_access = _has_mobile_returns_access(employee)
     if not has_returns_access:
         return RedirectResponse(url="/mobile/dashboard?error=no_permission", status_code=303)
     return templates.TemplateResponse("mobile/returns.html", {
@@ -4004,14 +4582,7 @@ async def mobile_api_returns_data(
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
     employee = session.get(models.Employee, int(user_id))
-    has_returns_access = (
-        employee
-        and (
-            bool(getattr(employee, "mobile_access_returns", False))
-            or bool(getattr(employee, "mobile_access_separation", False))
-            or bool(getattr(employee, "mobile_access_admin_start", False))
-        )
-    )
+    has_returns_access = _has_mobile_returns_access(employee)
     if not has_returns_access:
         return JSONResponse({"error": "Sem permissão para este módulo"}, status_code=403)
     date_from = None
@@ -4055,11 +4626,7 @@ async def mobile_entregas_page(request: Request, session: Session = Depends(get_
     if not employee:
         request.session.pop("user_id", None)
         return RedirectResponse(url="/mobile/login", status_code=303)
-    has_delivery = (
-        bool(getattr(employee, "mobile_access_separation", False))
-        or bool(getattr(employee, "mobile_access_admin_start", False))
-        or bool(getattr(employee, "mobile_access_helper", False))
-    )
+    has_delivery = _has_mobile_delivery_history_access(employee)
     if not has_delivery:
         return RedirectResponse(url="/mobile/dashboard?error=no_permission", status_code=303)
     return templates.TemplateResponse("mobile/entregas.html", {
@@ -4080,11 +4647,7 @@ async def api_mobile_delivery_history(
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
     employee = session.get(models.Employee, int(user_id))
-    has_delivery = employee and (
-        bool(getattr(employee, "mobile_access_separation", False))
-        or bool(getattr(employee, "mobile_access_admin_start", False))
-        or bool(getattr(employee, "mobile_access_helper", False))
-    )
+    has_delivery = _has_mobile_delivery_history_access(employee)
     if not has_delivery:
         return JSONResponse({"error": "Sem permissão"}, status_code=403)
     try:
@@ -4870,10 +5433,24 @@ class MobileDeliverySessionReopenPayload(BaseModel):
     reason: str
 
 
+DELIVERY_INICIO_MAX_METROS = 300.0
+
+
+def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distância em metros entre dois pontos WGS84."""
+    R = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * R * math.asin(min(1.0, math.sqrt(a)))
+
+
 class MobileDeliveryActionPayload(BaseModel):
     action: str
     latitude: Optional[float] = None   # GPS do motorista no momento da ação
     longitude: Optional[float] = None
+    auth_request_id: Optional[int] = None  # solicitação aprovada para iniciar fora do raio
     return_reason: Optional[str] = None
     return_is_partial: bool = False
     return_partial_weight: Optional[float] = None
@@ -4883,10 +5460,26 @@ class MobileDeliveryActionPayload(BaseModel):
     return_notified_logistics: Optional[bool] = None
     return_notified_logistics_name: Optional[str] = None
 
+
+class SyncBatchPayload(BaseModel):
+    actions: List[Dict[str, Any]] = []
+
 class AdminStartRoutePayload(BaseModel):
     client_id: int
     tonnage: Optional[float] = 0.0
     start_time: Optional[str] = None # HH:MM, defaults to now
+
+
+class MobileDeliveryAuthRequestCreate(BaseModel):
+    route_id: int
+    motivo: str = ""
+    distancia_metros: Optional[float] = None
+    client_name: Optional[str] = None
+
+
+class AdminDeliveryAuthResolvePayload(BaseModel):
+    status: str
+    obs: Optional[str] = None
 
 def ensure_column(engine, table_name, column_name, column_type_sql):
     """Adds a column to a table if it doesn't exist (SQLite specific)."""
@@ -5000,6 +5593,15 @@ def ensure_client_schema():
                         logger.error(f"âÅ' Erro ao adicionar coluna {col_name}: {col_err}")
     except Exception as e:
         logger.error(f"ensure_client_schema: {e}")
+
+
+def ensure_client_group_schema():
+    """Tabela clientgroup e coluna client.client_group_id para redes / BIs."""
+    try:
+        models.ClientGroup.__table__.create(bind=engine, checkfirst=True)
+        ensure_column(engine, "client", "client_group_id", "INTEGER")
+    except Exception as e:
+        logger.error(f"ensure_client_group_schema: {e}")
 
 
 def ensure_route_schema():
@@ -5311,10 +5913,11 @@ async def api_mobile_delivery_my_routes(
             if r.delivery_vehicle_plate and r.delivery_vehicle_plate not in assigned_plates:
                 assigned_plates.append(r.delivery_vehicle_plate)
 
+        session_date = session_open.date if session_open else None
         day_cards = []
         for d, items in grouped.items():
-            if d < today_str:
-                continue  # Não mostrar dias passados (entregas concluídas) para o motorista
+            if d < today_str and not (session_open and d == session_date):
+                continue  # Não mostrar dias passados, exceto o dia da sessão aberta (ex.: reaberta)
             try:
                 d_fmt = datetime.strptime(d, "%Y-%m-%d").strftime("%d/%m")
             except Exception:
@@ -5358,6 +5961,7 @@ async def api_mobile_delivery_my_routes(
             "driver_name": driver_name,
             "session": {
                 "id": session_open.id if session_open else None,
+                "date": session_open.date if session_open else None,
                 "km_departure": session_open.km_departure if session_open else None,
                 "vehicle_plate": session_open.vehicle_plate if session_open else None,
                 "helpers": _parse_session_helpers(session_open.helpers_json) if session_open and session_open.helpers_json else [],
@@ -5601,188 +6205,562 @@ async def api_mobile_delivery_route_action(
     payload: MobileDeliveryActionPayload,
     session: Session = Depends(get_session)
 ):
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
+        try:
+            user_id = int(str(user_id))
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "Sessão inválida"}, status_code=401)
+        route = session.get(models.Route, route_id)
+        if not route or route.type != "delivery" or int(route.employee_id or 0) != int(user_id):
+            return JSONResponse({"error": "Rota inválida."}, status_code=404)
+
+        today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+        ds = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.employee_id == user_id)
+            .where(models.DeliverySession.date == today_str)
+            .where(models.DeliverySession.status == "open")
+        ).first()
+        if not ds:
+            return JSONResponse({"error": "Inicie a rotina (placa/KM) antes de operar entregas."}, status_code=400)
+
+        action = (payload.action or "").lower().strip()
+        now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+        xp_earned = 0
+        if action == "iniciar":
+            existing_started = session.exec(
+                select(models.Route)
+                .where(models.Route.type == "delivery")
+                .where(models.Route.date == route.date)
+                .where(models.Route.employee_id == user_id)
+                .where(models.Route.delivery_status == "iniciada")
+                .where(models.Route.id != route.id)
+            ).first()
+            if existing_started:
+                return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
+            if (route.delivery_status or "").lower() in ("entregue", "devolucao"):
+                return JSONResponse({"error": "Rota concluída. Reabra para iniciar novamente."}, status_code=400)
+            iniciar_note = None
+            client_obj = session.get(models.Client, route.client_id) if route.client_id else None
+            client_has_gps = bool(
+                client_obj
+                and client_obj.latitude is not None
+                and client_obj.longitude is not None
+                and -90.0 <= float(client_obj.latitude) <= 90.0
+                and -180.0 <= float(client_obj.longitude) <= 180.0
+            )
+            driver_has_gps = payload.latitude is not None and payload.longitude is not None
+            if client_has_gps and driver_has_gps:
+                dist_m = _haversine_meters(
+                    float(payload.latitude), float(payload.longitude),
+                    float(client_obj.latitude), float(client_obj.longitude),
+                )
+                if dist_m > DELIVERY_INICIO_MAX_METROS:
+                    ar_ok = False
+                    if payload.auth_request_id:
+                        ar = session.get(models.DeliveryAuthRequest, payload.auth_request_id)
+                        if (
+                            ar
+                            and ar.route_id == route.id
+                            and int(ar.driver_id) == int(user_id)
+                            and (ar.status or "").lower() == "approved"
+                        ):
+                            ar_ok = True
+                            iniciar_note = (
+                                f"Início autorizado fora do raio (solicitação #{ar.id}, ~{int(dist_m)} m). "
+                                f"Motivo: {(ar.motivo or '')[:300]}"
+                            )
+                    if not ar_ok:
+                        return JSONResponse(
+                            {
+                                "success": False,
+                                "error": (
+                                    f"Você está a cerca de {int(dist_m)} m do cliente. "
+                                    f"Aproxime-se (máximo {int(DELIVERY_INICIO_MAX_METROS)} m) ou solicite autorização ao supervisor."
+                                ),
+                                "code": "DISTANCE_TOO_FAR",
+                                "distancia_metros": round(dist_m, 1),
+                            },
+                            status_code=400,
+                        )
+            route.delivery_status = "iniciada"
+            route.start_time = now
+            if not route.delivery_started_at:
+                route.delivery_started_at = now
+            if payload.latitude is not None and payload.longitude is not None:
+                route.driver_lat_start = payload.latitude
+                route.driver_lon_start = payload.longitude
+            _append_delivery_event(route, "iniciar", now, iniciar_note)
+
+        elif action == "finalizar":
+            if (route.delivery_status or "").lower() != "iniciada":
+                return JSONResponse({"error": "Só pode finalizar rota iniciada."}, status_code=400)
+            route.delivery_status = "entregue"
+            route.status = "completed"
+            route.end_time = now
+            if not route.delivery_finished_at:
+                route.delivery_finished_at = now
+            if payload.latitude is not None and payload.longitude is not None:
+                route.driver_lat_end = payload.latitude
+                route.driver_lon_end = payload.longitude
+            route.delivery_return_category = None
+            route.delivery_return_reason = None
+            route.delivery_notified_commercial = None
+            route.delivery_notified_commercial_name = None
+            route.delivery_notified_logistics = None
+            route.delivery_notified_logistics_name = None
+            _append_delivery_event(route, "finalizar", now)
+            # +1 XP por entrega concluída (evita duplicidade por rota)
+            reference_id = f"delivery_route:{route.id}"
+            existing_xp = session.exec(
+                select(models.XPLedger)
+                .where(models.XPLedger.employee_id == int(user_id))
+                .where(models.XPLedger.transaction_type == "DELIVERY_COMPLETED")
+                .where(models.XPLedger.reference_id == reference_id)
+            ).first()
+            if not existing_xp:
+                add_xp_transaction(
+                    session=session,
+                    employee_id=int(user_id),
+                    points=1,
+                    type="DELIVERY_COMPLETED",
+                    reference_id=reference_id,
+                    note=f"Entrega concluída na rota #{route.id}"
+                )
+                xp_earned = 1
+
+        elif action == "devolucao":
+            if (route.delivery_status or "").lower() != "iniciada":
+                return JSONResponse({"error": "Inicie a entrega antes de devolver."}, status_code=400)
+            if not payload.return_reason:
+                return JSONResponse({"error": "Informe o motivo da devolução."}, status_code=400)
+            if payload.return_reason not in DELIVERY_RETURN_REASONS_FLAT:
+                return JSONResponse({"error": "Motivo de devolução inválido."}, status_code=400)
+            if payload.return_notified_commercial is None:
+                return JSONResponse({"error": "Informe se avisou o Comercial."}, status_code=400)
+            if payload.return_notified_logistics is None:
+                return JSONResponse({"error": "Informe se avisou a Logística."}, status_code=400)
+            commercial_name = _clean_delivery_contact_name(payload.return_notified_commercial_name)
+            logistics_name = _clean_delivery_contact_name(payload.return_notified_logistics_name)
+            if payload.return_notified_commercial and not commercial_name:
+                return JSONResponse({"error": "Informe o nome da pessoa do Comercial avisada."}, status_code=400)
+            if payload.return_notified_logistics and not logistics_name:
+                return JSONResponse({"error": "Informe o nome da pessoa da Logística avisada."}, status_code=400)
+            route.delivery_status = "devolucao"
+            route.status = "completed"
+            route.end_time = now
+            if not route.delivery_returned_at:
+                route.delivery_returned_at = now
+            if not route.delivery_finished_at:
+                route.delivery_finished_at = now
+            route.delivery_return_category = DELIVERY_RETURN_REASON_TO_CATEGORY.get(
+                payload.return_reason, "COMERCIAL"
+            )
+            route.delivery_return_reason = payload.return_reason
+            if payload.latitude is not None and payload.longitude is not None:
+                route.driver_lat_end = payload.latitude
+                route.driver_lon_end = payload.longitude
+            route.delivery_notified_commercial = bool(payload.return_notified_commercial)
+            route.delivery_notified_commercial_name = commercial_name if payload.return_notified_commercial else None
+            route.delivery_notified_logistics = bool(payload.return_notified_logistics)
+            route.delivery_notified_logistics_name = logistics_name if payload.return_notified_logistics else None
+            if payload.return_is_partial:
+                w = float(payload.return_partial_weight or 0.0)
+                v = float(payload.return_partial_value or 0.0)
+                if w <= 0 and v <= 0:
+                    return JSONResponse({"error": "Para devolução parcial informe peso e/ou valor."}, status_code=400)
+                route.devolucao_volume = min(w, float(route.tonnage or 0.0)) if w > 0 else 0.0
+                route.valor_devolucao = min(v, float(route.valor_financeiro or 0.0)) if v > 0 else 0.0
+            else:
+                route.devolucao_volume = route.tonnage or 0.0
+                route.valor_devolucao = route.valor_financeiro or 0.0
+            note_parts = [payload.return_reason]
+            if payload.return_is_partial:
+                note_parts.append(f"Parcial | peso={route.devolucao_volume or 0.0:.2f} | valor={route.valor_devolucao or 0.0:.2f}")
+            contacts_note = _build_delivery_return_contacts_note(route)
+            note_parts.append(contacts_note)
+            _append_delivery_event(route, "devolucao", now, note=" | ".join(note_parts))
+            try:
+                devolucao = sync_route_to_devolucao(session, route, source="MOBILE")
+                if devolucao:
+                    devolucao.observacao = contacts_note
+                    session.add(devolucao)
+            except Exception as e:
+                logger.warning(f"sync_route_to_devolucao mobile: {e}")
+            xp_earned = 0
+
+        elif action == "reabrir":
+            if (route.delivery_status or "").lower() not in ("entregue", "devolucao"):
+                return JSONResponse({"error": "Somente rotas concluídas podem ser reabertas."}, status_code=400)
+            existing_started = session.exec(
+                select(models.Route)
+                .where(models.Route.type == "delivery")
+                .where(models.Route.date == route.date)
+                .where(models.Route.employee_id == user_id)
+                .where(models.Route.delivery_status == "iniciada")
+                .where(models.Route.id != route.id)
+            ).first()
+            if existing_started:
+                return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
+            if (route.delivery_status or "").lower() == "devolucao":
+                session.exec(delete(models.Devolucao).where(models.Devolucao.route_id == route.id))
+            route.delivery_status = "reaberta"
+            route.status = "pending"
+            route.end_time = None
+            route.delivery_return_category = None
+            route.delivery_return_reason = None
+            route.delivery_notified_commercial = None
+            route.delivery_notified_commercial_name = None
+            route.delivery_notified_logistics = None
+            route.delivery_notified_logistics_name = None
+            route.devolucao_volume = None
+            route.valor_devolucao = None
+            route.delivery_returned_at = None
+            route.delivery_finished_at = None
+            route.driver_lat_start = None
+            route.driver_lon_start = None
+            route.driver_lat_end = None
+            route.driver_lon_end = None
+            route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
+            _append_delivery_event(route, "reabrir", now)
+
+        else:
+            return JSONResponse({"error": "Ação inválida."}, status_code=400)
+
+        session.add(route)
+        session.commit()
+        return JSONResponse({
+            "success": True,
+            "action": action,
+            "xp_earned": xp_earned,
+            "mood": "sad" if action == "devolucao" else ("celebrate" if action == "finalizar" else "neutral"),
+        })
+    except OperationalError as e:
+        session.rollback()
+        logger.warning("api_mobile_delivery_route_action DB indisponível route_id=%s: %s", route_id, str(e)[:150])
+        return JSONResponse({"success": False, "error": "Banco indisponível. A ação será sincronizada ao conectar."}, status_code=503)
+    except Exception as e:
+        session.rollback()
+        logger.exception("api_mobile_delivery_route_action error route_id=%s action=%s: %s", route_id, getattr(payload, "action", ""), e)
+        return JSONResponse({"success": False, "error": "Erro ao processar ação. Tente novamente."}, status_code=500)
+
+
+@app.post("/api/mobile/delivery/sync-batch", response_class=JSONResponse)
+async def api_mobile_delivery_sync_batch(
+    request: Request,
+    body: SyncBatchPayload,
+    session: Session = Depends(get_session),
+):
+    """Sincroniza ações enfileiradas offline (chamado ao reconectar)."""
+    try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"success": False, "error": "Não autorizado", "results": []}, status_code=401)
+
+        try:
+            user_id = int(str(user_id))
+        except Exception:
+            return JSONResponse({"success": False, "error": "ID inválido", "results": []}, status_code=400)
+
+        actions_list = body.actions if body and getattr(body, "actions", None) is not None else []
+        today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+        ds = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.employee_id == user_id)
+            .where(models.DeliverySession.date == today_str)
+            .where(models.DeliverySession.status == "open")
+        ).first()
+        if not ds:
+            return JSONResponse({
+                "success": True,
+                "results": [
+                    {"queue_id": a.get("queue_id"), "success": False, "already_done": False, "error": "Sessão não aberta."}
+                    for a in actions_list
+                ],
+            })
+
+        results = []
+        for a in actions_list:
+            qid = a.get("queue_id")
+            route_id = a.get("route_id")
+            act = (a.get("action") or "").lower().strip()
+            try:
+                if not route_id or not act:
+                    results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Dados inválidos."})
+                    continue
+                route = session.get(models.Route, int(route_id))
+                if not route or route.type != "delivery" or int(route.employee_id) != user_id:
+                    results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Rota inválida."})
+                    continue
+                now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+                payload = MobileDeliveryActionPayload(
+                    action=act,
+                    latitude=a.get("latitude"),
+                    longitude=a.get("longitude"),
+                    auth_request_id=a.get("auth_request_id"),
+                    return_reason=a.get("return_reason"),
+                    return_is_partial=bool(a.get("return_is_partial")),
+                    return_partial_weight=a.get("return_partial_weight"),
+                    return_partial_value=a.get("return_partial_value"),
+                    return_notified_commercial=a.get("return_notified_commercial"),
+                    return_notified_commercial_name=a.get("return_notified_commercial_name"),
+                    return_notified_logistics=a.get("return_notified_logistics"),
+                    return_notified_logistics_name=a.get("return_notified_logistics_name"),
+                )
+                if act == "iniciar":
+                    if (route.delivery_status or "").lower() in ("entregue", "devolucao"):
+                        results.append({"queue_id": qid, "success": True, "already_done": True})
+                        continue
+                    route.delivery_status = "iniciada"
+                    route.start_time = now
+                    if not route.delivery_started_at:
+                        route.delivery_started_at = now
+                    if payload.latitude is not None and payload.longitude is not None:
+                        route.driver_lat_start = payload.latitude
+                        route.driver_lon_start = payload.longitude
+                    _append_delivery_event(route, "iniciar", now, None)
+                elif act == "finalizar":
+                    if (route.delivery_status or "").lower() != "iniciada":
+                        results.append({"queue_id": qid, "success": True, "already_done": True})
+                        continue
+                    route.delivery_status = "entregue"
+                    route.status = "completed"
+                    route.end_time = now
+                    if not route.delivery_finished_at:
+                        route.delivery_finished_at = now
+                    if payload.latitude is not None and payload.longitude is not None:
+                        route.driver_lat_end = payload.latitude
+                        route.driver_lon_end = payload.longitude
+                    _append_delivery_event(route, "finalizar", now)
+                elif act == "devolucao":
+                    if (route.delivery_status or "").lower() != "iniciada":
+                        results.append({"queue_id": qid, "success": True, "already_done": True})
+                        continue
+                    if not payload.return_reason or payload.return_reason not in DELIVERY_RETURN_REASONS_FLAT:
+                        results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Motivo de devolução inválido."})
+                        continue
+                    commercial_name = _clean_delivery_contact_name(payload.return_notified_commercial_name)
+                    logistics_name = _clean_delivery_contact_name(payload.return_notified_logistics_name)
+                    route.delivery_status = "devolucao"
+                    route.status = "completed"
+                    route.end_time = now
+                    if not route.delivery_returned_at:
+                        route.delivery_returned_at = now
+                    if not route.delivery_finished_at:
+                        route.delivery_finished_at = now
+                    route.delivery_return_category = DELIVERY_RETURN_REASON_TO_CATEGORY.get(payload.return_reason, "COMERCIAL")
+                    route.delivery_return_reason = payload.return_reason
+                    if payload.latitude is not None and payload.longitude is not None:
+                        route.driver_lat_end = payload.latitude
+                        route.driver_lon_end = payload.longitude
+                    route.delivery_notified_commercial = bool(payload.return_notified_commercial)
+                    route.delivery_notified_commercial_name = commercial_name if payload.return_notified_commercial else None
+                    route.delivery_notified_logistics = bool(payload.return_notified_logistics)
+                    route.delivery_notified_logistics_name = logistics_name if payload.return_notified_logistics else None
+                    if payload.return_is_partial:
+                        w = float(payload.return_partial_weight or 0.0)
+                        v = float(payload.return_partial_value or 0.0)
+                        route.devolucao_volume = min(w, float(route.tonnage or 0.0)) if w > 0 else 0.0
+                        route.valor_devolucao = min(v, float(route.valor_financeiro or 0.0)) if v > 0 else 0.0
+                    else:
+                        route.devolucao_volume = route.tonnage or 0.0
+                        route.valor_devolucao = route.valor_financeiro or 0.0
+                    note_parts = [payload.return_reason]
+                    if payload.return_is_partial:
+                        note_parts.append(f"Parcial | peso={route.devolucao_volume or 0.0:.2f} | valor={route.valor_devolucao or 0.0:.2f}")
+                    contacts_note = _build_delivery_return_contacts_note(route)
+                    note_parts.append(contacts_note)
+                    _append_delivery_event(route, "devolucao", now, note=" | ".join(note_parts))
+                    try:
+                        devolucao = sync_route_to_devolucao(session, route, source="MOBILE")
+                        if devolucao:
+                            devolucao.observacao = contacts_note
+                            session.add(devolucao)
+                    except Exception as e:
+                        logger.warning("sync_route_to_devolucao sync-batch: %s", e)
+                elif act == "reabrir":
+                    if (route.delivery_status or "").lower() not in ("entregue", "devolucao"):
+                        results.append({"queue_id": qid, "success": True, "already_done": True})
+                        continue
+                    if (route.delivery_status or "").lower() == "devolucao":
+                        session.exec(delete(models.Devolucao).where(models.Devolucao.route_id == route.id))
+                    route.delivery_status = "reaberta"
+                    route.status = "pending"
+                    route.end_time = None
+                    route.delivery_return_category = None
+                    route.delivery_return_reason = None
+                    route.devolucao_volume = None
+                    route.valor_devolucao = None
+                    route.delivery_returned_at = None
+                    route.delivery_finished_at = None
+                    route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
+                    _append_delivery_event(route, "reabrir", now)
+                else:
+                    results.append({"queue_id": qid, "success": False, "already_done": False, "error": f"Ação '{act}' não suportada em sync."})
+                    continue
+                session.add(route)
+                session.commit()
+                results.append({"queue_id": qid, "success": True, "already_done": False})
+            except Exception as e:
+                session.rollback()
+                logger.warning("sync-batch action error: %s", e, exc_info=True)
+                results.append({"queue_id": qid, "success": False, "already_done": False, "error": str(e)[:200]})
+
+        return JSONResponse({"success": True, "results": results})
+    except Exception as e:
+        logger.exception("api_mobile_delivery_sync_batch error: %s", e)
+        return JSONResponse({
+            "success": False,
+            "error": "Erro ao sincronizar. Tente novamente.",
+            "results": [{"queue_id": None, "success": False, "already_done": False, "error": str(e)[:200]}],
+        })
+
+
+@app.post("/api/mobile/delivery/auth-request", response_class=JSONResponse)
+async def api_mobile_delivery_auth_request_create(
+    request: Request,
+    body: MobileDeliveryAuthRequestCreate,
+    session: Session = Depends(get_session),
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+    motivo = (body.motivo or "").strip()
+    if len(motivo) < 5:
+        return JSONResponse({"success": False, "error": "Informe o motivo (mínimo 5 caracteres)."}, status_code=400)
+    route = session.get(models.Route, body.route_id)
+    if not route or route.type != "delivery" or int(route.employee_id) != int(user_id):
+        return JSONResponse({"success": False, "error": "Rota inválida."}, status_code=404)
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    if str(route.date) != today_str:
+        return JSONResponse({"success": False, "error": "Rota não é do dia atual."}, status_code=400)
+    st = (route.delivery_status or "").lower()
+    if st not in ("pendente", "reaberta"):
+        return JSONResponse(
+            {"success": False, "error": "Esta parada não está disponível para esta solicitação."},
+            status_code=400,
+        )
+    existing = session.exec(
+        select(models.DeliveryAuthRequest).where(
+            models.DeliveryAuthRequest.route_id == route.id,
+            models.DeliveryAuthRequest.driver_id == int(user_id),
+            models.DeliveryAuthRequest.status == "pending",
+        )
+    ).first()
+    if existing:
+        return JSONResponse({"success": True, "id": existing.id, "existing": True})
+    ar = models.DeliveryAuthRequest(
+        route_id=route.id,
+        driver_id=int(user_id),
+        client_name=((body.client_name or "").strip()[:500] or None),
+        distancia_metros=body.distancia_metros,
+        motivo=motivo[:2000],
+        status="pending",
+    )
+    session.add(ar)
+    session.commit()
+    session.refresh(ar)
+    return JSONResponse({"success": True, "id": ar.id})
+
+
+@app.get("/api/mobile/delivery/auth-request/{req_id}", response_class=JSONResponse)
+async def api_mobile_delivery_auth_request_poll(
+    req_id: int, request: Request, session: Session = Depends(get_session)
+):
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
-    route = session.get(models.Route, route_id)
-    if not route or route.type != "delivery" or route.employee_id != user_id:
-        return JSONResponse({"error": "Rota inválida."}, status_code=404)
-
-    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    ds = session.exec(
-        select(models.DeliverySession)
-        .where(models.DeliverySession.employee_id == user_id)
-        .where(models.DeliverySession.date == today_str)
-        .where(models.DeliverySession.status == "open")
-    ).first()
-    if not ds:
-        return JSONResponse({"error": "Inicie a rotina (placa/KM) antes de operar entregas."}, status_code=400)
-
-    action = (payload.action or "").lower().strip()
-    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
-    xp_earned = 0
-    if action == "iniciar":
-        existing_started = session.exec(
-            select(models.Route)
-            .where(models.Route.type == "delivery")
-            .where(models.Route.date == route.date)
-            .where(models.Route.employee_id == user_id)
-            .where(models.Route.delivery_status == "iniciada")
-            .where(models.Route.id != route.id)
-        ).first()
-        if existing_started:
-            return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
-        if (route.delivery_status or "").lower() in ("entregue", "devolucao"):
-            return JSONResponse({"error": "Rota concluída. Reabra para iniciar novamente."}, status_code=400)
-        route.delivery_status = "iniciada"
-        route.start_time = now
-        if not route.delivery_started_at:
-            route.delivery_started_at = now
-        if payload.latitude is not None and payload.longitude is not None:
-            route.driver_lat_start = payload.latitude
-            route.driver_lon_start = payload.longitude
-        _append_delivery_event(route, "iniciar", now)
-
-    elif action == "finalizar":
-        if (route.delivery_status or "").lower() != "iniciada":
-            return JSONResponse({"error": "Só pode finalizar rota iniciada."}, status_code=400)
-        route.delivery_status = "entregue"
-        route.status = "completed"
-        route.end_time = now
-        if not route.delivery_finished_at:
-            route.delivery_finished_at = now
-        if payload.latitude is not None and payload.longitude is not None:
-            route.driver_lat_end = payload.latitude
-            route.driver_lon_end = payload.longitude
-        route.delivery_return_category = None
-        route.delivery_return_reason = None
-        route.delivery_notified_commercial = None
-        route.delivery_notified_commercial_name = None
-        route.delivery_notified_logistics = None
-        route.delivery_notified_logistics_name = None
-        _append_delivery_event(route, "finalizar", now)
-        # +1 XP por entrega concluída (evita duplicidade por rota)
-        reference_id = f"delivery_route:{route.id}"
-        existing_xp = session.exec(
-            select(models.XPLedger)
-            .where(models.XPLedger.employee_id == int(user_id))
-            .where(models.XPLedger.transaction_type == "DELIVERY_COMPLETED")
-            .where(models.XPLedger.reference_id == reference_id)
-        ).first()
-        if not existing_xp:
-            add_xp_transaction(
-                session=session,
-                employee_id=int(user_id),
-                points=1,
-                type="DELIVERY_COMPLETED",
-                reference_id=reference_id,
-                note=f"Entrega concluída na rota #{route.id}"
-            )
-            xp_earned = 1
-
-    elif action == "devolucao":
-        if (route.delivery_status or "").lower() != "iniciada":
-            return JSONResponse({"error": "Inicie a entrega antes de devolver."}, status_code=400)
-        if not payload.return_reason:
-            return JSONResponse({"error": "Informe o motivo da devolução."}, status_code=400)
-        if payload.return_reason not in DELIVERY_RETURN_REASONS_FLAT:
-            return JSONResponse({"error": "Motivo de devolução inválido."}, status_code=400)
-        if payload.return_notified_commercial is None:
-            return JSONResponse({"error": "Informe se avisou o Comercial."}, status_code=400)
-        if payload.return_notified_logistics is None:
-            return JSONResponse({"error": "Informe se avisou a Logística."}, status_code=400)
-        commercial_name = _clean_delivery_contact_name(payload.return_notified_commercial_name)
-        logistics_name = _clean_delivery_contact_name(payload.return_notified_logistics_name)
-        if payload.return_notified_commercial and not commercial_name:
-            return JSONResponse({"error": "Informe o nome da pessoa do Comercial avisada."}, status_code=400)
-        if payload.return_notified_logistics and not logistics_name:
-            return JSONResponse({"error": "Informe o nome da pessoa da Logística avisada."}, status_code=400)
-        route.delivery_status = "devolucao"
-        route.status = "completed"
-        route.end_time = now
-        if not route.delivery_returned_at:
-            route.delivery_returned_at = now
-        if not route.delivery_finished_at:
-            route.delivery_finished_at = now
-        route.delivery_return_category = DELIVERY_RETURN_REASON_TO_CATEGORY.get(
-            payload.return_reason, "COMERCIAL"
-        )
-        route.delivery_return_reason = payload.return_reason
-        if payload.latitude is not None and payload.longitude is not None:
-            route.driver_lat_end = payload.latitude
-            route.driver_lon_end = payload.longitude
-        route.delivery_notified_commercial = bool(payload.return_notified_commercial)
-        route.delivery_notified_commercial_name = commercial_name if payload.return_notified_commercial else None
-        route.delivery_notified_logistics = bool(payload.return_notified_logistics)
-        route.delivery_notified_logistics_name = logistics_name if payload.return_notified_logistics else None
-        if payload.return_is_partial:
-            w = float(payload.return_partial_weight or 0.0)
-            v = float(payload.return_partial_value or 0.0)
-            if w <= 0 and v <= 0:
-                return JSONResponse({"error": "Para devolução parcial informe peso e/ou valor."}, status_code=400)
-            route.devolucao_volume = min(w, float(route.tonnage or 0.0)) if w > 0 else 0.0
-            route.valor_devolucao = min(v, float(route.valor_financeiro or 0.0)) if v > 0 else 0.0
-        else:
-            route.devolucao_volume = route.tonnage or 0.0
-            route.valor_devolucao = route.valor_financeiro or 0.0
-        note_parts = [payload.return_reason]
-        if payload.return_is_partial:
-            note_parts.append(f"Parcial | peso={route.devolucao_volume or 0.0:.2f} | valor={route.valor_devolucao or 0.0:.2f}")
-        contacts_note = _build_delivery_return_contacts_note(route)
-        note_parts.append(contacts_note)
-        _append_delivery_event(route, "devolucao", now, note=" | ".join(note_parts))
-        try:
-            devolucao = sync_route_to_devolucao(session, route, source="MOBILE")
-            if devolucao:
-                devolucao.observacao = contacts_note
-                session.add(devolucao)
-        except Exception as e:
-            logger.warning(f"sync_route_to_devolucao mobile: {e}")
-        # Devolução não gera XP
-        xp_earned = 0
-
-    elif action == "reabrir":
-        if (route.delivery_status or "").lower() not in ("entregue", "devolucao"):
-            return JSONResponse({"error": "Somente rotas concluídas podem ser reabertas."}, status_code=400)
-        existing_started = session.exec(
-            select(models.Route)
-            .where(models.Route.type == "delivery")
-            .where(models.Route.date == route.date)
-            .where(models.Route.employee_id == user_id)
-            .where(models.Route.delivery_status == "iniciada")
-            .where(models.Route.id != route.id)
-        ).first()
-        if existing_started:
-            return JSONResponse({"error": "Já existe uma entrega iniciada."}, status_code=400)
-        if (route.delivery_status or "").lower() == "devolucao":
-            session.exec(delete(models.Devolucao).where(models.Devolucao.route_id == route.id))
-        route.delivery_status = "reaberta"
-        route.status = "pending"
-        route.end_time = None
-        route.delivery_return_category = None
-        route.delivery_return_reason = None
-        route.delivery_notified_commercial = None
-        route.delivery_notified_commercial_name = None
-        route.delivery_notified_logistics = None
-        route.delivery_notified_logistics_name = None
-        route.devolucao_volume = None
-        route.valor_devolucao = None
-        route.delivery_returned_at = None
-        route.delivery_finished_at = None
-        route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
-        _append_delivery_event(route, "reabrir", now)
-
-    else:
-        return JSONResponse({"error": "Ação inválida."}, status_code=400)
-
-    session.add(route)
-    session.commit()
+    ar = session.get(models.DeliveryAuthRequest, req_id)
+    if not ar or int(ar.driver_id) != int(user_id):
+        return JSONResponse({"error": "Não encontrado."}, status_code=404)
     return JSONResponse({
-        "success": True,
-        "action": action,
-        "xp_earned": xp_earned,
-        "mood": "sad" if action == "devolucao" else ("celebrate" if action == "finalizar" else "neutral"),
+        "id": ar.id,
+        "status": ar.status,
+        "obs": ar.obs,
+        "resolved_at": ar.resolved_at.isoformat() if ar.resolved_at else None,
     })
+
+
+def _delivery_auth_request_row(session: Session, ar: models.DeliveryAuthRequest) -> Dict[str, Any]:
+    emp = session.get(models.Employee, ar.driver_id)
+    return {
+        "id": ar.id,
+        "route_id": ar.route_id,
+        "driver_name": emp.name if emp else f"#{ar.driver_id}",
+        "client_name": ar.client_name,
+        "distancia_metros": ar.distancia_metros,
+        "motivo": ar.motivo,
+        "status": ar.status,
+        "requested_at": ar.requested_at.isoformat() if ar.requested_at else None,
+        "resolved_at": ar.resolved_at.isoformat() if ar.resolved_at else None,
+        "obs": ar.obs,
+    }
+
+
+@app.get("/api/admin/delivery-auth-requests", response_class=JSONResponse)
+async def api_admin_delivery_auth_requests_list(request: Request, session: Session = Depends(get_session)):
+    require_leader(request)
+    pending = session.exec(
+        select(models.DeliveryAuthRequest)
+        .where(models.DeliveryAuthRequest.status == "pending")
+        .order_by(models.DeliveryAuthRequest.requested_at)
+    ).all()
+    recent = session.exec(
+        select(models.DeliveryAuthRequest)
+        .where(models.DeliveryAuthRequest.status != "pending")
+        .order_by(desc(models.DeliveryAuthRequest.resolved_at))
+        .limit(80)
+    ).all()
+    return JSONResponse({
+        "pending": [_delivery_auth_request_row(session, a) for a in pending],
+        "recent": [_delivery_auth_request_row(session, a) for a in recent],
+    })
+
+
+@app.patch("/api/admin/delivery-auth-requests/{req_id}", response_class=JSONResponse)
+async def api_admin_delivery_auth_requests_resolve(
+    req_id: int,
+    request: Request,
+    payload: AdminDeliveryAuthResolvePayload,
+    session: Session = Depends(get_session),
+):
+    require_leader(request)
+    st = (payload.status or "").lower().strip()
+    if st not in ("approved", "denied"):
+        return JSONResponse({"error": "Use status approved ou denied."}, status_code=400)
+    ar = session.get(models.DeliveryAuthRequest, req_id)
+    if not ar:
+        return JSONResponse({"error": "Solicitação não encontrada."}, status_code=404)
+    if (ar.status or "").lower() != "pending":
+        return JSONResponse({"error": "Esta solicitação já foi respondida."}, status_code=400)
+    user = get_current_user(request)
+    resolver_id = None
+    if isinstance(user, dict) and user.get("id") is not None:
+        try:
+            resolver_id = int(user["id"])
+        except (TypeError, ValueError):
+            resolver_id = None
+    ar.status = "approved" if st == "approved" else "denied"
+    ar.resolved_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    ar.resolved_by = resolver_id
+    ar.obs = ((payload.obs or "").strip()[:1000] or None)
+    session.add(ar)
+    session.commit()
+    return JSONResponse({"success": True, "id": ar.id, "status": ar.status})
+
+
+@app.get("/admin/delivery-auth-requests", response_class=HTMLResponse)
+async def admin_delivery_auth_requests_page(request: Request, session: Session = Depends(get_session)):
+    require_leader(request)
+    user = get_current_user(request)
+    return templates.TemplateResponse(
+        "admin_delivery_auth_requests.html",
+        {"request": request, "user": user},
+    )
+
 
 # --- ADMIN ROUTE MANAGEMENT ---
 
@@ -6002,13 +6980,14 @@ def add_xp_transaction(session: Session, employee_id: int, points: float, type: 
         created_at=datetime.now(ZoneInfo("America/Sao_Paulo"))
     )
     session.add(ledger)
-    
-    # 2. Update Employee Cache
+
+    # 2. Update Employee Cache (total_xp pode ser None em registros antigos)
     emp = session.get(models.Employee, employee_id)
     if emp:
-        emp.total_xp += points
+        current = getattr(emp, "total_xp", None)
+        emp.total_xp = (float(current) if current is not None else 0.0) + float(points)
         session.add(emp)
-    
+
     return ledger
 
 # --- Mobile Routes ---
@@ -6373,7 +7352,7 @@ async def mobile_tarefas_page(request: Request, session: Session = Depends(get_s
     employee = session.get(models.Employee, user.get("id"))
     if not employee:
         return RedirectResponse(url="/mobile/login", status_code=303)
-    return templates.TemplateResponse("mobile/tarefas.html", {"request": request})
+    return templates.TemplateResponse("mobile/tarefas.html", {"request": request, "employee": employee})
 
 
 @app.get("/mobile/routine/checklist", response_class=HTMLResponse)
@@ -6511,39 +7490,44 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
         if allowed_plates:
             trucks = session.exec(
                 select(models.Vehicle)
-                .where(models.Vehicle.vehicle_type == "caminhao")
-                .where(models.Vehicle.is_active == True)
                 .where(models.Vehicle.placa.in_(allowed_plates))
                 .order_by(models.Vehicle.placa)
             ).all()
-        for v in trucks:
-            # Último KM: máx entre Vehicle, checklist e DeliverySession (mobile)
+        truck_map = {(getattr(v, "placa", "") or "").strip().upper(): v for v in trucks}
+
+        def _resolve_last_km_for_plate(plate: str) -> Optional[float]:
             candidates = []
-            vo = getattr(v, "odometer_km", None)
+            vehicle = truck_map.get((plate or "").strip().upper())
+            vo = getattr(vehicle, "odometer_km", None) if vehicle else None
             if vo is not None:
                 candidates.append(float(vo))
             last_check = session.exec(
                 select(models.TranspalletChecklist)
-                .where(models.TranspalletChecklist.equipment_code == v.placa)
+                .where(models.TranspalletChecklist.equipment_code == plate)
                 .order_by(desc(models.TranspalletChecklist.date), desc(models.TranspalletChecklist.submitted_at))
             ).first()
             if last_check and last_check.odometer_km is not None:
                 candidates.append(float(last_check.odometer_km))
             ds_km = session.exec(
                 select(models.DeliverySession)
-                .where(models.DeliverySession.vehicle_plate == v.placa)
+                .where(models.DeliverySession.vehicle_plate == plate)
             ).all()
             for ds in ds_km:
                 if ds.km_return is not None:
                     candidates.append(float(ds.km_return))
                 if ds.km_departure is not None:
                     candidates.append(float(ds.km_departure))
-            last_km = max(candidates) if candidates else None
-            marca = getattr(v, "marca", "") or ""
-            modelo = getattr(v, "modelo", "") or ""
+            return max(candidates) if candidates else None
+
+        for plate in allowed_plates:
+            v = truck_map.get((plate or "").strip().upper())
+            last_km = _resolve_last_km_for_plate(plate)
+            marca = getattr(v, "marca", "") if v else ""
+            modelo = getattr(v, "modelo", "") if v else ""
+            label = f"{plate} — {marca} {modelo}".strip() if (marca or modelo) else plate
             equipment_list.append({
-                "code": v.placa,
-                "label": f"{v.placa} — {marca} {modelo}".strip() or v.placa,
+                "code": plate,
+                "label": label,
                 "last_km": last_km
             })
     except Exception as eq_err:
@@ -8786,6 +9770,10 @@ async def clients_page(
     mov_to = mov_to or request.query_params.get("mov_to") or None
     precadastro = precadastro or request.query_params.get("precadastro") or ""
     precadastro_idade = precadastro_idade or request.query_params.get("precadastro_idade") or ""
+    sort_order = (request.query_params.get("sort") or "mov_desc").strip().lower()
+    if sort_order not in ("mov_desc", "mov_asc", "name_asc", "name_desc", "nb_asc", "nb_desc"):
+        sort_order = "mov_desc"
+    segmento_filter = (request.query_params.get("segmento") or "").strip()
 
     try:
         all_clients = list(session.exec(select(models.Client)).all())
@@ -8830,6 +9818,10 @@ async def clients_page(
             (c.municipio and q in (c.municipio or "").lower())
         )]
 
+    segmentos_opts = sorted({(c.segmento or "").strip() for c in all_clients if (c.segmento or "").strip()})
+    if segmento_filter:
+        clients = [c for c in clients if (c.segmento or "").strip() == segmento_filter]
+
     # Filtro por período de movimentação (última movimentação no intervalo)
     if mov_from or mov_to:
         def _in_mov_range(d: Optional[str]) -> bool:
@@ -8855,14 +9847,50 @@ async def clients_page(
             continue
         client_list_with_meta.append((c, last_mov, bucket))
 
-    # Ordenar: mais recentes primeiro (por última movimentação), depois por nome; sem movimentação por último
-    def _sort_key(item):
-        c, last_mov, _ = item
-        return (last_mov is None, -(datetime.strptime(last_mov, "%Y-%m-%d").timestamp() if last_mov else 0), (c.name or "").lower())
-    try:
-        client_list_with_meta.sort(key=_sort_key)
-    except Exception:
-        client_list_with_meta.sort(key=lambda x: ((x[1] is None), (x[1] or ""), (x[0].name or "").lower()))
+    def _name_key(c):
+        return (c.name or c.nome_fantasia or c.razao_social or c.nb or "").strip().lower()
+
+    def _nb_sort_key(c):
+        nb = (c.nb or "").strip()
+        dig = nb.replace(".", "").replace(",", "")
+        if dig.isdigit():
+            try:
+                return (0, int(dig))
+            except Exception:
+                pass
+        return (1, nb.lower())
+
+    if sort_order == "name_asc":
+        client_list_with_meta.sort(key=lambda x: _name_key(x[0]))
+    elif sort_order == "name_desc":
+        client_list_with_meta.sort(key=lambda x: _name_key(x[0]), reverse=True)
+    elif sort_order == "nb_asc":
+        client_list_with_meta.sort(key=lambda x: _nb_sort_key(x[0]))
+    elif sort_order == "nb_desc":
+        client_list_with_meta.sort(key=lambda x: _nb_sort_key(x[0]), reverse=True)
+    elif sort_order == "mov_asc":
+        def _sk_mov_asc(item):
+            c, last_mov, _ = item
+            if not last_mov:
+                return (1, "", _name_key(c))
+            try:
+                ts = datetime.strptime(last_mov[:10], "%Y-%m-%d").timestamp()
+            except Exception:
+                ts = 0.0
+            return (0, ts, _name_key(c))
+        client_list_with_meta.sort(key=_sk_mov_asc)
+    else:
+        def _sort_key_mov_desc(item):
+            c, last_mov, _ = item
+            return (
+                last_mov is None,
+                -(datetime.strptime(last_mov[:10], "%Y-%m-%d").timestamp() if last_mov else 0),
+                _name_key(c),
+            )
+        try:
+            client_list_with_meta.sort(key=_sort_key_mov_desc)
+        except Exception:
+            client_list_with_meta.sort(key=lambda x: ((x[1] is None), (x[1] or ""), _name_key(x[0])))
 
     clients_sorted = [x[0] for x in client_list_with_meta]
     last_movement_by_client_final = {x[0].id: x[1] for x in client_list_with_meta}
@@ -8912,6 +9940,43 @@ async def clients_page(
             bucket_counts[b] += 1
     chart_precadastro = [{"bucket": k, "label": precadastro_buckets_labels[k], "count": bucket_counts[k]} for k in precadastro_buckets_labels]
 
+    mov_clients_by_bucket: Dict[str, List[int]] = {k: [] for k in mov_buckets_labels}
+    sem_mov_client_ids: List[int] = []
+    for c in clients_sorted:
+        lm = last_movement_by_client.get(c.id)
+        if not lm:
+            sem_mov_client_ids.append(c.id)
+        else:
+            bk = _last_movement_bucket(lm)
+            if bk in mov_clients_by_bucket:
+                mov_clients_by_bucket[bk].append(c.id)
+    mov_drill_slices = []
+    for k in mov_buckets_labels:
+        mov_drill_slices.append(
+            {"key": k, "label": mov_buckets_labels[k], "count": mov_bucket_counts[k], "ids": mov_clients_by_bucket[k]}
+        )
+    mov_drill_slices.append(
+        {"key": "sem_mov", "label": "Sem movimentação", "count": sem_mov_count, "ids": sem_mov_client_ids}
+    )
+
+    precad_filtered_by_bucket: Dict[str, List[int]] = {k: [] for k in precadastro_buckets_labels}
+    for c in clients_sorted:
+        if not _is_precadastro(c):
+            continue
+        bk = _precadastro_bucket(getattr(c, "created_at", None))
+        if bk in precad_filtered_by_bucket:
+            precad_filtered_by_bucket[bk].append(c.id)
+    precad_drill_slices = [
+        {"key": k, "label": precadastro_buckets_labels[k], "count": len(precad_filtered_by_bucket[k]), "ids": precad_filtered_by_bucket[k]}
+        for k in precadastro_buckets_labels
+    ]
+
+    id_to_name = {c.id: ((c.name or c.nome_fantasia or c.razao_social or c.nb or str(c.id)) or "-")[:100] for c in clients_sorted}
+    try:
+        client_groups_list = list(session.exec(select(models.ClientGroup).order_by(models.ClientGroup.name)).all())
+    except Exception:
+        client_groups_list = []
+
     return templates.TemplateResponse("clients.html", {
         "request": request,
         "user": user,
@@ -8922,13 +9987,74 @@ async def clients_page(
         "mov_to": mov_to or "",
         "precadastro": precadastro or "",
         "precadastro_idade": precadastro_idade or "",
+        "sort_order": sort_order,
+        "segmento_filter": segmento_filter,
+        "segmentos_opts": segmentos_opts,
         "last_movement_by_client": last_movement_by_client_final,
         "data_cadastro_by_client": data_cadastro_by_client,
         "precadastro_bucket_by_client": precadastro_bucket_by_client,
         "precadastro_buckets_labels": precadastro_buckets_labels,
         "chart_movimentacao": chart_movimentacao,
         "chart_precadastro": chart_precadastro,
+        "mov_drill_json": json.dumps({"total": total_for_chart, "slices": mov_drill_slices}, ensure_ascii=False),
+        "precad_drill_json": json.dumps(
+            {"total": sum(s["count"] for s in precad_drill_slices), "slices": precad_drill_slices},
+            ensure_ascii=False,
+        ),
+        "client_names_json": json.dumps(id_to_name, ensure_ascii=False),
+        "client_groups": client_groups_list,
     })
+
+
+@app.post("/clients/bulk-assign-group", response_class=RedirectResponse)
+async def clients_bulk_assign_group(request: Request, session: Session = Depends(get_session)):
+    require_login(request)
+    form = await request.form()
+    ids = [int(x) for x in form.getlist("client_ids") if str(x).strip().isdigit()]
+    return_query = (form.get("return_query") or "").strip()
+    base = "/clients" + (f"?{return_query}" if return_query else "")
+    if not ids:
+        return RedirectResponse(
+            url=base + ("&" if "?" in base else "?") + urlencode({"bulk_feedback": "Selecione ao menos um cliente.", "bulk_level": "error"}),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    new_name = (form.get("new_group_name") or "").strip()
+    gid_sel = (form.get("group_id") or "").strip()
+    gid: Optional[int] = None
+    if new_name:
+        ex = session.exec(select(models.ClientGroup).where(models.ClientGroup.name == new_name)).first()
+        if ex:
+            gid = ex.id
+        else:
+            g = models.ClientGroup(name=new_name)
+            session.add(g)
+            session.commit()
+            session.refresh(g)
+            gid = g.id
+    elif gid_sel.isdigit():
+        gid = int(gid_sel)
+    if not gid:
+        return RedirectResponse(
+            url=base + ("&" if "?" in base else "?") + urlencode({"bulk_feedback": "Escolha um grupo ou digite um nome novo.", "bulk_level": "error"}),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    for cid in ids:
+        cl = session.get(models.Client, cid)
+        if cl:
+            cl.client_group_id = gid
+            try:
+                cl.updated_at = datetime.now()
+            except Exception:
+                pass
+            session.add(cl)
+    session.commit()
+    sep = "&" if "?" in base else "?"
+    return RedirectResponse(
+        url=base + sep + urlencode({"bulk_feedback": f"{len(ids)} cliente(s) atribuído(s) ao grupo.", "bulk_level": "success"}),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 @app.get("/clients/list", response_class=JSONResponse)
 async def list_clients(session: Session = Depends(get_session)):
     clients = session.exec(select(models.Client)).all()
@@ -9089,8 +10215,26 @@ async def client_details(request: Request, client_id: int, session: Session = De
     except Exception:
         audit_logs = []
 
+    # Rotas concluídas no ano (denominador coerente com % devolução)
+    valor_realizado_ano = 0.0
+    ton_realizado_ano = 0.0
+    for r in routes:
+        try:
+            rd = datetime.strptime(r.date, "%Y-%m-%d").date()
+        except Exception:
+            continue
+        if rd.year != today.year:
+            continue
+        st = (r.delivery_status or "").lower()
+        if st in ("entregue", "devolucao"):
+            valor_realizado_ano += float(getattr(r, "valor_financeiro", None) or 0.0)
+            ton_realizado_ano += float(r.tonnage or 0.0)
+
     # Devoluções (tabela Devolucao) vinculadas ao cliente
     devolucoes_list: List[dict] = []
+    devolucoes: List[models.Devolucao] = []
+    chart_dev_valor_ano = 0.0
+    chart_dev_ton_ano = 0.0
     try:
         devolucoes = list(session.exec(
             select(models.Devolucao)
@@ -9136,8 +10280,37 @@ async def client_details(request: Request, client_id: int, session: Session = De
                 "ajudante": emp_map.get(d.ajudante_id, "-") if d.ajudante_id else "-",
                 "acima_300": (d.acima_300 or "NAO").upper() == "SIM",
             })
+        # % devolução (este ano): mesma fonte da tabela (Devolucao), não só Route.valor_devolucao
+        for d in devolucoes:
+            ref = (d.data_entrega or d.data_romaneio or "")[:10]
+            try:
+                yd = datetime.strptime(ref, "%Y-%m-%d").date().year
+            except Exception:
+                continue
+            if yd != today.year:
+                continue
+            chart_dev_valor_ano += float(d.valor or 0.0)
+            if d.route_id:
+                rr = session.get(models.Route, d.route_id)
+                if rr and int(rr.client_id or 0) == int(client_id):
+                    chart_dev_ton_ano += float(rr.tonnage or 0.0)
     except Exception as e:
         logger.exception(f"client_details devoluções query error: {e}")
+
+    denom_v = valor_realizado_ano if valor_realizado_ano > 0 else valor_year
+    denom_t = ton_realizado_ano if ton_realizado_ano > 0 else stats_year
+    if denom_v > 0:
+        pct_dev_valor = min(100.0, round(100.0 * chart_dev_valor_ano / denom_v, 1))
+    elif chart_dev_valor_ano > 0:
+        pct_dev_valor = 100.0
+    else:
+        pct_dev_valor = 0.0
+    if denom_t > 0:
+        pct_dev_vol = min(100.0, round(100.0 * chart_dev_ton_ano / denom_t, 1))
+    elif chart_dev_ton_ano > 0:
+        pct_dev_vol = 100.0
+    else:
+        pct_dev_vol = 0.0
 
     endereco_display = normalize_address(client.endereco or "") if client.endereco else ""
     return templates.TemplateResponse("client_details.html", {
@@ -9179,15 +10352,62 @@ async def client_details(request: Request, client_id: int, session: Session = De
             "today_fmt": f"R$ {fmt(valor_dev_today)}",
             "week_fmt": f"R$ {fmt(valor_dev_week)}",
             "month_fmt": f"R$ {fmt(valor_dev_month)}",
-            "year_fmt": f"R$ {fmt(valor_dev_year)}",
+            "year_fmt": f"R$ {fmt(max(valor_dev_year, chart_dev_valor_ano))}",
         },
         "chart_devolucao": {
-            "pct_volume": round(100 * dev_vol_year / stats_year, 1) if stats_year > 0 else 0,
-            "pct_valor": round(100 * valor_dev_year / valor_year, 1) if valor_year > 0 else 0,
+            "pct_volume": pct_dev_vol,
+            "pct_valor": pct_dev_valor,
+            "valor_dev_ano_fmt": fmt(chart_dev_valor_ano),
+            "ton_dev_ano_fmt": fmt(chart_dev_ton_ano),
+            "valor_base_ano_fmt": fmt(denom_v),
+            "ton_base_ano_fmt": fmt(denom_t),
         },
         "devolucoes_list": devolucoes_list,
-        "history": history
+        "history": history,
+        "client_groups": list(session.exec(select(models.ClientGroup).order_by(models.ClientGroup.name)).all()),
+        "current_client_group": session.get(models.ClientGroup, client.client_group_id) if getattr(client, "client_group_id", None) else None,
+        "group_peers": list(session.exec(
+            select(models.Client).where(
+                models.Client.client_group_id == client.client_group_id,
+                models.Client.id != client_id,
+            ).order_by(models.Client.name)
+        ).all()) if getattr(client, "client_group_id", None) else [],
     })
+
+@app.post("/clients/{client_id}/group", response_class=RedirectResponse)
+async def client_set_commercial_group(
+    request: Request,
+    client_id: int,
+    client_group_id: Optional[str] = Form(None),
+    new_group_name: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    client = session.get(models.Client, client_id)
+    if not client:
+        return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+    new_name = (new_group_name or "").strip()
+    if new_name:
+        existing = session.exec(select(models.ClientGroup).where(models.ClientGroup.name == new_name)).first()
+        if existing:
+            client.client_group_id = existing.id
+        else:
+            g = models.ClientGroup(name=new_name)
+            session.add(g)
+            session.commit()
+            session.refresh(g)
+            client.client_group_id = g.id
+    elif (client_group_id or "").strip().isdigit():
+        client.client_group_id = int(client_group_id)
+    else:
+        client.client_group_id = None
+    try:
+        client.updated_at = datetime.now()
+    except Exception:
+        pass
+    session.add(client)
+    session.commit()
+    return RedirectResponse(url=f"/clients/{client_id}", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/clients/{client_id}/update", response_class=RedirectResponse)
 async def update_client(
@@ -12164,6 +13384,10 @@ async def reopen_delivery_route(
     route.delivery_status = "reaberta"
     route.status = "pending"
     route.end_time = None
+    route.driver_lat_start = None
+    route.driver_lon_start = None
+    route.driver_lat_end = None
+    route.driver_lon_end = None
     route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
     _append_delivery_event(route, "reabrir", now, note=f"Reabertura #{route.delivery_reopen_count}")
     session.add(route)
@@ -12171,6 +13395,41 @@ async def reopen_delivery_route(
 
     feedback_encoded = urlencode({"delivery_feedback": "Rotina reaberta com sucesso.", "delivery_feedback_level": "success"})
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
+
+
+@app.post("/separacao/delivery/remove-stop", response_class=RedirectResponse)
+async def delivery_remove_stop(
+    request: Request,
+    route_id: int = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    date_from: Optional[str] = Form(None),
+    date_to: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    """Remove uma parada de entrega da rota (exclui o registro da parada)."""
+    require_login(request)
+    df, dt = (date_from or "").strip(), (date_to or "").strip()
+    if df and dt and df != dt:
+        redirect_base = f"/separacao?date_from={df}&date_to={dt}&shift={shift}"
+    else:
+        redirect_base = f"/separacao?date={date}&shift={shift}"
+
+    route = session.get(models.Route, route_id)
+    if not route or route.type != "delivery":
+        feedback_encoded = urlencode({"delivery_feedback": "Parada não encontrada.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+    st = (route.delivery_status or "").lower() or "pendente"
+    session.exec(delete(models.Devolucao).where(models.Devolucao.route_id == route_id))
+    session.exec(delete(models.DeliveryAuthRequest).where(models.DeliveryAuthRequest.route_id == route_id))
+    session.exec(delete(models.RouteInsertLog).where(models.RouteInsertLog.route_id == route_id))
+    session.delete(route)
+    session.commit()
+
+    msg = f"Cliente removido da rota ({st})."
+    feedback_encoded = urlencode({"delivery_feedback": msg, "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
 
 
 @app.post("/separacao/delivery/reopen-route", response_class=RedirectResponse)
@@ -12219,6 +13478,10 @@ async def reopen_delivery_route_all(
         route.end_time = None
         route.delivery_finished_at = None
         route.delivery_returned_at = None
+        route.driver_lat_start = None
+        route.driver_lon_start = None
+        route.driver_lat_end = None
+        route.driver_lon_end = None
         route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
         _append_delivery_event(route, "reabrir", now, note=f"Reabertura em massa #{route.delivery_reopen_count}")
         session.add(route)
@@ -12359,6 +13622,10 @@ async def reopen_all_delivery_routes(
         route.end_time = None
         route.delivery_finished_at = None
         route.delivery_returned_at = None
+        route.driver_lat_start = None
+        route.driver_lon_start = None
+        route.driver_lat_end = None
+        route.driver_lon_end = None
         route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
         _append_delivery_event(route, "reabrir", now, note=f"Reabertura em massa #{route.delivery_reopen_count}")
         session.add(route)
@@ -12612,6 +13879,10 @@ async def delivery_bulk_action(
             route.delivery_notified_logistics_name = None
             route.end_time = None
             route.delivery_finished_at = None
+            route.driver_lat_start = None
+            route.driver_lon_start = None
+            route.driver_lat_end = None
+            route.driver_lon_end = None
             route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
             _append_delivery_event(route, "reabrir", now, note=f"Limpeza de devoluções em massa #{route.delivery_reopen_count}")
             session.add(route)
@@ -22412,8 +23683,7 @@ async def mobile_admin_start_route(
                 )).first()
 
 
-        # 2. Create Route (Multiple routes allowed per employee)
-        # 3. Create Route
+        # 2. Create Route (entrega) para aparecer em /mobile/delivery e na listagem admin
         new_route = models.Route(
             employee_id=target_emp.id,
             client_id=payload.client_id,
@@ -22421,7 +23691,9 @@ async def mobile_admin_start_route(
             shift=target_emp.work_shift or "Manhã",
             start_time=datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M"),
             status="pending",
-            tonnage=payload.tonnage
+            type="delivery",
+            delivery_status="pendente",
+            tonnage=payload.tonnage or 0.0,
         )
         session.add(new_route)
         
@@ -22464,6 +23736,7 @@ async def update_employee(
     mobile_access_admin_start: bool = Form(False),
     mobile_access_returns: bool = Form(False),
     mobile_access_helper: bool = Form(False),
+    mobile_access_gatehouse: bool = Form(False),
     vacation_start: str = Form(None),
     vacation_end: str = Form(None),
     session: Session = Depends(get_session)
@@ -22510,7 +23783,15 @@ async def update_employee(
         emp.mobile_access_admin_start = mobile_access_admin_start
         emp.mobile_access_returns = mobile_access_returns
         emp.mobile_access_helper = mobile_access_helper
-        emp.mobile_access = bool(mobile_access_separation or mobile_access_checklist)
+        emp.mobile_access_gatehouse = mobile_access_gatehouse
+        emp.mobile_access = bool(
+            mobile_access_separation
+            or mobile_access_checklist
+            or mobile_access_admin_start
+            or mobile_access_returns
+            or mobile_access_helper
+            or mobile_access_gatehouse
+        )
 
         # Update Work Days
         if work_days:
@@ -23764,20 +25045,16 @@ async def lider_rotas_page(
     shift_display = shift_display_label(shift_norm)
 
     # Motoristas esperados no app
-    all_drivers = session.exec(
+    delivery_people = session.exec(
         select(models.Employee)
         .where(models.Employee.status != "fired")
-        .where(models.Employee.mobile_access_separation == True)
     ).all()
+    all_drivers = [e for e in delivery_people if _has_mobile_delivery_driver_access(e)]
     expected_drivers = [e for e in all_drivers if normalize_shift(getattr(e, "work_shift", "")) == shift_norm]
     expected_driver_ids = {e.id for e in expected_drivers}
 
     # Ajudantes esperados no app
-    all_helpers = session.exec(
-        select(models.Employee)
-        .where(models.Employee.status != "fired")
-        .where(models.Employee.mobile_access_helper == True)
-    ).all()
+    all_helpers = [e for e in delivery_people if _has_mobile_delivery_helper_access(e)]
     expected_helpers = [e for e in all_helpers if normalize_shift(getattr(e, "work_shift", "")) == shift_norm]
 
     # Rotas do dia/turno (somente entrega)
@@ -25649,7 +26926,8 @@ async def api_delete_route(route_id: int, session: Session = Depends(get_session
         logger.exception(f"Error deleting route {route_id}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
-# --- Admin Checklist Routes ---`r`n`r`n@app.get("/admin/equipment/tickets/{ticket_id}"))
+# --- Admin equipment ticket detail ---
+@app.get("/admin/equipment/tickets/{ticket_id}", response_class=HTMLResponse)
 async def admin_equipment_ticket_detail(
     request: Request,
     ticket_id: int,
@@ -25706,7 +26984,8 @@ async def admin_equipment_ticket_delete(
             url=f"/admin/equipment/tickets/{ticket_id}?message=Confirme+a+exclus%C3%A3o&level=error", 
             status_code=303
         )
-        
+
+    actor_label = format_user_label(user)
     session.add(models.Event(
         timestamp=datetime.now(ZoneInfo("America/Sao_Paulo")),
         text=f"Chamado #{ticket.id} EXCLUÍDO por {actor_label}.",
@@ -26502,64 +27781,97 @@ async def api_list_admin_routes(
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     
     try:
-        # Rotas ativas (pendentes) de hoje
-        active_routes = session.exec(
+        # Todas as rotas de entrega de hoje (para montar cards estilo TV)
+        all_routes_today = session.exec(
             select(models.Route)
-            .where(
-                models.Route.date == today,
-                models.Route.status == "pending"
-            )
-            .order_by(models.Route.start_time)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == today)
+            .order_by(models.Route.employee_id, models.Route.start_time, models.Route.id)
         ).all()
         
-        routes_data = []
-        for route in active_routes:
-            emp = session.get(models.Employee, route.employee_id)
-            client = session.get(models.Client, route.client_id)
-            tonnage = getattr(route, "tonnage", None)
-            if tonnage is not None and not isinstance(tonnage, (int, float)):
-                try:
-                    tonnage = float(tonnage)
-                except (TypeError, ValueError):
-                    tonnage = 0.0
-            elif tonnage is None:
-                tonnage = 0.0
-            routes_data.append({
-                "id": route.id,
-                "employee_id": route.employee_id,
-                "employee_name": (emp.name if emp else "Desconhecido") or "Desconhecido",
-                "employee_registration": str(emp.registration_id) if emp and getattr(emp, "registration_id", None) is not None else "N/A",
-                "client_id": route.client_id,
-                "client_name": (client.name if client else "Desconhecido") or "Desconhecido",
-                "tonnage": float(tonnage),
-                "start_time": str(getattr(route, "start_time", "") or ""),
-                "shift": str(getattr(route, "shift", "Manhã") or "Manhã")
-            })
+        all_emp_ids_with_routes = list({r.employee_id for r in all_routes_today if r.employee_id})
+        employee_by_id_all = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(all_emp_ids_with_routes))).all() if e.id}
         
-        # Colaboradores ativos sem rota hoje
+        live_buckets = {}
+        for emp_id in all_emp_ids_with_routes:
+            emp = employee_by_id_all.get(emp_id)
+            if not emp:
+                continue
+            live_buckets[emp_id] = {"employee_name": emp.name, "routes": []}
+        
+        sessions_today = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.date == today)
+            .where(models.DeliverySession.employee_id.in_(all_emp_ids_with_routes))
+        ).all() if all_emp_ids_with_routes else []
+        session_closed_by_emp = {s.employee_id: (s.status or "").lower() == "closed" for s in sessions_today}
+        session_open_by_emp = {s.employee_id for s in sessions_today if (s.status or "").lower() == "open"}
+        session_plate_by_emp = {}
+        for s in sessions_today:
+            if s.employee_id and (getattr(s, "vehicle_plate", None) or "").strip():
+                session_plate_by_emp.setdefault(s.employee_id, (s.vehicle_plate or "").strip())
+        session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if getattr(s, "helpers_json", None)}
+        
+        for emp_id, bucket in live_buckets.items():
+            emp_routes = [r for r in all_routes_today if r.employee_id == emp_id]
+            bucket["employee_id"] = emp_id
+            bucket["total_deliveries"] = len(emp_routes)
+            bucket["completed_deliveries"] = len([r for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")])
+            bucket["plate"] = next(((r.delivery_vehicle_plate or "").strip() or None for r in emp_routes if (r.delivery_vehicle_plate or "").strip()), None) if emp_routes else None
+            if not bucket["plate"] and session_plate_by_emp.get(emp_id):
+                bucket["plate"] = session_plate_by_emp[emp_id]
+            helper_ids = []
+            for r in emp_routes:
+                helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
+            bucket["helper_names"] = list(dict.fromkeys(
+                (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajud. #{hid}"
+                for hid in helper_ids if hid
+            ))[:3]
+            if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
+                bucket["helper_names"] = session_helpers_by_emp[emp_id]
+            bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+            has_delivery_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+            session_started = emp_id in session_open_by_emp
+            has_started = has_delivery_started or session_started
+            all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
+            route_ended = session_closed_by_emp.get(emp_id, False)
+            if route_ended:
+                bucket["route_state"] = "closed"
+            elif not has_started:
+                bucket["route_state"] = "not_started"
+            elif has_started and not has_delivery_started:
+                bucket["route_state"] = "route_started"
+            elif all_delivered:
+                bucket["route_state"] = "all_delivered"
+            else:
+                bucket["route_state"] = "in_progress"
+        
+        def _live_sort_key(x):
+            state = x.get("route_state") or "in_progress"
+            open_count = (x.get("total_deliveries") or 0) - (x.get("completed_deliveries") or 0)
+            pct = (x.get("completed_deliveries") or 0) / (x.get("total_deliveries") or 1) * 100
+            if state == "closed":
+                return (4, 0, -pct)
+            if state == "not_started":
+                return (3, -open_count, -pct)
+            if state == "all_delivered":
+                return (3, -open_count, -pct)
+            if state == "route_started":
+                return (1, -open_count, -pct)
+            return (1, -open_count, -pct)
+        
+        live_separation = list(live_buckets.values())
+        live_separation.sort(key=_live_sort_key)
+        
+        employees_with_route = set(all_emp_ids_with_routes)
         all_active_employees = session.exec(
-            select(models.Employee)
-            .where(
-                models.Employee.status == "active",
-                models.Employee.mobile_access == True
-            )
+            select(models.Employee).where(models.Employee.status == "active", models.Employee.mobile_access == True)
         ).all()
-        
-        employees_with_route = {route.employee_id for route in active_routes}
-        
-        # Filtrar colaboradores que tiveram rota nos últimos 4 dias
         four_days_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=4)).strftime("%Y-%m-%d")
-        
         recent_route_employees = session.exec(
-            select(models.Route.employee_id)
-            .where(
-                models.Route.date >= four_days_ago,
-                models.Route.date <= today
-            )
-            .distinct()
+            select(models.Route.employee_id).where(models.Route.type == "delivery")
+            .where(models.Route.date >= four_days_ago).where(models.Route.date <= today).distinct()
         ).all()
-        
-        # Garantir set de IDs (pode vir como escalar ou Row)
         recent_employee_ids = set()
         for r in recent_route_employees:
             if isinstance(r, (int, float)):
@@ -26579,26 +27891,10 @@ async def api_list_admin_routes(
                     "shift": str(getattr(emp, "work_shift", "Manhã") or "Manhã")
                 })
         
-        # Buscar todos os clientes para os selects
-        all_clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
-        clients_data = [{"id": c.id, "name": str(c.name or "")} for c in all_clients]
-        
-        # Buscar todos os colaboradores ativos para os selects
-        all_employees_data = [
-            {
-                "id": e.id,
-                "name": str(e.name or ""),
-                "registration_id": str(getattr(e, "registration_id", "") or "")
-            }
-            for e in all_active_employees
-        ]
-        
         return JSONResponse({
             "success": True,
-            "active_routes": routes_data,
+            "live_separation": live_separation,
             "employees_without_route": employees_without_route,
-            "all_clients": clients_data,
-            "all_employees": all_employees_data
         })
     except Exception as e:
         logger.exception("api_list_admin_routes error: %s", e)

@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Operação Inteligente</title>
-    <link rel="icon" type="image/png" href="/static/logo-souza-pinto.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="apple-touch-icon" href="/static/icons/pwa-192.png">
     <link rel="stylesheet" href="/static/styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Lucide Icons (jsDelivr - evita Tracking Prevention) -->
@@ -28,6 +29,22 @@
 </head>
 
 <body class="bg-slate-900 text-white">
+    <!-- Safe storage: evita erro quando Tracking Prevention bloqueia sessionStorage -->
+    <script>
+    (function() {
+        var _mem = {};
+        function fallback() {
+            return { getItem: function(k) { return _mem[k] !== undefined ? _mem[k] : null; }, setItem: function(k, v) { _mem[k] = String(v); }, removeItem: function(k) { delete _mem[k]; } };
+        }
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.setItem) {
+                sessionStorage.setItem('_tp', '1');
+                sessionStorage.removeItem('_tp');
+                window.__safeSession = sessionStorage;
+            } else { window.__safeSession = fallback(); }
+        } catch (e) { window.__safeSession = fallback(); }
+    })();
+    </script>
     {% set user_role = request.session.get("auth_user_role", "") %}
     <div class="flex h-screen overflow-hidden" x-data="{ 
         sidebarOpen: false,
@@ -110,12 +127,13 @@
     {% if user_role in ['leader', 'admin', 'Leader', 'Admin'] %}
     <script>
     // ========== ALERTAS MODAL ==========
-    var alertasJaMostrados = sessionStorage.getItem('alertas_mostrados_hoje');
+    var storage = window.__safeSession || { getItem: function() { return null; }, setItem: function() {} };
+    var alertasJaMostrados = storage.getItem('alertas_mostrados_hoje');
     var hoje = new Date().toISOString().split('T')[0];
 
     function fecharModalAlertas() {
         document.getElementById('modal-alertas').classList.add('hidden');
-        sessionStorage.setItem('alertas_mostrados_hoje', hoje);
+        storage.setItem('alertas_mostrados_hoje', hoje);
     }
 
     function mostrarModalAlertas() {

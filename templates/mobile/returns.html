@@ -159,8 +159,9 @@
         const sel = document.getElementById('returnPeriodFilter');
         if (!sel) return;
         const now = new Date();
-        const ano = now.getFullYear();
-        const mesAtual = now.getMonth() + 1;
+        const parts = (typeof window.nlDatePartsSp === 'function') ? window.nlDatePartsSp(now) : null;
+        const ano = parts ? Number(parts.year) : now.getFullYear();
+        const mesAtual = parts ? Number(parts.month) : (now.getMonth() + 1);
         let html = '';
         for (let i = 0; i < 12; i++) {
             const d = new Date(ano, now.getMonth() - i, 1);
@@ -180,7 +181,7 @@
         const periodEl = document.getElementById('returnPeriodFilter');
         const period = periodEl ? String(periodEl.value || '').trim() : '';
         const url = period ? `/mobile/api/returns-data?period=${encodeURIComponent(period)}` : '/mobile/api/returns-data?days=30';
-        fetch(url)
+        fetch(url, { cache: 'no-store' })
             .then(r => r.ok ? r.json() : Promise.reject(new Error('Erro')))
             .then(data => {
                 if (!data || typeof data.total_value !== 'number') {

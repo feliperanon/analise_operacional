@@ -43,7 +43,14 @@
         <p class="text-caption mt-2" style="color: var(--color-text-muted);">Carregando...</p>
     </div>
 
-    <div x-show="!loading && days.length === 0" class="text-center py-8">
+    <div x-show="!loading && errorMsg" class="text-center py-8 px-4">
+        <i data-lucide="alert-circle" class="w-12 h-12 mx-auto mb-3" style="color: var(--color-danger);"></i>
+        <p class="text-body font-semibold mb-1" style="color: var(--color-text);">Não foi possível carregar o histórico</p>
+        <p class="text-caption mb-3" style="color: var(--color-text-muted);" x-text="errorMsg"></p>
+        <p class="text-caption" style="color: var(--color-text-muted);">Faça login no app mobile (menu) e tente novamente.</p>
+    </div>
+
+    <div x-show="!loading && !errorMsg && days.length === 0" class="text-center py-8">
         <i data-lucide="truck" class="w-12 h-12 mx-auto mb-3" style="color: var(--color-text-muted);"></i>
         <p class="text-body font-semibold mb-1" style="color: var(--color-text);">Nenhuma entrega no período</p>
         <p class="text-caption" style="color: var(--color-text-muted);">Ajuste o filtro de datas e tente novamente.</p>
@@ -102,15 +109,14 @@
 
 <script>
     function entregasHistory() {
-        const today = new Date().toISOString().split('T')[0];
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        const defaultFrom = monthAgo.toISOString().split('T')[0];
+        const today = (typeof window.nlTodaySp === 'function') ? window.nlTodaySp() : new Date().toISOString().split('T')[0];
+        const defaultFrom = (typeof window.nlShiftYmd === 'function') ? window.nlShiftYmd(today, -30) : today;
         return {
             dateFrom: defaultFrom,
             dateTo: today,
             days: [],
             loading: false,
+            errorMsg: '',
             init() {
                 this.loadHistory();
             },
@@ -119,15 +125,25 @@
                 const to = (this.dateTo || today).trim();
                 if (!from || !to) return;
                 this.loading = true;
-                fetch(`/api/mobile/delivery/history?date_from=${encodeURIComponent(from)}&date_to=${encodeURIComponent(to)}`)
-                    .then(r => r.json())
-                    .then(data => {
+                this.errorMsg = '';
+                fetch(`/api/mobile/delivery/history?date_from=${encodeURIComponent(from)}&date_to=${encodeURIComponent(to)}`, { credentials: 'same-origin', cache: 'no-store' })
+                    .then(r => {
+                        return r.json().then(data => ({ ok: r.ok, status: r.status, data }));
+                    })
+                    .then(({ ok, data }) => {
                         this.loading = false;
-                        this.days = (data.days || []);
+                        if (!ok && data && data.error) {
+                            this.errorMsg = data.error;
+                            this.days = [];
+                        } else {
+                            this.errorMsg = '';
+                            this.days = (data.days || []);
+                        }
                         this.$nextTick(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
                     })
                     .catch(() => {
                         this.loading = false;
+                        this.errorMsg = 'Erro de conexão. Tente novamente.';
                         this.days = [];
                     });
             },

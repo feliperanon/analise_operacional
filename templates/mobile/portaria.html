@@ -1,0 +1,142 @@
+{% extends "mobile/layout.html" %}
+
+{% block title %}Portaria{% endblock %}
+
+{% block head_extra %}
+<style>
+    .gatehouse-details > summary {
+        list-style: none;
+    }
+    .gatehouse-details > summary::-webkit-details-marker {
+        display: none;
+    }
+    .gatehouse-details[open] .gatehouse-chevron {
+        transform: rotate(180deg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen pb-safe">
+    <header class="py-4" style="background: var(--gradient-header);">
+        <div class="container-mobile">
+            <div class="flex items-center justify-between gap-3">
+                <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.18); color: white;">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </a>
+                <div class="text-center flex-1 min-w-0">
+                    <h1 class="text-title-lg text-white font-bold">Portaria</h1>
+                    <p class="text-caption text-blue-200">Conferência operacional das rotas do dia</p>
+                </div>
+                <div class="w-11 h-11"></div>
+            </div>
+        </div>
+    </header>
+
+    <section class="container-mobile mt-4">
+        <div class="surface-shadow p-4 rounded-xl">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-primary);">Saídas do Dia</p>
+                    <h2 class="text-section mt-1" style="color: var(--color-text);">
+                        {{ gatehouse_data.summary.total_lines }} linha(s) para conferência
+                    </h2>
+                </div>
+                <div class="icon-wrap flex items-center justify-center" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                    <i data-lucide="shield" class="w-5 h-5"></i>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mt-4">
+                <div class="rounded-xl p-3 text-center" style="background: rgba(16,185,129,0.12);">
+                    <p class="text-caption">Checklist OK</p>
+                    <p class="text-title mt-1" style="color: #34d399;">{{ gatehouse_data.summary.checklists_done }}</p>
+                </div>
+                <div class="rounded-xl p-3 text-center" style="background: rgba(239,68,68,0.12);">
+                    <p class="text-caption">Pendentes</p>
+                    <p class="text-title mt-1" style="color: #f87171;">{{ gatehouse_data.summary.checklists_missing }}</p>
+                </div>
+                <div class="rounded-xl p-3 text-center" style="background: rgba(59,130,246,0.12);">
+                    <p class="text-caption">Sessões Abertas</p>
+                    <p class="text-title mt-1" style="color: #60a5fa;">{{ gatehouse_data.summary.sessions_open }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="container-mobile mt-4">
+        {% if gatehouse_data.entries %}
+        <div class="space-y-3">
+            {% for entry in gatehouse_data.entries %}
+            <details class="gatehouse-details surface-shadow rounded-xl overflow-hidden" {% if loop.first %}open{% endif %}>
+                <summary class="p-4 cursor-pointer">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-text-muted);">Linha de Conferência</p>
+                            <h3 class="text-body-lg font-bold truncate mt-1" style="color: var(--color-text);">{{ entry.driver_name }}</h3>
+                            <p class="text-caption mt-1" style="color: var(--color-text-muted);">{{ entry.session_label }}</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <span class="inline-flex items-center rounded-full px-2.5 py-1 text-caption font-semibold" style="{{ entry.checklist_style }}">{{ entry.checklist_label }}</span>
+                            <i data-lucide="chevron-down" class="gatehouse-chevron w-4 h-4 transition-transform" style="color: var(--color-text-muted);"></i>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest font-bold mb-1" style="color: var(--color-text-muted);">Ajudante</p>
+                            <p class="text-body font-medium" style="color: var(--color-text-body);">{{ entry.helpers_text }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] uppercase tracking-widest font-bold mb-1" style="color: var(--color-text-muted);">Placa</p>
+                            <p class="text-body font-semibold font-mono" style="color: var(--color-text);">{{ entry.plate }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        <span class="chip">{{ entry.routes_count }} parada(s)</span>
+                        <span class="chip" style="background: rgba(245,158,11,0.12); color: #f59e0b;">{{ entry.pending_count }} em aberto</span>
+                        <span class="chip" style="background: rgba(16,185,129,0.12); color: #34d399;">{{ entry.completed_count }} concluída(s)</span>
+                    </div>
+
+                    <div class="mt-4 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-body font-semibold" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                        <i data-lucide="route" class="w-4 h-4"></i>
+                        Visualizar rota
+                    </div>
+                </summary>
+
+                <div class="px-4 pb-4 pt-3 border-t" style="border-color: var(--color-border);">
+                    <div class="space-y-2">
+                        {% for route in entry.routes %}
+                        <div class="rounded-xl p-3" style="background: var(--color-surface-solid); border: 1px solid var(--color-border);">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-body font-semibold truncate" style="color: var(--color-text);">{{ route.client_name }}</p>
+                                    <p class="text-caption mt-1" style="color: var(--color-text-muted);">
+                                        {% if route.client_code %}Cod {{ route.client_code }}{% else %}Cliente sem código{% endif %}
+                                        {% if route.order_number %} • Pedido {{ route.order_number }}{% endif %}
+                                    </p>
+                                </div>
+                                <span class="inline-flex items-center rounded-full px-2.5 py-1 text-caption font-semibold flex-shrink-0" style="{{ route.status_style }}">{{ route.status_label }}</span>
+                            </div>
+                            {% if route.address_line %}
+                            <p class="text-caption mt-2" style="color: var(--color-text-body);">{{ route.address_line }}</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="surface-shadow p-6 rounded-xl text-center">
+            <div class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                <i data-lucide="shield-off" class="w-7 h-7"></i>
+            </div>
+            <p class="text-body-lg font-semibold mt-4" style="color: var(--color-text);">Nenhuma rota de entrega hoje</p>
+            <p class="text-caption-lg mt-2" style="color: var(--color-text-muted);">Quando houver caminhões programados para o dia, eles aparecerão aqui para conferência da Portaria.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

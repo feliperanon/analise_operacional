@@ -3,7 +3,7 @@
 {% block content %}
 <div class="p-8">
     <div class="max-w-6xl mx-auto">
-        <!-- Header -->
+        <!-- Cabeçalho -->
         <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">Banco de Clientes</h1>
@@ -64,6 +64,22 @@
             <span>Erro ao processar o arquivo. Verifique o formato do Excel.</span>
         </div>
         {% endif %}
+        {% if request.query_params.get('bulk_level') == 'success' %}
+        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-center gap-2">
+            <i data-lucide="users" class="w-5 h-5 flex-shrink-0"></i>
+            <span>{{ request.query_params.get('bulk_feedback', '') }}</span>
+        </div>
+        {% endif %}
+        {% if request.query_params.get('bulk_level') == 'error' %}
+        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
+            <span>{{ request.query_params.get('bulk_feedback', '') }}</span>
+        </div>
+        {% endif %}
+
+        <script type="application/json" id="mov-drill-data">{{ mov_drill_json | safe }}</script>
+        <script type="application/json" id="precad-drill-data">{{ precad_drill_json | safe }}</script>
+        <script type="application/json" id="client-names-data">{{ client_names_json | safe }}</script>
 
         <!-- Filtros -->
         <div class="space-y-4 mb-6">
@@ -77,12 +93,18 @@
                     <option value="inativo" {% if status_filter == 'inativo' %}selected{% endif %}>Inativos</option>
                     <option value="em_validacao" {% if status_filter == 'em_validacao' %}selected{% endif %}>Em Validação</option>
                 </select>
+                <select name="segmento" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 max-w-[200px]" title="Segmento">
+                    <option value="">Segmento (todos)</option>
+                    {% for seg in segmentos_opts %}
+                    <option value="{{ seg|e }}" {% if segmento_filter == seg %}selected{% endif %}>{{ seg }}</option>
+                    {% endfor %}
+                </select>
                 <input type="text" name="q" value="{{ search or '' }}" placeholder="Buscar nome, razão, NB, município..."
-                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm w-64 focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm min-w-[200px] flex-1 max-w-md focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
                 <span class="text-slate-500 text-sm">Período (última mov.):</span>
-                <input type="date" name="mov_from" value="{{ mov_from or '' }}" placeholder="De"
+                <input type="date" name="mov_from" value="{{ mov_from or '' }}"
                     class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
-                <input type="date" name="mov_to" value="{{ mov_to or '' }}" placeholder="Até"
+                <input type="date" name="mov_to" value="{{ mov_to or '' }}"
                     class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
                 <span class="text-slate-500 text-sm">Pre-cadastro:</span>
                 <select name="precadastro" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
@@ -98,50 +120,122 @@
                     <option value="1y" {% if precadastro_idade == '1y' %}selected{% endif %}>1 ano</option>
                     <option value="1y_plus" {% if precadastro_idade == '1y_plus' %}selected{% endif %}>+1 ano</option>
                 </select>
+                <span class="text-slate-500 text-sm">Ordenar:</span>
+                <select name="sort" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 min-w-[200px]">
+                    <option value="mov_desc" {% if (sort_order or 'mov_desc') == 'mov_desc' %}selected{% endif %}>Últ. mov. (mais recente)</option>
+                    <option value="mov_asc" {% if sort_order == 'mov_asc' %}selected{% endif %}>Últ. mov. (mais antiga)</option>
+                    <option value="name_asc" {% if sort_order == 'name_asc' %}selected{% endif %}>Nome (A–Z)</option>
+                    <option value="name_desc" {% if sort_order == 'name_desc' %}selected{% endif %}>Nome (Z–A)</option>
+                    <option value="nb_asc" {% if sort_order == 'nb_asc' %}selected{% endif %}>NB (crescente)</option>
+                    <option value="nb_desc" {% if sort_order == 'nb_desc' %}selected{% endif %}>NB (decrescente)</option>
+                </select>
                 <button type="submit" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">
                     Filtrar
                 </button>
             </form>
         </div>
 
-        <!-- Gráficos: Movimentação e Pre-cadastro -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="text-slate-200 font-semibold mb-2">Clientes com movimentação</h3>
-                <p class="text-slate-500 text-sm mb-4">Por tempo desde a última movimentação (lista atual). Total: <strong class="text-slate-300">{{ chart_movimentacao.total }}</strong> clientes.</p>
-                <div class="flex items-center gap-6 flex-wrap">
-                    <div class="h-52 w-64">
-                        <canvas id="chartMovimentacao"></canvas>
+        <!-- Gráficos em fatia (donut) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+            <button type="button" onclick="openClientsDashModal('mov')" class="text-left group rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-900/90 via-slate-800/95 to-slate-900/90 p-5 shadow-lg shadow-black/20 hover:border-slate-500/50 hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/40">
+                <div class="flex items-start justify-between gap-3 mb-1">
+                    <div>
+                        <h3 class="text-slate-100 font-semibold tracking-tight">Última movimentação</h3>
+                        <p class="text-slate-500 text-xs mt-0.5">Lista filtrada · {{ chart_movimentacao.total|fmt_br_int }} cliente(s)</p>
                     </div>
-                    <div class="text-sm text-slate-300 space-y-1">
-                        {% for item in chart_movimentacao.buckets %}
-                        <p><span class="font-medium">{{ item.label }}</span>: {{ item.count }}</p>
-                        {% endfor %}
-                        <p><span class="font-medium text-amber-400">Sem movimentação</span>: {{ chart_movimentacao.sem_movimentacao }}</p>
-                        <p class="text-slate-500 pt-1 border-t border-slate-600 mt-1">Total: {{ chart_movimentacao.total }}</p>
+                    <span class="text-[10px] uppercase tracking-wider text-slate-600 group-hover:text-cyan-500/80 shrink-0">Abrir</span>
+                </div>
+                <div class="relative mx-auto mt-2" style="width: 200px; height: 200px; max-width: 100%;">
+                    <canvas id="donutMovSmall" aria-hidden="true"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-1">
+                        <span id="movDonutPct" class="text-3xl font-bold text-white tabular-nums tracking-tight">—</span>
+                        <span id="movDonutLbl" class="text-[10px] text-slate-500 text-center max-w-[120px] leading-tight mt-1">faixa principal</span>
                     </div>
                 </div>
-            </div>
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="text-slate-200 font-semibold mb-2">Pre-cadastro por tempo</h3>
-                <p class="text-slate-500 text-sm mb-4">Clientes pre-cadastro por faixa de idade do cadastro</p>
-                <div class="flex items-center gap-6 flex-wrap">
-                    <div class="h-48 w-48">
-                        <canvas id="chartPrecadastro"></canvas>
+                <div id="movDonutLegend" class="mt-3 flex flex-wrap gap-x-3 gap-y-1 justify-center text-[11px] text-slate-400"></div>
+            </button>
+            <button type="button" onclick="openClientsDashModal('precad')" class="text-left group rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-900/90 via-slate-800/95 to-slate-900/90 p-5 shadow-lg shadow-black/20 hover:border-violet-500/30 hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-violet-500/40">
+                <div class="flex items-start justify-between gap-3 mb-1">
+                    <div>
+                        <h3 class="text-slate-100 font-semibold tracking-tight">Pré-cadastro</h3>
+                        <p class="text-slate-500 text-xs mt-0.5">Só pré-cadastro na lista · idade do cadastro</p>
                     </div>
-                    <div class="text-sm text-slate-300 space-y-1">
-                        {% for item in chart_precadastro %}
-                        <p><span class="font-medium">{{ item.label }}</span>: {{ item.count }}</p>
-                        {% endfor %}
+                    <span class="text-[10px] uppercase tracking-wider text-slate-600 group-hover:text-violet-400/80 shrink-0">Abrir</span>
+                </div>
+                <div class="relative mx-auto mt-2" style="width: 200px; height: 200px; max-width: 100%;">
+                    <canvas id="donutPrecSmall" aria-hidden="true"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-1">
+                        <span id="precDonutPct" class="text-3xl font-bold text-white tabular-nums tracking-tight">—</span>
+                        <span id="precDonutLbl" class="text-[10px] text-slate-500 text-center max-w-[120px] leading-tight mt-1">faixa principal</span>
                     </div>
                 </div>
-            </div>
+                <div id="precDonutLegend" class="mt-3 flex flex-wrap gap-x-3 gap-y-1 justify-center text-[11px] text-slate-400"></div>
+            </button>
         </div>
 
-        <!-- Clients List -->
+        <dialog id="clientsDashModal" class="rounded-2xl border border-slate-600 bg-slate-900 text-slate-200 shadow-2xl max-w-3xl w-[calc(100%-2rem)] max-h-[90vh] overflow-hidden backdrop:bg-black/70 p-0">
+            <div class="p-5 border-b border-slate-700 flex justify-between items-start gap-3">
+                <div>
+                    <h2 id="dashModalTitle" class="text-lg font-semibold text-white">Análise</h2>
+                    <p id="dashModalSub" class="text-xs text-slate-500 mt-0.5"></p>
+                </div>
+                <button type="button" onclick="document.getElementById('clientsDashModal').close()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition shrink-0">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-5 overflow-y-auto max-h-[calc(90vh-8rem)]">
+                <div class="flex flex-col lg:flex-row gap-6 items-start">
+                    <div class="relative mx-auto shrink-0" style="width: 280px; height: 280px;">
+                        <canvas id="donutModal"></canvas>
+                    </div>
+                    <div class="flex-1 min-w-0 w-full">
+                        <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Resumo por faixa</p>
+                        <div class="overflow-x-auto rounded-xl border border-slate-700/80">
+                            <table class="w-full text-sm">
+                                <thead><tr class="text-left text-slate-500 text-xs border-b border-slate-700">
+                                    <th class="py-2 px-3">Faixa</th>
+                                    <th class="py-2 px-3 text-right">Qtd</th>
+                                    <th class="py-2 px-3 text-right">%</th>
+                                </tr></thead>
+                                <tbody id="dashModalTable"></tbody>
+                            </table>
+                        </div>
+                        <p class="text-[10px] text-slate-600 mt-3">Clique em uma fatia do gráfico para listar os clientes.</p>
+                        <div id="dashModalClients" class="mt-3 rounded-xl border border-slate-700/60 bg-slate-800/40 p-3 max-h-48 overflow-y-auto hidden">
+                            <p class="text-xs font-medium text-slate-400 mb-2" id="dashModalClientsTitle"></p>
+                            <ul id="dashModalClientsList" class="text-sm space-y-1"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- Lista -->
         <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50">
-                <h3 class="text-slate-300 font-medium">Clientes Cadastrados</h3>
+            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="text-slate-300 font-medium">Clientes Cadastrados</h3>
+                </div>
+                <form action="/clients/bulk-assign-group" method="post" id="bulk-group-form" class="flex flex-wrap items-end gap-3 p-4 rounded-xl bg-slate-900/50 border border-slate-600/60">
+                    <input type="hidden" name="return_query" value="{{ request.url.query }}">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] uppercase tracking-wider text-slate-500">Enviar para grupo</label>
+                        <select name="group_id" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm min-w-[180px]">
+                            <option value="">— Grupo existente —</option>
+                            {% for g in client_groups %}
+                            <option value="{{ g.id }}">{{ g.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] uppercase tracking-wider text-slate-500">Ou novo grupo</label>
+                        <input type="text" name="new_group_name" placeholder="Ex.: EPA / DMA" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm w-44 placeholder-slate-600">
+                    </div>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
+                        Enviar
+                    </button>
+                    <span class="text-xs text-slate-500 self-center"><span id="bulk-selected-count">0</span> selecionado(s)</span>
+                </form>
             </div>
 
             {% if clients %}
@@ -149,37 +243,44 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
+                            <th class="px-3 py-4 w-10">
+                                <input type="checkbox" id="bulk-select-all" class="rounded border-slate-600 bg-slate-800 text-emerald-500" title="Marcar todos">
+                            </th>
                             <th class="px-6 py-4">NB</th>
-                            <th class="px-6 py-4">Nome</th>
-                            <th class="px-6 py-4">Data cadastro</th>
-                            <th class="px-6 py-4">Última movimentação</th>
-                            <th class="px-6 py-4">Setor</th>
-                            <th class="px-6 py-4">Município</th>
-                            <th class="px-6 py-4">Segmento</th>
-                            <th class="px-6 py-4">Status</th>
-                            <th class="px-6 py-4 text-right">Ações</th>
+                            <th class="px-3 py-3">Nome</th>
+                            <th class="px-3 py-3 whitespace-nowrap">Data cadastro</th>
+                            <th class="px-3 py-3 whitespace-nowrap">Última mov.</th>
+                            <th class="px-3 py-3">Setor</th>
+                            <th class="px-3 py-3">Município</th>
+                            <th class="px-3 py-3">Segmento</th>
+                            <th class="px-3 py-3">Status</th>
+                            <th class="px-3 py-3 text-right">Ações</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700 text-sm">
+                    <tbody class="divide-y divide-slate-700/80 text-sm">
                         {% for client in clients %}
-                        <tr class="hover:bg-slate-700/30 transition-colors">
-                            <td class="px-6 py-4 text-slate-400 font-mono">{{ client.nb or '-' }}</td>
-                            <td class="px-6 py-4">
+                        <tr class="hover:bg-slate-700/25 transition-colors client-table-row" data-client-id="{{ client.id }}">
+                            <td class="px-3 py-3 align-middle">
+                                <input type="checkbox" name="client_ids" value="{{ client.id }}" form="bulk-group-form" class="client-bulk-cb rounded border-slate-600 bg-slate-800 text-emerald-500">
+                            </td>
+                            <td class="px-3 py-3 text-slate-400 font-mono tabular-nums text-xs">{{ client.nb|fmt_nb_br }}</td>
+                            <td class="px-3 py-3">
                                 <a href="/clients/{{ client.id }}" class="text-white font-medium hover:text-blue-400 transition-colors">{{ client.name or client.nb or '-' }}</a>
                             </td>
-                            <td class="px-6 py-4 text-slate-300">
+                            <td class="px-6 py-4 text-slate-300 whitespace-nowrap">
                                 {% set data_cad = data_cadastro_by_client.get(client.id) %}
-                                {% if data_cad %}
-                                {% set parts = data_cad.split('-') %}
-                                {{ parts[2] }}/{{ parts[1] }}/{{ parts[0] }}
+                                {% if client.created_at %}
+                                {{ client.created_at|fmt_br_datetime }}
+                                {% elif data_cad %}
+                                {{ data_cad|fmt_br_date }}
                                 {% else %}
                                 —
                                 {% endif %}
                             </td>
-                            <td class="px-6 py-4 text-slate-300">
+                            <td class="px-6 py-4 text-slate-300 whitespace-nowrap">
                                 {% set last_mov = last_movement_by_client.get(client.id) %}
                                 {% if last_mov %}
-                                <span class="text-emerald-400">{{ last_mov }}</span>
+                                <span class="text-emerald-400">{{ last_mov|fmt_br_date }}</span>
                                 {% else %}
                                 <span class="text-slate-500">Sem movimentação</span>
                                 {% endif %}
@@ -225,15 +326,15 @@
                         d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
                     </path>
                 </svg>
-                <p>Nenhum cliente cadastrado ainda.</p>
-                <p class="text-sm mt-2">Use o botão Novo Cliente ou importe um arquivo Excel.</p>
+                <p>Nenhum cliente cadastrado ainda ou nenhum resultado para os filtros.</p>
+                <p class="text-sm mt-2">Use Novo Cliente, importe Excel ou ajuste os filtros.</p>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Modal Novo Cliente (flutuante) -->
+<!-- Modal Novo Cliente -->
 <div id="novoClienteModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
     <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-3xl mx-4">
         <div class="flex justify-between items-center mb-4">
@@ -291,36 +392,169 @@ document.getElementById('clients-excel-input')?.addEventListener('change', funct
     if (span) span.textContent = this.files?.length ? this.files[0].name : '';
 });
 
-// Gráfico: clientes por faixa de última movimentação (1 mês, 3 meses, ..., sem movimentação)
-(function() {
-    const ctx = document.getElementById('chartMovimentacao');
-    if (!ctx || typeof Chart === 'undefined') return;
-    const labels = [{% for item in chart_movimentacao.buckets %}'{{ item.label }}'{% if not loop.last %}, {% endif %}{% endfor %}, 'Sem movimentação'];
-    const counts = [{% for item in chart_movimentacao.buckets %}{{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}, {{ chart_movimentacao.sem_movimentacao }}];
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{ label: 'Clientes', data: counts, backgroundColor: ['#10b981aa','#22c55eaa','#84cc16aa','#eab308aa','#f59e0baa','#ef4444aa','#f59e0b'], borderColor: '#1e293b', borderWidth: 1 }]
-        },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
-    });
+(function clientsDashboard() {
+    const MOV_COLORS = ['#34d399', '#2dd4bf', '#a3e635', '#fbbf24', '#fb923c', '#f87171', '#64748b'];
+    const PREC_COLORS = ['#818cf8', '#a78bfa', '#c084fc', '#e879f9', '#f472b6', '#94a3b8'];
+    let movData, precData, nameMap;
+    try {
+        movData = JSON.parse(document.getElementById('mov-drill-data').textContent);
+        precData = JSON.parse(document.getElementById('precad-drill-data').textContent);
+        nameMap = JSON.parse(document.getElementById('client-names-data').textContent);
+    } catch (e) { return; }
+
+    function nz(slices) { return (slices || []).filter(s => s.count > 0); }
+    function dominant(slices, total) {
+        const n = nz(slices);
+        if (!n.length || !total) return { pct: 0, label: '—' };
+        const top = n.reduce((a, b) => a.count >= b.count ? a : b);
+        return { pct: Math.round((1000 * top.count) / total) / 10, label: top.label };
+    }
+    function buildDonut(canvas, slices, colors, cutout) {
+        const n = nz(slices);
+        if (!canvas || typeof Chart === 'undefined') return null;
+        if (!n.length) {
+            return new Chart(canvas.getContext('2d'), {
+                type: 'doughnut',
+                data: { labels: ['—'], datasets: [{ data: [1], backgroundColor: ['#334155'], borderWidth: 0 }] },
+                options: { cutout: cutout + '%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+            });
+        }
+        return new Chart(canvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: n.map(s => s.label),
+                datasets: [{
+                    data: n.map(s => s.count),
+                    backgroundColor: n.map((_, i) => colors[i % colors.length]),
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                cutout: cutout + '%',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: {
+                    callbacks: { label: (c) => c.label + ': ' + Number(c.raw).toLocaleString('pt-BR') }
+                }}
+            }
+        });
+    }
+    function fillLegend(elId, slices, colors) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        const n = nz(slices);
+        el.innerHTML = n.map((s, i) =>
+            '<span class="inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:' + (colors[i % colors.length]) + '"></span>' + s.label + ' <span class="text-slate-500">' + s.count + '</span></span>'
+        ).join('');
+    }
+
+    const totalMov = movData.total || 0;
+    const dm = dominant(movData.slices, totalMov);
+    const elPct = document.getElementById('movDonutPct');
+    const elLbl = document.getElementById('movDonutLbl');
+    if (elPct) elPct.textContent = totalMov ? (dm.pct + '%') : '0%';
+    if (elLbl) elLbl.textContent = dm.label || '—';
+    buildDonut(document.getElementById('donutMovSmall'), movData.slices, MOV_COLORS, 78);
+    fillLegend('movDonutLegend', movData.slices, MOV_COLORS);
+
+    const totalPrec = precData.total || 0;
+    const dp = dominant(precData.slices, totalPrec);
+    const elPP = document.getElementById('precDonutPct');
+    const elPL = document.getElementById('precDonutLbl');
+    if (elPP) elPP.textContent = totalPrec ? (dp.pct + '%') : '0%';
+    if (elPL) elPL.textContent = dp.label || '—';
+    buildDonut(document.getElementById('donutPrecSmall'), precData.slices, PREC_COLORS, 78);
+    fillLegend('precDonutLegend', precData.slices, PREC_COLORS);
+
+    let modalChart = null;
+    let modalKind = null;
+    window.openClientsDashModal = function(kind) {
+        modalKind = kind;
+        const data = kind === 'mov' ? movData : precData;
+        const colors = kind === 'mov' ? MOV_COLORS : PREC_COLORS;
+        const title = kind === 'mov' ? 'Última movimentação' : 'Pré-cadastro (lista filtrada)';
+        document.getElementById('dashModalTitle').textContent = title;
+        document.getElementById('dashModalSub').textContent = (data.total || 0).toLocaleString('pt-BR') + ' cliente(s) na base do gráfico';
+        const tbody = document.getElementById('dashModalTable');
+        const t = data.total || 1;
+        tbody.innerHTML = (data.slices || []).map(s => {
+            const pct = Math.round((1000 * s.count) / t) / 10;
+            return '<tr class="border-b border-slate-800/80 hover:bg-slate-800/50"><td class="py-2 px-3 text-slate-300">' + s.label + '</td><td class="py-2 px-3 text-right tabular-nums">' + s.count.toLocaleString('pt-BR') + '</td><td class="py-2 px-3 text-right text-slate-500 tabular-nums">' + pct + '%</td></tr>';
+        }).join('');
+        document.getElementById('dashModalClients').classList.add('hidden');
+        const canvas = document.getElementById('donutModal');
+        if (modalChart) modalChart.destroy();
+        const n = nz(data.slices);
+        modalChart = new Chart(canvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: n.map(s => s.label),
+                datasets: [{
+                    data: n.length ? n.map(s => s.count) : [1],
+                    backgroundColor: n.length ? n.map((_, i) => colors[i % colors.length]) : ['#334155'],
+                    borderWidth: 0,
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                cutout: '72%',
+                responsive: true,
+                maintainAspectRatio: false,
+                onClick: (evt, elements) => {
+                    if (!elements.length || !n.length) return;
+                    const idx = elements[0].index;
+                    const slice = n[idx];
+                    const box = document.getElementById('dashModalClients');
+                    const ul = document.getElementById('dashModalClientsList');
+                    document.getElementById('dashModalClientsTitle').textContent = slice.label + ' · ' + slice.count + ' cliente(s)';
+                    ul.innerHTML = (slice.ids || []).map(id =>
+                        '<li><a href="/clients/' + id + '" class="text-cyan-400 hover:text-cyan-300 hover:underline">' + (nameMap[id] || ('#' + id)) + '</a></li>'
+                    ).join('') || '<li class="text-slate-500">Nenhum</li>';
+                    box.classList.remove('hidden');
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (c) => c.label + ': ' + Number(c.raw).toLocaleString('pt-BR') } }
+                }
+            }
+        });
+        document.getElementById('clientsDashModal').showModal();
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+    };
 })();
-// Gráfico: pre-cadastro por faixa
-(function() {
-    const ctx = document.getElementById('chartPrecadastro');
-    if (!ctx || typeof Chart === 'undefined') return;
-    const labels = [{% for item in chart_precadastro %}'{{ item.label }}'{% if not loop.last %}, {% endif %}{% endfor %}];
-    const counts = [{% for item in chart_precadastro %}{{ item.count }}{% if not loop.last %}, {% endif %}{% endfor %}];
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{ label: 'Pre-cadastro', data: counts, backgroundColor: '#8b5cf6bb', borderColor: '#8b5cf6', borderWidth: 1 }]
-        },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
-    });
-})();
+
+function syncRowHighlight(cb) {
+    const tr = cb.closest('tr');
+    if (tr) tr.classList.toggle('bg-emerald-950/25', cb.checked);
+}
+document.getElementById('bulk-select-all')?.addEventListener('change', function() {
+    document.querySelectorAll('.client-bulk-cb').forEach(cb => { cb.checked = this.checked; syncRowHighlight(cb); });
+    updateBulkCount();
+});
+document.querySelectorAll('.client-bulk-cb').forEach(cb => {
+    cb.addEventListener('change', function() { syncRowHighlight(this); updateBulkCount(); });
+});
+function updateBulkCount() {
+    const n = document.querySelectorAll('.client-bulk-cb:checked').length;
+    const el = document.getElementById('bulk-selected-count');
+    if (el) el.textContent = n;
+}
+updateBulkCount();
+document.getElementById('bulk-group-form')?.addEventListener('submit', function(e) {
+    const n = document.querySelectorAll('.client-bulk-cb:checked').length;
+    if (!n) {
+        e.preventDefault();
+        alert('Selecione ao menos um cliente na tabela.');
+        return;
+    }
+    const gid = this.querySelector('[name=group_id]')?.value;
+    const nw = (this.querySelector('[name=new_group_name]')?.value || '').trim();
+    if (!gid && !nw) {
+        e.preventDefault();
+        alert('Escolha um grupo existente ou digite o nome de um novo grupo.');
+    }
+});
 if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
 </script>
 {% endblock %}

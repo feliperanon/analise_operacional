@@ -1,12 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-8">
+{% set _filters = filters or {} %}
+{% set _pagination = pagination or {} %}
+<script>
+window.__DEVOLUCOES_TABLE_ROWS = {{ devolucoes_table_rows|tojson }};
+window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_date': _filters.get('end_date')}|tojson }};
+</script>
+<div class="p-8" x-data="devolucoesTable({ rows: window.__DEVOLUCOES_TABLE_ROWS || [] })">
     <div class="max-w-7xl mx-auto">
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
                 <h1 class="text-3xl font-bold text-white mb-2">Devoluções</h1>
-                <p class="text-slate-400">Registro de devoluções e ocorrências de entrega. Importe via Excel ou cadastre manualmente.</p>
+                <p class="text-slate-400">Registro de devoluções. <span class="text-amber-400/90">Duplicata de planilha</span> quando o motorista já registrou no app — a linha oficial é a do mobile; exclua a duplicata na aba Aguardando.</p>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <button type="button" onclick="openManualModal()"
@@ -19,30 +25,13 @@
                     <span>Importar Excel</span>
                     <input type="file" id="devolucoes-excel-input" accept=".xlsx,.xls,.xlsm" class="hidden">
                 </label>
-                <a href="/devolucoes/avaliar" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-emerald-600/50 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-sm font-medium transition-colors">
-                    <i data-lucide="clipboard-check" class="w-4 h-4"></i>
-                    Avaliar e validar
-                </a>
-                <a href="/devolucoes/template" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors" download="planilha_devolucoes_modelo.xlsx">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    Modelo Excel
-                </a>
-                <button type="button" id="reconcile-routes-btn" title="Atualiza rotas de entrega para status devolução quando houver devolução cadastrada"
-                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-medium transition-colors">
-                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                    Reconciliar rotas
-                </button>
-                <button type="button" id="rematch-motoristas-btn" title="Corrige devoluções vinculadas a ajudante: troca pelo motorista correto (prioridade motorista)"
-                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-sky-500/50 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 text-sm font-medium transition-colors">
-                    <i data-lucide="user-check" class="w-4 h-4"></i>
-                    Corrigir motoristas
-                </button>
             </div>
         </div>
 
         <div id="import-preview-box" class="hidden mb-6 p-4 rounded-xl bg-slate-800 border border-slate-600">
             <h3 class="text-white font-semibold mb-2">Prévia da importação</h3>
             <p class="text-slate-400 text-sm mb-3"><span id="import-valid-count">0</span> válida(s), <span id="import-invalid-count">0</span> inválida(s)</p>
+            <p id="import-precadastro-msg" class="hidden text-amber-400/90 text-sm mb-3"><i data-lucide="user-plus" class="w-4 h-4 inline-block align-middle"></i> <span id="import-precadastro-text"></span></p>
             <div id="import-errors" class="text-rose-400 text-sm mb-3 max-h-32 overflow-y-auto"></div>
             <div class="flex gap-2">
                 <button type="button" id="import-commit-btn" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
@@ -59,87 +48,131 @@
             <span id="import-success-text"></span>
         </div>
 
-        {% set _filters = filters or {} %}
-        {% set _pagination = pagination or {} %}
-        <div class="mb-6 flex flex-wrap items-center gap-4">
-            <div class="flex items-center gap-2">
-                <label class="text-sm text-slate-400">Período:</label>
-                <form method="get" action="/devolucoes" class="flex items-center gap-2" id="devolucoes-filter-form">
-                        <input type="hidden" name="per_page" value="{{ _pagination.get('per_page', 500) }}">
-                        <select name="month" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white">
-                        {% for m in range(1, 13) %}
-                        <option value="{{ m }}" {% if _filters.get('month') == m %}selected{% endif %}>{{ ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][m] }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="year" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white">
-                        {% for y in range(2024, 2028) %}
-                        <option value="{{ y }}" {% if _filters.get('year') == y %}selected{% endif %}>{{ y }}</option>
-                        {% endfor %}
-                    </select>
+        <div class="mb-4 flex flex-wrap items-center gap-4">
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="/devolucoes?hoje=1&page=1&per_page={{ _pagination.get('per_page', 250) }}" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ 'bg-sky-600 text-white' if _filters.get('period_label') == 'Hoje' else 'bg-slate-700 text-slate-300 hover:bg-slate-600' }}">Hoje</a>
+                <form method="get" action="/devolucoes" class="flex items-center gap-2 flex-wrap" id="devolucoes-filter-form">
+                    <input type="hidden" name="per_page" value="{{ _pagination.get('per_page', 250) }}">
                     <input type="hidden" name="page" value="1">
+                    <label class="text-slate-400 text-sm">De</label>
+                    <input type="date" name="date_from" value="{{ _filters.get('date_from') or '' }}" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+                    <label class="text-slate-400 text-sm">até</label>
+                    <input type="date" name="date_to" value="{{ _filters.get('date_to') or '' }}" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm font-medium">Filtrar</button>
                 </form>
             </div>
-            {% if _pagination %}
-            <span class="text-sm text-slate-500">{{ _pagination.get('total_count', 0) }} registro(s) em {{ _filters.get('start_date', '')[:7] }}</span>
             <div class="flex items-center gap-2">
-                {% if _pagination.get('total_pages', 1) > 1 %}
-                <a href="/devolucoes?month={{ _filters.get('month') }}&year={{ _filters.get('year') }}&page=1&per_page=9999" class="text-sm text-sky-400 hover:text-sky-300 hover:underline">Ver todos na mesma página</a>
-                {% endif %}
+                <span class="text-slate-500 text-sm">Motorista(s):</span>
+                <div class="relative">
+                    <button type="button" @click="openMotoristaDropdown = !openMotoristaDropdown" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-200 text-sm hover:bg-slate-700 min-w-[180px] justify-between">
+                        <span x-text="motoristaFilterIds.length === 0 ? 'Todos' : motoristaFilterIds.length + ' selecionado(s)'"></span>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500"></i>
+                    </button>
+                    <div x-show="openMotoristaDropdown" @click.outside="openMotoristaDropdown = false" x-transition class="absolute left-0 top-full mt-1 z-20 py-2 w-64 max-h-60 overflow-y-auto rounded-lg border border-slate-600 bg-slate-800 shadow-xl" x-cloak style="display: none;">
+                        <template x-for="m in uniqueMotoristas" :key="m.id">
+                            <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 cursor-pointer text-sm text-slate-200">
+                                <input type="checkbox" :checked="motoristaFilterIds.includes(m.id)" @change="toggleMotoristaFilter(m.id)" class="rounded border-slate-500 bg-slate-800 text-blue-500 focus:ring-blue-500">
+                                <span x-text="m.name"></span>
+                            </label>
+                        </template>
+                        <button type="button" @click="motoristaFilterIds = []; openMotoristaDropdown = false" class="w-full mt-2 pt-2 border-t border-slate-600 text-center text-sky-400 hover:text-sky-300 text-xs">Limpar</button>
+                    </div>
+                </div>
             </div>
-            {% endif %}
+            <div class="flex-1 min-w-[200px] max-w-[280px]">
+                <div class="relative flex items-center">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 pointer-events-none text-slate-500 shrink-0"></i>
+                    <input type="search" x-model="searchQ" placeholder="Pesquisar: placa, cliente, motorista…" class="w-full min-w-0 bg-slate-900 border border-slate-600 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border">
+                </div>
+            </div>
         </div>
 
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex flex-wrap items-center justify-between gap-2">
-                <h3 class="text-slate-300 font-medium">Registros de devolução</h3>
+        <div class="flex flex-wrap items-center gap-3 mb-4 border-b border-slate-700 pb-2">
+            <span class="text-slate-500 text-sm mr-1">Aba:</span>
+            <button type="button" @click="tab = 'todas'" :class="tab === 'todas' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors">Todas</button>
+            <button type="button" @click="tab = 'aguardando'" :class="tab === 'aguardando' ? 'bg-amber-600/30 text-amber-200 border border-amber-500/40' : 'text-slate-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent">
+                Aguardando validação <span class="text-amber-400 font-bold">({{ aguardando_count }})</span>
+            </button>
+            <span class="text-slate-600 mx-2">|</span>
+            <span class="text-slate-500 text-sm">Origem:</span>
+            <button type="button" @click="sourceFilter = ''" :class="!sourceFilter ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Todas</button>
+            <button type="button" @click="sourceFilter = 'MOBILE'" :class="sourceFilter === 'MOBILE' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Mobile</button>
+            <button type="button" @click="sourceFilter = 'WEB'" :class="sourceFilter === 'WEB' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Web</button>
+            <button type="button" @click="sourceFilter = 'EXCEL'" :class="sourceFilter === 'EXCEL' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Excel</button>
+            <button type="button" @click="sourceFilter = 'MANUAL'" :class="sourceFilter === 'MANUAL' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Manual</button>
+        </div>
+
+        <div class="mb-4 flex flex-wrap items-center gap-3" x-show="filtered.length > 0">
+            <label class="inline-flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white text-sm">
+                <input type="checkbox" :checked="filtered.length > 0 && selectedIds.length === filtered.length" :indeterminate.prop="selectedIds.length > 0 && selectedIds.length < filtered.length" @change="toggleSelectAll()" class="rounded border-slate-500 bg-slate-800 text-blue-500 focus:ring-blue-500">
+                <span>Selecionar todas</span>
+            </label>
+            <button type="button" @click="bulkDelete()" :disabled="selectedIds.length === 0" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                Excluir selecionados (<span x-text="selectedIds.length"></span>)
+            </button>
+            <template x-if="tab === 'aguardando'">
+                <button type="button" @click="bulkApprove()" :disabled="selectedIds.length === 0" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    Aprovar selecionados (<span x-text="selectedIds.length"></span>)
+                </button>
+            </template>
+            <button type="button" @click="reconnectOrphans()" :disabled="reconnecting" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors" title="Vincula devoluções 'Sem rota no dia' às rotas existentes (data_entrega) e tira da fila.">
+                <i data-lucide="link" class="w-4 h-4"></i>
+                <span x-text="reconnecting ? 'Reconectando…' : 'Reconectar órfãos'"></span>
+            </button>
+            <span class="text-slate-500 text-sm">Excluir: duplicata, órfão ou origem Excel/Web/Mobile. Aprovar: marca como validado. Reconectar: vincula órfãos às rotas.</span>
+        </div>
+
+        <div class="rounded-2xl border border-slate-700 overflow-hidden">
+            <div class="px-4 py-3 bg-slate-800/50 border-b border-slate-700 flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-slate-300 font-medium" x-text="tab === 'aguardando' ? 'Itens para revisar (duplicata planilha ou sem rota)' : 'Registros de devolução'"></h3>
                 {% if _pagination and _pagination.get('total_pages', 1) > 1 %}
+                {% set _date_q = 'hoje=1' if _filters.get('period_label') == 'Hoje' else ('date_from=' + (_filters.get('date_from') or '') + '&date_to=' + (_filters.get('date_to') or '')) %}
                 <nav class="flex items-center gap-1">
-                    <a href="/devolucoes?month={{ _filters.get('month') }}&year={{ _filters.get('year') }}&page={{ _pagination.get('prev_page', 1) }}&per_page={{ _pagination.get('per_page', 500) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_prev') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">← Anterior</a>
+                    <a href="/devolucoes?{{ _date_q }}&page={{ _pagination.get('prev_page', 1) }}&per_page={{ _pagination.get('per_page', 250) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_prev') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">← Anterior</a>
                     <span class="px-2 text-slate-400 text-sm">Pág. {{ _pagination.get('page', 1) }} / {{ _pagination.get('total_pages', 1) }}</span>
-                    <a href="/devolucoes?month={{ _filters.get('month') }}&year={{ _filters.get('year') }}&page={{ _pagination.get('next_page', 1) }}&per_page={{ _pagination.get('per_page', 500) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_next') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">Próxima →</a>
+                    <a href="/devolucoes?{{ _date_q }}&page={{ _pagination.get('next_page', 1) }}&per_page={{ _pagination.get('per_page', 250) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_next') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">Próxima →</a>
                 </nav>
                 {% endif %}
             </div>
-            {% if devolucoes %}
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
-                            <th class="px-6 py-4">Data</th>
-                            <th class="px-6 py-4">Cliente</th>
-                            <th class="px-6 py-4">Motorista</th>
-                            <th class="px-6 py-4">Valor</th>
-                            <th class="px-6 py-4">Cluster</th>
-                            <th class="px-6 py-4">≥ R$ 300</th>
-                            <th class="px-6 py-4">Origem</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-700 text-sm">
-                        {% for d in devolucoes %}
-                        <tr class="hover:bg-slate-700/30 transition-colors">
-                            <td class="px-6 py-4 text-slate-300">{{ d.data_romaneio }}</td>
-                            <td class="px-6 py-4 text-white">{{ d.client_name }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ d.motorista_name }}</td>
-                            <td class="px-6 py-4 text-slate-300">R$ {{ "%.2f"|format(d.valor)|replace(".", ",") }}</td>
-                            <td class="px-6 py-4 text-slate-400">{{ d.cluster or '-' }}</td>
-                            <td class="px-6 py-4">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold {% if d.acima_300 == 'SIM' %}bg-amber-500/20 text-amber-400{% else %}bg-slate-500/20 text-slate-400{% endif %}">{{ d.acima_300 }}</span>
-                            </td>
-                            <td class="px-6 py-4 text-slate-500 text-xs">{{ d.source }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <template x-if="rows.length === 0">
+                <div class="p-12 text-center text-slate-500">
+                    <p>Nenhuma devolução no período desta página.</p>
+                </div>
+            </template>
+            <p x-show="rows.length && filtered.length === 0" class="p-8 text-center text-slate-500 text-sm">Nenhum resultado para a pesquisa ou aba vazia.</p>
+            <div x-show="filtered.length > 0" class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <template x-for="d in filtered" :key="d.id">
+                    <div class="rounded-xl border border-slate-600 bg-slate-800/80 hover:border-slate-500 transition-colors flex flex-col min-h-[180px]"
+                        :class="d.is_duplicate_excel ? 'ring-1 ring-rose-500/30' : ''">
+                        <div class="p-4 flex-1 flex flex-col gap-2">
+                            <div class="flex items-start justify-between gap-2">
+                                <label class="flex items-center gap-2 cursor-pointer shrink-0">
+                                    <input type="checkbox" :checked="selectedIds.includes(d.id)" @change="toggleSelect(d.id)" class="rounded border-slate-500 bg-slate-800 text-blue-500 focus:ring-blue-500">
+                                    <span class="text-slate-400 text-xs" :title="d.can_delete_aguardando ? 'Pode ser excluído' : 'Só duplicata/órfão é excluída'">Excluir</span>
+                                </label>
+                                <span class="text-slate-400 font-mono text-xs" x-text="d.data_efetiva || d.data_entrega || d.data_romaneio" :title="(d.data_romaneio && d.data_entrega && d.data_romaneio !== d.data_entrega) ? ('Romaneio: ' + d.data_romaneio + ' · Entrega: ' + d.data_entrega) : ''"></span>
+                            </div>
+                            <h4 class="text-white font-medium text-sm leading-tight line-clamp-2" x-text="d.client_name"></h4>
+                            <div class="text-slate-400 text-xs space-y-0.5">
+                                <p><span class="text-slate-500">Motorista:</span> <span x-text="d.motorista_name"></span></p>
+                                <p><span class="text-slate-500">Placa:</span> <span class="font-mono" x-text="d.vehicle_plate || '-'"></span></p>
+                            </div>
+                            <div class="flex flex-wrap items-center justify-between gap-2 mt-auto pt-2 border-t border-slate-700">
+                                <span class="text-sky-400 font-semibold text-sm" x-text="fmtValor(d.valor)"></span>
+                                <span class="px-2 py-0.5 rounded text-[10px]" :class="d.acima_300 === 'SIM' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'" x-text="d.acima_300"></span>
+                                <span class="text-slate-500 text-xs" x-text="d.source"></span>
+                            </div>
+                            <p x-show="d.is_duplicate_excel" class="text-[10px] text-rose-400 font-semibold">Duplicata planilha — válido: mobile/rota</p>
+                            <p x-show="d.validation_status === 'ORPHAN_ROUTE' && !d.is_duplicate_excel" class="text-[10px] text-amber-400">Sem rota no dia — validar</p>
+                            <div class="flex justify-end gap-2 mt-1" x-show="tab === 'aguardando'">
+                                <button type="button" @click="aprovar(d)" class="text-emerald-400 hover:text-emerald-300 text-xs font-semibold">Aprovar</button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
-            {% else %}
-            <div class="p-12 text-center text-slate-500">
-                <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/>
-                </svg>
-                <p>Nenhuma devolução registrada ainda.</p>
-                <p class="text-sm mt-2">Use o botão Lançamento Manual ou importe um arquivo Excel.</p>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
@@ -232,32 +265,235 @@
     </div>
 </div>
 
-<!-- Modal Reconciliar rotas (filtro obrigatório) -->
-<div id="reconcileModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
-    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md mx-4">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg font-semibold text-white">Reconciliar rotas</h2>
-            <button type="button" onclick="closeReconcileModal()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">×</button>
-        </div>
-        <p class="text-sm text-slate-400 mb-4">Informe o período para atualizar rotas de entrega conforme devoluções cadastradas. Não inclua o dia atual para evitar afetar rotas em andamento.</p>
-        <div class="space-y-3">
-            <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Data início *</label>
-                <input type="date" id="reconcile-start-date" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-amber-500" required>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-slate-400 mb-1">Data fim *</label>
-                <input type="date" id="reconcile-end-date" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-amber-500" required>
-            </div>
-        </div>
-        <div class="flex justify-end gap-2 pt-4 mt-4 border-t border-slate-700">
-            <button type="button" onclick="closeReconcileModal()" class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
-            <button type="button" id="reconcile-confirm-btn" class="px-6 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-semibold transition-colors">Reconciliar</button>
-        </div>
-    </div>
-</div>
-
 <script>
+function devolucoesTable(cfg) {
+    return {
+        rows: Array.isArray(cfg.rows) ? cfg.rows : [],
+        selectedIds: [],
+        searchQ: '',
+        sourceFilter: '',
+        motoristaFilterIds: [],
+        openMotoristaDropdown: false,
+        tab: 'todas',
+        sortKey: 'data_efetiva',
+        sortDir: -1,
+        reconnecting: false,
+        get uniqueMotoristas() {
+            const seen = new Set();
+            const out = [];
+            for (const d of this.rows) {
+                const id = d.motorista_id;
+                if (id != null && id !== '' && !seen.has(id)) {
+                    seen.add(id);
+                    out.push({ id: id, name: d.motorista_name || 'Sem nome' });
+                }
+            }
+            out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+            return out;
+        },
+        get filtered() {
+            let r = this.rows;
+            if (this.tab === 'aguardando') r = r.filter(x => x.aguardando);
+            if (this.sourceFilter) {
+                const s = String(this.sourceFilter).toUpperCase();
+                r = r.filter(d => {
+                    const src = (d.source || '').toUpperCase();
+                    if (s === 'WEB') return src === 'WEB' || src === 'ROTA';
+                    return src === s;
+                });
+            }
+            if (this.motoristaFilterIds && this.motoristaFilterIds.length > 0) {
+                const ids = new Set(this.motoristaFilterIds);
+                r = r.filter(d => ids.has(d.motorista_id));
+            }
+            const q = (this.searchQ || '').trim().toLowerCase();
+            if (q) {
+                r = r.filter(d => {
+                    const blob = [
+                        d.data_romaneio, d.data_entrega, d.data_efetiva, d.client_name, d.motorista_name, d.vehicle_plate,
+                        d.cluster, d.acima_300, d.source, String(d.valor),
+                        d.validation_status || ''
+                    ].join(' ').toLowerCase();
+                    return blob.includes(q);
+                });
+            }
+            const k = this.sortKey;
+            const dir = this.sortDir;
+            const num = (x) => {
+                if (k === 'valor') return parseFloat(x.valor) || 0;
+                return 0;
+            };
+            return [...r].sort((a, b) => {
+                let va, vb;
+                if (k === 'valor') { va = num(a); vb = num(b); return dir * (va - vb); }
+                va = String(a[k] || '').toLowerCase();
+                vb = String(b[k] || '').toLowerCase();
+                if (va < vb) return -1 * dir;
+                if (va > vb) return 1 * dir;
+                return (b.id - a.id) * dir;
+            });
+        },
+        get deletableFiltered() {
+            return this.filtered.filter(d => d.can_delete_aguardando);
+        },
+        toggleSelect(id) {
+            const i = this.selectedIds.indexOf(id);
+            if (i === -1) this.selectedIds.push(id);
+            else this.selectedIds.splice(i, 1);
+        },
+        toggleSelectAll() {
+            const all = this.filtered.map(d => d.id);
+            const allSelected = all.length > 0 && this.selectedIds.length === all.length;
+            this.selectedIds = allSelected ? [] : all;
+        },
+        toggleMotoristaFilter(id) {
+            if (this.motoristaFilterIds.includes(id)) {
+                this.motoristaFilterIds = this.motoristaFilterIds.filter(x => x !== id);
+            } else {
+                this.motoristaFilterIds = [...this.motoristaFilterIds, id];
+            }
+        },
+        async bulkDelete() {
+            if (this.selectedIds.length === 0) return;
+            if (!confirm('Excluir ' + this.selectedIds.length + ' registro(s) selecionado(s)? A alteração será refletida em todo o sistema (web e mobile).')) return;
+            if (this.sourceFilter === 'MOBILE' && !confirm('Excluir Mobile? Confirma que deseja realmente excluir os registros de origem Mobile? Esta ação não pode ser desfeita.')) return;
+            try {
+                const r = await fetch('/api/devolucoes/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ ids: this.selectedIds })
+                });
+                const j = await r.json().catch(function() { return {}; });
+                if (r.status === 401) {
+                    alert('Sessão expirada ou bloqueada (ex.: Prevenção de Rastreamento). Faça login novamente em ' + window.location.origin + ' ou desative a prevenção de rastreamento para este site.');
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    return;
+                }
+                if (j.ok) {
+                    const deleted = j.deleted || [];
+                    const skipped = j.skipped || [];
+                    this.rows = this.rows.filter(x => !deleted.includes(x.id));
+                    this.selectedIds = [];
+                    if (skipped.length > 0) {
+                        alert('Excluídos: ' + deleted.length + '. Não foi possível excluir ' + skipped.length + ' (apenas duplicata de planilha, órfão ou devoluções com origem Excel/Web/Mobile podem ser excluídos).');
+                    }
+                    window.location.reload();
+                } else {
+                    alert(j.error || 'Erro ao excluir');
+                }
+            } catch (e) {
+                alert('Erro de rede ou sessão. Se o navegador bloqueou cookies (Prevenção de Rastreamento), permita este site ou faça login de novo.');
+            }
+        },
+        sortBy(key) {
+            if (this.sortKey === key) this.sortDir *= -1;
+            else { this.sortKey = key; this.sortDir = key === 'valor' ? -1 : 1; }
+        },
+        sortHint(key) {
+            if (this.sortKey !== key) return '⇅';
+            return this.sortDir > 0 ? '↑' : '↓';
+        },
+        fmtValor(v) {
+            return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        async aprovar(d) {
+            try {
+                const r = await fetch('/api/devolucoes/' + d.id + '/approve', { method: 'POST', credentials: 'same-origin' });
+                const j = await r.json().catch(function() { return {}; });
+                if (r.status === 401) {
+                    alert('Sessão expirada. Faça login novamente.');
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    return;
+                }
+                if (j.ok) {
+                    const idx = this.rows.findIndex(x => x.id === d.id);
+                    if (idx >= 0) {
+                        this.rows[idx] = { ...this.rows[idx], aguardando: false, is_duplicate_excel: false, validation_status: '', can_delete_aguardando: false };
+                    }
+                    this.selectedIds = this.selectedIds.filter(id => id !== d.id);
+                    window.location.reload();
+                } else alert(j.error || 'Erro ao aprovar');
+            } catch (e) {
+                alert('Erro de rede: ' + (e.message || 'Erro desconhecido'));
+            }
+        },
+        async reconnectOrphans() {
+            const period = window.__DEVOLUCOES_PERIOD || {};
+            const start = period.start_date || '';
+            const end = period.end_date || '';
+            if (!start || !end) {
+                alert('Defina o período (De/até) antes de reconectar.');
+                return;
+            }
+            if (!confirm('Reconectar devoluções "Sem rota no dia" às rotas existentes no período ' + start + ' a ' + end + '? Isso vincula route_id e tira da fila (não altera o status da rota).')) return;
+            this.reconnecting = true;
+            try {
+                const r = await fetch('/api/devolucoes/reconnect-orphans', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ start_date: start, end_date: end })
+                });
+                const j = await r.json().catch(function() { return {}; });
+                if (r.status === 401) {
+                    alert('Sessão expirada. Faça login novamente.');
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    return;
+                }
+                if (j.ok) {
+                    const recon = j.reconnected || 0;
+                    const dup = j.duplicates_linked || 0;
+                    let msg = 'Reconectados: ' + recon;
+                    if (dup > 0) msg += '. Duplicatas ligadas: ' + dup;
+                    msg += '.';
+                    alert(msg);
+                    window.location.reload();
+                } else {
+                    alert(j.error || 'Erro ao reconectar');
+                }
+            } catch (e) {
+                alert('Erro de rede: ' + (e.message || 'Erro desconhecido'));
+            } finally {
+                this.reconnecting = false;
+            }
+        },
+        async bulkApprove() {
+            if (this.selectedIds.length === 0) return;
+            if (!confirm('Aprovar ' + this.selectedIds.length + ' registro(s)? Eles sairão da aba Aguardando.')) return;
+            try {
+                const r = await fetch('/api/devolucoes/bulk-approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ ids: this.selectedIds })
+                });
+                const j = await r.json().catch(function() { return {}; });
+                if (r.status === 401) {
+                    alert('Sessão expirada. Faça login novamente.');
+                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+                    return;
+                }
+                if (j.ok) {
+                    const approved = j.approved || [];
+                    const skipped = j.skipped || [];
+                    approved.forEach(id => {
+                        const idx = this.rows.findIndex(x => x.id === id);
+                        if (idx >= 0) this.rows[idx] = { ...this.rows[idx], aguardando: false, is_duplicate_excel: false, validation_status: '', can_delete_aguardando: false };
+                    });
+                    this.selectedIds = [];
+                    if (skipped.length > 0) {
+                        alert('Aprovados: ' + approved.length + '. Não foi possível aprovar ' + skipped.length + ' (apenas itens em aguardando podem ser aprovados).');
+                    }
+                    window.location.reload();
+                } else alert(j.error || 'Erro ao aprovar');
+            } catch (e) {
+                alert('Erro de rede: ' + (e.message || 'Erro desconhecido'));
+            }
+        }
+    };
+}
+
 let _importValidRows = [];
 let _importFilename = '';
 
@@ -283,6 +519,14 @@ document.getElementById('devolucoes-excel-input')?.addEventListener('change', as
         document.getElementById('import-commit-btn').style.display = '';
         document.getElementById('import-valid-count').textContent = j.valid_count;
         document.getElementById('import-invalid-count').textContent = j.invalid_count;
+        const precadMsg = document.getElementById('import-precadastro-msg');
+        if (j.precadastrados && j.precadastrados.length > 0) {
+            precadMsg.classList.remove('hidden');
+            document.getElementById('import-precadastro-text').textContent = 'Vendedores pré-cadastrados automaticamente: ' + j.precadastrados.join(', ') + '. Complete o cadastro em Colaboradores se necessário.';
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            precadMsg.classList.add('hidden');
+        }
         const errDiv = document.getElementById('import-errors');
         errDiv.innerHTML = '';
         if (j.invalid_details && j.invalid_details.length) {
@@ -323,97 +567,6 @@ document.getElementById('import-commit-btn')?.addEventListener('click', async fu
         }
     } catch (e) {
         alert('Erro: ' + e.message);
-    }
-});
-
-function openReconcileModal() {
-    const modal = document.getElementById('reconcileModal');
-    const params = new URLSearchParams(window.location.search);
-    const month = params.get('month') || (new Date().getMonth() + 1);
-    const year = params.get('year') || new Date().getFullYear();
-    const lastDay = new Date(year, parseInt(month, 10), 0).getDate();
-    document.getElementById('reconcile-start-date').value = year + '-' + String(month).padStart(2, '0') + '-01';
-    document.getElementById('reconcile-end-date').value = year + '-' + String(month).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
-function closeReconcileModal() {
-    document.getElementById('reconcileModal').classList.add('hidden');
-    document.getElementById('reconcileModal').classList.remove('flex');
-}
-document.getElementById('reconcile-routes-btn')?.addEventListener('click', function() {
-    openReconcileModal();
-});
-document.getElementById('reconcile-confirm-btn')?.addEventListener('click', async function() {
-    const start = document.getElementById('reconcile-start-date').value;
-    const end = document.getElementById('reconcile-end-date').value;
-    if (!start || !end) {
-        alert('Informe as datas início e fim.');
-        return;
-    }
-    if (start > end) {
-        alert('Data início deve ser anterior à data fim.');
-        return;
-    }
-    const btn = this;
-    const origText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Reconciliando...';
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-    try {
-        const r = await fetch('/api/devolucoes/reconcile-routes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ start_date: start, end_date: end })
-        });
-        const j = await r.json();
-        if (j.ok) {
-            closeReconcileModal();
-            alert('Reconciliação concluída: ' + j.updated_routes + ' rota(s) atualizada(s) para devolução.');
-            window.location.reload();
-        } else {
-            alert(j.error || 'Erro ao reconciliar');
-        }
-    } catch (e) {
-        alert('Erro: ' + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = origText;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    }
-});
-
-document.getElementById('rematch-motoristas-btn')?.addEventListener('click', async function() {
-    const btn = this;
-    const origText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Corrigindo...';
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const month = params.get('month') || new Date().getMonth() + 1;
-        const year = params.get('year') || new Date().getFullYear();
-        const lastDay = new Date(year, month, 0).getDate();
-        const start = year + '-' + String(month).padStart(2, '0') + '-01';
-        const end = year + '-' + String(month).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
-        const r = await fetch('/api/devolucoes/rematch-motoristas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ start_date: start, end_date: end })
-        });
-        const j = await r.json();
-        if (j.ok) {
-            alert('Motoristas corrigidos: ' + j.updated_devolucoes + ' devolução(ões) atualizada(s).');
-            window.location.reload();
-        } else {
-            alert(j.error || 'Erro ao corrigir motoristas');
-        }
-    } catch (e) {
-        alert('Erro: ' + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = origText;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 });
 
@@ -469,5 +622,6 @@ document.getElementById('manual-devolucao-form')?.addEventListener('submit', asy
 });
 
 if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+document.addEventListener('alpine:initialized', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
 </script>
 {% endblock %}

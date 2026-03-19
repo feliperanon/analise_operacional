@@ -74,6 +74,13 @@
             {% endfor %}
           </select>
         </div>
+        <div class="form-field">
+          <label>Escopo</label>
+          <select name="client_scope" class="w-full">
+            <option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só este cliente</option>
+            <option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Todo o grupo</option>
+          </select>
+        </div>
         <div class="xl:col-span-6 flex flex-wrap gap-2 pt-1">
           <button class="btn-primary" type="submit">Aplicar filtros</button>
           <a href="/bi/devolucoes" class="btn-secondary">Limpar</a>
@@ -81,6 +88,12 @@
           <a href="/bi/devolucoes/export?format=xlsx&{{ filters_query }}" class="btn-secondary">⬇ XLSX</a>
         </div>
       </form>
+      {% if filters.group_filter_note %}
+      <p class="text-amber-400/90 text-sm mt-2">{{ filters.group_filter_note }}</p>
+      {% endif %}
+      {% if filters.client_id and filters.client_scope == 'group' %}
+      <p class="text-indigo-300/90 text-sm mt-1">Incluindo devoluções de <strong class="text-white">todas as lojas</strong> do mesmo grupo comercial.</p>
+      {% endif %}
     </header>
 
     {% set _df = filters.date_from[:10] if filters.date_from and filters.date_from|length >= 10 else '' %}

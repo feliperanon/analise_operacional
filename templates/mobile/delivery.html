@@ -145,6 +145,16 @@
 
     <!-- Conteúdo principal (largura padronizada) -->
     <div class="delivery-content">
+    <!-- Loading state: evita tela vazia antes dos dados -->
+    <div class="container-mobile py-8" x-show="deliveryDataLoading" x-cloak>
+        <div class="flex flex-col items-center justify-center gap-4">
+            <i data-lucide="loader" class="w-10 h-10 animate-spin" style="color: var(--color-primary);"></i>
+            <p class="text-body font-semibold" style="color: var(--color-text);">Carregando rotas...</p>
+            <p class="text-caption" style="color: var(--color-text-muted);">Aguarde um momento.</p>
+        </div>
+    </div>
+    <!-- Conteúdo quando dados carregados -->
+    <div x-show="!deliveryDataLoading" x-cloak>
     <!-- Day selector (compact, today+ only) -->
     <div class="container-mobile mt-2" x-show="visibleDayCards.length > 1" x-cloak>
         <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -392,12 +402,12 @@
                             <span class="chip" style="background: rgba(107,114,128,0.15); color: #9ca3af;">Sem GPS</span>
                         </template>
                     </div>
-                    <button x-show="!isHelperView" @click="deliveryAction(route,'iniciar')"
+                    <button x-show="!isHelperView" type="button" @click="handleIniciarClick(route)"
                         class="btn-delivery min-h-[56px] w-full flex items-center justify-center gap-1.5 interactive"
-                        :disabled="!!inProgressRoute || actionLoading"
+                        :disabled="iniciarButtonDisabled(route)"
                         style="background: var(--color-primary);">
                         <i data-lucide="play" class="w-4 h-4"></i>
-                        <span x-text="actionLoading ? 'Aguarde...' : 'Iniciar'"></span>
+                        <span x-text="iniciarButtonLabel(route)"></span>
                     </button>
                     <p x-show="!!inProgressRoute" class="text-center text-caption mt-1" style="color: var(--color-text-muted);">Finalize a entrega em andamento primeiro</p>
                 </div>
@@ -485,6 +495,7 @@
 
     <!-- Spacer for fixed bottom button -->
     <div class="h-28" x-show="deliverySessionOpen" x-cloak></div>
+    </div>
     </div><!-- /delivery-content -->
 
     <!-- Fixed bottom "Encerrar Rota" button (oculto para ajudantes) -->
@@ -682,6 +693,32 @@
         </div>
     </div>
     </template>
+
+    <!-- Modal: solicitar autorização (fora de 300 m) -->
+    <template x-teleport="body">
+    <div x-show="showDeliveryAuthModal" class="delivery-modal-overlay" x-cloak @click.self="closeDeliveryAuthModal()">
+        <div @click.stop class="delivery-modal-card w-full max-w-md rounded-xl p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+            <h3 class="text-title font-bold mb-1" style="color: var(--color-text);">Fora do raio permitido</h3>
+            <p class="text-caption-lg mb-3" style="color: var(--color-text-muted);">
+                Você está a <strong style="color: var(--color-warning);" x-text="deliveryAuthRoute ? formatarDistancia(deliveryAuthRoute.distancia_metros) : '—'"></strong> do cliente. É necessário estar a até 300 m (ou obter autorização do supervisor).
+            </p>
+            <label class="block text-caption font-semibold mb-1" style="color: var(--color-text-secondary);">Motivo da solicitação</label>
+            <textarea x-model="deliveryAuthMotivo" rows="4" placeholder="Ex.: Cliente pediu para deixar na portaria, rua interditada..."
+                class="w-full rounded-lg px-3 py-2 text-body mb-4 border-2"
+                style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);"
+                :disabled="deliveryAuthWaiting"></textarea>
+            <div x-show="deliveryAuthWaiting" class="text-center text-caption mb-3 py-2 rounded-lg" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
+                Aguardando resposta do supervisor… (atualiza a cada poucos segundos)
+            </div>
+            <div class="flex gap-2">
+                <button type="button" @click="closeDeliveryAuthModal()" :disabled="deliveryAuthWaiting && deliveryAuthPolling" class="flex-1 py-3 rounded-lg font-semibold min-h-[48px]" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button type="button" @click="submitDeliveryAuthRequest()" :disabled="actionLoading || deliveryAuthWaiting" class="flex-1 py-3 rounded-lg font-semibold text-white min-h-[48px]" style="background: var(--color-primary);">
+                    <span x-text="deliveryAuthWaiting ? 'Enviado' : 'Enviar solicitação'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+    </template>
 </div>
 {% endblock %}
 
@@ -728,6 +765,7 @@
     .route-glow-amber { border: 2px solid #f59e0b !important; box-shadow: 0 0 0 1px #f59e0b, 0 0 12px rgba(245,158,11,0.3); }
     .delivery-feedback-success { background: rgba(5, 150, 105, 0.95) !important; }
     .delivery-feedback-sad { background: rgba(190, 24, 93, 0.95) !important; }
+    .delivery-feedback-info { background: rgba(59, 130, 246, 0.95) !important; }
     .rocket-fly {
         position: absolute;
         bottom: -30px;
@@ -750,6 +788,7 @@
         return {
             employees: Array.isArray(payload.employees) ? payload.employees : [],
             returnsAlert: payload.returnsAlert || {},
+            deliveryDataLoading: true,
             deliveryRoutes: [],
             deliveryDayCards: [],
             selectedDeliveryDay: '',
@@ -804,6 +843,12 @@
             _prevLonForReorder: null,
             _gpsWatchId: null,
             minDistanceToReorder: 100,  // metros
+            showDeliveryAuthModal: false,
+            deliveryAuthRoute: null,
+            deliveryAuthMotivo: '',
+            deliveryAuthPolling: null,
+            deliveryAuthWaiting: false,
+            serverToday: '',
             get returnsAlertSafe() {
                 return this.returnsAlert || {};
             },
@@ -817,8 +862,11 @@
             },
 
             get helperOptions() { return (this.employees || []).filter(e => e.id !== {{ employee.id }}); },
+            get todayRef() {
+                return this.serverToday || (typeof window.nlTodaySp === 'function' ? window.nlTodaySp() : new Date().toISOString().split('T')[0]);
+            },
             get filteredDeliveryRoutes() {
-                const today = new Date().toISOString().split('T')[0];
+                const today = this.todayRef;
                 let list = (this.deliveryRoutes || []).filter(r => !r.date || r.date >= today);
                 if (this.selectedDeliveryDay) list = list.filter(r => r.date === this.selectedDeliveryDay);
                 const q = (this.deliverySearch || '').trim().toLowerCase();
@@ -882,7 +930,7 @@
             get returnedTotalValue() { return this.returnedRoutes.reduce((acc, r) => acc + Number(r.value || 0), 0); },
             get completedDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => ['entregue', 'devolucao'].includes(this.routeStatus(r))); },
             get visibleDayCards() {
-                const today = new Date().toISOString().split('T')[0];
+                const today = this.todayRef;
                 return (this.deliveryDayCards || []).filter(c => c.date >= today);
             },
             get dayStats() {
@@ -921,6 +969,7 @@
             },
 
             init() {
+                window._nlReloadDelivery = () => this.loadDeliveryData && this.loadDeliveryData();
                 this.loadDeliveryData();
                 lucide.createIcons();
                 this.timerInterval = setInterval(() => {
@@ -1115,13 +1164,17 @@
                 }).catch(() => { this.actionLoading = false; alert('Erro de conexão.'); });
             },
             loadDeliveryData() {
-                fetch('/api/mobile/delivery/my-routes').then(r => r.json()).then(data => {
+                this.deliveryDataLoading = true;
+                fetch('/api/mobile/delivery/my-routes', { cache: 'no-store' }).then(r => r.json()).then(data => {
+                    this.deliveryDataLoading = false;
                     if (!data.success) return;
                     this.deliveryRoutes = data.routes || [];
                     this.deliveryDayCards = data.day_cards || [];
-                    const sessionDate = data.session?.date || null;
-                    const today = new Date().toISOString().split('T')[0];
-                    const visible = (this.deliveryDayCards || []).filter(c => c.date >= today);
+                    const sessionDate = data.session && data.session.date ? data.session.date : null;
+                    this.serverToday = data.date || this.serverToday || (typeof window.nlTodaySp === 'function' ? window.nlTodaySp() : '');
+                    const today = this.todayRef;
+                    const hasSessionOpen = !!data.session_open;
+                    const visible = (this.deliveryDayCards || []).filter(c => c.date >= today || (hasSessionOpen && sessionDate && c.date === sessionDate));
                     const prev = this.selectedDeliveryDay;
                     if (data.session_open && sessionDate && visible.some(c => c.date === sessionDate)) {
                         this.selectedDeliveryDay = sessionDate;
@@ -1147,7 +1200,7 @@
                     if (!this.mobileReturn.reason && this.mobileReturnReasons.length) this.mobileReturn.reason = this.mobileReturnReasons[0];
                     this.closedSessionToday = data.closed_session_today || null;
                     this.$nextTick(() => lucide.createIcons());
-                });
+                }).catch(() => { this.deliveryDataLoading = false; });
             },
             toggleDeliveryDay(date) { this.selectedDeliveryDay = this.selectedDeliveryDay === date ? '' : date; },
             startDeliverySession() {
@@ -1203,30 +1256,148 @@
                     this.loadDeliveryData();
                 }).catch(() => { this.actionLoading = false; alert('Erro de conexão.'); });
             },
-            deliveryAction(route, action) {
+            proximityIniciarState(route) {
+                if (!route || !route.tem_coordenadas) return { mode: 'free' };
+                if (this.locationPermission !== 'granted') return { mode: 'free' };
+                const d = route.distancia_metros;
+                if (d === null || d === undefined) return { mode: 'wait_gps' };
+                if (d <= 300) return { mode: 'ok' };
+                return { mode: 'need_auth', dist: d };
+            },
+            iniciarButtonLabel(route) {
+                if (this.actionLoading) return 'Aguarde...';
+                const st = this.proximityIniciarState(route);
+                if (st.mode === 'wait_gps') return 'Aguardando GPS...';
+                return 'Iniciar';
+            },
+            iniciarButtonDisabled(route) {
+                if (!!this.inProgressRoute || this.actionLoading) return true;
+                return this.proximityIniciarState(route).mode === 'wait_gps';
+            },
+            handleIniciarClick(route) {
+                if (this.iniciarButtonDisabled(route)) return;
+                const st = this.proximityIniciarState(route);
+                if (st.mode === 'free' || st.mode === 'ok') {
+                    this.deliveryAction(route, 'iniciar');
+                    return;
+                }
+                if (st.mode === 'need_auth') {
+                    this.deliveryAuthRoute = route;
+                    this.deliveryAuthMotivo = '';
+                    this.deliveryAuthWaiting = false;
+                    this.showDeliveryAuthModal = true;
+                    this.$nextTick(() => lucide.createIcons && lucide.createIcons());
+                }
+            },
+            closeDeliveryAuthModal() {
+                this.showDeliveryAuthModal = false;
+                this.deliveryAuthRoute = null;
+                this.deliveryAuthWaiting = false;
+                if (this.deliveryAuthPolling) {
+                    clearInterval(this.deliveryAuthPolling);
+                    this.deliveryAuthPolling = null;
+                }
+            },
+            submitDeliveryAuthRequest() {
+                const route = this.deliveryAuthRoute;
+                const motivo = (this.deliveryAuthMotivo || '').trim();
+                if (!route || motivo.length < 5) {
+                    alert('Informe o motivo (mínimo 5 caracteres).');
+                    return;
+                }
+                this.actionLoading = true;
+                fetch('/api/mobile/delivery/auth-request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        route_id: route.id,
+                        motivo,
+                        distancia_metros: route.distancia_metros,
+                        client_name: route.client_name || ''
+                    })
+                }).then(r => r.json()).then(data => {
+                    this.actionLoading = false;
+                    if (!data.success) {
+                        alert(data.error || 'Erro ao enviar.');
+                        return;
+                    }
+                    this.deliveryAuthWaiting = true;
+                    const reqId = data.id;
+                    const self = this;
+                    if (this.deliveryAuthPolling) clearInterval(this.deliveryAuthPolling);
+                    const poll = () => {
+                        fetch(`/api/mobile/delivery/auth-request/${reqId}`, { credentials: 'same-origin' })
+                            .then(r => r.json())
+                            .then(d => {
+                                if (d.status === 'approved') {
+                                    clearInterval(self.deliveryAuthPolling);
+                                    self.deliveryAuthPolling = null;
+                                    self.closeDeliveryAuthModal();
+                                    self.deliveryAction(route, 'iniciar', reqId);
+                                } else if (d.status === 'denied') {
+                                    clearInterval(self.deliveryAuthPolling);
+                                    self.deliveryAuthPolling = null;
+                                    self.deliveryAuthWaiting = false;
+                                    alert('Solicitação negada.' + (d.obs ? ' ' + d.obs : ''));
+                                    self.closeDeliveryAuthModal();
+                                }
+                            }).catch(() => {});
+                    };
+                    poll();
+                    this.deliveryAuthPolling = setInterval(poll, 4000);
+                }).catch(() => { this.actionLoading = false; alert('Erro de conexão.'); });
+            },
+            async deliveryAction(route, action, authRequestId) {
                 if (this.actionLoading) return;
                 this.actionLoading = true;
                 const payload = { action };
+                if (authRequestId) payload.auth_request_id = authRequestId;
                 if (this.currentLatitude != null && this.currentLongitude != null) {
                     payload.latitude = this.currentLatitude;
                     payload.longitude = this.currentLongitude;
                 }
-                fetch(`/api/mobile/delivery/route/${route.id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-                    .then(r => r.json()).then(data => {
-                        this.actionLoading = false;
-                        if (!data.success) return alert(data.error || 'Erro.');
-                        this.loadDeliveryData();
-                        this.haptic(action === 'finalizar' ? 'success' : 'medium');
-                        if (action === 'iniciar') {
-                            this.$nextTick(() => setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150));
-                        }
-                        if (action === 'finalizar') {
-                            const xp = Number(data.xp_earned || 0);
-                            if (xp > 0 && typeof this.showXpPopup === 'function') this.showXpPopup(xp);
-                            this.showDeliveryFeedback('🚀 Entrega concluída! +1 XP', 'success');
-                            this.playCelebrationEffects();
-                        }
-                    }).catch(() => { this.actionLoading = false; });
+                const statusByAction = { iniciar: 'iniciada', finalizar: 'entregue', reabrir: 'reaberta', devolucao: 'devolucao' };
+                const optimisticUpdate = () => {
+                    const nextStatus = statusByAction[action];
+                    if (!nextStatus) return;
+                    const r = (this.deliveryRoutes || []).find(x => x.id === route.id);
+                    if (r) { r.status = nextStatus; r.delivery_status = nextStatus; }
+                };
+                const enqueueForSync = () => {
+                    this.showDeliveryFeedback('Salvo. Será sincronizado quando conectar.', 'info');
+                    this.haptic('medium');
+                    optimisticUpdate();
+                    const act = { route_id: route.id, action, latitude: payload.latitude, longitude: payload.longitude };
+                    if (authRequestId) act.auth_request_id = authRequestId;
+                    if (typeof window.nlEnqueueAction === 'function') {
+                        window.nlEnqueueAction(act).catch(() => {});
+                    }
+                };
+                try {
+                    if (!navigator.onLine) { this.actionLoading = false; enqueueForSync(); return; }
+                    const r = await fetch(`/api/mobile/delivery/route/${route.id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    const data = await r.json().catch(() => ({}));
+                    this.actionLoading = false;
+                    if (!r.ok) {
+                        if (r.status === 503 || r.status >= 500) { enqueueForSync(); return; }
+                        return alert(data.error || 'Erro.');
+                    }
+                    if (!data.success) return alert(data.error || 'Erro.');
+                    this.loadDeliveryData();
+                    this.haptic(action === 'finalizar' ? 'success' : 'medium');
+                    if (action === 'iniciar') {
+                        this.$nextTick(() => setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150));
+                    }
+                    if (action === 'finalizar') {
+                        const xp = Number(data.xp_earned || 0);
+                        if (xp > 0 && typeof this.showXpPopup === 'function') this.showXpPopup(xp);
+                        this.showDeliveryFeedback('🚀 Entrega concluída! +1 XP', 'success');
+                        this.playCelebrationEffects();
+                    }
+                } catch (err) {
+                    this.actionLoading = false;
+                    enqueueForSync();
+                }
             },
             openMobileReturnModal(route) {
                 this.mobileReturnRoute = route;
@@ -1242,7 +1413,7 @@
                 };
                 this.showMobileReturnModal = true;
             },
-            confirmMobileReturn() {
+            async confirmMobileReturn() {
                 if (!this.mobileReturnRoute || this.actionLoading) return;
                 const notifiedCommercial = this.mobileReturn.notified_commercial;
                 const notifiedLogistics = this.mobileReturn.notified_logistics;
@@ -1267,17 +1438,36 @@
                     return_notified_logistics: notifiedLogistics === 'sim',
                     return_notified_logistics_name: notifiedLogistics === 'sim' ? logisticsName : null
                 };
-                fetch(`/api/mobile/delivery/route/${route.id}/action`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }).then(r => r.json()).then(data => {
+                const optimisticUpdate = () => {
+                    const r = (this.deliveryRoutes || []).find(x => x.id === route.id);
+                    if (r) { r.status = 'devolucao'; r.delivery_status = 'devolucao'; }
+                };
+                const enqueueForSync = () => {
+                    this.showDeliveryFeedback('Devolução salva. Será sincronizada quando conectar.', 'info');
+                    this.haptic('medium');
+                    this.showMobileReturnModal = false; this.mobileReturnRoute = null;
+                    optimisticUpdate();
+                    const act = { route_id: route.id, ...payload };
+                    if (typeof window.nlEnqueueAction === 'function') window.nlEnqueueAction(act).catch(() => {});
+                };
+                try {
+                    if (!navigator.onLine) { this.actionLoading = false; enqueueForSync(); return; }
+                    const r = await fetch(`/api/mobile/delivery/route/${route.id}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    const data = await r.json().catch(() => ({}));
                     this.actionLoading = false;
+                    if (!r.ok) {
+                        if (r.status === 503 || r.status >= 500) { enqueueForSync(); return; }
+                        return alert(data.error || 'Erro.');
+                    }
                     if (!data.success) return alert(data.error || 'Erro.');
                     this.showMobileReturnModal = false; this.mobileReturnRoute = null;
                     this.loadDeliveryData();
                     this.haptic('medium');
                     this.openReturnNotice('Que pena que essa devolução aconteceu. Já tentou falar com o comercial?');
-                }).catch(() => { this.actionLoading = false; });
+                } catch (err) {
+                    this.actionLoading = false;
+                    enqueueForSync();
+                }
             },
             openReturnNotice(message, title = 'Devolução registrada') {
                 this.returnNotice = {
@@ -1317,8 +1507,8 @@
                 const card = document.getElementById('delivery-feedback-card');
                 if (!popup || !card) return;
                 card.textContent = message || '';
-                card.classList.remove('delivery-feedback-success', 'delivery-feedback-sad');
-                card.classList.add(type === 'sad' ? 'delivery-feedback-sad' : 'delivery-feedback-success');
+                card.classList.remove('delivery-feedback-success', 'delivery-feedback-sad', 'delivery-feedback-info');
+                card.classList.add(type === 'sad' ? 'delivery-feedback-sad' : (type === 'info' ? 'delivery-feedback-info' : 'delivery-feedback-success'));
                 popup.classList.remove('hidden');
                 setTimeout(() => popup.classList.add('hidden'), 2800);
             },

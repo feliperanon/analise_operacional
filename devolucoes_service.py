@@ -15,7 +15,7 @@ from typing import Any, Optional, List, Tuple, Dict
 from dataclasses import dataclass, field
 
 from sqlmodel import Session, select
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 import models
 from models import (
     Client,
@@ -638,6 +638,61 @@ def get_cadastro_health(cad: Dict) -> Tuple[Dict[str, Any], List[str]]:
     return diagnostics, global_errors
 
 
+def precadastrar_vendedores_faltantes(
+    session: Session, invalid: List[Dict[str, Any]]
+) -> List[str]:
+    """
+    Cria colaboradores em pré-cadastro para códigos de vendedor que falharam na validação
+    com erro "Vendedor não cadastrado". Retorna lista de códigos criados.
+    """
+    codes_to_create: set = set()
+    for inv in invalid:
+        for err in inv.get("errors", []):
+            reason = err.get("reason") or ""
+            if "Vendedor não cadastrado" in reason and "normalizado=" in reason:
+                m = re.search(r"normalizado='([^']+)'", reason)
+                if m:
+                    codes_to_create.add(m.group(1))
+    # Também extrair da mensagem alternativa (valor sem normalizado explícito)
+    for inv in invalid:
+        for err in inv.get("errors", []):
+            reason = err.get("reason") or ""
+            if "Vendedor não cadastrado" in reason and "Cadastre o vendedor" in reason:
+                m = re.search(r"valor='([^']+)'", reason)
+                if m:
+                    code = normalize_code(m.group(1))
+                    if code and code not in codes_to_create:
+                        codes_to_create.add(code)
+
+    created: List[str] = []
+    for code in sorted(codes_to_create):
+        existing = session.exec(
+            select(Employee).where(Employee.seller_code == code)
+        ).first()
+        if existing:
+            continue
+        reg_id = f"PRECAD-{code}"
+        existing_reg = session.exec(
+            select(Employee).where(Employee.registration_id == reg_id)
+        ).first()
+        if existing_reg:
+            if not existing_reg.seller_code:
+                existing_reg.seller_code = code
+                session.add(existing_reg)
+            continue
+        emp = Employee(
+            registration_id=reg_id,
+            name=f"Vendedor {code} (pré-cadastro)",
+            seller_code=code,
+            role="Vendedor",
+            work_shift="Manhã",
+            status="active",
+        )
+        session.add(emp)
+        created.append(code)
+    return created
+
+
 def resolve_vendedor(
     value_from_excel: Any, cad: Dict
 ) -> Tuple[Optional[Employee], Optional[str]]:
@@ -819,8 +874,11 @@ def validate_row(row: DevolucaoRow, cad: Dict) -> ValidationResult:
 
 
 def compute_fields(row: DevolucaoRow, val: ValidationResult) -> Dict[str, Any]:
-    """Enriquece linha validada com DIA, SEMANA, ACIMA_300, CLUSTER."""
-    dt = row.data_romaneio if _is_valid_dt(row.data_romaneio) else datetime.now()
+    """Enriquece linha validada com DIA, SEMANA, ACIMA_300, CLUSTER. Usa data_entrega quando disponível."""
+    dt = (
+        row.data_entrega if _is_valid_dt(row.data_entrega) else
+        (row.data_romaneio if _is_valid_dt(row.data_romaneio) else datetime.now())
+    )
     valor = row.valor
     return {
         "dia": compute_dia(dt),
@@ -828,6 +886,120 @@ def compute_fields(row: DevolucaoRow, val: ValidationResult) -> Dict[str, Any]:
         "acima_300": compute_acima_300(valor),
         "cluster": compute_cluster(valor),
     }
+
+
+def _source_rank(src: Optional[str]) -> int:
+    """Prioridade: mobile > web/separação > manual > excel (planilha)."""
+    s = (src or "").upper()
+    if s == "MOBILE":
+        return 4
+    if s in ("WEB", "ROTA"):
+        return 3
+    if s == "MANUAL":
+        return 2
+    return 1
+
+
+VAL_DUP_TOL = 1.0  # R$ — mesma devolução cliente+motorista+dia+valor próximo
+
+
+def _duplicate_candidates(
+    session: Session,
+    client_id: int,
+    motorista_id: int,
+    data_romaneio: str,
+    valor: float,
+    exclude_id: Optional[int] = None,
+) -> List[Devolucao]:
+    rows = session.exec(
+        select(Devolucao).where(
+            Devolucao.client_id == client_id,
+            Devolucao.motorista_id == motorista_id,
+            Devolucao.data_romaneio == data_romaneio,
+        )
+    ).all()
+    out: List[Devolucao] = []
+    for d in rows:
+        if exclude_id and d.id == exclude_id:
+            continue
+        if abs(float(d.valor or 0) - float(valor or 0)) <= VAL_DUP_TOL:
+            out.append(d)
+    return out
+
+
+def _best_canonical_among_duplicates(candidates: List[Devolucao]) -> Optional[Devolucao]:
+    if not candidates:
+        return None
+    real = [d for d in candidates if not getattr(d, "duplicate_of_id", None)]
+    if not real:
+        return None
+
+    def sort_key(d: Devolucao):
+        rk = _source_rank(d.source)
+        has_route = 1 if getattr(d, "route_id", None) else 0
+        ca = d.created_at or datetime.min
+        return (rk, has_route, -ca.timestamp() if hasattr(ca, "timestamp") else 0)
+
+    return max(real, key=sort_key)
+
+
+def link_excel_rows_to_canonical(session: Session, canonical: Devolucao) -> int:
+    """Marca importações Excel duplicadas da mesma devolução (mobile/rota prevalece)."""
+    if not canonical.client_id or not canonical.motorista_id:
+        return 0
+    cands = _duplicate_candidates(
+        session,
+        canonical.client_id,
+        canonical.motorista_id,
+        canonical.data_romaneio,
+        float(canonical.valor or 0),
+        exclude_id=canonical.id,
+    )
+    n = 0
+    for d in cands:
+        if (d.source or "").upper() != "EXCEL":
+            continue
+        if getattr(d, "duplicate_of_id", None):
+            continue
+        if d.id == canonical.id:
+            continue
+        d.duplicate_of_id = canonical.id
+        d.validation_status = "DUPLICATE_EXCEL"
+        session.add(d)
+        n += 1
+    return n
+
+
+def backfill_duplicate_links_period(session: Session, start_date: str, end_date: str) -> int:
+    """No período, agrupa por cliente+motorista+dia+valor e liga Excel ao registro de maior prioridade."""
+    rows = session.exec(
+        select(Devolucao)
+        .where(Devolucao.data_romaneio >= start_date)
+        .where(Devolucao.data_romaneio <= end_date)
+    ).all()
+    groups: Dict[tuple, List[Devolucao]] = {}
+    for d in rows:
+        k = (d.client_id, d.motorista_id, d.data_romaneio, round(float(d.valor or 0), 2))
+        groups.setdefault(k, []).append(d)
+    updated = 0
+    for lst in groups.values():
+        if len(lst) < 2:
+            continue
+        canon = _best_canonical_among_duplicates(lst)
+        if not canon or _source_rank(canon.source) <= _source_rank("EXCEL"):
+            continue
+        for d in lst:
+            if d.id == canon.id:
+                continue
+            if (d.source or "").upper() != "EXCEL":
+                continue
+            if getattr(d, "duplicate_of_id", None):
+                continue
+            d.duplicate_of_id = canon.id
+            d.validation_status = "DUPLICATE_EXCEL"
+            session.add(d)
+            updated += 1
+    return updated
 
 
 def make_idempotency_hash(
@@ -923,23 +1095,29 @@ def _reconcile_devolucao_with_route(
 ) -> Optional[int]:
     """
     Busca Route compatível (cliente, motorista, data) e atualiza para devolução.
+    Tenta data_entrega primeiro (quando a entrega ocorreu), depois data_romaneio.
     Retorna route_id se atualizou, None caso contrário.
     """
-    date_str = r.get("data_romaneio") or r.get("data_entrega")
-    if not date_str:
+    dates_to_try = [r.get("data_entrega"), r.get("data_romaneio")]
+    dates_to_try = [d for d in dates_to_try if d]
+    if not dates_to_try:
         return None
     client_id = r.get("client_id")
     motorista_id = r.get("motorista_id")
     if not client_id or not motorista_id:
         return None
-    routes = session.exec(
-        select(Route)
-        .where(Route.type == "delivery")
-        .where(Route.client_id == client_id)
-        .where(Route.employee_id == motorista_id)
-        .where(Route.date == date_str)
-        .where(Route.delivery_status.in_(["entregue", "pendente", "iniciada", "reaberta"]))
-    ).all()
+    routes = []
+    for date_str in dates_to_try:
+        routes = list(session.exec(
+            select(Route)
+            .where(Route.type == "delivery")
+            .where(Route.client_id == client_id)
+            .where(Route.employee_id == motorista_id)
+            .where(Route.date == date_str)
+            .where(Route.delivery_status.in_(["entregue", "pendente", "iniciada", "reaberta"]))
+        ).all())
+        if routes:
+            break
     if not routes:
         return None
     route = routes[0]
@@ -957,6 +1135,69 @@ def _reconcile_devolucao_with_route(
     route.end_time = route.end_time or now
     session.add(route)
     return route.id
+
+
+def reconnect_orphan_devolucoes(
+    session: Session,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> int:
+    """
+    Reconecta devoluções com ORPHAN_ROUTE às rotas existentes.
+    - Se a rota já tem devolução Mobile/Web: marca órfão Excel como DUPLICATE_EXCEL (duplicata).
+    - Caso contrário: vincula route_id e limpa validation_status.
+    Não altera o status da Route.
+    Retorna quantidade de devoluções processadas (vinculadas ou marcadas como duplicata).
+    """
+    eff_date = func.coalesce(Devolucao.data_entrega, Devolucao.data_romaneio)
+    q = (
+        select(Devolucao)
+        .where(Devolucao.validation_status == "ORPHAN_ROUTE")
+        .where(Devolucao.route_id.is_(None))
+        .where(Devolucao.client_id.is_not(None))
+        .where(Devolucao.motorista_id.is_not(None))
+    )
+    if start_date:
+        q = q.where(eff_date >= start_date)
+    if end_date:
+        q = q.where(eff_date <= end_date)
+    orphans = session.exec(q.order_by(Devolucao.data_romaneio, Devolucao.id)).all()
+    updated = 0
+    for d in orphans:
+        dates_to_try = [d.data_entrega, d.data_romaneio]
+        dates_to_try = [str(x)[:10] if x else None for x in dates_to_try]
+        dates_to_try = [x for x in dates_to_try if x]
+        for date_str in dates_to_try:
+            routes = list(session.exec(
+                select(Route)
+                .where(Route.type == "delivery")
+                .where(Route.client_id == d.client_id)
+                .where(Route.employee_id == d.motorista_id)
+                .where(Route.date == date_str)
+            ).all())
+            if not routes:
+                continue
+            route_id = routes[0].id
+            # Verifica se já existe devolução Mobile/Web nessa rota (canônica)
+            canon = session.exec(
+                select(Devolucao)
+                .where(Devolucao.route_id == route_id)
+                .where(Devolucao.id != d.id)
+            ).first()
+            if canon and _source_rank(canon.source) > _source_rank("EXCEL"):
+                # Órfão Excel é duplicata da devolução Mobile/Web — marcar como tal
+                d.duplicate_of_id = canon.id
+                d.validation_status = "DUPLICATE_EXCEL"
+                session.add(d)
+                updated += 1
+            else:
+                # Nenhuma devolução canônica na rota — vincular o órfão
+                d.route_id = route_id
+                d.validation_status = ""
+                session.add(d)
+                updated += 1
+            break
+    return updated
 
 
 def reconcile_all_devolucoes_with_routes(
@@ -992,6 +1233,8 @@ def reconcile_all_devolucoes_with_routes(
             updated += 1
             if not d.route_id:
                 d.route_id = rid
+                if getattr(d, "validation_status", "").strip() == "ORPHAN_ROUTE":
+                    d.validation_status = ""
                 session.add(d)
     return updated
 
@@ -1041,6 +1284,7 @@ def sync_route_to_devolucao(
         resp = resp_list[0]
     if not motivo or not resp:
         return None
+    motorista_id = route.employee_id
     helper_ids = _parse_route_helper_ids(getattr(route, "delivery_helpers_json", None))
     ajudante_id = (helper_ids[0] if helper_ids else None)
     if ajudante_id and ajudante_id == motorista_id and len(helper_ids) > 1:
@@ -1055,12 +1299,13 @@ def sync_route_to_devolucao(
         existing.source = source
         existing.ajudante_id = ajudante_id
         session.add(existing)
+        session.flush()
+        link_excel_rows_to_canonical(session, existing)
         return existing
     try:
         dt = datetime.strptime(route.date, "%Y-%m-%d") if isinstance(route.date, str) else datetime.now()
     except (ValueError, TypeError):
         dt = datetime.now()
-    motorista_id = route.employee_id
     h = make_idempotency_hash(route.date, route.client_id, motorista_id, motorista_id, valor, motivo.id)
     if session.exec(select(Devolucao).where(Devolucao.idempotency_hash == h)).first():
         return None
@@ -1083,6 +1328,8 @@ def sync_route_to_devolucao(
         idempotency_hash=h,
     )
     session.add(dev)
+    session.flush()
+    link_excel_rows_to_canonical(session, dev)
     return dev
 
 
@@ -1169,7 +1416,29 @@ def save_batch(
             _reconcile_devolucao_with_route(session, r_existing, motivo_ex, resp_ex)
             skipped.append(r["idempotency_hash"])
             continue
-        route_id = _reconcile_devolucao_with_route(session, r, motivo_nome, resp_nome)
+        cands = _duplicate_candidates(
+            session,
+            r["client_id"],
+            r["motorista_id"],
+            r["data_romaneio"],
+            float(r["valor"] or 0),
+        )
+        canon = _best_canonical_among_duplicates(cands)
+        dup_of_id = None
+        val_stat = ""
+        is_shadow_excel = (
+            (source or "").upper() == "EXCEL"
+            and canon is not None
+            and _source_rank(canon.source) > _source_rank("EXCEL")
+        )
+        if is_shadow_excel:
+            dup_of_id = canon.id
+            val_stat = "DUPLICATE_EXCEL"
+            route_id = None
+        else:
+            route_id = _reconcile_devolucao_with_route(session, r, motivo_nome, resp_nome)
+        if (source or "").upper() == "EXCEL" and not route_id and not dup_of_id:
+            val_stat = "ORPHAN_ROUTE"
         dev = Devolucao(
             route_id=route_id,
             data_romaneio=r["data_romaneio"],
@@ -1189,6 +1458,8 @@ def save_batch(
             idempotency_hash=r["idempotency_hash"],
             source=source,
             created_by=created_by,
+            duplicate_of_id=dup_of_id,
+            validation_status=val_stat,
         )
         session.add(dev)
         created += 1

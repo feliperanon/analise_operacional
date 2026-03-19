@@ -1,153 +1,294 @@
 <!DOCTYPE html>
+<!--
+  PORTAL OPERACIONAL — Login Premium v2 (redesign completo)
+  ==========================================================
+
+  1. ANÁLISE CRÍTICA DO PROBLEMA VISUAL ATUAL
+  -------------------------------------------
+  • Lateral esquerda: fundo claro (surface-elevated/soft) gera sensação de vazio e "não preenchido";
+    falta peso visual e identidade; marca não comanda a composição.
+  • Logo: limitada a 380px/160px e integrada a um bloco claro — pouco protagonismo e sem contraste.
+  • Layout: divisão 50/50 com borda dura; conjunto parece template genérico de SaaS.
+  • Contraste: excesso de tons claros em toda a tela; falta hierarquia e sensação de produto premium.
+  • Formulário: correto funcionalmente, mas visual comum; inputs e botão sem destaque de alto padrão.
+  • Resultado: limpo e organizado, porém sem impacto, sem presença de marca e sem sensação de sistema corporativo forte.
+
+  2. PROPOSTA CONCEITUAL NOVA
+  ---------------------------
+  • Contrato visual claro: ESQUERDA = identidade e marca (fundo escuro/institucional); DIREITA = acesso (superfície clara refinada).
+  • Lateral esquerda como "portal da marca": azul institucional profundo, gradientes em camadas, glow sutil e elementos gráficos discretos
+    (linhas, grid leve) para profundidade; logo em destaque; headline curta e forte; indicadores de status refinados.
+  • Lateral direita como "porta de entrada": fundo gelo/branco, formulário espaçado, inputs e botão com tratamento premium,
+    tipografia nobre, sensação de acesso institucional de alto padrão.
+  • Transição entre as duas áreas: contraste forte (escuro x claro), sem divisão dura — uso de sombra e possível curva/overflow para suavizar.
+  • Objetivo: transmitir operação, gestão, monitoramento, confiança, tecnologia e sofisticação; aparência de sistema premium de logística/gestão.
+
+  3. ESTRUTURA DA TELA
+  --------------------
+  • .login-shell: grid 2 colunas (proporção ~1.15fr 1fr), card com bordas generosas e sombra em camadas.
+  • .brand-side: fundo escuro (gradiente + mesh + glow), padding generoso; conteúdo em coluna flex com margin-top: auto nos indicadores.
+  • .brand-side: selo, logo-wrap (logo maior, até ~420px largura, altura proporcional), headline, descrição breve, métricas em grid 2x2.
+  • .form-side: fundo surface clara (gelo/branco), padding amplo; header, mensagens, form, botão Google (se ativo), footer.
+  • Responsivo: em breakpoint único coluna; brand-side primeiro, depois form-side; métricas adaptadas.
+-->
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Operacao Inteligente</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Login - Portal Operacional</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
+        /* ==========================================================================
+           PORTAL OPERACIONAL — Login Premium v2
+           Direção: corporativo forte, contraste identidade x formulário, premium.
+           ========================================================================== */
         :root {
-            --brand-blue: #0c4274;
-            --brand-blue-strong: #083a67;
-            --brand-gold: #b78317;
+            /* Azul institucional profundo (lateral esquerda) */
+            --brand-950: #031a2e;
+            --brand-900: #062847;
+            --brand-800: #0c4274;
+            --brand-700: #0f5a8c;
+            --brand-600: #1a6fa8;
+            --brand-500: #2d8bc8;
+            --brand-400: #5aa8dc;
+            --brand-200: #a8d4f0;
+            --brand-50: #eef7fc;
+            /* Superfícies e texto (lateral direita e geral) */
             --surface: #ffffff;
-            --surface-soft: #f6f8fb;
-            --border: #d8e1ec;
-            --text-main: #0f172a;
-            --text-soft: #51627a;
+            --surface-ice: #f6f9fc;
+            --surface-soft: #eef2f7;
+            --border: #d4dce8;
+            --border-soft: #e4eaf2;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            /* Tipografia e espaçamento */
+            --radius-sm: 10px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --radius-xl: 24px;
+            --radius-2xl: 32px;
+            --shadow-form: 0 4px 24px rgba(6, 40, 71, 0.06), 0 2px 8px rgba(6, 40, 71, 0.04);
+            --shadow-card: 0 24px 64px rgba(6, 40, 71, 0.14), 0 8px 24px rgba(6, 40, 71, 0.08);
+            --shadow-glow: 0 0 80px rgba(45, 139, 200, 0.12);
         }
 
         * { box-sizing: border-box; }
 
+        html { height: 100%; overflow: hidden; }
         body {
             margin: 0;
-            min-height: 100vh;
-            background: radial-gradient(1200px 600px at 15% -10%, #eef4fb 0%, #ffffff 55%),
-                        radial-gradient(900px 500px at 95% 110%, #f7f0df 0%, #ffffff 50%);
-            color: var(--text-main);
-            font-family: "Manrope", sans-serif;
-            display: grid;
-            place-items: center;
-            padding: 20px;
+            height: 100vh;
+            min-height: 100%;
+            overflow: hidden;
+            font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(12px, 2vh, 28px);
+            background: linear-gradient(165deg, #e8eef5 0%, #f0f4f9 50%, #f8fafc 100%);
         }
 
         .login-shell {
-            width: min(1080px, 100%);
+            width: min(1180px, 100%);
+            max-height: calc(100vh - clamp(24px, 4vh, 56px));
             background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 28px;
-            box-shadow: 0 24px 60px rgba(12, 66, 116, 0.10);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-card), var(--shadow-glow);
             overflow: hidden;
             display: grid;
-            grid-template-columns: 1.05fr 1fr;
+            grid-template-columns: 1.15fr 1fr;
+            grid-template-rows: 1fr;
+            flex-shrink: 1;
+            min-height: 0;
         }
 
+        /* ========== Lado institucional — fundo escuro, marca em destaque ========== */
         .brand-side {
-            padding: 42px 44px;
-            background: linear-gradient(165deg, #ffffff 0%, #f6f9fc 65%, #f3efe4 100%);
-            border-right: 1px solid var(--border);
+            padding: clamp(24px, 3vh, 40px) clamp(32px, 4vw, 48px);
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
             position: relative;
+            /* Azul institucional profundo com profundidade */
+            background:
+                radial-gradient(ellipse 120% 100% at 80% 20%, rgba(45, 139, 200, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse 80% 60% at 10% 90%, rgba(26, 111, 168, 0.2) 0%, transparent 45%),
+                linear-gradient(168deg, var(--brand-950) 0%, var(--brand-900) 35%, var(--brand-800) 100%);
         }
+
+        /* Textura/grade sutil (tecnológico, discreto) */
+        .brand-side::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+        }
+
+        /* Glow suave no canto superior */
+        .brand-side::after {
+            content: "";
+            position: absolute;
+            top: -40%;
+            left: -20%;
+            width: 80%;
+            height: 80%;
+            background: radial-gradient(circle, rgba(45, 139, 200, 0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .brand-side > * { position: relative; z-index: 1; }
 
         .brand-pill {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: #eaf2fb;
-            color: var(--brand-blue);
-            border: 1px solid #cfe1f5;
+            width: fit-content;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--brand-200);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 999px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
-            padding: 8px 12px;
+            padding: 10px 18px;
+            flex-shrink: 0;
+        }
+
+        /* Bloco da logo: presença institucional refinada, bem encaixada */
+        .brand-logo-wrap {
+            margin: clamp(12px, 1.8vh, 20px) 0 clamp(10px, 1.2vh, 16px);
+            flex-shrink: 0;
+        }
+
+        .brand-logo-panel {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            min-width: 200px;
+            max-width: 360px;
+            padding: 12px 22px;
+            background: #ffffff;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.06);
         }
 
         .brand-logo {
-            width: min(430px, 100%);
-            margin: 26px 0 18px;
-            border-radius: 18px;
-            background: #fff;
-            border: 1px solid #e3e9f0;
-            box-shadow: 0 8px 28px rgba(12, 66, 116, 0.08);
-            padding: 10px;
+            display: block;
+            width: auto;
+            max-width: 100%;
+            height: auto;
+            max-height: 80px;
+            object-fit: contain;
+            object-position: left center;
         }
 
-        .brand-side h1 {
+        .brand-headline {
             margin: 0;
-            font-family: "Sora", sans-serif;
-            font-size: clamp(24px, 2.7vw, 34px);
-            line-height: 1.18;
-            color: var(--brand-blue-strong);
+            font-family: "Outfit", sans-serif;
+            font-size: clamp(22px, 2.4vw, 30px);
+            font-weight: 700;
+            line-height: 1.22;
+            color: #ffffff;
+            letter-spacing: -0.02em;
             max-width: 12ch;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
         }
 
-        .brand-side p {
-            margin: 14px 0 0;
-            color: var(--text-soft);
-            line-height: 1.6;
-            max-width: 44ch;
+        .brand-desc {
+            margin: clamp(10px, 1.2vh, 14px) 0 0;
+            color: rgba(255, 255, 255, 0.78);
+            line-height: 1.55;
+            max-width: 38ch;
+            font-size: clamp(14px, 1.15vw, 15px);
+            font-weight: 500;
         }
 
         .metrics {
-            margin-top: 26px;
+            margin-top: auto;
+            padding-top: clamp(20px, 2.5vh, 28px);
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            flex-shrink: 0;
         }
 
         .metric-card {
-            background: #fff;
-            border: 1px solid #dde6f1;
-            border-radius: 14px;
-            padding: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-md);
+            padding: clamp(14px, 1.8vh, 18px);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .metric-card:hover {
+            background: rgba(255, 255, 255, 0.09);
+            border-color: rgba(255, 255, 255, 0.16);
         }
 
         .metric-label {
-            font-size: 11px;
-            letter-spacing: 0.08em;
+            font-size: 10px;
+            letter-spacing: 0.1em;
             text-transform: uppercase;
-            color: #6f8097;
+            color: rgba(255, 255, 255, 0.55);
             font-weight: 700;
         }
 
         .metric-value {
-            margin-top: 6px;
-            color: var(--brand-blue);
-            font-size: 19px;
-            font-weight: 800;
-            letter-spacing: -0.01em;
+            margin-top: 8px;
+            color: #ffffff;
+            font-size: clamp(16px, 1.6vw, 20px);
+            font-weight: 700;
+            letter-spacing: -0.02em;
         }
 
+        .metric-value.status-online { color: #86efac; }
+        .metric-value.status-prod { color: var(--brand-200); }
+
+        /* ========== Lado formulário — claro, refinado, premium ========== */
         .form-side {
-            padding: 42px 38px;
+            padding: clamp(32px, 4.5vh, 56px) clamp(32px, 4vw, 52px);
             display: flex;
             flex-direction: column;
             justify-content: center;
+            min-height: 0;
+            overflow-y: auto;
+            background: var(--surface-ice);
+            border-left: 1px solid var(--border-soft);
         }
 
         .form-header h2 {
             margin: 0;
-            font-family: "Sora", sans-serif;
-            font-size: 30px;
-            color: var(--text-main);
+            font-family: "Outfit", sans-serif;
+            font-size: clamp(26px, 2.8vw, 34px);
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
         }
 
         .form-header p {
-            margin: 10px 0 0;
-            color: var(--text-soft);
-            font-size: 15px;
+            margin: clamp(10px, 1.2vh, 14px) 0 0;
+            color: var(--text-secondary);
+            font-size: clamp(14px, 1.1vw, 16px);
+            font-weight: 500;
         }
 
         .status-msg {
-            margin-top: 18px;
-            border-radius: 12px;
+            margin-top: clamp(16px, 2vh, 22px);
+            border-radius: var(--radius-sm);
             border: 1px solid transparent;
-            padding: 12px 14px;
+            padding: 14px 18px;
             font-size: 14px;
             font-weight: 600;
         }
@@ -164,16 +305,17 @@
             border-color: #bbf7d0;
         }
 
-        form { margin-top: 22px; }
+        form { margin-top: clamp(24px, 3vh, 32px); }
 
-        .field { margin-bottom: 14px; }
+        .field { margin-bottom: clamp(18px, 2vh, 22px); }
 
-        label {
+        .field label {
             display: block;
             font-size: 13px;
             font-weight: 700;
-            color: #334155;
-            margin-bottom: 7px;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            letter-spacing: 0.01em;
         }
 
         .input-wrap { position: relative; }
@@ -181,86 +323,100 @@
         input[type="email"],
         input[type="password"] {
             width: 100%;
-            border: 1px solid #cdd8e6;
-            border-radius: 12px;
-            background: #fff;
-            color: #0f172a;
+            height: 52px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            color: var(--text-primary);
             font-size: 15px;
-            font-family: "Manrope", sans-serif;
-            padding: 13px 14px;
-            transition: border-color 0.18s ease, box-shadow 0.18s ease;
+            font-family: inherit;
+            padding: 0 18px;
+            padding-right: 52px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 1px 2px rgba(6, 40, 71, 0.04);
         }
 
-        input[type="password"] { padding-right: 44px; }
+        input[type="email"] { padding-right: 18px; }
+
+        input::placeholder { color: var(--text-muted); }
 
         input:focus {
             outline: none;
-            border-color: #5a9bd8;
-            box-shadow: 0 0 0 4px rgba(12, 66, 116, 0.12);
+            border-color: var(--brand-600);
+            box-shadow: 0 0 0 4px rgba(26, 111, 168, 0.14);
         }
 
         .password-toggle {
             position: absolute;
-            right: 10px;
+            right: 14px;
             top: 50%;
             transform: translateY(-50%);
             border: 0;
             background: transparent;
-            color: #607089;
-            padding: 4px;
+            color: var(--text-muted);
+            padding: 6px;
             cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: color 0.2s ease, background 0.2s ease;
         }
 
-        .password-toggle:hover { color: var(--brand-blue); }
+        .password-toggle:hover { color: var(--brand-700); background: var(--brand-50); }
 
         .form-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
-            margin: 6px 0 14px;
+            gap: 12px;
+            margin: 10px 0 clamp(20px, 2.5vh, 24px);
         }
 
         .remember {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            color: #51627a;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
         }
 
-        .remember input { accent-color: var(--brand-blue); }
+        .remember input { accent-color: var(--brand-700); width: 18px; height: 18px; }
 
         .forgot {
-            color: var(--brand-blue);
-            font-size: 13px;
+            color: var(--brand-700);
+            font-size: 14px;
             font-weight: 700;
             text-decoration: none;
+            transition: color 0.2s ease;
         }
 
-        .forgot:hover { text-decoration: underline; }
+        .forgot:hover { color: var(--brand-900); }
 
         .btn-submit {
             width: 100%;
+            height: 54px;
             border: 0;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--brand-blue) 0%, #1b5a95 100%);
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--brand-800) 0%, var(--brand-700) 100%);
             color: #fff;
-            font-weight: 800;
-            letter-spacing: 0.01em;
-            padding: 14px;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
             cursor: pointer;
-            transition: transform 0.18s ease, box-shadow 0.18s ease;
-            box-shadow: 0 10px 24px rgba(12, 66, 116, 0.25);
+            transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+            box-shadow: 0 8px 28px rgba(12, 66, 116, 0.4), 0 2px 8px rgba(6, 40, 71, 0.2);
         }
 
         .btn-submit:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 16px 28px rgba(12, 66, 116, 0.30);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 36px rgba(12, 66, 116, 0.45), 0 4px 12px rgba(6, 40, 71, 0.15);
         }
 
+        .btn-submit:active { transform: translateY(0); }
+
         .or-wrap {
-            margin: 18px 0 14px;
+            margin: clamp(20px, 2.5vh, 26px) 0 clamp(14px, 1.8vh, 18px);
             position: relative;
             text-align: center;
         }
@@ -268,16 +424,18 @@
         .or-wrap::before {
             content: "";
             position: absolute;
-            inset: 50% 0 auto;
-            border-top: 1px solid #d5dfeb;
+            left: 0;
+            right: 0;
+            top: 50%;
+            border-top: 1px solid var(--border-soft);
         }
 
         .or-wrap span {
             position: relative;
             z-index: 1;
-            background: #fff;
-            padding: 0 10px;
-            color: #6b7a91;
+            background: var(--surface-ice);
+            padding: 0 16px;
+            color: var(--text-muted);
             font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
@@ -288,46 +446,81 @@
             display: inline-flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             width: 100%;
-            padding: 12px 14px;
-            border-radius: 12px;
-            border: 1px solid #cdd8e6;
-            color: #1f2937;
-            background: #fff;
+            height: 50px;
+            padding: 0 18px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            background: var(--surface);
             text-decoration: none;
             font-weight: 700;
+            font-size: 15px;
+            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 1px 2px rgba(6, 40, 71, 0.04);
         }
 
-        .btn-google:hover { background: #f8fbff; }
+        .btn-google:hover {
+            background: var(--surface-soft);
+            border-color: var(--border);
+            box-shadow: 0 2px 8px rgba(6, 40, 71, 0.06);
+        }
 
         .form-footer {
-            margin-top: 16px;
+            margin-top: clamp(20px, 2.5vh, 28px);
             font-size: 12px;
-            color: #77859b;
+            color: var(--text-muted);
             text-align: center;
+            font-weight: 500;
         }
 
-        @media (max-width: 980px) {
+        .hidden { display: none !important; }
+
+        /* ========== Responsivo ========== */
+        @media (max-height: 720px) {
+            .login-shell { max-height: calc(100vh - 24px); border-radius: var(--radius-xl); }
+            .brand-side { padding: 20px 24px; }
+            .brand-logo-wrap { margin: 10px 0 8px; }
+            .brand-logo { max-height: 56px; }
+            .brand-logo-panel { padding: 12px 22px; max-width: 300px; min-width: 180px; }
+            .brand-headline { font-size: 20px; }
+            .brand-desc { font-size: 13px; margin-top: 8px; }
+            .metrics { padding-top: 18px; gap: 10px; }
+            .metric-card { padding: 10px 12px; }
+            .metric-value { font-size: 15px; }
+            .form-side { padding: 24px 28px; }
+            .form-header h2 { font-size: 26px; }
+            form { margin-top: 20px; }
+            .field { margin-bottom: 14px; }
+            input[type="email"], input[type="password"] { height: 48px; }
+            .btn-submit { height: 50px; }
+        }
+
+        @media (max-width: 960px) {
             body { padding: 14px; }
             .login-shell {
                 grid-template-columns: 1fr;
-                border-radius: 20px;
+                max-height: none;
+                border-radius: var(--radius-xl);
             }
             .brand-side {
                 border-right: 0;
-                border-bottom: 1px solid var(--border);
-                padding: 26px 24px;
+                padding: 28px 24px;
             }
+            .brand-logo { max-height: 84px; }
+            .brand-logo-panel { max-width: 340px; min-width: 220px; padding: 12px 22px; }
             .form-side {
-                padding: 26px 22px;
+                border-left: 0;
+                border-top: 1px solid var(--border-soft);
+                padding: 32px 28px;
             }
             .metrics { grid-template-columns: 1fr 1fr; }
         }
 
-        @media (max-width: 560px) {
+        @media (max-width: 480px) {
             .metrics { grid-template-columns: 1fr; }
-            .form-header h2 { font-size: 26px; }
+            .form-header h2 { font-size: 24px; }
             .form-row { flex-wrap: wrap; }
         }
     </style>
@@ -336,25 +529,29 @@
     <section class="login-shell" aria-label="Tela de login">
         <aside class="brand-side">
             <div class="brand-pill">Portal Operacional</div>
-            <img src="{{ url_for('static', path='logo-souza-pinto-login-v2.png') }}?v=20260310" alt="Souza Pinto" class="brand-logo">
-            <h1>Controle de operacao com decisao em tempo real.</h1>
-            <p>Centralize acesso, rastreie eventos criticos e transforme dados de campo em acao gerencial. Mais padrao, menos retrabalho.</p>
+            <div class="brand-logo-wrap">
+                <div class="brand-logo-panel">
+                    <img src="{{ url_for('static', path='logo-souza-pinto-corporate.png') }}?v=20260319" alt="Souza Pinto Distribuidora" class="brand-logo">
+                </div>
+            </div>
+            <h1 class="brand-headline">Operação com decisão em tempo real.</h1>
+            <p class="brand-desc">Centralize acesso, rastreie eventos e transforme dados de campo em ação gerencial.</p>
 
             <div class="metrics">
                 <div class="metric-card">
                     <div class="metric-label">Status do portal</div>
-                    <div class="metric-value">Online</div>
+                    <div class="metric-value status-online">Online</div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-label">Ambiente</div>
-                    <div class="metric-value">Producao</div>
+                    <div class="metric-value status-prod">Produção</div>
                 </div>
                 <div class="metric-card">
                     <div class="metric-label">Data</div>
                     <div class="metric-value" id="meta-date">--/--/----</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-label">Horario</div>
+                    <div class="metric-label">Horário</div>
                     <div class="metric-value" id="meta-time">--:--</div>
                 </div>
             </div>
@@ -376,20 +573,20 @@
             <form action="/login" method="POST" id="login-form">
                 <div class="field">
                     <label for="email">E-mail</label>
-                    <input type="email" name="email" id="email" required placeholder="seuemail@empresa.com">
+                    <input type="email" name="email" id="email" required placeholder="seuemail@empresa.com" autocomplete="email">
                 </div>
 
                 <div class="field">
                     <label for="password">Senha</label>
                     <div class="input-wrap">
-                        <input type="password" name="password" id="password" required placeholder="Sua senha">
+                        <input type="password" name="password" id="password" required placeholder="Sua senha" autocomplete="current-password">
                         <button type="button" class="password-toggle" onclick="togglePassword()" title="Mostrar/ocultar senha" aria-label="Mostrar ou ocultar senha">
-                            <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            <svg id="eye-icon" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                             </svg>
-                            <svg id="eye-off-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                            <svg id="eye-off-icon" class="hidden" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
                             </svg>
                         </button>
                     </div>
@@ -409,7 +606,7 @@
             {% if google_enabled %}
             <div class="or-wrap"><span>ou</span></div>
             <a href="/auth/google" class="btn-google">
-                <svg class="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
                     <path fill="#EA4335" d="M24 9.5c3.54 0 6.72 1.22 9.22 3.2l6.86-6.86C35.9 1.9 30.3 0 24 0 14.6 0 6.5 5.38 2.7 13.2l7.98 6.2C12.4 13.2 17.7 9.5 24 9.5z"></path>
                     <path fill="#4285F4" d="M46.5 24c0-1.64-.15-3.22-.43-4.75H24v9.02h12.67c-.55 2.97-2.23 5.48-4.75 7.18l7.26 5.64c4.25-3.92 6.7-9.7 6.7-17.09z"></path>
                     <path fill="#FBBC05" d="M10.68 28.1c-.5-1.5-.78-3.1-.78-4.7 0-1.63.28-3.22.78-4.72l-7.98-6.2C.99 15.7 0 19.74 0 23.4c0 3.66.99 7.7 2.7 10.92l7.98-6.22z"></path>
@@ -419,7 +616,7 @@
             </a>
             {% endif %}
 
-            <p class="form-footer">Souza Pinto Distribuidora - Portal Operacional</p>
+            <p class="form-footer">Souza Pinto Distribuidora — Portal Operacional</p>
         </main>
     </section>
 
@@ -448,7 +645,10 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            var savedEmail = localStorage.getItem('remembered_email');
+            var local = (function(){ try { return localStorage; } catch(e) { return null; } })();
+            var getSaved = function() { try { return local ? local.getItem('remembered_email') : null; } catch(e) { return null; } };
+            var setSaved = function(v) { try { if (local && v !== null) local.setItem('remembered_email', v); else if (local) local.removeItem('remembered_email'); } catch(e) {} };
+            var savedEmail = getSaved();
             var rememberCheckbox = document.getElementById('remember');
             var emailInput = document.getElementById('email');
             if (savedEmail && emailInput && rememberCheckbox) {
@@ -461,9 +661,9 @@
                 form.addEventListener('submit', function() {
                     if (rememberCheckbox && emailInput) {
                         if (rememberCheckbox.checked) {
-                            localStorage.setItem('remembered_email', emailInput.value);
+                            setSaved(emailInput.value);
                         } else {
-                            localStorage.removeItem('remembered_email');
+                            setSaved(null);
                         }
                     }
                 });
@@ -475,4 +675,3 @@
     </script>
 </body>
 </html>
-

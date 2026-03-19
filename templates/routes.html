@@ -597,6 +597,17 @@
                                                             class="btn-action btn-move col-span-2 w-full">
                                                         Mover Cliente
                                                     </button>
+                                                    <form action="/separacao/delivery/remove-stop" method="post" class="col-span-2"
+                                                          onsubmit="return confirmRemoveStop({{ row.client_name|tojson }}, {{ row.status_raw|tojson }});">
+                                                        <input type="hidden" name="route_id" value="{{ row.id }}">
+                                                        <input type="hidden" name="date" value="{{ group.group_date or row.planning_date or selected_date_from }}">
+                                                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                                        {% if selected_date_from != selected_date_to %}
+                                                        <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                                                        <input type="hidden" name="date_to" value="{{ selected_date_to }}">
+                                                        {% endif %}
+                                                        <button type="submit" class="btn-action btn-remove-stop w-full">Excluir parada</button>
+                                                    </form>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1122,6 +1133,17 @@
         document.getElementById('returnModal').showModal();
     }
 
+    function confirmRemoveStop(clientName, statusRaw) {
+        const st = (statusRaw || '').toLowerCase();
+        let extra = '';
+        if (st === 'iniciada') {
+            extra = '\n\nATENÇÃO: a entrega desta parada já foi iniciada.';
+        } else if (st === 'entregue' || st === 'devolucao') {
+            extra = '\n\nATENÇÃO: parada já finalizada — o registro e devoluções vinculadas serão removidos.';
+        }
+        return confirm('Remover esta parada da rota?\n\nCliente: ' + (clientName || '') + extra + '\n\nEsta ação não pode ser desfeita.');
+    }
+
     function openMoveModal(routeId, date, shift, employeeId, vehiclePlate) {
         document.getElementById('move-route-id').value = routeId;
         document.getElementById('move-date').value = date;
@@ -1412,6 +1434,9 @@
 
     .btn-reopen { background: #0f766e; border-color: #14b8a6; }
     .btn-reopen:not(:disabled):hover { background: #0d9488; transform: translateY(-1px); }
+
+    .btn-remove-stop { background: #7f1d1d; border-color: #b91c1c; color: #fecaca; }
+    .btn-remove-stop:hover { background: #991b1b; border-color: #dc2626; transform: translateY(-1px); }
 
     /* --- Botões de modal --- */
     .btn-modal {

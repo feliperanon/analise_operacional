@@ -77,3 +77,20 @@ def route_duration_minutes(route: Any) -> Optional[int]:
     start_ref = getattr(route, "delivery_started_at", None) or getattr(route, "start_time", None)
     end_ref = getattr(route, "delivery_finished_at", None) or getattr(route, "end_time", None)
     return _duration_single_min(start_ref, end_ref)
+
+
+def route_duration_minutes_mobile_only(route: Any) -> Optional[int]:
+    """
+    Duração para métricas (BI, custo operacional): só quando início e fim foram
+    registrados pelo app do motorista (GPS em iniciar e em finalizar/devolução).
+    Finalização só pela web (separação) não preenche driver_lat_end — não entra.
+    """
+    if getattr(route, "driver_lat_start", None) is None:
+        return None
+    if getattr(route, "driver_lon_start", None) is None:
+        return None
+    if getattr(route, "driver_lat_end", None) is None:
+        return None
+    if getattr(route, "driver_lon_end", None) is None:
+        return None
+    return route_duration_minutes(route)

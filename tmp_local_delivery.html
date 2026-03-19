@@ -6,13 +6,13 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#0f172a">
-    <link rel="manifest" href="{{ url_for('static', path='manifest.json') }}">
+    <link rel="manifest" href="http://127.0.0.1:8000/static/manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="{{ url_for('static', path='icons/pwa-192.png') }}?v=20260319">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', path='favicon-32x32.png') }}?v=20260319">
-    <title>{% block title %}Portal do Colaborador{% endblock %}</title>
+    <link rel="apple-touch-icon" href="http://127.0.0.1:8000/static/icons/pwa-192.png?v=20260319">
+    <link rel="icon" type="image/png" sizes="32x32" href="http://127.0.0.1:8000/static/favicon-32x32.png?v=20260319">
+    <title>Login Mobile - Portal Operacional</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="/static/styles.css">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', path='css/mobile.css') }}?v=10.0">
+    <link rel="stylesheet" href="http://127.0.0.1:8000/static/css/mobile.css?v=10.0">
 
     <!-- canvas-confetti para celebrações -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
@@ -55,7 +55,193 @@
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 
     <!-- Design Tokens -->
-    {% include 'mobile/_design_tokens.html' %}
+    <!--
+DESIGN TOKENS - Tech-Steel Operational v3.0 | Souza Pinto
+Dark Mode Futurista, alto contraste, legibilidade sob luz solar.
+-->
+
+<style>
+    :root {
+        /* === PALETA TECH-STEEL (Dark Mode Futurista) === */
+        --color-bg: #020617;
+        --color-surface: #131e2e;
+        --color-surface-solid: #0f172a;
+        --color-border: #1e293b;
+        --color-border-light: #334155;
+
+        --color-text: #ffffff;
+        --color-text-body: #cbd5e1;
+        --color-text-secondary: #94a3b8;
+        --color-text-muted: #64748b;
+
+        --color-icon: #94a3b8;
+
+        --color-primary: #3b82f6;
+        --color-primary-bg: rgba(59, 130, 246, 0.15);
+        --color-primary-border: rgba(59, 130, 246, 0.4);
+
+        --color-success: #10b981;
+        --color-success-neon: 0 0 12px rgba(16, 185, 129, 0.5);
+        --color-success-bg: rgba(16, 185, 129, 0.12);
+        --color-danger: #ef4444;
+        --color-danger-pulse: 0 0 12px rgba(239, 68, 68, 0.5);
+        --color-danger-bg: rgba(239, 68, 68, 0.12);
+        --color-warning: #f59e0b;
+        --color-warning-bg: rgba(245, 158, 11, 0.15);
+
+        /* === GLOW BORDERS (Status) === */
+        --glow-ok: 0 0 0 1px #10b981, 0 0 12px rgba(16, 185, 129, 0.3);
+        --glow-fail: 0 0 0 1px #ef4444, 0 0 12px rgba(239, 68, 68, 0.3);
+        --glow-pending: 0 0 0 1px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.3);
+
+        /* === CARDS (sólido, sem transparência) === */
+        --card-bg: #0f172a;
+        --card-border: 1px solid #1e293b;
+
+        /* === SOMBRAS === */
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+        --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
+        --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5);
+        --shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.6);
+
+        /* === GRADIENTES === */
+        --gradient-header: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        --gradient-fade-bottom: linear-gradient(to top, rgba(2, 6, 23, 1) 0%, rgba(2, 6, 23, 0.6) 40%, transparent 100%);
+        --gradient-btn-neon: linear-gradient(135deg, #10b981 0%, #059669 100%);
+
+        /* === TIPOGRAFIA === */
+        --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        --font-mono: 'JetBrains Mono', 'Roboto Mono', ui-monospace, monospace;
+
+        --text-caption: 0.6875rem;
+        --text-caption-lg: 0.75rem;
+        --text-body: 0.8125rem;
+        --text-body-lg: 0.875rem;
+        --text-section: 0.875rem;
+        --text-section-lg: 1rem;
+        --text-title: 1rem;
+        --text-title-lg: 1.125rem;
+
+        --font-normal: 400;
+        --font-medium: 500;
+        --font-semibold: 600;
+
+        --leading-tight: 1.25;
+        --leading-normal: 1.5;
+
+        /* === ESPAÇAMENTO === */
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-5: 1.25rem;
+        --space-6: 1.5rem;
+        --space-8: 2rem;
+
+        /* === BORDAS === */
+        --radius-sm: 0.5rem;
+        --radius-md: 0.75rem;
+        --radius-lg: 1rem;
+        --radius-xl: 1.25rem;
+
+        /* === TOUCH === */
+        --touch-min: 48px;
+        --touch-icon: 44px;
+
+        /* === Z === */
+        --z-dropdown: 10;
+        --z-sticky: 20;
+        --z-modal: 9999;
+    }
+
+    .container-mobile {
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        padding-left: var(--space-4);
+        padding-right: var(--space-4);
+    }
+
+    /* Cards Tech-Steel */
+    .surface {
+        background: var(--color-surface-solid);
+        border: var(--card-border);
+        border-radius: var(--radius-lg);
+    }
+
+    .surface-shadow {
+        background: var(--color-surface-solid);
+        border: var(--card-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+    }
+
+    /* Action Tile (checklist) */
+    .action-tile {
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .action-tile.status-ok { border-color: #10b981; box-shadow: var(--glow-ok); }
+    .action-tile.status-fail { border-color: #ef4444; box-shadow: var(--glow-fail); }
+    .action-tile.status-pending { border-color: var(--color-border); }
+
+    .icon-wrap {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        background: rgba(30, 41, 59, 0.8);
+        color: var(--color-icon);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .icon-wrap-sm {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+    }
+
+    /* Tipografia */
+    .text-title { font-size: var(--text-title); font-weight: var(--font-semibold); color: var(--color-text); }
+    .text-title-lg { font-size: var(--text-title-lg); font-weight: var(--font-semibold); color: var(--color-text); }
+    .text-section { font-size: var(--text-section); font-weight: var(--font-semibold); color: var(--color-text); }
+    .text-body { font-size: var(--text-body); color: var(--color-text-body); line-height: var(--leading-normal); }
+    .text-body-lg { font-size: var(--text-body-lg); color: var(--color-text-body); }
+    .text-caption { font-size: var(--text-caption); color: var(--color-text-muted); }
+    .text-caption-lg { font-size: var(--text-caption-lg); color: var(--color-text-muted); }
+    .font-mono { font-family: var(--font-mono); }
+
+    .touch-target { min-width: var(--touch-min); min-height: var(--touch-min); }
+    .touch-target-icon { min-width: var(--touch-icon); min-height: var(--touch-icon); }
+
+    .interactive {
+        transition: transform 0.15s ease;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .interactive:active { transform: scale(0.97); }
+
+    /* Botão Concluir Flutuante */
+    .btn-float-conclude {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: var(--space-4);
+        padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0));
+        background: var(--gradient-fade-bottom);
+        z-index: 50;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Lucide stroke mais visível (2.5px) */
+    .lucide-thick, .lucide-thick svg, [class*="lucide"].lucide-thick { stroke-width: 2.5; }
+</style>
 
     <style>
         [x-cloak] {
@@ -63,19 +249,193 @@
         }
     </style>
 
-    {% block head_extra %}{% endblock %}
+    
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+<style>
+    .mobile-login-page {
+        min-height: 100dvh;
+        background: radial-gradient(900px 420px at 50% -10%, #e8f0fb 0%, #ffffff 60%),
+                    radial-gradient(760px 360px at 50% 120%, #f8f2e2 0%, #ffffff 52%);
+        color: #0f172a;
+        font-family: "Manrope", sans-serif;
+        padding: 24px 0;
+    }
+
+    .mobile-login-wrap {
+        width: min(410px, calc(100% - 28px));
+        margin: 0 auto;
+    }
+
+    .mobile-brand {
+        text-align: center;
+        margin-bottom: 16px;
+    }
+
+    .mobile-brand-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid #cfe1f5;
+        background: #edf4fc;
+        color: #0c4274;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .mobile-brand-logo {
+        width: min(330px, 100%);
+        margin: 14px auto 10px;
+        display: block;
+        object-fit: contain;
+    }
+
+    .mobile-brand-text {
+        margin: 0;
+        color: #4f5f77;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .mobile-login-card {
+        background: #fff;
+        border: 1px solid #d4deeb;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 20px 32px rgba(12, 66, 116, 0.10);
+    }
+
+    .mobile-login-card h1 {
+        margin: 0;
+        font-family: "Sora", sans-serif;
+        font-size: 24px;
+        color: #0f172a;
+    }
+
+    .mobile-login-card p {
+        margin: 8px 0 0;
+        font-size: 14px;
+        color: #586983;
+        line-height: 1.45;
+    }
+
+    .mobile-alert {
+        margin-top: 14px;
+        border-radius: 12px;
+        border: 1px solid #fecdd3;
+        background: #fff1f2;
+        color: #9f1239;
+        padding: 11px 12px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .mobile-form { margin-top: 18px; }
+
+    .mobile-form label {
+        display: block;
+        margin-bottom: 7px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .mobile-form input {
+        width: 100%;
+        border: 1px solid #cad7e8;
+        border-radius: 12px;
+        background: #fff;
+        color: #0f172a;
+        padding: 13px 14px;
+        font-size: 16px;
+        font-family: "Manrope", sans-serif;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .mobile-form input:focus {
+        outline: none;
+        border-color: #5a9bd8;
+        box-shadow: 0 0 0 4px rgba(12, 66, 116, 0.12);
+    }
+
+    .mobile-login-button {
+        width: 100%;
+        margin-top: 14px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #0c4274 0%, #1b5a95 100%);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        padding: 13px 14px;
+        box-shadow: 0 12px 24px rgba(12, 66, 116, 0.22);
+    }
+
+    .mobile-login-meta {
+        margin-top: 16px;
+        text-align: center;
+        font-size: 12px;
+        color: #73829a;
+        line-height: 1.45;
+    }
+</style>
+
 </head>
 
 <body class="antialiased min-h-screen flex flex-col theme-tech-steel" style="background-color: var(--color-bg); color: var(--color-text-body); font-family: var(--font-sans);">
     <div class="flex flex-col min-h-screen flex-1">
         <!-- Header (não exibir no login) -->
-        {% if not hide_header %}
-        {% include 'mobile/_app_header.html' %}
-        {% endif %}
+        
 
         <!-- Main Content (z-0 para ficar atrás do menu overlay) -->
         <main class="flex-1 pb-safe relative z-0">
-            {% block content %}{% endblock %}
+            
+<div class="mobile-login-page">
+    <div class="mobile-login-wrap">
+        <div class="mobile-brand">
+            <span class="mobile-brand-badge">Portal Operacional</span>
+            <img src="http://127.0.0.1:8000/static/logo-souza-pinto-login-v2.png?v=20260310" alt="Souza Pinto" class="mobile-brand-logo">
+        </div>
+
+        <section class="mobile-login-card" aria-label="Login mobile">
+            <h1>Entrar</h1>
+            <p>Informe sua matricula para acessar o aplicativo operacional.</p>
+
+            
+
+            <form action="/mobile/auth" method="POST" class="mobile-form">
+                <label for="registration_id">Matricula</label>
+                <input type="text" id="registration_id" name="registration_id" placeholder="Digite sua matricula" required autofocus>
+                <button type="submit" class="mobile-login-button">Entrar no app</button>
+            </form>
+
+            <div class="mobile-login-meta">
+                <div>&copy; 2026 Souza Pinto Distribuidora</div>
+                <div>Operacao com controle e rastreabilidade</div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        var input = document.getElementById('registration_id');
+        if (input) {
+            input.focus();
+            if (input.value) input.select();
+        }
+    });
+</script>
+
         </main>
     </div>
 
@@ -263,30 +623,9 @@
     // Registro do Service Worker
     // ──────────────────────────────────────────────
     if ('serviceWorker' in navigator) {
-        const NL_SW_VERSION = '20260319f';
-
         window.addEventListener('load', async () => {
             try {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                for (const existing of registrations) {
-                    const scriptUrl =
-                        existing.active?.scriptURL ||
-                        existing.waiting?.scriptURL ||
-                        existing.installing?.scriptURL ||
-                        '';
-                    const isLegacyWorker =
-                        scriptUrl.includes('/static/sw.js') ||
-                        (scriptUrl.includes('/service-worker.js') && !scriptUrl.includes(`v=${NL_SW_VERSION}`));
-                    if (isLegacyWorker) {
-                        await existing.unregister();
-                    }
-                }
-
-                const reg = await navigator.serviceWorker.register(
-                    `/service-worker.js?v=${NL_SW_VERSION}`,
-                    { scope: '/mobile/', updateViaCache: 'none' }
-                );
-                await reg.update();
+                const reg = await navigator.serviceWorker.register('/service-worker.js', { scope: '/mobile/' });
                 console.log('[SW] Registrado com escopo:', reg.scope);
 
                 // Escuta mensagens do SW (SYNC_COMPLETE enviado após Background Sync)
@@ -313,7 +652,7 @@
     }
     </script>
 
-    <!-- Chip compacto de status offline/sync (canto inferior direito) -->
+    <!-- Banner de status offline (Alpine reativo) -->
     <div
         x-data="{
             isOnline: navigator.onLine,
@@ -323,8 +662,6 @@
             bannerMsg: '',
             bannerColor: '',
             bannerTimeout: null,
-            showToast: false,
-            toastMsg: '',
 
             async init() {
                 this.isOnline = navigator.onLine;
@@ -350,17 +687,22 @@
                     this.syncCount = await window.nlCountQueue().catch(() => 0);
                     this.isOnline = true;
                     if (e.detail.synced > 0) {
-                        this.toastMsg = '✅ ' + e.detail.synced + ' sincronizada(s)';
-                        this.showToast = true;
-                        setTimeout(() => { this.showToast = false; }, 2500);
+                        this.bannerMsg = '✅ ' + e.detail.synced + ' ação(ões) sincronizadas!';
+                        this.bannerColor = 'rgba(16,185,129,0.95)';
+                        this.showBanner = true;
+                        clearTimeout(this.bannerTimeout);
+                        this.bannerTimeout = setTimeout(() => { this.showBanner = false; }, 3500);
+                        // Dispara reload dos dados na página (se deliveryPageController existir)
                         if (typeof window._nlReloadDelivery === 'function') window._nlReloadDelivery();
+                    } else {
+                        this.updateBanner();
                     }
-                    this.updateBanner();
                 });
                 window.addEventListener('nl:sync-error', () => {
                     this.isSyncing = false;
                     this.updateBanner();
                 });
+                // Atualiza contagem periodicamente
                 setInterval(async () => {
                     this.syncCount = await window.nlCountQueue().catch(() => 0);
                 }, 5000);
@@ -368,42 +710,42 @@
 
             updateBanner() {
                 if (!this.isOnline) {
-                    this.bannerMsg = this.syncCount > 0 ? this.syncCount + ' na fila' : 'Offline';
+                    this.bannerMsg = this.syncCount > 0
+                        ? '🔴 Sem internet — ' + this.syncCount + ' ação(ões) na fila'
+                        : '🔴 Sem internet — modo offline';
                     this.bannerColor = 'rgba(239,68,68,0.95)';
                     this.showBanner = true;
+                    clearTimeout(this.bannerTimeout);
                 } else if (this.isSyncing) {
-                    this.bannerMsg = 'Sincronizando...';
+                    this.bannerMsg = '🔄 Sincronizando ' + this.syncCount + ' ação(ões)...';
                     this.bannerColor = 'rgba(245,158,11,0.95)';
                     this.showBanner = true;
+                    clearTimeout(this.bannerTimeout);
                 } else if (this.syncCount > 0) {
-                    this.bannerMsg = this.syncCount + ' pendente(s)';
+                    this.bannerMsg = '🟡 Online — ' + this.syncCount + ' ação(ões) pendentes';
                     this.bannerColor = 'rgba(245,158,11,0.95)';
                     this.showBanner = true;
+                    clearTimeout(this.bannerTimeout);
                 } else {
                     this.showBanner = false;
                 }
             }
         }"
         x-init="init()"
-    >
-        <!-- Chip compacto -->
-        <div x-show="showBanner"
-            x-cloak
-            x-transition
-            :style="`background: ${bannerColor}; position: fixed; bottom: 16px; right: 16px; z-index: 99999; padding: 6px 12px; font-size: 12px; font-weight: 600; color: white; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);`"
-            x-text="bannerMsg"
-            style="display: none; padding-left: env(safe-area-inset-right); padding-bottom: env(safe-area-inset-bottom);"
-        ></div>
-        <!-- Toast curto de sucesso -->
-        <div x-show="showToast"
-            x-cloak
-            x-transition
-            x-text="toastMsg"
-            style="position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 99999; padding: 8px 16px; font-size: 12px; font-weight: 600; color: white; background: rgba(16,185,129,0.95); border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);"
-        ></div>
-    </div>
+        x-show="showBanner"
+        x-cloak
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 -translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        :style="`background: ${bannerColor}; position: fixed; top: 0; left: 0; right: 0; z-index: 99999; padding: 8px 16px; text-align: center; font-size: 13px; font-weight: 600; color: white; letter-spacing: 0.01em; safe-area-inset-top: env(safe-area-inset-top, 0);`"
+        x-text="bannerMsg"
+        style="display: none;"
+    ></div>
 
-    {% block scripts %}{% endblock %}
+    
 </body>
 
 </html>

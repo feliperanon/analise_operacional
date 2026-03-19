@@ -71,7 +71,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
     <title>Central de Comando • Painel Operacional</title>
-    <link rel="icon" type="image/png" href="/static/logo-souza-pinto.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
     <link rel="stylesheet" href="/static/styles.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
     <style>
@@ -121,9 +121,11 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         .driver-card--ok { border-color: rgba(51, 65, 85, 0.9); }
         .driver-card--not-started { border-color: rgba(100, 116, 139, 0.8); background: linear-gradient(135deg, rgba(30,41,59,0.98), rgba(71,85,105,0.15)); }
         .driver-card--route-started { border-color: rgba(56, 189, 248, 0.7); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(56,189,248,0.1)); }
-        .driver-card--all-delivered { border-color: rgba(34, 197, 94, 0.6); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(34,197,94,0.08)); }
-        .driver-card--closed { border-color: rgba(148, 163, 184, 0.6); background: linear-gradient(135deg, rgba(51,65,85,0.95), rgba(148,163,184,0.12)); }
+        .driver-card--all-delivered { border-color: rgba(167, 139, 250, 0.7); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(124,58,237,0.14)); box-shadow: 0 0 20px rgba(139, 92, 246, 0.12); }
+        .driver-card--closed { border-color: rgba(34, 197, 94, 0.65); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(34,197,94,0.12)); }
         .bar-pct--ok { background: linear-gradient(to right, rgb(59 130 246), rgb(34 211 238)); }
+        .driver-card--closed .bar-pct--ok { background: linear-gradient(to right, rgb(34 197 94), rgb(52 211 153)); }
+        .bar-pct--entregues { background: linear-gradient(to right, rgb(124 58 237), rgb(192 132 252)); }
         .bar-pct--atencao { background: linear-gradient(to right, rgb(234 179 8), rgb(251 191 36)); }
         .bar-pct--critico { background: linear-gradient(to right, rgb(239 68 68), rgb(248 113 113)); }
 
@@ -218,6 +220,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             {% set _critico_kpi = _tsa.critico|default(0) %}
             {% set _n_paradas = dashboard.kpi.rotas_paradas|default(0) if dashboard.kpi else 0 %}
             {% set _n_ativas_real = dashboard.kpi.rotas_ativas|default(0) if dashboard.kpi else 0 %}
+            {% set _n_rotas_concl = dashboard.kpi.rotas_concluidas|default(0) if dashboard.kpi else 0 %}
             <div class="kpi-cell flex items-center gap-2 px-2 sm:px-4 py-2 min-w-0 flex-1 flex-shrink-0" style="min-width: 90px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Centro</span>
                 <span class="font-bold text-blue-300 text-kpi truncate">{{ current_cost_center }}</span>
@@ -255,7 +258,11 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             </div>
             <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 95px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Rotas ativas</span>
-                <span id="tv-kpi-rotas-ativas" class="font-black text-kpi text-emerald-400">{{ _n_ativas_real }}</span>
+                <span id="tv-kpi-rotas-ativas" class="font-black text-kpi text-cyan-300">{{ _n_ativas_real }}</span>
+            </div>
+            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 100px;">
+                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Concluídas</span>
+                <span id="tv-kpi-rotas-concluidas" class="font-black text-kpi text-emerald-400">{{ _n_rotas_concl }}</span>
             </div>
             <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 75px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Atenção</span>
@@ -271,8 +278,8 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         <section class="zone-central relative z-10 min-h-0">
             <div class="zone-central-grid flex flex-col min-h-0">
             <div class="flex items-center justify-between px-3 sm:px-5 py-1.5 shrink-0">
-                <h2 class="text-label sm:text-sm font-bold text-slate-400 uppercase tracking-wider">Operação em tempo real — Rotas ativas</h2>
-                <p id="tv-central-subtitle" class="text-label text-slate-500 truncate max-w-[50%] sm:max-w-none">Ordenado por prioridade</p>
+                <h2 class="text-label sm:text-sm font-bold text-slate-400 uppercase tracking-wider">Operação em tempo real</h2>
+                <p id="tv-central-subtitle" class="text-label text-slate-500 truncate max-w-[50%] sm:max-w-none">{% if _nl %}{{ _nl }} rota(s) · {{ _n_ativas_real }} ativa(s) · {{ _n_rotas_concl }} concluída(s) · {{ _n_paradas }} parada(s){% else %}Nenhuma rota no dia{% endif %}</p>
             </div>
             {% set _nl = (dashboard.live_separation or [])|length %}
             {% set _gcols = 3 %}{% if _nl <= 1 %}{% set _gcols = 1 %}{% elif _nl <= 2 %}{% set _gcols = 2 %}{% elif _nl <= 6 %}{% set _gcols = 3 %}{% elif _nl <= 12 %}{% set _gcols = 4 %}{% else %}{% set _gcols = 5 %}{% endif %}
@@ -284,11 +291,12 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 {% set open_count = total - completed %}
                 {% set pct_d = (completed / total * 100) if total and total > 0 else 0 %}
                 {% set rs = op.route_state|default('in_progress') %}
-                {% if rs == 'closed' %}{% set card_class = 'driver-card--closed' %}{% set status_label = 'Encerrada' %}{% set badge_cls = 'bg-slate-500/50 text-slate-300' %}{% set bar_cls = 'bar-pct--ok' %}
+                {% if rs == 'closed' %}{% set card_class = 'driver-card--closed' %}{% set status_label = 'Encerrada' %}{% set badge_cls = 'bg-emerald-500/30 text-emerald-200' %}{% set bar_cls = 'bar-pct--ok' %}
                 {% elif rs == 'not_started' %}{% set card_class = 'driver-card--not-started' %}{% set status_label = 'Rota parada' %}{% set badge_cls = 'bg-slate-600/50 text-slate-400' %}{% set bar_cls = 'bar-pct--ok' %}
                 {% elif rs == 'route_started' %}{% set card_class = 'driver-card--route-started' %}{% set status_label = 'Início' %}{% set badge_cls = 'bg-sky-500/25 text-sky-300' %}{% set bar_cls = 'bar-pct--ok' %}
-                {% elif rs == 'all_delivered' %}{% set card_class = 'driver-card--all-delivered' %}{% set status_label = 'Entregues' %}{% set badge_cls = 'bg-emerald-500/25 text-emerald-300' %}{% set bar_cls = 'bar-pct--ok' %}
+                {% elif rs == 'all_delivered' %}{% set card_class = 'driver-card--all-delivered' %}{% set status_label = 'Entregues' %}{% set badge_cls = 'bg-violet-500/35 text-violet-200 ring-1 ring-violet-400/40' %}{% set bar_cls = 'bar-pct--entregues' %}
                 {% else %}{% set card_status = 'critico' if open_count >= 5 or (total and total > 0 and pct_d < 25) else ('atencao' if open_count >= 3 or (total and total > 0 and pct_d < 50) else 'ok') %}{% set card_class = 'driver-card--' ~ card_status %}{% set status_label = 'Crítico' if card_status == 'critico' else ('Atenção' if card_status == 'atencao' else 'Normal') %}{% set badge_cls = 'bg-red-500/20 text-red-300' if card_status == 'critico' else ('bg-amber-500/25 text-amber-300' if card_status == 'atencao' else 'bg-slate-600/50 text-slate-400') %}{% set bar_cls = 'bar-pct--' ~ card_status %}{% endif %}
+                {% set pct_cls = 'text-emerald-300' if rs in ('closed', 'all_delivered') else 'text-blue-300' %}
                 {% set dense = ' driver-card--dense' if _nl > 6 else '' %}
                 <div class="driver-cell">
                     <article class="driver-card {{ card_class }}{{ dense }} border">
@@ -301,7 +309,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         </div>
                         <div class="card-core flex items-center justify-between gap-2">
                             <span class="text-card-meta font-bold text-slate-300">{{ completed }}/{{ total }} entregas</span>
-                            <span class="text-card-title font-black text-blue-300">{{ "%.0f"|format(pct_d) }}%</span>
+                            <span class="text-card-title font-black {{ pct_cls }}">{{ "%.0f"|format(pct_d) }}%</span>
                             <span class="text-card-meta font-semibold px-1.5 py-0.5 rounded {{ badge_cls }}">{{ status_label }}</span>
                         </div>
                         <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1">
@@ -310,7 +318,6 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         {% set driver_alerts = (dashboard.alerts.clients_over_20min or [])|selectattr('driver_name', 'equalto', op.employee_name)|list %}
                         {% if driver_alerts %}
                         <div class="card-alert-20min">
-                            <span class="font-semibold text-amber-300">&#9888; &gt;20 min</span>
                             {% for a in driver_alerts[:3] %}
                             {% set mins = a.minutes|default(0) %}
                             {% set hours_fmt = (mins // 60)|string ~ 'h ' ~ (mins % 60)|string ~ 'min' if mins >= 60 else (mins|string ~ ' min') %}
@@ -470,7 +477,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             if (state === 'closed') return { class: 'driver-card--closed', label: 'Encerrada', barClass: 'bar-pct bar-pct--ok' };
             if (state === 'not_started') return { class: 'driver-card--not-started', label: 'Rota parada', barClass: 'bar-pct bar-pct--ok' };
             if (state === 'route_started') return { class: 'driver-card--route-started', label: 'Início', barClass: 'bar-pct bar-pct--ok' };
-            if (state === 'all_delivered') return { class: 'driver-card--all-delivered', label: 'Entregues', barClass: 'bar-pct bar-pct--ok' };
+            if (state === 'all_delivered') return { class: 'driver-card--all-delivered', label: 'Entregues', barClass: 'bar-pct bar-pct--entregues' };
             var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed, pct = total > 0 ? (completed / total * 100) : 0;
             var status = driverCardStatus(openCount, total, pct);
             var statusClass = status === 'critico' ? 'driver-card--critico' : (status === 'atencao' ? 'driver-card--atencao' : 'driver-card--ok');
@@ -491,7 +498,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         function bestWorstDrivers(live) {
             var active = (live || []).filter(function(op) {
                 var st = op.route_state || '';
-                return st !== 'not_started' && st !== 'closed';
+                return st === 'in_progress' || st === 'route_started';
             });
             if (active.length === 0) return { best: null, worst: null };
             var sorted = active.slice().sort(function(a, b) {
@@ -536,19 +543,21 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 set('tv-kpi-devolucao-ctx', devCount ? (dev.pct || 0) + '% total' : '');
                 set('tv-kpi-alertas', alertsCount);
                 set('tv-kpi-rotas-paradas', kpi.rotas_paradas != null ? kpi.rotas_paradas : (live.filter(function(o) { return (o.route_state || '') === 'not_started'; }).length));
-                set('tv-kpi-rotas-ativas', kpi.rotas_ativas != null ? kpi.rotas_ativas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'in_progress' || s === 'all_delivered' || s === 'route_started'; }).length));
+                set('tv-kpi-rotas-ativas', kpi.rotas_ativas != null ? kpi.rotas_ativas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'in_progress' || s === 'route_started'; }).length));
+                set('tv-kpi-rotas-concluidas', kpi.rotas_concluidas != null ? kpi.rotas_concluidas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'closed' || s === 'all_delivered'; }).length));
                 set('tv-kpi-atencao', tsa.atencao != null ? tsa.atencao : 0);
                 set('tv-kpi-criticas', tsa.critico != null ? tsa.critico : 0);
 
                 var subEl = document.getElementById('tv-central-subtitle');
                 if (subEl) {
-                    var rp = kpi.rotas_paradas != null ? kpi.rotas_paradas : 0, ra = kpi.rotas_ativas != null ? kpi.rotas_ativas : 0;
+                    var rp = kpi.rotas_paradas != null ? kpi.rotas_paradas : 0, ra = kpi.rotas_ativas != null ? kpi.rotas_ativas : 0, rc = kpi.rotas_concluidas != null ? kpi.rotas_concluidas : 0;
                     if (kpi.rotas_paradas == null) live.forEach(function(o) { if ((o.route_state || '') === 'not_started') rp++; });
-                    if (kpi.rotas_ativas == null) live.forEach(function(o) { var s = o.route_state || ''; if (s === 'in_progress' || s === 'all_delivered' || s === 'route_started') ra++; });
+                    if (kpi.rotas_ativas == null) live.forEach(function(o) { var s = o.route_state || ''; if (s === 'in_progress' || s === 'route_started') ra++; });
+                    if (kpi.rotas_concluidas == null) live.forEach(function(o) { var s = o.route_state || ''; if (s === 'closed' || s === 'all_delivered') rc++; });
                     if (bw.best && bw.worst && bw.best !== bw.worst)
-                        subEl.textContent = live.length + ' no dia · ' + ra + ' ativas · ' + rp + ' paradas · Maior avanço: ' + (bw.best.employee_name || '').replace(/</g,'&lt;');
+                        subEl.textContent = live.length + ' no dia · ' + ra + ' ativas · ' + rc + ' concl. · ' + rp + ' paradas · Maior avanço: ' + (bw.best.employee_name || '').replace(/</g,'&lt;');
                     else if (live.length > 0)
-                        subEl.textContent = live.length + ' rota(s) no dia · ' + ra + ' ativa(s) · ' + rp + ' parada(s) · Ordenado por prioridade';
+                        subEl.textContent = live.length + ' rota(s) · ' + ra + ' ativa(s) · ' + rc + ' concluída(s) · ' + rp + ' parada(s)';
                     else
                         subEl.textContent = 'Ordenado por prioridade';
                 }
@@ -613,10 +622,12 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                     container.innerHTML = live.map(function(op) {
                         var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed;
                         var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
+                        var stR = op.route_state || '';
+                        var pctColorCls = stR === 'all_delivered' ? 'text-violet-300' : (stR === 'closed' ? 'text-emerald-300' : 'text-blue-300');
                         var stateUi = driverCardFromRouteState(op);
                         var statusClass = stateUi.class;
                         var statusLabel = stateUi.label;
-                        var statusBg = (op.route_state === 'closed') ? 'bg-slate-500/50 text-slate-300' : (op.route_state === 'not_started') ? 'bg-slate-600/50 text-slate-400' : (op.route_state === 'route_started') ? 'bg-sky-500/25 text-sky-300' : (op.route_state === 'all_delivered') ? 'bg-emerald-500/25 text-emerald-300' : (statusClass === 'driver-card--critico') ? 'bg-red-500/20 text-red-300' : (statusClass === 'driver-card--atencao') ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400';
+                        var statusBg = (op.route_state === 'closed') ? 'bg-emerald-500/30 text-emerald-200' : (op.route_state === 'not_started') ? 'bg-slate-600/50 text-slate-400' : (op.route_state === 'route_started') ? 'bg-sky-500/25 text-sky-300' : (op.route_state === 'all_delivered') ? 'bg-violet-500/35 text-violet-200 ring-1 ring-violet-400/40' : (statusClass === 'driver-card--critico') ? 'bg-red-500/20 text-red-300' : (statusClass === 'driver-card--atencao') ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400';
                         var barClass = stateUi.barClass;
                         var denseCls = nLive > 6 ? ' driver-card--dense' : '';
                         var helpers = (op.helper_names || []).join(', ');
@@ -631,13 +642,13 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         var driverAlerts = alertsList.filter(function(a) { return (a.driver_name || '').trim() === (op.employee_name || '').trim(); });
                         var alertBlock = '';
                         if (driverAlerts.length > 0) {
-                            alertBlock = '<div class="card-alert-20min"><span class="font-semibold text-amber-300">&#9888; &gt;20 min</span>' + driverAlerts.slice(0, 3).map(function(a) {
+                            alertBlock = '<div class="card-alert-20min">' + driverAlerts.slice(0, 3).map(function(a) {
                                 return '<div class="alert-item mt-0.5">' + (a.client_name || '').replace(/</g,'&lt;') + ' · ' + formatMinutesAsHours(a.minutes) + '</div>';
                             }).join('') + '</div>';
                         }
                         return '<div class="driver-cell"><article class="driver-card ' + statusClass + denseCls + ' border">' +
                             '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 truncate">Ajud.: ' + (helpers || '—').replace(/</g,'&lt;') + ' · Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</p></div></div>' +
-                            '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black text-blue-300">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
+                            '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black ' + pctColorCls + '">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
                             '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full rounded-full transition-all ' + barClass + '" style="width:' + pctR + '%"></div></div>' +
                             alertBlock +
                             '<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div></article></div>';

@@ -2,21 +2,24 @@
 """
 Rotas e lógica de inicialização do módulo Devoluções.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 from calendar import monthrange
-from typing import Optional, List, Any, Callable
+from typing import Optional, List, Any, Callable, Dict
 import io
 import json
-from fastapi import Request, Depends, UploadFile, File, APIRouter
+from fastapi import Request, Depends, UploadFile, File, APIRouter, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from sqlmodel import Session, select, func
+from sqlmodel import Session, select, func, delete
+from sqlalchemy import tuple_, and_, or_, func
+from types import SimpleNamespace
 from pydantic import BaseModel
 
-from database import get_session, engine
+from database import get_session, engine as db_engine
 import models
 from devolucoes_service import (
     _reconcile_devolucao_with_route,
     reconcile_all_devolucoes_with_routes,
+    reconnect_orphan_devolucoes,
     rematch_motoristas_from_ajudantes,
     parse_excel,
     validate_rows,
@@ -28,7 +31,9 @@ from devolucoes_service import (
     compute_acima_300,
     make_idempotency_hash,
     DevolucaoRow,
+    precadastrar_vendedores_faltantes,
 )
+from devolucoes_service import backfill_duplicate_links_period, sync_route_to_devolucao
 from devolucoes_service import (
     parse_excel as devolucoes_parse_excel,
     validate_rows as devolucoes_validate_rows,
@@ -134,8 +139,15 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
                     pass
     motivo = session.get(models.DevolucaoMotivo, d.motivo_id)
     resp = session.get(models.DevolucaoResponsabilidade, d.responsabilidade_id)
-    client_name = (getattr(client, "razao_social", None) or getattr(client, "name", None) or "Cliente") if client else "Cliente"
-    client_fantasia = (getattr(client, "nome_fantasia", None) or "") if client else ""
+    # Nome: preferir o mais completo (razao_social ou name)
+    if client:
+        rs = (getattr(client, "razao_social", None) or "").strip()
+        nm = (getattr(client, "name", None) or "").strip()
+        client_name = (rs if len(rs) >= len(nm) else nm) or rs or nm or "Cliente"
+        client_fantasia = (getattr(client, "nome_fantasia", None) or "") or ""
+    else:
+        client_name = "Cliente"
+        client_fantasia = ""
     address = ""
     bairro = ""
     city = ""
@@ -297,6 +309,64 @@ VENDEDORES_ESPECIAIS = [
 ]
 
 
+def _devolucoes_backfill_span(session: Session, rows: List[dict]) -> None:
+    """Executa vínculo de duplicatas Excel só após mutação (import), não a cada abertura da lista."""
+    dates = []
+    for v in rows or []:
+        dr = v.get("data_romaneio")
+        if dr:
+            dates.append(str(dr)[:10])
+    if not dates or len(dates[0]) < 10:
+        return
+    try:
+        backfill_duplicate_links_period(session, min(dates), max(dates))
+        session.commit()
+    except Exception:
+        session.rollback()
+
+
+def _plate_by_client_motorista_date(session: Session, devolucoes, route_map: dict) -> Dict[tuple, str]:
+    """Placas só para combinações da página atual que não têm route_id — evita carregar todas as rotas do mês."""
+    needed: set = set()
+    for dev in devolucoes:
+        if dev.route_id and dev.route_id in route_map:
+            continue
+        # Usar data da entrega (quando disponível) para bater com Route.date
+        dt = str(dev.data_entrega or dev.data_romaneio or "")[:10]
+        needed.add((dev.client_id, dev.motorista_id, dt))
+    if not needed:
+        return {}
+    pairs = list(needed)
+    plate_by_cmd: Dict[tuple, str] = {}
+    is_sqlite = "sqlite" in str(db_engine.url).lower()
+    CHUNK = 80 if is_sqlite else 200
+    for i in range(0, len(pairs), CHUNK):
+        chunk = pairs[i : i + CHUNK]
+        if is_sqlite:
+            conds = [
+                and_(
+                    models.Route.client_id == a,
+                    models.Route.employee_id == b,
+                    models.Route.date == c,
+                )
+                for a, b, c in chunk
+            ]
+            q = select(models.Route).where(models.Route.type == "delivery", or_(*conds))
+        else:
+            q = select(models.Route).where(
+                models.Route.type == "delivery",
+                tuple_(models.Route.client_id, models.Route.employee_id, models.Route.date).in_(chunk),
+            )
+        for r in session.exec(q).all():
+            if not r.client_id or not r.employee_id or not r.date:
+                continue
+            k = (r.client_id, r.employee_id, str(r.date)[:10])
+            pl = (r.delivery_vehicle_plate or "").strip()
+            if pl and k not in plate_by_cmd:
+                plate_by_cmd[k] = pl
+    return plate_by_cmd
+
+
 def ensure_vendedores_especiais(session: Session):
     """Cria vendedores especiais (canais) que não vêm do cadastro de colaboradores."""
     for reg_id, seller_code, name in VENDEDORES_ESPECIAIS:
@@ -346,66 +416,171 @@ def init_devolucoes_router(
     @router.get("/devolucoes", response_class=HTMLResponse)
     async def devolucoes_page(
         request: Request,
-        month: Optional[int] = None,
-        year: Optional[int] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        hoje: Optional[str] = Query(None),
         page: int = 1,
         per_page: Optional[int] = None,
         session: Session = Depends(get_session),
     ):
         require_login(request)
         now = datetime.now()
-        year = year or now.year
-        month = month or now.month
-        month = max(1, min(12, month))
-        _, last_day = monthrange(year, month)
-        start_date = f"{year:04d}-{month:02d}-01"
-        end_date = f"{year:04d}-{month:02d}-{last_day:02d}"
+        today = now.date()
+        start_date: str
+        end_date: str
+        period_label: Optional[str] = None
 
-        clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
-        employees = session.exec(
-            select(models.Employee).where(models.Employee.status != "fired").order_by(models.Employee.name)
+        def parse_ymd(s: Optional[str]):
+            if not s or not str(s).strip():
+                return None
+            s = str(s).strip()[:10]
+            try:
+                if len(s) == 10 and s[4] == "-" and s[7] == "-":
+                    return datetime.strptime(s, "%Y-%m-%d").date()
+                if len(s) == 10 and s[2] == "/" and s[5] == "/":
+                    return datetime.strptime(s, "%d/%m/%Y").date()
+            except ValueError:
+                pass
+            return None
+
+        if (hoje or "").strip().lower() in ("1", "true", "sim", "s", "hoje"):
+            start_date = end_date = today.strftime("%Y-%m-%d")
+            period_label = "Hoje"
+        elif date_from and date_to:
+            d1 = parse_ymd(date_from)
+            d2 = parse_ymd(date_to)
+            if d1 and d2:
+                if d1 > d2:
+                    d1, d2 = d2, d1
+                start_date = d1.strftime("%Y-%m-%d")
+                end_date = d2.strftime("%Y-%m-%d")
+                period_label = f"Período {start_date} a {end_date}"
+            else:
+                start_date = today.strftime("%Y-%m-%d")
+                end_date = start_date
+                period_label = "Hoje"
+        else:
+            year = now.year
+            month = now.month
+            _, last_day = monthrange(year, month)
+            start_date = f"{year:04d}-{month:02d}-01"
+            end_date = f"{year:04d}-{month:02d}-{last_day:02d}"
+            period_label = f"{year:04d}-{month:02d}"
+
+        # Só colunas usadas nos selects (menos tráfego Redis/Postgres que ORM completo)
+        cr = session.exec(
+            select(models.Client.id, models.Client.name, models.Client.nb).order_by(models.Client.name)
         ).all()
+        clients = [SimpleNamespace(id=a, name=b, nb=c) for a, b, c in cr]
+        er = session.exec(
+            select(models.Employee.id, models.Employee.name, models.Employee.seller_code)
+            .where(models.Employee.status != "fired")
+            .order_by(models.Employee.name)
+        ).all()
+        employees = [SimpleNamespace(id=a, name=b, seller_code=c) for a, b, c in er]
         motivos = session.exec(select(models.DevolucaoMotivo).where(models.DevolucaoMotivo.is_active == True)).all()
         responsabilidades = session.exec(
             select(models.DevolucaoResponsabilidade).where(models.DevolucaoResponsabilidade.is_active == True)
         ).all()
 
+        # Trazer para a lista as devoluções feitas no mobile/desktop (Route com status devolucao)
+        # que ainda não têm registro em Devolucao — assim passam a aparecer em /devolucoes.
+        try:
+            routes_devolucao = session.exec(
+                select(models.Route)
+                .where(models.Route.type == "delivery")
+                .where(models.Route.date >= start_date)
+                .where(models.Route.date <= end_date)
+                .where(func.lower(models.Route.delivery_status) == "devolucao")
+            ).all()
+            eff_date_col = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
+            rids_raw = session.exec(
+                select(models.Devolucao.route_id).where(
+                    models.Devolucao.route_id.isnot(None),
+                    eff_date_col >= start_date,
+                    eff_date_col <= end_date,
+                )
+            ).all()
+            existing_route_ids = {int(x[0]) if isinstance(x, (tuple, list)) else int(x) for x in rids_raw if x is not None}
+            synced = 0
+            for r in routes_devolucao:
+                if r.id not in existing_route_ids:
+                    dev = sync_route_to_devolucao(session, r, source="WEB")
+                    if dev:
+                        synced += 1
+                        existing_route_ids.add(r.id)
+            if synced:
+                session.commit()
+        except Exception:
+            session.rollback()
+
+        # Filtra por data da entrega (quando disponível), senão data do romaneio
+        eff_date = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
         count_q = (
             select(func.count(models.Devolucao.id))
-            .where(models.Devolucao.data_romaneio >= start_date)
-            .where(models.Devolucao.data_romaneio <= end_date)
+            .where(eff_date >= start_date)
+            .where(eff_date <= end_date)
         )
         total_count = session.exec(count_q).one()
 
         base_q = (
             select(models.Devolucao)
-            .where(models.Devolucao.data_romaneio >= start_date)
-            .where(models.Devolucao.data_romaneio <= end_date)
-            .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.created_at.desc())
+            .where(eff_date >= start_date)
+            .where(eff_date <= end_date)
+            .order_by(eff_date.desc(), models.Devolucao.created_at.desc())
         )
-        per_page_effective = min(max(1, per_page or 500), 10000)
+        per_page_effective = min(max(1, per_page or 250), 10000)
         offset = max(0, (page - 1) * per_page_effective)
         devolucoes = session.exec(base_q.offset(offset).limit(per_page_effective)).all()
 
         client_ids = {d.client_id for d in devolucoes}
         motorista_ids = {d.motorista_id for d in devolucoes}
+        route_ids = {d.route_id for d in devolucoes if d.route_id}
         client_map = {c.id: c for c in session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all()} if client_ids else {}
         emp_map = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(motorista_ids))).all()} if motorista_ids else {}
+        route_map = {r.id: r for r in session.exec(select(models.Route).where(models.Route.id.in_(route_ids))).all()} if route_ids else {}
+        plate_by_cmd = _plate_by_client_motorista_date(session, devolucoes, route_map)
 
         rows = []
+        aguardando_n = 0
         for dev in devolucoes:
             c = client_map.get(dev.client_id)
             m = emp_map.get(dev.motorista_id)
+            dup_of = getattr(dev, "duplicate_of_id", None)
+            vstat = (getattr(dev, "validation_status", None) or "").strip()
+            data_efetiva = str(dev.data_entrega or dev.data_romaneio or "")[:10]
+            plate = ""
+            if dev.route_id and dev.route_id in route_map:
+                plate = (route_map[dev.route_id].delivery_vehicle_plate or "").strip()
+            if not plate:
+                plate = plate_by_cmd.get((dev.client_id, dev.motorista_id, data_efetiva), "")
+            aguardando = bool(dup_of) or vstat in ("DUPLICATE_EXCEL", "ORPHAN_ROUTE")
+            if aguardando:
+                aguardando_n += 1
+            # Nome do cliente: preferir o mais completo (razao_social ou name, o que for mais longo)
+            cname = "-"
+            if c:
+                rs = (getattr(c, "razao_social", None) or "").strip()
+                nm = (getattr(c, "name", None) or "").strip()
+                cname = (rs if len(rs) >= len(nm) else nm) or rs or nm or "-"
             rows.append(
                 {
                     "id": dev.id,
-                    "data_romaneio": dev.data_romaneio,
-                    "valor": dev.valor,
-                    "cluster": dev.cluster,
-                    "acima_300": dev.acima_300,
-                    "source": dev.source,
-                    "client_name": c.name if c else "-",
-                    "motorista_name": m.name if m else "-",
+                    "data_romaneio": str(dev.data_romaneio)[:10] if dev.data_romaneio else "",
+                    "data_entrega": str(dev.data_entrega)[:10] if dev.data_entrega else "",
+                    "data_efetiva": data_efetiva,
+                    "valor": float(dev.valor) if dev.valor is not None else 0.0,
+                    "cluster": (dev.cluster or "") or "",
+                    "acima_300": ("SIM" if dev.acima_300 in (True, "SIM", "sim", "Sim") else "NAO"),
+                    "source": (dev.source or "").strip().upper() or "EXCEL",
+                    "client_name": cname,
+                    "motorista_id": dev.motorista_id,
+                    "motorista_name": (m.name if m else "-") or "",
+                    "vehicle_plate": plate or "—",
+                    "is_duplicate_excel": bool(dup_of),
+                    "validation_status": vstat,
+                    "aguardando": aguardando,
+                    "can_delete_aguardando": bool(dup_of) or vstat in ("ORPHAN_ROUTE", "DUPLICATE_EXCEL"),
                 }
             )
 
@@ -422,10 +597,11 @@ def init_devolucoes_router(
                 "devolucoes": rows,
                 "import_result": getattr(request.state, "devolucoes_import_result", None),
                 "filters": {
-                    "month": month,
-                    "year": year,
+                    "date_from": date_from or start_date,
+                    "date_to": date_to or end_date,
                     "start_date": start_date,
                     "end_date": end_date,
+                    "period_label": period_label,
                 },
                 "pagination": {
                     "page": page,
@@ -437,6 +613,8 @@ def init_devolucoes_router(
                     "prev_page": page - 1 if page > 1 else 1,
                     "next_page": page + 1 if page < total_pages else total_pages,
                 },
+                "aguardando_count": aguardando_n,
+                "devolucoes_table_rows": rows,
             },
         )
 
@@ -540,6 +718,16 @@ def init_devolucoes_router(
                 },
                 status_code=400,
             )
+        # Pré-cadastro automático de vendedores faltantes para não perder dados
+        created_codes: List[str] = precadastrar_vendedores_faltantes(session, invalid)
+        if created_codes:
+            session.commit()
+            valid, invalid, _, _, global_errors = devolucoes_validate_rows(rows, session, to_staging_on_invalid=False)
+            if global_errors:
+                return JSONResponse(
+                    {"ok": False, "error": " | ".join(global_errors), "global_errors": global_errors},
+                    status_code=400,
+                )
         try:
             created_by = None
             if request.session.get("user_id"):
@@ -556,18 +744,19 @@ def init_devolucoes_router(
                 create_staging=True,
             )
             session.commit()
-            return JSONResponse(
-                {
-                    "ok": True,
-                    "batch_id": batch_id,
-                    "total": len(rows),
-                    "valid_count": len(valid),
-                    "invalid_count": len(invalid),
-                    "invalid_details": invalid[:50],
-                    "valid_rows": valid,
-                    "valid_preview": valid[:10],
-                }
-            )
+            payload = {
+                "ok": True,
+                "batch_id": batch_id,
+                "total": len(rows),
+                "valid_count": len(valid),
+                "invalid_count": len(invalid),
+                "invalid_details": invalid[:50],
+                "valid_rows": valid,
+                "valid_preview": valid[:10],
+            }
+            if created_codes:
+                payload["precadastrados"] = created_codes
+            return JSONResponse(payload)
         except Exception as e:
             logger.exception(f"Erro ao processar import de devolucoes: {e}")
             msg = str(e)[:200] if str(e) else "Erro desconhecido"
@@ -624,10 +813,151 @@ def init_devolucoes_router(
                 created_by=created_by,
             )
             session.commit()
+            _devolucoes_backfill_span(session, valid_rows)
             return JSONResponse({"ok": True, "batch_id": batch_id, "created": created, "skipped": len(skipped)})
         except Exception as e:
             logger.exception(f"Erro ao commitar importacao de devolucoes: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+    def _clear_route_devolucao(session: Session, route_id: Optional[int]) -> None:
+        """Remove estado de devolução da rota para que BI/mobile não exibam mais essa devolução."""
+        if not route_id:
+            return
+        route = session.get(models.Route, route_id)
+        if not route or (route.delivery_status or "").lower() != "devolucao":
+            return
+        route.delivery_status = "entregue"
+        route.valor_devolucao = None
+        route.devolucao_volume = None
+        route.delivery_return_category = None
+        route.delivery_return_reason = None
+        route.delivery_returned_at = None
+        session.add(route)
+
+    def _can_delete_devolucao(d: models.Devolucao) -> bool:
+        """Permite excluir: duplicata de planilha, órfão, ou devolução com origem EXCEL, WEB ou MOBILE."""
+        dup_of = getattr(d, "duplicate_of_id", None)
+        vstat = (getattr(d, "validation_status", None) or "").strip()
+        src = (getattr(d, "source", None) or "").strip().upper()
+        if dup_of or vstat in ("ORPHAN_ROUTE", "DUPLICATE_EXCEL"):
+            return True
+        if src in ("EXCEL", "WEB", "MOBILE"):
+            return True
+        return False
+
+    @router.delete("/api/devolucoes/{devolucao_id}", response_class=JSONResponse)
+    async def api_devolucoes_delete_shadow_or_orphan(
+        devolucao_id: int,
+        request: Request,
+        session: Session = Depends(get_session),
+    ):
+        """Remove duplicata de planilha, órfão ou devolução com origem EXCEL. Se tiver rota vinculada, limpa o status de devolução da rota para refletir em BI/mobile."""
+        require_login(request)
+        d = session.get(models.Devolucao, devolucao_id)
+        if not d:
+            return JSONResponse({"ok": False, "error": "Não encontrado."}, status_code=404)
+        if not _can_delete_devolucao(d):
+            return JSONResponse(
+                {"ok": False, "error": "Só é possível excluir duplicata de planilha, órfão ou devoluções com origem Excel, Web ou Mobile."},
+                status_code=400,
+            )
+        route_id = getattr(d, "route_id", None)
+        _clear_route_devolucao(session, route_id)
+        session.exec(delete(models.DevolucaoAjusteResponsabilidade).where(models.DevolucaoAjusteResponsabilidade.devolucao_id == devolucao_id))
+        session.delete(d)
+        session.commit()
+        return JSONResponse({"ok": True})
+
+    class BulkDeletePayload(BaseModel):
+        ids: List[int]
+
+    @router.post("/api/devolucoes/bulk-delete", response_class=JSONResponse)
+    async def api_devolucoes_bulk_delete(
+        request: Request,
+        payload: BulkDeletePayload,
+        session: Session = Depends(get_session),
+    ):
+        """Exclui em lote duplicatas, órfãos ou devoluções com origem Excel. Se tiver rota vinculada, limpa o status de devolução da rota (BI/mobile atualizam)."""
+        require_login(request)
+        if not payload.ids:
+            return JSONResponse({"ok": True, "deleted": [], "skipped": []})
+        deleted = []
+        skipped = []
+        for devolucao_id in payload.ids:
+            d = session.get(models.Devolucao, devolucao_id)
+            if not d:
+                skipped.append({"id": devolucao_id, "reason": "Não encontrado."})
+                continue
+            if not _can_delete_devolucao(d):
+                skipped.append({"id": devolucao_id, "reason": "Só é possível excluir duplicata de planilha, órfão ou devoluções com origem Excel, Web ou Mobile."})
+                continue
+            route_id = getattr(d, "route_id", None)
+            _clear_route_devolucao(session, route_id)
+            session.exec(delete(models.DevolucaoAjusteResponsabilidade).where(models.DevolucaoAjusteResponsabilidade.devolucao_id == devolucao_id))
+            session.delete(d)
+            deleted.append(devolucao_id)
+        session.commit()
+        return JSONResponse({"ok": True, "deleted": deleted, "skipped": skipped})
+
+    @router.post("/api/devolucoes/{devolucao_id}/approve", response_class=JSONResponse)
+    async def api_devolucoes_approve(
+        devolucao_id: int,
+        request: Request,
+        session: Session = Depends(get_session),
+    ):
+        """Marca devolução como aprovada (limpa validation_status e duplicate_of_id). Sai da aba Aguardando."""
+        require_login(request)
+        d = session.get(models.Devolucao, devolucao_id)
+        if not d:
+            return JSONResponse({"ok": False, "error": "Não encontrado."}, status_code=404)
+        dup_of = getattr(d, "duplicate_of_id", None)
+        vstat = (getattr(d, "validation_status", None) or "").strip()
+        if not dup_of and vstat not in ("DUPLICATE_EXCEL", "ORPHAN_ROUTE"):
+            return JSONResponse(
+                {"ok": False, "error": "Apenas itens em aguardando (duplicata ou sem rota) podem ser aprovados."},
+                status_code=400,
+            )
+        if hasattr(d, "duplicate_of_id"):
+            d.duplicate_of_id = None
+        if hasattr(d, "validation_status"):
+            d.validation_status = ""
+        session.add(d)
+        session.commit()
+        return JSONResponse({"ok": True})
+
+    class BulkApprovePayload(BaseModel):
+        ids: List[int]
+
+    @router.post("/api/devolucoes/bulk-approve", response_class=JSONResponse)
+    async def api_devolucoes_bulk_approve(
+        request: Request,
+        payload: BulkApprovePayload,
+        session: Session = Depends(get_session),
+    ):
+        """Aprova em lote devoluções em aguardando (duplicata ou sem rota)."""
+        require_login(request)
+        if not payload.ids:
+            return JSONResponse({"ok": True, "approved": [], "skipped": []})
+        approved = []
+        skipped = []
+        for devolucao_id in payload.ids:
+            d = session.get(models.Devolucao, devolucao_id)
+            if not d:
+                skipped.append({"id": devolucao_id, "reason": "Não encontrado."})
+                continue
+            dup_of = getattr(d, "duplicate_of_id", None)
+            vstat = (getattr(d, "validation_status", None) or "").strip()
+            if not dup_of and vstat not in ("DUPLICATE_EXCEL", "ORPHAN_ROUTE"):
+                skipped.append({"id": devolucao_id, "reason": "Apenas itens em aguardando podem ser aprovados."})
+                continue
+            if hasattr(d, "duplicate_of_id"):
+                d.duplicate_of_id = None
+            if hasattr(d, "validation_status"):
+                d.validation_status = ""
+            session.add(d)
+            approved.append(devolucao_id)
+        session.commit()
+        return JSONResponse({"ok": True, "approved": approved, "skipped": skipped})
 
     @router.get("/api/devolucoes/import/{batch_id}/errors.xlsx")
     async def api_devolucoes_import_errors_xlsx(
@@ -725,6 +1055,44 @@ def init_devolucoes_router(
         except Exception as e:
             logger.exception(f"Erro ao criar devolucao manual: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+    @router.post("/api/devolucoes/reconnect-orphans", response_class=JSONResponse)
+    async def api_devolucoes_reconnect_orphans(
+        request: Request,
+        session: Session = Depends(get_session),
+    ):
+        """Reconecta devoluções ORPHAN_ROUTE às rotas existentes (vincula route_id, limpa fila).
+        Não altera o status da rota. Exige período (start_date e end_date)."""
+        require_login(request)
+        try:
+            body = {}
+            try:
+                body = await request.json()
+            except Exception:
+                pass
+            start_date = body.get("start_date") or ""
+            end_date = body.get("end_date") or ""
+            if not start_date or not end_date:
+                return JSONResponse(
+                    {"ok": False, "error": "Período obrigatório. Informe start_date e end_date."},
+                    status_code=400,
+                )
+            if start_date > end_date:
+                return JSONResponse(
+                    {"ok": False, "error": "Data início deve ser anterior à data fim."},
+                    status_code=400,
+                )
+            reconnected = reconnect_orphan_devolucoes(session, start_date, end_date)
+            backfill_updated = backfill_duplicate_links_period(session, start_date, end_date)
+            session.commit()
+            return JSONResponse({
+                "ok": True,
+                "reconnected": reconnected,
+                "duplicates_linked": backfill_updated,
+            })
+        except Exception as e:
+            logger.exception(f"Erro ao reconectar órfãos: {e}")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
     @router.post("/api/devolucoes/reconcile-routes", response_class=JSONResponse)
     async def api_devolucoes_reconcile_routes(
@@ -831,10 +1199,16 @@ def init_devolucoes_router(
         require_login(request)
         now = datetime.now()
         today_str = now.strftime("%Y-%m-%d")
-        if not date_from:
-            date_from = today_str
-        if not date_to:
+        month_start_str = now.replace(day=1).strftime("%Y-%m-%d")
+        # Sem filtros na URL: período = início do mês até hoje (ex.: 01/03 → 18/03)
+        if not date_from and not date_to:
+            date_from = month_start_str
             date_to = today_str
+        else:
+            if not date_from:
+                date_from = today_str
+            if not date_to:
+                date_to = today_str
         clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
         employees = session.exec(
             select(models.Employee).where(models.Employee.status != "fired").order_by(models.Employee.name)
@@ -880,6 +1254,7 @@ def init_devolucoes_router(
             .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.id.desc())
         )
         devolucoes = session.exec(q_devol).all()
+        devolucoes = [d for d in devolucoes if not getattr(d, "duplicate_of_id", None)]
         motorista_id_list = []
         if motorista_ids and str(motorista_ids).strip():
             for x in str(motorista_ids).split(","):
@@ -1156,6 +1531,7 @@ def init_devolucoes_router(
             .where(models.Devolucao.data_romaneio <= date_to)
             .order_by(models.Devolucao.motorista_id, models.Devolucao.id)
         ).all()
+        devolucoes = [d for d in devolucoes if not getattr(d, "duplicate_of_id", None)]
         ajustes_list = session.exec(select(models.DevolucaoAjusteResponsabilidade)).all()
         ajustes = {}
         for aj in ajustes_list:
@@ -1257,13 +1633,85 @@ def init_devolucoes_router(
                 "valor_ajustado": round(stats["devolucoes_valor_attributed"], 2),
             })
         out.sort(key=lambda x: (-x["devolucoes_total"], x["motorista_name"]))
-        by_ajudante = {}
+        # Ajudantes do dia (motorista + data): união de IDs vindos de qualquer rota do período
+        # (entregue, devolução, etc.) — alinha com a lógica de devolução (sessão / outras paradas).
+        day_union_helpers: Dict[tuple, List[int]] = {}
+        for r in routes_in_range:
+            key_d = (str(r.date)[:10], r.employee_id)
+            raw_u = getattr(r, "delivery_helpers_json", None)
+            ids_u = _parse_route_helper_ids(raw_u) or _parse_helpers_to_ids(raw_u, emp_by_name)
+            drv_u = int(r.employee_id) if r.employee_id else 0
+            acc = day_union_helpers.setdefault(key_d, [])
+            seen_u = set(acc)
+            for hid in ids_u or []:
+                try:
+                    hu = int(hid)
+                except (TypeError, ValueError):
+                    continue
+                if hu <= 0 or hu == drv_u or hu in seen_u:
+                    continue
+                seen_u.add(hu)
+                acc.append(hu)
+
+        def _helpers_for_entregue_stop(route_ent: models.Route) -> List[int]:
+            key_e = (str(route_ent.date)[:10], route_ent.employee_id)
+            raw_e = getattr(route_ent, "delivery_helpers_json", None)
+            ids_e = _parse_route_helper_ids(raw_e) or _parse_helpers_to_ids(raw_e, emp_by_name)
+            if ids_e:
+                return ids_e
+            sess = session_helpers_by_driver_date.get(key_e) or []
+            if sess:
+                return list(sess)
+            emp = route_ent.employee_id
+            dt = str(route_ent.date)[:10]
+            drv_e = int(emp) if emp else 0
+            merged: List[int] = []
+            seen_m = set()
+            for (_cid, mid, dtk), hlist in route_by_client_driver_date.items():
+                if mid != emp or dtk != dt:
+                    continue
+                for hid in hlist or []:
+                    try:
+                        h = int(hid)
+                    except (TypeError, ValueError):
+                        continue
+                    if h > 0 and h != drv_e and h not in seen_m:
+                        seen_m.add(h)
+                        merged.append(h)
+            if merged:
+                return merged
+            return list(day_union_helpers.get(key_e) or [])
+
+        # Entregas em que cada funcionário atuou como ajudante (parada entregue + mesma equipe do dia)
+        by_ajudante_entregues: Dict[int, int] = {}
+        for r in routes_delivered:
+            ids = _helpers_for_entregue_stop(r)
+            if not ids:
+                continue
+            seen_h = set()
+            drv = int(r.employee_id) if r.employee_id else 0
+            for hid in ids:
+                try:
+                    h = int(hid)
+                except (TypeError, ValueError):
+                    continue
+                if h <= 0 or h == drv or h in seen_h:
+                    continue
+                seen_h.add(h)
+                by_ajudante_entregues[h] = by_ajudante_entregues.get(h, 0) + 1
+        by_ajudante: Dict[int, Any] = {}
         for d in devolucoes:
             eid = _effective_ajudante_id(d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date)
             if eid is None:
                 continue
             if eid not in by_ajudante:
-                by_ajudante[eid] = {"devolucoes_total": 0, "devolucoes_valor_total": 0.0, "devolucoes_attributed": 0, "devolucoes_valor_attributed": 0.0}
+                by_ajudante[eid] = {
+                    "entregues": by_ajudante_entregues.get(int(eid), 0),
+                    "devolucoes_total": 0,
+                    "devolucoes_valor_total": 0.0,
+                    "devolucoes_attributed": 0,
+                    "devolucoes_valor_attributed": 0.0,
+                }
             by_ajudante[eid]["devolucoes_total"] += 1
             by_ajudante[eid]["devolucoes_valor_total"] += float(d.valor or 0)
             if ajustes.get(d.id, (True, True))[1]:
@@ -1273,16 +1721,23 @@ def init_devolucoes_router(
         for eid, stats in by_ajudante.items():
             emp = employees.get(eid)
             name = emp.name if emp else f"Ajudante #{eid}"
-            total = stats["devolucoes_total"]
-            pct_attributed = (stats["devolucoes_attributed"] / total * 100) if total else 0
+            ent = int(stats["entregues"] or 0)
+            dev_t = stats["devolucoes_total"]
+            dev_a = stats["devolucoes_attributed"]
+            total_paradas = ent + dev_t
+            pct_original = (dev_t / total_paradas * 100) if total_paradas > 0 else (100.0 if dev_t else 0.0)
+            total_ajust = ent + dev_a
+            pct_ajustado = (dev_a / total_ajust * 100) if total_ajust > 0 else 0.0
             out_ajudantes.append({
                 "ajudante_id": eid,
                 "ajudante_name": name,
-                "devolucoes_total": stats["devolucoes_total"],
+                "entregues": ent,
+                "devolucoes_total": dev_t,
                 "devolucoes_valor_total": round(stats["devolucoes_valor_total"], 2),
-                "devolucoes_attributed": stats["devolucoes_attributed"],
+                "devolucoes_attributed": dev_a,
                 "devolucoes_valor_attributed": round(stats["devolucoes_valor_attributed"], 2),
-                "pct_attributed": round(pct_attributed, 2),
+                "pct_original": round(pct_original, 2),
+                "pct_ajustado": round(pct_ajustado, 2),
                 "valor_original": round(stats["devolucoes_valor_total"], 2),
                 "valor_ajustado": round(stats["devolucoes_valor_attributed"], 2),
             })

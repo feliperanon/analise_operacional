@@ -59,6 +59,26 @@ Fixes: high z-index, stable colors, click priority above page content.
                     {% set allowed_pages = request.session.get("allowed_pages", []) %}
                     {% set auth_user_id = request.session.get("auth_user_id") %}
                     {% set is_employee_session = request.session.get("user_id") %}
+                    {% set mobile_employee = employee if employee is defined else None %}
+                    {% set employee_role = (mobile_employee.role if mobile_employee else "")|upper %}
+                    {% set is_helper_role = mobile_employee and employee_role.startswith("AJUDANTE DE MOTORISTA") %}
+                    {% set is_driver_role = mobile_employee and (not is_helper_role) and ("MOTORISTA" in employee_role) %}
+                    {% set is_gatehouse_role = mobile_employee and ("PORTEIRO" in employee_role or "PORTARIA" in employee_role) %}
+                    {% set has_explicit_mobile_flags = mobile_employee and (
+                        mobile_employee.mobile_access_separation
+                        or mobile_employee.mobile_access_helper
+                        or mobile_employee.mobile_access_checklist
+                        or mobile_employee.mobile_access_admin_start
+                        or mobile_employee.mobile_access_returns
+                        or mobile_employee.mobile_access_gatehouse
+                    ) %}
+                    {% set has_mobile_role_fallback = mobile_employee and (not has_explicit_mobile_flags) and (is_driver_role or is_helper_role) %}
+                    {% set has_delivery_driver_access = mobile_employee and (mobile_employee.mobile_access_separation or (has_mobile_role_fallback and is_driver_role)) %}
+                    {% set has_delivery_helper_access = mobile_employee and (mobile_employee.mobile_access_helper or (has_mobile_role_fallback and is_helper_role)) %}
+                    {% set has_checklist_access = mobile_employee and (mobile_employee.mobile_access_checklist or (has_mobile_role_fallback and is_driver_role)) %}
+                    {% set has_history_access = mobile_employee and (has_delivery_driver_access or mobile_employee.mobile_access_admin_start or has_delivery_helper_access) %}
+                    {% set has_returns_access = mobile_employee and (mobile_employee.mobile_access_returns or mobile_employee.mobile_access_admin_start or has_delivery_driver_access) %}
+                    {% set has_gatehouse_access = mobile_employee and (mobile_employee.mobile_access_gatehouse or ((not has_explicit_mobile_flags) and is_gatehouse_role)) %}
 
                     <!-- Início -->
                     <p class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider" style="color: var(--color-text-muted);">Início</p>
@@ -130,6 +150,70 @@ Fixes: high z-index, stable colors, click priority above page content.
                         </div>
                         <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
                     </a>
+
+                    {% if has_delivery_driver_access or has_delivery_helper_access or has_checklist_access or has_returns_access or has_history_access or has_gatehouse_access %}
+                    <p class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider mt-4" style="color: var(--color-text-muted);">Operação</p>
+                    {% if has_delivery_driver_access or has_delivery_helper_access %}
+                    <a href="/mobile/delivery" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
+                            <i data-lucide="truck" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-body-lg font-semibold" style="color: var(--color-text);">Rota de Entregas</p>
+                            <p class="text-caption" style="color: var(--color-text-muted);">Roteirização e execução</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+                    </a>
+                    {% endif %}
+                    {% if has_gatehouse_access %}
+                    <a href="/mobile/portaria" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
+                            <i data-lucide="shield" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-body-lg font-semibold" style="color: var(--color-text);">Portaria</p>
+                            <p class="text-caption" style="color: var(--color-text-muted);">Conferência de entrada e saída</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+                    </a>
+                    {% endif %}
+                    {% if has_checklist_access %}
+                    <a href="/mobile/routine/checklist" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
+                            <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-body-lg font-semibold" style="color: var(--color-text);">Checklist</p>
+                            <p class="text-caption" style="color: var(--color-text-muted);">Inspeção e histórico</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+                    </a>
+                    {% endif %}
+                    {% if has_returns_access %}
+                    <a href="/mobile/returns" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-warning);">
+                            <i data-lucide="package" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-body-lg font-semibold" style="color: var(--color-text);">Devolução</p>
+                            <p class="text-caption" style="color: var(--color-text-muted);">Taxa, prêmio e recargas</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+                    </a>
+                    {% endif %}
+                    {% if has_history_access %}
+                    <a href="/mobile/entregas" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
+                            <i data-lucide="history" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-body-lg font-semibold" style="color: var(--color-text);">Histórico</p>
+                            <p class="text-caption" style="color: var(--color-text-muted);">Entregas por período</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+                    </a>
+                    {% endif %}
+                    {% endif %}
                     {% endif %}
 
                     <!-- Engajamento -->

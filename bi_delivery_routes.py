@@ -4,6 +4,7 @@
 from datetime import datetime, timedelta, date
 from typing import Optional
 import io
+import time
 import csv
 import statistics
 import json
@@ -19,10 +20,26 @@ from typing import List
 
 import models
 from database import get_session
-from route_duration import route_duration_minutes
+from route_duration import route_duration_minutes, route_duration_minutes_mobile_only
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
+
+# Motivos/responsabilidades: tabelas pequenas; cache em memória evita 2× leitura por página BI.
+_BI_MOT_RSP_CACHE: dict = {"ts": 0.0, "mot": None, "rsp": None}
+_BI_MOT_RSP_TTL_SEC = 300.0
+
+
+def _get_cached_mot_rsp_maps(session: Session):
+    now = time.monotonic()
+    if _BI_MOT_RSP_CACHE["mot"] is not None and (now - _BI_MOT_RSP_CACHE["ts"]) < _BI_MOT_RSP_TTL_SEC:
+        return _BI_MOT_RSP_CACHE["mot"], _BI_MOT_RSP_CACHE["rsp"]
+    mot_map = {m.id: m for m in session.exec(select(models.DevolucaoMotivo)).all()}
+    rsp_map = {r.id: r for r in session.exec(select(models.DevolucaoResponsabilidade)).all()}
+    _BI_MOT_RSP_CACHE["mot"] = mot_map
+    _BI_MOT_RSP_CACHE["rsp"] = rsp_map
+    _BI_MOT_RSP_CACHE["ts"] = now
+    return mot_map, rsp_map
 
 
 def _fmt_br_1(val):
@@ -78,21 +95,35 @@ def _fmt_br_moeda(val):
         return "R$ —"
 
 
-def _fmt_br_duracao(val):
-    """Duração em minutos (padrão BR): 0-60 → 'X min'; >60 → 'H:MM hr'."""
+def _fmt_br_kg(val):
+    """Peso em quilogramas (padrão BR: vírgula decimal)."""
     if val is None:
-        return "--"
+        return "—"
+    try:
+        return _fmt_br_2(val) + " kg"
+    except Exception:
+        return "—"
+
+
+def _fmt_br_duracao(val):
+    """Duração em minutos: <60 → 'X min'; ≥60 → 'X h Y min' (padrão BR)."""
+    if val is None:
+        return "—"
     try:
         m = int(round(float(val)))
         if m < 0:
             m = 0
-        if m <= 60:
+        if m < 60:
             return f"{m} min"
         h, mn = m // 60, m % 60
-        return f"{h}:{mn:02d} hr"
+        if mn == 0:
+            return f"{h} h"
+        return f"{h} h {mn} min"
     except Exception:
-        return "--"
+        return "—"
 
+
+templates.env.filters["fmt_br_kg"] = _fmt_br_kg
 
 templates.env.filters["fmt_br_1"] = _fmt_br_1
 templates.env.filters["fmt_br_2"] = _fmt_br_2
@@ -111,6 +142,255 @@ def _safe_pct(numerator: float, denominator: float) -> float:
     if den <= 0:
         return 0.0
     return (float(numerator or 0.0) / den) * 100.0
+
+
+# Custo operacional estimado (R$/hora) — parâmetro explicável no tooltip
+_BI_EXEC_HOURLY_COST = 75.0
+
+_DURATION_BUCKET_LABELS = ("≤20 min", "21–40 min", "41–60 min", "61–90 min", ">90 min")
+
+
+def _duration_bucket_idx(minutes: Optional[float]) -> Optional[int]:
+    if minutes is None:
+        return None
+    try:
+        m = float(minutes)
+    except (TypeError, ValueError):
+        return None
+    if m <= 20:
+        return 0
+    if m <= 40:
+        return 1
+    if m <= 60:
+        return 2
+    if m <= 90:
+        return 3
+    return 4
+
+
+def _classify_macro_cause(motivo: Optional[str], responsabilidade: Optional[str]) -> str:
+    """Macrocausa para BI executivo (devolução / responsabilização)."""
+    m = _norm_text(motivo or "")
+    r = _norm_text(responsabilidade or "")
+    t = f"{m} {r}"
+    if any(
+        k in t
+        for k in (
+            "sem dinheiro",
+            "cheque",
+            "credito",
+            "crédito",
+            "limite",
+            "financeiro",
+            "pagamento",
+            "inadimpl",
+        )
+    ):
+        return "Financeiro / pagamento"
+    if any(k in t for k in ("fechado", "ausente", "nao estava", "não estava", "nao recebeu", "não recebeu", "desistiu")):
+        return "Cliente / mercado"
+    if any(
+        k in t
+        for k in (
+            "localiz",
+            "endereco",
+            "endereço",
+            "nao localizado",
+            "não localizado",
+            "cadastro",
+            "janela",
+            "horario entrega",
+            "horário",
+            "acesso dificil",
+            "difícil acesso",
+            "planejamento",
+        )
+    ):
+        return "Cadastro / planejamento"
+    if any(
+        k in t
+        for k in (
+            "carregamento",
+            "separacao",
+            "separação",
+            "expedicao",
+            "expedição",
+            "embalagem",
+            "carga errada",
+            "quantidade errada",
+        )
+    ):
+        return "Logística"
+    if "logist" in t:
+        return "Logística"
+    if any(k in t for k in ("preco", "preço", "prazo", "pedido", "produto", "comercial", "nao fez pedido", "não fez pedido", "venda")):
+        return "Comercial"
+    return "Comercial"
+
+
+def _heatmap_delay_cause(row: dict) -> str:
+    """Causa operacional para heatmap cidade × causa (visitas com atrito)."""
+    st = _norm_text(row.get("status"))
+    motivo = _norm_text(row.get("motivo") or "")
+    if st == "devolucao":
+        if any(k in motivo for k in ("fechado", "ausente", "fechado")):
+            return "Cliente ausente / ponto fechado"
+        if any(k in motivo for k in ("preco", "preço", "pedido", "produto", "comercial", "prazo")):
+            return "Erro comercial (refletido na rota)"
+        return "Devolução"
+    if int(row.get("reopen_count") or 0) > 0:
+        return "Reabertura"
+    visit = str(row.get("visit_time") or "").strip()
+    window = str(row.get("client_window") or "").strip()
+    ws, we = _parse_client_window_range(window)
+    if visit and ws is not None and we is not None:
+        wmatch = _time_is_within_window(visit, ws, we)
+        if wmatch is False:
+            return "Horário / janela"
+    dur = row.get("duration_m")
+    if dur is not None and float(dur) > 55:
+        if any(k in motivo for k in ("localiz", "nao localizado", "não localizado", "endereco", "endereço")):
+            return "Local não localizado"
+        if "acesso" in motivo:
+            return "Difícil acesso"
+    mc = _classify_macro_cause(row.get("motivo"), row.get("responsabilidade"))
+    if mc == "Cadastro / planejamento":
+        return "Erro cadastro / planejamento"
+    if float(dur or 0) > 60:
+        return "Demora operacional"
+    return "Outros"
+
+
+def _client_row_key(client_id, client_name: str) -> str:
+    if client_id is not None:
+        return f"id:{int(client_id)}"
+    return f"name:{str(client_name or '').strip().lower()}"
+
+
+def _exec_accumulate_rows(
+    rows: list[dict],
+    synth_group_id: Optional[int] = None,
+    group_member_ids: Optional[set] = None,
+) -> dict:
+    """Métricas executivas a partir de linhas ROTA/MANUAL filtradas."""
+    unprod_by_key: dict[str, float] = {}
+    macro_value_global: dict[str, float] = {}
+    macro_time_global: dict[str, float] = {}
+    macro_clients: dict[str, set] = {}
+    macro_drivers: dict[str, set] = {}
+    delivered_total = 0.0
+    returned_total = 0.0
+    planned_for_rate = 0.0
+    manual_returned_sum = 0.0
+    visits_rota = 0
+    duration_total = 0.0
+    unproductive_total = 0.0
+    productive_total = 0.0
+    bucket_visits = [0, 0, 0, 0, 0]
+    bucket_value = [0.0, 0, 0, 0, 0]
+    bucket_duration = [0.0, 0, 0, 0, 0]
+    bucket_returns = [0, 0, 0, 0, 0]
+    bucket_unprod = [0.0, 0, 0, 0, 0]
+    city_bucket: dict[str, list] = {}
+    city_cause: dict[str, dict[str, float]] = {}
+    driver_unprod: dict[str, float] = {}
+    cause_unprod_time: dict[str, float] = {}
+
+    def row_key(row):
+        cid = row.get("client_id")
+        if synth_group_id and group_member_ids and cid is not None and int(cid) in group_member_ids:
+            return _client_row_key(-int(synth_group_id), f"Grupo:{synth_group_id}")
+        return _client_row_key(cid, str(row.get("client_name") or ""))
+
+    for row in rows:
+        src = str(row.get("source") or "ROTA").strip().upper()
+        st = _norm_text(row.get("status"))
+        cid = row.get("client_id")
+        key = row_key(row)
+        dur = row.get("duration_m")
+        dval = float(dur or 0) if dur is not None else 0.0
+        driver_name = str(row.get("driver_name") or "-").strip() or "-"
+        city = str(row.get("client_city") or "Sem cidade").strip() or "Sem cidade"
+        deliv_val = float(row.get("delivered_value") or 0.0)
+        ret_val = float(row.get("returned_value") or 0.0)
+        planned_v = float(row.get("planned_value") or 0.0)
+        reopen = int(row.get("reopen_count") or 0)
+
+        if src == "ROTA":
+            visits_rota += 1
+            planned_for_rate += planned_v
+            delivered_total += deliv_val if st == "entregue" else (deliv_val if st == "devolucao" else 0.0)
+            if st == "devolucao":
+                returned_total += ret_val if ret_val > 0 else planned_v
+            if dur is not None:
+                duration_total += dval
+                is_unproductive = st == "devolucao" or reopen > 0 or st in ("reaberta", "cancelada")
+                if is_unproductive:
+                    unproductive_total += dval
+                    unprod_by_key[key] = unprod_by_key.get(key, 0.0) + dval
+                    driver_unprod[driver_name] = driver_unprod.get(driver_name, 0.0) + dval
+                else:
+                    productive_total += dval
+                bi = _duration_bucket_idx(dur)
+                if bi is not None:
+                    bucket_visits[bi] += 1
+                    bucket_value[bi] += deliv_val if st == "entregue" else (deliv_val if st == "devolucao" else planned_v * 0.01)
+                    bucket_duration[bi] += dval
+                    if st == "devolucao":
+                        bucket_returns[bi] += 1
+                        bucket_unprod[bi] += dval
+                    elif is_unproductive:
+                        bucket_unprod[bi] += dval
+                    city_bucket.setdefault(city, [0, 0, 0, 0, 0])
+                    city_bucket[city][bi] += 1
+                if st == "devolucao" or reopen > 0 or (dur and float(dur) > 60) or (
+                    st != "entregue" and st != "pendente"
+                ):
+                    cause = _heatmap_delay_cause(row)
+                    city_cause.setdefault(city, {})
+                    city_cause[city][cause] = city_cause[city].get(cause, 0.0) + 1.0
+                    if dur and (st == "devolucao" or reopen > 0):
+                        cause_unprod_time[cause] = cause_unprod_time.get(cause, 0.0) + dval
+        elif src == "MANUAL" and st == "devolucao" and ret_val > 0:
+            returned_total += ret_val
+            manual_returned_sum += ret_val
+        if st == "devolucao" and ret_val > 0:
+            macro = _classify_macro_cause(row.get("motivo"), row.get("responsabilidade"))
+            macro_value_global[macro] = macro_value_global.get(macro, 0.0) + ret_val
+            if dur:
+                macro_time_global[macro] = macro_time_global.get(macro, 0.0) + dval
+            macro_clients.setdefault(macro, set())
+            if cid is not None:
+                macro_clients[macro].add(int(cid))
+            macro_drivers.setdefault(macro, set())
+            macro_drivers[macro].add(driver_name)
+
+    fin_base = planned_for_rate + manual_returned_sum
+    if fin_base <= 0:
+        fin_base = max(delivered_total + returned_total, 0.01)
+    return {
+        "unprod_by_key": unprod_by_key,
+        "macro_value_global": macro_value_global,
+        "macro_time_global": macro_time_global,
+        "macro_clients": macro_clients,
+        "macro_drivers": macro_drivers,
+        "delivered_total": round(delivered_total, 2),
+        "returned_total": round(returned_total, 2),
+        "financial_base": round(max(fin_base, 0.01), 2),
+        "visits_rota": visits_rota,
+        "duration_total": round(duration_total, 1),
+        "unproductive_total": round(unproductive_total, 1),
+        "productive_total": round(productive_total, 1),
+        "bucket_visits": bucket_visits,
+        "bucket_value": [round(x, 2) for x in bucket_value],
+        "bucket_duration": [round(x, 1) for x in bucket_duration],
+        "bucket_returns": bucket_returns,
+        "bucket_unprod": [round(x, 1) for x in bucket_unprod],
+        "city_bucket": city_bucket,
+        "city_cause": city_cause,
+        "driver_unprod": driver_unprod,
+        "cause_unprod_time": cause_unprod_time,
+    }
 
 
 def _week_bucket(date_str: Optional[str]) -> str:
@@ -349,8 +629,7 @@ def _build_bi_delivery_dataset(
     cli_ids = sorted({r.client_id for r in routes if r.client_id} | {d.client_id for d in manual if d.client_id})
     emp_map = {e.id: e for e in (session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all() if emp_ids else [])}
     cli_map = {c.id: c for c in (session.exec(select(models.Client).where(models.Client.id.in_(cli_ids))).all() if cli_ids else [])}
-    mot_map = {m.id: m for m in (session.exec(select(models.DevolucaoMotivo)).all())}
-    rsp_map = {r.id: r for r in (session.exec(select(models.DevolucaoResponsabilidade)).all())}
+    mot_map, rsp_map = _get_cached_mot_rsp_maps(session)
 
     def _hm(v: Optional[str]) -> Optional[int]:
         if not v:
@@ -435,8 +714,8 @@ def _build_bi_delivery_dataset(
         ret_v = float(r.valor_devolucao if r.valor_devolucao is not None else (planned_v if status_raw == "devolucao" else 0.0))
         del_w = max(0.0, planned_w - ret_w) if status_raw == "devolucao" else (planned_w if status_raw == "entregue" else 0.0)
         del_v = max(0.0, planned_v - ret_v) if status_raw == "devolucao" else (planned_v if status_raw == "entregue" else 0.0)
-        # Duração por ciclos (cada par iniciar + finalizar/devolucao); fallback único par se sem log.
-        dur = route_duration_minutes(r)
+        # Só contabiliza tempo com registro mobile (GPS início + fim); web não mede duração.
+        dur = route_duration_minutes_mobile_only(r)
         start_ref = (r.delivery_started_at or "").strip() or _fallback_route_time(r.start_time)
         end_ref = (r.delivery_finished_at or "").strip() or _fallback_route_time(r.end_time)
 
@@ -951,17 +1230,82 @@ def _build_bi_clientes_dataset(
     priority: str = "Todos",
     client_status: str = "Todos",
     detail_client_id: Optional[int] = None,
+    client_filter_scope: str = "solo",
 ) -> dict:
-    delivery_dataset = _build_bi_delivery_dataset(
+    tz = ZoneInfo("America/Sao_Paulo")
+    today = datetime.now(tz).date()
+
+    def _parse_d(raw: Optional[str]) -> Optional[date]:
+        if not raw:
+            return None
+        try:
+            return datetime.strptime(str(raw).strip(), "%Y-%m-%d").date()
+        except Exception:
+            return None
+
+    date_i = _parse_d(date_from) or today.replace(day=1)
+    date_f = _parse_d(date_to) or today
+    if date_i > date_f:
+        date_i, date_f = date_f, date_i
+    cur_s, cur_e = date_i.strftime("%Y-%m-%d"), date_f.strftime("%Y-%m-%d")
+    current_days = max(1, (date_f - date_i).days + 1)
+    previous_date_to = date_i - timedelta(days=1)
+    previous_date_from = previous_date_to - timedelta(days=current_days - 1)
+    prev_s = previous_date_from.strftime("%Y-%m-%d")
+    prev_e = previous_date_to.strftime("%Y-%m-%d")
+
+    # Uma única leitura de rotas + manuais (período atual + anterior contíguo) — evita 2ª ida ao Postgres.
+    merged_dataset = _build_bi_delivery_dataset(
         session=session,
-        date_from=date_from,
-        date_to=date_to,
+        date_from=prev_s,
+        date_to=cur_e,
         shift=shift,
         driver_id=driver_id,
         plate=plate,
         status=status,
     )
-    base_rows = list(delivery_dataset.get("all_route_rows", []))
+    all_merged = list(merged_dataset.get("all_route_rows", []))
+    base_rows = [r for r in all_merged if cur_s <= r["date"] <= cur_e]
+    previous_rows_pool = [r for r in all_merged if prev_s <= r["date"] <= prev_e]
+
+    _drivers_map: dict[int, str] = {}
+    _plates_set: set = set()
+    for r in base_rows:
+        did = r.get("driver_id")
+        if did is not None:
+            _drivers_map[int(did)] = str(r.get("driver_name") or f"Motorista #{did}")
+        pl = r.get("plate")
+        if pl and str(pl).strip() not in ("", "-"):
+            _plates_set.add(str(pl).strip().upper())
+    delivery_dataset = {
+        "filters": {**merged_dataset.get("filters", {}), "date_from": cur_s, "date_to": cur_e},
+        "drivers_filter": sorted([{"id": i, "name": n} for i, n in _drivers_map.items()], key=lambda x: x["name"]),
+        "plates_filter": sorted(_plates_set),
+        "statuses_filter": merged_dataset.get("statuses_filter", []),
+    }
+
+    scope = (client_filter_scope or "solo").strip().lower()
+    if scope not in ("solo", "group"):
+        scope = "solo"
+    client_ids_filter = None
+    aggregate_group = None
+    group_filter_note = None
+    if client_id:
+        if scope == "group":
+            cobj = session.get(models.Client, int(client_id))
+            gid = getattr(cobj, "client_group_id", None) if cobj else None
+            if gid:
+                mids = session.exec(select(models.Client.id).where(models.Client.client_group_id == gid)).all()
+                client_ids_filter = {int(x) for x in mids if x is not None}
+                if len(client_ids_filter) > 1:
+                    cg = session.get(models.ClientGroup, gid)
+                    aggregate_group = (int(gid), (cg.name if cg else f"Grupo #{gid}"))
+            if not client_ids_filter:
+                client_ids_filter = {int(client_id)}
+            elif len(client_ids_filter) == 1:
+                group_filter_note = "Apenas uma loja neste grupo; mesmo que filtrar só ela."
+        else:
+            client_ids_filter = {int(client_id)}
 
     city_norm = "" if (city or "Todos").strip() == "Todos" else _norm_text(city)
     priority_norm = "" if (priority or "Todos").strip() == "Todos" else str(priority or "").strip().upper()
@@ -992,8 +1336,9 @@ def _build_bi_clientes_dataset(
             row_city = _norm_text(row.get("client_city"))
             row_priority = str(row.get("client_prioridade") or "").strip().upper()
             row_client_status = _norm_text(row.get("client_status_operacional"))
-            if client_id and row_client_id != client_id:
-                continue
+            if client_ids_filter is not None:
+                if row_client_id is None or int(row_client_id) not in client_ids_filter:
+                    continue
             if city_norm and row_city != city_norm:
                 continue
             if priority_norm and row_priority != priority_norm:
@@ -1007,6 +1352,32 @@ def _build_bi_clientes_dataset(
 
     detail_client_id = detail_client_id or client_id
 
+    def _rows_for_group_aggregate(rows: list[dict]) -> list[dict]:
+        if not aggregate_group or not client_ids_filter or len(client_ids_filter) <= 1:
+            return rows
+        gid, gname = aggregate_group
+        synth_id = -int(gid)
+        out = []
+        for row in rows:
+            cid = row.get("client_id")
+            if cid is None or int(cid) not in client_ids_filter:
+                continue
+            r = dict(row)
+            r["client_id"] = synth_id
+            r["client_name"] = f"Grupo: {gname}"
+            r["client_city"] = "—"
+            r["client_bairro"] = "—"
+            r["client_segmento"] = "—"
+            r["client_prioridade"] = "—"
+            r["client_status_operacional"] = "—"
+            r["client_status_cadastro"] = "—"
+            r["client_address"] = f"{len(client_ids_filter)} lojas"
+            r["client_window"] = "—"
+            out.append(r)
+        return out
+
+    rows_for_agg = _rows_for_group_aggregate(filtered_rows)
+
     def _risk_label(score: int) -> tuple[str, str]:
         if score >= 70:
             return ("Crítico", "danger")
@@ -1014,7 +1385,7 @@ def _build_bi_clientes_dataset(
             return ("Atenção", "warning")
         return ("Controlado", "success")
 
-    client_agg = _aggregate_bi_client_rows(filtered_rows)
+    client_agg = _aggregate_bi_client_rows(rows_for_agg)
 
     filters_base = delivery_dataset.get("filters", {})
     current_date_from = datetime.strptime(str(filters_base.get("date_from") or date_from), "%Y-%m-%d").date()
@@ -1025,17 +1396,20 @@ def _build_bi_clientes_dataset(
     previous_label = f"{_fmt_br_data(previous_date_from.strftime('%Y-%m-%d'))} a {_fmt_br_data(previous_date_to.strftime('%Y-%m-%d'))}"
     current_label = f"{_fmt_br_data(current_date_from.strftime('%Y-%m-%d'))} a {_fmt_br_data(current_date_to.strftime('%Y-%m-%d'))}"
 
-    previous_delivery_dataset = _build_bi_delivery_dataset(
-        session=session,
-        date_from=previous_date_from.strftime("%Y-%m-%d"),
-        date_to=previous_date_to.strftime("%Y-%m-%d"),
-        shift=shift,
-        driver_id=driver_id,
-        plate=plate,
-        status=status,
+    previous_rows = _apply_client_filters(previous_rows_pool)
+    previous_client_agg = _aggregate_bi_client_rows(_rows_for_group_aggregate(previous_rows))
+
+    _exec_gid = None
+    _exec_mem = None
+    if aggregate_group and client_ids_filter and len(client_ids_filter) > 1:
+        _exec_gid = int(aggregate_group[0])
+        _exec_mem = set(int(x) for x in client_ids_filter)
+    exec_cur = _exec_accumulate_rows(filtered_rows, _exec_gid, _exec_mem)
+    exec_prev = _exec_accumulate_rows(
+        _apply_client_filters(previous_rows_pool),
+        _exec_gid,
+        _exec_mem,
     )
-    previous_rows = _apply_client_filters(list(previous_delivery_dataset.get("all_route_rows", [])))
-    previous_client_agg = _aggregate_bi_client_rows(previous_rows)
 
     ranking_rows = []
     for item in client_agg.values():
@@ -1124,6 +1498,63 @@ def _build_bi_clientes_dataset(
         )
         risk_label, risk_tone = _risk_label(risk_score)
 
+        ck = item["client_key"]
+        unproductive_m = round(float(exec_cur["unprod_by_key"].get(ck, 0.0) or 0.0), 1)
+        macro_vals: dict[str, float] = {}
+        for mot, data in (item.get("motivos") or {}).items():
+            mac = _classify_macro_cause(mot, "")
+            macro_vals[mac] = macro_vals.get(mac, 0.0) + float(data.get("value") or 0)
+        dom_macro = "—"
+        dom_macro_share = 0.0
+        if macro_vals:
+            dom_macro, mv = max(macro_vals.items(), key=lambda x: x[1])
+            tv = sum(macro_vals.values())
+            dom_macro_share = round(_safe_pct(mv, tv), 1) if tv > 0 else 0.0
+        elif float(item.get("returned_value") or 0) > 0:
+            dom_macro = _classify_macro_cause(top_motivo_name, top_resp_name)
+            dom_macro_share = 100.0
+        dv_client = float(item.get("delivered_value") or 0)
+        tdur = float(item.get("total_duration_m") or 0)
+        min_per_1000 = round(tdur / max(dv_client / 1000.0, 0.01), 1) if dv_client > 0 else 0.0
+        est_op_cost = round((tdur / 60.0) * _BI_EXEC_HOURLY_COST, 2)
+        est_balance = round(dv_client - est_op_cost - float(item.get("returned_value") or 0), 2)
+        logistic_weight = round(tdur / max(dv_client, 1.0), 4) if dv_client > 0 else 0.0
+        return_per_hour = round(float(item.get("returned_value") or 0) / max(tdur / 60.0, 0.01), 2)
+        ur = unproductive_m / max(tdur, 0.01)
+        wear_score = min(
+            100,
+            int(
+                round(
+                    return_rate_value * 10.0
+                    + min(28.0, ur * 42.0)
+                    + min(20.0, avg_duration_m / 5.5)
+                    + min(14.0, float(item.get("reopen_count") or 0) * 3.5)
+                    + return_rate_qtd * 2.2
+                    + (10.0 if item["returned_occurrences"] >= 2 else 0.0)
+                )
+            ),
+        )
+        if wear_score >= 75:
+            wear_tier, wear_tone = ("Destrutivo", "danger")
+        elif wear_score >= 52:
+            wear_tier, wear_tone = ("Crítico", "danger")
+        elif wear_score >= 30:
+            wear_tier, wear_tone = ("Atenção", "warning")
+        else:
+            wear_tier, wear_tone = ("Saudável", "success")
+        if dom_macro == "Comercial":
+            suggested_action = "Alinhar pedido, preço e prazo com comercial antes da próxima expedição."
+        elif dom_macro == "Logística":
+            suggested_action = "Foco em conferência de carga, separação e execução de rota."
+        elif dom_macro == "Cadastro / planejamento":
+            suggested_action = "Auditoria de endereço, janela e acesso no cadastro."
+        elif dom_macro == "Cliente / mercado":
+            suggested_action = "Renegociar janela e confirmação de recebimento (D-1)."
+        elif dom_macro == "Financeiro / pagamento":
+            suggested_action = "Validar forma de pagamento e limite com financeiro/comercial."
+        else:
+            suggested_action = "Revisão conjunta comercial + operação no ponto."
+
         ranking_rows.append(
             {
                 "client_id": item["client_id"],
@@ -1143,6 +1574,7 @@ def _build_bi_clientes_dataset(
                 "weekly_peak_visits": weekly_peak,
                 "weekly_avg_visits": weekly_avg,
                 "planned_value": round(item["planned_value"], 2),
+                "delivered_value": round(dv_client, 2),
                 "returned_value": round(item["returned_value"], 2),
                 "returned_kg": round(item["returned_kg"], 2),
                 "return_rate_qtd": return_rate_qtd,
@@ -1175,15 +1607,27 @@ def _build_bi_clientes_dataset(
                 "top_driver_return_share": top_driver_return_share,
                 "top_responsabilidade_return_value": top_resp_return_value,
                 "top_responsabilidade_return_share": top_resp_return_share,
+                "unproductive_m": unproductive_m,
+                "dominant_macro": dom_macro,
+                "dominant_macro_share": dom_macro_share,
+                "min_per_1000_brl": min_per_1000,
+                "est_operational_cost": est_op_cost,
+                "est_balance": est_balance,
+                "logistic_weight": logistic_weight,
+                "return_per_hour": return_per_hour,
+                "wear_score": wear_score,
+                "wear_tier": wear_tier,
+                "wear_tone": wear_tone,
+                "suggested_action": suggested_action,
             }
         )
 
     ranking_rows.sort(
         key=lambda row: (
+            row.get("wear_score", 0),
             row.get("risk_score", 0),
             row.get("returned_value", 0.0),
             row.get("total_duration_m", 0.0),
-            row.get("weekly_peak_visits", 0),
         ),
         reverse=True,
     )
@@ -1232,6 +1676,151 @@ def _build_bi_clientes_dataset(
     city_rows = sorted(city_agg.values(), key=lambda row: (row["visits"], row["returned_value"]), reverse=True)
     top_city_row = city_rows[0] if city_rows else None
     top_city_share = round(_safe_pct(top_city_row["visits"], total_visits), 1) if top_city_row else 0.0
+
+    ec, ep = exec_cur, exec_prev
+    fin_b = max(float(ec["financial_base"] or 0), 0.01)
+    fin_b_prev = max(float(ep["financial_base"] or 0), 0.01)
+    pct_dev = round(_safe_pct(ec["returned_total"], fin_b), 2)
+    pct_dev_prev = round(_safe_pct(ep["returned_total"], fin_b_prev), 2)
+
+    def _delta_pct_exec(a, b):
+        try:
+            b = float(b or 0)
+            if b <= 0:
+                return None
+            return round((float(a) - b) / b * 100.0, 1)
+        except Exception:
+            return None
+
+    clients_over_60 = sum(1 for r in ranking_rows if float(r.get("avg_duration_m") or 0) > 60)
+    clients_over_90 = sum(1 for r in ranking_rows if float(r.get("avg_duration_m") or 0) > 90)
+    waste_pct = round(_safe_pct(ec["unproductive_total"], ec["duration_total"]), 2) if ec["duration_total"] > 0 else 0.0
+    waste_prev = round(_safe_pct(ep["unproductive_total"], ep["duration_total"]), 2) if ep["duration_total"] > 0 else 0.0
+
+    executive_kpis = {
+        "delivered_value": ec["delivered_total"],
+        "returned_value": ec["returned_total"],
+        "return_pct_value": pct_dev,
+        "total_duration_min": ec["duration_total"],
+        "unproductive_min": ec["unproductive_total"],
+        "productive_min": ec["productive_total"],
+        "waste_pct": waste_pct,
+        "monitored_clients": len(ranking_rows),
+        "deliveries_count": ec["visits_rota"],
+        "clients_with_returns": len(clients_with_returns),
+        "clients_avg_over_60": clients_over_60,
+        "clients_avg_over_90": clients_over_90,
+        "delta_delivered_pct": _delta_pct_exec(ec["delivered_total"], ep["delivered_total"]),
+        "delta_return_pp": round(pct_dev - pct_dev_prev, 2),
+        "delta_duration_pct": _delta_pct_exec(ec["duration_total"], ep["duration_total"]),
+        "delta_unproductive_pct": _delta_pct_exec(ec["unproductive_total"], ep["unproductive_total"]),
+        "delta_waste_pp": round(waste_pct - waste_prev, 2),
+        "period_current": current_label,
+        "period_previous": previous_label,
+    }
+
+    executive_headlines = []
+    macro_v = ec["macro_value_global"]
+    tmacro = sum(macro_v.values()) or 1.0
+    if tmacro > 200 and _safe_pct(macro_v.get("Logística", 0), tmacro) < 40:
+        executive_headlines.append(
+            "Parte relevante das perdas em valor não se concentra na macrocausa Logística — aprofundar comercial, cadastro e cliente."
+        )
+    dur_sorted = sorted((float(r.get("total_duration_m") or 0) for r in ranking_rows), reverse=True)
+    top5_share = (sum(dur_sorted[:5]) / max(float(ec["duration_total"] or 1), 1.0)) if ranking_rows else 0.0
+    if top5_share >= 0.30 and len(ranking_rows) >= 5:
+        executive_headlines.append(
+            "Grande parte do tempo operacional concentra-se em poucos clientes — priorizar planos de ação direcionados."
+        )
+    vr = max(1, ec["visits_rota"])
+    slow_share = _safe_pct(ec["bucket_visits"][3] + ec["bucket_visits"][4], vr)
+    if slow_share >= 12 and ec["visits_rota"] > 15:
+        executive_headlines.append(
+            "Visitas longas (61+ min) pesam no mix — revisar roteirização, janelas e cadastro de acesso."
+        )
+    destr_n = sum(1 for r in ranking_rows if r.get("wear_tier") == "Destrutivo")
+    if destr_n >= 1:
+        executive_headlines.append(
+            f"{destr_n} cliente(s) em perfil Destrutivo (alto desgaste) exigem intervenção gerencial prioritária."
+        )
+    if not executive_headlines:
+        executive_headlines.append("Recorte sem alertas executivos extremos; manter monitoramento semanal.")
+
+    false_villains = []
+    for r in ranking_rows:
+        if float(r.get("returned_value") or 0) <= 0:
+            continue
+        dm = r.get("dominant_macro") or ""
+        if dm in ("—", "Logística"):
+            continue
+        if float(r.get("return_rate_value") or 0) >= 0.8 or int(r.get("wear_score") or 0) >= 42:
+            false_villains.append(
+                {
+                    "client_id": r.get("client_id"),
+                    "client_name": r.get("client_name"),
+                    "city": r.get("city"),
+                    "returned_value": r.get("returned_value"),
+                    "unproductive_m": r.get("unproductive_m"),
+                    "dominant_macro": dm,
+                    "driver": r.get("top_driver_return_name") or r.get("top_driver_name"),
+                    "suggested_action": r.get("suggested_action"),
+                }
+            )
+    false_villains = false_villains[:15]
+
+    cb_map = exec_cur["city_bucket"]
+    city_visit_tot = {c: sum(cb_map[c]) for c in cb_map}
+    heatmap_cities = sorted(city_visit_tot.keys(), key=lambda x: city_visit_tot[x], reverse=True)[:14]
+    if not heatmap_cities and city_rows:
+        heatmap_cities = [r["city"] for r in city_rows[:14]]
+    heatmap_bucket_matrix = [[int(cb_map.get(c, [0] * 5)[i]) for i in range(5)] for c in heatmap_cities]
+    all_causes = set()
+    for cco in exec_cur["city_cause"].values():
+        all_causes.update(cco.keys())
+    cause_order = sorted(all_causes)[:12] if all_causes else ["Devolução", "Outros"]
+    heatmap_cause_matrix = [[int(exec_cur["city_cause"].get(c, {}).get(cause, 0)) for cause in cause_order] for c in heatmap_cities]
+
+    city_roll: dict[str, dict] = {}
+    for r in ranking_rows:
+        ct = str(r.get("city") or "Sem cidade").strip() or "Sem cidade"
+        b = city_roll.setdefault(ct, {"td": 0.0, "v": 0, "unp": 0.0, "del": 0.0, "ret": 0.0, "cli": 0, "m60": 0})
+        b["td"] += float(r.get("total_duration_m") or 0)
+        b["v"] += int(r.get("visits") or 0)
+        b["unp"] += float(r.get("unproductive_m") or 0)
+        b["del"] += float(r.get("delivered_value") or 0)
+        b["ret"] += float(r.get("returned_value") or 0)
+        b["cli"] += 1
+        if float(r.get("avg_duration_m") or 0) > 60:
+            b["m60"] += 1
+    macro_by_city: dict[str, dict[str, int]] = {}
+    for r in ranking_rows:
+        ct = str(r.get("city") or "Sem cidade")
+        dm = r.get("dominant_macro") or ""
+        if dm and dm != "—":
+            macro_by_city.setdefault(ct, {})
+            macro_by_city[ct][dm] = macro_by_city[ct].get(dm, 0) + 1
+
+    def _city_max(getter):
+        if not city_roll:
+            return "—", 0.0
+        best = max(city_roll.items(), key=lambda kv: getter(kv[1]))
+        return best[0], getter(best[1])
+
+    ct_time, _ = _city_max(lambda x: x["td"] / max(x["v"], 1))
+    ct_unp, _ = _city_max(lambda x: x["unp"])
+    ct_m60, v_m60 = _city_max(lambda x: x["m60"] / max(x["cli"], 1) * 100.0)
+    ct_dev, _ = _city_max(lambda x: _safe_pct(x["ret"], x["del"] + x["ret"]) if (x["del"] + x["ret"]) > 0 else 0)
+    ct_com = "—"
+    if macro_by_city:
+        ct_com = max(macro_by_city.items(), key=lambda kv: kv[1].get("Comercial", 0))[0]
+
+    heatmap_city_kpis = [
+        {"label": "Maior tempo médio (min/visita)", "city": ct_time, "hint": "Cidade com maior tempo total / visitas"},
+        {"label": "Maior tempo improdutivo acumulado", "city": ct_unp},
+        {"label": "Maior % clientes com média >60 min", "city": ct_m60, "value": round(v_m60, 1)},
+        {"label": "Maior % devolução s/ valor (agreg.)", "city": ct_dev},
+        {"label": "Mais clientes macro Comercial", "city": ct_com},
+    ]
 
     anomaly_flags = []
     if top_risk_row and top_risk_row["risk_score"] >= 70:
@@ -1313,17 +1902,96 @@ def _build_bi_clientes_dataset(
     if not recommendations:
         recommendations.append("Operação de clientes sem alarme relevante no período; manter acompanhamento semanal.")
 
+    managerial_actions = []
+    for rec in recommendations[:10]:
+        cat = "conjunta"
+        rl = (rec or "").lower()
+        if any(x in rl for x in ("comercial", "pedido", "preço", "preco", "prazo", "venda")):
+            cat = "comercial"
+        elif any(x in rl for x in ("carga", "expedição", "expedicao", "motorista", "rota", "separação", "separacao", "conferência")):
+            cat = "logistica"
+        elif any(x in rl for x in ("janela", "cadastro", "acesso", "cidade", "carteira")):
+            cat = "cadastro"
+        elif "financeiro" in rl or "pagamento" in rl:
+            cat = "financeira"
+        managerial_actions.append({"category": cat, "text": rec})
+
     detail_title = "Selecione um cliente no ranking para abrir o drill-through."
     detail_client = None
     detail_rows = []
     if detail_client_id:
-        detail_client = next((row for row in ranking_rows if row.get("client_id") == detail_client_id), None)
-        detail_rows = [
-            row for row in sorted(filtered_rows, key=lambda current: (current.get("date") or "", current.get("route_id") or 0), reverse=True)
-            if row.get("client_id") == detail_client_id
-        ]
-        if detail_client:
-            detail_title = f"Drill-through do cliente {detail_client['client_name']}"
+        if int(detail_client_id) < 0:
+            gid = -int(detail_client_id)
+            grp = session.get(models.ClientGroup, gid)
+            mem = session.exec(select(models.Client.id).where(models.Client.client_group_id == gid)).all()
+            mem_set = {int(x) for x in mem if x is not None}
+            detail_rows = [
+                row for row in sorted(filtered_rows, key=lambda current: (current.get("date") or "", current.get("route_id") or 0), reverse=True)
+                if row.get("client_id") in mem_set
+            ]
+            gnm = grp.name if grp else f"Grupo #{gid}"
+            detail_client = {
+                "client_id": detail_client_id,
+                "client_name": f"Grupo: {gnm}",
+                "city": "—",
+                "bairro": "—",
+                "segmento": "—",
+                "prioridade": "—",
+                "status_operacional": "—",
+                "status_cadastro": "—",
+                "address": "—",
+                "window": "—",
+            }
+            detail_title = f"Drill-through · {detail_client['client_name']} ({len(mem_set)} lojas)"
+        else:
+            detail_client = next((row for row in ranking_rows if row.get("client_id") == detail_client_id), None)
+            detail_rows = [
+                row for row in sorted(filtered_rows, key=lambda current: (current.get("date") or "", current.get("route_id") or 0), reverse=True)
+                if row.get("client_id") == detail_client_id
+            ]
+            if detail_client:
+                detail_title = f"Drill-through do cliente {detail_client['client_name']}"
+
+    macro_items = sorted(macro_v.items(), key=lambda x: -x[1]) if macro_v else [("Sem dados", 0.0)]
+    vr_exec = max(1, ec["visits_rota"])
+    scatter_pts = []
+    sc_cand = [r for r in ranking_rows if int(r.get("visits") or 0) >= 1][:42]
+    if len(sc_cand) >= 2:
+        xs = [float(r.get("avg_duration_m") or 0) for r in sc_cand]
+        ys = [float(r.get("delivered_value") or 0) for r in sc_cand]
+        try:
+            mx = float(statistics.median(xs))
+            my = float(statistics.median(ys)) if ys else 0.0
+        except statistics.StatisticsError:
+            mx, my = 45.0, 5000.0
+        for r in sc_cand:
+            x, y = float(r.get("avg_duration_m") or 0), float(r.get("delivered_value") or 0)
+            if y >= my and x <= mx:
+                quad = "Eficiente"
+            elif y >= my:
+                quad = "Estratégico (pesado)"
+            elif x >= mx:
+                quad = "Destrutivo"
+            else:
+                quad = "Baixo impacto"
+            scatter_pts.append(
+                {
+                    "x": round(x, 1),
+                    "y": round(y, 2),
+                    "r": int(min(22, max(5, int(r.get("visits") or 1) * 2))),
+                    "name": (r.get("client_name") or "")[:28],
+                    "cid": r.get("client_id"),
+                    "retpct": round(float(r.get("return_rate_value") or 0), 2),
+                    "quad": quad,
+                }
+            )
+    serve_rank = sorted(
+        [r for r in ranking_rows if float(r.get("delivered_value") or 0) > 100],
+        key=lambda r: float(r.get("min_per_1000_brl") or 0),
+        reverse=True,
+    )[:12]
+    du_sorted = sorted(exec_cur["driver_unprod"].items(), key=lambda x: -x[1])[:10]
+    cu_sorted = sorted(exec_cur["cause_unprod_time"].items(), key=lambda x: -x[1])[:8]
 
     chart_payload = {
         "time_rank": {
@@ -1378,6 +2046,63 @@ def _build_bi_clientes_dataset(
             "misses": [int(row["window_misses"]) for row in sorted(window_rows, key=lambda row: (row.get("window_adherence_pct", 100.0), -(row.get("window_misses", 0) or 0)), reverse=False)[:12]],
             "checks": [int(row["window_checks"]) for row in sorted(window_rows, key=lambda row: (row.get("window_adherence_pct", 100.0), -(row.get("window_misses", 0) or 0)), reverse=False)[:12]],
         },
+        "duration_buckets": {
+            "labels": list(_DURATION_BUCKET_LABELS),
+            "visits": list(ec["bucket_visits"]),
+            "visit_pct": [round(_safe_pct(ec["bucket_visits"][i], vr_exec), 1) for i in range(5)],
+            "delivered_value": list(ec["bucket_value"]),
+            "duration_min": list(ec["bucket_duration"]),
+            "returns": list(ec["bucket_returns"]),
+            "unprod_min": list(ec["bucket_unprod"]),
+        },
+        "macro_loss": {
+            "labels": [a[0] for a in macro_items],
+            "values": [round(a[1], 2) for a in macro_items],
+            "pct": [round(_safe_pct(a[1], tmacro), 1) for a in macro_items],
+            "minutes": [round(exec_cur["macro_time_global"].get(a[0], 0.0), 1) for a in macro_items],
+        },
+        "productive_split": {
+            "productive_min": ec["productive_total"],
+            "unproductive_min": ec["unproductive_total"],
+        },
+        "scatter_clients": scatter_pts,
+        "exec_compare_bars": {
+            "labels": ["Valor entregue (R$)", "Valor devolvido (R$)", "Tempo total (h)", "Tempo improd. (h)"],
+            "current": [
+                round(ec["delivered_total"], 2),
+                round(ec["returned_total"], 2),
+                round(ec["duration_total"] / 60.0, 2),
+                round(ec["unproductive_total"] / 60.0, 2),
+            ],
+            "previous": [
+                round(ep["delivered_total"], 2),
+                round(ep["returned_total"], 2),
+                round(ep["duration_total"] / 60.0, 2),
+                round(ep["unproductive_total"] / 60.0, 2),
+            ],
+        },
+        "serve_cost_rank": {
+            "labels": [r.get("client_name", "")[:22] for r in serve_rank],
+            "min_per_1000": [float(r.get("min_per_1000_brl") or 0) for r in serve_rank],
+            "est_balance": [float(r.get("est_balance") or 0) for r in serve_rank],
+        },
+        "driver_unproductive": {"labels": [a[0][:18] for a in du_sorted], "minutes": [round(a[1], 1) for a in du_sorted]},
+        "cause_unproductive": {"labels": [a[0][:20] for a in cu_sorted], "minutes": [round(a[1], 1) for a in cu_sorted]},
+        "heatmap_duration": {
+            "cities": heatmap_cities,
+            "buckets": list(_DURATION_BUCKET_LABELS),
+            "matrix": heatmap_bucket_matrix,
+        },
+        "heatmap_cause": {
+            "cities": heatmap_cities,
+            "causes": cause_order,
+            "matrix": heatmap_cause_matrix,
+        },
+        "wear_rank": {
+            "labels": [r.get("client_name", "")[:20] for r in ranking_rows[:15]],
+            "scores": [int(r.get("wear_score") or 0) for r in ranking_rows[:15]],
+            "tiers": [r.get("wear_tier") or "" for r in ranking_rows[:15]],
+        },
     }
 
     filters = {
@@ -1387,21 +2112,25 @@ def _build_bi_clientes_dataset(
         "priority": priority,
         "client_status": client_status,
         "detail_client_id": detail_client_id,
+        "client_scope": scope if client_id else "solo",
+        "group_filter_note": group_filter_note,
     }
-    filters_query = urlencode(
-        {
-            "date_from": filters.get("date_from") or "",
-            "date_to": filters.get("date_to") or "",
-            "shift": filters.get("shift") or "Todos",
-            "driver_id": filters.get("driver_id") or "",
-            "plate": filters.get("plate") or "Todos",
-            "status": filters.get("status") or "Todos",
-            "client_id": filters.get("client_id") or "",
-            "city": filters.get("city") or "Todos",
-            "priority": filters.get("priority") or "Todos",
-            "client_status": filters.get("client_status") or "Todos",
-        }
-    )
+    _fq = {
+        "date_from": filters.get("date_from") or "",
+        "date_to": filters.get("date_to") or "",
+        "shift": filters.get("shift") or "Todos",
+        "driver_id": filters.get("driver_id") or "",
+        "plate": filters.get("plate") or "Todos",
+        "status": filters.get("status") or "Todos",
+        "client_id": filters.get("client_id") or "",
+        "city": filters.get("city") or "Todos",
+        "priority": filters.get("priority") or "Todos",
+        "client_status": filters.get("client_status") or "Todos",
+        "client_scope": filters.get("client_scope") or "solo",
+    }
+    if filters.get("detail_client_id"):
+        _fq["detail_client_id"] = str(filters["detail_client_id"])
+    filters_query = urlencode(_fq)
 
     kpis = {
         "monitored_clients": len(ranking_rows),
@@ -1455,6 +2184,11 @@ def _build_bi_clientes_dataset(
         "client_statuses_filter": sorted(client_statuses_filter),
         "chart_payload_json": json.dumps(chart_payload, ensure_ascii=False),
         "all_client_rows": ranking_rows,
+        "executive_kpis": executive_kpis,
+        "executive_headlines": executive_headlines,
+        "false_villains": false_villains,
+        "managerial_actions": managerial_actions,
+        "heatmap_city_kpis": heatmap_city_kpis,
     }
 
 
@@ -1612,7 +2346,7 @@ def _build_relatorio_avaliacao_motorista(
         start_t = r.delivery_started_at or r.start_time
         end_t = r.delivery_finished_at or r.end_time or r.delivery_returned_at
         # Duração por ciclos (cada par iniciar + finalizar/devolucao); evita somar reaberturas como tempo contínuo.
-        dur = route_duration_minutes(r) if r.driver_lat_start is not None else None
+        dur = route_duration_minutes_mobile_only(r)
         tipo = "Devolução" if st == "devolucao" else "Entrega" if st == "entregue" else st
 
         d["paradas"].append({
@@ -1833,11 +2567,18 @@ async def bi_clientes_page(
     priority: str = "Todos",
     client_status: str = "Todos",
     detail_client_id: Optional[str] = None,
+    client_scope: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     parsed_driver_id: Optional[int] = int(driver_id) if (driver_id or "").strip().isdigit() else None
     parsed_client_id: Optional[int] = int(client_id) if (client_id or "").strip().isdigit() else None
-    parsed_detail_client_id: Optional[int] = int(detail_client_id) if (detail_client_id or "").strip().isdigit() else None
+    parsed_detail = (detail_client_id or "").strip()
+    if parsed_detail.startswith("-") and parsed_detail[1:].isdigit():
+        parsed_detail_client_id = int(parsed_detail)
+    elif parsed_detail.isdigit():
+        parsed_detail_client_id = int(parsed_detail)
+    else:
+        parsed_detail_client_id = None
     dataset = _build_bi_clientes_dataset(
         session=session,
         date_from=date_from,
@@ -1851,6 +2592,7 @@ async def bi_clientes_page(
         priority=priority,
         client_status=client_status,
         detail_client_id=parsed_detail_client_id,
+        client_filter_scope=(client_scope or "solo").strip().lower(),
     )
     return templates.TemplateResponse("bi_clientes.html", {"request": request, **dataset})
 
@@ -1953,6 +2695,7 @@ async def bi_clientes_export(
     city: str = "Todos",
     priority: str = "Todos",
     client_status: str = "Todos",
+    client_scope: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     parsed_driver_id: Optional[int] = int(driver_id) if (driver_id or "").strip().isdigit() else None
@@ -1969,6 +2712,7 @@ async def bi_clientes_export(
         city=city,
         priority=priority,
         client_status=client_status,
+        client_filter_scope=(client_scope or "solo").strip().lower(),
     )
     rows = dataset["all_client_rows"]
     stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M")
@@ -2093,6 +2837,7 @@ def _build_bi_devolucoes_dataset(
     motivo_id: Optional[int] = None,
     motorista_id: Optional[int] = None,
     client_id: Optional[int] = None,
+    client_filter_scope: str = "solo",
 ) -> dict:
     tz = ZoneInfo("America/Sao_Paulo")
     today = datetime.now(tz).date()
@@ -2128,8 +2873,27 @@ def _build_bi_devolucoes_dataset(
         q = q.where(models.Devolucao.motivo_id == motivo_id)
     if motorista_id:
         q = q.where(models.Devolucao.motorista_id == motorista_id)
+    cfs = (client_filter_scope or "solo").strip().lower()
+    if cfs not in ("solo", "group"):
+        cfs = "solo"
+    client_ids_dev: Optional[list] = None
+    group_filter_note_dev: Optional[str] = None
     if client_id:
-        q = q.where(models.Devolucao.client_id == client_id)
+        if cfs == "group":
+            c = session.get(models.Client, int(client_id))
+            if c and getattr(c, "client_group_id", None):
+                client_ids_dev = [int(x) for x in session.exec(select(models.Client.id).where(models.Client.client_group_id == c.client_group_id)).all() if x is not None]
+            if not client_ids_dev:
+                client_ids_dev = [int(client_id)]
+            elif len(client_ids_dev) == 1:
+                group_filter_note_dev = "Só há uma loja neste grupo."
+        else:
+            client_ids_dev = [int(client_id)]
+    if client_ids_dev:
+        if len(client_ids_dev) == 1:
+            q = q.where(models.Devolucao.client_id == client_ids_dev[0])
+        else:
+            q = q.where(models.Devolucao.client_id.in_(client_ids_dev))
 
     devs = session.exec(q.order_by(models.Devolucao.data_romaneio.desc())).all()
 
@@ -2543,14 +3307,15 @@ def _build_bi_devolucoes_dataset(
     media_valor_dia = round(total_valor / len(days_sorted), 2) if days_sorted else 0.0
 
     filters_query = urlencode({
-        k: v for k, v in {
+        k: str(v) for k, v in {
             "date_from": date_from or "",
             "date_to": date_to or "",
             "responsabilidade_id": responsabilidade_id or "",
             "motivo_id": motivo_id or "",
             "motorista_id": motorista_id or "",
             "client_id": client_id or "",
-        }.items() if v
+            "client_scope": cfs if client_id else "",
+        }.items() if v not in ("", None)
     })
 
     return {
@@ -2561,6 +3326,8 @@ def _build_bi_devolucoes_dataset(
             "motivo_id": motivo_id,
             "motorista_id": motorista_id,
             "client_id": client_id,
+            "client_scope": cfs if client_id else "solo",
+            "group_filter_note": group_filter_note_dev,
         },
         "filters_query": filters_query,
         # KPIs
@@ -2627,6 +3394,7 @@ async def bi_devolucoes_page(
     motivo_id: Optional[str] = None,
     motorista_id: Optional[str] = None,
     client_id: Optional[str] = None,
+    client_scope: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     parsed_resp_id: Optional[int] = int(responsabilidade_id) if (responsabilidade_id or "").strip().isdigit() else None
@@ -2641,6 +3409,7 @@ async def bi_devolucoes_page(
         motivo_id=parsed_motivo_id,
         motorista_id=parsed_motorista_id,
         client_id=parsed_client_id,
+        client_filter_scope=(client_scope or "solo").strip().lower(),
     )
     return templates.TemplateResponse("bi_devolucoes.html", {"request": request, **dataset})
 
@@ -2654,6 +3423,7 @@ async def bi_devolucoes_export(
     motivo_id: Optional[str] = None,
     motorista_id: Optional[str] = None,
     client_id: Optional[str] = None,
+    client_scope: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     parsed_resp_id: Optional[int] = int(responsabilidade_id) if (responsabilidade_id or "").strip().isdigit() else None
@@ -2668,6 +3438,7 @@ async def bi_devolucoes_export(
         motivo_id=parsed_motivo_id,
         motorista_id=parsed_motorista_id,
         client_id=parsed_client_id,
+        client_filter_scope=(client_scope or "solo").strip().lower(),
     )
     rows = dataset["rows_detail"]
     stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M")

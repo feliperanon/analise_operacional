@@ -1,0 +1,166 @@
+/* BI Custo Operacional — layout unificado, sem mistura visual */
+.bi-co-page {
+  --co-accent: #818cf8;
+  --co-accent-dim: rgba(129, 140, 248, 0.12);
+  --co-surface: rgba(15, 23, 42, 0.65);
+  --co-border: rgba(148, 163, 184, 0.14);
+  min-height: 100vh;
+  padding: 1.25rem 1rem 3rem;
+  background: linear-gradient(165deg, #0c1222 0%, #0f172a 45%, #0a0f1a 100%);
+  color: #e2e8f0;
+}
+.bi-co-inner { max-width: 1520px; margin: 0 auto; }
+
+.bi-co-header {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  margin-bottom: 1.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--co-border);
+}
+.bi-co-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; margin: 0; color: #f8fafc; }
+.bi-co-sub { font-size: 0.8125rem; color: #94a3b8; margin: 0.35rem 0 0; max-width: 520px; line-height: 1.45; }
+.bi-co-period { font-size: 0.75rem; color: #64748b; margin-top: 0.5rem; }
+
+.bi-co-nav {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 1.5rem;
+}
+.bi-co-tab {
+  padding: 0.5rem 1.1rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; cursor: pointer; border: 1px solid var(--co-border);
+  background: transparent; color: #94a3b8; transition: background .2s, color .2s, border-color .2s;
+}
+.bi-co-tab:hover { color: #e2e8f0; border-color: rgba(129,140,248,0.35); }
+.bi-co-tab.is-active {
+  background: var(--co-accent-dim); color: #c7d2fe; border-color: rgba(129,140,248,0.45);
+  box-shadow: 0 0 0 1px rgba(129,140,248,0.15);
+}
+.bi-co-tab-meet {
+  margin-left: auto; border-color: rgba(251,191,36,0.35); color: #fcd34d;
+}
+.bi-co-tab-meet.is-active { background: rgba(251,191,36,0.12); color: #fef3c7; }
+
+.bi-co-pillars {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.25rem;
+}
+@media (min-width: 900px) { .bi-co-pillars { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1200px) { .bi-co-pillars { grid-template-columns: repeat(5, 1fr); } }
+.bi-co-pillar {
+  background: var(--co-surface); border: 1px solid var(--co-border); border-radius: 14px; padding: 1.15rem 1.25rem;
+  position: relative; overflow: hidden;
+}
+.bi-co-pillar::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--co-accent), #a78bfa); opacity: 0.85;
+}
+.bi-co-pillar-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
+.bi-co-pillar-val { font-size: 1.5rem; font-weight: 700; margin: 0.4rem 0 0; letter-spacing: -0.02em; color: #f1f5f9; }
+@media (min-width: 1024px) { .bi-co-meeting .bi-co-pillar-val { font-size: 1.85rem; } }
+.bi-co-pillar-delta { font-size: 0.75rem; margin-top: 0.35rem; font-weight: 600; }
+.bi-co-pillar-delta.up { color: #4ade80; }
+.bi-co-pillar-delta.down { color: #f87171; }
+.bi-co-pillar-hint { font-size: 0.65rem; color: #475569; margin-top: 0.5rem; }
+
+.bi-co-metrics {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.65rem; margin-bottom: 1.5rem;
+}
+@media (min-width: 768px) { .bi-co-metrics { grid-template-columns: repeat(4, 1fr); } }
+.bi-co-metrics-extended { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 640px) { .bi-co-metrics-extended { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1024px) { .bi-co-metrics-extended { grid-template-columns: repeat(6, 1fr); } }
+.bi-co-metric {
+  display: flex; align-items: center; justify-content: space-between; padding: 0.65rem 0.9rem;
+  border-radius: 10px; background: rgba(30,41,59,0.45); border: 1px solid var(--co-border); font-size: 0.8125rem;
+}
+.bi-co-metric span:first-child { color: #64748b; }
+.bi-co-metric strong { color: #e2e8f0; font-weight: 600; }
+
+.bi-co-insights {
+  margin-bottom: 1.5rem; padding: 1.1rem 1.25rem; border-radius: 12px;
+  border: 1px solid rgba(129,140,248,0.2); background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(15,23,42,0.5));
+}
+.bi-co-insights h3 { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #a5b4fc; margin: 0 0 0.75rem; }
+.bi-co-insights ul { margin: 0; padding: 0; list-style: none; }
+.bi-co-insights li {
+  padding: 0.5rem 0 0.5rem 1.1rem; border-left: 2px solid rgba(129,140,248,0.5); margin-bottom: 0.35rem;
+  font-size: 0.9rem; line-height: 1.5; color: #cbd5e1;
+}
+.bi-co-insights li:last-child { margin-bottom: 0; }
+
+.bi-co-grid-2 { display: grid; gap: 1rem; margin-bottom: 1.25rem; }
+@media (min-width: 1100px) { .bi-co-grid-2 { grid-template-columns: 1.15fr 0.85fr; } }
+.bi-co-panel {
+  background: var(--co-surface); border: 1px solid var(--co-border); border-radius: 14px; padding: 1rem 1.15rem;
+}
+.bi-co-panel h3 { font-size: 0.8125rem; font-weight: 600; color: #f1f5f9; margin: 0 0 0.2rem; }
+.bi-co-panel p.meta { font-size: 0.7rem; color: #64748b; margin: 0 0 0.85rem; }
+.bi-co-chart-h { min-height: 340px; height: 360px; position: relative; }
+.bi-co-chart-h.bi-co-chart-hero { min-height: 420px; height: 440px; }
+.bi-co-meeting .bi-co-chart-h { min-height: 400px; height: 420px; }
+.bi-co-meeting .bi-co-chart-h.bi-co-chart-hero { min-height: 500px; height: 520px; }
+.bi-co-chart-explain {
+  margin-top: 0.75rem; border-radius: 10px; border: 1px solid var(--co-border);
+  background: rgba(15,23,42,0.5); font-size: 0.75rem;
+}
+.bi-co-chart-explain > summary {
+  cursor: pointer; padding: 0.5rem 0.85rem; font-weight: 600; color: #94a3b8; list-style: none;
+}
+.bi-co-chart-explain > summary::-webkit-details-marker { display: none; }
+.bi-co-chart-explain-body { padding: 0 0.85rem 0.85rem; color: #cbd5e1; line-height: 1.5; }
+.bi-co-chart-explain-body p { margin: 0.4rem 0 0; }
+.bi-co-chart-explain-body strong { color: #a5b4fc; }
+.bi-co-chart-h canvas { max-height: 100% !important; }
+
+.bi-co-villains { display: grid; gap: 0.65rem; }
+@media (min-width: 768px) { .bi-co-villains { grid-template-columns: repeat(2, 1fr); } }
+.bi-co-villain {
+  padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid rgba(251,191,36,0.2);
+  background: rgba(120,53,15,0.12);
+}
+.bi-co-villain .name { font-weight: 600; color: #fef3c7; font-size: 0.875rem; }
+.bi-co-villain .meta { font-size: 0.72rem; color: #a8a29e; margin-top: 0.25rem; }
+.bi-co-villain .act { font-size: 0.75rem; color: #d6d3d1; margin-top: 0.45rem; line-height: 1.4; }
+
+.bi-co-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1.25rem 0; }
+.bi-co-chip {
+  padding: 0.45rem 0.85rem; border-radius: 8px; font-size: 0.75rem; border: 1px solid var(--co-border);
+  background: rgba(51,65,85,0.35); color: #cbd5e1; max-width: 100%;
+}
+.bi-co-chip.c-comercial { border-color: rgba(129,140,248,0.35); }
+.bi-co-chip.c-logistica { border-color: rgba(56,189,248,0.35); }
+.bi-co-chip.c-cadastro { border-color: rgba(250,204,21,0.3); }
+.bi-co-chip.c-financeira { border-color: rgba(52,211,153,0.35); }
+
+.bi-co-cta {
+  display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1rem; padding: 0.65rem 1.2rem;
+  border-radius: 10px; background: rgba(129,140,248,0.2); color: #c7d2fe; font-weight: 600; font-size: 0.875rem;
+  border: 1px solid rgba(129,140,248,0.35); cursor: pointer; width: fit-content;
+}
+.bi-co-cta:hover { background: rgba(129,140,248,0.28); }
+
+.bi-co-op-section {
+  background: rgba(15,23,42,0.5); border: 1px solid var(--co-border); border-radius: 14px; padding: 1.15rem 1.25rem; margin-bottom: 1.25rem;
+}
+.bi-co-filters .bi-filter-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.65rem; }
+@media (min-width: 1024px) { .bi-co-filters .bi-filter-row { grid-template-columns: repeat(6, 1fr); } }
+
+.bi-co-mini-table { font-size: 0.8125rem; }
+.bi-co-mini-table th { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
+.bi-co-mini-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--co-border); }
+
+[x-cloak] { display: none !important; }
+
+details.bi-co-op-section > summary {
+  list-style: none;
+}
+details.bi-co-op-section > summary::-webkit-details-marker { display: none; }
+
+.bi-co-page .bi-clientes-section .bi-chart-wrap {
+  position: relative;
+  min-height: 320px;
+  height: 350px;
+}
+.bi-co-meeting .bi-clientes-section .bi-chart-wrap {
+  min-height: 400px;
+  height: 420px;
+}
+.bi-co-page .bi-clientes-section .bi-chart-wrap canvas {
+  width: 100% !important;
+  height: 100% !important;
+}

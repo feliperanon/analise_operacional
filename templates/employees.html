@@ -2521,19 +2521,17 @@
         }
     }
 
-    // Force reload after adding employee to avoid cache issues
+    // Force reload after adding employee to avoid cache issues (usa __safeSession se Tracking Prevention bloquear storage)
+    var _storage = window.__safeSession || (function(){ try { return sessionStorage; } catch(e) { return { getItem: function(){ return null; }, setItem: function(){}, removeItem: function(){} }; } })();
     const addForm = document.querySelector('form[action="/employees/add"]');
     if (addForm) {
         addForm.addEventListener('submit', function () {
-            // Set flag in sessionStorage to reload after redirect
-            sessionStorage.setItem('shouldReload', 'true');
+            _storage.setItem('shouldReload', 'true');
         });
     }
-
-    // Check if we should reload
-    if (sessionStorage.getItem('shouldReload') === 'true') {
-        sessionStorage.removeItem('shouldReload');
-        setTimeout(() => window.location.reload(), 100);
+    if (_storage.getItem('shouldReload') === 'true') {
+        _storage.removeItem('shouldReload');
+        setTimeout(function() { window.location.reload(); }, 100);
     }
 
     // --- Substitution Logic ---

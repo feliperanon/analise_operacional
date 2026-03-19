@@ -1,6 +1,6 @@
 {% extends "mobile/layout.html" %}
 
-{% block title %}Gerenciar Rotas{% endblock %}
+{% block title %}Rotas do Dia{% endblock %}
 
 {% block content %}
 <div class="min-h-screen pb-safe" style="background: var(--color-bg);" x-data="routeManager()">
@@ -14,8 +14,8 @@
                     <i data-lucide="route" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <h1 class="text-title-lg" style="color: var(--color-text);">Gerenciar Rotas</h1>
-                    <p class="text-caption-lg">Controle de rotas ativas</p>
+                    <h1 class="text-title-lg" style="color: var(--color-text);">Rotas do Dia</h1>
+                    <p class="text-caption-lg">Motoristas, ajudantes e situação</p>
                 </div>
             </div>
             <button @click="loadRoutes()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
@@ -33,64 +33,39 @@
             <div class="flex items-center justify-between mb-3">
                 <h2 class="text-title flex items-center gap-2" style="color: var(--color-text);">
                     <div class="icon-wrap w-8 h-8 flex items-center justify-center" style="background: var(--color-success-bg); color: var(--color-success);">
-                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <i data-lucide="truck" class="w-4 h-4"></i>
                     </div>
-                    Rotas Ativas
+                    Rotas
                 </h2>
-                <span class="text-caption font-bold px-3 py-1 rounded-full" style="background: var(--color-success-bg); color: var(--color-success);" x-text="activeRoutes.length"></span>
+                <span class="text-caption font-bold px-3 py-1 rounded-full" style="background: var(--color-primary-bg); color: var(--color-primary);" x-text="liveSeparation.length"></span>
             </div>
 
-            <template x-if="activeRoutes.length === 0">
+            <template x-if="liveSeparation.length === 0">
                 <div class="surface p-8 text-center">
                     <div class="icon-wrap w-14 h-14 rounded-full mx-auto mb-3"><i data-lucide="inbox" class="w-7 h-7"></i></div>
-                    <p class="text-body" style="color: var(--color-text-secondary);">Nenhuma rota ativa no momento</p>
+                    <p class="text-body" style="color: var(--color-text-secondary);">Nenhuma rota no momento</p>
                 </div>
             </template>
 
-            <div class="space-y-4">
-                <template x-for="(routes, employeeId) in groupedRoutes" :key="employeeId">
-                    <div class="surface overflow-hidden">
-                        <div class="p-4 border-b" style="border-color: var(--color-border-light); background: var(--color-primary-bg);">
-                            <h3 class="text-body font-semibold" style="color: var(--color-text);" x-text="routes[0].employee_name"></h3>
-                        </div>
-                        <div class="p-4 space-y-3">
-                            <template x-for="route in routes" :key="route.id">
-                                <div class="surface p-3">
-                                    <div class="flex justify-between items-start gap-2 mb-3">
-                                        <div class="flex items-center gap-3 flex-1 min-w-0">
-                                            <div class="icon-wrap w-10 h-10 flex-shrink-0"><i data-lucide="building-2" class="w-5 h-5"></i></div>
-                                            <div class="min-w-0">
-                                                <p class="text-caption font-semibold" style="color: var(--color-text-muted);">Cliente</p>
-                                                <p class="text-body font-medium truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
-                                            </div>
-                                        </div>
-                                        <div class="flex gap-1">
-                                            <button @click="openEditModal(route)" class="touch-target-icon rounded-lg icon-wrap flex items-center justify-center">
-                                                <i data-lucide="pencil" class="w-4 h-4"></i>
-                                            </button>
-                                            <button @click="openDeleteModal(route)" class="touch-target-icon rounded-lg flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
-                                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        <div class="flex items-center gap-2 p-2 rounded-lg" style="background: var(--color-border-light);">
-                                            <div class="icon-wrap w-8 h-8 flex-shrink-0" style="background: var(--color-warning-bg); color: var(--color-warning);"><i data-lucide="clock" class="w-4 h-4"></i></div>
-                                            <div>
-                                                <p class="text-caption" style="color: var(--color-text-muted);">Início</p>
-                                                <p class="text-body font-mono font-semibold" style="color: var(--color-text);" x-text="route.start_time"></p>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-2 p-2 rounded-lg" style="background: var(--color-border-light);">
-                                            <div class="icon-wrap w-8 h-8 flex-shrink-0" style="background: var(--color-success-bg); color: var(--color-success);"><i data-lucide="scale" class="w-4 h-4"></i></div>
-                                            <div>
-                                                <p class="text-caption" style="color: var(--color-text-muted);">Peso</p>
-                                                <p class="text-body font-semibold" style="color: var(--color-text);" x-text="formatTonnage(route.tonnage)"></p>
-                                            </div>
-                                        </div>
-                                    </div>
+            <div class="space-y-3">
+                <template x-for="card in liveSeparation" :key="card.employee_id">
+                    <div class="surface overflow-hidden rounded-xl" :class="statusCardClass(card)">
+                        <div class="p-4 flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-body" style="background: var(--color-border-light); color: var(--color-text);" x-text="(card.employee_name || '?')[0]"></div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-body font-bold truncate" style="color: var(--color-text);" x-text="card.employee_name"></p>
+                                <p class="text-caption truncate mt-0.5" style="color: var(--color-text-muted);">
+                                    Ajud.: <span x-text="(card.helper_names || []).join(', ') || '—'"></span>
+                                    <span class="mx-1">·</span>
+                                    Placa: <span x-text="card.plate || '—'"></span>
+                                    <span class="mx-1">·</span>
+                                    <span x-text="(card.total_kg || 0) + ' kg'"></span>
+                                </p>
+                                <div class="flex items-center gap-2 mt-2 flex-wrap">
+                                    <span class="text-caption font-semibold" style="color: var(--color-text-muted);" x-text="(card.completed_deliveries || 0) + '/' + (card.total_deliveries || 0) + ' entregas'"></span>
+                                    <span class="text-caption font-bold px-2 py-0.5 rounded" :class="statusBadgeClass(card)" x-text="statusLabel(card)"></span>
                                 </div>
-                            </template>
+                            </div>
                         </div>
                     </div>
                 </template>
@@ -127,109 +102,14 @@
             </div>
         </div>
     </div>
-
-    <!-- Edit Modal -->
-    <div x-show="showEditModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.away="showEditModal = false">
-        <div @click.stop class="w-full max-w-md rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
-            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
-                <div class="icon-wrap w-12 h-12 flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="pencil" class="w-6 h-6"></i></div>
-                <h3 class="text-title" style="color: var(--color-text);">Editar Rota</h3>
-            </div>
-            <div class="p-4 space-y-4 overflow-y-auto">
-                <div>
-                    <label class="text-section block mb-2" style="color: var(--color-text);">Colaborador</label>
-                    <select x-model="editForm.employee_id" class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                        <template x-for="emp in allEmployees" :key="emp.id">
-                            <option :value="emp.id" x-text="`${emp.registration_id} - ${emp.name}`"></option>
-                        </template>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-section block mb-2" style="color: var(--color-text);">Cliente</label>
-                    <select x-model="editForm.client_id" class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                        <template x-for="client in allClients" :key="client.id">
-                            <option :value="client.id" x-text="client.name"></option>
-                        </template>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-section block mb-2" style="color: var(--color-text);">Tonelagem (kg)</label>
-                    <input type="number" x-model="editForm.tonnage" step="0.01" placeholder="0.00"
-                        class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                </div>
-                <div>
-                    <label class="text-section block mb-2" style="color: var(--color-text);">Justificativa *</label>
-                    <textarea x-model="editForm.reason" rows="3" placeholder="Mínimo 5 caracteres"
-                        class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2 resize-none"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);"></textarea>
-                </div>
-            </div>
-            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
-                <button @click="showEditModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-                <button @click="saveEdit()" :disabled="isSubmitting" class="flex-1 py-3 rounded-lg font-semibold text-body text-white disabled:opacity-50" style="background: var(--color-primary);">
-                    <span x-text="isSubmitting ? 'Salvando...' : 'Salvar'"></span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Modal -->
-    <div x-show="showDeleteModal" x-transition class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.5);" @click.away="showDeleteModal = false">
-        <div @click.stop class="w-full max-w-md rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
-            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
-                <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
-                    <i data-lucide="trash-2" class="w-6 h-6"></i>
-                </div>
-                <h3 class="text-title" style="color: var(--color-text);">Excluir Rota</h3>
-            </div>
-            <div class="p-4 space-y-4">
-                <div class="rounded-lg p-3 text-body" style="background: var(--color-danger-bg); color: var(--color-danger);">Esta ação não pode ser desfeita!</div>
-                <div class="surface p-3 space-y-1">
-                    <p class="text-body font-medium" style="color: var(--color-text);" x-text="deleteForm.employee_name"></p>
-                    <p class="text-caption" x-text="deleteForm.client_name"></p>
-                </div>
-                <div>
-                    <label class="text-section block mb-2" style="color: var(--color-text);">Justificativa *</label>
-                    <textarea x-model="deleteForm.reason" rows="3" placeholder="Mínimo 5 caracteres"
-                        class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2 resize-none"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);"></textarea>
-                </div>
-            </div>
-            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
-                <button @click="showDeleteModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-                <button @click="confirmDelete()" :disabled="isSubmitting" class="flex-1 py-3 rounded-lg font-semibold text-body text-white disabled:opacity-50" style="background: var(--color-danger);">
-                    <span x-text="isSubmitting ? 'Excluindo...' : 'Excluir'"></span>
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
     function routeManager() {
         return {
             isLoading: true,
-            isSubmitting: false,
-            activeRoutes: [],
+            liveSeparation: [],
             employeesWithoutRoute: [],
-            allClients: [],
-            allEmployees: [],
-            showEditModal: false,
-            showDeleteModal: false,
-            editForm: { route_id: null, employee_id: null, client_id: null, tonnage: 0, reason: '' },
-            deleteForm: { route_id: null, employee_name: '', client_name: '', reason: '' },
-
-            get groupedRoutes() {
-                const grouped = {};
-                this.activeRoutes.forEach(route => {
-                    if (!grouped[route.employee_id]) grouped[route.employee_id] = [];
-                    grouped[route.employee_id].push(route);
-                });
-                return grouped;
-            },
 
             init() { this.loadRoutes(); this.$nextTick(() => lucide.createIcons()); },
 
@@ -239,10 +119,8 @@
                     const res = await fetch('/api/mobile/admin/routes');
                     const data = await res.json();
                     if (data.success) {
-                        this.activeRoutes = data.active_routes || [];
+                        this.liveSeparation = data.live_separation || [];
                         this.employeesWithoutRoute = data.employees_without_route || [];
-                        this.allClients = data.all_clients || [];
-                        this.allEmployees = data.all_employees || [];
                     } else {
                         alert('Erro: ' + (data.error || ''));
                     }
@@ -254,77 +132,49 @@
                 }
             },
 
-            openEditModal(route) {
-                this.editForm = { route_id: route.id, employee_id: route.employee_id, client_id: route.client_id, tonnage: route.tonnage, reason: '' };
-                this.showEditModal = true;
+            statusLabel(card) {
+                const st = card.route_state || '';
+                if (st === 'closed') return 'Encerrada';
+                if (st === 'not_started') return 'Rota parada';
+                if (st === 'route_started') return 'Início';
+                if (st === 'all_delivered') return 'Entregues';
+                const total = card.total_deliveries || 0;
+                const completed = card.completed_deliveries || 0;
+                const openCount = total - completed;
+                const pct = total ? (completed / total * 100) : 0;
+                if (openCount >= 5 || pct < 25) return 'Crítico';
+                if (openCount >= 3 || pct < 50) return 'Atenção';
+                return 'Normal';
             },
 
-            async saveEdit() {
-                if (!this.editForm.reason || this.editForm.reason.trim().length < 5) {
-                    alert('Justificativa obrigatória (mínimo 5 caracteres)');
-                    return;
-                }
-                this.isSubmitting = true;
-                try {
-                    const res = await fetch(`/api/mobile/admin/routes/${this.editForm.route_id}/edit`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            employee_id: parseInt(this.editForm.employee_id),
-                            client_id: parseInt(this.editForm.client_id),
-                            tonnage: parseFloat(this.editForm.tonnage),
-                            reason: this.editForm.reason
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        alert('Rota editada com sucesso!');
-                        this.showEditModal = false;
-                        await this.loadRoutes();
-                    } else {
-                        alert('Erro: ' + (data.error || ''));
-                    }
-                } catch (e) {
-                    alert('Erro de conexão');
-                } finally {
-                    this.isSubmitting = false;
-                }
+            statusBadgeClass(card) {
+                const st = card.route_state || '';
+                if (st === 'closed') return 'bg-emerald-500/30 text-emerald-200';
+                if (st === 'not_started') return 'bg-slate-600/50 text-slate-400';
+                if (st === 'route_started') return 'bg-sky-500/25 text-sky-300';
+                if (st === 'all_delivered') return 'bg-violet-500/35 text-violet-200';
+                const total = card.total_deliveries || 0;
+                const completed = card.completed_deliveries || 0;
+                const openCount = total - completed;
+                const pct = total ? (completed / total * 100) : 0;
+                if (openCount >= 5 || pct < 25) return 'bg-red-500/20 text-red-300';
+                if (openCount >= 3 || pct < 50) return 'bg-amber-500/25 text-amber-300';
+                return 'bg-slate-600/50 text-slate-400';
             },
 
-            openDeleteModal(route) {
-                this.deleteForm = { route_id: route.id, employee_name: route.employee_name, client_name: route.client_name, reason: '' };
-                this.showDeleteModal = true;
-            },
-
-            async confirmDelete() {
-                if (!this.deleteForm.reason || this.deleteForm.reason.trim().length < 5) {
-                    alert('Justificativa obrigatória (mínimo 5 caracteres)');
-                    return;
-                }
-                this.isSubmitting = true;
-                try {
-                    const res = await fetch(`/api/mobile/admin/routes/${this.deleteForm.route_id}/delete`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ reason: this.deleteForm.reason })
-                    });
-                    const data = await res.json();
-                    if (data.success) {
-                        alert('Rota excluída com sucesso!');
-                        this.showDeleteModal = false;
-                        await this.loadRoutes();
-                    } else {
-                        alert('Erro: ' + (data.error || ''));
-                    }
-                } catch (e) {
-                    alert('Erro de conexão');
-                } finally {
-                    this.isSubmitting = false;
-                }
-            },
-
-            formatTonnage(tonnage) {
-                return `${parseFloat(tonnage || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg`;
+            statusCardClass(card) {
+                const st = card.route_state || '';
+                if (st === 'closed') return 'border-emerald-500/50';
+                if (st === 'not_started') return 'border-slate-500/60';
+                if (st === 'route_started') return 'border-sky-500/50';
+                if (st === 'all_delivered') return 'border-violet-500/50';
+                const total = card.total_deliveries || 0;
+                const completed = card.completed_deliveries || 0;
+                const openCount = total - completed;
+                const pct = total ? (completed / total * 100) : 0;
+                if (openCount >= 5 || pct < 25) return 'border-red-500/50';
+                if (openCount >= 3 || pct < 50) return 'border-amber-500/50';
+                return 'border-slate-500/40';
             }
         };
     }

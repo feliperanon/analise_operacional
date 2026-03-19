@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="p-6 max-w-5xl mx-auto">
+    <h1 class="text-2xl font-bold text-white mb-2">Autorizações de entrega (fora de 300 m)</h1>
+    <p class="text-slate-400 text-sm mb-6">Motoristas longe do cliente solicitam liberação aqui. Aprovar libera uma única tentativa de “Iniciar”.</p>
+
+    <div class="mb-8">
+        <h2 class="text-lg font-semibold text-amber-400 mb-3 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            Pendentes (<span id="dac-pending-count">0</span>)
+        </h2>
+        <div id="dac-pending-list" class="space-y-3"></div>
+        <p id="dac-pending-empty" class="text-slate-500 text-sm hidden">Nenhuma solicitação pendente.</p>
+    </div>
+
+    <div>
+        <h2 class="text-lg font-semibold text-slate-300 mb-3">Respondidas recentemente</h2>
+        <div id="dac-recent-list" class="space-y-2 text-sm"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    function esc(s) {
+        if (!s) return '';
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    }
+    function fmtDist(m) {
+        if (m == null || m === '') return '—';
+        const n = Number(m);
+        if (n >= 1000) return (n / 1000).toFixed(1).replace('.', ',') + ' km';
+        return Math.round(n) + ' m';
+    }
+    function cardPending(row) {
+        return `
+        <div class="rounded-xl border border-amber-500/30 bg-slate-800/80 p-4" data-id="${row.id}">
+            <div class="flex flex-wrap justify-between gap-2 mb-2">
+                <span class="font-bold text-white">${esc(row.driver_name)}</span>
+                <span class="text-slate-400 text-xs">${esc(row.requested_at || '')}</span>
+            </div>
+            <p class="text-slate-300 text-sm mb-1"><strong>Cliente:</strong> ${esc(row.client_name || '—')}</p>
+            <p class="text-slate-400 text-sm mb-1"><strong>Distância:</strong> ${fmtDist(row.distancia_metros)}</p>
+            <p class="text-slate-300 text-sm mb-3"><strong>Motivo:</strong> ${esc(row.motivo || '—')}</p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" data-action="approve" data-id="${row.id}" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">Aprovar</button>
+                <button type="button" data-action="deny" data-id="${row.id}" class="px-4 py-2 rounded-lg bg-rose-600/80 hover:bg-rose-500 text-white text-sm font-semibold">Negar</button>
+            </div>
+        </div>`;
+    }
+    function cardRecent(row) {
+        const ok = row.status === 'approved';
+        return `<div class="rounded-lg border px-3 py-2 ${ok ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'}">
+            <span class="font-medium ${ok ? 'text-emerald-400' : 'text-rose-400'}">${ok ? 'Aprovado' : 'Negado'}</span>
+            · ${esc(row.driver_name)} · ${esc(row.client_name || '')}
+            ${row.obs ? '<span class="text-slate-500"> — ' + esc(row.obs) + '</span>' : ''}
+        </div>`;
+    }
+    async function load() {
+        const r = await fetch('/api/admin/delivery-auth-requests', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const data = await r.json();
+        const pend = data.pending || [];
+        document.getElementById('dac-pending-count').textContent = pend.length;
+        const pl = document.getElementById('dac-pending-list');
+        const empty = document.getElementById('dac-pending-empty');
+        if (pend.length === 0) {
+            pl.innerHTML = '';
+            empty.classList.remove('hidden');
+        } else {
+            empty.classList.add('hidden');
+            pl.innerHTML = pend.map(cardPending).join('');
+        }
+        document.getElementById('dac-recent-list').innerHTML = (data.recent || []).map(cardRecent).join('') || '<p class="text-slate-500">Nenhum registro.</p>';
+    }
+    document.getElementById('dac-pending-list').addEventListener('click', async function(e) {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const action = btn.getAttribute('data-action');
+        let obs = '';
+        if (action === 'deny') {
+            obs = prompt('Motivo da negativa (opcional):') || '';
+        }
+        btn.disabled = true;
+        try {
+            const r = await fetch('/api/admin/delivery-auth-requests/' + id, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ status: action === 'approve' ? 'approved' : 'denied', obs: obs || null })
+            });
+            const j = await r.json();
+            if (!r.ok) alert(j.error || 'Erro');
+            await load();
+        } catch (err) {
+            alert('Erro de rede');
+        }
+        btn.disabled = false;
+    });
+    load();
+    setInterval(load, 25000);
+})();
+</script>
+{% endblock %}
