@@ -1082,13 +1082,14 @@ def init_devolucoes_router(
                     {"ok": False, "error": "Data início deve ser anterior à data fim."},
                     status_code=400,
                 )
-            reconnected = reconnect_orphan_devolucoes(session, start_date, end_date)
+            reconnected, not_found = reconnect_orphan_devolucoes(session, start_date, end_date)
             backfill_updated = backfill_duplicate_links_period(session, start_date, end_date)
             session.commit()
             return JSONResponse({
                 "ok": True,
                 "reconnected": reconnected,
                 "duplicates_linked": backfill_updated,
+                "not_found": not_found,
             })
         except Exception as e:
             logger.exception(f"Erro ao reconectar órfãos: {e}")

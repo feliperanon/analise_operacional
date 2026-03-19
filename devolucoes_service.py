@@ -971,15 +971,20 @@ def link_excel_rows_to_canonical(session: Session, canonical: Devolucao) -> int:
 
 
 def backfill_duplicate_links_period(session: Session, start_date: str, end_date: str) -> int:
-    """No período, agrupa por cliente+motorista+dia+valor e liga Excel ao registro de maior prioridade."""
+    """No período, agrupa por cliente+motorista+data_efetiva+valor e liga Excel ao registro de maior prioridade.
+    Usa data_entrega ou data_romaneio para agrupar (assim Mobile 13/03 e Excel romaneio 12/03 entrega 13/03 batem)."""
+    eff_date_col = func.coalesce(Devolucao.data_entrega, Devolucao.data_romaneio)
     rows = session.exec(
         select(Devolucao)
-        .where(Devolucao.data_romaneio >= start_date)
-        .where(Devolucao.data_romaneio <= end_date)
+        .where(eff_date_col >= start_date)
+        .where(eff_date_col <= end_date)
     ).all()
     groups: Dict[tuple, List[Devolucao]] = {}
     for d in rows:
-        k = (d.client_id, d.motorista_id, d.data_romaneio, round(float(d.valor or 0), 2))
+        data_efetiva = str(d.data_entrega or d.data_romaneio or "")[:10]
+        if not data_efetiva:
+            continue
+        k = (d.client_id, d.motorista_id, data_efetiva, round(float(d.valor or 0), 2))
         groups.setdefault(k, []).append(d)
     updated = 0
     for lst in groups.values():
@@ -1141,13 +1146,13 @@ def reconnect_orphan_devolucoes(
     session: Session,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-) -> int:
+) -> Tuple[int, List[Dict[str, Any]]]:
     """
     Reconecta devoluções com ORPHAN_ROUTE às rotas existentes.
     - Se a rota já tem devolução Mobile/Web: marca órfão Excel como DUPLICATE_EXCEL (duplicata).
     - Caso contrário: vincula route_id e limpa validation_status.
     Não altera o status da Route.
-    Retorna quantidade de devoluções processadas (vinculadas ou marcadas como duplicata).
+    Retorna (quantidade processada, lista de não encontrados com motivo).
     """
     eff_date = func.coalesce(Devolucao.data_entrega, Devolucao.data_romaneio)
     q = (
@@ -1162,11 +1167,26 @@ def reconnect_orphan_devolucoes(
     if end_date:
         q = q.where(eff_date <= end_date)
     orphans = session.exec(q.order_by(Devolucao.data_romaneio, Devolucao.id)).all()
+    client_map: Dict[int, str] = {}
+    emp_map: Dict[int, str] = {}
     updated = 0
+    not_found: List[Dict[str, Any]] = []
     for d in orphans:
+        if d.client_id and d.client_id not in client_map:
+            c = session.get(Client, d.client_id)
+            client_map[d.client_id] = (getattr(c, "name", None) or getattr(c, "razao_social", None) or "") if c else "-"
+        if d.motorista_id and d.motorista_id not in emp_map:
+            m = session.get(Employee, d.motorista_id)
+            emp_map[d.motorista_id] = (getattr(m, "name", None) or "") if m else "-"
+        client_name = client_map.get(d.client_id, "-")
+        motorista_name = emp_map.get(d.motorista_id, "-")
+        data_efetiva = str(d.data_entrega or d.data_romaneio or "")[:10]
+        valor_dev = float(d.valor or 0)
         dates_to_try = [d.data_entrega, d.data_romaneio]
         dates_to_try = [str(x)[:10] if x else None for x in dates_to_try]
         dates_to_try = [x for x in dates_to_try if x]
+        matched = False
+        reason_not_found = None
         for date_str in dates_to_try:
             routes = list(session.exec(
                 select(Route)
@@ -1176,28 +1196,51 @@ def reconnect_orphan_devolucoes(
                 .where(Route.date == date_str)
             ).all())
             if not routes:
+                routes_client = list(session.exec(
+                    select(Route)
+                    .where(Route.type == "delivery")
+                    .where(Route.client_id == d.client_id)
+                    .where(Route.date == date_str)
+                ).all())
+                if routes_client:
+                    r0 = routes_client[0]
+                    emp_route = session.get(Employee, r0.employee_id) if r0.employee_id else None
+                    motorista_rota = (getattr(emp_route, "name", None) or "") if emp_route else "—"
+                    reason_not_found = "Tudo igual (cliente, data, valor). Motorista na planilha: %s. Sugestão: corrigir para o motorista da rota: %s." % (motorista_name, motorista_rota)
                 continue
+            if len(routes) > 1 and valor_dev:
+                by_valor = [r for r in routes if r.valor_financeiro and abs(float(r.valor_financeiro) - valor_dev) <= VAL_DUP_TOL]
+                if by_valor:
+                    routes = by_valor
             route_id = routes[0].id
-            # Verifica se já existe devolução Mobile/Web nessa rota (canônica)
             canon = session.exec(
                 select(Devolucao)
                 .where(Devolucao.route_id == route_id)
                 .where(Devolucao.id != d.id)
             ).first()
             if canon and _source_rank(canon.source) > _source_rank("EXCEL"):
-                # Órfão Excel é duplicata da devolução Mobile/Web — marcar como tal
                 d.duplicate_of_id = canon.id
                 d.validation_status = "DUPLICATE_EXCEL"
                 session.add(d)
                 updated += 1
+                matched = True
             else:
-                # Nenhuma devolução canônica na rota — vincular o órfão
                 d.route_id = route_id
                 d.validation_status = ""
                 session.add(d)
                 updated += 1
+                matched = True
             break
-    return updated
+        if not matched:
+            reason = reason_not_found or "Rota não encontrada para cliente+data"
+            not_found.append({
+                "client_name": client_name,
+                "motorista_name": motorista_name,
+                "data_efetiva": data_efetiva,
+                "valor": valor_dev,
+                "reason": reason,
+            })
+    return updated, not_found
 
 
 def reconcile_all_devolucoes_with_routes(

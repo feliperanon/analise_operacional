@@ -444,9 +444,17 @@ function devolucoesTable(cfg) {
                 if (j.ok) {
                     const recon = j.reconnected || 0;
                     const dup = j.duplicates_linked || 0;
+                    const nf = j.not_found || [];
                     let msg = 'Reconectados: ' + recon;
                     if (dup > 0) msg += '. Duplicatas ligadas: ' + dup;
                     msg += '.';
+                    if (nf.length > 0) {
+                        msg += '\n\nNão encontrados (' + nf.length + '):';
+                        nf.slice(0, 10).forEach(function(x) {
+                            msg += '\n• ' + (x.client_name || '-') + ' | ' + (x.data_efetiva || '') + ' | R$ ' + (x.valor || 0).toFixed(2) + ' — ' + (x.reason || '');
+                        });
+                        if (nf.length > 10) msg += '\n... e mais ' + (nf.length - 10);
+                    }
                     alert(msg);
                     window.location.reload();
                 } else {
