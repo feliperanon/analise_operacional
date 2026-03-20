@@ -1,0 +1,650 @@
+{% set guide_context = guide_context|default('dashboard') %}
+{% set guide_auto_open = guide_auto_open|default(false) %}
+{% set guide_show_fab = guide_show_fab|default(false) %}
+
+<div
+    x-data="driverGuideController({ context: {{ guide_context|tojson }}, autoOpen: {{ guide_auto_open|tojson }}, showFab: {{ guide_show_fab|tojson }} })"
+    x-init="init()"
+    class="driver-guide-host"
+>
+    {% if guide_show_fab %}
+    <button
+        type="button"
+        @click="openFromContext()"
+        class="driver-guide-fab"
+        aria-label="Abrir guia do motorista"
+    >
+        <i data-lucide="book-open" class="w-4 h-4"></i>
+        <span>Guia</span>
+    </button>
+    {% endif %}
+
+    <div
+        x-show="isOpen"
+        x-cloak
+        class="driver-guide-overlay"
+        x-transition.opacity
+        @keydown.escape.window="close()"
+    >
+        <div class="driver-guide-backdrop" @click="close()"></div>
+
+        <div
+            class="driver-guide-sheet"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-8"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 translate-y-8"
+        >
+            <div class="driver-guide-handle"></div>
+
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <span class="driver-guide-kicker">Guia do Motorista</span>
+                    <h3 class="driver-guide-title">Como usar o aplicativo de entrega</h3>
+                    <p class="driver-guide-subtitle">Do login ao encerramento da rota, em linguagem simples.</p>
+                </div>
+                <button type="button" @click="close()" class="driver-guide-close" aria-label="Fechar guia">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="driver-guide-progress-track">
+                <div class="driver-guide-progress-fill" :style="`width: ${progressPercent}%`"></div>
+            </div>
+
+            <div class="driver-guide-steps no-scrollbar">
+                <template x-for="(step, idx) in steps" :key="step.id">
+                    <button
+                        type="button"
+                        @click="jumpTo(idx)"
+                        class="driver-guide-step-chip"
+                        :class="idx === stepIndex ? 'driver-guide-step-chip-active' : ''"
+                    >
+                        <span class="driver-guide-step-chip-number" x-text="idx + 1"></span>
+                        <span class="truncate" x-text="step.shortTitle"></span>
+                    </button>
+                </template>
+            </div>
+
+            <div class="driver-guide-card driver-guide-hero-card">
+                <div class="driver-guide-stage-pill" x-text="`Etapa ${stepIndex + 1} de ${steps.length}`"></div>
+                <h4 class="driver-guide-section-title" x-text="currentStep.title"></h4>
+                <p class="driver-guide-body" x-text="currentStep.summary"></p>
+            </div>
+
+            <div class="driver-guide-card">
+                <p class="driver-guide-list-title">O que fazer</p>
+                <div class="space-y-2.5">
+                    <template x-for="item in currentStep.items" :key="item">
+                        <div class="driver-guide-list-row">
+                            <span class="driver-guide-list-dot"></span>
+                            <p class="driver-guide-body" x-text="item"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="driver-guide-card driver-guide-note-card" x-show="currentStep.tip">
+                <div class="flex items-start gap-3">
+                    <div class="driver-guide-note-icon">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="driver-guide-note-title">Atenção</p>
+                        <p class="driver-guide-body" x-text="currentStep.tip"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="driver-guide-actions">
+                <button
+                    type="button"
+                    @click="prevStep()"
+                    class="driver-guide-secondary-btn"
+                    :disabled="stepIndex === 0"
+                >
+                    Voltar
+                </button>
+
+                <a
+                    x-show="showActionButton()"
+                    :href="currentStep.href"
+                    class="driver-guide-link-btn"
+                    x-text="currentStep.cta"
+                ></a>
+
+                <button
+                    type="button"
+                    @click="nextStep()"
+                    class="driver-guide-primary-btn"
+                    x-text="stepIndex === steps.length - 1 ? 'Concluir guia' : 'Próximo passo'"
+                ></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .driver-guide-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2147482500;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        padding: 1rem;
+    }
+
+    .driver-guide-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.72);
+        backdrop-filter: blur(4px);
+    }
+
+    .driver-guide-sheet {
+        position: relative;
+        width: min(100%, 32rem);
+        max-height: calc(100dvh - 2rem);
+        overflow-y: auto;
+        border-radius: 28px 28px 20px 20px;
+        border: 1px solid rgba(96, 165, 250, 0.22);
+        background:
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 36%),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(2, 6, 23, 0.98) 100%);
+        box-shadow: 0 30px 80px rgba(2, 6, 23, 0.45);
+        padding: 1rem;
+        color: #e2e8f0;
+    }
+
+    .driver-guide-handle {
+        width: 52px;
+        height: 5px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.45);
+        margin: 0 auto 0.9rem;
+    }
+
+    .driver-guide-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.38rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.16);
+        color: #93c5fd;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .driver-guide-title {
+        margin: 0.75rem 0 0;
+        color: #f8fafc;
+        font-size: 1.25rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .driver-guide-subtitle,
+    .driver-guide-body {
+        margin: 0;
+        color: #cbd5e1;
+        font-size: 0.92rem;
+        line-height: 1.5;
+    }
+
+    .driver-guide-subtitle {
+        margin-top: 0.35rem;
+    }
+
+    .driver-guide-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        background: rgba(15, 23, 42, 0.7);
+        color: #e2e8f0;
+        flex-shrink: 0;
+    }
+
+    .driver-guide-progress-track {
+        width: 100%;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(30, 41, 59, 0.96);
+        overflow: hidden;
+        margin: 1rem 0 0.85rem;
+    }
+
+    .driver-guide-progress-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 55%, #34d399 100%);
+        box-shadow: 0 0 16px rgba(59, 130, 246, 0.35);
+        transition: width 0.25s ease;
+    }
+
+    .driver-guide-steps {
+        display: flex;
+        gap: 0.55rem;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+        margin-bottom: 0.95rem;
+    }
+
+    .driver-guide-step-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        min-width: max-content;
+        border-radius: 999px;
+        border: 1px solid rgba(51, 65, 85, 0.92);
+        background: rgba(15, 23, 42, 0.72);
+        color: #94a3b8;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        transition: all 0.2s ease;
+    }
+
+    .driver-guide-step-chip-active {
+        border-color: rgba(96, 165, 250, 0.78);
+        background: rgba(30, 64, 175, 0.32);
+        color: #eff6ff;
+        box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+    }
+
+    .driver-guide-step-chip-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.14);
+        font-size: 0.72rem;
+        font-weight: 800;
+        flex-shrink: 0;
+    }
+
+    .driver-guide-card {
+        border-radius: 22px;
+        border: 1px solid rgba(51, 65, 85, 0.84);
+        background: rgba(15, 23, 42, 0.72);
+        padding: 1rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .driver-guide-hero-card {
+        background:
+            linear-gradient(135deg, rgba(30, 64, 175, 0.24) 0%, rgba(15, 23, 42, 0.82) 52%, rgba(15, 118, 110, 0.18) 100%);
+        border-color: rgba(96, 165, 250, 0.3);
+    }
+
+    .driver-guide-stage-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.38rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.14);
+        color: #bfdbfe;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .driver-guide-section-title {
+        margin: 0.85rem 0 0.35rem;
+        color: #f8fafc;
+        font-size: 1.05rem;
+        font-weight: 800;
+        line-height: 1.35;
+    }
+
+    .driver-guide-list-title,
+    .driver-guide-note-title {
+        margin: 0 0 0.7rem;
+        color: #e2e8f0;
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .driver-guide-note-title {
+        margin-bottom: 0.25rem;
+        color: #dbeafe;
+    }
+
+    .driver-guide-list-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.7rem;
+    }
+
+    .driver-guide-list-dot {
+        width: 0.55rem;
+        height: 0.55rem;
+        margin-top: 0.45rem;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+        box-shadow: 0 0 10px rgba(96, 165, 250, 0.35);
+        flex-shrink: 0;
+    }
+
+    .driver-guide-note-card {
+        background: rgba(30, 64, 175, 0.15);
+        border-color: rgba(96, 165, 250, 0.24);
+    }
+
+    .driver-guide-note-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 14px;
+        background: rgba(59, 130, 246, 0.18);
+        color: #93c5fd;
+        flex-shrink: 0;
+    }
+
+    .driver-guide-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+        gap: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    .driver-guide-secondary-btn,
+    .driver-guide-primary-btn,
+    .driver-guide-link-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 52px;
+        border-radius: 18px;
+        padding: 0.9rem 1rem;
+        font-size: 0.95rem;
+        font-weight: 800;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+    .driver-guide-secondary-btn {
+        border: 1px solid rgba(71, 85, 105, 0.95);
+        background: rgba(15, 23, 42, 0.82);
+        color: #e2e8f0;
+    }
+
+    .driver-guide-secondary-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+    .driver-guide-link-btn {
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        background: rgba(30, 64, 175, 0.16);
+        color: #dbeafe;
+    }
+
+    .driver-guide-primary-btn {
+        border: 1px solid rgba(96, 165, 250, 0.22);
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        color: #ffffff;
+        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
+        grid-column: span 2;
+    }
+
+    .driver-guide-fab {
+        position: fixed;
+        right: 1rem;
+        bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        z-index: 90;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-radius: 999px;
+        border: 1px solid rgba(96, 165, 250, 0.24);
+        background: rgba(15, 23, 42, 0.94);
+        color: #eff6ff;
+        padding: 0.78rem 0.95rem;
+        font-size: 0.82rem;
+        font-weight: 800;
+        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.32);
+    }
+
+    @media (min-width: 640px) {
+        .driver-guide-overlay {
+            align-items: center;
+        }
+
+        .driver-guide-sheet {
+            border-radius: 28px;
+        }
+    }
+</style>
+
+<script>
+    if (typeof window.driverGuideController !== 'function') {
+        window.openDriverGuide = function () {
+            window.dispatchEvent(new CustomEvent('nl-driver-guide:open'));
+        };
+
+        window.driverGuideController = function (config) {
+            const defaultContext = (config && config.context) || 'dashboard';
+            return {
+                context: defaultContext,
+                autoOpen: !!(config && config.autoOpen),
+                showFab: !!(config && config.showFab),
+                isOpen: false,
+                stepIndex: 0,
+                currentPath: window.location.pathname,
+                storageKey: 'nl_driver_guide_v1_seen',
+                sessionAutoKey: 'nl_driver_guide_v1_auto',
+                previousOverflow: '',
+                steps: [
+                    {
+                        id: 'login',
+                        shortTitle: 'Login',
+                        title: 'Entre usando sua matrícula',
+                        summary: 'Tudo começa na tela de entrada. O motorista só precisa informar a matrícula e tocar em Entrar no app.',
+                        items: [
+                            'Digite a matrícula exatamente como foi cadastrada.',
+                            'Se não conseguir entrar, confira se não há número faltando.',
+                            'Depois do login você será levado para a home do aplicativo.'
+                        ],
+                        tip: 'Nesta tela não há senha. Se a matrícula não funcionar, fale com a liderança ou com o RH.',
+                        href: '/mobile/login',
+                        cta: 'Abrir login'
+                    },
+                    {
+                        id: 'home',
+                        shortTitle: 'Home',
+                        title: 'Veja sua missão do dia na home',
+                        summary: 'Na tela inicial você confere quem está logado, nível, XP, avisos importantes e o atalho principal para entrar nas entregas.',
+                        items: [
+                            'Confirme seu nome e os avisos do dia.',
+                            'Procure o bloco principal da operação para abrir ou continuar a rota.',
+                            'Use a home para acessar checklist, devoluções, conquistas e histórico.'
+                        ],
+                        tip: 'Se estiver totalmente leigo, siga a ordem: checklist primeiro, rota depois.',
+                        href: '/mobile/dashboard',
+                        cta: 'Ir para a home'
+                    },
+                    {
+                        id: 'checklist',
+                        shortTitle: 'Checklist',
+                        title: 'Faça o checklist do caminhão antes de sair',
+                        summary: 'O checklist confirma se o caminhão está pronto. Também é aqui que você registra problemas e abre chamado, se necessário.',
+                        items: [
+                            'Escolha o caminhão correto na lista.',
+                            'Informe o KM do hodômetro exatamente como está no painel.',
+                            'Marque cada item como OK ou Falha.',
+                            'Se houver problema, descreva no campo de observação e abra chamado.'
+                        ],
+                        tip: 'Nunca pule o checklist. Ele protege o motorista, o caminhão e a operação.',
+                        href: '/mobile/routine/checklist',
+                        cta: 'Abrir checklist'
+                    },
+                    {
+                        id: 'start-route',
+                        shortTitle: 'Iniciar rota',
+                        title: 'Informe placa, KM de saída e ajudantes',
+                        summary: 'Na tela de entregas você escolhe a rota do dia e inicia a operação. O sistema precisa da placa e do KM de saída.',
+                        items: [
+                            'Confira se o dia da rota está correto.',
+                            'Digite a placa completa do caminhão.',
+                            'Preencha o KM de saída.',
+                            'Adicione os ajudantes quando houver equipe com você.',
+                            'Toque em Iniciar Rota.'
+                        ],
+                        tip: 'Sem placa ou KM de saída válidos a rota não inicia. O ajudante é opcional, mas deve ser informado quando existir.',
+                        href: '/mobile/delivery',
+                        cta: 'Abrir rota'
+                    },
+                    {
+                        id: 'during-route',
+                        shortTitle: 'Durante a rota',
+                        title: 'Inicie e finalize cada entrega no momento certo',
+                        summary: 'Depois da rota aberta, cada parada deve ser tratada dentro do app para manter o acompanhamento correto.',
+                        items: [
+                            'Na próxima parada, toque em Iniciar quando começar o atendimento.',
+                            'Após concluir a entrega, toque em Finalizar.',
+                            'Use a busca para achar cliente, código ou pedido quando precisar.',
+                            'Acompanhe o progresso da rota pelo painel superior.'
+                        ],
+                        tip: 'Não deixe parada aberta sem necessidade. Finalizar no momento certo evita erro de acompanhamento.',
+                        href: '/mobile/delivery',
+                        cta: 'Ver entregas'
+                    },
+                    {
+                        id: 'returns-end',
+                        shortTitle: 'Devolução e fim',
+                        title: 'Registre devolução e encerre a rota na volta',
+                        summary: 'Se não conseguir entregar, registre devolução com o motivo correto. Ao chegar na empresa, encerre a rota com o KM final.',
+                        items: [
+                            'Toque em Devolução quando o cliente não receber a mercadoria.',
+                            'Escolha o motivo correto e informe se avisou Comercial e Logística.',
+                            'Se a devolução for parcial, preencha peso e valor.',
+                            'Ao retornar, toque em Encerrar Rota e informe o KM de chegada.'
+                        ],
+                        tip: 'Antes de encerrar, confira se não ficou nenhuma parada em aberto.',
+                        href: '/mobile/returns',
+                        cta: 'Acompanhar devoluções'
+                    },
+                    {
+                        id: 'xp',
+                        shortTitle: 'XP e conquistas',
+                        title: 'Acompanhe premiação, nível e evolução',
+                        summary: 'Checklist concluído, rotina bem feita e entregas registradas ajudam no ganho de XP e no avanço das conquistas.',
+                        items: [
+                            'Veja seu XP e nível na home.',
+                            'Abra Conquistas para acompanhar sua evolução.',
+                            'Use os chamados quando houver defeito no caminhão ou equipamento.',
+                            'Quanto mais organizada a rotina, melhor o seu acompanhamento operacional.'
+                        ],
+                        tip: 'O chamado de manutenção pode ser aberto no checklist ou no módulo de chamados de equipamento.',
+                        href: '/mobile/achievements',
+                        cta: 'Ver conquistas'
+                    }
+                ],
+
+                init() {
+                    this.stepIndex = this.defaultIndexForContext();
+                    window.addEventListener('nl-driver-guide:open', () => {
+                        this.openFromContext();
+                    });
+
+                    if (this.autoOpen && this.shouldAutoOpen()) {
+                        sessionStorage.setItem(this.sessionAutoKey, '1');
+                        setTimeout(() => this.openFromContext(), 700);
+                    }
+                },
+
+                shouldAutoOpen() {
+                    try {
+                        const seen = localStorage.getItem(this.storageKey);
+                        const autoOpened = sessionStorage.getItem(this.sessionAutoKey);
+                        return !seen && !autoOpened;
+                    } catch (_) {
+                        return false;
+                    }
+                },
+
+                defaultIndexForContext() {
+                    const map = {
+                        login: 0,
+                        dashboard: 1,
+                        checklist: 2,
+                        delivery: 3,
+                        returns: 5,
+                        achievements: 6
+                    };
+                    return map[this.context] ?? 0;
+                },
+
+                openFromContext() {
+                    this.stepIndex = this.defaultIndexForContext();
+                    this.open();
+                },
+
+                open() {
+                    this.previousOverflow = document.body.style.overflow || '';
+                    this.isOpen = true;
+                    document.body.style.overflow = 'hidden';
+                    this.$nextTick(() => {
+                        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                            window.lucide.createIcons();
+                        }
+                    });
+                },
+
+                close() {
+                    this.isOpen = false;
+                    document.body.style.overflow = this.previousOverflow;
+                    try {
+                        localStorage.setItem(this.storageKey, '1');
+                    } catch (_) {}
+                },
+
+                nextStep() {
+                    if (this.stepIndex >= this.steps.length - 1) {
+                        this.close();
+                        return;
+                    }
+                    this.stepIndex += 1;
+                },
+
+                prevStep() {
+                    if (this.stepIndex === 0) return;
+                    this.stepIndex -= 1;
+                },
+
+                jumpTo(index) {
+                    this.stepIndex = index;
+                },
+
+                showActionButton() {
+                    return !!(this.currentStep && this.currentStep.href && this.currentStep.href !== this.currentPath);
+                },
+
+                get currentStep() {
+                    return this.steps[this.stepIndex] || this.steps[0];
+                },
+
+                get progressPercent() {
+                    return ((this.stepIndex + 1) / this.steps.length) * 100;
+                }
+            };
+        };
+    }
+</script>

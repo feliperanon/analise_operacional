@@ -132,6 +132,18 @@
         box-shadow: 0 12px 24px rgba(12, 66, 116, 0.22);
     }
 
+    .mobile-guide-button {
+        width: 100%;
+        margin-top: 10px;
+        border: 1px solid #cad7e8;
+        border-radius: 12px;
+        background: #f8fbff;
+        color: #0c4274;
+        font-size: 15px;
+        font-weight: 800;
+        padding: 12px 14px;
+    }
+
     .mobile-login-meta {
         margin-top: 16px;
         text-align: center;
@@ -162,6 +174,7 @@
                 <label for="registration_id">Matricula</label>
                 <input type="text" id="registration_id" name="registration_id" placeholder="Digite sua matricula" required autofocus>
                 <button type="submit" class="mobile-login-button">Entrar no app</button>
+                <button type="button" class="mobile-guide-button" onclick="window.openDriverGuide && window.openDriverGuide()">Ver guia do motorista</button>
             </form>
 
             <div class="mobile-login-meta">
@@ -171,6 +184,10 @@
         </section>
     </div>
 </div>
+
+{% set guide_context = 'login' %}
+{% set guide_auto_open = true %}
+{% include 'mobile/_driver_guide.html' %}
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -185,4 +202,3 @@
     });
 </script>
 {% endblock %}
-

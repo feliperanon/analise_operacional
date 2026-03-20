@@ -2,10 +2,10 @@
 
 {% block content %}
 <style>
-/* === Documento corporativo - tela e impressão === */
+/* === Documento corporativo - ABNT NBR 14724 (tela e impressão) === */
 .doc-page {
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 11pt;
+    font-size: 12pt;
     line-height: 1.5;
     color: #222;
     max-width: 21cm;
@@ -16,25 +16,57 @@
 .doc-header-blue { background: #003366 !important; color: white !important; }
 .doc-title { color: #003366; font-weight: bold; }
 .doc-section-title { color: #003366; font-size: 12pt; font-weight: bold; margin: 1em 0 0.5em 0; }
-.doc-p { margin: 0.4em 0; text-align: justify; }
+.doc-p { margin: 0.5em 0; text-align: justify; text-indent: 1.25cm; }
+.doc-body p { margin: 0.5em 0; text-align: justify; text-indent: 1.25cm; }
 .doc-p-space { margin: 0.6em 0; height: 0; }
 .doc-list { margin: 0.4em 0 0.8em 1.5em; padding: 0; }
 .doc-list li { margin: 0.2em 0; }
 
+/* Tabelas compactas - ABNT exceções (legendas/referências: 10pt) */
+.doc-table-compact { font-size: 9pt; }
+.doc-table-compact td { padding: 3px 6px !important; }
+.doc-table-compact .doc-header-blue { padding: 4px 8px !important; font-size: 10pt !important; }
+.doc-ident-table { font-size: 10pt; }
+.doc-ident-table td { padding: 3px 8px !important; }
+.doc-ident-table td.doc-ident-value { word-wrap: break-word; overflow-wrap: break-word; min-width: 0; }
+.doc-ident-table .doc-header-blue { padding: 4px 8px !important; font-size: 10pt !important; }
+
+/* Rodapé com numeração de página */
+.doc-page-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 10pt;
+    color: #666;
+    padding: 4px 0;
+    border-top: 1px solid #ddd;
+    background: white;
+}
+.doc-pagenum::after { content: counter(page); }
+@media screen {
+    .doc-page-footer { display: none; }
+}
+
 /* === Impressão === */
 @media print {
+    * { animation: none !important; transition: none !important; }
     @page {
         size: A4;
-        margin: 2cm;
+        margin: 2cm 2cm 2cm 3cm; /* ABNT: 3cm esquerda, 2cm demais */
     }
     body, html { background: white !important; margin: 0 !important; padding: 0 !important; }
     .doc-print-wrap { padding: 0 !important; background: white !important; }
-    .doc-page { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+    .doc-page { max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+    /* Evitar quebra apenas em blocos críticos; corpo do texto flui normalmente */
     .doc-page .doc-avoid-break { break-inside: avoid; page-break-inside: avoid; }
+    .doc-body-flow p, .doc-body-flow li, .doc-body-flow div { break-inside: auto; page-break-inside: auto; }
     .doc-page .doc-break-before { break-before: page; page-break-before: always; }
     .doc-section-title { break-after: avoid; page-break-after: avoid; }
     .doc-header-blue { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .print-hidden { display: none !important; }
+    .doc-page-footer { display: block !important; left: 3cm; right: 2cm; }
 }
 </style>
 
@@ -64,17 +96,17 @@
         <div class="p-8 print:p-0">
 
             <!-- Cabeçalho: Logo + Metadados -->
-            <div class="doc-avoid-break flex justify-between items-start border-b-2 border-[#003366] pb-4 mb-4">
+            <div class="doc-avoid-break flex justify-between items-start border-b-2 border-[#003366] pb-3 mb-3">
                 <div>
-                    <img src="/static/logo-souza-pinto.png" alt="Souza Pinto" class="h-16 object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <img src="/static/logo-souza-pinto.png" alt="Souza Pinto" class="h-24 object-contain" style="max-height: 96px; height: 96px; width: auto;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <div class="hidden text-2xl font-bold text-[#003366]">SOUZA PINTO</div>
-                    <div class="text-sm text-gray-600 mt-1">Logística & Distribuição</div>
+                    <div class="text-xs text-gray-600 mt-1">Logística &amp; Distribuição</div>
                 </div>
-                <table class="text-xs border border-gray-300" style="border-collapse: collapse;">
-                    <tr><td style="padding: 6px 10px; background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Código</td><td style="padding: 6px 10px; border: 1px solid #ccc;">{{ documento.codigo }}</td></tr>
-                    <tr><td style="padding: 6px 10px; background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Versão</td><td style="padding: 6px 10px; border: 1px solid #ccc;">{{ '%02d'|format(documento.versao) }}</td></tr>
-                    <tr><td style="padding: 6px 10px; background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Emissão</td><td style="padding: 6px 10px; border: 1px solid #ccc;">{{ documento.data_emissao or '-' }}</td></tr>
-                    <tr><td style="padding: 6px 10px; background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Página</td><td style="padding: 6px 10px; border: 1px solid #ccc;">1</td></tr>
+                <table class="doc-table-compact border border-gray-300" style="border-collapse: collapse;">
+                    <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Código</td><td style="border: 1px solid #ccc;">{{ documento.codigo }}</td></tr>
+                    <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Versão</td><td style="border: 1px solid #ccc;">{{ '%02d'|format(documento.versao) }}</td></tr>
+                    <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Emissão</td><td style="border: 1px solid #ccc;">{{ documento.data_emissao or '-' }}</td></tr>
+                    <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Pág.</td><td style="border: 1px solid #ccc;"><span class="doc-page-num">1</span></td></tr>
                 </table>
             </div>
 
@@ -84,54 +116,54 @@
             </div>
 
             <!-- Identificação do documento -->
-            <div class="doc-avoid-break mb-6">
-                <table class="w-full" style="border-collapse: collapse; border: 1px solid #ccc;">
+            <div class="doc-avoid-break mb-4">
+                <table class="w-full doc-table-compact doc-ident-table" style="border-collapse: collapse; border: 1px solid #ccc;">
                     <tr>
-                        <td colspan="2" class="doc-header-blue" style="padding: 8px 12px; font-weight: bold; font-size: 11pt;">IDENTIFICAÇÃO DO DOCUMENTO</td>
+                        <td colspan="2" class="doc-header-blue" style="padding: 4px 8px; font-weight: bold; font-size: 10pt;">IDENTIFICAÇÃO DO DOCUMENTO</td>
                     </tr>
                     {% if c.get('para') %}
-                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; width: 140px; border: 1px solid #ccc;">Para</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ c.get('para') }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; width: 120px; border: 1px solid #ccc;">Para</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ c.get('para') }}</td></tr>
                     {% endif %}
                     {% if c.get('de') %}
-                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">De</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ c.get('de') }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">De</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ c.get('de') }}</td></tr>
                     {% endif %}
                     {% if c.get('data_relatorio') %}
-                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Data</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ c.get('data_relatorio') }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Data</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ c.get('data_relatorio') }}</td></tr>
                     {% endif %}
                     {% if c.get('assunto') %}
-                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Assunto</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ c.get('assunto') }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Assunto</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ c.get('assunto') }}</td></tr>
                     {% endif %}
-                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Área responsável</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.area_responsavel }}</td></tr>
-                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Elaborado por</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.elaborado_por or '-' }}</td></tr>
-                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Revisado por</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.revisado_por or '-' }}</td></tr>
-                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Aprovado por</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.aprovado_por or '-' }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Área responsável</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ documento.area_responsavel }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Elaborado por</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ documento.elaborado_por or '-' }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Revisado por</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ documento.revisado_por or '-' }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Aprovado por</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ documento.aprovado_por or '-' }}</td></tr>
                 </table>
             </div>
 
             <!-- Corpo do relatório (formatação estruturada, fluxo multi-página) -->
             {% if corpo_html %}
-            <div class="doc-body mb-8">
+            <div class="doc-body doc-body-flow mb-8">
                 {{ corpo_html|safe }}
             </div>
             {% endif %}
 
             <!-- Controle de revisão -->
-            <div class="doc-avoid-break doc-break-before mt-8">
-                <table class="w-full" style="border-collapse: collapse; border: 1px solid #ccc;">
+            <div class="doc-avoid-break doc-break-before mt-6">
+                <table class="w-full doc-table-compact" style="border-collapse: collapse; border: 1px solid #ccc;">
                     <tr>
-                        <td colspan="4" class="doc-header-blue" style="padding: 8px 12px; font-weight: bold; font-size: 11pt;">CONTROLE DE REVISÃO</td>
+                        <td colspan="4" class="doc-header-blue" style="padding: 4px 8px; font-weight: bold; font-size: 10pt;">CONTROLE DE REVISÃO</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; width: 60px; border: 1px solid #ccc;">Versão</td>
-                        <td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; width: 100px; border: 1px solid #ccc;">Data</td>
-                        <td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Alteração Realizada</td>
-                        <td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; width: 140px; border: 1px solid #ccc;">Responsável</td>
+                        <td style="background: #f9f9f9; font-weight: 600; width: 50px; border: 1px solid #ccc;">Versão</td>
+                        <td style="background: #f9f9f9; font-weight: 600; width: 80px; border: 1px solid #ccc;">Data</td>
+                        <td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Alteração Realizada</td>
+                        <td style="background: #f9f9f9; font-weight: 600; width: 120px; border: 1px solid #ccc;">Responsável</td>
                     </tr>
                     <tr>
-                        <td style="padding: 6px 12px; border: 1px solid #ccc;">{{ '%02d'|format(documento.versao) }}</td>
-                        <td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.data_emissao or (documento.updated_at.strftime('%d/%m/%Y') if documento.updated_at else '-') }}</td>
-                        <td style="padding: 6px 12px; border: 1px solid #ccc;">Emissão inicial</td>
-                        <td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.elaborado_por or '-' }}</td>
+                        <td style="border: 1px solid #ccc;">{{ '%02d'|format(documento.versao) }}</td>
+                        <td style="border: 1px solid #ccc;">{{ documento.data_emissao or (documento.updated_at.strftime('%d/%m/%Y') if documento.updated_at else '-') }}</td>
+                        <td style="border: 1px solid #ccc;">Emissão inicial</td>
+                        <td style="border: 1px solid #ccc;">{{ documento.elaborado_por or '-' }}</td>
                     </tr>
                 </table>
             </div>
@@ -152,9 +184,14 @@
                 </div>
             </div>
 
-            <!-- Rodapé -->
+            <!-- Rodapé final -->
             <div class="doc-avoid-break text-center text-xs text-gray-600 mt-8 pt-4 border-t border-gray-300">
-                Versão {{ '%02d'|format(documento.versao) }} | Emitido em {{ documento.data_emissao or documento.data_emissao or '-' }} | Documento institucional – Souza Pinto
+                Versão {{ '%02d'|format(documento.versao) }} | Emitido em {{ documento.data_emissao or '-' }} | Documento institucional – Souza Pinto
+            </div>
+
+            <!-- Rodapé fixo com numeração (impressão) -->
+            <div class="doc-page-footer">
+                Documento {{ documento.codigo }} – Souza Pinto &nbsp;|&nbsp; Página <span class="doc-pagenum"></span>
             </div>
         </div>
 
