@@ -977,15 +977,21 @@
             <div>
                 <label class="block text-xs font-bold text-slate-400 mb-1 uppercase">Buscar cliente</label>
                 <div class="relative">
-                    <input type="text" id="add-stop-client-search" placeholder="Nome, NB ou endereço..."
+                    <input type="text" id="add-stop-client-search" placeholder="Nome, NB ou endereço... (mín. 2 caracteres)"
                         class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                         autocomplete="off">
                     <div id="add-stop-client-suggestions" class="hidden absolute z-20 mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl"></div>
                 </div>
-                <div id="add-stop-client-selected" class="hidden mt-2 px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-600 text-slate-200 text-sm">
-                    <span class="font-semibold" id="add-stop-client-name"></span>
-                    <span class="text-slate-500 text-xs block" id="add-stop-client-detail"></span>
-                    <button type="button" onclick="clearAddStopClient()" class="mt-1 text-xs text-red-400 hover:text-red-300">Limpar seleção</button>
+                <div id="add-stop-client-selected" class="hidden mt-2 px-4 py-3 rounded-xl bg-emerald-900/30 border-2 border-emerald-500/50 flex items-start gap-3">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-400/90 mb-0.5">Cliente selecionado</p>
+                        <p class="font-semibold text-white" id="add-stop-client-name"></p>
+                        <p class="text-slate-400 text-xs mt-0.5" id="add-stop-client-detail"></p>
+                        <button type="button" onclick="clearAddStopClient()" class="mt-2 text-xs text-rose-400 hover:text-rose-300 font-medium">Remover e buscar outro</button>
+                    </div>
                 </div>
             </div>
 
@@ -1444,6 +1450,7 @@
     function clearAddStopClient() {
         document.getElementById('add-stop-client-id').value = '';
         document.getElementById('add-stop-client-selected').classList.add('hidden');
+        document.getElementById('add-stop-client-search').placeholder = 'Nome, NB ou endereço... (mín. 2 caracteres)';
         document.getElementById('add-stop-submit').disabled = true;
     }
     function selectAddStopClient(id, name, nb, endereco) {
@@ -1453,7 +1460,9 @@
         document.getElementById('add-stop-client-selected').classList.remove('hidden');
         document.getElementById('add-stop-client-suggestions').classList.add('hidden');
         document.getElementById('add-stop-client-search').value = '';
+        document.getElementById('add-stop-client-search').placeholder = 'Cliente selecionado — clique em "Remover e buscar outro" para trocar';
         document.getElementById('add-stop-submit').disabled = false;
+        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
     }
     document.addEventListener('DOMContentLoaded', function() {
         const searchEl = document.getElementById('add-stop-client-search');
@@ -1474,10 +1483,21 @@
                         if (!Array.isArray(data) || data.length === 0) {
                             suggestionsEl.innerHTML = '<div class="px-3 py-4 text-slate-500 text-sm">Nenhum cliente encontrado.</div>';
                         } else {
-                            suggestionsEl.innerHTML = data.map(c => {
-                                const label = (c.display || c.name || '') + (c.endereco ? ' | ' + c.endereco : '');
-                                return '<button type="button" class="w-full text-left px-3 py-2.5 hover:bg-slate-800 text-slate-200 text-sm border-b border-slate-800 last:border-0" onclick="selectAddStopClient(' + c.id + ', ' + JSON.stringify(c.name || '') + ', ' + JSON.stringify(c.nb || '') + ', ' + JSON.stringify(c.endereco || '') + ')">' + (label.length > 80 ? label.slice(0, 80) + '...' : label) + '</button>';
+                            window._addStopLastResults = data;
+                            suggestionsEl.innerHTML = data.map(function(c, i) {
+                                const label = ((c.display || c.name || '') + (c.endereco ? ' | ' + c.endereco : ''));
+                                const labelTrunc = label.length > 80 ? label.slice(0, 80) + '...' : label;
+                                const safe = labelTrunc.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                                return '<button type="button" class="add-stop-suggestion-btn w-full text-left px-3 py-2.5 hover:bg-indigo-900/40 text-slate-200 text-sm border-b border-slate-800 last:border-0 transition-colors" data-idx="' + i + '">' + safe + '</button>';
                             }).join('');
+                            suggestionsEl.querySelectorAll('.add-stop-suggestion-btn').forEach(function(btn) {
+                                btn.addEventListener('mousedown', function(e) {
+                                    e.preventDefault();
+                                    var c = (window._addStopLastResults || [])[parseInt(btn.dataset.idx, 10)];
+                                    if (c) selectAddStopClient(c.id, c.name || '', c.nb || '', c.endereco || '');
+                                });
+                            });
+                            if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
                         }
                         suggestionsEl.classList.remove('hidden');
                     })
@@ -1757,9 +1777,9 @@
         }
     }
 
-    let deliverySyncToken = "{{ delivery_sync_token }}";
-    const deliverySyncDate = "{{ selected_date_from }}";
-    const deliverySyncShift = "{{ selected_shift }}";
+    let deliverySyncToken = {{ delivery_sync_token|tojson }};
+    const deliverySyncDate = {{ selected_date_from|tojson }};
+    const deliverySyncShift = {{ selected_shift|tojson }};
     let deliverySyncPendingReload = false;
 
     function canAutoReloadDeliveries() {
