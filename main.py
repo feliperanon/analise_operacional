@@ -13215,7 +13215,7 @@ async def update_delivery_planning_date(
     session.commit()
 
     feedback_encoded = urlencode({
-        "delivery_feedback": f"Data da entrega atualizada para {planning_date}.",
+        "delivery_feedback": f"Parada movida para {planning_date}.",
         "delivery_feedback_level": "success",
     })
     return RedirectResponse(
