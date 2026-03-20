@@ -33,6 +33,7 @@ import models
 from bi_delivery_routes import router as bi_delivery_router
 from bi_motorista_routes import router as bi_motorista_router
 from devolucoes_routes import init_devolucoes_router
+from documentos_routes import init_documentos_router, ensure_doc_setores_seed
 from devolucoes_service import sync_route_to_devolucao
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
@@ -610,6 +611,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Erro ao seed devoluções: {e}")
     try:
+        with Session(engine) as session:
+            ensure_doc_setores_seed(session)
+    except Exception as e:
+        logger.error(f"Erro ao seed setores documentos: {e}")
+    try:
         db_source = os.environ.get("ACTIVE_DATABASE_SOURCE", "unknown")
         logger.info(f"DATABASE URL DETECTADA: {engine.url} | source={db_source}")
         sync_sectors_on_startup()
@@ -1094,6 +1100,7 @@ PAGE_OPTIONS = [
     {"key": "lider", "label": "Líder", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/lider", "/api/lider"]},
     {"key": "gerente", "label": "Gerente", "path": "/gm/ordens-servico", "prefixes": ["/gm", "/api/gm"]},
     {"key": "processos", "label": "Processos", "path": "/separacao", "prefixes": ["/separacao", "/devolucoes", "/operational/history"]},
+    {"key": "padronizacao", "label": "Processos e Padronização", "path": "/documentos", "prefixes": ["/documentos", "/api/documentos"]},
     {"key": "rotinas", "label": "Rotinas & Checklists", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "oficina", "label": "Oficina", "path": "/vehicles", "prefixes": ["/vehicles", "/admin/equipment/tickets"]},
     {"key": "cadastros", "label": "Cadastros", "path": "/clients", "prefixes": ["/clients", "/employees", "/funcoes", "/api/employees"]},
@@ -4255,12 +4262,13 @@ def _build_mobile_gatehouse_data(session: Session) -> Dict[str, Any]:
     }
 
 
-@app.get("/mobile/dashboard", response_class=HTMLResponse)
-async def mobile_dashboard(
+def _render_mobile_dashboard_template(
     request: Request,
-    session: Session = Depends(get_session),
+    session: Session,
     module: Optional[str] = None,
     error: Optional[str] = None,
+    *,
+    template_name: str = "mobile/dashboard.html",
 ):
     user = get_current_user(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
@@ -4384,7 +4392,7 @@ async def mobile_dashboard(
         for e in employees_for_modal
     ]
     return templates.TemplateResponse(
-        "mobile/dashboard.html",
+        template_name,
         {
             "request": request,
             "employee": employee,
@@ -4409,6 +4417,38 @@ async def mobile_dashboard(
             "returns_alert_data": returns_alert if has_returns_access else None,
             "delivery_summary": delivery_summary,
         },
+    )
+
+
+@app.get("/mobile/dashboard", response_class=HTMLResponse)
+async def mobile_dashboard(
+    request: Request,
+    session: Session = Depends(get_session),
+    module: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    return _render_mobile_dashboard_template(
+        request,
+        session,
+        module=module,
+        error=error,
+        template_name="mobile/dashboard.html",
+    )
+
+
+@app.get("/mobile/dashboard-preview", response_class=HTMLResponse)
+async def mobile_dashboard_preview(
+    request: Request,
+    session: Session = Depends(get_session),
+    module: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    return _render_mobile_dashboard_template(
+        request,
+        session,
+        module=module,
+        error=error,
+        template_name="mobile/dashboard_preview.html",
     )
 
 
@@ -4814,6 +4854,7 @@ async def api_mobile_delivery_history(
 
 
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger))
+app.include_router(init_documentos_router(templates=templates, require_login=require_login))
 app.include_router(init_game_achievements_router(templates=templates, require_leader=require_leader, require_login=require_login, logger=logger))
 app.include_router(init_game_audit_router(require_login=require_login, require_leader=require_leader))
 app.include_router(init_admin_geocoding_router(require_leader=require_leader))
@@ -13179,6 +13220,121 @@ async def update_delivery_planning_date(
     })
     return RedirectResponse(
         url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/separacao/delivery/planning-date/selected", response_class=RedirectResponse)
+async def update_delivery_planning_date_selected(
+    request: Request,
+    selected_groups: str = Form(...),
+    planning_date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    """Move as rotas selecionadas (1 ou mais) para outra data. Formato: emp_id|plate|date,emp_id|plate|date,..."""
+    require_login(request)
+    try:
+        datetime.strptime(planning_date, "%Y-%m-%d")
+    except Exception:
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Data de planejamento inválida.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={planning_date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    groups_raw = [g.strip() for g in (selected_groups or "").split(",") if g.strip()]
+    total_moved = 0
+    for part in groups_raw:
+        bits = part.split("|")
+        if len(bits) < 3:
+            continue
+        try:
+            emp_id = int(bits[0])
+            plate = (bits[1] or "").strip()
+            current_date = bits[2].strip()
+            if not current_date:
+                continue
+        except (ValueError, IndexError):
+            continue
+
+        q = (
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == current_date)
+            .where(models.Route.employee_id == emp_id)
+        )
+        rows = list(session.exec(q).all())
+        if plate and (plate_norm := _norm_plate(plate)):
+            rows = [r for r in rows if _norm_plate(r.delivery_vehicle_plate) == plate_norm]
+
+        for row in rows:
+            row.date = planning_date
+            session.add(row)
+            total_moved += 1
+
+    session.commit()
+
+    feedback_encoded = urlencode({
+        "delivery_feedback": f"{total_moved} parada(s) movida(s) para {planning_date}.",
+        "delivery_feedback_level": "success",
+    })
+    return RedirectResponse(
+        url=f"/separacao?date={planning_date}&shift={shift}&{feedback_encoded}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/separacao/delivery/planning-date/group", response_class=RedirectResponse)
+async def update_delivery_planning_date_group(
+    request: Request,
+    source_employee_id: int = Form(...),
+    source_vehicle_plate: str = Form(""),
+    current_date: str = Form(...),
+    planning_date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    """Move apenas as rotas de um motorista (e caminhão) para outra data."""
+    require_login(request)
+    try:
+        datetime.strptime(planning_date, "%Y-%m-%d")
+    except Exception:
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Data de planejamento inválida.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={current_date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    q = (
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == current_date)
+        .where(models.Route.employee_id == source_employee_id)
+    )
+    rows = list(session.exec(q).all())
+    if source_vehicle_plate and (plate_norm := _norm_plate(source_vehicle_plate)):
+        rows = [r for r in rows if _norm_plate(r.delivery_vehicle_plate) == plate_norm]
+
+    for row in rows:
+        row.date = planning_date
+        session.add(row)
+    session.commit()
+
+    emp = session.get(models.Employee, source_employee_id)
+    name = emp.name if emp else f"ID={source_employee_id}"
+    feedback_encoded = urlencode({
+        "delivery_feedback": f"Rota de {name} movida para {planning_date} ({len(rows)} parada(s)).",
+        "delivery_feedback_level": "success",
+    })
+    return RedirectResponse(
+        url=f"/separacao?date={planning_date}&shift={shift}&{feedback_encoded}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 

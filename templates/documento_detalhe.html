@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+/* === Documento corporativo - tela e impressão === */
+.doc-page {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #222;
+    max-width: 21cm;
+    margin: 0 auto;
+    background: white;
+}
+.doc-page * { box-sizing: border-box; }
+.doc-header-blue { background: #003366 !important; color: white !important; }
+.doc-title { color: #003366; font-weight: bold; }
+.doc-section-title { color: #003366; font-size: 12pt; font-weight: bold; margin: 1em 0 0.5em 0; }
+.doc-p { margin: 0.4em 0; text-align: justify; }
+.doc-p-space { margin: 0.6em 0; height: 0; }
+.doc-list { margin: 0.4em 0 0.8em 1.5em; padding: 0; }
+.doc-list li { margin: 0.2em 0; }
+
+/* === Impressão === */
+@media print {
+    @page {
+        size: A4;
+        margin: 2cm;
+    }
+    body, html { background: white !important; margin: 0 !important; padding: 0 !important; }
+    .doc-print-wrap { padding: 0 !important; background: white !important; }
+    .doc-page { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+    .doc-page .doc-avoid-break { break-inside: avoid; page-break-inside: avoid; }
+    .doc-page .doc-break-before { break-before: page; page-break-before: always; }
+    .doc-section-title { break-after: avoid; page-break-after: avoid; }
+    .doc-header-blue { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .print-hidden { display: none !important; }
+}
+</style>
+
+<div class="doc-print-wrap p-8 min-h-screen bg-slate-900">
+    <div class="doc-page bg-white shadow-lg print:shadow-none">
+        <!-- Barra de ações (só tela) -->
+        <div class="print-hidden p-4 bg-slate-800 -mx-4 -mt-4 mb-4 flex flex-wrap items-center justify-between gap-3">
+            {% if request.query_params.get('saved') %}
+            <span class="text-emerald-400 text-sm">✓ Alterações salvas.</span>
+            {% else %}
+            <span></span>
+            {% endif %}
+            <div class="flex items-center gap-2">
+                <a href="/documentos" class="text-slate-400 hover:text-white text-sm">← Documentos</a>
+                {% if documento.status == 'rascunho' %}
+                <a href="/documentos/{{ documento.id }}/editar" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm">Editar</a>
+                {% endif %}
+                <button type="button" onclick="window.print()" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm">Imprimir / PDF</button>
+            </div>
+        </div>
+
+        {% set c = documento.conteudo or {} %}
+        {% set is_rel_formal = documento.tipo_documento == 'REL' and (c.get('corpo') or c.get('para') or c.get('de') or c.get('assunto')) %}
+
+        {% if is_rel_formal %}
+        <!-- === RELATÓRIO EXECUTIVO FORMAL - Layout institucional === -->
+        <div class="p-8 print:p-0">
+
+            <!-- Cabeçalho: Logo + Metadados -->
+            <div class="doc-avoid-break flex justify-between items-start border-b-2 border-[#003366] pb-4 mb-4">
+                <div>
+                    <img src="/static/logo-souza-pinto.png" alt="Souza Pinto" class="h-16 object-contain" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div class="hidden text-2xl font-bold text-[#003366]">SOUZA PINTO</div>
+                    <div class="text-sm text-gray-600 mt-1">Logística & Distribuição</div>
+                </div>
+                <table class="text-xs border border-gray-300" style="border-collapse: collapse;">
+                    <tr><td style="padding: 6px 10px; background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Código</td><td style="padding: 6px 10px; border: 1px solid #ccc;">{{ documento.codigo }}</td></tr>
+                    <tr><td style="padding: 6px 10px; background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Versão</td><td style="padding: 6px 10px; border: 1px solid #ccc;">{{ '%02d'|format(documento.versao) }}</td></tr>
+                    <tr><td style="padding: 6px 10px; background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Emissão</td><td style="padding: 6px 10px; border: 1px solid #ccc;">{{ documento.data_emissao or '-' }}</td></tr>
+                    <tr><td style="padding: 6px 10px; background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Página</td><td style="padding: 6px 10px; border: 1px solid #ccc;">1</td></tr>
+                </table>
+            </div>
+
+            <!-- Título -->
+            <div class="text-center py-3 doc-avoid-break">
+                <h1 class="doc-title text-xl">{{ documento.titulo or 'RELATÓRIO EXECUTIVO FORMAL' }}</h1>
+            </div>
+
+            <!-- Identificação do documento -->
+            <div class="doc-avoid-break mb-6">
+                <table class="w-full" style="border-collapse: collapse; border: 1px solid #ccc;">
+                    <tr>
+                        <td colspan="2" class="doc-header-blue" style="padding: 8px 12px; font-weight: bold; font-size: 11pt;">IDENTIFICAÇÃO DO DOCUMENTO</td>
+                    </tr>
+                    {% if c.get('para') %}
+                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; width: 140px; border: 1px solid #ccc;">Para</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ c.get('para') }}</td></tr>
+                    {% endif %}
+                    {% if c.get('de') %}
+                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">De</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ c.get('de') }}</td></tr>
+                    {% endif %}
+                    {% if c.get('data_relatorio') %}
+                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Data</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ c.get('data_relatorio') }}</td></tr>
+                    {% endif %}
+                    {% if c.get('assunto') %}
+                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Assunto</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ c.get('assunto') }}</td></tr>
+                    {% endif %}
+                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Área responsável</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.area_responsavel }}</td></tr>
+                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Elaborado por</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.elaborado_por or '-' }}</td></tr>
+                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Revisado por</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.revisado_por or '-' }}</td></tr>
+                    <tr><td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Aprovado por</td><td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.aprovado_por or '-' }}</td></tr>
+                </table>
+            </div>
+
+            <!-- Corpo do relatório (formatação estruturada, fluxo multi-página) -->
+            {% if corpo_html %}
+            <div class="doc-body mb-8">
+                {{ corpo_html|safe }}
+            </div>
+            {% endif %}
+
+            <!-- Controle de revisão -->
+            <div class="doc-avoid-break doc-break-before mt-8">
+                <table class="w-full" style="border-collapse: collapse; border: 1px solid #ccc;">
+                    <tr>
+                        <td colspan="4" class="doc-header-blue" style="padding: 8px 12px; font-weight: bold; font-size: 11pt;">CONTROLE DE REVISÃO</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; width: 60px; border: 1px solid #ccc;">Versão</td>
+                        <td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; width: 100px; border: 1px solid #ccc;">Data</td>
+                        <td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Alteração Realizada</td>
+                        <td style="padding: 6px 12px; background: #f9f9f9; font-weight: 600; width: 140px; border: 1px solid #ccc;">Responsável</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 6px 12px; border: 1px solid #ccc;">{{ '%02d'|format(documento.versao) }}</td>
+                        <td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.data_emissao or (documento.updated_at.strftime('%d/%m/%Y') if documento.updated_at else '-') }}</td>
+                        <td style="padding: 6px 12px; border: 1px solid #ccc;">Emissão inicial</td>
+                        <td style="padding: 6px 12px; border: 1px solid #ccc;">{{ documento.elaborado_por or '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- Assinaturas -->
+            <div class="doc-avoid-break flex flex-wrap justify-between gap-8 mt-8 pt-6">
+                <div class="text-center">
+                    <div style="width: 180px; border-bottom: 1px solid #333; margin: 0 auto 4px;"></div>
+                    <div class="text-xs font-semibold">Elaborado por: {{ documento.elaborado_por or '-' }}</div>
+                </div>
+                <div class="text-center">
+                    <div style="width: 180px; border-bottom: 1px solid #333; margin: 0 auto 4px;"></div>
+                    <div class="text-xs font-semibold">Revisado por: {{ documento.revisado_por or '-' }}</div>
+                </div>
+                <div class="text-center">
+                    <div style="width: 180px; border-bottom: 1px solid #333; margin: 0 auto 4px;"></div>
+                    <div class="text-xs font-semibold">Aprovado por: {{ documento.aprovado_por or '-' }}</div>
+                </div>
+            </div>
+
+            <!-- Rodapé -->
+            <div class="doc-avoid-break text-center text-xs text-gray-600 mt-8 pt-4 border-t border-gray-300">
+                Versão {{ '%02d'|format(documento.versao) }} | Emitido em {{ documento.data_emissao or documento.data_emissao or '-' }} | Documento institucional – Souza Pinto
+            </div>
+        </div>
+
+        {% else %}
+        <!-- === Layout padrão (outros tipos) === -->
+        <div class="p-8">
+            <div class="mb-6">
+                <h1 class="text-xl font-bold doc-title">{{ documento.titulo }}</h1>
+                <p class="text-sm text-gray-600 mt-1">{{ documento.codigo }} · v{{ documento.versao }} · {{ documento.area_responsavel }}</p>
+            </div>
+            <div class="mb-6 text-sm">
+                <p><strong>Elaborado por:</strong> {{ documento.elaborado_por or '-' }} | <strong>Revisado por:</strong> {{ documento.revisado_por or '-' }} | <strong>Aprovado por:</strong> {{ documento.aprovado_por or '-' }}</p>
+            </div>
+            <div class="doc-body">
+                {% if documento.conteudo and documento.conteudo is mapping %}
+                    {% for key, val in documento.conteudo.items() %}
+                    {% if key not in ['para','de','data_relatorio','assunto','corpo'] and val %}
+                    <div class="mb-4">
+                        <h3 class="doc-section-title">{{ key|replace('_',' ')|title }}</h3>
+                        <div class="text-gray-700 whitespace-pre-wrap">{% if val is mapping or (val is sequence and val is not string) %}{{ val|tojson(indent=2) }}{% else %}{{ val|string }}{% endif %}</div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                {% elif not documento.conteudo or not documento.conteudo %}
+                    <p class="text-gray-500 py-8">Documento sem conteúdo. <a href="/documentos/{{ documento.id }}/editar" class="print-hidden text-blue-600 underline">Editar</a></p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+});
+</script>
+{% endblock %}

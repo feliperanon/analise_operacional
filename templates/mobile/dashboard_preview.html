@@ -1,0 +1,2461 @@
+{% extends "mobile/layout.html" %}
+
+{% macro render_dashboard_module(module, tone='default') %}
+    {% if tone == 'primary' %}
+        {% set icon_style = "background: rgba(59,130,246,0.18); color: #93c5fd;" %}
+        {% set panel_style = "background: linear-gradient(180deg, rgba(15,23,42,0.88) 0%, rgba(15,23,42,0.76) 100%); border: 1px solid rgba(96,165,250,0.22);" %}
+    {% elif tone == 'tool' %}
+        {% set icon_style = "background: rgba(245,158,11,0.16); color: #fbbf24;" %}
+        {% set panel_style = "background: linear-gradient(180deg, rgba(15,23,42,0.84) 0%, rgba(15,23,42,0.72) 100%); border: 1px solid rgba(245,158,11,0.18);" %}
+    {% else %}
+        {% set icon_style = "background: rgba(148,163,184,0.16); color: #cbd5e1;" %}
+        {% set panel_style = "background: linear-gradient(180deg, rgba(15,23,42,0.82) 0%, rgba(15,23,42,0.68) 100%); border: 1px solid rgba(148,163,184,0.18);" %}
+    {% endif %}
+    {% if module.action == "start_separation" %}
+    <a href="/mobile/delivery" class="interactive block w-full rounded-[24px] px-4 py-4 text-left preview-module-card" style="{{ panel_style }}">
+        <div class="flex items-start gap-3">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="{{ icon_style }}">
+                <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="text-caption-lg mt-1 leading-relaxed" style="color: var(--color-text-muted);">{{ module.description }}</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0 mt-1" style="color: var(--color-text-muted);"></i>
+        </div>
+    </a>
+    {% elif module.action == "open_admin_start_modal" %}
+    <button @click="open_admin_start_modal()" class="interactive block w-full rounded-[24px] px-4 py-4 text-left preview-module-card" style="{{ panel_style }}">
+        <div class="flex items-start gap-3">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="{{ icon_style }}">
+                <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="text-caption-lg mt-1 leading-relaxed" style="color: var(--color-text-muted);">{{ module.description }}</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0 mt-1" style="color: var(--color-text-muted);"></i>
+        </div>
+    </button>
+    {% elif module.action == "manage_routes" %}
+    <a href="/mobile/admin/routes" class="interactive block w-full rounded-[24px] px-4 py-4 text-left preview-module-card" style="{{ panel_style }}">
+        <div class="flex items-start gap-3">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="{{ icon_style }}">
+                <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="text-caption-lg mt-1 leading-relaxed" style="color: var(--color-text-muted);">{{ module.description }}</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0 mt-1" style="color: var(--color-text-muted);"></i>
+        </div>
+    </a>
+    {% else %}
+    <a href="{{ module.href }}" class="interactive block w-full rounded-[24px] px-4 py-4 text-left preview-module-card" style="{{ panel_style }}">
+        <div class="flex items-start gap-3">
+            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="{{ icon_style }}">
+                <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="text-caption-lg mt-1 leading-relaxed" style="color: var(--color-text-muted);">{{ module.description }}</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0 mt-1" style="color: var(--color-text-muted);"></i>
+        </div>
+    </a>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+{% set ns = namespace(primary=[], tools=[], consult=[], checklist=None, returns=None, history=None, gatehouse=None) %}
+{% for module in modules or [] %}
+    {% set label = (module.label or '')|lower %}
+    {% if module.action in ["start_separation", "open_admin_start_modal", "manage_routes"] or "entrega" in label or "rota ativa" in label %}
+        {% set ns.primary = ns.primary + [module] %}
+    {% elif "checklist" in label or "devolu" in label or "portaria" in label %}
+        {% set ns.tools = ns.tools + [module] %}
+    {% else %}
+        {% set ns.consult = ns.consult + [module] %}
+    {% endif %}
+    {% if "checklist" in label and ns.checklist is none %}{% set ns.checklist = module %}{% endif %}
+    {% if "devolu" in label and ns.returns is none %}{% set ns.returns = module %}{% endif %}
+    {% if "histórico" in label and ns.history is none %}{% set ns.history = module %}{% endif %}
+    {% if "portaria" in label and ns.gatehouse is none %}{% set ns.gatehouse = module %}{% endif %}
+{% endfor %}
+{% set primary_cta = ns.primary[0] if ns.primary else None %}
+{% set delivery_total = delivery_summary.total_today if delivery_summary and delivery_summary.enabled else 0 %}
+{% set delivery_open = delivery_summary.open_today if delivery_summary and delivery_summary.enabled else 0 %}
+{% set delivery_completed = delivery_summary.completed_today if delivery_summary and delivery_summary.enabled else 0 %}
+{% set delivery_plate = delivery_summary.assigned_plate if delivery_summary and delivery_summary.enabled else "" %}
+
+<style>
+    .preview-dashboard-shell {
+        position: relative;
+        min-height: 100%;
+        background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.22), transparent 30%),
+            radial-gradient(circle at top left, rgba(16, 185, 129, 0.10), transparent 24%),
+            linear-gradient(180deg, #08101d 0%, #0b1423 34%, #0d1728 100%);
+    }
+    .preview-dashboard-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(180deg, rgba(255,255,255,0.015) 0%, rgba(255,255,255,0) 22%);
+    }
+    .preview-panel {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.76) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 18px 44px rgba(2, 6, 23, 0.35);
+        backdrop-filter: blur(18px);
+    }
+    .preview-panel::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(135deg, rgba(255,255,255,0.06), transparent 45%, transparent 100%);
+    }
+    .preview-hero {
+        position: relative;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at top right, rgba(96, 165, 250, 0.26), transparent 32%),
+            linear-gradient(180deg, rgba(13, 27, 55, 0.96) 0%, rgba(10, 21, 41, 0.96) 100%);
+        border: 1px solid rgba(96, 165, 250, 0.22);
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.42);
+    }
+    .preview-hero::before {
+        content: "";
+        position: absolute;
+        inset: auto -12% -35% auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.12);
+        filter: blur(18px);
+        pointer-events: none;
+    }
+    .preview-kpi {
+        background: linear-gradient(180deg, rgba(15,23,42,0.84) 0%, rgba(15,23,42,0.70) 100%);
+        border: 1px solid rgba(148,163,184,0.14);
+        box-shadow: 0 12px 30px rgba(2,6,23,0.22);
+    }
+    .preview-pill {
+        border: 1px solid rgba(148,163,184,0.16);
+        background: rgba(15,23,42,0.62);
+        color: var(--color-text);
+    }
+    .preview-module-card,
+    .preview-quick-link,
+    .preview-bottom-link {
+        transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+    }
+    .preview-module-card:active,
+    .preview-quick-link:active,
+    .preview-bottom-link:active {
+        transform: scale(0.985);
+    }
+    .preview-section-label {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.88);
+    }
+    .preview-progress-track {
+        position: relative;
+        overflow: hidden;
+        background: rgba(15, 23, 42, 0.78);
+        border: 1px solid rgba(96, 165, 250, 0.14);
+    }
+    .preview-progress-bar {
+        background: linear-gradient(90deg, #2563eb 0%, #60a5fa 55%, #93c5fd 100%);
+        box-shadow: 0 0 22px rgba(59, 130, 246, 0.28);
+    }
+    .preview-bottom-nav {
+        background: rgba(8, 15, 29, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.4);
+        backdrop-filter: blur(20px);
+    }
+    .preview-fade-up {
+        animation: previewFadeUp 420ms ease both;
+    }
+    .dashboard-preview-modal {
+        z-index: 220 !important;
+    }
+    @keyframes previewFadeUp {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 640px) {
+        .dashboard-preview-modal {
+            align-items: flex-end !important;
+            justify-content: stretch !important;
+            padding: 0 !important;
+        }
+        .dashboard-preview-modal > div {
+            width: 100% !important;
+            max-width: none !important;
+            border-radius: 24px 24px 0 0 !important;
+            max-height: 88vh !important;
+        }
+    }
+</style>
+
+<!-- Offline Banner -->
+<div id="offline-banner" class="offline-banner text-center py-2 text-body font-medium z-50 text-white" style="background: var(--color-danger);">
+    <i data-lucide="wifi-off" class="w-4 h-4 inline-block mr-1"></i>
+    Você está offline
+</div>
+
+<!-- Pull to Refresh premium -->
+<div id="pull-indicator" class="pull-indicator">
+    <i data-lucide="refresh-cw" class="w-5 h-5 pull-icon"></i>
+    <span id="pull-text">Puxe para atualizar</span>
+</div>
+
+<!-- XP Popup -->
+<div id="xp-popup" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden flex items-center justify-center">
+    <div class="px-8 py-5 rounded-2xl font-bold text-2xl text-white animate-bounce-short" style="background: var(--gradient-header); box-shadow: var(--shadow-xl);">
+        +<span id="xp-amount">0</span> XP!
+    </div>
+</div>
+{% if false %}
+        {% if modules and modules|length > 0 %}
+        <section id="modules-preview" class="container-mobile mt-5 space-y-5 preview-fade-up">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <p class="preview-section-label">Navegação operacional</p>
+                    <h2 class="text-title text-white mt-1">Fluxos organizados por uso</h2>
+                </div>
+                <a href="#quick-access-preview" class="text-caption font-semibold" style="color: #93c5fd;">Atalhos</a>
+            </div>
+
+            {% if ns.primary %}
+            <div class="space-y-2">
+                <div>
+                    <p class="text-body font-semibold text-white">Ação principal</p>
+                    <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">O que exige decisão imediata</p>
+                </div>
+                <div class="space-y-2">
+                    {% for module in ns.primary %}
+                        {{ render_dashboard_module(module, 'primary') }}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if ns.tools %}
+            <div class="space-y-2">
+                <div>
+                    <p class="text-body font-semibold text-white">Ferramentas</p>
+                    <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Execução, apoio e controle da operação</p>
+                </div>
+                <div class="space-y-2">
+                    {% for module in ns.tools %}
+                        {{ render_dashboard_module(module, 'tool') }}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if ns.consult %}
+            <div class="space-y-2">
+                <div>
+                    <p class="text-body font-semibold text-white">Consulta</p>
+                    <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Leitura histórica e acompanhamento</p>
+                </div>
+                <div class="space-y-2">
+                    {% for module in ns.consult %}
+                        {{ render_dashboard_module(module, 'consult') }}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <section id="quick-access-preview" class="container-mobile mt-5 space-y-3 preview-fade-up">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <p class="preview-section-label">Acesso rápido</p>
+                    <h2 class="text-title text-white mt-1">Atalhos úteis no dia</h2>
+                </div>
+            </div>
+            <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+                <a href="/mobile/achievements" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.18); color: #fbbf24;">
+                    <i data-lucide="trophy" class="w-4.5 h-4.5"></i>
+                    <span class="text-body font-semibold whitespace-nowrap">Conquistas</span>
+                </a>
+                <button type="button" @click="showDateFilter = true" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
+                    <i data-lucide="calendar-range" class="w-4.5 h-4.5"></i>
+                    <span class="text-body font-semibold whitespace-nowrap" x-text="dateFilterLabel">Entregas do mês</span>
+                </button>
+                {% if ns.returns %}
+                <a href="{{ ns.returns.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.18); color: #fbbf24;">
+                    <i data-lucide="package" class="w-4.5 h-4.5"></i>
+                    <span class="text-body font-semibold whitespace-nowrap">Devolução</span>
+                </a>
+                {% endif %}
+                {% if ns.history %}
+                <a href="{{ ns.history.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(148,163,184,0.14); border: 1px solid rgba(148,163,184,0.16); color: #cbd5e1;">
+                    <i data-lucide="history" class="w-4.5 h-4.5"></i>
+                    <span class="text-body font-semibold whitespace-nowrap">Histórico</span>
+                </a>
+                {% endif %}
+                {% if ns.gatehouse %}
+                <a href="{{ ns.gatehouse.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(96,165,250,0.14); border: 1px solid rgba(96,165,250,0.18); color: #93c5fd;">
+                    <i data-lucide="shield" class="w-4.5 h-4.5"></i>
+                    <span class="text-body font-semibold whitespace-nowrap">Portaria</span>
+                </a>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if time_bonuses %}
+        <section class="container-mobile mt-5 space-y-2 preview-fade-up">
+            <div>
+                <p class="preview-section-label">Incentivos</p>
+                <h2 class="text-title text-white mt-1">Bônus por horário</h2>
+            </div>
+            <div class="space-y-2">
+                {% for bonus in time_bonuses %}
+                <div class="preview-panel rounded-[24px] p-4">
+                    <div class="relative z-10 flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                            <i data-lucide="timer" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-body font-semibold truncate text-white">{{ bonus.name or 'Bônus por horário' }}</h3>
+                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Até às <strong>{{ bonus.stop_time }}</strong></p>
+                        </div>
+                        <span class="text-body font-semibold flex-shrink-0" style="color: #34d399;">+{{ bonus.bonus_percent }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if upcoming_events %}
+        <section class="container-mobile mt-5 space-y-2 preview-fade-up">
+            <div>
+                <p class="preview-section-label">Agenda</p>
+                <h2 class="text-title text-white mt-1">Próximos eventos</h2>
+            </div>
+            <div class="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 no-scrollbar">
+                {% for event in upcoming_events %}
+                <div class="flex-shrink-0 w-64 preview-panel rounded-[24px] p-4">
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-xl overflow-hidden" style="background: rgba(148,163,184,0.14);">
+                                {% if event.image_url %}<img src="{{ event.image_url }}" class="w-full h-full object-cover">{% else %}{{ event.emoji or '🎉' }}{% endif %}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h3 class="text-body font-semibold truncate text-white">{{ event.name }}</h3>
+                                <p class="text-caption mt-1" style="color: rgba(148,163,184,0.92);">{{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 pt-3 border-t" style="border-color: rgba(148,163,184,0.14);">
+                            <span class="text-caption-lg font-semibold" style="color: #34d399;">+{{ event.bonus_xp }} XP</span>
+                            {% if event.multiplier and event.multiplier > 1 %}<span class="text-caption font-semibold" style="color: #93c5fd;">{{ event.multiplier }}x</span>{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <div class="fixed inset-x-0 bottom-0 z-40 px-4 pb-4" x-show="initialized">
+            <div class="container-mobile">
+                <nav class="preview-bottom-nav rounded-[26px] px-3 py-2">
+                    <div class="grid grid-cols-5 gap-1">
+                        <a href="/mobile/dashboard-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                            <i data-lucide="house" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Início</span>
+                        </a>
+                        {% if primary_cta %}
+                        {% if primary_cta.action == "start_separation" %}
+                        <a href="/mobile/delivery" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="truck" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Entregas</span>
+                        </a>
+                        {% elif primary_cta.action == "manage_routes" %}
+                        <a href="/mobile/admin/routes" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="route" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Rotas</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ primary_cta.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="{{ primary_cta.icon }}" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Operação</span>
+                        </a>
+                        {% endif %}
+                        {% else %}
+                        <a href="#modules-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="layout-grid" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Módulos</span>
+                        </a>
+                        {% endif %}
+
+                        {% if ns.checklist %}
+                        <a href="{{ ns.checklist.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="clipboard-check" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Checklist</span>
+                        </a>
+                        {% else %}
+                        <button type="button" @click="showDateFilter = true" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="calendar-range" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Período</span>
+                        </button>
+                        {% endif %}
+
+                        {% if ns.history %}
+                        <a href="{{ ns.history.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="history" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Histórico</span>
+                        </a>
+                        {% else %}
+                        <a href="#quick-access-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="flashlight" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Atalhos</span>
+                        </a>
+                        {% endif %}
+
+                        <a href="/mobile/achievements" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="user-round" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Perfil</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div x-data="dashboardController()" class="flex flex-col preview-dashboard-shell" x-ref="mainContainer" x-cloak @open-delivery-setup-modal="openDeliverySetupModal()">
+    
+    {% if module_notice %}
+    <div class="container-mobile pt-4">
+        <div class="preview-panel rounded-[24px] px-4 py-3 preview-fade-up">
+            <div class="relative z-10 flex items-start gap-3">
+                <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(239,68,68,0.14); color: #f87171;">
+                    <i data-lucide="alert-triangle" class="w-4.5 h-4.5"></i>
+                </div>
+                <div class="min-w-0">
+                    <p class="text-body font-semibold" style="color: #fca5a5;">Atenção de acesso</p>
+                    <p class="text-caption-lg mt-1" style="color: rgba(226,232,240,0.86);">{{ module_notice }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <template x-if="!initialized">
+        <div class="container-mobile pt-6 space-y-4">
+            <div class="skeleton h-32 rounded-[28px]"></div>
+            <div class="skeleton h-[320px] rounded-[32px]"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="skeleton h-28 rounded-[24px]"></div>
+                <div class="skeleton h-28 rounded-[24px]"></div>
+            </div>
+            <div class="skeleton h-52 rounded-[28px]"></div>
+        </div>
+    </template>
+
+    <div x-show="initialized" class="pb-32">
+        <section class="container-mobile pt-4 space-y-4">
+            <header class="preview-panel rounded-[28px] px-4 py-4 preview-fade-up">
+                <div class="relative z-10 flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="relative flex-shrink-0">
+                            <div class="w-14 h-14 rounded-[20px] overflow-hidden ring-1 ring-white/10 shadow-xl" style="background: linear-gradient(135deg, #2563eb 0%, #0f172a 100%);">
+                                <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
+                                    onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
+                                    class="w-full h-full object-cover" alt="">
+                            </div>
+                            <span class="absolute -bottom-1 -right-1 min-w-[22px] h-[22px] px-1 rounded-full flex items-center justify-center text-[11px] font-bold text-white border border-white/25" style="background: #2563eb;">
+                                {{ gamification.level.level }}
+                            </span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <h1 class="text-title-lg truncate text-white">{{ employee.name|emp_name }}</h1>
+                                <span class="px-2 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase" style="background: rgba(59,130,246,0.16); color: #93c5fd;">
+                                    Nível {{ gamification.level.level }}
+                                </span>
+                            </div>
+                            <p class="text-caption-lg mt-1 truncate" style="color: rgba(191,219,254,0.92);">{{ employee.role or gamification.level.name }}</p>
+                            <div class="mt-2 flex items-center gap-2 flex-wrap">
+                                <span class="px-2.5 py-1 rounded-full text-caption font-semibold" style="background: rgba(15,23,42,0.5); color: rgba(226,232,240,0.92);">
+                                    {{ gamification.level.name }}
+                                </span>
+                                {% if streak_days and streak_days > 0 %}
+                                <span class="px-2.5 py-1 rounded-full text-caption font-semibold flex items-center gap-1" style="background: rgba(245,158,11,0.18); color: #fbbf24;">
+                                    <i data-lucide="flame" class="w-3.5 h-3.5"></i>
+                                    {{ streak_days }} dias
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-2xl text-white preview-quick-link" style="background: rgba(59,130,246,0.16); border: 1px solid rgba(96,165,250,0.18);" title="Conquistas">
+                            <i data-lucide="award" class="w-5 h-5"></i>
+                        </a>
+                        <button type="button" @click="logout()" class="touch-target-icon flex items-center justify-center rounded-2xl text-white preview-quick-link" style="background: rgba(15,23,42,0.48); border: 1px solid rgba(148,163,184,0.14);" title="Sair">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative z-10 mt-4 rounded-[22px] px-4 py-3" style="background: rgba(8,15,29,0.48); border: 1px solid rgba(148,163,184,0.12);">
+                    <div class="flex items-center justify-between gap-3 mb-2">
+                        <div class="min-w-0">
+                            <p class="text-caption font-semibold" style="color: rgba(191,219,254,0.88);">XP acumulado</p>
+                            <p class="text-body-lg font-bold text-white">
+                                <span x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</span>
+                                <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded-full ml-1 align-middle" style="background: rgba(59,130,246,0.16); color: #bfdbfe;" aria-label="Dicas">
+                                    <i data-lucide="lightbulb" class="w-3 h-3"></i>
+                                </button>
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            {% if gamification.next_level %}
+                            <p class="text-caption" style="color: rgba(148,163,184,0.92);">Próximo marco</p>
+                            <p class="text-body font-semibold text-white">{{ gamification.next_level.name }}</p>
+                            {% else %}
+                            <p class="text-caption" style="color: rgba(148,163,184,0.92);">Status</p>
+                            <p class="text-body font-semibold" style="color: #fbbf24;">Nível máximo</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="preview-progress-track h-3 rounded-full">
+                        <div class="preview-progress-bar h-full rounded-full transition-all duration-700 ease-out" :style="`width: ${xpProgressPercent}%`"></div>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between gap-3 text-caption">
+                        <span style="color: rgba(148,163,184,0.92);">Progresso do nível</span>
+                        <span class="font-semibold" style="color: #bfdbfe;" x-text="Math.round(xpProgressPercent) + '%'">{{ gamification.progress_percent|round|int }}%</span>
+                    </div>
+                    <p class="mt-2 text-caption font-semibold" x-show="dailyXp > 0" style="color: #86efac;">
+                        +<span x-text="dailyXp"></span> XP hoje. Ritmo forte.
+                    </p>
+                </div>
+            </header>
+
+            <section class="preview-hero rounded-[32px] p-5 preview-fade-up">
+                <div class="relative z-10">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <p class="preview-section-label">Missão do dia</p>
+                            <div class="mt-2 flex items-center gap-2 flex-wrap">
+                                <h2 class="text-title-lg text-white">Rota operacional</h2>
+                                <span class="px-2.5 py-1 rounded-full text-caption font-semibold"
+                                    :class="{
+                                        'bg-emerald-500/15 text-emerald-300': totalDeliveryStops > 0 && openDeliveryStops === 0 && completedDeliveryStops > 0,
+                                        'bg-blue-500/15 text-blue-300': inProgressDeliveryRoute || deliverySessionOpen,
+                                        'bg-amber-500/15 text-amber-300': totalDeliveryStops > 0 && openDeliveryStops > 0 && !deliverySessionOpen,
+                                        'bg-slate-500/15 text-slate-300': totalDeliveryStops === 0
+                                    }"
+                                    x-text="heroStatusLabel">
+                                    {% if delivery_total > 0 and delivery_open == 0 and delivery_completed > 0 %}Operação concluída{% elif delivery_total > 0 %}Pronto para iniciar{% else %}Painel pronto{% endif %}
+                                </span>
+                            </div>
+                            <p class="mt-2 text-body-lg leading-relaxed" style="color: rgba(226,232,240,0.92);" x-text="heroStatusMessage">
+                                {% if delivery_total > 0 %}
+                                {{ delivery_open }} parada(s) aguardando execução no dia.
+                                {% else %}
+                                Nenhuma rota lançada por enquanto. O painel continua pronto para a próxima operação.
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="w-12 h-12 rounded-[20px] flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.16);">
+                            <i data-lucide="truck" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mt-5">
+                        <div class="rounded-[22px] px-3.5 py-3" style="background: rgba(8,15,29,0.44); border: 1px solid rgba(148,163,184,0.12);">
+                            <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Placa</p>
+                            <p class="text-body-lg font-bold mt-1 text-white" x-text="assignedPlate || '{{ delivery_plate or '—' }}'">{{ delivery_plate or '—' }}</p>
+                        </div>
+                        <div class="rounded-[22px] px-3.5 py-3" style="background: rgba(8,15,29,0.44); border: 1px solid rgba(148,163,184,0.12);">
+                            <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Progresso</p>
+                            <p class="text-body-lg font-bold mt-1 text-white"><span x-text="heroProgressPercent">0</span>%</p>
+                        </div>
+                        <div class="rounded-[22px] px-3.5 py-3" style="background: rgba(8,15,29,0.44); border: 1px solid rgba(148,163,184,0.12);">
+                            <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Paradas abertas</p>
+                            <p class="text-body-lg font-bold mt-1" style="color: #fbbf24;" x-text="openDeliveryStops">{{ delivery_open }}</p>
+                        </div>
+                        <div class="rounded-[22px] px-3.5 py-3" style="background: rgba(8,15,29,0.44); border: 1px solid rgba(148,163,184,0.12);">
+                            <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Concluídas</p>
+                            <p class="text-body-lg font-bold mt-1" style="color: #34d399;" x-text="completedDeliveryStops">{{ delivery_completed }}</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <div class="flex items-center justify-between gap-3 text-caption mb-2">
+                            <span style="color: rgba(148,163,184,0.92);">Execução operacional</span>
+                            <span class="font-semibold" style="color: #bfdbfe;" x-text="completedDeliveryStops + ' de ' + totalDeliveryStops">0 de {{ delivery_total }}</span>
+                        </div>
+                        <div class="preview-progress-track h-3 rounded-full">
+                            <div class="preview-progress-bar h-full rounded-full transition-all duration-500 ease-out" :style="`width: ${heroProgressPercent}%`"></div>
+                        </div>
+                    </div>
+
+                    {% if primary_cta %}
+                    <div class="mt-5 space-y-2">
+                        {% if primary_cta.action == "start_separation" %}
+                        <a href="/mobile/delivery" class="interactive w-full min-h-[58px] rounded-[22px] px-4 py-3 flex items-center justify-center gap-2 font-semibold text-white preview-quick-link" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 18px 32px rgba(37,99,235,0.28);">
+                            <i data-lucide="play-circle" class="w-5 h-5"></i>
+                            <span x-text="heroActionLabel">Abrir rota do dia</span>
+                        </a>
+                        {% elif primary_cta.action == "open_admin_start_modal" %}
+                        <button @click="open_admin_start_modal()" class="interactive w-full min-h-[58px] rounded-[22px] px-4 py-3 flex items-center justify-center gap-2 font-semibold text-white preview-quick-link" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 18px 32px rgba(37,99,235,0.28);">
+                            <i data-lucide="{{ primary_cta.icon }}" class="w-5 h-5"></i>
+                            <span>{{ primary_cta.label }}</span>
+                        </button>
+                        {% elif primary_cta.action == "manage_routes" %}
+                        <a href="/mobile/admin/routes" class="interactive w-full min-h-[58px] rounded-[22px] px-4 py-3 flex items-center justify-center gap-2 font-semibold text-white preview-quick-link" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 18px 32px rgba(37,99,235,0.28);">
+                            <i data-lucide="{{ primary_cta.icon }}" class="w-5 h-5"></i>
+                            <span>{{ primary_cta.label }}</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ primary_cta.href }}" class="interactive w-full min-h-[58px] rounded-[22px] px-4 py-3 flex items-center justify-center gap-2 font-semibold text-white preview-quick-link" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 18px 32px rgba(37,99,235,0.28);">
+                            <i data-lucide="{{ primary_cta.icon }}" class="w-5 h-5"></i>
+                            <span>{{ primary_cta.label }}</span>
+                        </a>
+                        {% endif %}
+                        <div class="flex items-center justify-between gap-3 rounded-[20px] px-3.5 py-3" style="background: rgba(8,15,29,0.42); border: 1px solid rgba(148,163,184,0.12);">
+                            <div class="min-w-0">
+                                <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Leitura rápida</p>
+                                <p class="text-body mt-1 text-white" x-text="heroSupportMessage">
+                                    {{ delivery_completed }} concluída(s) e {{ delivery_open }} ainda abertas.
+                                </p>
+                            </div>
+                            <button type="button" @click="showDateFilter = true" class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill flex-shrink-0">
+                                Período
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="grid grid-cols-2 gap-3 preview-fade-up">
+                <div class="preview-kpi rounded-[24px] p-4">
+                    <p class="preview-section-label">XP hoje</p>
+                    <div class="mt-3 flex items-end justify-between gap-3">
+                        <div>
+                            <p class="text-title text-white">+<span x-text="dailyXp">0</span></p>
+                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Ganho acumulado do turno</p>
+                        </div>
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                            <i data-lucide="sparkles" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-kpi rounded-[24px] p-4">
+                    <p class="preview-section-label">Produtividade</p>
+                    <div class="mt-3 flex items-end justify-between gap-3">
+                        <div>
+                            <p class="text-title text-white"><span x-text="heroProgressPercent">0</span>%</p>
+                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Conclusão da missão do dia</p>
+                        </div>
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background: rgba(16,185,129,0.14); color: #34d399;">
+                            <i data-lucide="activity" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="preview-kpi rounded-[24px] p-4">
+                    <p class="preview-section-label">Devolução</p>
+                    <div class="mt-3 flex items-end justify-between gap-3">
+                        <div>
+                            {% if returns_alert_data and returns_alert_data.enabled %}
+                            <p class="text-title text-white">{{ returns_alert_data.actual_percent|fmt_br_2 }}%</p>
+                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">
+                                Meta {{ returns_alert_data.target_percent|fmt_br_2 }}%
+                                {% if returns_alert_data.is_above_target %}acima{% else %}dentro{% endif %}
+                            </p>
+                        </div>
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background: rgba(245,158,11,0.14); color: #fbbf24;">
+                            <i data-lucide="package-search" class="w-5 h-5"></i>
+                        </div>
+                        {% else %}
+                            <p class="text-title text-white">--</p>
+                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Sem medição disponível</p>
+                        </div>
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background: rgba(148,163,184,0.14); color: #cbd5e1;">
+                            <i data-lucide="package-search" class="w-5 h-5"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="preview-kpi rounded-[24px] p-4">
+                    <p class="preview-section-label">Ritmo</p>
+                    <div class="mt-3 flex items-end justify-between gap-3">
+                        <div>
+                            <p class="text-title text-white" x-text="completedDeliveryStops">0</p>
+                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Paradas concluídas hoje</p>
+                        </div>
+                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                            <i data-lucide="flag" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {% if modules and modules|length > 0 %}
+            <section id="modules-preview" class="space-y-5 preview-fade-up">
+                <div class="flex items-end justify-between gap-3">
+                    <div>
+                        <p class="preview-section-label">Navegação operacional</p>
+                        <h2 class="text-title text-white mt-1">Fluxos organizados por uso</h2>
+                    </div>
+                    <a href="#quick-access-preview" class="text-caption font-semibold" style="color: #93c5fd;">Atalhos</a>
+                </div>
+
+                {% if ns.primary %}
+                <div class="space-y-2">
+                    <div>
+                        <p class="text-body font-semibold text-white">Ação principal</p>
+                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">O que exige decisão imediata</p>
+                    </div>
+                    <div class="space-y-2">
+                        {% for module in ns.primary %}
+                            {{ render_dashboard_module(module, 'primary') }}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if ns.tools %}
+                <div class="space-y-2">
+                    <div>
+                        <p class="text-body font-semibold text-white">Ferramentas</p>
+                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Execução, apoio e controle da operação</p>
+                    </div>
+                    <div class="space-y-2">
+                        {% for module in ns.tools %}
+                            {{ render_dashboard_module(module, 'tool') }}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if ns.consult %}
+                <div class="space-y-2">
+                    <div>
+                        <p class="text-body font-semibold text-white">Consulta</p>
+                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Leitura histórica e acompanhamento</p>
+                    </div>
+                    <div class="space-y-2">
+                        {% for module in ns.consult %}
+                            {{ render_dashboard_module(module, 'consult') }}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <section id="quick-access-preview" class="space-y-3 preview-fade-up">
+                <div class="flex items-end justify-between gap-3">
+                    <div>
+                        <p class="preview-section-label">Acesso rápido</p>
+                        <h2 class="text-title text-white mt-1">Atalhos úteis no dia</h2>
+                    </div>
+                </div>
+                <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+                    <a href="/mobile/achievements" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.18); color: #fbbf24;">
+                        <i data-lucide="trophy" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold whitespace-nowrap">Conquistas</span>
+                    </a>
+                    <button type="button" @click="showDateFilter = true" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
+                        <i data-lucide="calendar-range" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold whitespace-nowrap" x-text="dateFilterLabel">Entregas do mês</span>
+                    </button>
+                    {% if ns.returns %}
+                    <a href="{{ ns.returns.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.18); color: #fbbf24;">
+                        <i data-lucide="package" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold whitespace-nowrap">Devolução</span>
+                    </a>
+                    {% endif %}
+                    {% if ns.history %}
+                    <a href="{{ ns.history.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(148,163,184,0.14); border: 1px solid rgba(148,163,184,0.16); color: #cbd5e1;">
+                        <i data-lucide="history" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold whitespace-nowrap">Histórico</span>
+                    </a>
+                    {% endif %}
+                    {% if ns.gatehouse %}
+                    <a href="{{ ns.gatehouse.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(96,165,250,0.14); border: 1px solid rgba(96,165,250,0.18); color: #93c5fd;">
+                        <i data-lucide="shield" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold whitespace-nowrap">Portaria</span>
+                    </a>
+                    {% endif %}
+                </div>
+            </section>
+
+            {% if time_bonuses %}
+            <section class="space-y-2 preview-fade-up">
+                <div>
+                    <p class="preview-section-label">Incentivos</p>
+                    <h2 class="text-title text-white mt-1">Bônus por horário</h2>
+                </div>
+                <div class="space-y-2">
+                    {% for bonus in time_bonuses %}
+                    <div class="preview-panel rounded-[24px] p-4">
+                        <div class="relative z-10 flex items-center gap-3">
+                            <div class="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                                <i data-lucide="timer" class="w-5 h-5"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-body font-semibold truncate text-white">{{ bonus.name or 'Bônus por horário' }}</h3>
+                                <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Até às <strong>{{ bonus.stop_time }}</strong></p>
+                            </div>
+                            <span class="text-body font-semibold flex-shrink-0" style="color: #34d399;">+{{ bonus.bonus_percent }}%</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% if upcoming_events %}
+            <section class="space-y-2 preview-fade-up">
+                <div>
+                    <p class="preview-section-label">Agenda</p>
+                    <h2 class="text-title text-white mt-1">Próximos eventos</h2>
+                </div>
+                <div class="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 no-scrollbar">
+                    {% for event in upcoming_events %}
+                    <div class="flex-shrink-0 w-64 preview-panel rounded-[24px] p-4">
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-xl overflow-hidden" style="background: rgba(148,163,184,0.14);">
+                                    {% if event.image_url %}<img src="{{ event.image_url }}" class="w-full h-full object-cover">{% else %}{{ event.emoji or '🎉' }}{% endif %}
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="text-body font-semibold truncate text-white">{{ event.name }}</h3>
+                                    <p class="text-caption mt-1" style="color: rgba(148,163,184,0.92);">{{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-3 pt-3 border-t" style="border-color: rgba(148,163,184,0.14);">
+                                <span class="text-caption-lg font-semibold" style="color: #34d399;">+{{ event.bonus_xp }} XP</span>
+                                {% if event.multiplier and event.multiplier > 1 %}<span class="text-caption font-semibold" style="color: #93c5fd;">{{ event.multiplier }}x</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        </section>
+
+        <div class="fixed inset-x-0 bottom-0 z-40 px-4 pb-4" x-show="initialized">
+            <div class="container-mobile">
+                <nav class="preview-bottom-nav rounded-[26px] px-3 py-2">
+                    <div class="grid grid-cols-5 gap-1">
+                        <a href="/mobile/dashboard-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                            <i data-lucide="house" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Início</span>
+                        </a>
+                        {% if primary_cta %}
+                        {% if primary_cta.action == "start_separation" %}
+                        <a href="/mobile/delivery" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="truck" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Entregas</span>
+                        </a>
+                        {% elif primary_cta.action == "manage_routes" %}
+                        <a href="/mobile/admin/routes" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="route" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Rotas</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ primary_cta.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="{{ primary_cta.icon }}" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Operação</span>
+                        </a>
+                        {% endif %}
+                        {% else %}
+                        <a href="#modules-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="layout-grid" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Módulos</span>
+                        </a>
+                        {% endif %}
+
+                        {% if ns.checklist %}
+                        <a href="{{ ns.checklist.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="clipboard-check" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Checklist</span>
+                        </a>
+                        {% else %}
+                        <button type="button" @click="showDateFilter = true" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="calendar-range" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Período</span>
+                        </button>
+                        {% endif %}
+
+                        {% if ns.history %}
+                        <a href="{{ ns.history.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="history" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Histórico</span>
+                        </a>
+                        {% else %}
+                        <a href="#quick-access-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="flashlight" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Atalhos</span>
+                        </a>
+                        {% endif %}
+
+                        <a href="/mobile/achievements" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="user-round" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Perfil</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
+        </div>
+        
+        <!-- 1. Identidade + XP (gradiente operacional) -->
+        <section class="hidden py-5" style="background: var(--gradient-header); box-shadow: var(--shadow-elevated);">
+            <div class="container-mobile">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <div class="relative flex-shrink-0">
+                            <div class="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-white/30 shadow-lg" style="background: var(--color-primary);">
+                                <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
+                                    onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
+                                    class="w-full h-full object-cover" alt="">
+                            </div>
+                            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-semibold text-white border-2 border-white shadow" style="background: var(--color-primary);">{{ gamification.level.level }}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <h1 class="text-title truncate text-white">{{ employee.name|emp_name }}</h1>
+                                {% if streak_days and streak_days > 0 %}
+                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/90 text-amber-900" title="{{ streak_days }} dias seguidos">
+                                    <i data-lucide="flame" class="w-3 h-3"></i>{{ streak_days }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="text-caption-lg mt-0.5 text-blue-100">{{ gamification.level.name }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg text-white" style="background: #3b82f6;">
+                            <i data-lucide="award" class="w-5 h-5"></i>
+                        </a>
+                        <a href="/mobile/logout" class="touch-target-icon flex items-center justify-center rounded-lg text-white" style="background: rgba(239,68,68,0.9);" title="Sair">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <div class="flex items-center justify-between text-caption-lg mb-1">
+                        <span class="text-blue-100">XP <strong class="text-white" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong>
+                            <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded-full ml-1 text-white" style="background: #3b82f6;" aria-label="Dicas"><i data-lucide="lightbulb" class="w-3 h-3"></i></button>
+                        </span>
+                        {% if gamification.next_level %}
+                        <span class="text-blue-200">Próx: {{ gamification.next_level.name }}</span>
+                        {% else %}
+                        <span class="font-semibold text-amber-300">Máx.</span>
+                        {% endif %}
+                    </div>
+                    <div class="h-2 w-full rounded-full overflow-hidden relative" style="background-color: #1e3a8a;">
+                        <div class="h-full transition-all duration-700 ease-out rounded-full absolute inset-y-0 left-0" style="background-color: #ffffff;" :style="`width: ${xpProgressPercent}%`"></div>
+                        <div class="xp-shine absolute inset-0 rounded-full overflow-hidden pointer-events-none" x-show="dailyXp > 0">
+                            <div class="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-blue-100 to-transparent animate-xp-shine"></div>
+                        </div>
+                    </div>
+                    <p class="text-caption mt-1 text-center font-semibold text-amber-300" x-show="dailyXp > 0">
+                        +<span x-text="dailyXp"></span> XP hoje! Continue assim!
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        {% if delivery_summary and delivery_summary.enabled %}
+        <section class="hidden container-mobile mt-4">
+            <div class="surface p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-primary);">Entregas de Hoje</p>
+                        <h2 class="text-section mt-1" style="color: var(--color-text);">
+                            {% if delivery_summary.total_today > 0 %}
+                            {{ delivery_summary.total_today }} parada(s) lançada(s)
+                            {% else %}
+                            Nenhuma rota lançada hoje
+                            {% endif %}
+                        </h2>
+                        {% if delivery_summary.assigned_plate %}
+                        <p class="text-caption-lg mt-1">Placa planejada: <strong>{{ delivery_summary.assigned_plate }}</strong></p>
+                        {% endif %}
+                    </div>
+                    <a href="/mobile/delivery" class="touch-target-icon flex items-center justify-center rounded-lg text-white flex-shrink-0" style="background: var(--color-primary);">
+                        <i data-lucide="truck" class="w-5 h-5"></i>
+                    </a>
+                </div>
+                <div class="grid grid-cols-3 gap-3 mt-4">
+                    <div class="rounded-xl p-3 text-center" style="background: var(--color-border-light);">
+                        <p class="text-caption">Total</p>
+                        <p class="text-title mt-1" style="color: var(--color-text);">{{ delivery_summary.total_today }}</p>
+                    </div>
+                    <div class="rounded-xl p-3 text-center" style="background: rgba(245,158,11,0.12);">
+                        <p class="text-caption">Em aberto</p>
+                        <p class="text-title mt-1" style="color: #f59e0b;">{{ delivery_summary.open_today }}</p>
+                    </div>
+                    <div class="rounded-xl p-3 text-center" style="background: rgba(16,185,129,0.12);">
+                        <p class="text-caption">Concluídas</p>
+                        <p class="text-title mt-1" style="color: #10b981;">{{ delivery_summary.completed_today }}</p>
+                    </div>
+                </div>
+                <a href="/mobile/delivery" class="interactive block w-full surface mt-3 p-3 text-center font-semibold" style="color: var(--color-text); border: 1px solid var(--color-border);">
+                    <span x-text="deliverySessionOpen ? 'Continuar rota' : 'Abrir rota do dia'"></span>
+                </a>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if returns_alert_data and returns_alert_data.enabled %}
+        <section class="hidden container-mobile mt-4">
+            <div class="surface p-4">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-warning);">Devoluções</p>
+                        <h2 class="text-section mt-1" style="color: var(--color-text);">
+                            {{ returns_alert_data.actual_percent|fmt_br_2 }}% no período
+                        </h2>
+                        <p class="text-caption-lg mt-1">
+                            Meta: {{ returns_alert_data.target_percent|fmt_br_2 }}%
+                            {% if returns_alert_data.is_above_target %}
+                            • acima da meta
+                            {% else %}
+                            • dentro da meta
+                            {% endif %}
+                        </p>
+                    </div>
+                    <a href="/mobile/returns" class="touch-target-icon flex items-center justify-center rounded-lg text-white flex-shrink-0" style="background: var(--color-warning);">
+                        <i data-lucide="package" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+    </div>
+
+    <!-- 3. Módulos (ação principal) -->
+    {% if modules and modules|length > 0 %}
+    <section id="modules" class="hidden container-mobile mt-4" x-show="initialized">
+        <h2 class="text-section mb-2" style="color: var(--color-text);">Módulos</h2>
+        <div class="space-y-2">
+            {% for module in modules %}
+            {% if module.action == "start_separation" %}
+            <a href="/mobile/delivery" class="interactive block w-full surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
+                    <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+            </a>
+            {% elif module.action == "open_admin_start_modal" %}
+            <button @click="open_admin_start_modal()" class="interactive w-full surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
+            </button>
+            {% elif module.action == "manage_routes" %}
+            <a href="/mobile/admin/routes" class="interactive block surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex-shrink-0"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
+            </a>
+            {% else %}
+            <a href="{{ module.href }}" class="interactive block surface p-4 text-left flex items-center gap-3">
+                <div class="icon-wrap flex-shrink-0"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                    <p class="text-caption-lg truncate">{{ module.description }}</p>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
+            </a>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 4. Acesso rápido -->
+    <section class="hidden container-mobile mt-4" x-show="initialized">
+        <h2 class="text-section mb-3" style="color: var(--color-text);">Acesso rápido</h2>
+        <div class="grid grid-cols-2 gap-3">
+            <a href="/mobile/achievements" class="interactive block surface p-5 rounded-xl min-h-[100px] flex flex-col items-center justify-center gap-3 text-center transition-all active:scale-[0.98]">
+                <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
+                    <i data-lucide="trophy" class="w-7 h-7"></i>
+                </div>
+                <p class="text-body font-semibold truncate w-full" style="color: var(--color-text);">Conquistas</p>
+            </a>
+        </div>
+    </section>
+
+    <!-- 4a. Time Bonuses (Bônus por Horário) -->
+    {% if time_bonuses %}
+    <section class="hidden container-mobile mt-4">
+        <h2 class="text-section mb-2" style="color: var(--color-text);">Bônus por horário</h2>
+        <div class="space-y-2">
+            {% for bonus in time_bonuses %}
+            <div class="surface p-4 flex items-center gap-3">
+                <div class="icon-wrap flex-shrink-0"><i data-lucide="timer" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-body font-semibold truncate" style="color: var(--color-text);">{{ bonus.name or 'Bônus por Horário' }}</h3>
+                    <p class="text-caption-lg">Até às <strong>{{ bonus.stop_time }}</strong></p>
+                </div>
+                <span class="text-body font-semibold flex-shrink-0" style="color: var(--color-success);">+{{ bonus.bonus_percent }}%</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if upcoming_events %}
+    <section class="hidden container-mobile mt-4">
+        <h2 class="text-section mb-2" style="color: var(--color-text);">Próximos eventos</h2>
+        <div class="flex overflow-x-auto gap-3 pb-3 -mx-4 px-4 no-scrollbar">
+            {% for event in upcoming_events %}
+            <div class="flex-shrink-0 w-64 surface p-4">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden" style="background: var(--color-border-light);">
+                        {% if event.image_url %}<img src="{{ event.image_url }}" class="w-full h-full object-cover">{% else %}{{ event.emoji or '🎉' }}{% endif %}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-body font-semibold truncate" style="color: var(--color-text);">{{ event.name }}</h3>
+                        <p class="text-caption">{{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t" style="border-color: var(--color-border-light);">
+                    <span class="text-caption-lg font-medium" style="color: var(--color-success);">+{{ event.bonus_xp }} XP</span>
+                    {% if event.multiplier and event.multiplier > 1 %}<span class="text-caption font-semibold">{{ event.multiplier }}x</span>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <div x-show="showDateFilter" class="fixed inset-0 dashboard-preview-modal flex items-center justify-center p-4 bg-black/50" x-transition.opacity x-cloak>
+        <div class="w-full max-w-md rounded-[28px] flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showDateFilter = false">
+            <div class="p-4 border-b flex items-start gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.14); color: #3b82f6;">
+                    <i data-lucide="calendar-range" class="w-5 h-5"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-title" style="color: var(--color-text);">Filtrar entregas</h3>
+                    <p class="text-caption-lg mt-1" style="color: var(--color-text-muted);">Ajuste o período sem sair da home preview.</p>
+                </div>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="block text-caption mb-1" style="color: var(--color-text-muted);">Data inicial</label>
+                    <input type="date" x-model="dateFilterFrom" class="w-full rounded-2xl px-4 py-3 border text-body focus:outline-none" style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+                <div>
+                    <label class="block text-caption mb-1" style="color: var(--color-text-muted);">Data final</label>
+                    <input type="date" x-model="dateFilterTo" class="w-full rounded-2xl px-4 py-3 border text-body focus:outline-none" style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+            </div>
+            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+                <button @click="resetDateFilter(); showDateFilter = false" class="flex-1 py-3 rounded-2xl font-semibold text-body" style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text);">
+                    Limpar
+                </button>
+                <button @click="applyDateFilter(); showDateFilter = false" class="flex-1 py-3 rounded-2xl font-semibold text-body text-white" style="background: var(--color-primary);">
+                    Aplicar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Stop Modal -->
+    <div x-show="showStopModal" class="fixed inset-0 z-[200] dashboard-preview-modal flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showStopModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="check-square" class="w-6 h-6"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-title" style="color: var(--color-text);">Finalizar Separação</h3>
+                    <p class="text-caption-lg mt-0.5 truncate" x-text="selectedRoute?.client_name"></p>
+                </div>
+            </div>
+            <div class="p-4 flex gap-3">
+                <button @click="showStopModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="confirmStop()" :class="{'btn-loading': isLoading}" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-success);">
+                    <span x-text="isLoading ? 'Finalizando...' : 'Confirmar'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Route Modal -->
+    <div x-show="showEditModal" class="fixed inset-0 z-[200] dashboard-preview-modal flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
+        <div class="w-full max-w-md rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showEditModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="pencil" class="w-6 h-6"></i></div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-title" style="color: var(--color-text);">Editar Separação</h3>
+                    <p class="text-caption-lg mt-0.5 truncate" x-text="selectedRoute?.client_name"></p>
+                </div>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Alterar Cliente (Opcional)</label>
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5" style="color: var(--color-text-muted);"></i>
+                        <input type="text" x-model="editSearch" placeholder="Buscar novo cliente..."
+                            class="w-full rounded-lg pl-12 pr-4 py-3 border-2 text-body-lg focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                    </div>
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1" x-show="editSearch.length > 0">
+                        <template x-for="client in filteredEditClients" :key="client.id">
+                            <button @click="selectEditClient(client)"
+                                class="w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors"
+                                :style="editForm.client_id === client.id ? 'background: var(--color-primary-bg); border: 2px solid var(--color-primary); color: var(--color-primary);' : 'background: transparent;'">
+                                <span class="text-body font-medium" x-text="client.name" :style="editForm.client_id === client.id ? 'color: var(--color-primary);' : 'color: var(--color-text);'"></span>
+                                <i data-lucide="check" class="w-4 h-4" x-show="editForm.client_id === client.id" style="color: var(--color-primary);"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="editForm.client_name" class="mt-2 text-body flex items-center gap-2 p-2 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success);">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="'Novo cliente: ' + editForm.client_name"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Peso Total (Kg)</label>
+                    <div class="relative">
+                        <input type="tel" inputmode="numeric" x-model="editForm.weightInput"
+                            @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; editForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
+                            class="w-full rounded-lg px-4 py-3 border-2 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <span class="absolute right-4 top-3.5 text-body font-medium" style="color: var(--color-text-muted);">kg</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+                <button @click="showEditModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="confirmEdit()" :class="{'btn-loading': isLoading}" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">
+                    <span x-text="isLoading ? 'Salvando...' : 'Salvar'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Route Modal -->
+    <div x-show="showDeleteModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showDeleteModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                    <i data-lucide="trash-2" class="w-6 h-6"></i>
+                </div>
+                <div class="flex-1 text-left">
+                    <h3 class="text-title" style="color: var(--color-text);">Excluir Separação?</h3>
+                    <p class="text-caption-lg mt-0.5">Esta ação não pode ser desfeita.</p>
+                </div>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Digite sua matrícula para confirmar</label>
+                    <input type="tel" x-model="deleteConfirmation" placeholder="Sua Matrícula"
+                        class="w-full rounded-lg px-4 py-3 border-2 text-body-lg text-center focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+                <div class="flex gap-3">
+                    <button @click="showDeleteModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                    <button @click="confirmDelete()" :class="{'btn-loading': isLoading}" :disabled="!deleteConfirmation"
+                        class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity disabled:opacity-50"
+                        style="background: var(--color-danger);">
+                        <span x-text="isLoading ? 'Excluindo...' : 'Confirmar'"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Start Modal -->
+    <div x-show="showAdminStartModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showAdminStartModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
+                    <i data-lucide="users" class="w-6 h-6"></i>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 class="text-title" style="color: var(--color-text);">Abertura Manual (Líder)</h3>
+                    <p class="text-caption-lg mt-0.5">Iniciar rota para outro colaborador</p>
+                </div>
+            </div>
+            <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Colaborador</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="absolute left-4 top-3.5 w-5 h-5" style="color: var(--color-text-muted);"></i>
+                        <input type="text" x-model="adminStartForm.employeeSearch" placeholder="Buscar por Nome ou Matrícula..."
+                            class="w-full rounded-lg pl-12 pr-4 py-3 border-2 text-body-lg focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                    </div>
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1" x-show="adminStartForm.employeeSearch.length > 0">
+                        <template x-for="emp in filteredAdminStartEmployees" :key="emp.id">
+                            <button @click="selectAdminStartEmployee(emp)"
+                                class="w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors"
+                                :style="adminStartForm.registrationId === emp.registration_id ? 'background: var(--color-primary-bg); border: 2px solid var(--color-primary);' : ''">
+                                <div>
+                                    <p class="text-body font-medium" x-text="(emp.name || '').toUpperCase()" :style="adminStartForm.registrationId === emp.registration_id ? 'color: var(--color-primary);' : 'color: var(--color-text);'"></p>
+                                    <p class="text-caption" x-text="emp.registration_id"></p>
+                                </div>
+                                <i data-lucide="check" class="w-4 h-4" x-show="adminStartForm.registrationId === emp.registration_id" style="color: var(--color-primary);"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="adminStartForm.employee_name" class="mt-2 text-body flex items-center gap-2 p-2 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success);">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="adminStartForm.employee_name + ' (' + adminStartForm.registrationId + ')'"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Cliente</label>
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-4 top-3.5 w-5 h-5" style="color: var(--color-text-muted);"></i>
+                        <input type="text" x-model="adminStartForm.clientSearch" placeholder="Buscar cliente..."
+                            class="w-full rounded-lg pl-12 pr-4 py-3 border-2 text-body-lg focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                    </div>
+                    <div class="mt-2 max-h-40 overflow-y-auto custom-scrollbar space-y-1" x-show="adminStartForm.clientSearch.length > 0">
+                        <template x-for="client in filteredAdminStartClients" :key="client.id">
+                            <button @click="selectAdminStartClient(client)"
+                                class="w-full text-left p-3 rounded-lg flex items-center justify-between transition-colors"
+                                :style="adminStartForm.client_id === client.id ? 'background: var(--color-primary-bg); border: 2px solid var(--color-primary);' : ''">
+                                <span class="text-body font-medium" x-text="client.name" :style="adminStartForm.client_id === client.id ? 'color: var(--color-primary);' : 'color: var(--color-text);'"></span>
+                                <i data-lucide="check" class="w-4 h-4" x-show="adminStartForm.client_id === client.id" style="color: var(--color-primary);"></i>
+                            </button>
+                        </template>
+                    </div>
+                    <div x-show="adminStartForm.client_name" class="mt-2 text-body flex items-center gap-2 p-2 rounded-lg" style="background: var(--color-success-bg); color: var(--color-success);">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span x-text="adminStartForm.client_name"></span>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-section block mb-2" style="color: var(--color-text);">Peso (Kg)</label>
+                    <div class="relative">
+                        <input type="tel" inputmode="numeric" x-model="adminStartForm.weightInput"
+                            @input="let v = $event.target.value.replace(/\D/g,''); if(!v) v='0'; adminStartForm.weightInput = (parseInt(v)/100).toLocaleString('pt-BR', {minimumFractionDigits: 2});"
+                            class="w-full rounded-lg px-4 py-3 border-2 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                            style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <span class="absolute right-4 top-3.5 font-medium" style="color: var(--color-text-muted);">kg</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+                <button @click="showAdminStartModal = false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="confirmAdminStart()" :class="{'btn-loading': isLoading}" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">
+                    <span x-text="isLoading ? 'Iniciando...' : 'Iniciar'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- End Day Modal -->
+    <div x-show="showEndDayModal" class="fixed inset-0 z-[200] dashboard-preview-modal flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showEndDayModal = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+                <div class="flex-1 text-left">
+                    <h3 class="text-title" style="color: var(--color-text);">Encerrar Expediente?</h3>
+                    <p class="text-caption-lg mt-0.5">Isso fechará todas as rotas pendentes e registrará seu horário de saída.</p>
+                </div>
+            </div>
+            <div class="p-4 flex flex-col gap-3">
+                <button @click="endDay()" class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity flex items-center justify-center gap-2" style="background: var(--color-danger);">
+                    <i data-lucide="power" class="w-5 h-5 fill-current"></i> Encerrar Agora
+                </button>
+                <button @click="showEndDayModal = false" class="w-full py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Voltar ao Trabalho</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evaluation Modal (Placeholder) -->
+    <div x-show="showEvaluation" class="fixed inset-0 z-[200] dashboard-preview-modal flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
+        <div class="w-full max-w-sm rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showEvaluation = false">
+            <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+                <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="construction" class="w-6 h-6"></i></div>
+                <div class="flex-1">
+                    <h3 class="text-title" style="color: var(--color-text);">Em Breve</h3>
+                    <p class="text-caption-lg mt-0.5">O módulo de avaliação estará disponível em breve.</p>
+                </div>
+            </div>
+            <div class="p-4">
+                <button @click="showEvaluation = false" class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">Entendi</button>
+            </div>
+        </div>
+    </div>
+
+<!-- XP Explanation Modal -->
+<div x-show="showHelpModal" class="fixed inset-0 z-[200] dashboard-preview-modal flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
+    <div class="w-full max-w-sm rounded-lg flex flex-col max-h-[85vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showHelpModal = false">
+        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+            <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="lightbulb" class="w-6 h-6"></i></div>
+            <div class="flex-1">
+                <h3 class="text-title" style="color: var(--color-text);">Segredos do XP</h3>
+                <p class="text-caption-lg mt-0.5">Como subir de nível mais rápido</p>
+            </div>
+        </div>
+        <div class="p-4 overflow-y-auto space-y-3 custom-scrollbar">
+            <div class="surface p-4">
+                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="truck" class="w-4 h-4"></i> Produção</h4>
+                <p class="text-body">Peso + Velocidade = XP. 1000kg em 30min = muito XP. 1000kg em 2h = pouco XP.</p>
+            </div>
+            <div class="surface p-4">
+                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Faltas</h4>
+                <p class="text-body">Faltas injustificadas tiram pontos e podem travar seu nível.</p>
+            </div>
+            <div class="surface p-4">
+                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="crown" class="w-4 h-4"></i> Tempo de Casa</h4>
+                <p class="text-body">Bônus fixo diário por cada ano completo de empresa.</p>
+            </div>
+        </div>
+        <div class="p-4 border-t shrink-0" style="border-color: var(--color-border);">
+            <button @click="showHelpModal = false" class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">Saquei! 👍</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delivery Setup Modal: mesmos padrões do Help/EndDay (sem teleport para preservar escopo Alpine) -->
+<div x-show="showDeliverySetupModal" x-cloak
+    class="fixed inset-0 dashboard-preview-modal flex items-center justify-center p-4 bg-black/60"
+    style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 99999;"
+    @click.self="showDeliverySetupModal = false"
+    x-transition.opacity>
+    <div @click.stop class="w-full max-w-lg rounded-xl flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface-solid, #0f172a); border: 1px solid var(--color-border); box-shadow: var(--shadow-modal);">
+        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+            <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-primary); color: white;">
+                <i data-lucide="truck" class="w-6 h-6"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-title" style="color: var(--color-text);">Iniciar Rota</h3>
+                <p class="text-caption-lg mt-0.5" style="color: var(--color-text-body);">Placa e KM de saída obrigatórios</p>
+            </div>
+            <button type="button" @click="showDeliverySetupModal=false" class="touch-target flex items-center justify-center min-w-[48px] min-h-[48px] rounded-lg interactive" style="background: rgba(239,68,68,0.15); color: var(--color-danger); border: 1px solid var(--color-danger);">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+        <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
+            <div class="rounded-lg p-3 text-body" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); color: var(--color-text-body);">Placa + KM de saída obrigatórios. Ajudantes opcional.</div>
+            <div x-show="deliverySetupError" class="rounded-lg px-3 py-2 text-body flex items-center gap-2" style="background: var(--color-danger-bg); color: var(--color-danger);" x-text="deliverySetupError"></div>
+            <div>
+                <label for="delivery-plate-input" class="text-section block mb-2" style="color: var(--color-text);">Placa *</label>
+                <input id="delivery-plate-input" name="delivery_plate" type="text" x-ref="deliveryPlateInput" x-model="deliverySetup.plate" @input="normalizePlateInput()" placeholder="ABC1D23"
+                    class="w-full rounded-lg px-4 py-3 text-body-lg uppercase font-mono focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+            </div>
+            <div>
+                <label for="delivery-km-departure" class="text-section block mb-2" style="color: var(--color-text);">KM de saída *</label>
+                <input id="delivery-km-departure" name="delivery_km_departure" type="number" inputmode="decimal" step="0.1" min="0" x-model="deliverySetup.km_departure" placeholder="Ex.: 125430,5"
+                    class="w-full rounded-lg px-4 py-3 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+            </div>
+            <div>
+                <label for="delivery-helper-input" class="text-xs uppercase tracking-wider block mb-2" style="color: var(--color-text-muted);">Equipe de Apoio</label>
+                <div class="flex flex-wrap gap-2 mb-3" x-show="deliverySetup.helpers.length > 0">
+                    <template x-for="(helper, idx) in deliverySetup.helpers" :key="`helper-${idx}-${helper}`">
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-full text-body font-medium animate-bounce-short"
+                            style="background: rgba(59,130,246,0.2); border: 1px solid rgba(59,130,246,0.3); color: var(--color-primary);">
+                            <span x-text="helper"></span>
+                            <button type="button" @click="removeDeliveryHelper(idx)" class="touch-target-icon flex items-center justify-center w-6 h-6 rounded-full hover:bg-blue-500/30 transition-colors">
+                                <i data-lucide="x" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+                <div class="relative">
+                    <input id="delivery-helper-input" name="delivery_helper_input" type="text" x-model="deliverySetup.helperInput" @keydown.enter.prevent="addDeliveryHelperFromInput()"
+                        placeholder="Adicionar ajudante..." autocomplete="off"
+                        class="w-full py-2.5 px-0 text-body border-b-2 focus:outline-none transition-colors"
+                        style="background: transparent; border-color: var(--color-border); color: var(--color-text-body);">
+                    <button type="button" @click="addDeliveryHelperFromInput()" class="absolute right-0 top-1/2 -translate-y-1/2 touch-target-icon flex items-center justify-center" style="color: var(--color-primary);">
+                        <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div x-show="filteredHelperOptions.length > 0" class="mt-2 max-h-36 overflow-y-auto rounded-lg z-10" style="border: 1px solid var(--color-border); background: var(--color-surface-solid);">
+                    <template x-for="emp in filteredHelperOptions" :key="`helper-suggest-${emp.id}`">
+                        <button type="button" @click="selectDeliveryHelperName(emp.name)" class="w-full text-left px-3 py-2.5 text-body min-h-[48px] transition-colors" style="color: var(--color-text-body);">
+                            <span x-text="(emp.name || '').toUpperCase()"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+                <button @click="showDeliverySetupModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-all active:scale-95 min-h-[48px]" style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">Cancelar</button>
+            <button @click="startDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-all active:scale-95 min-h-[48px]" style="background: var(--color-primary); border: 1px solid rgba(59,130,246,0.5);">Iniciar agora</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delivery End Modal -->
+<div x-show="showDeliveryEndModal" class="fixed inset-0 z-[200] dashboard-preview-modal flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak @click.self="showDeliveryEndModal=false">
+    <div @click.stop class="w-full max-w-md rounded-lg flex flex-col overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+            <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-success-bg); color: var(--color-success);">
+                <i data-lucide="check-circle" class="w-6 h-6"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-title" style="color: var(--color-text);">Encerrar na Empresa</h3>
+                <p class="text-caption-lg mt-0.5">KM de chegada para concluir</p>
+            </div>
+        </div>
+        <div class="p-4 space-y-4">
+            <div>
+                <label for="delivery-km-arrival" class="text-section block mb-2" style="color: var(--color-text);">KM de Chegada</label>
+                <input id="delivery-km-arrival" name="delivery_km_arrival" type="number" step="0.1" min="0" x-model="deliveryEndKm" placeholder="Ex.: 125630,2"
+                    class="w-full rounded-lg px-4 py-3 border-2 text-body-lg font-mono focus:outline-none focus:ring-2 transition-colors"
+                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+            </div>
+            <div class="flex gap-3">
+                <button @click="showDeliveryEndModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+                <button @click="endDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity flex items-center justify-center gap-2" style="background: var(--color-success);">
+                    <i data-lucide="check" class="w-4 h-4"></i> Encerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Return Modal -->
+<div x-show="showMobileReturnModal" class="fixed inset-0 z-[200] dashboard-preview-modal flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak @click.self="showMobileReturnModal=false">
+    <div @click.stop class="w-full max-w-lg rounded-lg flex flex-col max-h-[90vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
+            <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
+                <i data-lucide="package-x" class="w-6 h-6"></i>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-title" style="color: var(--color-text);">Registrar Devolução</h3>
+                <p class="text-caption-lg mt-0.5">Motivo e detalhes</p>
+            </div>
+        </div>
+        <div class="p-4 space-y-4 overflow-y-auto custom-scrollbar">
+            <div>
+                <label class="text-section block mb-2" style="color: var(--color-text);">Motivo da Devolução</label>
+                <div class="relative">
+                    <i data-lucide="alert-circle" class="absolute left-4 top-3.5 w-5 h-5" style="color: var(--color-text-muted);"></i>
+                    <select x-model="mobileReturn.reason" class="w-full rounded-lg pl-12 pr-4 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        <template x-for="reason in mobileReturnReasons" :key="reason">
+                            <option :value="reason" x-text="reason"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+            <label class="flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors" style="border-color: var(--color-border); background: var(--color-border-light);">
+                <input type="checkbox" x-model="mobileReturn.is_partial" class="w-5 h-5 rounded">
+                <span class="text-body font-semibold" style="color: var(--color-text);">Devolução parcial</span>
+            </label>
+            <div class="grid grid-cols-2 gap-3" x-show="mobileReturn.is_partial" x-transition.opacity>
+                <div>
+                    <label class="text-section block mb-1" style="color: var(--color-text);">Peso (Kg)</label>
+                    <input type="number" step="0.01" min="0" x-model="mobileReturn.weight" placeholder="0,00"
+                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body font-mono focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+                <div>
+                    <label class="text-section block mb-1" style="color: var(--color-text);">Valor (R$)</label>
+                    <input type="number" step="0.01" min="0" x-model="mobileReturn.value" placeholder="0,00"
+                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body font-mono focus:outline-none focus:ring-2 transition-colors"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                </div>
+            </div>
+        </div>
+        <div class="p-4 border-t flex gap-3 shrink-0" style="border-color: var(--color-border);">
+            <button @click="showMobileReturnModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body-lg transition-opacity" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
+            <button @click="confirmMobileReturn()" class="flex-1 py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-warning);">Confirmar</button>
+        </div>
+    </div>
+</div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script id="server-data" type="application/json">
+        {
+            "clients": {{ clients_json | safe }},
+            "employees": {{ employees_json | safe }},
+        "activeRoutes": {{ active_routes | safe}},
+        "completedRoutes": {{ completed_routes | safe}},
+        "dailyXp": {{ daily_xp_gain }},
+        "labels": {{ chart_labels | safe}},
+        "dataKg": {{ chart_daily_kg | safe}},
+        "dataKgh": {{ chart_daily_kgh | safe}},
+        "bgColors": {{ chart_bg_colors | safe}}
+}
+</script>
+
+<script>
+    // Robust Data Injection
+    try {
+        const rawData = document.getElementById('server-data').textContent;
+        window.INITIAL_DATA = JSON.parse(rawData);
+    } catch (e) {
+        console.error("Critical: Failed to parse initial data", e);
+        window.INITIAL_DATA = {
+            clients: [], employees: [], activeRoutes: [], completedRoutes: [], dailyXp: 0,
+            labels: [], dataKg: [], dataKgh: [], bgColors: []
+        };
+    }
+</script>
+<script>
+    function dashboardController() {
+        console.log("Dashboard Controller V4 Loaded");
+        return {
+            initialized: false,
+            showStopModal: false,
+            showEndDayModal: false,
+            showEvaluation: false,
+            showHelpModal: false,
+            isLoading: false,
+            isSubmission: false,
+
+            // Data from Global Initial Data
+            clients: Array.isArray(window.INITIAL_DATA.clients) ? window.INITIAL_DATA.clients : [],
+            activeRoutes: Array.isArray(window.INITIAL_DATA.activeRoutes) ? window.INITIAL_DATA.activeRoutes : [],
+            completedRoutes: Array.isArray(window.INITIAL_DATA.completedRoutes) ? window.INITIAL_DATA.completedRoutes : [],
+            dailyXp: window.INITIAL_DATA.dailyXp || 0,
+            totalXp: Number({{ gamification.total_xp }}) || 0,
+            xpProgressPercent: Math.max(0, Math.min(100, Number({{ gamification.progress_percent }}) || 0)),
+            levelBaseXp: Number({{ gamification.level.min_xp if gamification.level and gamification.level.min_xp is not none else 0 }}) || 0,
+            nextLevelMinXp: {% if gamification.next_level and gamification.next_level.min_xp is not none %}Number({{ gamification.next_level.min_xp }}){% else %}null{% endif %},
+            employees: Array.isArray(window.INITIAL_DATA.employees) ? window.INITIAL_DATA.employees : [],
+
+            // Charts Data
+            labels: Array.isArray(window.INITIAL_DATA.labels) ? window.INITIAL_DATA.labels : [],
+            dataKg: Array.isArray(window.INITIAL_DATA.dataKg) ? window.INITIAL_DATA.dataKg : [],
+            dataKgh: Array.isArray(window.INITIAL_DATA.dataKgh) ? window.INITIAL_DATA.dataKgh : [],
+            bgColors: Array.isArray(window.INITIAL_DATA.bgColors) ? window.INITIAL_DATA.bgColors : [],
+
+            selectedRoute: null,
+            deliveryRoutes: [],
+            deliveryDayCards: [],
+            deliveryCompletedCount: 0,
+            selectedDeliveryDay: '',
+            deliverySessionOpen: false,
+            assignedPlate: '',
+            showDeliverySetupModal: false,
+            showDeliveryEndModal: false,
+            deliveryEndKm: '',
+            helperOptions: [],
+            deliverySetupError: '',
+            deliverySetup: { plate: '', km_departure: '', helpers: [], helperInput: '' },
+            showMobileReturnModal: false,
+            mobileReturnRoute: null,
+            mobileReturnReasons: [],
+            mobileReturn: { reason: '', is_partial: false, weight: '', value: '' },
+
+            dateFilterFrom: '',
+            dateFilterTo: '',
+            showDateFilter: false,
+
+            get totalDeliveryStops() {
+                return (this.activeRoutes?.length || 0) + (this.completedRoutes?.length || 0);
+            },
+            get openDeliveryStops() {
+                return this.activeRoutes?.length || 0;
+            },
+            get completedDeliveryStops() {
+                return this.completedRoutes?.length || 0;
+            },
+            get inProgressDeliveryRoute() {
+                return (this.activeRoutes || []).find(route => {
+                    const status = String(route?.status || '').toLowerCase().trim();
+                    return status === 'iniciada' || status === 'reaberta';
+                }) || null;
+            },
+            get heroProgressPercent() {
+                const total = this.totalDeliveryStops;
+                if (!total) return 0;
+                return Math.max(0, Math.min(100, Math.round((this.completedDeliveryStops / total) * 100)));
+            },
+            get heroStatusLabel() {
+                if (!this.totalDeliveryStops) return 'Painel pronto';
+                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Operação concluída';
+                if (this.inProgressDeliveryRoute) return 'Em rota';
+                if (this.deliverySessionOpen) return 'Sessão aberta';
+                return 'Pronto para iniciar';
+            },
+            get heroStatusMessage() {
+                if (!this.totalDeliveryStops) {
+                    return 'Nenhuma rota lançada por enquanto. O painel continua pronto para a próxima operação.';
+                }
+                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) {
+                    return `${this.completedDeliveryStops} parada(s) concluída(s) hoje.`;
+                }
+                if (this.inProgressDeliveryRoute?.client_name) {
+                    return `Entrega em andamento para ${this.inProgressDeliveryRoute.client_name}.`;
+                }
+                if (this.completedDeliveryStops > 0) {
+                    return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} pendente(s) para hoje.`;
+                }
+                return `${this.openDeliveryStops} parada(s) aguardando execução no dia.`;
+            },
+            get heroSupportMessage() {
+                if (!this.totalDeliveryStops) return 'Use os atalhos abaixo para entrar no módulo principal.';
+                return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} ainda abertas.`;
+            },
+            get heroActionLabel() {
+                if (!this.totalDeliveryStops) return 'Ver módulos disponíveis';
+                if (this.inProgressDeliveryRoute || this.deliverySessionOpen) return 'Continuar operação';
+                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Revisar rota do dia';
+                return 'Abrir rota do dia';
+            },
+
+            get currentMonthLabel() {
+                const d = new Date();
+                const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                return meses[d.getMonth()] + ' ' + d.getFullYear();
+            },
+            get dateFilterLabel() {
+                if (!this.dateFilterFrom && !this.dateFilterTo) return 'Entregas do mês';
+                if (this.dateFilterFrom && this.dateFilterTo) return this.dateFilterFrom + ' a ' + this.dateFilterTo;
+                if (this.dateFilterFrom) return 'A partir de ' + this.dateFilterFrom;
+                return 'Até ' + this.dateFilterTo;
+            },
+
+            applyDateFilter() {
+                this.loadDeliveryData();
+            },
+            resetDateFilter() {
+                this.dateFilterFrom = '';
+                this.dateFilterTo = '';
+                this.loadDeliveryData();
+            },
+
+            get filteredDeliveryRoutes() {
+                if (!this.selectedDeliveryDay) return this.deliveryRoutes || [];
+                return (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
+            },
+
+            isCompletedDeliveryRoute(route) {
+                const status = String((route && route.status) || '').toLowerCase().trim();
+                return status === 'entregue' || status === 'devolucao';
+            },
+
+            buildDeliveryDayCards(routes) {
+                const grouped = {};
+                (routes || []).forEach(route => {
+                    const d = route && route.date ? String(route.date) : '';
+                    if (!d) return;
+                    if (!grouped[d]) grouped[d] = [];
+                    grouped[d].push(route);
+                });
+                return Object.keys(grouped)
+                    .sort()
+                    .map(d => {
+                        let label = d;
+                        const parts = d.split('-');
+                        if (parts.length === 3) label = `${parts[2]}/${parts[1]}`;
+                        return {
+                            date: d,
+                            label: `Entregas do Dia ${label}`,
+                            count: grouped[d].length,
+                            routes: grouped[d],
+                        };
+                    });
+            },
+
+            get filteredHelperOptions() {
+                const q = (this.deliverySetup.helperInput || '').trim().toLowerCase();
+                if (!q) return [];
+                const selected = new Set((this.deliverySetup.helpers || []).map(h => (h || '').trim().toLowerCase()));
+                return (this.helperOptions || [])
+                    .filter(emp => {
+                        const name = ((emp && emp.name) || '').trim();
+                        if (!name) return false;
+                        if (selected.has(name.toLowerCase())) return false;
+                        return name.toLowerCase().includes(q);
+                    })
+                    .slice(0, 8);
+            },
+
+            get hasActiveRoutes() {
+                return this.activeRoutes && this.activeRoutes.length > 0;
+            },
+
+            init() {
+                console.log("Dashboard Loaded");
+                window.__openDeliverySetupModal = () => this.openDeliverySetupModal();
+
+                // Mark as initialized after a brief delay to show skeleton
+                setTimeout(() => {
+                    this.initialized = true;
+                    this.$nextTick(() => {
+                        lucide.createIcons();
+                        if (this.labels && this.labels.length > 0) {
+                        }
+                    });
+                }, 100);
+
+                // Timer tick
+                setInterval(() => {
+                    this.tick = Date.now();
+                }, 1000);
+
+                // Setup offline detection
+                this.setupOfflineDetection();
+
+                // Setup pull to refresh
+                this.setupPullToRefresh();
+                this.helperOptions = (this.employees || []).filter(e => e.id !== {{ employee.id }});
+
+                // Preset: mês atual
+                const now = new Date();
+                const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
+                this.dateFilterFrom = `${y}-${m}-01`;
+                this.dateFilterTo = `${y}-${m}-${new Date(y, now.getMonth() + 1, 0).getDate().toString().padStart(2, '0')}`;
+                // Carregar rotas de entrega
+                this.loadDeliveryData();
+            },
+
+            // Haptic feedback (success [10], error [30,10,30])
+            haptic(type = 'light') {
+                if ('vibrate' in navigator) {
+                    const patterns = { light: [10], medium: [20], success: [10], error: [30, 10, 30] };
+                    navigator.vibrate(patterns[type] || patterns.light);
+                }
+            },
+
+            // Offline detection
+            setupOfflineDetection() {
+                const banner = document.getElementById('offline-banner');
+                const updateStatus = () => {
+                    if (!navigator.onLine) {
+                        banner.classList.add('show');
+                    } else {
+                        banner.classList.remove('show');
+                    }
+                };
+                window.addEventListener('online', updateStatus);
+                window.addEventListener('offline', updateStatus);
+                updateStatus();
+            },
+
+            // Pull to refresh premium
+            setupPullToRefresh() {
+                let startY = 0;
+                let pulling = false;
+                const indicator = document.getElementById('pull-indicator');
+                const pullText = document.getElementById('pull-text');
+                const container = this.$refs.mainContainer;
+
+                if (!container || !indicator) return;
+
+                const setText = (t) => { if (pullText) pullText.textContent = t; };
+
+                container.addEventListener('touchstart', (e) => {
+                    if (window.scrollY === 0) { startY = e.touches[0].pageY; pulling = true; }
+                }, { passive: true });
+
+                container.addEventListener('touchmove', (e) => {
+                    if (!pulling) return;
+                    const y = e.touches[0].pageY;
+                    const diff = y - startY;
+                    if (diff > 60 && window.scrollY === 0) {
+                        indicator.classList.add('visible');
+                        if (diff > 80) { indicator.classList.add('ready'); setText('Solte para atualizar'); }
+                        else { indicator.classList.remove('ready'); setText('Puxe para atualizar'); }
+                    }
+                }, { passive: true });
+
+                const hideIndicator = () => {
+                    pulling = false;
+                    indicator.classList.remove('visible', 'ready');
+                    setText('Puxe para atualizar');
+                };
+
+                container.addEventListener('touchend', () => {
+                    if (indicator.classList.contains('visible') && indicator.classList.contains('ready')) {
+                        setText('Atualizando...');
+                        this.haptic('medium');
+                        setTimeout(() => window.location.reload(), 400);
+                    }
+                    hideIndicator();
+                }, { passive: true });
+
+                container.addEventListener('touchcancel', hideIndicator);
+            },
+
+            playSuccessSound() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.frequency.value = 800; osc.type = 'sine';
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+                    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.08);
+                } catch (_) {}
+            },
+
+            showXpPopup(amount) {
+                const popup = document.getElementById('xp-popup');
+                const amountEl = document.getElementById('xp-amount');
+                if (!amountEl) return;
+                amountEl.textContent = amount;
+                this.applyEarnedXp(amount);
+                popup.classList.remove('hidden');
+                this.haptic('success');
+                this.playSuccessSound();
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#1e3a8a', '#3b82f6', '#60a5fa'] });
+                }
+                setTimeout(() => popup.classList.add('hidden'), 2000);
+            },
+
+            applyEarnedXp(amount) {
+                const earned = Number(amount) || 0;
+                if (earned <= 0) return;
+
+                this.dailyXp += earned;
+                this.totalXp += earned;
+
+                if (this.nextLevelMinXp !== null && this.nextLevelMinXp > this.levelBaseXp) {
+                    const span = this.nextLevelMinXp - this.levelBaseXp;
+                    const current = this.totalXp - this.levelBaseXp;
+                    this.xpProgressPercent = Math.max(0, Math.min(100, (current / span) * 100));
+                } else {
+                    this.xpProgressPercent = 100;
+                }
+            },
+
+            formatBrInt(value) {
+                const num = Number(value) || 0;
+                return Math.round(num).toLocaleString('pt-BR');
+            },
+
+            tick: Date.now(),
+
+            formatTimer(startTimeStr) {
+                // Trigger reactivity on tick
+                let _ = this.tick;
+                if (!startTimeStr) return "00:00:00";
+
+                let parts = startTimeStr.split(':');
+                if (parts.length < 2) return "--:--";
+
+                let h = parseInt(parts[0]);
+                let m = parseInt(parts[1]);
+                if (isNaN(h) || isNaN(m)) return "--:--";
+
+                let now = new Date();
+                let start = new Date();
+                start.setHours(h, m, 0, 0);
+
+                // Handle day crossing if needed
+                if (start > now) {
+                    start.setDate(start.getDate() - 1);
+                }
+
+                let diff = now - start;
+                if (diff < 0) diff = 0;
+
+                let totalSeconds = Math.floor(diff / 1000);
+                let hh = Math.floor(totalSeconds / 3600);
+                let mm = Math.floor((totalSeconds % 3600) / 60);
+                let ss = totalSeconds % 60;
+
+                const pad = (n) => n.toString().padStart(2, '0');
+                return `${pad(hh)}:${pad(mm)}:${pad(ss)}`;
+            },
+
+            logout() {
+                window.location.href = "/mobile/logout";
+            },
+
+            // Navigation
+            openEvaluationModal() {
+                this.showEvaluation = true;
+            },
+
+            openDeliverySetupModal() {
+                this.haptic('light');
+                this.deliverySetupError = '';
+                this.deliverySetup = {
+                    plate: this.assignedPlate || '',
+                    km_departure: '',
+                    helpers: [],
+                    helperInput: ''
+                };
+                this.showDeliverySetupModal = true;
+                setTimeout(() => {
+                    const input = document.querySelector('[x-ref="deliveryPlateInput"]') || this.$refs?.deliveryPlateInput;
+                    if (input && typeof input.focus === 'function') input.focus();
+                }, 100);
+            },
+
+            // Regra: deliveryRoutes.length > 0 → interceptar e abrir modal Placa/KM. Caso contrário → deixar form submeter normalmente
+            handleStartAction(ev) {
+                if (this.isSubmission) return;
+                if ((this.deliveryRoutes || []).length > 0) {
+                    ev.preventDefault();
+                    this.openDeliverySetupModal();
+                    return;
+                }
+                // deliveryRoutes.length === 0: não prevenir default — o form submete e redireciona para /mobile/routine/start
+            },
+            openStartEntry(ev) { this.handleStartAction(ev); },
+
+            normalizePlateInput() {
+                const raw = (this.deliverySetup.plate || '').toUpperCase();
+                this.deliverySetup.plate = raw.replace(/[^A-Z0-9]/g, '').slice(0, 7);
+            },
+
+            addDeliveryHelperFromInput() {
+                const raw = (this.deliverySetup.helperInput || '').trim();
+                if (!raw) return;
+                const normalized = raw.replace(/\s+/g, ' ');
+                const exists = (this.deliverySetup.helpers || []).some(
+                    h => (h || '').trim().toLowerCase() === normalized.toLowerCase()
+                );
+                if (exists) {
+                    alert('Ajudante já informado.');
+                    return;
+                }
+                this.deliverySetup.helpers.push(normalized);
+                this.deliverySetup.helperInput = '';
+            },
+
+            removeDeliveryHelper(index) {
+                if (index < 0) return;
+                this.deliverySetup.helpers.splice(index, 1);
+            },
+
+            selectDeliveryHelperName(name) {
+                this.deliverySetup.helperInput = (name || '').trim();
+                this.addDeliveryHelperFromInput();
+            },
+
+            openStopModal(route) {
+                this.haptic('light');
+                this.selectedRoute = route;
+                this.showStopModal = true;
+            },
+
+            confirmStop() {
+                if (!this.selectedRoute || this.isLoading) return;
+
+                this.haptic('medium');
+                this.isLoading = true;
+
+                fetch(`/mobile/route/${this.selectedRoute.id}/finish`, {
+                    method: 'POST'
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.haptic('success');
+                            // Show XP popup if XP was earned
+                            if (data.xp_earned) {
+                                this.showXpPopup(data.xp_earned);
+                                setTimeout(() => window.location.reload(), 2000);
+                            } else {
+                                window.location.reload();
+                            }
+                        } else {
+                            this.haptic('error');
+                            this.isLoading = false;
+                            alert("Erro: " + data.error);
+                        }
+                    })
+                    .catch(err => {
+                        this.haptic('error');
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
+            },
+
+            openEndDayModal() {
+                this.showEndDayModal = true;
+            },
+
+            openHelpModal() {
+                this.showHelpModal = true;
+            },
+
+            endDay() {
+                fetch('/mobile/routine/stop', { method: 'POST' })
+                    .then(() => {
+                        window.location.href = '/mobile/login';
+                    });
+            },
+
+            loadDeliveryData() {
+                let url = '/api/mobile/delivery/my-routes';
+                const params = new URLSearchParams();
+                if (this.dateFilterFrom) params.set('date_from', this.dateFilterFrom);
+                if (this.dateFilterTo) params.set('date_to', this.dateFilterTo);
+                if (params.toString()) url += '?' + params.toString();
+                fetch(url)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!data.success) return;
+                        const allRoutes = Array.isArray(data.routes) ? data.routes : [];
+                        const completedRoutes = allRoutes.filter(r => this.isCompletedDeliveryRoute(r));
+                        const activeRoutes = allRoutes.filter(r => !this.isCompletedDeliveryRoute(r));
+                        const normalize = (r) => {
+                            r.tonnage = r.tonnage ?? r.weight;
+                            const st = r.started_at || r.start_time;
+                            r.start_time = (typeof st === 'string' && st.length >= 5) ? st.slice(0, 19).replace('T', ' ').trim().slice(11, 16) : (st || '');
+                            return r;
+                        };
+                        activeRoutes.forEach(normalize);
+                        completedRoutes.forEach(normalize);
+
+                        this.deliveryCompletedCount = completedRoutes.length;
+                        this.deliveryRoutes = activeRoutes;
+                        this.activeRoutes = activeRoutes;
+                        this.completedRoutes = completedRoutes;
+                        this.deliveryDayCards = this.buildDeliveryDayCards(activeRoutes);
+                        if (!this.selectedDeliveryDay) {
+                            this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
+                        } else if (!this.deliveryDayCards.find(c => c.date === this.selectedDeliveryDay)) {
+                            this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
+                        }
+                        this.deliverySessionOpen = !!data.session_open;
+                        this.assignedPlate = data.assigned_plate || '';
+                        this.mobileReturnReasons = data.return_reasons || [];
+                        if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
+                            this.mobileReturn.reason = this.mobileReturnReasons[0];
+                        }
+                    });
+            },
+
+            startDeliverySession() {
+                this.haptic('light');
+                this.deliverySetupError = '';
+                if (!this.deliverySetup.plate || this.deliverySetup.plate.length < 7) {
+                    this.deliverySetupError = 'Informe a placa completa.';
+                    return;
+                }
+                if (!this.deliverySetup.km_departure || Number(this.deliverySetup.km_departure) <= 0) {
+                    this.deliverySetupError = 'Informe um KM de saída válido.';
+                    return;
+                }
+                fetch('/api/mobile/delivery/session/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        plate: this.deliverySetup.plate,
+                        helpers: this.deliverySetup.helpers || [],
+                        km_departure: Number(this.deliverySetup.km_departure)
+                    })
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        this.showDeliverySetupModal = false;
+                        this.deliverySetupError = '';
+                        this.deliverySetup = { plate: '', km_departure: '', helpers: [], helperInput: '' };
+                        this.haptic('success');
+                        window.location.href = '/mobile/delivery';
+                    } else {
+                        this.deliverySetupError = data.error || 'Erro ao iniciar rotina.';
+                    }
+                });
+            },
+
+            endDeliverySession() {
+                this.haptic('light');
+                const kmRaw = String(this.deliveryEndKm || '').replace(',', '.').trim();
+                const km = parseFloat(kmRaw);
+                if (!kmRaw || isNaN(km) || km <= 0) { alert('Informe o KM de chegada (número maior que zero).'); return; }
+                fetch('/api/mobile/delivery/session/end', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ km_return: km })
+                }).then(r => r.json().then(data => ({ ok: r.ok, data }))).then(({ ok, data }) => {
+                    if (ok && data.success) {
+                        this.showDeliveryEndModal = false;
+                        this.deliveryEndKm = '';
+                        this.loadDeliveryData();
+                        this.haptic('success');
+                    } else {
+                        alert(data?.error || 'Erro ao encerrar rota. Tente novamente.');
+                    }
+                }).catch(() => alert('Erro de conexão. Tente novamente.'));
+            },
+
+            deliveryAction(route, action) {
+                fetch(`/api/mobile/delivery/route/${route.id}/action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action })
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        this.loadDeliveryData();
+                        this.haptic('success');
+                    } else {
+                        alert(data.error || 'Erro na ação.');
+                    }
+                });
+            },
+
+            openMobileReturnModal(route) {
+                this.mobileReturnRoute = route;
+                this.mobileReturn = { reason: this.mobileReturnReasons[0] || '', is_partial: false, weight: '', value: '' };
+                this.showMobileReturnModal = true;
+            },
+
+            confirmMobileReturn() {
+                if (!this.mobileReturnRoute) return;
+                const route = this.mobileReturnRoute;
+                const payload = {
+                    action: 'devolucao',
+                    return_reason: this.mobileReturn.reason,
+                    return_is_partial: !!this.mobileReturn.is_partial,
+                    return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
+                    return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null,
+                    client_timestamp: new Date().toISOString()
+                };
+                fetch(`/api/mobile/delivery/route/${route.id}/action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        this.showMobileReturnModal = false;
+                        this.mobileReturnRoute = null;
+                        this.loadDeliveryData();
+                        this.haptic('success');
+                        if (typeof this.showXpPopup === 'function') this.showXpPopup(data.xp_earned || 5);
+                    } else {
+                        alert(data.error || 'Erro na devolução.');
+                    }
+                });
+            },
+
+            // --- Edit & Delete Logic ---
+            showEditModal: false,
+            showDeleteModal: false,
+            editSearch: '',
+            editForm: { client_id: null, client_name: '', weightInput: '' },
+            deleteConfirmation: '',
+
+            get filteredEditClients() {
+                if (this.editSearch === '') return [];
+                if (!this.clients || !Array.isArray(this.clients)) return [];
+                return this.clients.filter(client =>
+                    client.name.toLowerCase().includes(this.editSearch.toLowerCase())
+                ).slice(0, 5);
+            },
+
+            openEditModal(route) {
+                this.selectedRoute = route;
+                this.editSearch = '';
+                this.editForm = {
+                    client_id: null, // Keep null unless changed
+                    client_name: '',
+                    weightInput: route.tonnage ? route.tonnage.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'
+                };
+                this.showEditModal = true;
+            },
+
+            selectEditClient(client) {
+                this.editForm.client_id = client.id;
+                this.editForm.client_name = client.name;
+                this.editSearch = ''; // Clear search
+            },
+
+            confirmEdit() {
+                if (!this.selectedRoute || this.isLoading) return;
+
+                let weight = 0;
+                if (this.editForm.weightInput) {
+                    let clean = this.editForm.weightInput.replace(/\./g, '').replace(',', '.');
+                    weight = parseFloat(clean);
+                }
+
+                if (weight <= 0) {
+                    alert("Peso inválido."); return;
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch(`/mobile/route/${this.selectedRoute.id}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_id: this.editForm.client_id,
+                        tonnage: weight
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.haptic('success');
+                            window.location.reload();
+                        } else {
+                            this.isLoading = false;
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao atualizar"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
+            },
+
+            openDeleteModal(route) {
+                this.selectedRoute = route;
+                this.deleteConfirmation = '';
+                this.showDeleteModal = true;
+            },
+
+            confirmDelete() {
+                if (!this.selectedRoute || this.isLoading) return;
+                if (!this.deleteConfirmation) {
+                    alert("Digite sua matrícula."); return;
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch(`/mobile/route/${this.selectedRoute.id}/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        registration_id: this.deleteConfirmation
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            this.haptic('success');
+                            window.location.reload();
+                        } else {
+                            this.isLoading = false;
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao excluir"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
+            },
+
+            // --- Admin Start Logic ---
+            showAdminStartModal: false,
+            adminStartForm: { employeeSearch: '', registrationId: '', employee_name: '', clientSearch: '', client_id: null, client_name: '', weightInput: '' },
+
+            open_admin_start_modal() {
+                this.showAdminStartModal = true;
+                this.adminStartForm = { employeeSearch: '', registrationId: '', employee_name: '', clientSearch: '', client_id: null, client_name: '', weightInput: '' };
+            },
+
+            get filteredAdminStartEmployees() {
+                const searchRaw = this.adminStartForm?.employeeSearch || '';
+                const normalizedSearch = searchRaw.trim().toLowerCase();
+                if (!normalizedSearch) return [];
+                const availableEmployees = Array.isArray(this.employees) ? this.employees : [];
+                return availableEmployees.filter(emp => {
+                    const name = ((emp && emp.name) || "").toLowerCase();
+                    const registration = (((emp && emp.registration_id) || "") + "").toLowerCase();
+                    return name.includes(normalizedSearch) || registration.includes(normalizedSearch);
+                }).slice(0, 5);
+            },
+
+            selectAdminStartEmployee(emp) {
+                this.adminStartForm.registrationId = emp.registration_id;
+                this.adminStartForm.employee_name = emp.name;
+                this.adminStartForm.employeeSearch = '';
+            },
+
+            get filteredAdminStartClients() {
+                if (this.adminStartForm.clientSearch === '') return [];
+                if (!this.clients || !Array.isArray(this.clients)) return [];
+                return this.clients.filter(client =>
+                    client.name.toLowerCase().includes(this.adminStartForm.clientSearch.toLowerCase())
+                ).slice(0, 5);
+            },
+
+            selectAdminStartClient(client) {
+                this.adminStartForm.client_id = client.id;
+                this.adminStartForm.client_name = client.name;
+                this.adminStartForm.clientSearch = '';
+            },
+
+            confirmAdminStart() {
+                if (this.isLoading) return;
+                if (!this.adminStartForm.registrationId) { alert("Informe a matrícula."); return; }
+                if (!this.adminStartForm.client_id) { alert("Selecione um cliente."); return; }
+
+                let weight = 0;
+                if (this.adminStartForm.weightInput) {
+                    let clean = this.adminStartForm.weightInput.replace(/\./g, '').replace(',', '.');
+                    weight = parseFloat(clean);
+                }
+
+                this.isLoading = true;
+                this.haptic('medium');
+
+                fetch('/mobile/admin/start-route', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        registration_id: this.adminStartForm.registrationId,
+                        client_id: this.adminStartForm.client_id,
+                        tonnage: weight
+                    })
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        this.isLoading = false;
+                        if (data.success) {
+                            this.haptic('success');
+                            this.showAdminStartModal = false;
+                            alert("Rota iniciada com sucesso!");
+                        } else {
+                            this.haptic('error');
+                            alert("Erro: " + (data.error || "Falha ao iniciar"));
+                        }
+                    })
+                    .catch(e => {
+                        this.isLoading = false;
+                        alert("Erro de conexão");
+                    });
+            },
+
+        }
+    }
+
+</script>
+{% endblock %}

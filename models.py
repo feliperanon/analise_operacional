@@ -950,3 +950,47 @@ class DevolucaoAjusteResponsabilidade(SQLModel, table=True):
     responsavel_ajudante: bool = Field(default=True, index=True)  # True = conta para % do ajudante; False = não conta
     updated_at: datetime = Field(default_factory=datetime.now, index=True)
     updated_by: Optional[str] = None
+
+
+# --- Documentos Institucionais (Processos e Padronização) ---
+
+class DocSetor(SQLModel, table=True):
+    """Setores/áreas para geração de códigos documentais (LOG, RH, OP, DIR, etc.)."""
+    __tablename__ = "doc_setor"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    sigla: str = Field(index=True, unique=True, max_length=10)
+    nome: str = Field(max_length=100)
+    ativo: bool = Field(default=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
+class DocInstitucional(SQLModel, table=True):
+    """Documentos institucionais padronizados: POP, IT, FOR, REL, COM, POL, CHK."""
+    __tablename__ = "doc_institucional"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    tipo_documento: str = Field(index=True, max_length=3)  # POP, IT, FOR, REL, COM, POL, CHK
+    codigo: str = Field(index=True, unique=True, max_length=50)
+    titulo: str = Field(max_length=255)
+    versao: int = Field(default=1)
+    data_emissao: Optional[str] = Field(default=None, max_length=10)  # YYYY-MM-DD
+    area_responsavel: str = Field(index=True, max_length=50)
+    elaborado_por: str = Field(max_length=100)
+    revisado_por: Optional[str] = Field(default=None, max_length=100)
+    aprovado_por: Optional[str] = Field(default=None, max_length=100)
+    classificacao: str = Field(default="Interno", max_length=50)
+    status: str = Field(default="rascunho", index=True)  # rascunho, em_revisao, aprovado, obsoleto, arquivado
+    conteudo: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+    created_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+
+
+class DocInstitucionalRevisao(SQLModel, table=True):
+    """Histórico de revisões de documentos institucionais."""
+    __tablename__ = "doc_institucional_revisao"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    documento_id: int = Field(foreign_key="doc_institucional.id", index=True)
+    versao: int = Field(index=True)
+    alteracao: Optional[str] = Field(default=None)
+    responsavel: str = Field(max_length=100)
+    data_revisao: datetime = Field(default_factory=datetime.now)

@@ -135,14 +135,15 @@
                     </div>
                     <!-- Botões de ação em massa -->
                     <div class="flex flex-wrap gap-2 items-center">
-                        <!-- Planning date inline -->
-                        <form action="/separacao/delivery/planning-date/bulk" method="post" class="flex items-center gap-2 bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2">
+                        <!-- Planning date inline: move TODAS as rotas do dia -->
+                        <form action="/separacao/delivery/planning-date/bulk" method="post" class="flex items-center gap-2 bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2" onsubmit="return confirm('Mover TODAS as rotas do dia {{ selected_date_from[8:10] }}/{{ selected_date_from[5:7] }} para a nova data? Esta ação altera todas as entregas do dia de uma vez.');">
                             <input type="hidden" name="current_date" value="{{ selected_date_from }}">
                             <input type="hidden" name="shift" value="{{ selected_shift }}">
                             <i data-lucide="calendar-days" class="w-4 h-4 text-slate-400 shrink-0"></i>
+                            <span class="text-[10px] text-slate-500 uppercase tracking-wide shrink-0">Todas para:</span>
                             <input type="date" name="planning_date" value="{{ selected_date_from }}"
                                    class="bg-transparent border-none text-xs text-slate-200 outline-none cursor-pointer w-32">
-                            <button type="submit" class="px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold whitespace-nowrap transition-colors">Aplicar para todas</button>
+                            <button type="submit" class="px-2.5 py-1 rounded-md bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold whitespace-nowrap transition-colors">Aplicar</button>
                         </form>
                         {% if delivery_summary.pending > 0 or delivery_summary.opened_routines > 0 %}
                         <form action="/separacao/delivery/finish-all-routes" method="post" onsubmit="return confirm('Finalizar TODAS as rotas do período/turno? Paradas sem devolução serão marcadas como entregues; paradas com devolução permanecem devolução.');">
@@ -276,6 +277,15 @@
                             Finalizar entregas
                         </button>
                     </form>
+                    <form id="bulk-move-routes-form" action="/separacao/delivery/planning-date/selected" method="post" class="inline flex items-center gap-2" onsubmit="return confirm('Mover as rotas selecionadas para a nova data?');">
+                        <input type="hidden" name="selected_groups" id="bulk-selected-groups" value="">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <input type="date" name="planning_date" id="bulk-planning-date" required class="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:ring-1 focus:ring-sky-500 outline-none">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                            Mover para esta data
+                        </button>
+                    </form>
                     <button type="button" onclick="selectAllBulkDrivers()" class="px-3 py-1.5 rounded-lg border border-sky-500/50 hover:border-sky-400 text-sky-300 hover:text-sky-200 text-xs font-semibold transition-colors">
                         Marcar todas
                     </button>
@@ -309,10 +319,12 @@
                         <details class="delivery-group rounded-xl border border-slate-700 bg-slate-900/30 overflow-hidden group" data-group-date="{{ group.group_date | default('') }}">
                             <summary class="px-4 py-3.5 bg-slate-900/70 flex flex-wrap items-center justify-between gap-3 cursor-pointer list-none hover:bg-slate-900/90 transition-colors">
                                 <div class="flex items-center gap-3">
-                                    <label class="flex items-center shrink-0 cursor-pointer" onclick="event.stopPropagation()" title="Selecionar motorista para ações em massa">
-                                        <input type="checkbox" class="bulk-driver-checkbox rounded border-slate-500 bg-slate-800 text-sky-500 focus:ring-sky-500/50" data-employee-id="{{ group.employee_id }}" data-driver-name="{{ group.driver_name }}">
+                                    <label class="flex items-center shrink-0 cursor-pointer" onclick="event.stopPropagation()" title="Selecionar rota para ações em massa">
+                                        <input type="checkbox" class="bulk-driver-checkbox rounded border-slate-500 bg-slate-800 text-sky-500 focus:ring-sky-500/50" data-employee-id="{{ group.employee_id }}" data-driver-name="{{ group.driver_name }}" data-vehicle-plate="{{ group.vehicle_plate }}" data-group-date="{{ group.group_date or selected_date_from }}">
                                         <span class="sr-only">Selecionar {{ group.driver_name }}</span>
                                     </label>
+                                    {% set _gdate = group.group_date or selected_date_from %}
+                                    <span class="shrink-0 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-600 text-slate-300 font-mono text-[11px] font-semibold" title="Data da entrega">{{ _gdate[8:10] }}/{{ _gdate[5:7] }}/{{ _gdate[0:4] }}</span>
                                     <div class="h-9 w-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-md shadow-indigo-900/40 shrink-0">
                                         {{ group.driver_name[:2].upper() }}
                                     </div>
@@ -423,6 +435,24 @@
                                         </button>
                                     </div>
                                 </form>
+                                <!-- Mover rota para outro dia (apenas esta rota) -->
+                                <div class="mt-4 pt-3 border-t border-slate-700">
+                                    <p class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-2">Mover rota para outro dia</p>
+                                    <form action="/separacao/delivery/planning-date/group" method="post" class="flex flex-wrap items-end gap-2" onsubmit="return confirm('Mover a rota de {{ group.driver_name }} ({{ group.vehicle_plate }}) para a nova data? Apenas as paradas deste motorista serão alteradas.');">
+                                        <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
+                                        <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
+                                        <input type="hidden" name="current_date" value="{{ group.group_date | default(selected_date_from) }}">
+                                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                        <div>
+                                            <label class="block text-[10px] text-slate-500 mb-0.5">Nova data</label>
+                                            <input type="date" name="planning_date" value="{{ group.group_date | default(selected_date_from) }}"
+                                                class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-sky-500/50 outline-none">
+                                        </div>
+                                        <button type="submit" class="h-[34px] px-3 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Mover para esta data
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
 
                             <!-- KPIs do motorista + botões de rota -->
@@ -956,7 +986,7 @@
         window.location.href = `/separacao?date_from=${encodeURIComponent(df)}&date_to=${encodeURIComponent(dt)}&shift=${encodeURIComponent(shift)}`;
     }
 
-    // --- Bulk driver selection (apagar rotas / limpar devoluções) ---
+    // --- Bulk driver selection (apagar rotas / limpar devoluções / mover para outro dia) ---
     function updateBulkDriverActions() {
         const checkboxes = document.querySelectorAll('.bulk-driver-checkbox:checked');
         const ids = [...new Set(Array.from(checkboxes).map(cb => cb.dataset.employeeId).filter(Boolean))];
@@ -965,16 +995,31 @@
         const inputDelete = document.getElementById('bulk-employee-ids');
         const inputClear = document.getElementById('bulk-employee-ids-clear');
         const inputFinalize = document.getElementById('bulk-employee-ids-finalize');
+        const inputGroups = document.getElementById('bulk-selected-groups');
+        const inputPlanDate = document.getElementById('bulk-planning-date');
         if (!bar || !countEl || !inputDelete || !inputClear) return;
         if (ids.length === 0) {
             bar.classList.add('hidden');
         } else {
             bar.classList.remove('hidden');
-            countEl.textContent = ids.length + ' motorista(s) selecionado(s)';
+            countEl.textContent = checkboxes.length + ' rota(s) selecionada(s)';
             const jsonIds = JSON.stringify(ids);
             inputDelete.value = jsonIds;
             inputClear.value = jsonIds;
             if (inputFinalize) inputFinalize.value = jsonIds;
+            if (inputGroups) {
+                const groups = Array.from(checkboxes).map(cb => {
+                    const emp = cb.dataset.employeeId || '';
+                    const plate = (cb.dataset.vehiclePlate || '').replace(/\|/g, '_');
+                    const gdate = cb.dataset.groupDate || '';
+                    return emp && gdate ? emp + '|' + plate + '|' + gdate : '';
+                }).filter(Boolean);
+                inputGroups.value = groups.join(',');
+            }
+            if (inputPlanDate && checkboxes.length > 0) {
+                const firstDate = checkboxes[0].dataset.groupDate;
+                if (firstDate && !inputPlanDate.value) inputPlanDate.value = firstDate;
+            }
             if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
         }
     }

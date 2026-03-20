@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="mb-6">
+            <a href="/documentos" class="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-4">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Voltar para Documentos
+            </a>
+            <h1 class="text-2xl font-bold text-white">Novo documento institucional</h1>
+            <p class="text-slate-400 text-sm mt-1">Preencha os dados de identificação. O código será gerado automaticamente.</p>
+        </div>
+
+        <form method="post" action="/documentos" class="space-y-6 bg-slate-800/60 border border-slate-700 rounded-2xl p-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Tipo de documento *</label>
+                    <select name="tipo_documento" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione…</option>
+                        <option value="POP" {{ 'selected' if tipo_predefinido == 'POP' else '' }}>POP – Procedimento Operacional Padrão</option>
+                        <option value="IT" {{ 'selected' if tipo_predefinido == 'IT' else '' }}>IT – Instrução de Trabalho</option>
+                        <option value="FOR" {{ 'selected' if tipo_predefinido == 'FOR' else '' }}>FOR – Formulário</option>
+                        <option value="REL" {{ 'selected' if tipo_predefinido == 'REL' else '' }}>REL – Relatório</option>
+                        <option value="COM" {{ 'selected' if tipo_predefinido == 'COM' else '' }}>COM – Comunicado</option>
+                        <option value="POL" {{ 'selected' if tipo_predefinido == 'POL' else '' }}>POL – Política Interna</option>
+                        <option value="CHK" {{ 'selected' if tipo_predefinido == 'CHK' else '' }}>CHK – Checklist</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Área responsável *</label>
+                    <select name="area_responsavel" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Selecione…</option>
+                        {% for s in setores or [] %}
+                        <option value="{{ s.sigla }}">{{ s.sigla }} – {{ s.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-300 mb-2">Título do documento *</label>
+                <input type="text" name="titulo" required placeholder="Ex.: Procedimento de separação de pedidos" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Elaborado por *</label>
+                    <input type="text" name="elaborado_por" required placeholder="Nome do responsável" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-2">Classificação</label>
+                    <select name="classificacao" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="Interno">Interno</option>
+                        <option value="Confidencial">Confidencial</option>
+                        <option value="Restrito">Restrito</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Criar documento
+                </button>
+                <a href="/documentos" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium transition-colors">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+});
+</script>
+{% endblock %}

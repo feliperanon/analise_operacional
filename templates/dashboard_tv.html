@@ -158,7 +158,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         }
     </style>
 </head>
-<body class="bg-slate-900 text-white" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
+<body class="bg-slate-900 text-white" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
     {% include "_sidebar.html" %}
     <button @click="sidebarOpen = true" class="fixed top-2 left-2 z-[60] flex items-center gap-2 p-2.5 rounded-xl bg-slate-800/95 border border-slate-600 text-white shadow-lg hover:bg-slate-700 transition-colors" :class="sidebarOpen ? 'hidden' : ''" title="Abrir menu e navegar">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

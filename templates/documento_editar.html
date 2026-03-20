@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="mb-6">
+            <a href="/documentos/{{ documento.id }}" class="inline-flex items-center gap-2 text-slate-400 hover:text-white text-sm mb-4">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                Voltar para Documento
+            </a>
+            <div class="flex items-center gap-3 flex-wrap">
+                <h1 class="text-2xl font-bold text-white">Editar documento</h1>
+                <code class="px-2 py-1 rounded bg-slate-700 text-blue-400 font-mono text-sm">{{ documento.codigo }}</code>
+                <span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-600 text-slate-400">{{ documento.tipo_documento }} · Rascunho</span>
+            </div>
+        </div>
+
+        <form method="post" action="/documentos/{{ documento.id }}" class="space-y-6">
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-700">
+                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Identificação</h2>
+                </div>
+                <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Título *</label>
+                        <input type="text" name="titulo" required value="{{ documento.titulo }}" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Elaborado por *</label>
+                        <input type="text" name="elaborado_por" required value="{{ documento.elaborado_por or '' }}" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Revisado por</label>
+                        <input type="text" name="revisado_por" value="{{ documento.revisado_por or '' }}" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Aprovado por</label>
+                        <input type="text" name="aprovado_por" value="{{ documento.aprovado_por or '' }}" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Classificação</label>
+                        <select name="classificacao" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-blue-500">
+                            <option value="Interno" {{ 'selected' if documento.classificacao == 'Interno' else '' }}>Interno</option>
+                            <option value="Confidencial" {{ 'selected' if documento.classificacao == 'Confidencial' else '' }}>Confidencial</option>
+                            <option value="Restrito" {{ 'selected' if documento.classificacao == 'Restrito' else '' }}>Restrito</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            {% if documento.tipo_documento == 'REL' %}
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-700">
+                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Relatório Executivo Formal</h2>
+                    <p class="text-xs text-slate-500 mt-1">Dados do cabeçalho e corpo do relatório no padrão institucional.</p>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Para</label>
+                            <input type="text" name="para" value="{{ (documento.conteudo or {}).get('para', '') }}" placeholder="Ex.: Diretoria" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">De</label>
+                            <input type="text" name="de" value="{{ (documento.conteudo or {}).get('de', '') }}" placeholder="Ex.: Gestão de Operações e Logísticas" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Data do relatório</label>
+                            <input type="text" name="data_relatorio" value="{{ (documento.conteudo or {}).get('data_relatorio', '') }}" placeholder="Ex.: 19 de março de 2026" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-1">Assunto</label>
+                            <input type="text" name="assunto" value="{{ (documento.conteudo or {}).get('assunto', '') }}" placeholder="Ex.: Relatório de Reunião de Desligamento" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Corpo do relatório</label>
+                        <textarea name="corpo" rows="24" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 font-mono text-sm" placeholder="Cole ou escreva o conteúdo completo do relatório (1. IDENTIFICAÇÃO..., 2. CONTEXTO..., etc.). As quebras de linha serão preservadas.">{{ (documento.conteudo or {}).get('corpo', '') }}</textarea>
+                        <p class="text-xs text-slate-500 mt-1">Use os títulos e numeração do modelo: 1. IDENTIFICAÇÃO DA REUNIÃO, 2. CONTEXTO..., etc.</p>
+                    </div>
+                    <input type="hidden" name="objetivo" value="">
+                    <input type="hidden" name="contexto" value="">
+                    <input type="hidden" name="descricao" value="">
+                    <input type="hidden" name="evidencias_fatos" value="">
+                    <input type="hidden" name="analise" value="">
+                    <input type="hidden" name="conclusao" value="">
+                    <input type="hidden" name="observacoes" value="">
+                </div>
+            </div>
+            {% else %}
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-700">
+                    <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Conteúdo do documento</h2>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div><label class="block text-sm font-medium text-slate-300 mb-1">Objetivo</label><textarea name="objetivo" rows="2" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500" placeholder="Objetivo do documento...">{{ (documento.conteudo or {}).get('objetivo', '') }}</textarea></div>
+                    <div><label class="block text-sm font-medium text-slate-300 mb-1">Contexto</label><textarea name="contexto" rows="2" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500" placeholder="Contexto...">{{ (documento.conteudo or {}).get('contexto', '') }}</textarea></div>
+                    <div><label class="block text-sm font-medium text-slate-300 mb-1">Descrição</label><textarea name="descricao" rows="4" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500" placeholder="Descreva...">{{ (documento.conteudo or {}).get('descricao', '') }}</textarea></div>
+                    <div><label class="block text-sm font-medium text-slate-300 mb-1">Evidências ou fatos</label><textarea name="evidencias_fatos" rows="2" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500" placeholder="Evidências...">{{ (documento.conteudo or {}).get('evidencias_fatos', '') }}</textarea></div>
+                    <div><label class="block text-sm font-medium text-slate-300 mb-1">Análise</label><textarea name="analise" rows="3" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500" placeholder="Análise...">{{ (documento.conteudo or {}).get('analise', '') }}</textarea></div>
+                    <div><label class="block text-sm font-medium text-slate-300 mb-1">Conclusão</label><textarea name="conclusao" rows="2" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500" placeholder="Conclusão...">{{ (documento.conteudo or {}).get('conclusao', '') }}</textarea></div>
+                    <div><label class="block text-sm font-medium text-slate-300 mb-1">Observações</label><textarea name="observacoes" rows="2" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500" placeholder="Observações...">{{ (documento.conteudo or {}).get('observacoes', '') }}</textarea></div>
+                    <input type="hidden" name="para" value=""><input type="hidden" name="de" value=""><input type="hidden" name="data_relatorio" value=""><input type="hidden" name="assunto" value=""><input type="hidden" name="corpo" value="">
+                </div>
+            </div>
+            {% endif %}
+            <input type="hidden" name="conteudo_json" value="{}">
+
+            <div class="flex gap-3">
+                <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Salvar alterações
+                </button>
+                <a href="/documentos/{{ documento.id }}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 font-medium transition-colors">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+});
+</script>
+{% endblock %}

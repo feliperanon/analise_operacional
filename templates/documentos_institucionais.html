@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header institucional -->
+        <div class="mb-10">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold text-white mb-2 tracking-tight">Documentos Institucionais</h1>
+                    <p class="text-slate-400 max-w-2xl">Sistema unificado de padronização documental. Emissão, controle e rastreabilidade de POP, IT, FOR, COM, POL, CHK e REL com identidade visual institucional única.</p>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                    <a href="/documentos/novo" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors border border-blue-500">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Novo documento
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Duas frentes do sistema -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Área 1: Documentos Padronizados Operacionais -->
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
+                <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/80">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                            <i data-lucide="file-text" class="w-4 h-4 text-blue-400"></i>
+                        </span>
+                        Documentos Padronizados Operacionais
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">Documentos internos e normativos com estrutura previsível e padronizada.</p>
+                </div>
+                <div class="p-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <a href="/documentos/novo?tipo=POP" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">POP</span>
+                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Procedimento Operacional Padrão</p>
+                        <p class="text-xs text-slate-500 mt-1">Processos, rotinas e fluxo operacional</p>
+                    </a>
+                    <a href="/documentos/novo?tipo=IT" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">IT</span>
+                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Instrução de Trabalho</p>
+                        <p class="text-xs text-slate-500 mt-1">Tarefa específica passo a passo</p>
+                    </a>
+                    <a href="/documentos/novo?tipo=FOR" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">FOR</span>
+                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Formulário</p>
+                        <p class="text-xs text-slate-500 mt-1">Coleta e validação de dados</p>
+                    </a>
+                    <a href="/documentos/novo?tipo=COM" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">COM</span>
+                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Comunicado</p>
+                        <p class="text-xs text-slate-500 mt-1">Orientações, avisos e alinhamentos</p>
+                    </a>
+                    <a href="/documentos/novo?tipo=POL" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">POL</span>
+                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Política Interna</p>
+                        <p class="text-xs text-slate-500 mt-1">Diretrizes e posicionamentos</p>
+                    </a>
+                    <a href="/documentos/novo?tipo=CHK" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">CHK</span>
+                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Checklist</p>
+                        <p class="text-xs text-slate-500 mt-1">Verificação e conferência</p>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Área 2: Relatórios -->
+            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
+                <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/80">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                            <i data-lucide="bar-chart-2" class="w-4 h-4 text-amber-400"></i>
+                        </span>
+                        Relatórios
+                    </h2>
+                    <p class="text-slate-400 text-sm mt-1">Análises, resultados, acompanhamentos e avaliações com conteúdo flexível.</p>
+                </div>
+                <div class="p-5">
+                    <a href="/documentos/novo?tipo=REL" class="block p-5 rounded-xl bg-slate-800 border-2 border-dashed border-slate-600 hover:border-amber-500/50 hover:bg-slate-700/80 transition-all group">
+                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 mb-3">REL</span>
+                        <p class="text-base font-semibold text-white group-hover:text-amber-300">Relatório</p>
+                        <p class="text-sm text-slate-500 mt-2">Registrar análises, fatos, resultados, ocorrências, auditorias ou contextos variáveis. Mesmo padrão institucional, conteúdo adaptável.</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros e listagem -->
+        <div class="mt-8 bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-700 flex flex-wrap items-center gap-4">
+                <form method="get" action="/documentos" class="flex flex-wrap items-center gap-3">
+                    <select name="tipo" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Todos os tipos</option>
+                        {% for t in doc_tipos or [] %}
+                        <option value="{{ t }}" {{ 'selected' if (filtros or {}).get('tipo') == t else '' }}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="setor" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Todos os setores</option>
+                        {% for s in setores or [] %}
+                        <option value="{{ s.sigla }}" {{ 'selected' if (filtros or {}).get('setor') == s.sigla else '' }}>{{ s.sigla }} – {{ s.nome }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="status" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+                        <option value="">Todos os status</option>
+                        <option value="rascunho" {{ 'selected' if (filtros or {}).get('status') == 'rascunho' else '' }}>Rascunho</option>
+                        <option value="em_revisao" {{ 'selected' if (filtros or {}).get('status') == 'em_revisao' else '' }}>Em revisão</option>
+                        <option value="aprovado" {{ 'selected' if (filtros or {}).get('status') == 'aprovado' else '' }}>Aprovado</option>
+                        <option value="obsoleto" {{ 'selected' if (filtros or {}).get('status') == 'obsoleto' else '' }}>Obsoleto</option>
+                        <option value="arquivado" {{ 'selected' if (filtros or {}).get('status') == 'arquivado' else '' }}>Arquivado</option>
+                    </select>
+                    <input type="search" name="q" value="{{ (filtros or {}).get('q', '') }}" placeholder="Buscar por título ou código…" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 min-w-[200px]">
+                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                        Filtrar
+                    </button>
+                </form>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-700">
+                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Código</th>
+                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Título</th>
+                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Tipo</th>
+                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Setor</th>
+                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Status</th>
+                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Versão</th>
+                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Atualizado</th>
+                            <th class="text-left px-6 py-3 text-slate-400 font-medium"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in documentos or [] %}
+                        <tr class="border-b border-slate-700/80 hover:bg-slate-800/60 transition-colors">
+                            <td class="px-6 py-3"><code class="text-blue-400 font-mono text-xs">{{ d.codigo }}</code></td>
+                            <td class="px-6 py-3 text-white font-medium">{{ d.titulo[:60] }}{% if d.titulo|length > 60 %}…{% endif %}</td>
+                            <td class="px-6 py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold {{ 'bg-amber-500/20 text-amber-400' if d.tipo_documento == 'REL' else 'bg-blue-500/20 text-blue-400' }}">{{ d.tipo_documento }}</span></td>
+                            <td class="px-6 py-3 text-slate-400">{{ d.area_responsavel }}</td>
+                            <td class="px-6 py-3">
+                                {% if d.status == 'rascunho' %}<span class="text-slate-400">Rascunho</span>{% endif %}
+                                {% if d.status == 'em_revisao' %}<span class="text-amber-400">Em revisão</span>{% endif %}
+                                {% if d.status == 'aprovado' %}<span class="text-emerald-400">Aprovado</span>{% endif %}
+                                {% if d.status == 'obsoleto' %}<span class="text-slate-500">Obsoleto</span>{% endif %}
+                                {% if d.status == 'arquivado' %}<span class="text-slate-500">Arquivado</span>{% endif %}
+                            </td>
+                            <td class="px-6 py-3 text-slate-400">v{{ d.versao }}</td>
+                            <td class="px-6 py-3 text-slate-500 text-xs">{{ d.updated_at.strftime('%d/%m/%Y %H:%M') if d.updated_at else '-' }}</td>
+                            <td class="px-6 py-3"><a href="/documentos/{{ d.id }}" class="text-blue-400 hover:text-blue-300 text-sm">Abrir</a></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8" class="px-6 py-8 text-center text-slate-500">Nenhum documento encontrado. <a href="/documentos/novo" class="text-blue-400 hover:underline">Criar o primeiro</a></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Padrão de código e regras -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+                <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Padrão de código documental</h3>
+                <p class="text-slate-400 text-sm mb-3">Exemplo: <code class="px-2 py-0.5 rounded bg-slate-700 text-blue-400 font-mono text-xs">POP-LOG-001</code>, <code class="px-2 py-0.5 rounded bg-slate-700 text-blue-400 font-mono text-xs">REL-OP-004</code></p>
+                <ul class="text-xs text-slate-500 space-y-1">
+                    <li><strong class="text-slate-400">Sigla inicial:</strong> tipo documental (POP, IT, FOR, REL, COM, POL, CHK)</li>
+                    <li><strong class="text-slate-400">Sigla do meio:</strong> área/setor (LOG, RH, OP, DIR, ADM, EXP, MAN…)</li>
+                    <li><strong class="text-slate-400">Número final:</strong> sequencial por setor</li>
+                </ul>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
+                <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Status padronizados</h3>
+                <div class="flex flex-wrap gap-2">
+                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-slate-700 text-slate-400">Rascunho</span>
+                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-amber-500/20 text-amber-400">Em revisão</span>
+                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400">Aprovado</span>
+                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-slate-600 text-slate-500">Obsoleto</span>
+                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-slate-700 text-slate-500">Arquivado</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-3">Todos os documentos compartilham identidade visual, cabeçalho, rodapé e controle de revisão.</p>
+            </div>
+        </div>
+
+        <!-- Link para arquitetura completa -->
+        <div class="mt-8 p-4 rounded-xl bg-slate-800/40 border border-slate-700/80">
+            <p class="text-slate-400 text-sm">
+                <i data-lucide="info" class="w-4 h-4 inline-block align-middle mr-1 text-slate-500"></i>
+                A arquitetura completa do módulo — banco de dados, regras de negócio, fluxos e exemplos — está documentada em <code class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 text-xs">docs/ARQUITETURA_DOCUMENTOS_INSTITUCIONAIS.md</code>
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
+});
+</script>
+{% endblock %}
