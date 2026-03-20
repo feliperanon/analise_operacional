@@ -13609,6 +13609,131 @@ async def reopen_delivery_route(
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 
+@app.get("/api/delivery/clients/search", response_class=JSONResponse)
+async def api_delivery_clients_search(
+    request: Request,
+    q: str = "",
+    limit: int = 20,
+    session: Session = Depends(get_session),
+):
+    """Busca clientes por nome, NB, nome fantasia ou endereço para inclusão manual em rota."""
+    require_login(request)
+    q = (q or "").strip()
+    if len(q) < 2:
+        return []
+    pat = f"%{q}%"
+    stmt = (
+        select(models.Client)
+        .where(
+            or_(
+                models.Client.name.ilike(pat),
+                models.Client.nome_fantasia.ilike(pat),
+                models.Client.razao_social.ilike(pat),
+                models.Client.nb.ilike(pat),
+                models.Client.endereco.ilike(pat),
+                models.Client.endereco_normalizado.ilike(pat),
+                models.Client.logradouro.ilike(pat),
+                models.Client.bairro.ilike(pat),
+                models.Client.municipio.ilike(pat),
+            )
+        )
+        .order_by(models.Client.name)
+        .limit(limit)
+    )
+    rows = session.exec(stmt).all()
+    out = []
+    for c in rows:
+        end = (c.endereco or c.logradouro or "")
+        if c.numero:
+            end = f"{end} {c.numero}".strip()
+        if c.bairro:
+            end = f"{end} - {c.bairro}".strip()
+        if c.municipio:
+            end = f"{end} {c.municipio}/{c.delivery_state or 'MG'}".strip()
+        out.append({
+            "id": c.id,
+            "name": c.name or "",
+            "nome_fantasia": c.nome_fantasia or "",
+            "nb": c.nb or "",
+            "endereco": end or "",
+            "display": f"{c.name or ''} | NB: {c.nb or '-'} | {c.nome_fantasia or ''}".strip(),
+        })
+    return out
+
+
+@app.post("/separacao/delivery/add-stop", response_class=RedirectResponse)
+async def delivery_add_stop(
+    request: Request,
+    employee_id: int = Form(...),
+    vehicle_plate: str = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    client_id: int = Form(...),
+    tonnage: float = Form(0.0),
+    valor_financeiro: Optional[float] = Form(None),
+    delivery_order_number: Optional[str] = Form(None),
+    date_from: Optional[str] = Form(None),
+    date_to: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    """Adiciona uma parada manual à rota de entrega (cliente manual)."""
+    require_login(request)
+    df, dt = (date_from or "").strip(), (date_to or "").strip()
+    if df and dt and df != dt:
+        redirect_base = f"/separacao?date_from={df}&date_to={dt}&shift={shift}"
+    else:
+        redirect_base = f"/separacao?date={date}&shift={shift}"
+
+    client = session.get(models.Client, client_id)
+    if not client:
+        feedback_encoded = urlencode({"delivery_feedback": "Cliente não encontrado.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+    emp = session.get(models.Employee, employee_id)
+    if not emp:
+        feedback_encoded = urlencode({"delivery_feedback": "Motorista não encontrado.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+    now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    addr = (client.endereco or client.logradouro or "")
+    if client.numero:
+        addr = f"{addr} {client.numero}".strip()
+    route = models.Route(
+        date=date,
+        shift=shift,
+        employee_id=employee_id,
+        client_id=client_id,
+        start_time="00:00",
+        end_time=None,
+        tonnage=float(tonnage or 0.0),
+        valor_financeiro=float(valor_financeiro) if valor_financeiro is not None else None,
+        type="delivery",
+        delivery_status="pendente",
+        delivery_vehicle_plate=vehicle_plate.strip().upper(),
+        delivery_order_number=(delivery_order_number or "").strip() or None,
+        delivery_client_code=client.nb,
+        delivery_address=addr or None,
+        delivery_neighborhood=client.bairro,
+        delivery_city=client.municipio,
+        delivery_state=None,
+        delivery_cep=None,
+    )
+    session.add(route)
+    session.flush()
+    log_entry = models.RouteInsertLog(
+        route_id=route.id,
+        client_id=client_id,
+        route_date=date,
+        shift=shift,
+        inserted_at=now,
+        source="admin_manual",
+        created_by=request.session.get("username") or str(request.session.get("user_id") or ""),
+    )
+    session.add(log_entry)
+    session.commit()
+    feedback_encoded = urlencode({"delivery_feedback": f"Cliente {client.name} adicionado à rota.", "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+
 @app.post("/separacao/delivery/remove-stop", response_class=RedirectResponse)
 async def delivery_remove_stop(
     request: Request,
