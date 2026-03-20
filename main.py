@@ -12501,6 +12501,8 @@ async def separacao_page(
         group["opened_routines"] = group["started"] + group["delivered"] + group["returned"]
         group["completed_routines"] = group["delivered"] + group["returned"]
         group["return_percentage"] = round((group["returned"] / stops) * 100.0, 2) if stops else 0.0
+        ds = session_by_driver.get((group["employee_id"] or 0, group.get("group_date", "")))
+        group["session_started"] = bool(ds and (ds.status or "").lower() == "open")
         group["returned_weight_percentage"] = round(
             (group["returned_weight"] / group["total_weight"]) * 100.0, 2
         ) if group["total_weight"] else 0.0
@@ -13585,6 +13587,94 @@ async def delivery_remove_stop(
 
     msg = f"Cliente removido da rota ({st})."
     feedback_encoded = urlencode({"delivery_feedback": msg, "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+
+@app.post("/separacao/delivery/session/start", response_class=RedirectResponse)
+async def separacao_delivery_session_start(
+    request: Request,
+    employee_id: int = Form(...),
+    vehicle_plate: str = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    plate: str = Form(...),
+    km_departure: float = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Inicia a rota de entrega pela web (coordenador), como no mobile."""
+    require_login(request)
+    redirect_base = f"/separacao?date={date}&shift={shift}"
+    form = await request.form()
+    helper_ids_list = [int(x) for x in form.getlist("helper_ids") if str(x).strip().isdigit()]
+
+    plate_clean = (plate or "").strip().upper()
+    if not plate_clean or len(plate_clean) < 7:
+        feedback_encoded = urlencode({"delivery_feedback": "Placa inválida.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+    if not km_departure or km_departure <= 0:
+        feedback_encoded = urlencode({"delivery_feedback": "KM de saída inválido.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.employee_id == employee_id)
+        .where(models.Route.date == date)
+        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+    ).all()
+    routes = list(routes)
+    if not routes:
+        feedback_encoded = urlencode({"delivery_feedback": "Sem entregas planejadas para este motorista/data.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+    assigned_plates = sorted({r.delivery_vehicle_plate for r in routes if r.delivery_vehicle_plate})
+    if assigned_plates and _norm_plate(plate_clean) not in {_norm_plate(p) for p in assigned_plates}:
+        feedback_encoded = urlencode({
+            "delivery_feedback": f"Placa inválida. Placa(s) planejada(s): {', '.join(assigned_plates)}.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+    existing = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == employee_id)
+        .where(models.DeliverySession.date == date)
+        .where(models.DeliverySession.status == "open")
+    ).first()
+    if existing:
+        feedback_encoded = urlencode({"delivery_feedback": "Rotina já iniciada para este motorista.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+    emp_map = {e.id: e for e in session.exec(select(models.Employee)).all()}
+    helper_names: List[str] = []
+    seen = set()
+    for hid in helper_ids_list:
+        try:
+            h = int(hid)
+        except (TypeError, ValueError):
+            continue
+        if h == employee_id or h in seen:
+            continue
+        seen.add(h)
+        emp = emp_map.get(h)
+        if emp and (emp.name or "").strip():
+            helper_names.append(emp.name.strip())
+
+    new_session = models.DeliverySession(
+        date=date,
+        employee_id=employee_id,
+        status="open",
+        vehicle_plate=plate_clean,
+        helpers_json=json.dumps(helper_names),
+        km_departure=float(km_departure),
+        started_at=datetime.now(ZoneInfo("America/Sao_Paulo")),
+    )
+    session.add(new_session)
+    session.commit()
+
+    driver_name = emp_map.get(employee_id)
+    driver_label = driver_name.name if driver_name else f"Motorista #{employee_id}"
+    feedback_encoded = urlencode({"delivery_feedback": f"Rota iniciada: {driver_label}.", "delivery_feedback_level": "success"})
     return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
 
 
