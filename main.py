@@ -13185,10 +13185,18 @@ async def update_delivery_planning_date_stops(
     planning_date: str = Form(...),
     date: str = Form(...),
     shift: str = Form("Manhã"),
+    date_from: Optional[str] = Form(None),
+    date_to: Optional[str] = Form(None),
     session: Session = Depends(get_session),
 ):
     """Move 1 ou mais paradas (clientes) selecionadas para outra data. Formato: route_ids=1&route_ids=2&..."""
     require_login(request)
+    df, dt = (date_from or "").strip(), (date_to or "").strip()
+    if df and dt and df != dt:
+        redirect_base = f"/separacao?date_from={df}&date_to={dt}&shift={shift}"
+    else:
+        redirect_base = f"/separacao?date={date}&shift={shift}"
+
     form = await request.form()
     route_ids = [int(x) for x in form.getlist("route_ids") if str(x).strip().isdigit()]
     if not route_ids:
@@ -13196,10 +13204,7 @@ async def update_delivery_planning_date_stops(
             "delivery_feedback": "Nenhuma parada selecionada.",
             "delivery_feedback_level": "error",
         })
-        return RedirectResponse(
-            url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
     try:
         datetime.strptime(planning_date, "%Y-%m-%d")
     except Exception:
@@ -13207,10 +13212,7 @@ async def update_delivery_planning_date_stops(
             "delivery_feedback": "Data de planejamento inválida.",
             "delivery_feedback_level": "error",
         })
-        return RedirectResponse(
-            url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
 
     routes = session.exec(
         select(models.Route)
@@ -13227,10 +13229,7 @@ async def update_delivery_planning_date_stops(
         "delivery_feedback": f"{len(routes)} parada(s) movida(s) para {planning_date}.",
         "delivery_feedback_level": "success",
     })
-    return RedirectResponse(
-        url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
+    return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.post("/separacao/delivery/planning-date", response_class=RedirectResponse)
@@ -13621,44 +13620,48 @@ async def api_delivery_clients_search(
     q = (q or "").strip()
     if len(q) < 2:
         return []
-    pat = f"%{q}%"
-    stmt = (
-        select(models.Client)
-        .where(
-            or_(
-                models.Client.name.ilike(pat),
-                models.Client.nome_fantasia.ilike(pat),
-                models.Client.razao_social.ilike(pat),
-                models.Client.nb.ilike(pat),
-                models.Client.endereco.ilike(pat),
-                models.Client.endereco_normalizado.ilike(pat),
-                models.Client.logradouro.ilike(pat),
-                models.Client.bairro.ilike(pat),
-                models.Client.municipio.ilike(pat),
+    try:
+        pat = f"%{q}%"
+        stmt = (
+            select(models.Client)
+            .where(
+                or_(
+                    models.Client.name.ilike(pat),
+                    models.Client.nome_fantasia.ilike(pat),
+                    models.Client.razao_social.ilike(pat),
+                    models.Client.nb.ilike(pat),
+                    models.Client.endereco.ilike(pat),
+                    models.Client.endereco_normalizado.ilike(pat),
+                    models.Client.logradouro.ilike(pat),
+                    models.Client.bairro.ilike(pat),
+                    models.Client.municipio.ilike(pat),
+                )
             )
+            .order_by(models.Client.name)
+            .limit(limit)
         )
-        .order_by(models.Client.name)
-        .limit(limit)
-    )
-    rows = session.exec(stmt).all()
-    out = []
-    for c in rows:
-        end = (c.endereco or c.logradouro or "")
-        if c.numero:
-            end = f"{end} {c.numero}".strip()
-        if c.bairro:
-            end = f"{end} - {c.bairro}".strip()
-        if c.municipio:
-            end = f"{end} {c.municipio}/MG".strip()
-        out.append({
-            "id": c.id,
-            "name": c.name or "",
-            "nome_fantasia": c.nome_fantasia or "",
-            "nb": c.nb or "",
-            "endereco": end or "",
-            "display": f"{c.name or ''} | NB: {c.nb or '-'} | {c.nome_fantasia or ''}".strip(),
-        })
-    return out
+        rows = list(session.exec(stmt).all())
+        out = []
+        for c in rows:
+            end = (getattr(c, "endereco", None) or getattr(c, "logradouro", None) or "")
+            if getattr(c, "numero", None):
+                end = f"{end} {c.numero}".strip()
+            if getattr(c, "bairro", None):
+                end = f"{end} - {c.bairro}".strip()
+            if getattr(c, "municipio", None):
+                end = f"{end} {c.municipio}/MG".strip()
+            out.append({
+                "id": c.id,
+                "name": getattr(c, "name", None) or "",
+                "nome_fantasia": getattr(c, "nome_fantasia", None) or "",
+                "nb": getattr(c, "nb", None) or "",
+                "endereco": end or "",
+                "display": f"{getattr(c, 'name', None) or ''} | NB: {getattr(c, 'nb', None) or '-'} | {getattr(c, 'nome_fantasia', None) or ''}".strip(),
+            })
+        return out
+    except Exception as e:
+        logger.exception(f"api_delivery_clients_search: {e}")
+        return []
 
 
 @app.post("/separacao/delivery/add-stop", response_class=RedirectResponse)
