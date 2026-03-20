@@ -705,13 +705,18 @@
                                                             class="btn-action btn-move col-span-2 w-full">
                                                         Mover Cliente
                                                     </button>
-                                                    <button type="button"
-                                                            onclick="openMoveDateModal('{{ row.id }}', '{{ group.group_date or row.planning_date or selected_date_from }}', '{{ selected_shift }}', {{ row.client_name|tojson }})"
-                                                            class="btn-action btn-move-date col-span-2 w-full">
+                                                    <button type="button" class="btn-action btn-move-date col-span-2 w-full"
+                                                            data-route-id="{{ row.id }}"
+                                                            data-date="{{ group.group_date or row.planning_date or selected_date_from }}"
+                                                            data-shift="{{ selected_shift }}"
+                                                            data-client-name="{{ row.client_name|e }}"
+                                                            onclick="openMoveDateModalFromBtn(this)">
                                                         Mover para outro dia
                                                     </button>
-                                                    <form action="/separacao/delivery/remove-stop" method="post" class="col-span-2"
-                                                          onsubmit="return confirmRemoveStop({{ row.client_name|tojson }}, {{ row.status_raw|tojson }});">
+                                                    <form action="/separacao/delivery/remove-stop" method="post" class="col-span-2 remove-stop-form"
+                                                          data-client-name="{{ row.client_name|e }}"
+                                                          data-status="{{ row.status_raw|e }}"
+                                                          onsubmit="return confirmRemoveStopFromForm(this);">
                                                         <input type="hidden" name="route_id" value="{{ row.id }}">
                                                         <input type="hidden" name="date" value="{{ group.group_date or row.planning_date or selected_date_from }}">
                                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
@@ -1382,6 +1387,20 @@
         document.getElementById('move-date-client-name').textContent = clientName || 'esta parada';
         document.getElementById('move-date-planning').value = date;
         document.getElementById('moveDateModal').showModal();
+    }
+    function openMoveDateModalFromBtn(btn) {
+        openMoveDateModal(
+            btn.dataset.routeId,
+            btn.dataset.date,
+            btn.dataset.shift,
+            btn.dataset.clientName || 'esta parada'
+        );
+    }
+    function confirmRemoveStopFromForm(form) {
+        return confirmRemoveStop(
+            form.dataset.clientName || 'este cliente',
+            form.dataset.status || ''
+        );
     }
 
     // --- Incluir cliente manualmente ---
