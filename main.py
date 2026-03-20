@@ -12404,10 +12404,11 @@ async def separacao_page(
         if getattr(route, "created_at", None):
             try:
                 _dt = route.created_at
+                tz_br = ZoneInfo("America/Sao_Paulo")
                 if _dt.tzinfo is None:
-                    _dt = _dt.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+                    _dt = _dt.replace(tzinfo=ZoneInfo("UTC")).astimezone(tz_br)
                 else:
-                    _dt = _dt.astimezone(ZoneInfo("America/Sao_Paulo"))
+                    _dt = _dt.astimezone(tz_br)
                 _inserted_at = _dt.strftime("%d/%m/%Y %H:%M")
             except Exception:
                 _inserted_at = str(route.created_at)[:16] if route.created_at else ""

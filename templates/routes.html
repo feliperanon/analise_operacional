@@ -321,7 +321,7 @@
                         <input type="date" name="planning_date" id="bulk-stops-planning-date" required class="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:ring-1 focus:ring-violet-500 outline-none">
                         <button type="submit" class="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
                             <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-                            Mover para esta data
+                            Mover selecionados
                         </button>
                     </form>
                     <button type="button" onclick="clearBulkStopSelection()" class="px-3 py-1.5 rounded-lg border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-semibold transition-colors">
@@ -474,7 +474,7 @@
                                                 class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-sky-500/50 outline-none">
                                         </div>
                                         <button type="submit" class="h-[34px] px-3 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
-                                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Mover para esta data
+                                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Mover rota inteira
                                         </button>
                                     </form>
                                 </div>
@@ -1409,9 +1409,10 @@
     function selectRowAndShowMoveBar(btn) {
         const routeId = btn.dataset.routeId;
         const targetDate = btn.dataset.date || '';
-        document.querySelectorAll('.bulk-stop-checkbox').forEach(function (cb) {
-            cb.checked = (cb.dataset.routeId === routeId);
-        });
+        var checkbox = document.querySelector('.bulk-stop-checkbox[data-route-id="' + routeId + '"]');
+        if (checkbox) {
+            checkbox.checked = true;
+        }
         document.querySelectorAll('.bulk-stop-select-all').forEach(function (cb) { cb.checked = false; });
         updateBulkStopBar();
         const bar = document.getElementById('bulk-stops-move-bar');
