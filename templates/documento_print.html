@@ -2,27 +2,27 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ documento.titulo or 'Documento' }} – {{ documento.codigo }}</title>
     <style>
         /* =====================================================================
-           DOCUMENTO CORPORATIVO – ABNT adaptada | Diagramação executiva
+           DOCUMENTO CORPORATIVO – Versão final | ABNT adaptada
            Margens: sup 3cm | esq 3cm | dir 2cm | inf 2.5cm
+           Fonte: Arial (embedding e extração de texto compatíveis)
            ===================================================================== */
         * { box-sizing: border-box; }
 
         html {
             font-size: 12pt;
             -webkit-text-size-adjust: 100%;
-            font-synthesis: none;
         }
 
         body {
             margin: 0;
             padding: 0;
             background: #fff;
-            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+            font-family: Arial, sans-serif;
             font-size: 12pt;
             line-height: 1.5;
             color: #1a1a1a;
@@ -38,41 +38,46 @@
 
         /* --- Tipografia ABNT --- */
         .doc-p {
-            margin: 0 0 0.5em 0;
+            margin: 0 0 0.55em 0;
             text-align: justify;
             text-indent: 1.25cm;
             font-size: 12pt;
             line-height: 1.5;
         }
-        .doc-p-space { margin: 0.35em 0; height: 0; }
-        .doc-list { margin: 0.25em 0 0.5em 1.25cm; padding: 0; }
-        .doc-list li { margin: 0.2em 0; text-align: justify; }
+        .doc-p-space { margin: 0.4em 0; height: 0; }
+        .doc-list { margin: 0.3em 0 0.55em 1.25cm; padding: 0; }
+        .doc-list li { margin: 0.22em 0; text-align: justify; }
 
-        /* --- Seções: hierarquia e espaçamento --- */
-        .doc-section {
-            margin-bottom: 0.75em;
-        }
+        /* --- Seções: hierarquia e ritmo visual --- */
+        .doc-section { margin-bottom: 0.85em; }
         .doc-section-intro { margin-top: 0; }
         .doc-section-intro .doc-section-title { margin-top: 0; }
         .doc-section-title {
             font-size: 13pt;
             font-weight: bold;
             color: #1a1a1a;
-            margin: 1.25em 0 0.4em 0;
+            margin: 1.3em 0 0.45em 0;
             page-break-after: avoid;
             page-break-before: avoid;
         }
         .doc-section-conclusion {
             page-break-inside: avoid;
-            margin-bottom: 1em;
+            margin-top: 1.5em;
+            margin-bottom: 1.25em;
+            padding-top: 0.5em;
+        }
+        .doc-section-conclusion .doc-section-title {
+            margin-top: 0;
+            padding-bottom: 0.35em;
+            border-bottom: 1px solid #333;
         }
         .doc-section-final {
-            margin-bottom: 1.5em;
-            padding-bottom: 1.25rem;
+            margin-bottom: 1.75em;
+            padding-bottom: 1.5rem;
         }
         .doc-section-conclusion.doc-section-final {
-            margin-bottom: 1.5em;
-            padding-bottom: 1.5rem;
+            margin-bottom: 2em;
+            padding-bottom: 1.75rem;
         }
 
         .doc-body p, .doc-body li { orphans: 3; widows: 3; }
@@ -83,14 +88,14 @@
             justify-content: space-between;
             align-items: flex-start;
             gap: 1.25rem;
-            padding-bottom: 0.5rem;
-            margin-bottom: 0.75rem;
+            padding-bottom: 0.55rem;
+            margin-bottom: 0.7rem;
             border-bottom: 1px solid #2a2a2a;
         }
         .doc-logo-wrap img {
-            height: 40px;
+            height: 38px;
             width: auto;
-            max-width: 160px;
+            max-width: 150px;
             object-fit: contain;
             display: block;
         }
@@ -99,16 +104,16 @@
             font-size: 9pt;
             color: #444;
             text-align: right;
-            line-height: 1.55;
+            line-height: 1.5;
         }
-        .doc-meta-block strong { color: #1a1a1a; }
+        .doc-meta-block .doc-doc-code { font-weight: 600; color: #1a1a1a; }
 
         .doc-title-main {
             font-size: 14pt;
             font-weight: bold;
             color: #1a1a1a;
             text-align: center;
-            margin: 0.75rem 0 0.9rem 0;
+            margin: 0.7rem 0 0.85rem 0;
         }
 
         /* --- Identificação documental --- */
@@ -116,7 +121,7 @@
             font-size: 11pt;
             border-collapse: collapse;
             width: 100%;
-            margin-bottom: 0.9rem;
+            margin-bottom: 0.85rem;
             border: 1px solid #999;
         }
         .doc-ident th, .doc-ident td {
@@ -140,20 +145,20 @@
         }
 
         /* --- Corpo textual --- */
-        .doc-body { margin-bottom: 1rem; }
+        .doc-body { margin-bottom: 1.1rem; }
         .doc-body p {
-            margin: 0 0 0.5em 0;
+            margin: 0 0 0.55em 0;
             text-align: justify;
             text-indent: 1.25cm;
             font-size: 12pt;
         }
         .doc-body .doc-section:first-child .doc-section-title { margin-top: 0; }
 
-        /* --- Bloco de fechamento: revisão + assinaturas --- */
+        /* --- Bloco de fechamento executivo --- */
         .doc-closing {
-            margin-top: 1.5rem;
-            padding-top: 1.25rem;
-            border-top: 1px solid #333;
+            margin-top: 1.75rem;
+            padding-top: 1.35rem;
+            border-top: 1.5px solid #333;
             page-break-before: avoid;
             page-break-inside: avoid;
         }
@@ -161,7 +166,7 @@
             font-size: 10pt;
             border-collapse: collapse;
             width: 100%;
-            margin-bottom: 1rem;
+            margin-bottom: 1.1rem;
             border: 1px solid #999;
         }
         .doc-revisao th, .doc-revisao td { padding: 4px 10px; border: 1px solid #ccc; }
@@ -177,14 +182,14 @@
             page-break-inside: avoid;
         }
         .doc-sig-line {
-            width: 120px;
+            width: 115px;
             height: 0;
             border-bottom: 1px solid #222;
-            margin: 0 auto 6px;
+            margin: 0 auto 5px;
         }
-        .doc-sig-label { font-size: 9pt; font-weight: 600; color: #222; max-width: 140px; margin: 0 auto; }
+        .doc-sig-label { font-size: 9pt; font-weight: 600; color: #222; max-width: 135px; margin: 0 auto; }
 
-        /* --- Rodapé técnico (sistema documental) --- */
+        /* --- Rodapé técnico (sistema documental corporativo) --- */
         .doc-footer {
             position: fixed;
             bottom: 0;
@@ -197,7 +202,7 @@
             font-size: 9pt;
             color: #444;
             background: #fff;
-            border-top: 1px solid #333;
+            border-top: 1.5px solid #333;
             z-index: 9999;
         }
         .doc-footer-inner {
@@ -206,9 +211,9 @@
             margin: 0 auto;
             padding: 0 3cm;
             text-align: center;
-            letter-spacing: 0.02em;
+            font-variant-numeric: tabular-nums;
         }
-        .doc-doc-code { font-weight: 600; color: #222; }
+        .doc-doc-code { font-weight: 600; color: #1a1a1a; }
 
         .doc-no-break { page-break-inside: avoid; }
         .doc-keep-with-next { page-break-after: avoid; }
@@ -216,7 +221,12 @@
         /* === IMPRESSÃO === */
         @media print {
             @page { size: A4; margin: 3cm 2cm 2.5cm 3cm; }
-            html, body { background: #fff; margin: 0; padding: 0; }
+            html, body {
+                background: #fff;
+                margin: 0;
+                padding: 0;
+                font-family: Arial, sans-serif;
+            }
             .doc-page { max-width: none; padding-bottom: 2.8cm; }
             .doc-header { break-inside: avoid; break-after: avoid; }
             .doc-title-main { break-after: avoid; }
@@ -312,7 +322,7 @@
 
     <footer class="doc-footer">
         <div class="doc-footer-inner">
-            <span class="doc-doc-code">{{ documento.codigo }}</span> &nbsp;|&nbsp; v{{ '%02d'|format(documento.versao) }} &nbsp;|&nbsp; Página <span class="doc-pagenum"></span> de <span class="doc-pagetotal"></span>
+            <span class="doc-doc-code">{{ documento.codigo }}</span> · v{{ '%02d'|format(documento.versao) }} · Página <span class="doc-pagenum"></span> de <span class="doc-pagetotal"></span>
         </div>
     </footer>
 
@@ -327,7 +337,7 @@
             }
             window.addEventListener('load', function() {
                 setTimeout(estimarPaginas, 200);
-                if (window.location.search.indexOf('print=1') !== -1) setTimeout(window.print, 350);
+                if (window.location.search.indexOf('print=1') !== -1) setTimeout(window.print, 400);
             });
             window.addEventListener('beforeprint', estimarPaginas);
         })();

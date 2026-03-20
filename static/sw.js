@@ -1,5 +1,5 @@
 /**
- * Service Worker — NL Entregas PWA Offline
+ * Service Worker — Souza Pinto PWA Offline
  * Versão: 1.1.0
  *
  * Estratégias:
@@ -44,7 +44,7 @@ const OFFLINE_HTML = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Offline - NL Entregas</title>
+  <title>Offline - Souza Pinto</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -408,7 +408,7 @@ async function removeFromQueue(ids) {
 // ──────────────────────────────────────────────
 self.addEventListener('push', (event) => {
   const data = event.data?.json() || {};
-  self.registration.showNotification(data.title || 'NL Entregas', {
+  self.registration.showNotification(data.title || 'Souza Pinto', {
     body: data.body || '',
     icon: '/static/icons/pwa-192.png',
     badge: '/static/icons/pwa-192.png',

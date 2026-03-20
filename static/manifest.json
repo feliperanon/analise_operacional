@@ -1,7 +1,7 @@
 {
-  "name": "NL Entregas",
-  "short_name": "Entregas",
-  "description": "App de gestão de rotas e entregas NL",
+  "name": "Souza Pinto",
+  "short_name": "Souza Pinto",
+  "description": "App de gestão de rotas e entregas Souza Pinto",
   "start_url": "/mobile/delivery",
   "scope": "/mobile/",
   "display": "standalone",

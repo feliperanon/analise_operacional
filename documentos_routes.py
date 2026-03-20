@@ -43,6 +43,8 @@ def formatar_corpo_relatorio(corpo: str) -> str:
     if not corpo or not corpo.strip():
         return ""
     import re
+    import unicodedata
+    corpo = unicodedata.normalize("NFC", str(corpo))
     lines = corpo.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     out = []
     in_list = False
