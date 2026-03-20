@@ -13649,7 +13649,7 @@ async def api_delivery_clients_search(
         if c.bairro:
             end = f"{end} - {c.bairro}".strip()
         if c.municipio:
-            end = f"{end} {c.municipio}/{c.delivery_state or 'MG'}".strip()
+            end = f"{end} {c.municipio}/MG".strip()
         out.append({
             "id": c.id,
             "name": c.name or "",
