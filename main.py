@@ -13179,6 +13179,60 @@ async def update_delivery_status(
     )
 
 
+@app.post("/separacao/delivery/planning-date/stops", response_class=RedirectResponse)
+async def update_delivery_planning_date_stops(
+    request: Request,
+    planning_date: str = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    session: Session = Depends(get_session),
+):
+    """Move 1 ou mais paradas (clientes) selecionadas para outra data. Formato: route_ids=1&route_ids=2&..."""
+    require_login(request)
+    form = await request.form()
+    route_ids = [int(x) for x in form.getlist("route_ids") if str(x).strip().isdigit()]
+    if not route_ids:
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Nenhuma parada selecionada.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    try:
+        datetime.strptime(planning_date, "%Y-%m-%d")
+    except Exception:
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Data de planejamento inválida.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.id.in_(route_ids))
+        .where(models.Route.type == "delivery")
+    ).all()
+    routes = list(routes)
+    for r in routes:
+        r.date = planning_date
+        session.add(r)
+    session.commit()
+
+    feedback_encoded = urlencode({
+        "delivery_feedback": f"{len(routes)} parada(s) movida(s) para {planning_date}.",
+        "delivery_feedback_level": "success",
+    })
+    return RedirectResponse(
+        url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 @app.post("/separacao/delivery/planning-date", response_class=RedirectResponse)
 async def update_delivery_planning_date(
     request: Request,

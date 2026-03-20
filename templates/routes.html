@@ -305,6 +305,24 @@
                     </div>
                     <span id="delivery-search-result" class="text-[11px] text-slate-400 shrink-0"></span>
                 </div>
+                <!-- Barra de paradas selecionadas para mover -->
+                <div id="bulk-stops-move-bar" class="hidden px-6 py-2.5 border-b border-violet-500/30 bg-violet-900/20 flex flex-wrap items-center gap-3">
+                    <span class="text-xs font-semibold text-violet-200">
+                        <span id="bulk-stops-count">0</span> cliente(s) selecionado(s) para mover
+                    </span>
+                    <form id="bulk-stops-move-form" action="/separacao/delivery/planning-date/stops" method="post" class="inline-flex items-center gap-2" onsubmit="return confirm('Mover os clientes selecionados para a data escolhida?');">
+                        <input type="hidden" name="date" value="{{ selected_date_from }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <input type="date" name="planning_date" id="bulk-stops-planning-date" required class="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:ring-1 focus:ring-violet-500 outline-none">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                            Mover para esta data
+                        </button>
+                    </form>
+                    <button type="button" onclick="clearBulkStopSelection()" class="px-3 py-1.5 rounded-lg border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white text-xs font-semibold transition-colors">
+                        Desmarcar todos
+                    </button>
+                </div>
 
                 <div class="p-6">
                     {% if delivery_groups %}
@@ -464,7 +482,8 @@
                                         <div>
                                             <label class="block text-[10px] text-slate-500 mb-0.5">Placa *</label>
                                             <input type="text" name="plate" value="{{ group.vehicle_plate }}" placeholder="ABC1D23"
-                                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-200 font-mono uppercase focus:ring-1 focus:ring-sky-500/50 outline-none">
+                                                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-2 text-xs text-slate-200 font-mono uppercase focus:ring-1 focus:ring-sky-500/50 outline-none"
+                                                oninput="this.value=this.value.toUpperCase()">
                                         </div>
                                         <div>
                                             <label class="block text-[10px] text-slate-500 mb-0.5">KM de saída *</label>
@@ -536,6 +555,12 @@
                                 <table class="w-full text-xs">
                                     <thead class="bg-slate-950/60 text-slate-500 uppercase tracking-wider sticky top-0">
                                         <tr>
+                                            <th class="text-left px-2 py-2.5 font-semibold w-10" title="Selecionar para mover para outro dia">
+                                                <label class="flex items-center cursor-pointer" onclick="event.stopPropagation()">
+                                                    <input type="checkbox" class="bulk-stop-select-all rounded border-slate-500 bg-slate-800 text-violet-500 focus:ring-violet-500/50" data-group-table="group-{{ group.employee_id }}-{{ group.vehicle_plate }}">
+                                                    <span class="sr-only">Marcar todos do grupo</span>
+                                                </label>
+                                            </th>
                                             <th class="text-left px-3 py-2.5 font-semibold">Cliente</th>
                                             <th class="text-left px-3 py-2.5 font-semibold">Endereço</th>
                                             <th class="text-left px-3 py-2.5 font-semibold">Peso</th>
@@ -562,6 +587,16 @@
                                                 bg-slate-900/10
                                             {% endif %}"
                                             data-search="{{ (row.client_name ~ ' ' ~ row.client_code ~ ' ' ~ row.order_number ~ ' ' ~ row.weight ~ ' ' ~ row.value ~ ' ' ~ row.address ~ ' ' ~ row.city ~ ' ' ~ row.bairro ~ ' ' ~ (row.inserted_at or '') ~ ' ' ~ (group.driver_name or '') ~ ' ' ~ (group.helper_names|join(' ') if group.helper_names else ''))|lower }}">
+                                            <td class="px-2 py-2 align-top">
+                                                <label class="flex items-center cursor-pointer" onclick="event.stopPropagation()" title="Selecionar para mover para outro dia">
+                                                    <input type="checkbox" class="bulk-stop-checkbox rounded border-slate-500 bg-slate-800 text-violet-500 focus:ring-violet-500/50"
+                                                        data-route-id="{{ row.id }}"
+                                                        data-date="{{ group.group_date or row.planning_date or selected_date_from }}"
+                                                        data-shift="{{ selected_shift }}"
+                                                        data-client-name="{{ row.client_name }}">
+                                                    <span class="sr-only">Selecionar {{ row.client_name }}</span>
+                                                </label>
+                                            </td>
                                             <td class="px-3 py-2 text-slate-200">
                                                 <div class="font-bold">{{ row.client_name }}</div>
                                                 {% if row.client_secondary %}
