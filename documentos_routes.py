@@ -37,13 +37,17 @@ def ensure_doc_setores_seed(session: Session) -> None:
 
 
 def formatar_corpo_relatorio(corpo: str) -> str:
-    """Converte corpo do relatório em HTML formatado: seções numeradas, listas, parágrafos."""
+    """Converte corpo do relatório em HTML formatado: seções numeradas, listas, parágrafos.
+    Emite blocos .doc-section com hierarquia: doc-section-intro (primeira), doc-section-conclusion
+    (conclusão), doc-section-final (última seção) para fechamento visual forte."""
     if not corpo or not corpo.strip():
         return ""
     import re
     lines = corpo.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     out = []
     in_list = False
+    in_section = False
+    is_first_section = True
     for line in lines:
         stripped = line.strip()
         if not stripped:
@@ -52,29 +56,59 @@ def formatar_corpo_relatorio(corpo: str) -> str:
                 in_list = False
             out.append("<p class='doc-p-space'></p>")
             continue
-        # Seção numerada: "1. TÍTULO" ou "1. Título"
         m = re.match(r"^(\d+)\.\s+(.+)$", stripped)
         if m and len(m.group(2)) < 100:
             if in_list:
                 out.append("</ul>")
                 in_list = False
+            if in_section:
+                out.append("</div>")
+            title_lower = m.group(2).lower()
+            is_conclusion = "conclusão" in title_lower or "conclusao" in title_lower
+            section_cls = ["doc-section"]
+            if is_first_section:
+                section_cls.append("doc-section-intro")
+                is_first_section = False
+            if is_conclusion:
+                section_cls.append("doc-section-conclusion")
+            cls_str = " ".join(section_cls)
+            out.append(f"<div class='{cls_str}'>")
+            in_section = True
             out.append(f"<h3 class='doc-section-title'>{html.escape(stripped)}</h3>")
             continue
-        # Item de lista: "- item"
         if stripped.startswith("- "):
+            if not in_section:
+                out.append("<div class='doc-section doc-section-intro'>")
+                in_section = True
+                is_first_section = False
             if not in_list:
                 out.append("<ul class='doc-list'>")
                 in_list = True
             out.append(f"<li>{html.escape(stripped[2:])}</li>")
             continue
-        # Parágrafo normal
         if in_list:
             out.append("</ul>")
             in_list = False
+        if not in_section:
+            out.append("<div class='doc-section doc-section-intro'>")
+            in_section = True
+            is_first_section = False
         out.append(f"<p class='doc-p'>{html.escape(stripped)}</p>")
     if in_list:
         out.append("</ul>")
-    return "\n".join(out)
+    if in_section:
+        out.append("</div>")
+    html_output = "\n".join(out)
+    last_div = html_output.rfind("<div class='")
+    if last_div != -1:
+        end_quote = html_output.find("'>", last_div)
+        if end_quote != -1:
+            insert_at = end_quote
+            if "doc-section-final" not in html_output[last_div:end_quote]:
+                html_output = (
+                    html_output[:insert_at] + " doc-section-final" + html_output[insert_at:]
+                )
+    return html_output
 
 
 def gerar_proximo_codigo(session: Session, tipo: str, setor_sigla: str) -> str:
@@ -238,7 +272,7 @@ def init_documentos_router(
         corpo_html = ""
         if doc.tipo_documento == "REL" and c.get("corpo"):
             corpo_html = formatar_corpo_relatorio(c.get("corpo", ""))
-        return templates.TemplateResponse(
+        resp = templates.TemplateResponse(
             "documento_print.html",
             {
                 "request": request,
@@ -246,6 +280,8 @@ def init_documentos_router(
                 "corpo_html": corpo_html,
             },
         )
+        resp.headers["Content-Type"] = "text/html; charset=utf-8"
+        return resp
 
     @router.get("/documentos/{doc_id}/editar", response_class=HTMLResponse)
     async def documento_editar_page(
