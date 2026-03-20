@@ -22,12 +22,12 @@
 .doc-list { margin: 0.4em 0 0.8em 1.5em; padding: 0; }
 .doc-list li { margin: 0.2em 0; }
 
-/* Tabelas compactas - ABNT exceções (legendas/referências: 10pt) */
-.doc-table-compact { font-size: 9pt; }
-.doc-table-compact td { padding: 3px 6px !important; }
-.doc-table-compact .doc-header-blue { padding: 4px 8px !important; font-size: 10pt !important; }
-.doc-ident-table { font-size: 10pt; }
-.doc-ident-table td { padding: 3px 8px !important; }
+/* Tabelas compactas - ABNT (legibilidade) */
+.doc-table-compact { font-size: 11pt; }
+.doc-table-compact td { padding: 6px 10px !important; }
+.doc-table-compact .doc-header-blue { padding: 6px 10px !important; font-size: 12pt !important; }
+.doc-ident-table { font-size: 11pt; }
+.doc-ident-table td { padding: 6px 10px !important; }
 .doc-ident-table td.doc-ident-value { word-wrap: break-word; overflow-wrap: break-word; min-width: 0; }
 .doc-ident-table .doc-header-blue { padding: 4px 8px !important; font-size: 10pt !important; }
 
@@ -44,7 +44,6 @@
     border-top: 1px solid #ddd;
     background: white;
 }
-.doc-pagenum::after { content: counter(page); }
 @media screen {
     .doc-page-footer { display: none; }
 }
@@ -84,7 +83,7 @@
                 {% if documento.status == 'rascunho' %}
                 <a href="/documentos/{{ documento.id }}/editar" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm">Editar</a>
                 {% endif %}
-                <button type="button" onclick="window.print()" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm">Imprimir / PDF</button>
+                <a href="/documentos/{{ documento.id }}/print?print=1" target="_blank" rel="noopener" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm inline-block">Imprimir / PDF</a>
             </div>
         </div>
 
@@ -95,18 +94,18 @@
         <!-- === RELATÓRIO EXECUTIVO FORMAL - Layout institucional === -->
         <div class="p-8 print:p-0">
 
-            <!-- Cabeçalho: Logo + Metadados -->
-            <div class="doc-avoid-break flex justify-between items-start border-b-2 border-[#003366] pb-3 mb-3">
-                <div>
-                    <img src="/static/logo-souza-pinto.png" alt="Souza Pinto" class="h-24 object-contain" style="max-height: 96px; height: 96px; width: auto;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            <!-- Cabeçalho: Logo + Metadados (simétrico) -->
+            <div class="doc-avoid-break flex justify-between items-center gap-6 border-b-2 border-[#003366] pb-4 mb-4">
+                <div class="flex flex-col items-center text-center flex-1">
+                    <img src="/static/logo-souza-pinto.png" alt="Souza Pinto" class="object-contain" style="height: 140px; width: auto; min-width: 340px; max-width: 480px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                     <div class="hidden text-2xl font-bold text-[#003366]">SOUZA PINTO</div>
-                    <div class="text-xs text-gray-600 mt-1">Logística &amp; Distribuição</div>
+                    <div class="text-sm text-gray-500 mt-1.5 font-medium">Logística &amp; Distribuição</div>
                 </div>
                 <table class="doc-table-compact border border-gray-300" style="border-collapse: collapse;">
                     <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Código</td><td style="border: 1px solid #ccc;">{{ documento.codigo }}</td></tr>
                     <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Versão</td><td style="border: 1px solid #ccc;">{{ '%02d'|format(documento.versao) }}</td></tr>
-                    <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Emissão</td><td style="border: 1px solid #ccc;">{{ documento.data_emissao or '-' }}</td></tr>
-                    <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Pág.</td><td style="border: 1px solid #ccc;"><span class="doc-page-num">1</span></td></tr>
+                    <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Emissão</td><td style="border: 1px solid #ccc;">{{ (documento.data_emissao or documento.updated_at)|fmt_br_date }}</td></tr>
+                    <tr><td style="background: #f5f5f5; font-weight: bold; border: 1px solid #ccc;">Páginas</td><td style="border: 1px solid #ccc;">—</td></tr>
                 </table>
             </div>
 
@@ -128,7 +127,7 @@
                     <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">De</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ c.get('de') }}</td></tr>
                     {% endif %}
                     {% if c.get('data_relatorio') %}
-                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Data</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ c.get('data_relatorio') }}</td></tr>
+                    <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Data</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ c.get('data_relatorio')|fmt_br_date }}</td></tr>
                     {% endif %}
                     {% if c.get('assunto') %}
                     <tr><td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Assunto</td><td class="doc-ident-value" style="border: 1px solid #ccc;">{{ c.get('assunto') }}</td></tr>
@@ -151,36 +150,36 @@
             <div class="doc-avoid-break doc-break-before mt-6">
                 <table class="w-full doc-table-compact" style="border-collapse: collapse; border: 1px solid #ccc;">
                     <tr>
-                        <td colspan="4" class="doc-header-blue" style="padding: 4px 8px; font-weight: bold; font-size: 10pt;">CONTROLE DE REVISÃO</td>
+                        <td colspan="4" class="doc-header-blue" style="padding: 8px 10px; font-weight: bold; font-size: 12pt;">CONTROLE DE REVISÃO</td>
                     </tr>
                     <tr>
-                        <td style="background: #f9f9f9; font-weight: 600; width: 50px; border: 1px solid #ccc;">Versão</td>
-                        <td style="background: #f9f9f9; font-weight: 600; width: 80px; border: 1px solid #ccc;">Data</td>
+                        <td style="background: #f9f9f9; font-weight: 600; width: 60px; border: 1px solid #ccc;">Versão</td>
+                        <td style="background: #f9f9f9; font-weight: 600; width: 100px; border: 1px solid #ccc;">Data</td>
                         <td style="background: #f9f9f9; font-weight: 600; border: 1px solid #ccc;">Alteração Realizada</td>
-                        <td style="background: #f9f9f9; font-weight: 600; width: 120px; border: 1px solid #ccc;">Responsável</td>
+                        <td style="background: #f9f9f9; font-weight: 600; width: 140px; border: 1px solid #ccc;">Responsável</td>
                     </tr>
                     <tr>
                         <td style="border: 1px solid #ccc;">{{ '%02d'|format(documento.versao) }}</td>
-                        <td style="border: 1px solid #ccc;">{{ documento.data_emissao or (documento.updated_at.strftime('%d/%m/%Y') if documento.updated_at else '-') }}</td>
+                        <td style="border: 1px solid #ccc;">{{ (documento.data_emissao or documento.updated_at)|fmt_br_date }}</td>
                         <td style="border: 1px solid #ccc;">Emissão inicial</td>
                         <td style="border: 1px solid #ccc;">{{ documento.elaborado_por or '-' }}</td>
                     </tr>
                 </table>
             </div>
 
-            <!-- Assinaturas -->
-            <div class="doc-avoid-break flex flex-wrap justify-between gap-8 mt-8 pt-6">
-                <div class="text-center">
-                    <div style="width: 180px; border-bottom: 1px solid #333; margin: 0 auto 4px;"></div>
-                    <div class="text-xs font-semibold">Elaborado por: {{ documento.elaborado_por or '-' }}</div>
+            <!-- Assinaturas (ABNT: 3 colunas iguais, linhas alinhadas) -->
+            <div class="doc-avoid-break doc-signatures" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 24px; margin-top: 32px; padding-top: 24px;">
+                <div class="doc-sig-block text-center">
+                    <div style="width: 140px; height: 1px; border-bottom: 1px solid #333; margin: 0 auto 8px;"></div>
+                    <div class="text-xs font-semibold" style="max-width: 160px; margin: 0 auto; line-height: 1.3;">Elaborado por: {{ documento.elaborado_por or '-' }}</div>
                 </div>
-                <div class="text-center">
-                    <div style="width: 180px; border-bottom: 1px solid #333; margin: 0 auto 4px;"></div>
-                    <div class="text-xs font-semibold">Revisado por: {{ documento.revisado_por or '-' }}</div>
+                <div class="doc-sig-block text-center">
+                    <div style="width: 140px; height: 1px; border-bottom: 1px solid #333; margin: 0 auto 8px;"></div>
+                    <div class="text-xs font-semibold" style="max-width: 160px; margin: 0 auto; line-height: 1.3;">Revisado por: {{ documento.revisado_por or '-' }}</div>
                 </div>
-                <div class="text-center">
-                    <div style="width: 180px; border-bottom: 1px solid #333; margin: 0 auto 4px;"></div>
-                    <div class="text-xs font-semibold">Aprovado por: {{ documento.aprovado_por or '-' }}</div>
+                <div class="doc-sig-block text-center">
+                    <div style="width: 140px; height: 1px; border-bottom: 1px solid #333; margin: 0 auto 8px;"></div>
+                    <div class="text-xs font-semibold" style="max-width: 160px; margin: 0 auto; line-height: 1.3;">Aprovado por: {{ documento.aprovado_por or '-' }}</div>
                 </div>
             </div>
 
@@ -189,9 +188,9 @@
                 Versão {{ '%02d'|format(documento.versao) }} | Emitido em {{ documento.data_emissao or '-' }} | Documento institucional – Souza Pinto
             </div>
 
-            <!-- Rodapé fixo com numeração (impressão) -->
+            <!-- Rodapé fixo (impressão - use /print para impressão correta) -->
             <div class="doc-page-footer">
-                Documento {{ documento.codigo }} – Souza Pinto &nbsp;|&nbsp; Página <span class="doc-pagenum"></span>
+                Documento {{ documento.codigo }} – Souza Pinto
             </div>
         </div>
 

@@ -1420,34 +1420,9 @@
     </div>
 
 <!-- XP Explanation Modal -->
-<div x-show="showHelpModal" class="fixed inset-0 z-[200] dashboard-preview-modal flex items-center justify-center p-4 bg-black/40" x-transition.opacity x-cloak>
-    <div class="w-full max-w-sm rounded-lg flex flex-col max-h-[85vh] overflow-hidden" style="background: var(--color-surface); box-shadow: var(--shadow-modal);" @click.away="showHelpModal = false">
-        <div class="p-4 border-b flex items-center gap-3 shrink-0" style="border-color: var(--color-border);">
-            <div class="icon-wrap w-12 h-12 flex-shrink-0"><i data-lucide="lightbulb" class="w-6 h-6"></i></div>
-            <div class="flex-1">
-                <h3 class="text-title" style="color: var(--color-text);">Segredos do XP</h3>
-                <p class="text-caption-lg mt-0.5">Como subir de nível mais rápido</p>
-            </div>
-        </div>
-        <div class="p-4 overflow-y-auto space-y-3 custom-scrollbar">
-            <div class="surface p-4">
-                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="truck" class="w-4 h-4"></i> Produção</h4>
-                <p class="text-body">Peso + Velocidade = XP. 1000kg em 30min = muito XP. 1000kg em 2h = pouco XP.</p>
-            </div>
-            <div class="surface p-4">
-                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="alert-triangle" class="w-4 h-4"></i> Faltas</h4>
-                <p class="text-body">Faltas injustificadas tiram pontos e podem travar seu nível.</p>
-            </div>
-            <div class="surface p-4">
-                <h4 class="text-section mb-2 flex items-center gap-2" style="color: var(--color-text);"><i data-lucide="crown" class="w-4 h-4"></i> Tempo de Casa</h4>
-                <p class="text-body">Bônus fixo diário por cada ano completo de empresa.</p>
-            </div>
-        </div>
-        <div class="p-4 border-t shrink-0" style="border-color: var(--color-border);">
-            <button @click="showHelpModal = false" class="w-full py-3 rounded-lg font-semibold text-body-lg text-white transition-opacity" style="background: var(--color-primary);">Saquei! 👍</button>
-        </div>
-    </div>
-</div>
+{% set guide_context = 'dashboard' %}
+{% set guide_auto_open = false %}
+{% include 'mobile/_driver_guide.html' %}
 
 <!-- Delivery Setup Modal: mesmos padrões do Help/EndDay (sem teleport para preservar escopo Alpine) -->
 <div x-show="showDeliverySetupModal" x-cloak
@@ -2107,7 +2082,9 @@
             },
 
             openHelpModal() {
-                this.showHelpModal = true;
+                if (typeof window.openDriverGuide === 'function') {
+                    window.openDriverGuide();
+                }
             },
 
             endDay() {

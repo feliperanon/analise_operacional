@@ -3,7 +3,10 @@
 {% set guide_show_fab = guide_show_fab|default(false) %}
 
 <div
-    x-data="driverGuideController({ context: {{ guide_context|tojson }}, autoOpen: {{ guide_auto_open|tojson }}, showFab: {{ guide_show_fab|tojson }} })"
+    data-guide-context="{{ guide_context }}"
+    data-guide-auto-open="{{ '1' if guide_auto_open else '0' }}"
+    data-guide-show-fab="{{ '1' if guide_show_fab else '0' }}"
+    x-data="driverGuideControllerFromElement($el)"
     x-init="init()"
     class="driver-guide-host"
 >
@@ -437,6 +440,14 @@
     if (typeof window.driverGuideController !== 'function') {
         window.openDriverGuide = function () {
             window.dispatchEvent(new CustomEvent('nl-driver-guide:open'));
+        };
+
+        window.driverGuideControllerFromElement = function (el) {
+            return window.driverGuideController({
+                context: (el && el.dataset && el.dataset.guideContext) || 'dashboard',
+                autoOpen: !!(el && el.dataset && el.dataset.guideAutoOpen === '1'),
+                showFab: !!(el && el.dataset && el.dataset.guideShowFab === '1')
+            });
         };
 
         window.driverGuideController = function (config) {

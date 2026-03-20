@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ documento.titulo or 'Documento' }} – {{ documento.codigo }}</title>
+    <style>
+        /* ============================================================
+           DOCUMENTO CORPORATIVO – ABNT adaptada para uso empresarial
+           Margens: sup 3cm | esq 3cm | inf 2cm | dir 2cm
+           ============================================================ */
+        * { box-sizing: border-box; }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            color: #1a1a1a;
+        }
+
+        .doc-page {
+            max-width: 21cm;
+            margin: 0 auto;
+            padding: 0;
+        }
+
+        /* --- Tipografia ABNT --- */
+        .doc-p {
+            margin: 0 0 0.5em 0;
+            text-align: justify;
+            text-indent: 1.25cm;
+            font-size: 12pt;
+            line-height: 1.5;
+        }
+        .doc-p-space { margin: 0.4em 0; height: 0; }
+        .doc-list { margin: 0.3em 0 0.6em 1.25cm; padding: 0; }
+        .doc-list li {
+            margin: 0.15em 0;
+            text-align: justify;
+        }
+
+        /* --- Seções numeradas --- */
+        .doc-section-title {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #1a1a1a;
+            margin: 1.2em 0 0.4em 0;
+            page-break-after: avoid;
+            page-break-before: avoid;
+        }
+
+        /* --- Cabeçalho institucional discreto --- */
+        .doc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1.5rem;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #333;
+        }
+        .doc-logo-wrap img {
+            height: 48px;
+            width: auto;
+            max-width: 200px;
+            object-fit: contain;
+            display: block;
+        }
+        .doc-logo-sub { font-size: 9pt; color: #555; margin-top: 2px; }
+        .doc-meta-block {
+            font-size: 10pt;
+            color: #444;
+            text-align: right;
+            line-height: 1.6;
+        }
+        .doc-meta-block strong { color: #222; }
+
+        /* --- Título principal --- */
+        .doc-title-main {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #1a1a1a;
+            text-align: center;
+            margin: 1rem 0 1.25rem 0;
+        }
+
+        /* --- Identificação documental compacta --- */
+        .doc-ident {
+            font-size: 11pt;
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1.25rem;
+            border: 1px solid #999;
+        }
+        .doc-ident th, .doc-ident td {
+            padding: 5px 10px;
+            text-align: left;
+            vertical-align: top;
+            border: 1px solid #ccc;
+        }
+        .doc-ident th {
+            background: #f5f5f5;
+            font-weight: 600;
+            width: 28%;
+            color: #333;
+        }
+        .doc-ident td { background: #fff; }
+        .doc-ident-header th {
+            background: #003366;
+            color: #fff;
+            font-size: 10pt;
+            font-weight: bold;
+        }
+
+        /* --- Corpo textual --- */
+        .doc-body { margin-bottom: 1.5rem; }
+        .doc-body p { margin: 0 0 0.5em 0; text-align: justify; text-indent: 1.25cm; font-size: 12pt; }
+        .doc-body .doc-section-title { margin: 1.2em 0 0.4em 0; }
+
+        /* --- Controle de revisão --- */
+        .doc-revisao {
+            font-size: 10pt;
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 1.5rem;
+            border: 1px solid #999;
+        }
+        .doc-revisao th, .doc-revisao td { padding: 5px 8px; border: 1px solid #ccc; }
+        .doc-revisao th { background: #f5f5f5; font-weight: 600; }
+        .doc-revisao-header th { background: #003366; color: #fff; font-size: 10pt; }
+
+        /* --- Assinaturas --- */
+        .doc-signatures {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem 2rem;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+        }
+        .doc-sig-block {
+            text-align: center;
+            page-break-inside: avoid;
+        }
+        .doc-sig-line {
+            width: 120px;
+            height: 0;
+            border-bottom: 1px solid #333;
+            margin: 0 auto 6px;
+        }
+        .doc-sig-label { font-size: 10pt; font-weight: 600; color: #333; max-width: 140px; margin: 0 auto; }
+
+        /* --- Rodapé técnico --- */
+        .doc-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 6px 0;
+            font-size: 10pt;
+            color: #555;
+            text-align: center;
+            border-top: 1px solid #ccc;
+            background: #fff;
+        }
+        .doc-footer-inner { max-width: 21cm; margin: 0 auto; padding: 0 3cm; }
+
+        /* --- Controle de quebra de página --- */
+        .doc-no-break { page-break-inside: avoid; }
+        .doc-keep-with-next { page-break-after: avoid; }
+        .doc-body p, .doc-body li { orphans: 2; widows: 2; }
+
+        /* === IMPRESSÃO === */
+        @media print {
+            @page {
+                size: A4;
+                margin: 3cm 2cm 2cm 3cm;
+            }
+            body, html { background: #fff; margin: 0; padding: 0; }
+            .doc-page { max-width: none; padding: 0 0 2cm 0; }
+            .doc-header { break-after: avoid; }
+            .doc-title-main { break-after: avoid; }
+            .doc-ident { break-inside: avoid; }
+            .doc-revisao { break-inside: avoid; }
+            .doc-signatures { break-inside: avoid; }
+            .doc-footer {
+                left: 0;
+                right: 0;
+                bottom: 0.4cm;
+            }
+            .doc-footer-inner { padding: 0 3cm; }
+            .doc-ident-header th, .doc-revisao-header th {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .doc-pagenum::after { content: counter(page); }
+            .doc-pagetotal::after { content: counter(pages); }
+        }
+    </style>
+</head>
+<body>
+    <div class="doc-page">
+        {% set c = documento.conteudo or {} %}
+
+        <!-- Cabeçalho institucional discreto -->
+        <header class="doc-header doc-no-break">
+            <div>
+                <div class="doc-logo-wrap">
+                    <img src="/static/logo-souza-pinto.png" alt="Souza Pinto">
+                </div>
+                <div class="doc-logo-sub">Logística &amp; Distribuição</div>
+            </div>
+            <div class="doc-meta-block">
+                <strong>{{ documento.codigo }}</strong> · v{{ '%02d'|format(documento.versao) }}<br>
+                {{ documento.data_emissao|fmt_br_date if documento.data_emissao else '-' }}<br>
+                <span id="doc-total-pages">—</span> páginas
+            </div>
+        </header>
+
+        <!-- Título principal -->
+        <h1 class="doc-title-main doc-no-break">{{ documento.titulo or 'RELATÓRIO EXECUTIVO FORMAL' }}</h1>
+
+        <!-- Identificação documental compacta -->
+        <table class="doc-ident doc-no-break">
+            <tr class="doc-ident-header"><th colspan="2">Identificação do documento</th></tr>
+            {% if c.get('para') %}<tr><th>Para</th><td>{{ c.get('para') }}</td></tr>{% endif %}
+            {% if c.get('de') %}<tr><th>De</th><td>{{ c.get('de') }}</td></tr>{% endif %}
+            {% if c.get('data_relatorio') %}<tr><th>Data</th><td>{{ c.get('data_relatorio')|fmt_br_date }}</td></tr>{% endif %}
+            {% if c.get('assunto') %}<tr><th>Assunto</th><td>{{ c.get('assunto') }}</td></tr>{% endif %}
+            <tr><th>Área responsável</th><td>{{ documento.area_responsavel }}</td></tr>
+            <tr><th>Elaborado por</th><td>{{ documento.elaborado_por or '-' }}</td></tr>
+            <tr><th>Revisado por</th><td>{{ documento.revisado_por or '-' }}</td></tr>
+            <tr><th>Aprovado por</th><td>{{ documento.aprovado_por or '-' }}</td></tr>
+        </table>
+
+        <!-- Corpo textual -->
+        {% if corpo_html %}
+        <div class="doc-body">
+            {{ corpo_html|safe }}
+        </div>
+        {% endif %}
+
+        <!-- Controle de revisão -->
+        <table class="doc-revisao doc-no-break">
+            <tr class="doc-revisao-header"><th colspan="4">Controle de revisão</th></tr>
+            <tr>
+                <th style="width:8%">Versão</th>
+                <th style="width:18%">Data</th>
+                <th>Alteração realizada</th>
+                <th style="width:25%">Responsável</th>
+            </tr>
+            <tr>
+                <td>{{ '%02d'|format(documento.versao) }}</td>
+                <td>{{ (documento.data_emissao or documento.updated_at)|fmt_br_date }}</td>
+                <td>Emissão inicial</td>
+                <td>{{ documento.elaborado_por or '-' }}</td>
+            </tr>
+        </table>
+
+        <!-- Assinaturas -->
+        <div class="doc-signatures doc-no-break">
+            <div class="doc-sig-block">
+                <div class="doc-sig-line"></div>
+                <div class="doc-sig-label">Elaborado por: {{ documento.elaborado_por or '-' }}</div>
+            </div>
+            <div class="doc-sig-block">
+                <div class="doc-sig-line"></div>
+                <div class="doc-sig-label">Revisado por: {{ documento.revisado_por or '-' }}</div>
+            </div>
+            <div class="doc-sig-block">
+                <div class="doc-sig-line"></div>
+                <div class="doc-sig-label">Aprovado por: {{ documento.aprovado_por or '-' }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rodapé técnico profissional -->
+    <footer class="doc-footer">
+        <div class="doc-footer-inner">
+            {{ documento.codigo }} · v{{ '%02d'|format(documento.versao) }} · Página <span class="doc-pagenum"></span> de <span class="doc-pagetotal"></span>
+        </div>
+    </footer>
+
+    <script>
+        (function() {
+            function estimarPaginas() {
+                var el = document.getElementById('doc-total-pages');
+                if (el) {
+                    var h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+                    var pageH = 980;
+                    el.textContent = Math.max(1, Math.ceil(h / pageH));
+                }
+            }
+            window.addEventListener('load', function() {
+                setTimeout(estimarPaginas, 150);
+                if (window.location.search.indexOf('print=1') !== -1) {
+                    window.print();
+                }
+            });
+            window.addEventListener('beforeprint', estimarPaginas);
+        })();
+    </script>
+</body>
+</html>

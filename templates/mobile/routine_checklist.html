@@ -69,6 +69,12 @@
 
         <div class="flex items-center justify-between gap-3 flex-wrap">
             <h2 class="text-section" style="color: var(--color-text);">Itens de Verificação</h2>
+            <button @click="window.openDriverGuide && window.openDriverGuide()"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold interactive"
+                style="border: 1px solid var(--color-primary); color: var(--color-primary);">
+                <i data-lucide="book-open" class="w-3.5 h-3.5 lucide-thick"></i>
+                Como usar
+            </button>
             <a href="/mobile/equipment/tickets/new"
                 class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold interactive"
                 style="border: 1px solid var(--color-danger); color: var(--color-danger);">
@@ -208,6 +214,9 @@
         </div>
     </div>
 </div>
+{% set guide_context = 'checklist' %}
+{% set guide_auto_open = false %}
+{% include 'mobile/_driver_guide.html' %}
 {% endblock %}
 
 {% block scripts %}

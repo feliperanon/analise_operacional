@@ -223,6 +223,30 @@ def init_documentos_router(
             },
         )
 
+    @router.get("/documentos/{doc_id}/print", response_class=HTMLResponse)
+    async def documento_print_page(
+        request: Request,
+        doc_id: int,
+        session: Session = Depends(get_session),
+    ):
+        """Página de impressão limpa (sem layout base, sem scroll, fluxo natural multi-página)."""
+        require_login(request)
+        doc = session.get(models.DocInstitucional, doc_id)
+        if not doc:
+            raise HTTPException(status_code=404, detail="Documento não encontrado.")
+        c = doc.conteudo or {}
+        corpo_html = ""
+        if doc.tipo_documento == "REL" and c.get("corpo"):
+            corpo_html = formatar_corpo_relatorio(c.get("corpo", ""))
+        return templates.TemplateResponse(
+            "documento_print.html",
+            {
+                "request": request,
+                "documento": doc,
+                "corpo_html": corpo_html,
+            },
+        )
+
     @router.get("/documentos/{doc_id}/editar", response_class=HTMLResponse)
     async def documento_editar_page(
         request: Request,

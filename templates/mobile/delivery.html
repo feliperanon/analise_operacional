@@ -21,9 +21,14 @@
                 <h1 class="text-title-lg text-white font-bold">Rota de Entregas</h1>
                 <p class="text-caption text-blue-200" x-show="!deliverySessionOpen && assignedPlate" x-text="`Caminhão: ${assignedPlate}`"></p>
             </div>
-            <button @click="loadDeliveryData()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.2); color: white;" title="Atualizar">
-                <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <button @click="window.openDriverGuide && window.openDriverGuide()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.2); color: white;" title="Como usar">
+                    <i data-lucide="book-open" class="w-5 h-5"></i>
+                </button>
+                <button @click="loadDeliveryData()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.2); color: white;" title="Atualizar">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                </button>
+            </div>
         </div>
         <!-- Card unificado: Rota ativa + Cockpit (visível quando rota iniciada) -->
         <div x-show="deliverySessionOpen && !!selectedDeliveryDay" x-cloak class="mt-3 surface p-4 rounded-xl nav-panel-delivery">
@@ -720,6 +725,9 @@
     </div>
     </template>
 </div>
+{% set guide_context = 'delivery' %}
+{% set guide_auto_open = false %}
+{% include 'mobile/_driver_guide.html' %}
 {% endblock %}
 
 {% block scripts %}
