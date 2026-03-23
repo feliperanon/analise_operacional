@@ -4430,7 +4430,7 @@ def _render_mobile_dashboard_template(
             "label": "Histórico de Entregas",
             "description": "Histórico de entregas com filtro por período.",
             "icon": "truck",
-            "href": "/mobile/entregas",
+            "href": "/mobile/historico-entregas",
         })
     is_helper_only = has_delivery_helper_access and not (
         has_delivery_driver_access
@@ -4527,6 +4527,24 @@ async def mobile_dashboard(
 
 @app.get("/mobile/dashboard-preview", response_class=HTMLResponse)
 async def mobile_dashboard_preview(
+    request: Request,
+    session: Session = Depends(get_session),
+    module: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    params = {}
+    if module:
+        params["module"] = module
+    if error:
+        params["error"] = error
+    target = "/mobile/entregas"
+    if params:
+        target = f"{target}?{urlencode(params)}"
+    return RedirectResponse(url=target, status_code=302)
+
+
+@app.get("/mobile/entregas", response_class=HTMLResponse)
+async def mobile_delivery_hub_page(
     request: Request,
     session: Session = Depends(get_session),
     module: Optional[str] = None,
@@ -4745,7 +4763,8 @@ async def mobile_api_returns_data(
     return JSONResponse(metrics)
 
 
-@app.get("/mobile/entregas", response_class=HTMLResponse)
+@app.get("/mobile/historico-entregas", response_class=HTMLResponse)
+@app.get("/mobile/entregas/historico", response_class=HTMLResponse)
 async def mobile_entregas_page(request: Request, session: Session = Depends(get_session)):
     """Histórico de entregas do colaborador com filtro por período."""
     user = get_current_user(request)

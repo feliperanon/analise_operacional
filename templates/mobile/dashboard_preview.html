@@ -87,6 +87,11 @@
 {% set delivery_open = delivery_summary.open_today if delivery_summary and delivery_summary.enabled else 0 %}
 {% set delivery_completed = delivery_summary.completed_today if delivery_summary and delivery_summary.enabled else 0 %}
 {% set delivery_plate = delivery_summary.assigned_plate if delivery_summary and delivery_summary.enabled else "" %}
+{% set delivery_hub_href = "/mobile/entregas" %}
+{% set delivery_operation_href = "/mobile/delivery" %}
+{% set history_href = ns.history.href if ns.history else delivery_operation_href %}
+{% set returns_card_href = ns.returns.href if ns.returns else history_href %}
+{% set rhythm_card_href = ns.history.href if ns.history else delivery_operation_href %}
 
 <style>
     .preview-dashboard-shell {
@@ -144,6 +149,55 @@
         border: 1px solid rgba(148,163,184,0.14);
         box-shadow: 0 12px 30px rgba(2,6,23,0.22);
     }
+    .preview-kpi-action {
+        position: relative;
+        display: block;
+        overflow: hidden;
+        min-height: 148px;
+        text-decoration: none;
+        color: inherit;
+    }
+    .preview-kpi-action::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 180ms ease;
+        background: linear-gradient(135deg, rgba(255,255,255,0.06), transparent 55%);
+    }
+    .preview-kpi-action:hover,
+    .preview-kpi-action:focus-visible {
+        transform: translateY(-2px);
+        border-color: rgba(96,165,250,0.22);
+        box-shadow: 0 18px 36px rgba(2,6,23,0.28);
+        outline: none;
+    }
+    .preview-kpi-action:hover::after,
+    .preview-kpi-action:focus-visible::after {
+        opacity: 1;
+    }
+    .preview-kpi-arrow {
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(148,163,184,0.10);
+        color: rgba(226,232,240,0.82);
+        border: 1px solid rgba(148,163,184,0.14);
+        flex-shrink: 0;
+    }
+    .preview-hero-stat {
+        background: rgba(8,15,29,0.48);
+        border: 1px solid rgba(148,163,184,0.12);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+    .preview-action-strip {
+        background: rgba(8,15,29,0.42);
+        border: 1px solid rgba(148,163,184,0.12);
+    }
     .preview-pill {
         border: 1px solid rgba(148,163,184,0.16);
         background: rgba(15,23,42,0.62);
@@ -181,6 +235,11 @@
         border: 1px solid rgba(148, 163, 184, 0.14);
         box-shadow: 0 18px 40px rgba(2, 6, 23, 0.4);
         backdrop-filter: blur(20px);
+    }
+    .preview-bottom-link.is-active {
+        background: rgba(59,130,246,0.14);
+        color: #93c5fd;
+        border: 1px solid rgba(96,165,250,0.14);
     }
     .preview-fade-up {
         animation: previewFadeUp 420ms ease both;
@@ -376,7 +435,7 @@
             <div class="container-mobile">
                 <nav class="preview-bottom-nav rounded-[26px] px-3 py-2">
                     <div class="grid grid-cols-5 gap-1">
-                        <a href="/mobile/dashboard-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                        <a href="/mobile/entregas" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
                             <i data-lucide="house" class="w-4.5 h-4.5 mx-auto"></i>
                             <span class="block mt-1 text-[11px] font-semibold">Início</span>
                         </a>
@@ -470,7 +529,7 @@
         </div>
     </template>
 
-    <div x-show="initialized" class="pb-32">
+    <div x-show="initialized" class="pb-10">
         <section class="container-mobile pt-4 space-y-4">
             <header class="preview-panel rounded-[28px] px-4 py-4 preview-fade-up">
                 <div class="relative z-10 flex items-start justify-between gap-3">
@@ -582,19 +641,19 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 mt-5">
-                        <div class="rounded-[22px] px-3.5 py-3" style="background: rgba(8,15,29,0.44); border: 1px solid rgba(148,163,184,0.12);">
+                        <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
                             <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Placa</p>
                             <p class="text-body-lg font-bold mt-1 text-white" x-text="assignedPlate || '{{ delivery_plate or '—' }}'">{{ delivery_plate or '—' }}</p>
                         </div>
-                        <div class="rounded-[22px] px-3.5 py-3" style="background: rgba(8,15,29,0.44); border: 1px solid rgba(148,163,184,0.12);">
+                        <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
                             <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Progresso</p>
                             <p class="text-body-lg font-bold mt-1 text-white"><span x-text="heroProgressPercent">0</span>%</p>
                         </div>
-                        <div class="rounded-[22px] px-3.5 py-3" style="background: rgba(8,15,29,0.44); border: 1px solid rgba(148,163,184,0.12);">
+                        <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
                             <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Paradas abertas</p>
                             <p class="text-body-lg font-bold mt-1" style="color: #fbbf24;" x-text="openDeliveryStops">{{ delivery_open }}</p>
                         </div>
-                        <div class="rounded-[22px] px-3.5 py-3" style="background: rgba(8,15,29,0.44); border: 1px solid rgba(148,163,184,0.12);">
+                        <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
                             <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Concluídas</p>
                             <p class="text-body-lg font-bold mt-1" style="color: #34d399;" x-text="completedDeliveryStops">{{ delivery_completed }}</p>
                         </div>
@@ -611,12 +670,12 @@
                     </div>
 
                     {% if primary_cta %}
-                    <div class="mt-5 space-y-2">
+                    <div class="mt-5 space-y-3">
                         {% if primary_cta.action == "start_separation" %}
-                        <a href="/mobile/delivery" class="interactive w-full min-h-[58px] rounded-[22px] px-4 py-3 flex items-center justify-center gap-2 font-semibold text-white preview-quick-link" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 18px 32px rgba(37,99,235,0.28);">
-                            <i data-lucide="play-circle" class="w-5 h-5"></i>
-                            <span x-text="heroActionLabel">Abrir rota do dia</span>
-                        </a>
+                        <button type="button" @click="handleHeroAction()" class="interactive w-full min-h-[60px] rounded-[24px] px-4 py-3 flex items-center justify-center gap-2 font-semibold text-white preview-quick-link" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 18px 32px rgba(37,99,235,0.28);">
+                            <i data-lucide="truck" class="w-5 h-5"></i>
+                            <span x-text="heroActionLabel">Iniciar entregas</span>
+                        </button>
                         {% elif primary_cta.action == "open_admin_start_modal" %}
                         <button @click="open_admin_start_modal()" class="interactive w-full min-h-[58px] rounded-[22px] px-4 py-3 flex items-center justify-center gap-2 font-semibold text-white preview-quick-link" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 18px 32px rgba(37,99,235,0.28);">
                             <i data-lucide="{{ primary_cta.icon }}" class="w-5 h-5"></i>
@@ -633,16 +692,21 @@
                             <span>{{ primary_cta.label }}</span>
                         </a>
                         {% endif %}
-                        <div class="flex items-center justify-between gap-3 rounded-[20px] px-3.5 py-3" style="background: rgba(8,15,29,0.42); border: 1px solid rgba(148,163,184,0.12);">
+                        <div class="preview-action-strip flex items-center justify-between gap-3 rounded-[22px] px-4 py-3">
                             <div class="min-w-0">
                                 <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Leitura rápida</p>
                                 <p class="text-body mt-1 text-white" x-text="heroSupportMessage">
                                     {{ delivery_completed }} concluída(s) e {{ delivery_open }} ainda abertas.
                                 </p>
                             </div>
-                            <button type="button" @click="showDateFilter = true" class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill flex-shrink-0">
-                                Período
-                            </button>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <a href="{{ history_href }}" class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill">
+                                    {% if ns.history %}Histórico{% else %}Operação{% endif %}
+                                </a>
+                                <button type="button" @click="showDateFilter = true" class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill">
+                                    Período
+                                </button>
+                            </div>
                         </div>
                     </div>
                     {% endif %}
@@ -650,8 +714,13 @@
             </section>
 
             <section class="grid grid-cols-2 gap-3 preview-fade-up">
-                <div class="preview-kpi rounded-[24px] p-4">
-                    <p class="preview-section-label">XP hoje</p>
+                <a href="/mobile/achievements" class="preview-kpi preview-kpi-action rounded-[24px] p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <p class="preview-section-label">XP hoje</p>
+                        <span class="preview-kpi-arrow">
+                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        </span>
+                    </div>
                     <div class="mt-3 flex items-end justify-between gap-3">
                         <div>
                             <p class="text-title text-white">+<span x-text="dailyXp">0</span></p>
@@ -661,10 +730,15 @@
                             <i data-lucide="sparkles" class="w-5 h-5"></i>
                         </div>
                     </div>
-                </div>
+                </a>
 
-                <div class="preview-kpi rounded-[24px] p-4">
-                    <p class="preview-section-label">Produtividade</p>
+                <a href="{{ delivery_operation_href }}" class="preview-kpi preview-kpi-action rounded-[24px] p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <p class="preview-section-label">Produtividade</p>
+                        <span class="preview-kpi-arrow">
+                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        </span>
+                    </div>
                     <div class="mt-3 flex items-end justify-between gap-3">
                         <div>
                             <p class="text-title text-white"><span x-text="heroProgressPercent">0</span>%</p>
@@ -674,10 +748,15 @@
                             <i data-lucide="activity" class="w-5 h-5"></i>
                         </div>
                     </div>
-                </div>
+                </a>
 
-                <div class="preview-kpi rounded-[24px] p-4">
-                    <p class="preview-section-label">Devolução</p>
+                <a href="{{ returns_card_href }}" class="preview-kpi preview-kpi-action rounded-[24px] p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <p class="preview-section-label">Devolução</p>
+                        <span class="preview-kpi-arrow">
+                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        </span>
+                    </div>
                     <div class="mt-3 flex items-end justify-between gap-3">
                         <div>
                             {% if returns_alert_data and returns_alert_data.enabled %}
@@ -699,10 +778,15 @@
                         </div>
                         {% endif %}
                     </div>
-                </div>
+                </a>
 
-                <div class="preview-kpi rounded-[24px] p-4">
-                    <p class="preview-section-label">Ritmo</p>
+                <a href="{{ rhythm_card_href }}" class="preview-kpi preview-kpi-action rounded-[24px] p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <p class="preview-section-label">Ritmo</p>
+                        <span class="preview-kpi-arrow">
+                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                        </span>
+                    </div>
                     <div class="mt-3 flex items-end justify-between gap-3">
                         <div>
                             <p class="text-title text-white" x-text="completedDeliveryStops">0</p>
@@ -712,7 +796,7 @@
                             <i data-lucide="flag" class="w-5 h-5"></i>
                         </div>
                     </div>
-                </div>
+                </a>
             </section>
 
             {% if modules and modules|length > 0 %}
@@ -725,29 +809,33 @@
                     <a href="#quick-access-preview" class="text-caption font-semibold" style="color: #93c5fd;">Atalhos</a>
                 </div>
 
-                {% if ns.primary %}
+                {% if ns.primary|length > 1 or (ns.primary|length == 1 and ns.primary[0].action != "start_separation") %}
                 <div class="space-y-2">
                     <div>
-                        <p class="text-body font-semibold text-white">Ação principal</p>
-                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">O que exige decisão imediata</p>
+                        <p class="text-body font-semibold text-white">Operações complementares</p>
+                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Acessos úteis sem repetir o CTA principal</p>
                     </div>
                     <div class="space-y-2">
                         {% for module in ns.primary %}
+                            {% if module.action != "start_separation" %}
                             {{ render_dashboard_module(module, 'primary') }}
+                            {% endif %}
                         {% endfor %}
                     </div>
                 </div>
                 {% endif %}
 
-                {% if ns.tools %}
+                {% if ns.tools|length > 1 or (ns.tools|length == 1 and "devolu" not in (ns.tools[0].label or '')|lower) %}
                 <div class="space-y-2">
                     <div>
-                        <p class="text-body font-semibold text-white">Ferramentas</p>
-                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Execução, apoio e controle da operação</p>
+                        <p class="text-body font-semibold text-white">Ferramentas do turno</p>
+                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Apoio operacional sem atalhos redundantes</p>
                     </div>
                     <div class="space-y-2">
                         {% for module in ns.tools %}
+                            {% if "devolu" not in (module.label or '')|lower %}
                             {{ render_dashboard_module(module, 'tool') }}
+                            {% endif %}
                         {% endfor %}
                     </div>
                 </div>
@@ -773,34 +861,44 @@
                 <div class="flex items-end justify-between gap-3">
                     <div>
                         <p class="preview-section-label">Acesso rápido</p>
-                        <h2 class="text-title text-white mt-1">Atalhos úteis no dia</h2>
+                        <h2 class="text-title text-white mt-1">Atalhos úteis no turno</h2>
                     </div>
                 </div>
-                <div class="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-                    <a href="/mobile/achievements" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.18); color: #fbbf24;">
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="/mobile/achievements" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.18); color: #fbbf24;">
                         <i data-lucide="trophy" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold whitespace-nowrap">Conquistas</span>
+                        <span class="text-body font-semibold">Conquistas</span>
                     </a>
-                    <button type="button" @click="showDateFilter = true" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
+                    <button type="button" @click="showDateFilter = true" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3 text-left" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
                         <i data-lucide="calendar-range" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold whitespace-nowrap" x-text="dateFilterLabel">Entregas do mês</span>
+                        <span class="text-body font-semibold" x-text="dateFilterLabel">Entregas do mês</span>
                     </button>
-                    {% if ns.returns %}
-                    <a href="{{ ns.returns.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.18); color: #fbbf24;">
-                        <i data-lucide="package" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold whitespace-nowrap">Devolução</span>
+                    {% if ns.history %}
+                    <a href="{{ history_href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(148,163,184,0.14); border: 1px solid rgba(148,163,184,0.16); color: #cbd5e1;">
+                        <i data-lucide="history" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold">Histórico</span>
                     </a>
                     {% endif %}
-                    {% if ns.history %}
-                    <a href="{{ ns.history.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(148,163,184,0.14); border: 1px solid rgba(148,163,184,0.16); color: #cbd5e1;">
-                        <i data-lucide="history" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold whitespace-nowrap">Histórico</span>
+                    {% if ns.checklist %}
+                    <a href="{{ ns.checklist.href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
+                        <i data-lucide="clipboard-check" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold">Checklist</span>
+                    </a>
+                    {% else %}
+                    <a href="{{ delivery_operation_href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
+                        <i data-lucide="truck" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold">Operação</span>
                     </a>
                     {% endif %}
                     {% if ns.gatehouse %}
-                    <a href="{{ ns.gatehouse.href }}" class="preview-quick-link flex-shrink-0 rounded-[20px] px-4 py-3 flex items-center gap-2" style="background: rgba(96,165,250,0.14); border: 1px solid rgba(96,165,250,0.18); color: #93c5fd;">
+                    <a href="{{ ns.gatehouse.href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(96,165,250,0.14); border: 1px solid rgba(96,165,250,0.18); color: #93c5fd;">
                         <i data-lucide="shield" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold whitespace-nowrap">Portaria</span>
+                        <span class="text-body font-semibold">Portaria</span>
+                    </a>
+                    {% elif not ns.checklist %}
+                    <a href="{{ delivery_hub_href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(15,23,42,0.62); border: 1px solid rgba(148,163,184,0.16); color: #cbd5e1;">
+                        <i data-lucide="layout-grid" class="w-4.5 h-4.5"></i>
+                        <span class="text-body font-semibold">Painel</span>
                     </a>
                     {% endif %}
                 </div>
@@ -862,19 +960,19 @@
             {% endif %}
         </section>
 
-        <div class="fixed inset-x-0 bottom-0 z-40 px-4 pb-4" x-show="initialized">
-            <div class="container-mobile">
+        <div class="container-mobile pt-6 pb-[max(1rem,env(safe-area-inset-bottom))]" x-show="initialized">
+            <div>
                 <nav class="preview-bottom-nav rounded-[26px] px-3 py-2">
                     <div class="grid grid-cols-5 gap-1">
-                        <a href="/mobile/dashboard-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                        <a href="{{ delivery_hub_href }}" class="preview-bottom-link is-active rounded-[18px] px-2 py-2.5 text-center">
                             <i data-lucide="house" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Início</span>
+                            <span class="block mt-1 text-[11px] font-semibold">Painel</span>
                         </a>
                         {% if primary_cta %}
                         {% if primary_cta.action == "start_separation" %}
-                        <a href="/mobile/delivery" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                        <a href="{{ delivery_operation_href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
                             <i data-lucide="truck" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Entregas</span>
+                            <span class="block mt-1 text-[11px] font-semibold">Operação</span>
                         </a>
                         {% elif primary_cta.action == "manage_routes" %}
                         <a href="/mobile/admin/routes" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
@@ -907,7 +1005,7 @@
                         {% endif %}
 
                         {% if ns.history %}
-                        <a href="{{ ns.history.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                        <a href="{{ history_href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
                             <i data-lucide="history" class="w-4.5 h-4.5 mx-auto"></i>
                             <span class="block mt-1 text-[11px] font-semibold">Histórico</span>
                         </a>
@@ -1702,14 +1800,20 @@
                 return `${this.openDeliveryStops} parada(s) aguardando execução no dia.`;
             },
             get heroSupportMessage() {
-                if (!this.totalDeliveryStops) return 'Use os atalhos abaixo para entrar no módulo principal.';
+                if (this.inProgressDeliveryRoute?.client_name) {
+                    return `Sessão ativa para ${this.inProgressDeliveryRoute.client_name}${this.assignedPlate ? ' - ' + this.assignedPlate : ''}.`;
+                }
+                if (this.deliverySessionOpen && this.assignedPlate) {
+                    return `Sessão aberta na placa ${this.assignedPlate}.`;
+                }
+                if (!this.totalDeliveryStops) return 'Sem rota lançada agora. Abra o módulo para acompanhar novas liberações.';
                 return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} ainda abertas.`;
             },
             get heroActionLabel() {
-                if (!this.totalDeliveryStops) return 'Ver módulos disponíveis';
+                if (!this.totalDeliveryStops) return 'Abrir módulo de entregas';
                 if (this.inProgressDeliveryRoute || this.deliverySessionOpen) return 'Continuar operação';
-                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Revisar rota do dia';
-                return 'Abrir rota do dia';
+                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Revisar operação';
+                return 'Iniciar entregas';
             },
 
             get currentMonthLabel() {
@@ -1994,6 +2098,22 @@
                     const input = document.querySelector('[x-ref="deliveryPlateInput"]') || this.$refs?.deliveryPlateInput;
                     if (input && typeof input.focus === 'function') input.focus();
                 }, 100);
+            },
+
+            handleHeroAction() {
+                if (this.inProgressDeliveryRoute || this.deliverySessionOpen) {
+                    window.location.href = '{{ delivery_operation_href }}';
+                    return;
+                }
+                if (this.totalDeliveryStops > 0 && this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) {
+                    window.location.href = '{{ delivery_operation_href }}';
+                    return;
+                }
+                if (this.totalDeliveryStops > 0) {
+                    this.openDeliverySetupModal();
+                    return;
+                }
+                window.location.href = '{{ delivery_operation_href }}';
             },
 
             // Regra: deliveryRoutes.length > 0 → interceptar e abrir modal Placa/KM. Caso contrário → deixar form submeter normalmente
