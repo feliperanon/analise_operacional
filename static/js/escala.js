@@ -88,12 +88,14 @@
                 ev.dataTransfer.effectAllowed = 'move';
                 ev.dataTransfer.setData('text/plain', esc.id);
                 const el = ev.currentTarget || ev.target;
-                if (el && el.classList) el.classList.add('opacity-50');
+                const card = el && el.closest ? el.closest('.escala-card') : el;
+                if (card && card.classList) card.classList.add('opacity-50');
             },
 
             dragEnd(ev) {
                 const el = ev.currentTarget || ev.target;
-                if (el && el.classList) el.classList.remove('opacity-50');
+                const card = el && el.closest ? el.closest('.escala-card') : el;
+                if (card && card.classList) card.classList.remove('opacity-50');
                 this.dragTarget = null;
             },
 
