@@ -91,19 +91,6 @@
 {% set delivery_operation_href = "/mobile/delivery" %}
 {% set history_href = ns.history.href if ns.history else delivery_operation_href %}
 {% set returns_card_href = ns.returns.href if ns.returns else history_href %}
-{% set rhythm_card_href = ns.history.href if ns.history else delivery_operation_href %}
-{% set visible_cards = namespace(primary=0, tools=0) %}
-{% for module in ns.primary %}
-    {% if module.action != "start_separation" %}
-        {% set visible_cards.primary = visible_cards.primary + 1 %}
-    {% endif %}
-{% endfor %}
-{% for module in ns.tools %}
-    {% set tool_label = (module.label or '')|lower %}
-    {% if "devolu" not in tool_label and "checklist" not in tool_label %}
-        {% set visible_cards.tools = visible_cards.tools + 1 %}
-    {% endif %}
-{% endfor %}
 
 <style>
     .preview-dashboard-shell {
@@ -616,7 +603,7 @@
                         <span class="font-semibold" style="color: #bfdbfe;" x-text="Math.round(xpProgressPercent) + '%'">{{ gamification.progress_percent|round|int }}%</span>
                     </div>
                     <p class="mt-2 text-caption font-semibold" x-show="dailyXp > 0" style="color: #86efac;">
-                        +<span x-text="dailyXp"></span> XP hoje. Ritmo forte.
+                        +<span x-text="dailyXp"></span> XP hoje.
                     </p>
                 </div>
             </header>
@@ -641,7 +628,7 @@
                             </div>
                             <p class="mt-2 text-body-lg leading-relaxed" style="color: rgba(226,232,240,0.92);" x-text="heroStatusMessage">
                                 {% if delivery_total > 0 %}
-                                {{ delivery_open }} rota(s) em aberto na operação.
+                                {{ delivery_open }} rota(s) em aberto hoje.
                                 {% else %}
                                 Nenhuma rota lançada por enquanto. O painel continua pronto para a próxima operação.
                                 {% endif %}
@@ -727,7 +714,7 @@
                             <div class="min-w-0">
                                 <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Leitura rápida</p>
                                 <p class="text-body mt-1 text-white" x-text="heroSupportMessage">
-                                    {{ delivery_completed }} concluída(s) e {{ delivery_open }} em aberto.
+                                    {{ delivery_completed }} concluída(s) e {{ delivery_open }} em aberto hoje.
                                 </p>
                             </div>
                             <div class="flex items-center gap-2 flex-shrink-0">
@@ -781,7 +768,7 @@
                     </div>
                 </a>
 
-                <a href="{{ returns_card_href }}" class="preview-kpi preview-kpi-action rounded-[24px] p-4">
+                <a href="{{ returns_card_href }}" class="preview-kpi preview-kpi-action rounded-[24px] p-4 col-span-2">
                     <div class="flex items-start justify-between gap-3">
                         <p class="preview-section-label">Devolução</p>
                         <span class="preview-kpi-arrow">
@@ -811,79 +798,7 @@
                     </div>
                 </a>
 
-                <a href="{{ rhythm_card_href }}" class="preview-kpi preview-kpi-action rounded-[24px] p-4">
-                    <div class="flex items-start justify-between gap-3">
-                        <p class="preview-section-label">Ritmo</p>
-                        <span class="preview-kpi-arrow">
-                            <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
-                        </span>
-                    </div>
-                    <div class="mt-3 flex items-end justify-between gap-3">
-                        <div>
-                            <p class="text-title text-white" x-text="completedDeliveryStops">0</p>
-                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Rotas concluídas no período</p>
-                        </div>
-                        <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
-                            <i data-lucide="flag" class="w-5 h-5"></i>
-                        </div>
-                    </div>
-                </a>
             </section>
-
-            {% if modules and modules|length > 0 %}
-            <section id="modules-preview" class="space-y-5 preview-fade-up">
-                <div>
-                    <p class="preview-section-label">Navegação operacional</p>
-                    <h2 class="text-title text-white mt-1">Fluxos organizados por uso</h2>
-                </div>
-
-                {% if visible_cards.primary > 0 %}
-                <div class="space-y-2">
-                    <div>
-                        <p class="text-body font-semibold text-white">Operações complementares</p>
-                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Acessos úteis sem repetir o CTA principal</p>
-                    </div>
-                    <div class="space-y-2">
-                        {% for module in ns.primary %}
-                            {% if module.action != "start_separation" %}
-                            {{ render_dashboard_module(module, 'primary') }}
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if visible_cards.tools > 0 %}
-                <div class="space-y-2">
-                    <div>
-                        <p class="text-body font-semibold text-white">Ferramentas do turno</p>
-                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Apoio operacional sem atalhos redundantes</p>
-                    </div>
-                    <div class="space-y-2">
-                        {% for module in ns.tools %}
-                            {% if "devolu" not in (module.label or '')|lower and "checklist" not in (module.label or '')|lower %}
-                            {{ render_dashboard_module(module, 'tool') }}
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if ns.consult %}
-                <div class="space-y-2">
-                    <div>
-                        <p class="text-body font-semibold text-white">Consulta</p>
-                        <p class="text-caption-lg" style="color: rgba(148,163,184,0.92);">Leitura histórica e acompanhamento</p>
-                    </div>
-                    <div class="space-y-2">
-                        {% for module in ns.consult %}
-                            {{ render_dashboard_module(module, 'consult') }}
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-            </section>
-            {% endif %}
 
             {% if time_bonuses %}
             <section class="space-y-2 preview-fade-up">
@@ -967,9 +882,9 @@
                         </a>
                         {% endif %}
                         {% else %}
-                        <a href="#modules-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="layout-grid" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Módulos</span>
+                        <a href="{{ history_href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="history" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Histórico</span>
                         </a>
                         {% endif %}
 
@@ -991,10 +906,10 @@
                             <span class="block mt-1 text-[11px] font-semibold">Histórico</span>
                         </a>
                         {% else %}
-                        <a href="#modules-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="layout-grid" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Módulos</span>
-                        </a>
+                        <button type="button" @click="showDateFilter = true" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="calendar-range" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Período</span>
+                        </button>
                         {% endif %}
 
                         <a href="/mobile/achievements" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
@@ -1724,6 +1639,11 @@
             deliverySessionOpen: false,
             assignedPlate: '',
             helperNames: {{ delivery_helper_names | safe }},
+            todayRouteSummary: {
+                total: Number({{ delivery_total }}) || 0,
+                open: Number({{ delivery_open }}) || 0,
+                completed: Number({{ delivery_completed }}) || 0,
+            },
             showDeliverySetupModal: false,
             showDeliveryEndModal: false,
             deliveryEndKm: '',
@@ -1740,13 +1660,13 @@
             showDateFilter: false,
 
             get totalDeliveryStops() {
-                return (this.activeRoutes?.length || 0) + (this.completedRoutes?.length || 0);
+                return Number(this.todayRouteSummary?.total) || 0;
             },
             get openDeliveryStops() {
-                return this.activeRoutes?.length || 0;
+                return Number(this.todayRouteSummary?.open) || 0;
             },
             get completedDeliveryStops() {
-                return this.completedRoutes?.length || 0;
+                return Number(this.todayRouteSummary?.completed) || 0;
             },
             get inProgressDeliveryRoute() {
                 return (this.activeRoutes || []).find(route => {
@@ -1771,15 +1691,15 @@
                     return 'Nenhuma rota lançada por enquanto. O painel continua pronto para a próxima operação.';
                 }
                 if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) {
-                    return `${this.completedDeliveryStops} rota(s) concluída(s) no período.`;
+                    return `${this.completedDeliveryStops} rota(s) concluída(s) hoje.`;
                 }
                 if (this.inProgressDeliveryRoute?.client_name) {
                     return `Entrega em andamento para ${this.inProgressDeliveryRoute.client_name}.`;
                 }
                 if (this.completedDeliveryStops > 0) {
-                    return `${this.completedDeliveryStops} rota(s) concluída(s) e ${this.openDeliveryStops} em aberto no período.`;
+                    return `${this.completedDeliveryStops} rota(s) concluída(s) e ${this.openDeliveryStops} em aberto hoje.`;
                 }
-                return `${this.openDeliveryStops} rota(s) em aberto na operação.`;
+                return `${this.openDeliveryStops} rota(s) em aberto hoje.`;
             },
             get heroSupportMessage() {
                 if (this.inProgressDeliveryRoute?.client_name) {
@@ -1789,7 +1709,7 @@
                     return `Sessão aberta na placa ${this.assignedPlate}.`;
                 }
                 if (!this.totalDeliveryStops) return 'Sem rota lançada agora. Abra o módulo para acompanhar novas liberações.';
-                return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} em aberto.`;
+                return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} em aberto hoje.`;
             },
             get heroActionLabel() {
                 if (!this.totalDeliveryStops) return 'Abrir módulo de entregas';
@@ -2233,6 +2153,11 @@
                     this.helperNames = Array.isArray(data.helper_names)
                         ? data.helper_names.filter(name => String(name || '').trim()).slice(0, 3)
                         : [];
+                    this.todayRouteSummary = {
+                        total: Number(data?.today_summary?.total) || 0,
+                        open: Number(data?.today_summary?.open) || 0,
+                        completed: Number(data?.today_summary?.completed) || 0,
+                    };
                     this.mobileReturnReasons = data.return_reasons || [];
                     if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
                         this.mobileReturn.reason = this.mobileReturnReasons[0];

@@ -6156,6 +6156,27 @@ async def api_mobile_delivery_my_routes(
         client_ids = list({r.client_id for r in routes})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
         client_map = {c.id: c for c in clients}
+        today_routes_for_summary = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.employee_id == driver_id)
+            .where(models.Route.date == today_str)
+            .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
+            .order_by(models.Route.id)
+        ).all()
+        open_statuses = {"pendente", "iniciada", "reaberta"}
+        completed_statuses = {"entregue", "devolucao"}
+        today_summary = {
+            "total": len(today_routes_for_summary),
+            "open": sum(
+                1 for route in today_routes_for_summary
+                if str(getattr(route, "delivery_status", "") or "").strip().lower() in open_statuses
+            ),
+            "completed": sum(
+                1 for route in today_routes_for_summary
+                if str(getattr(route, "delivery_status", "") or "").strip().lower() in completed_statuses
+            ),
+        }
 
         payload = []
         grouped = {}
@@ -6293,6 +6314,7 @@ async def api_mobile_delivery_my_routes(
                     session_open.date if session_open else None,
                 ),
             } if session_open else None,
+            "today_summary": today_summary,
             "routes": payload,
             "day_cards": day_cards,
             "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
@@ -6351,6 +6373,8 @@ async def api_mobile_delivery_my_routes(
                 "count": len(payload),
                 "routes": payload,
             }] if payload else []
+            open_statuses = {"pendente", "iniciada", "reaberta"}
+            completed_statuses = {"entregue", "devolucao"}
             return JSONResponse({
                 "success": True,
                 "date": today_str,
@@ -6359,7 +6383,19 @@ async def api_mobile_delivery_my_routes(
                 "session_open": False,
                 "is_helper_view": False,
                 "driver_name": "",
+                "helper_names": [],
                 "session": None,
+                "today_summary": {
+                    "total": len(routes_today),
+                    "open": sum(
+                        1 for route in routes_today
+                        if str(getattr(route, "delivery_status", "") or "").strip().lower() in open_statuses
+                    ),
+                    "completed": sum(
+                        1 for route in routes_today
+                        if str(getattr(route, "delivery_status", "") or "").strip().lower() in completed_statuses
+                    ),
+                },
                 "routes": payload,
                 "day_cards": day_cards,
                 "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
