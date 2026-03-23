@@ -27,6 +27,7 @@ from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
 from sqlmodel import Session, select, col, delete, text, or_, desc
 from sqlalchemy import func, inspect, not_, and_
+from sqlalchemy.types import String, DateTime
 from sqlalchemy.exc import IntegrityError, OperationalError
 from typing import List
 from database import create_db_and_tables, get_session, engine
@@ -648,6 +649,7 @@ async def lifespan(app: FastAPI):
         ensure_client_schema()
         ensure_client_group_schema()
         ensure_route_schema()
+        ensure_route_delivery_columns_widen()
         ensure_devolucao_route_id()
         # Employee schema compatibility must run before auth/bootstrap queries
         ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
@@ -5764,10 +5766,11 @@ def ensure_route_schema():
             "delivery_notified_commercial_name": "TEXT",
             "delivery_notified_logistics": "BOOLEAN",
             "delivery_notified_logistics_name": "TEXT",
-            "delivery_started_at": "VARCHAR(5)",
-            "delivery_finished_at": "VARCHAR(5)",
-            "delivery_canceled_at": "VARCHAR(5)",
-            "delivery_returned_at": "VARCHAR(5)",
+            # ISO datetime / horário — VARCHAR(5) quebrava gravação de datetime e status "devolucao"
+            "delivery_started_at": "VARCHAR(64)",
+            "delivery_finished_at": "VARCHAR(64)",
+            "delivery_canceled_at": "VARCHAR(64)",
+            "delivery_returned_at": "VARCHAR(64)",
             "delivery_time_log": "TEXT",
             "delivery_reopen_count": "INTEGER DEFAULT 0",
             "delivery_helpers_json": "TEXT",
@@ -5783,6 +5786,63 @@ def ensure_route_schema():
                     conn.commit()
     except Exception as e:
         logger.error(f"ensure_route_schema: {e}")
+
+
+def ensure_route_delivery_columns_widen():
+    """Corrige colunas route.* criadas como VARCHAR(5) para HH:MM quando o app grava datetime ISO ou status longos."""
+    try:
+        if engine.dialect.name != "postgresql":
+            return
+        inspector = inspect(engine)
+        if "route" not in inspector.get_table_names():
+            return
+        cols = {c["name"]: c for c in inspector.get_columns("route")}
+
+        def varchar_limit(col_name: str):
+            if col_name not in cols:
+                return None
+            t = cols[col_name].get("type")
+            if isinstance(t, DateTime):
+                return None
+            if isinstance(t, String):
+                return t.length
+            return None
+
+        alters: List[tuple[str, str]] = []
+
+        for name in (
+            "delivery_started_at",
+            "delivery_finished_at",
+            "delivery_canceled_at",
+            "delivery_returned_at",
+        ):
+            lim = varchar_limit(name)
+            if lim is not None and lim < 64:
+                alters.append((name, f'ALTER TABLE route ALTER COLUMN "{name}" TYPE VARCHAR(64)'))
+
+        lim = varchar_limit("delivery_status")
+        if lim is not None and lim < 32:
+            alters.append(("delivery_status", 'ALTER TABLE route ALTER COLUMN delivery_status TYPE VARCHAR(32)'))
+
+        lim = varchar_limit("delivery_return_reason")
+        if lim is not None and lim < 256:
+            alters.append(
+                (
+                    "delivery_return_reason",
+                    "ALTER TABLE route ALTER COLUMN delivery_return_reason TYPE TEXT USING delivery_return_reason::text",
+                )
+            )
+
+        for col_name, stmt in alters:
+            try:
+                with engine.connect() as conn:
+                    conn.execute(text(stmt))
+                    conn.commit()
+                logger.info(f"ensure_route_delivery_columns_widen: coluna route.{col_name} ampliada")
+            except Exception as ex:
+                logger.warning(f"ensure_route_delivery_columns_widen: route.{col_name}: {ex}")
+    except Exception as e:
+        logger.error(f"ensure_route_delivery_columns_widen: {e}")
 
 
 def ensure_devolucao_route_id():
