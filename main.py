@@ -2391,6 +2391,52 @@ def _has_mobile_gatehouse_access(employee) -> bool:
     )
 
 
+def _has_mobile_escala_access(employee) -> bool:
+    if not employee:
+        return False
+    return bool(getattr(employee, "mobile_access_escala", False))
+
+
+def _build_mobile_hub_access_flags(employee) -> Dict[str, bool]:
+    explicit_mode = _has_explicit_mobile_module_flags(employee)
+    if explicit_mode:
+        delivery_driver = bool(getattr(employee, "mobile_access_separation", False))
+        delivery_helper = bool(getattr(employee, "mobile_access_helper", False))
+        checklist = bool(getattr(employee, "mobile_access_checklist", False))
+        admin_start = bool(getattr(employee, "mobile_access_admin_start", False))
+        returns = bool(getattr(employee, "mobile_access_returns", False))
+        gatehouse = bool(getattr(employee, "mobile_access_gatehouse", False))
+        escala = bool(getattr(employee, "mobile_access_escala", False))
+    else:
+        delivery_driver = _has_mobile_delivery_driver_access(employee)
+        delivery_helper = _has_mobile_delivery_helper_access(employee)
+        checklist = _has_mobile_checklist_access(employee)
+        admin_start = bool(getattr(employee, "mobile_access_admin_start", False))
+        returns = _has_mobile_returns_access(employee)
+        gatehouse = _has_mobile_gatehouse_access(employee)
+        escala = _has_mobile_escala_access(employee)
+
+    helper_only = delivery_helper and not (delivery_driver or admin_start)
+    history = delivery_driver or delivery_helper or admin_start
+    delivery_overview = delivery_driver or delivery_helper
+
+    return {
+        "explicit_mode": explicit_mode,
+        "delivery_driver": delivery_driver,
+        "delivery_helper": delivery_helper,
+        "helper_only": helper_only,
+        "checklist": checklist,
+        "checklist_nav": checklist and not helper_only,
+        "admin_start": admin_start,
+        "returns": returns,
+        "returns_kpi": delivery_overview and returns,
+        "gatehouse": gatehouse,
+        "escala": escala,
+        "history": history,
+        "delivery_overview": delivery_overview,
+    }
+
+
 def _is_mobile_allowed(employee) -> bool:
     if not employee:
         return False
@@ -4412,6 +4458,8 @@ def _render_mobile_dashboard_template(
     error_value = (error or "").strip().lower()
     if error_value == "no_permission":
         module_notice = "Você não possui permissão para este módulo."
+    elif error_value == "no_escala_access":
+        module_notice = "Módulo 'escala' indisponível para seu perfil."
     elif module_value in {"checklist", "separation", "portaria"}:
         module_notice = f"Módulo '{module_value}' indisponível para seu perfil."
 
@@ -4420,67 +4468,92 @@ def _render_mobile_dashboard_template(
         request.session.pop("user_id", None)
         return RedirectResponse(url="/mobile/login?error=access_revoked", status_code=303)
 
-    has_delivery_driver_access = _has_mobile_delivery_driver_access(employee)
-    has_delivery_helper_access = _has_mobile_delivery_helper_access(employee)
-    has_checklist_access = _has_mobile_checklist_access(employee)
-    has_history_access = _has_mobile_delivery_history_access(employee)
-    has_returns_access = _has_mobile_returns_access(employee)
-    has_gatehouse_access = _has_mobile_gatehouse_access(employee)
-    has_admin_start_access = bool(getattr(employee, "mobile_access_admin_start", False))
+    access_flags = _build_mobile_hub_access_flags(employee)
+    has_delivery_driver_access = access_flags["delivery_driver"]
+    has_delivery_helper_access = access_flags["delivery_helper"]
+    has_checklist_access = access_flags["checklist"]
+    has_history_access = access_flags["history"]
+    has_returns_access = access_flags["returns"]
+    has_gatehouse_access = access_flags["gatehouse"]
+    has_admin_start_access = access_flags["admin_start"]
+    has_escala_access = access_flags["escala"]
+    is_helper_only = access_flags["helper_only"]
+    show_delivery_overview = access_flags["delivery_overview"]
+    show_checklist_nav = access_flags["checklist_nav"]
+    show_returns_kpi = access_flags["returns_kpi"]
 
     modules = []
     if has_delivery_driver_access:
         modules.append({
+            "key": "delivery_start",
             "label": "Iniciar Entregas",
             "description": "Abrir rota de entregas.",
             "icon": "play-circle",
             "action": "start_separation",
+            "tone": "primary",
         })
-    if has_checklist_access:
+    if show_checklist_nav:
         modules.append({
+            "key": "checklist",
             "label": "Checklist",
             "description": "Executar checklist operacional, histórico e chamados.",
             "icon": "clipboard-check",
             "href": "/mobile/routine/checklist",
+            "tone": "tool",
         })
     if has_gatehouse_access:
         modules.append({
+            "key": "gatehouse",
             "label": "Portaria",
             "description": "Conferir motorista, ajudantes, placa, checklist e rota do dia.",
             "icon": "shield",
             "href": "/mobile/portaria",
+            "tone": "tool",
+        })
+    if has_escala_access:
+        modules.append({
+            "key": "escala",
+            "label": "Escala",
+            "description": "Acompanhar escala operacional de motoristas, ajudantes e caminhões.",
+            "icon": "calendar-days",
+            "href": "/escala",
+            "tone": "consult",
         })
     if has_admin_start_access:
         modules.append({
+            "key": "manage_routes",
             "label": "Gerenciar Rotas",
             "description": "Editar e iniciar rotas manualmente.",
             "icon": "route",
             "action": "manage_routes",
+            "tone": "primary",
         })
     if has_returns_access:
         modules.append({
+            "key": "returns",
             "label": "Devolução",
             "description": "Avaliar e acompanhar sua taxa de devolução.",
             "icon": "package",
             "href": "/mobile/returns",
+            "tone": "tool",
         })
     if has_history_access:
         modules.append({
+            "key": "history",
             "label": "Histórico de Entregas",
             "description": "Histórico de entregas com filtro por período.",
             "icon": "truck",
             "href": "/mobile/historico-entregas",
+            "tone": "consult",
         })
-    is_helper_only = has_delivery_helper_access and not (
-        has_delivery_driver_access
-        or has_admin_start_access
-    )
     if is_helper_only:
         modules.append({
+            "key": "active_route",
             "label": "Rota Ativa",
             "description": "Visualizar rota ativa quando for ajudante.",
             "icon": "map-pin",
             "href": "/mobile/delivery",
+            "tone": "primary",
         })
 
     gamification = {
@@ -4497,15 +4570,75 @@ def _render_mobile_dashboard_template(
         "next_level": None,
     }
 
-    has_delivery_module = has_delivery_driver_access or has_admin_start_access
-    returns_metrics = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), days=30)
-    returns_alert = _build_returns_alert_payload(returns_metrics, target_percent=2.0, days_window=30)
+    has_delivery_module = show_delivery_overview or has_admin_start_access
+    returns_metrics = {}
+    returns_alert = {"enabled": False}
+    if has_returns_access:
+        returns_metrics = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), days=30)
+        returns_alert = _build_returns_alert_payload(returns_metrics, target_percent=2.0, days_window=30)
     delivery_summary = _build_mobile_dashboard_delivery_summary(session, employee)
     routes_today_list = delivery_summary.get("routes_today_list") or []
     open_st = {"pendente", "iniciada", "reaberta"}
     done_st = {"entregue", "devolucao"}
     active_routes_list = [r for r in routes_today_list if (r.get("status") or "").lower() in open_st]
     completed_routes_list = [r for r in routes_today_list if (r.get("status") or "").lower() in done_st]
+
+    launcher_modules = []
+    for module in modules:
+        key = str(module.get("key") or "").strip().lower()
+        if show_delivery_overview:
+            if key in {"gatehouse", "escala", "manage_routes"}:
+                launcher_modules.append(module)
+        else:
+            launcher_modules.append(module)
+
+    hub_nav_items: List[Dict[str, str]] = []
+    seen_nav_keys = set()
+
+    def _push_nav_item(key: str, label: str, href: str, icon: str):
+        if key in seen_nav_keys:
+            return
+        seen_nav_keys.add(key)
+        hub_nav_items.append({
+            "key": key,
+            "label": label,
+            "href": href,
+            "icon": icon,
+        })
+
+    if show_delivery_overview:
+        _push_nav_item("operation", "Operação", "/mobile/delivery", "truck")
+        if show_checklist_nav:
+            _push_nav_item("checklist", "Checklist", "/mobile/routine/checklist", "clipboard-check")
+        if has_history_access:
+            _push_nav_item("history", "Histórico", "/mobile/historico-entregas", "history")
+        if has_gatehouse_access:
+            _push_nav_item("gatehouse", "Portaria", "/mobile/portaria", "shield")
+        if has_escala_access:
+            _push_nav_item("escala", "Escala", "/escala", "calendar-days")
+        if has_admin_start_access:
+            _push_nav_item("manage_routes", "Rotas", "/mobile/admin/routes", "route")
+    else:
+        if has_gatehouse_access:
+            _push_nav_item("gatehouse", "Portaria", "/mobile/portaria", "shield")
+        if has_escala_access:
+            _push_nav_item("escala", "Escala", "/escala", "calendar-days")
+        if has_admin_start_access:
+            _push_nav_item("manage_routes", "Rotas", "/mobile/admin/routes", "route")
+        if show_checklist_nav:
+            _push_nav_item("checklist", "Checklist", "/mobile/routine/checklist", "clipboard-check")
+        if has_returns_access:
+            _push_nav_item("returns", "Devolução", "/mobile/returns", "package-search")
+        if has_history_access:
+            _push_nav_item("history", "Histórico", "/mobile/historico-entregas", "history")
+
+    hub_nav_items = hub_nav_items[:3]
+    module_hub_message = (
+        "Os módulos abaixo foram liberados diretamente para o seu cadastro."
+        if access_flags["explicit_mode"]
+        else "Os módulos abaixo estão disponíveis para o seu perfil operacional."
+    )
+
     clients_for_modal = session.exec(
         select(models.Client.id, models.Client.name).order_by(models.Client.name).limit(500)
     ).all()
@@ -4542,9 +4675,16 @@ def _render_mobile_dashboard_template(
             "chart_daily_kgh": json.dumps([], ensure_ascii=False),
             "chart_bg_colors": json.dumps([], ensure_ascii=False),
             "returns_alert": json.dumps(returns_alert, ensure_ascii=False),
-            "returns_alert_data": returns_alert if has_returns_access else None,
+            "returns_alert_data": returns_alert if show_returns_kpi else None,
             "delivery_summary": delivery_summary,
             "delivery_helper_names": json.dumps(delivery_summary.get("helper_names") or [], ensure_ascii=False),
+            "show_delivery_overview": show_delivery_overview,
+            "show_delivery_kpis": show_delivery_overview,
+            "show_returns_kpi": show_returns_kpi,
+            "launcher_modules": launcher_modules,
+            "hub_nav_items": hub_nav_items,
+            "module_hub_message": module_hub_message,
+            "hub_explicit_access": access_flags["explicit_mode"],
         },
     )
 

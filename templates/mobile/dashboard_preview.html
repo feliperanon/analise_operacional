@@ -617,6 +617,7 @@
                 </div>
             </header>
 
+            {% if show_delivery_overview %}
             <section class="preview-hero rounded-[32px] p-5 preview-fade-up">
                 <div class="relative z-10">
                     <div class="preview-hero-header flex items-start justify-between gap-3">
@@ -725,7 +726,33 @@
                     {% endif %}
                 </div>
             </section>
+            {% else %}
+            <section class="preview-hero rounded-[32px] p-5 preview-fade-up">
+                <div class="relative z-10">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <p class="preview-section-label">Acessos liberados</p>
+                            <h2 class="mt-2 text-title-lg text-white">Central operacional</h2>
+                            <p class="mt-2 text-body-lg leading-relaxed" style="color: rgba(226,232,240,0.92);">
+                                {{ module_hub_message }}
+                            </p>
+                        </div>
+                        <div class="w-12 h-12 rounded-[20px] flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.16);">
+                            <i data-lucide="layout-grid" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    {% if launcher_modules %}
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        {% for module in launcher_modules[:3] %}
+                        <span class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill">{{ module.label }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
 
+            {% if show_delivery_kpis %}
             <section class="grid grid-cols-2 gap-3 preview-fade-up">
                 <a href="/mobile/achievements" class="preview-kpi preview-kpi-action rounded-[24px] p-4">
                     <div class="flex items-start justify-between gap-3">
@@ -763,6 +790,7 @@
                     </div>
                 </a>
 
+                {% if show_returns_kpi %}
                 <a href="{{ returns_card_href }}" class="preview-kpi preview-kpi-action rounded-[24px] p-4 col-span-2">
                     <div class="flex items-start justify-between gap-3">
                         <p class="preview-section-label">Devolução</p>
@@ -792,8 +820,45 @@
                         {% endif %}
                     </div>
                 </a>
+                {% endif %}
 
             </section>
+            {% endif %}
+
+            {% if launcher_modules %}
+            <section class="space-y-3 preview-fade-up">
+                <div>
+                    <p class="preview-section-label">Módulos</p>
+                    <h2 class="text-title text-white mt-1">{% if show_delivery_overview %}Acessos complementares{% else %}Seus módulos liberados{% endif %}</h2>
+                    <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">
+                        {% if show_delivery_overview %}
+                        Fluxos adicionais disponíveis para o seu cadastro.
+                        {% else %}
+                        Escolha um módulo habilitado para continuar.
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="space-y-2">
+                    {% for module in launcher_modules %}
+                    {{ render_dashboard_module(module, module.tone or 'default') }}
+                    {% endfor %}
+                </div>
+            </section>
+            {% elif not show_delivery_overview %}
+            <section class="preview-panel rounded-[28px] p-5 preview-fade-up">
+                <div class="relative z-10 flex items-start gap-3">
+                    <div class="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(148,163,184,0.14); color: #cbd5e1;">
+                        <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-body font-semibold text-white">Sem módulos visíveis nesta home</p>
+                        <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">
+                            Seu cadastro está ativo, mas não há acessos operacionais exibidos neste painel agora.
+                        </p>
+                    </div>
+                </div>
+            </section>
+            {% endif %}
 
             {% if time_bonuses %}
             <section class="space-y-2 preview-fade-up">
@@ -854,58 +919,18 @@
         <div class="container-mobile pt-6 pb-[max(1rem,env(safe-area-inset-bottom))]" x-show="initialized">
             <div>
                 <nav class="preview-bottom-nav rounded-[26px] px-3 py-2">
-                    <div class="grid grid-cols-5 gap-1">
+                    {% set nav_column_count = (hub_nav_items|length) + 2 %}
+                    <div class="grid gap-1" style="grid-template-columns: repeat({{ nav_column_count }}, minmax(0, 1fr));">
                         <a href="{{ delivery_hub_href }}" class="preview-bottom-link is-active rounded-[18px] px-2 py-2.5 text-center">
                             <i data-lucide="house" class="w-4.5 h-4.5 mx-auto"></i>
                             <span class="block mt-1 text-[11px] font-semibold">Painel</span>
                         </a>
-                        {% if primary_cta %}
-                        {% if primary_cta.action == "start_separation" %}
-                        <a href="{{ delivery_operation_href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="truck" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Operação</span>
+                        {% for item in hub_nav_items %}
+                        <a href="{{ item.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="{{ item.icon }}" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">{{ item.label }}</span>
                         </a>
-                        {% elif primary_cta.action == "manage_routes" %}
-                        <a href="/mobile/admin/routes" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="route" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Rotas</span>
-                        </a>
-                        {% else %}
-                        <a href="{{ primary_cta.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="{{ primary_cta.icon }}" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Operação</span>
-                        </a>
-                        {% endif %}
-                        {% else %}
-                        <a href="{{ history_href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="history" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Histórico</span>
-                        </a>
-                        {% endif %}
-
-                        {% if ns.checklist %}
-                        <a href="{{ ns.checklist.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="clipboard-check" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Checklist</span>
-                        </a>
-                        {% else %}
-                        <button type="button" @click="showDateFilter = true" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="calendar-range" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Período</span>
-                        </button>
-                        {% endif %}
-
-                        {% if ns.history %}
-                        <a href="{{ history_href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="history" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Histórico</span>
-                        </a>
-                        {% else %}
-                        <button type="button" @click="showDateFilter = true" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="calendar-range" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Período</span>
-                        </button>
-                        {% endif %}
+                        {% endfor %}
 
                         <a href="/mobile/achievements" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
                             <i data-lucide="user-round" class="w-4.5 h-4.5 mx-auto"></i>
@@ -1634,6 +1659,7 @@
             deliverySessionOpen: false,
             assignedPlate: '',
             helperNames: {{ delivery_helper_names | safe }},
+            showDeliveryOverview: {{ 'true' if show_delivery_overview else 'false' }},
             todayRouteSummary: {
                 total: Number({{ delivery_total }}) || 0,
                 open: Number({{ delivery_open }}) || 0,
@@ -1816,8 +1842,9 @@
                 const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
                 this.dateFilterFrom = `${y}-${m}-01`;
                 this.dateFilterTo = `${y}-${m}-${new Date(y, now.getMonth() + 1, 0).getDate().toString().padStart(2, '0')}`;
-                // Carregar rotas de entrega
-                this.loadDeliveryData();
+                if (this.showDeliveryOverview) {
+                    this.loadDeliveryData();
+                }
             },
 
             // Haptic feedback (success [10], error [30,10,30])

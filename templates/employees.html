@@ -1336,6 +1336,30 @@
                     </div>
                 </div>
 
+                <!-- Mobile Access Toggles -->
+                <div class="bg-slate-900/50 rounded-lg p-3">
+                    <label class="block text-xs font-medium text-slate-400 mb-2">Acesso Mobile</label>
+                    <style>
+                        .emp-toggle-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+                        .emp-toggle-row:hover { background: rgba(71,85,105,.2); }
+                        .emp-toggle-wrap { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+                        .emp-toggle-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 10; }
+                        .emp-toggle-track { position: absolute; inset: 0; border-radius: 11px; background: #475569; transition: background .2s; pointer-events: none; }
+                        .emp-toggle-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s ease; }
+                        .emp-toggle-input:checked + .emp-toggle-track { background: #2563eb; }
+                        .emp-toggle-input:checked + .emp-toggle-track::after { transform: translateX(18px); }
+                    </style>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_separation" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Separação</span></label>
+                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_checklist" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Checklist</span></label>
+                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_admin_start" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Abertura Manual</span></label>
+                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_returns" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Devoluções</span></label>
+                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_helper" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Ajudante</span></label>
+                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_gatehouse" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Portaria</span></label>
+                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_escala" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Escala</span></label>
+                    </div>
+                </div>
+
                 <!-- Dias de Trabalho - Compacto em linha -->
                 <div class="bg-slate-900/50 rounded-lg p-3">
                     <label class="block text-xs font-medium text-slate-400 mb-2">Dias de Trabalho</label>
@@ -1757,6 +1781,12 @@
         } else {
             document.getElementById('editBirthday').value = '';
         }
+
+        // Populate mobile access toggles
+        ['mobile_access_separation','mobile_access_checklist','mobile_access_admin_start','mobile_access_returns','mobile_access_helper','mobile_access_gatehouse','mobile_access_escala'].forEach(f => {
+            const el = document.querySelector(`#editForm input[name="${f}"]`);
+            if (el) el.checked = !!emp[f];
+        });
 
         // Populate work_days checkboxes
         document.querySelectorAll('#editForm input[name="work_days"]').forEach(cb => cb.checked = false);

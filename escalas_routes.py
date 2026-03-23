@@ -99,7 +99,7 @@ def _check_escala_access(request: Request, session: Session, is_api: bool = Fals
         msg = "Módulo Escala não habilitado para seu cadastro. Solicite ao gestor."
         if is_api:
             return JSONResponse({"error": msg}, status_code=403)
-        return RedirectResponse(url="/mobile/dashboard?error=no_escala_access", status_code=303)
+        return RedirectResponse(url="/mobile/entregas?error=no_escala_access", status_code=303)
 
     return None
 
