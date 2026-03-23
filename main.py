@@ -282,6 +282,73 @@ def _format_hhmm_sao_paulo(value: Optional[datetime], expected_date: Optional[st
             return None
 
 
+def _auto_close_stale_delivery_sessions() -> int:
+    """
+    Fecha automaticamente sessões de entrega abertas em dias anteriores ao dia atual (SP),
+    marcando paradas pendentes como devolução automática.
+    Retorna a quantidade de sessões fechadas.
+    """
+    tz_sp = ZoneInfo("America/Sao_Paulo")
+    now_sp = datetime.now(tz_sp)
+    today_str = now_sp.strftime("%Y-%m-%d")
+    week_ago_str = (now_sp.date() - timedelta(days=7)).strftime("%Y-%m-%d")
+    closed_count = 0
+
+    with Session(engine) as session:
+        stale_sessions = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.status == "open")
+            .where(models.DeliverySession.date >= week_ago_str)
+            .where(models.DeliverySession.date < today_str)
+            .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
+        ).all()
+
+        if not stale_sessions:
+            return 0
+
+        for ds_old in stale_sessions:
+            pending_routes = session.exec(
+                select(models.Route)
+                .where(models.Route.type == "delivery")
+                .where(models.Route.employee_id == ds_old.employee_id)
+                .where(models.Route.date == ds_old.date)
+                .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+            ).all()
+
+            for r in pending_routes:
+                r.delivery_status = "devolucao"
+                r.delivery_returned_at = now_sp
+                if not (r.delivery_return_reason or "").strip():
+                    r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
+                session.add(r)
+
+            ds_old.status = "closed"
+            ds_old.ended_at = now_sp
+            if ds_old.km_return is None and ds_old.km_departure is not None:
+                ds_old.km_return = ds_old.km_departure
+            session.add(ds_old)
+            closed_count += 1
+
+        session.commit()
+
+    return closed_count
+
+
+async def _auto_close_stale_delivery_sessions_loop():
+    """
+    Loop de manutenção: roda em background e garante fechamento automático
+    contínuo de sessões antigas, independentemente de usuário abrir o app.
+    """
+    while True:
+        try:
+            closed = _auto_close_stale_delivery_sessions()
+            if closed > 0:
+                logger.info(f"[DeliveryAutoClose] Sessões antigas fechadas automaticamente: {closed}")
+        except Exception as e:
+            logger.error(f"[DeliveryAutoClose] Falha no fechamento automático: {e}")
+        await asyncio.sleep(300)  # 5 min
+
+
 def get_effective_shift_date(shift: str, reference: Optional[datetime] = None) -> date:
     ref = _get_reference_datetime(reference)
     if (shift or "").strip().lower() == "noite":
@@ -573,6 +640,7 @@ def sync_sectors_on_startup():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    delivery_autoclose_task = None
     create_db_and_tables()
     try:
         ensure_vehicle_schema()
@@ -622,7 +690,24 @@ async def lifespan(app: FastAPI):
         sync_sectors_on_startup()
     except Exception as e:
         logger.error(f"Erro ao iniciar sync: {e}")
-    yield
+    try:
+        # Execução imediata no startup + loop contínuo (inclui virada de dia após 00:00).
+        closed_now = _auto_close_stale_delivery_sessions()
+        if closed_now > 0:
+            logger.info(f"[DeliveryAutoClose] Startup fechou sessões antigas: {closed_now}")
+        delivery_autoclose_task = asyncio.create_task(_auto_close_stale_delivery_sessions_loop())
+    except Exception as e:
+        logger.error(f"[DeliveryAutoClose] Erro ao iniciar loop: {e}")
+
+    try:
+        yield
+    finally:
+        if delivery_autoclose_task:
+            delivery_autoclose_task.cancel()
+            try:
+                await delivery_autoclose_task
+            except asyncio.CancelledError:
+                pass
 
 app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 
