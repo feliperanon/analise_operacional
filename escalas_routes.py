@@ -451,8 +451,17 @@ async def mobile_escala_page(
 
     summary, escalas, motoristas, ajudantes, vehicles = _build_escala_groups(session, date, shift)
 
+    employee = None
+    user_id = request.session.get("user_id")
+    if user_id:
+        try:
+            emp_id = int(user_id)
+            employee = session.get(models.Employee, emp_id)
+        except (TypeError, ValueError):
+            pass
+
     return _templates.TemplateResponse(
-        "escala.html",
+        "escala_mobile.html",
         {
             "request": request,
             "selected_date": date,
@@ -464,6 +473,7 @@ async def mobile_escala_page(
             "ajudantes": ajudantes,
             "vehicles": vehicles,
             "today": today,
+            "employee": employee,
         },
     )
 
