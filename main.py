@@ -1,5 +1,6 @@
 # Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
+import asyncio
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
@@ -3981,6 +3982,7 @@ def _build_returns_alert_payload(
 
 def _build_mobile_dashboard_delivery_summary(session: Session, employee: Any) -> Dict[str, Any]:
     today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    week_ago_str = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)).strftime("%Y-%m-%d")
     if not employee or not _has_mobile_delivery_history_access(employee):
         return {
             "enabled": False,
@@ -5821,6 +5823,41 @@ async def api_mobile_delivery_my_routes(
         employee = session.get(models.Employee, user_id)
         employee_name = (employee.name or "").strip() if employee else ""
 
+        # Auto-fechamento: encerra sessões abertas de dias anteriores para não travar o dia atual.
+        # Regras:
+        # - Fecha apenas sessões abertas anteriores a hoje (janela de 7 dias).
+        # - Qualquer parada pendente/iniciada/reaberta vira devolução automática.
+        stale_sessions = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.employee_id == user_id)
+            .where(models.DeliverySession.date >= week_ago_str)
+            .where(models.DeliverySession.date < today_str)
+            .where(models.DeliverySession.status == "open")
+            .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
+        ).all()
+        if stale_sessions:
+            now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
+            for ds_old in stale_sessions:
+                old_pending = session.exec(
+                    select(models.Route)
+                    .where(models.Route.type == "delivery")
+                    .where(models.Route.employee_id == ds_old.employee_id)
+                    .where(models.Route.date == ds_old.date)
+                    .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+                ).all()
+                for r in old_pending:
+                    r.delivery_status = "devolucao"
+                    r.delivery_returned_at = now_sp
+                    if not (r.delivery_return_reason or "").strip():
+                        r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
+                    session.add(r)
+                ds_old.status = "closed"
+                ds_old.ended_at = now_sp
+                if ds_old.km_return is None and ds_old.km_departure is not None:
+                    ds_old.km_return = ds_old.km_departure
+                session.add(ds_old)
+            session.commit()
+
         # 1. Tenta sessão de hoje (motorista)
         session_open = session.exec(
             select(models.DeliverySession)
@@ -6108,20 +6145,50 @@ async def api_mobile_delivery_session_end(
         .where(models.DeliverySession.status == "open")
         .order_by(models.DeliverySession.id.desc())
     ).first()
+    # Fallback: sessão órfã aberta em dia anterior (ex.: sexta-feira), ainda visível no app.
+    # Permite encerrar a sessão realmente aberta para destravar o início do dia atual.
     if not ds:
-        return JSONResponse({"success": False, "error": "Nenhuma rota aberta para encerrar hoje."}, status_code=400)
+        ds = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.employee_id == user_id)
+            .where(models.DeliverySession.date >= week_ago_str)
+            .where(models.DeliverySession.date <= today_str)
+            .where(models.DeliverySession.status == "open")
+            .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
+        ).first()
+    if not ds:
+        return JSONResponse({"success": False, "error": "Nenhuma rota aberta para encerrar (hoje ou pendente recente)."}, status_code=400)
     if km <= 0:
         return JSONResponse({"success": False, "error": "KM de chegada inválido."}, status_code=400)
 
     pending = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date == today_str)
+        .where(models.Route.date == ds.date)
         .where(models.Route.employee_id == user_id)
         .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
     ).all()
+    auto_closed_as_return = 0
     if pending:
-        return JSONResponse({"success": False, "error": "Ainda existem entregas em aberto. Finalize ou registre devolução antes de encerrar."}, status_code=400)
+        # Sessão antiga: permite fechamento tardio com tratamento automático das pendências
+        # para não bloquear o início da rota do dia atual.
+        if ds.date < today_str:
+            now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
+            for r in pending:
+                r.delivery_status = "devolucao"
+                r.delivery_returned_at = now_sp
+                if not (r.delivery_return_reason or "").strip():
+                    r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
+                session.add(r)
+                auto_closed_as_return += 1
+        else:
+            return JSONResponse(
+                {
+                    "success": False,
+                    "error": f"Ainda existem entregas em aberto na rota de {ds.date}. Finalize ou registre devolução antes de encerrar.",
+                },
+                status_code=400,
+            )
 
     ds.km_return = km
     ds.status = "closed"
@@ -6140,7 +6207,19 @@ async def api_mobile_delivery_session_end(
             truck.updated_at = ds.ended_at
             session.add(truck)
     session.commit()
-    return JSONResponse({"success": True})
+    return JSONResponse(
+        {
+            "success": True,
+            "session_date": ds.date,
+            "auto_closed_as_return": auto_closed_as_return,
+            "message": (
+                f"Rota de {ds.date} encerrada com fechamento tardio. "
+                f"{auto_closed_as_return} parada(s) pendente(s) foram marcadas como devolução automática."
+                if auto_closed_as_return > 0
+                else "Rota encerrada com sucesso."
+            ),
+        }
+    )
 
 
 @app.post("/api/mobile/delivery/session/reopen", response_class=JSONResponse)
