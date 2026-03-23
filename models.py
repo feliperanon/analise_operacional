@@ -58,6 +58,7 @@ class Employee(SQLModel, table=True):
     mobile_access_returns: bool = Field(default=False) # Dashboard de devoluções (avaliação do colaborador)
     mobile_access_helper: bool = Field(default=False)  # Pode ser selecionado como ajudante nas rotas
     mobile_access_gatehouse: bool = Field(default=False)  # Módulo Portaria
+    mobile_access_escala: bool = Field(default=False)  # Módulo Escala operacional (web)
     
     # Gamification
     total_xp: float = Field(default=0.0) # Accumulated Tonnage/Score

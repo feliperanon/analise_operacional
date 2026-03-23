@@ -661,6 +661,7 @@ async def lifespan(app: FastAPI):
         ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "mobile_access_helper", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "mobile_access_gatehouse", "BOOLEAN DEFAULT FALSE")
+        ensure_column(engine, "employee", "mobile_access_escala", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
         ensure_column(engine, "deliverysession", "reopen_reason", "VARCHAR(512)")
     except Exception as e:
@@ -1832,6 +1833,7 @@ def ensure_employee_access_schema():
         "mobile_access_separation": "BOOLEAN",
         "mobile_access_checklist": "BOOLEAN",
         "mobile_access_gatehouse": "BOOLEAN DEFAULT FALSE",
+        "mobile_access_escala": "BOOLEAN DEFAULT FALSE",
     }
     added_separation = False
     added_checklist = False
@@ -2276,6 +2278,7 @@ def _has_mobile_flags(employee) -> bool:
         or getattr(employee, "mobile_access_checklist", False)
         or getattr(employee, "mobile_access_admin_start", False)
         or getattr(employee, "mobile_access_gatehouse", False)
+        or getattr(employee, "mobile_access_escala", False)
     )
 
 
@@ -2289,6 +2292,7 @@ def _has_explicit_mobile_module_flags(employee) -> bool:
         or getattr(employee, "mobile_access_returns", False)
         or getattr(employee, "mobile_access_helper", False)
         or getattr(employee, "mobile_access_gatehouse", False)
+        or getattr(employee, "mobile_access_escala", False)
     )
 
 
@@ -24618,6 +24622,7 @@ async def update_employee(
     mobile_access_returns: bool = Form(False),
     mobile_access_helper: bool = Form(False),
     mobile_access_gatehouse: bool = Form(False),
+    mobile_access_escala: bool = Form(False),
     vacation_start: str = Form(None),
     vacation_end: str = Form(None),
     session: Session = Depends(get_session)
@@ -24665,6 +24670,7 @@ async def update_employee(
         emp.mobile_access_returns = mobile_access_returns
         emp.mobile_access_helper = mobile_access_helper
         emp.mobile_access_gatehouse = mobile_access_gatehouse
+        emp.mobile_access_escala = mobile_access_escala
         emp.mobile_access = bool(
             mobile_access_separation
             or mobile_access_checklist
@@ -24672,6 +24678,7 @@ async def update_employee(
             or mobile_access_returns
             or mobile_access_helper
             or mobile_access_gatehouse
+            or mobile_access_escala
         )
 
         # Update Work Days

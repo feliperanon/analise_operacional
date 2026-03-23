@@ -63,6 +63,47 @@ def _require_login(request: Request, is_api: bool = False):
     return None
 
 
+def _check_escala_access(request: Request, session: Session, is_api: bool = False):
+    """Verifica se o usuário tem permissão para acessar o módulo Escala.
+    User (admin/leader): precisa de 'processos' em allowed_pages ou ser admin.
+    Employee: precisa de mobile_access_escala=True."""
+    auth_user_id = request.session.get("auth_user_id")
+    user_id = request.session.get("user_id")
+    allowed_pages = request.session.get("allowed_pages")
+    try:
+        allowed = json.loads(allowed_pages) if isinstance(allowed_pages, str) else (allowed_pages or [])
+    except Exception:
+        allowed = []
+
+    # User (admin/leader) logado via /login
+    if auth_user_id:
+        if "admin" in str(request.session.get("auth_user_role", "")).lower():
+            return None
+        if "processos" in allowed:
+            return None
+        msg = "Sem permissão para o módulo Escala. Solicite acesso ao administrador."
+        if is_api:
+            return JSONResponse({"error": msg}, status_code=403)
+        return RedirectResponse(url="/login?error=no_escala_access", status_code=303)
+
+    # Employee logado via mobile
+    if user_id:
+        try:
+            emp_id = int(user_id)
+        except (TypeError, ValueError):
+            emp_id = None
+        if emp_id:
+            emp = session.get(models.Employee, emp_id)
+            if emp and getattr(emp, "mobile_access_escala", False):
+                return None
+        msg = "Módulo Escala não habilitado para seu cadastro. Solicite ao gestor."
+        if is_api:
+            return JSONResponse({"error": msg}, status_code=403)
+        return RedirectResponse(url="/mobile/dashboard?error=no_escala_access", status_code=303)
+
+    return None
+
+
 def _log_escala_alteracao(
     session: Session,
     date: str,
@@ -206,6 +247,9 @@ async def escala_page(
     redir = _require_login(request, is_api=False)
     if redir:
         return redir
+    perm = _check_escala_access(request, session, is_api=False)
+    if perm:
+        return perm
 
     today = datetime.now().strftime("%Y-%m-%d")
     date = date or today
@@ -239,6 +283,9 @@ async def escala_api_data(
     redir = _require_login(request, is_api=True)
     if redir:
         return redir
+    perm = _check_escala_access(request, session, is_api=True)
+    if perm:
+        return perm
 
     today = datetime.now().strftime("%Y-%m-%d")
     date = date or today
@@ -274,6 +321,9 @@ async def escala_api_atualizar(
     redir = _require_login(request, is_api=True)
     if redir:
         return redir
+    perm = _check_escala_access(request, session, is_api=True)
+    if perm:
+        return perm
 
     try:
         body = await request.json()
