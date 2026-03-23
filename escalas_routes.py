@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/escala", tags=["escala"])
 
-ESCALA_STATUSES = ("nao_escalado", "escalado")
+ESCALA_STATUSES = ("nao_escalado", "escalado", "em_ajuste", "pendencia")  # UI usa só os dois primeiros
 SHIFTS = ("Manhã", "Tarde", "Noite")
 
 

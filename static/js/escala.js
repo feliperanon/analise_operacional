@@ -1,6 +1,6 @@
 /**
- * Módulo Escala Operacional - Quadro mobile-first
- * Integra com /separacao: alterações refletem nas rotas em tempo real
+ * Módulo Escala Operacional - Caminhões como base, motoristas e ajudantes filtrados por permissão
+ * Formato BR: kg, R$, data/hora
  */
 (function() {
     'use strict';
@@ -10,25 +10,24 @@
     function escalaApp() {
         return {
             filters: { date: init.date, shift: init.shift },
-            summary: { total: 0, completas: 0, pendentes: 0, em_ajuste: 0, peso_total: 0, valor_total: 0 },
+            summary: { total: 0, completas: 0, pendentes: 0 },
             escalas: [],
             apiData: {},
             loading: true,
             columns: [
-                { id: 'nao_escalado', label: 'Não escalados', headerClass: 'bg-slate-700/50' },
                 { id: 'escalado', label: 'Escalados', headerClass: 'bg-emerald-900/30 border-emerald-500/30' },
-                { id: 'em_ajuste', label: 'Em ajuste', headerClass: 'bg-violet-900/30 border-violet-500/30' },
-                { id: 'pendencia', label: 'Pendências', headerClass: 'bg-amber-900/30 border-amber-500/30' }
+                { id: 'nao_escalado', label: 'Não escalados', headerClass: 'bg-slate-700/50' }
             ],
-            drawerOpen: false,
             quickChange: { open: false, campo: '', escala: null, ajudantesSelected: [] },
             toast: { show: false, ok: true, message: '' },
             dragTarget: null,
 
             get escalasByCol() {
-                const by = { nao_escalado: [], escalado: [], em_ajuste: [], pendencia: [] };
+                const by = { nao_escalado: [], escalado: [] };
                 for (const e of this.escalas) {
-                    const st = e.escala_status || 'escalado';
+                    let st = e.escala_status || 'escalado';
+                    if (st === 'em_ajuste') st = 'escalado';
+                    if (st === 'pendencia') st = 'nao_escalado';
                     if (by[st]) by[st].push(e);
                     else by.escalado.push(e);
                 }
@@ -46,9 +45,12 @@
                     const r = await fetch(`/escala/api/data?${params}`);
                     const data = await r.json();
                     this.apiData = data;
-                    this.summary = data.summary || this.summary;
+                    this.summary = {
+                        total: data.summary?.total ?? 0,
+                        completas: data.summary?.completas ?? 0,
+                        pendentes: data.summary?.pendentes ?? 0
+                    };
                     this.escalas = data.escalas || [];
-                    this.renderRecursos();
                     if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
                 } catch (err) {
                     this.showToast('Erro ao carregar dados.', false);
@@ -57,31 +59,13 @@
                 }
             },
 
-            renderRecursos() {
-                const mot = document.getElementById('recursos-motoristas');
-                const ajd = document.getElementById('recursos-ajudantes');
-                const cam = document.getElementById('recursos-caminhoes');
-                if (!mot || !ajd || !cam) return;
-
-                const fmt = (arr, cls) => (arr || []).map(x =>
-                    `<span class="px-2 py-1 rounded text-[11px] ${cls}">${x.name || x.placa || '—'}</span>`
-                ).join('');
-                mot.innerHTML = fmt(this.apiData.motoristas_disponiveis || [], 'bg-slate-700/80 text-slate-300');
-                ajd.innerHTML = fmt(this.apiData.ajudantes_disponiveis || [], 'bg-slate-700/80 text-slate-300');
-                cam.innerHTML = (this.apiData.vehicles || []).map(v =>
-                    `<span class="px-2 py-1 rounded text-[11px] bg-slate-700/80 text-slate-300">${v.placa || '—'}</span>`
-                ).join('');
-            },
-
-            formatPesoValor() {
-                const p = this.summary.peso_total || 0;
-                const v = this.summary.valor_total || 0;
-                return `${(p / 1000).toFixed(1)}t · R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-            },
-
             formatKg(n) {
                 if (n == null) return '—';
-                return `${Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`;
+                const v = Number(n);
+                if (v >= 1000) {
+                    return `${(v / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} t`;
+                }
+                return `${v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg`;
             },
 
             formatMoeda(n) {

@@ -617,6 +617,28 @@
                 </div>
             </header>
 
+            <div class="pt-4" x-show="initialized">
+                <nav class="preview-bottom-nav rounded-[26px] px-3 py-2">
+                    {% set nav_column_count = (hub_nav_items|length) + 2 %}
+                    <div class="grid gap-1" style="grid-template-columns: repeat({{ nav_column_count }}, minmax(0, 1fr));">
+                        <a href="{{ delivery_hub_href }}" class="preview-bottom-link is-active rounded-[18px] px-2 py-2.5 text-center">
+                            <i data-lucide="house" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Painel</span>
+                        </a>
+                        {% for item in hub_nav_items %}
+                        <a href="{{ item.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="{{ item.icon }}" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">{{ item.label }}</span>
+                        </a>
+                        {% endfor %}
+                        <a href="/mobile/achievements" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="user-round" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Perfil</span>
+                        </a>
+                    </div>
+                </nav>
+            </div>
+
             {% if show_delivery_overview %}
             <section class="preview-hero rounded-[32px] p-5 preview-fade-up">
                 <div class="relative z-10">
@@ -916,31 +938,6 @@
             {% endif %}
         </section>
 
-        <div class="container-mobile pt-6 pb-[max(1rem,env(safe-area-inset-bottom))]" x-show="initialized">
-            <div>
-                <nav class="preview-bottom-nav rounded-[26px] px-3 py-2">
-                    {% set nav_column_count = (hub_nav_items|length) + 2 %}
-                    <div class="grid gap-1" style="grid-template-columns: repeat({{ nav_column_count }}, minmax(0, 1fr));">
-                        <a href="{{ delivery_hub_href }}" class="preview-bottom-link is-active rounded-[18px] px-2 py-2.5 text-center">
-                            <i data-lucide="house" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Painel</span>
-                        </a>
-                        {% for item in hub_nav_items %}
-                        <a href="{{ item.href }}" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="{{ item.icon }}" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">{{ item.label }}</span>
-                        </a>
-                        {% endfor %}
-
-                        <a href="/mobile/achievements" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="user-round" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Perfil</span>
-                        </a>
-                    </div>
-                </nav>
-            </div>
-        </div>
-        
         <!-- 1. Identidade + XP (gradiente operacional) -->
         <section class="hidden py-5" style="background: var(--gradient-header); box-shadow: var(--shadow-elevated);">
             <div class="container-mobile">
