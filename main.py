@@ -317,10 +317,14 @@ def _auto_close_stale_delivery_sessions() -> int:
             ).all()
 
             for r in pending_routes:
-                r.delivery_status = "devolucao"
-                r.delivery_returned_at = now_sp
-                if not (r.delivery_return_reason or "").strip():
-                    r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
+                # Regra de ouro: sem devolução registrada = entregue (concluída)
+                r.delivery_status = "entregue"
+                r.delivery_finished_at = now_sp.strftime("%H:%M") if now_sp else None
+                r.delivery_returned_at = None
+                r.delivery_return_reason = None
+                r.delivery_return_category = None
+                r.valor_devolucao = None
+                r.devolucao_volume = None
                 session.add(r)
 
             ds_old.status = "closed"
@@ -6042,10 +6046,14 @@ async def api_mobile_delivery_my_routes(
                         .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
                     ).all()
                     for r in old_pending:
-                        r.delivery_status = "devolucao"
-                        r.delivery_returned_at = now_sp
-                        if not (r.delivery_return_reason or "").strip():
-                            r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
+                        # Regra de ouro: sem devolução registrada = entregue (concluída)
+                        r.delivery_status = "entregue"
+                        r.delivery_finished_at = now_sp.strftime("%H:%M") if now_sp else None
+                        r.delivery_returned_at = None
+                        r.delivery_return_reason = None
+                        r.delivery_return_category = None
+                        r.valor_devolucao = None
+                        r.devolucao_volume = None
                         session.add(r)
                     ds_old.status = "closed"
                     ds_old.ended_at = now_sp
@@ -6478,16 +6486,20 @@ async def api_mobile_delivery_session_end(
             .where(models.Route.employee_id == user_id)
             .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
         ).all()
-        auto_closed_as_return = 0
+        auto_closed_count = 0
         if pending:
             if ds.date < today_str:
                 for r in pending:
-                    r.delivery_status = "devolucao"
-                    r.delivery_returned_at = now_sp
-                    if not (r.delivery_return_reason or "").strip():
-                        r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
+                    # Regra de ouro: sem devolução registrada = entregue (concluída)
+                    r.delivery_status = "entregue"
+                    r.delivery_finished_at = now_sp.strftime("%H:%M") if now_sp else None
+                    r.delivery_returned_at = None
+                    r.delivery_return_reason = None
+                    r.delivery_return_category = None
+                    r.valor_devolucao = None
+                    r.devolucao_volume = None
                     session.add(r)
-                    auto_closed_as_return += 1
+                    auto_closed_count += 1
             else:
                 return JSONResponse(
                     {
@@ -6523,11 +6535,11 @@ async def api_mobile_delivery_session_end(
             {
                 "success": True,
                 "session_date": ds.date,
-                "auto_closed_as_return": auto_closed_as_return,
+                "auto_closed_count": auto_closed_count,
                 "message": (
                     f"Rota de {ds.date} encerrada com fechamento tardio. "
-                    f"{auto_closed_as_return} parada(s) pendente(s) foram marcadas como devolução automática."
-                    if auto_closed_as_return > 0
+                    f"{auto_closed_count} parada(s) pendente(s) foram marcadas como entregues (concluídas)."
+                    if auto_closed_count > 0
                     else "Rota encerrada com sucesso."
                 ),
             }

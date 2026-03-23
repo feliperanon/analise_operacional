@@ -704,6 +704,9 @@ def _build_bi_delivery_dataset(
 
     for r in routes:
         status_raw = (r.delivery_status or "pendente").strip().lower()
+        # Legacy: encerramento automático foi marcado como devolução por engano → tratar como entregue
+        if status_raw == "devolucao" and (r.delivery_return_reason or "").strip().upper() == "ENCERRAMENTO TARDIO AUTOMATICO":
+            status_raw = "entregue"
         emp = emp_map.get(r.employee_id)
         cli = cli_map.get(r.client_id)
         driver = emp.name if emp else f"Motorista #{r.employee_id}"
@@ -927,8 +930,12 @@ def _build_bi_delivery_dataset(
         recommendations.append("Atuar na fila de pendentes com prioridade por maior impacto.")
     if avg_duration >= 120:
         recommendations.append("Tempo medio elevado: revisar sequencia e janela de entrega.")
-    if motivo_agg:
-        top_motivo_val = max(motivo_agg.values(), key=lambda x: x["valor"])
+    # Exclui "Não informado" / "Nao informado" dos gráficos (devem vir de dados mal preenchidos)
+    _nao_inf = ("nao informado", "não informado")
+    motivo_agg_ok = {k: v for k, v in motivo_agg.items() if (k or "").strip().lower() not in _nao_inf}
+    resp_agg_ok = {k: v for k, v in resp_agg.items() if (k or "").strip().lower() not in _nao_inf}
+    if motivo_agg_ok:
+        top_motivo_val = max(motivo_agg_ok.values(), key=lambda x: x["valor"])
         recommendations.append(f"Estudo 80/20: atacar primeiro o motivo '{top_motivo_val['motivo']}' (R$ {_fmt_br_2(top_motivo_val['valor'])}).")
     if client_returns:
         top_cliente, top_d = max(client_returns.items(), key=lambda x: x[1]["qtd"])
@@ -938,15 +945,17 @@ def _build_bi_delivery_dataset(
     if not recommendations:
         recommendations.append("Operacao estavel no periodo; manter monitoramento diario.")
 
-    total_mot = sum(v["qtd"] for v in motivo_agg.values()) or 1
-    motivos_rows = sorted([{"motivo": v["motivo"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2), "pct": round(v["qtd"] / total_mot * 100.0, 2)} for v in motivo_agg.values()], key=lambda x: (x["qtd"], x["valor"]), reverse=True)
+    total_mot = sum(v["qtd"] for v in motivo_agg_ok.values()) or 1
+    motivos_rows = sorted([{"motivo": v["motivo"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2), "pct": round(v["qtd"] / total_mot * 100.0, 2)} for v in motivo_agg_ok.values()], key=lambda x: (x["qtd"], x["valor"]), reverse=True)
 
     # Motivo x Motorista x Qtd x Valor x % valor real (para gráfico detalhado)
     motivo_motorista: dict[str, dict[str, dict]] = {}
     for r in route_rows:
         if r.get("status") != "devolucao" or (r.get("returned_value") or 0) <= 0:
             continue
-        motivo = r.get("motivo") or "Nao informado"
+        motivo = (r.get("motivo") or "").strip() or "Nao informado"
+        if motivo.upper() == "ENCERRAMENTO TARDIO AUTOMATICO" or motivo.lower() in _nao_inf:
+            continue
         driver = r.get("driver_name") or "-"
         val = float(r.get("returned_value") or 0.0)
         motivo_motorista.setdefault(motivo, {})
@@ -967,7 +976,7 @@ def _build_bi_delivery_dataset(
         row["valor"] = round(row["valor"], 2)
         row["pct"] = round(row["qtd"] / total_mot * 100.0, 2) if total_mot else 0.0
         motivos_detailed.append(row)
-    resp_rows = sorted([{"responsabilidade": v["responsabilidade"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2)} for v in resp_agg.values()], key=lambda x: x["qtd"], reverse=True)
+    resp_rows = sorted([{"responsabilidade": v["responsabilidade"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2)} for v in resp_agg_ok.values()], key=lambda x: x["qtd"], reverse=True)
     cluster_rows = sorted([{"cluster": v["cluster"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2)} for v in cluster_agg.values()], key=lambda x: x["valor"], reverse=True)
 
     # Motorista x Responsabilidade x Valor: valor devolvido por motorista e responsabilidade, % devolução baseada em valor real
@@ -975,8 +984,13 @@ def _build_bi_delivery_dataset(
     for r in route_rows:
         if r.get("status") != "devolucao" or (r.get("returned_value") or 0) <= 0:
             continue
+        motivo_raw = (r.get("motivo") or "").strip().upper()
+        if motivo_raw == "ENCERRAMENTO TARDIO AUTOMATICO":
+            continue
         drv = r.get("driver_name") or "-"
-        resp = r.get("responsabilidade") or "Nao informado"
+        resp = (r.get("responsabilidade") or "").strip() or "Nao informado"
+        if resp.lower() in _nao_inf:
+            continue
         val = float(r.get("returned_value") or 0.0)
         driver_resp_value.setdefault(drv, {})
         driver_resp_value[drv][resp] = round(driver_resp_value[drv].get(resp, 0.0) + val, 2)
