@@ -92,6 +92,18 @@
 {% set history_href = ns.history.href if ns.history else delivery_operation_href %}
 {% set returns_card_href = ns.returns.href if ns.returns else history_href %}
 {% set rhythm_card_href = ns.history.href if ns.history else delivery_operation_href %}
+{% set visible_cards = namespace(primary=0, tools=0) %}
+{% for module in ns.primary %}
+    {% if module.action != "start_separation" %}
+        {% set visible_cards.primary = visible_cards.primary + 1 %}
+    {% endif %}
+{% endfor %}
+{% for module in ns.tools %}
+    {% set tool_label = (module.label or '')|lower %}
+    {% if "devolu" not in tool_label and "checklist" not in tool_label %}
+        {% set visible_cards.tools = visible_cards.tools + 1 %}
+    {% endif %}
+{% endfor %}
 
 <style>
     .preview-dashboard-shell {
@@ -629,7 +641,7 @@
                             </div>
                             <p class="mt-2 text-body-lg leading-relaxed" style="color: rgba(226,232,240,0.92);" x-text="heroStatusMessage">
                                 {% if delivery_total > 0 %}
-                                {{ delivery_open }} parada(s) aguardando execução no dia.
+                                {{ delivery_open }} rota(s) em aberto na operação.
                                 {% else %}
                                 Nenhuma rota lançada por enquanto. O painel continua pronto para a próxima operação.
                                 {% endif %}
@@ -649,23 +661,42 @@
                             <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Progresso</p>
                             <p class="text-body-lg font-bold mt-1 text-white"><span x-text="heroProgressPercent">0</span>%</p>
                         </div>
-                        <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
-                            <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Paradas abertas</p>
-                            <p class="text-body-lg font-bold mt-1" style="color: #fbbf24;" x-text="openDeliveryStops">{{ delivery_open }}</p>
-                        </div>
-                        <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
-                            <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Concluídas</p>
-                            <p class="text-body-lg font-bold mt-1" style="color: #34d399;" x-text="completedDeliveryStops">{{ delivery_completed }}</p>
-                        </div>
-                    </div>
-
-                    <div class="mt-5">
-                        <div class="flex items-center justify-between gap-3 text-caption mb-2">
-                            <span style="color: rgba(148,163,184,0.92);">Execução operacional</span>
-                            <span class="font-semibold" style="color: #bfdbfe;" x-text="completedDeliveryStops + ' de ' + totalDeliveryStops">0 de {{ delivery_total }}</span>
-                        </div>
-                        <div class="preview-progress-track h-3 rounded-full">
-                            <div class="preview-progress-bar h-full rounded-full transition-all duration-500 ease-out" :style="`width: ${heroProgressPercent}%`"></div>
+                        <div class="preview-hero-stat col-span-2 rounded-[24px] px-4 py-4">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Rotas concluídas</p>
+                                    <p class="text-body-lg font-bold mt-1 text-white">
+                                        <span x-text="completedDeliveryStops">{{ delivery_completed }}</span>/<span x-text="totalDeliveryStops">{{ delivery_total }}</span>
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Rotas em aberto</p>
+                                    <p class="text-body-lg font-bold mt-1" style="color: #fbbf24;" x-text="openDeliveryStops">{{ delivery_open }}</p>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <div class="flex items-center justify-between gap-3 text-caption mb-2">
+                                    <span style="color: rgba(148,163,184,0.92);">Andamento da operação</span>
+                                    <span class="font-semibold" style="color: #bfdbfe;" x-text="completedDeliveryStops + '/' + totalDeliveryStops">{{ delivery_completed }}/{{ delivery_total }}</span>
+                                </div>
+                                <div class="preview-progress-track h-3 rounded-full">
+                                    <div class="preview-progress-bar h-full rounded-full transition-all duration-500 ease-out" :style="`width: ${heroProgressPercent}%`"></div>
+                                </div>
+                            </div>
+                            <div class="mt-3 rounded-[18px] px-3.5 py-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(148,163,184,0.10);" x-show="helperNames.length > 0">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
+                                        <i data-lucide="users" class="w-4.5 h-4.5"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Ajudantes</p>
+                                        <p class="text-body mt-1 text-white" x-text="helperNames.join(', ')">{{ (delivery_summary.helper_names or [])|join(', ') }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mt-3 text-caption" style="color: rgba(148,163,184,0.92);" x-show="helperNames.length === 0">
+                                Sem ajudantes informados.
+                            </p>
                         </div>
                     </div>
 
@@ -696,7 +727,7 @@
                             <div class="min-w-0">
                                 <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Leitura rápida</p>
                                 <p class="text-body mt-1 text-white" x-text="heroSupportMessage">
-                                    {{ delivery_completed }} concluída(s) e {{ delivery_open }} ainda abertas.
+                                    {{ delivery_completed }} concluída(s) e {{ delivery_open }} em aberto.
                                 </p>
                             </div>
                             <div class="flex items-center gap-2 flex-shrink-0">
@@ -790,7 +821,7 @@
                     <div class="mt-3 flex items-end justify-between gap-3">
                         <div>
                             <p class="text-title text-white" x-text="completedDeliveryStops">0</p>
-                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Paradas concluídas hoje</p>
+                            <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">Rotas concluídas no período</p>
                         </div>
                         <div class="w-11 h-11 rounded-2xl flex items-center justify-center" style="background: rgba(59,130,246,0.14); color: #93c5fd;">
                             <i data-lucide="flag" class="w-5 h-5"></i>
@@ -801,15 +832,12 @@
 
             {% if modules and modules|length > 0 %}
             <section id="modules-preview" class="space-y-5 preview-fade-up">
-                <div class="flex items-end justify-between gap-3">
-                    <div>
-                        <p class="preview-section-label">Navegação operacional</p>
-                        <h2 class="text-title text-white mt-1">Fluxos organizados por uso</h2>
-                    </div>
-                    <a href="#quick-access-preview" class="text-caption font-semibold" style="color: #93c5fd;">Atalhos</a>
+                <div>
+                    <p class="preview-section-label">Navegação operacional</p>
+                    <h2 class="text-title text-white mt-1">Fluxos organizados por uso</h2>
                 </div>
 
-                {% if ns.primary|length > 1 or (ns.primary|length == 1 and ns.primary[0].action != "start_separation") %}
+                {% if visible_cards.primary > 0 %}
                 <div class="space-y-2">
                     <div>
                         <p class="text-body font-semibold text-white">Operações complementares</p>
@@ -825,7 +853,7 @@
                 </div>
                 {% endif %}
 
-                {% if ns.tools|length > 1 or (ns.tools|length == 1 and "devolu" not in (ns.tools[0].label or '')|lower) %}
+                {% if visible_cards.tools > 0 %}
                 <div class="space-y-2">
                     <div>
                         <p class="text-body font-semibold text-white">Ferramentas do turno</p>
@@ -833,7 +861,7 @@
                     </div>
                     <div class="space-y-2">
                         {% for module in ns.tools %}
-                            {% if "devolu" not in (module.label or '')|lower %}
+                            {% if "devolu" not in (module.label or '')|lower and "checklist" not in (module.label or '')|lower %}
                             {{ render_dashboard_module(module, 'tool') }}
                             {% endif %}
                         {% endfor %}
@@ -856,53 +884,6 @@
                 {% endif %}
             </section>
             {% endif %}
-
-            <section id="quick-access-preview" class="space-y-3 preview-fade-up">
-                <div class="flex items-end justify-between gap-3">
-                    <div>
-                        <p class="preview-section-label">Acesso rápido</p>
-                        <h2 class="text-title text-white mt-1">Atalhos úteis no turno</h2>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <a href="/mobile/achievements" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(245,158,11,0.14); border: 1px solid rgba(245,158,11,0.18); color: #fbbf24;">
-                        <i data-lucide="trophy" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold">Conquistas</span>
-                    </a>
-                    <button type="button" @click="showDateFilter = true" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3 text-left" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
-                        <i data-lucide="calendar-range" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold" x-text="dateFilterLabel">Entregas do mês</span>
-                    </button>
-                    {% if ns.history %}
-                    <a href="{{ history_href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(148,163,184,0.14); border: 1px solid rgba(148,163,184,0.16); color: #cbd5e1;">
-                        <i data-lucide="history" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold">Histórico</span>
-                    </a>
-                    {% endif %}
-                    {% if ns.checklist %}
-                    <a href="{{ ns.checklist.href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
-                        <i data-lucide="clipboard-check" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold">Checklist</span>
-                    </a>
-                    {% else %}
-                    <a href="{{ delivery_operation_href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(59,130,246,0.14); border: 1px solid rgba(59,130,246,0.18); color: #93c5fd;">
-                        <i data-lucide="truck" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold">Operação</span>
-                    </a>
-                    {% endif %}
-                    {% if ns.gatehouse %}
-                    <a href="{{ ns.gatehouse.href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(96,165,250,0.14); border: 1px solid rgba(96,165,250,0.18); color: #93c5fd;">
-                        <i data-lucide="shield" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold">Portaria</span>
-                    </a>
-                    {% elif not ns.checklist %}
-                    <a href="{{ delivery_hub_href }}" class="preview-quick-link rounded-[22px] px-4 py-4 flex items-center gap-3" style="background: rgba(15,23,42,0.62); border: 1px solid rgba(148,163,184,0.16); color: #cbd5e1;">
-                        <i data-lucide="layout-grid" class="w-4.5 h-4.5"></i>
-                        <span class="text-body font-semibold">Painel</span>
-                    </a>
-                    {% endif %}
-                </div>
-            </section>
 
             {% if time_bonuses %}
             <section class="space-y-2 preview-fade-up">
@@ -1010,9 +991,9 @@
                             <span class="block mt-1 text-[11px] font-semibold">Histórico</span>
                         </a>
                         {% else %}
-                        <a href="#quick-access-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
-                            <i data-lucide="flashlight" class="w-4.5 h-4.5 mx-auto"></i>
-                            <span class="block mt-1 text-[11px] font-semibold">Atalhos</span>
+                        <a href="#modules-preview" class="preview-bottom-link rounded-[18px] px-2 py-2.5 text-center" style="color: rgba(226,232,240,0.86);">
+                            <i data-lucide="layout-grid" class="w-4.5 h-4.5 mx-auto"></i>
+                            <span class="block mt-1 text-[11px] font-semibold">Módulos</span>
                         </a>
                         {% endif %}
 
@@ -1742,6 +1723,7 @@
             selectedDeliveryDay: '',
             deliverySessionOpen: false,
             assignedPlate: '',
+            helperNames: {{ delivery_helper_names | safe }},
             showDeliverySetupModal: false,
             showDeliveryEndModal: false,
             deliveryEndKm: '',
@@ -1789,15 +1771,15 @@
                     return 'Nenhuma rota lançada por enquanto. O painel continua pronto para a próxima operação.';
                 }
                 if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) {
-                    return `${this.completedDeliveryStops} parada(s) concluída(s) hoje.`;
+                    return `${this.completedDeliveryStops} rota(s) concluída(s) no período.`;
                 }
                 if (this.inProgressDeliveryRoute?.client_name) {
                     return `Entrega em andamento para ${this.inProgressDeliveryRoute.client_name}.`;
                 }
                 if (this.completedDeliveryStops > 0) {
-                    return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} pendente(s) para hoje.`;
+                    return `${this.completedDeliveryStops} rota(s) concluída(s) e ${this.openDeliveryStops} em aberto no período.`;
                 }
-                return `${this.openDeliveryStops} parada(s) aguardando execução no dia.`;
+                return `${this.openDeliveryStops} rota(s) em aberto na operação.`;
             },
             get heroSupportMessage() {
                 if (this.inProgressDeliveryRoute?.client_name) {
@@ -1807,7 +1789,7 @@
                     return `Sessão aberta na placa ${this.assignedPlate}.`;
                 }
                 if (!this.totalDeliveryStops) return 'Sem rota lançada agora. Abra o módulo para acompanhar novas liberações.';
-                return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} ainda abertas.`;
+                return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} em aberto.`;
             },
             get heroActionLabel() {
                 if (!this.totalDeliveryStops) return 'Abrir módulo de entregas';
@@ -2244,14 +2226,17 @@
                         if (!this.selectedDeliveryDay) {
                             this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
                         } else if (!this.deliveryDayCards.find(c => c.date === this.selectedDeliveryDay)) {
-                            this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
-                        }
-                        this.deliverySessionOpen = !!data.session_open;
-                        this.assignedPlate = data.assigned_plate || '';
-                        this.mobileReturnReasons = data.return_reasons || [];
-                        if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
-                            this.mobileReturn.reason = this.mobileReturnReasons[0];
-                        }
+                        this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
+                    }
+                    this.deliverySessionOpen = !!data.session_open;
+                    this.assignedPlate = data.assigned_plate || '';
+                    this.helperNames = Array.isArray(data.helper_names)
+                        ? data.helper_names.filter(name => String(name || '').trim()).slice(0, 3)
+                        : [];
+                    this.mobileReturnReasons = data.return_reasons || [];
+                    if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
+                        this.mobileReturn.reason = this.mobileReturnReasons[0];
+                    }
                     });
             },
 

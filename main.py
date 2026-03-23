@@ -4078,6 +4078,7 @@ def _build_mobile_dashboard_delivery_summary(session: Session, employee: Any) ->
             "open_today": 0,
             "completed_today": 0,
             "assigned_plate": "",
+            "helper_names": [],
             "routes_today_list": [],
         }
 
@@ -4109,6 +4110,34 @@ def _build_mobile_dashboard_delivery_summary(session: Session, employee: Any) ->
         ),
         "",
     )
+    session_today = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == employee.id)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.status == "open")
+        .order_by(desc(models.DeliverySession.id))
+    ).first()
+    helper_names = _parse_session_helpers(session_today.helpers_json) if session_today and getattr(session_today, "helpers_json", None) else []
+    if not helper_names:
+        helper_ids: List[int] = []
+        for route in routes_today:
+            helper_ids.extend(_parse_route_helper_ids(getattr(route, "delivery_helpers_json", None)))
+        ordered_helper_ids = list(dict.fromkeys(int(helper_id) for helper_id in helper_ids if helper_id))
+        if ordered_helper_ids:
+            helper_rows = session.exec(
+                select(models.Employee.id, models.Employee.name)
+                .where(models.Employee.id.in_(ordered_helper_ids))
+            ).all()
+            helper_map = {
+                int(helper_id): _emp_name_upper(helper_name)
+                for helper_id, helper_name in helper_rows
+                if helper_id is not None and helper_name
+            }
+            helper_names = [
+                helper_map.get(helper_id) or f"Ajudante #{helper_id}"
+                for helper_id in ordered_helper_ids
+            ]
+    helper_names = [str(name).strip() for name in helper_names if str(name or "").strip()][:3]
 
     # Lista serializável para o dashboard (active_routes / completed_routes e API-like para o JS)
     client_ids = list({r.client_id for r in routes_today if r.client_id})
@@ -4140,6 +4169,7 @@ def _build_mobile_dashboard_delivery_summary(session: Session, employee: Any) ->
         "open_today": open_today,
         "completed_today": completed_today,
         "assigned_plate": assigned_plate,
+        "helper_names": helper_names,
         "routes_today_list": routes_today_list,
     }
 
@@ -4505,6 +4535,7 @@ def _render_mobile_dashboard_template(
             "returns_alert": json.dumps(returns_alert, ensure_ascii=False),
             "returns_alert_data": returns_alert if has_returns_access else None,
             "delivery_summary": delivery_summary,
+            "delivery_helper_names": json.dumps(delivery_summary.get("helper_names") or [], ensure_ascii=False),
         },
     )
 
@@ -6194,6 +6225,29 @@ async def api_mobile_delivery_my_routes(
         if session_open and is_helper_view:
             drv = session.get(models.Employee, session_open.employee_id)
             driver_name = (drv.name or "") if drv else ""
+        helper_names = _parse_session_helpers(session_open.helpers_json) if session_open and getattr(session_open, "helpers_json", None) else []
+        if not helper_names:
+            today_helper_ids: List[int] = []
+            for route in routes:
+                if route.date != today_str:
+                    continue
+                today_helper_ids.extend(_parse_route_helper_ids(getattr(route, "delivery_helpers_json", None)))
+            ordered_helper_ids = list(dict.fromkeys(int(helper_id) for helper_id in today_helper_ids if helper_id))
+            if ordered_helper_ids:
+                helper_rows = session.exec(
+                    select(models.Employee.id, models.Employee.name)
+                    .where(models.Employee.id.in_(ordered_helper_ids))
+                ).all()
+                helper_map = {
+                    int(helper_id): _emp_name_upper(helper_name)
+                    for helper_id, helper_name in helper_rows
+                    if helper_id is not None and helper_name
+                }
+                helper_names = [
+                    helper_map.get(helper_id) or f"Ajudante #{helper_id}"
+                    for helper_id in ordered_helper_ids
+                ]
+        helper_names = [str(name).strip() for name in helper_names if str(name or "").strip()][:3]
 
         closed_session_today = None
         if not session_open and not is_helper_view and user_id:
@@ -6219,6 +6273,7 @@ async def api_mobile_delivery_my_routes(
             "session_open": bool(session_open),
             "is_helper_view": is_helper_view,
             "driver_name": driver_name,
+            "helper_names": helper_names,
             "session": {
                 "id": session_open.id if session_open else None,
                 "date": session_open.date if session_open else None,
