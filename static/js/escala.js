@@ -45,10 +45,15 @@
                     const r = await fetch(`/escala/api/data?${params}`);
                     const data = await r.json();
                     this.apiData = data;
+                    const s = data.summary || {};
                     this.summary = {
-                        total: data.summary?.total ?? 0,
-                        completas: data.summary?.completas ?? 0,
-                        pendentes: data.summary?.pendentes ?? 0
+                        total: s.total ?? 0,
+                        completas: s.completas ?? 0,
+                        pendentes: s.pendentes ?? 0,
+                        motoristas: s.motoristas ?? (data.motoristas_todos || []).length,
+                        ajudantes: s.ajudantes ?? (data.ajudantes_todos || []).length,
+                        escalados: s.escalados ?? s.completas ?? 0,
+                        sem_escala: s.sem_escala ?? ((data.motoristas_disponiveis || []).length + (data.ajudantes_disponiveis || []).length)
                     };
                     this.escalas = data.escalas || [];
                     if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);

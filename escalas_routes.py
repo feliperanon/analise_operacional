@@ -223,13 +223,26 @@ def _build_escala_groups(
         alocados_helper.update(e["helper_ids"])
     alocados_plate = {_norm_plate(e["vehicle_plate"]) for e in escalas if _norm_plate(e["vehicle_plate"])}
 
+    alocados_driver = {e["employee_id"] for e in escalas}
+    alocados_helper = set()
+    for e in escalas:
+        alocados_helper.update(e["helper_ids"])
+    completas = sum(1 for e in escalas if e["escala_status"] == "escalado" and e["vehicle_plate"] and e["vehicle_plate"] != "-")
+    pendentes = sum(1 for e in escalas if e["escala_status"] in ("nao_escalado", "pendencia"))
+    motoristas_sem_escala = len([m for m in motoristas if m.id not in alocados_driver])
+    ajudantes_sem_escala = len([a for a in ajudantes if a.id not in alocados_helper])
+
     summary = {
         "total": len(escalas),
-        "completas": sum(1 for e in escalas if e["escala_status"] == "escalado" and e["vehicle_plate"] and e["vehicle_plate"] != "-"),
-        "pendentes": sum(1 for e in escalas if e["escala_status"] in ("nao_escalado", "pendencia")),
+        "completas": completas,
+        "pendentes": pendentes,
         "em_ajuste": sum(1 for e in escalas if e["escala_status"] == "em_ajuste"),
         "peso_total": round(sum(e["total_weight"] for e in escalas), 2),
         "valor_total": round(sum(e["total_value"] for e in escalas), 2),
+        "motoristas": len(motoristas),
+        "ajudantes": len(ajudantes),
+        "escalados": completas,
+        "sem_escala": motoristas_sem_escala + ajudantes_sem_escala,
     }
 
     return summary, escalas, motoristas, ajudantes, vehicles
