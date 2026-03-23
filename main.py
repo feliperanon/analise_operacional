@@ -6135,10 +6135,24 @@ async def api_mobile_delivery_my_routes(
             payload.append(item)
             grouped.setdefault(r.date, []).append(item)
 
+        # Placas para iniciar sessão devem refletir o planejamento de HOJE
+        # (o endpoint /session/start valida apenas as rotas de hoje).
+        startable_today = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.employee_id == driver_id)
+            .where(models.Route.date == today_str)
+            .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+        ).all()
         assigned_plates = []
-        for r in routes:
+        for r in startable_today:
             if r.delivery_vehicle_plate and r.delivery_vehicle_plate not in assigned_plates:
                 assigned_plates.append(r.delivery_vehicle_plate)
+        if not assigned_plates:
+            # fallback visual: mostra a(s) placa(s) de hoje mesmo sem rota startable
+            for r in routes:
+                if r.date == today_str and r.delivery_vehicle_plate and r.delivery_vehicle_plate not in assigned_plates:
+                    assigned_plates.append(r.delivery_vehicle_plate)
 
         session_date = session_open.date if session_open else None
         day_cards = []
