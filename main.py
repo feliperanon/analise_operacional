@@ -5912,36 +5912,40 @@ async def api_mobile_delivery_my_routes(
         # Regras:
         # - Fecha apenas sessões abertas anteriores a hoje (janela de 7 dias).
         # - Qualquer parada pendente/iniciada/reaberta vira devolução automática.
-        stale_sessions = session.exec(
-            select(models.DeliverySession)
-            .where(models.DeliverySession.employee_id == user_id)
-            .where(models.DeliverySession.date >= week_ago_str)
-            .where(models.DeliverySession.date < today_str)
-            .where(models.DeliverySession.status == "open")
-            .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
-        ).all()
-        if stale_sessions:
-            now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
-            for ds_old in stale_sessions:
-                old_pending = session.exec(
-                    select(models.Route)
-                    .where(models.Route.type == "delivery")
-                    .where(models.Route.employee_id == ds_old.employee_id)
-                    .where(models.Route.date == ds_old.date)
-                    .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
-                ).all()
-                for r in old_pending:
-                    r.delivery_status = "devolucao"
-                    r.delivery_returned_at = now_sp
-                    if not (r.delivery_return_reason or "").strip():
-                        r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
-                    session.add(r)
-                ds_old.status = "closed"
-                ds_old.ended_at = now_sp
-                if ds_old.km_return is None and ds_old.km_departure is not None:
-                    ds_old.km_return = ds_old.km_departure
-                session.add(ds_old)
-            session.commit()
+        try:
+            stale_sessions = session.exec(
+                select(models.DeliverySession)
+                .where(models.DeliverySession.employee_id == user_id)
+                .where(models.DeliverySession.date >= week_ago_str)
+                .where(models.DeliverySession.date < today_str)
+                .where(models.DeliverySession.status == "open")
+                .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
+            ).all()
+            if stale_sessions:
+                now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                for ds_old in stale_sessions:
+                    old_pending = session.exec(
+                        select(models.Route)
+                        .where(models.Route.type == "delivery")
+                        .where(models.Route.employee_id == ds_old.employee_id)
+                        .where(models.Route.date == ds_old.date)
+                        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+                    ).all()
+                    for r in old_pending:
+                        r.delivery_status = "devolucao"
+                        r.delivery_returned_at = now_sp
+                        if not (r.delivery_return_reason or "").strip():
+                            r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
+                        session.add(r)
+                    ds_old.status = "closed"
+                    ds_old.ended_at = now_sp
+                    if ds_old.km_return is None and ds_old.km_departure is not None:
+                        ds_old.km_return = ds_old.km_departure
+                    session.add(ds_old)
+                session.commit()
+        except Exception as e_autoclose:
+            logger.error(f"[DeliveryAutoClose] Falha no fechamento automático para user={user_id}: {e_autoclose}")
+            session.rollback()
 
         # 1. Tenta sessão de hoje (motorista)
         session_open = session.exec(
