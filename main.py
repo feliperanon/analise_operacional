@@ -36,6 +36,7 @@ from bi_delivery_routes import router as bi_delivery_router
 from bi_motorista_routes import router as bi_motorista_router
 from devolucoes_routes import init_devolucoes_router
 from documentos_routes import init_documentos_router, ensure_doc_setores_seed
+from escalas_routes import init_escalas_router
 from devolucoes_service import sync_route_to_devolucao
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
@@ -1191,7 +1192,7 @@ def is_google_enabled() -> bool:
 PAGE_OPTIONS = [
     {"key": "lider", "label": "Líder", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/lider", "/api/lider"]},
     {"key": "gerente", "label": "Gerente", "path": "/gm/ordens-servico", "prefixes": ["/gm", "/api/gm"]},
-    {"key": "processos", "label": "Processos", "path": "/separacao", "prefixes": ["/separacao", "/devolucoes", "/operational/history"]},
+    {"key": "processos", "label": "Processos", "path": "/separacao", "prefixes": ["/separacao", "/escala", "/devolucoes", "/operational/history"]},
     {"key": "padronizacao", "label": "Processos e Padronização", "path": "/documentos", "prefixes": ["/documentos", "/api/documentos"]},
     {"key": "rotinas", "label": "Rotinas & Checklists", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "oficina", "label": "Oficina", "path": "/vehicles", "prefixes": ["/vehicles", "/admin/equipment/tickets"]},
@@ -4998,6 +4999,7 @@ async def api_mobile_delivery_history(
 
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger))
 app.include_router(init_documentos_router(templates=templates, require_login=require_login))
+app.include_router(init_escalas_router(templates=templates))
 app.include_router(init_game_achievements_router(templates=templates, require_leader=require_leader, require_login=require_login, logger=logger))
 app.include_router(init_game_audit_router(require_login=require_login, require_leader=require_leader))
 app.include_router(init_admin_geocoding_router(require_leader=require_leader))

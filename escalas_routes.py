@@ -54,10 +54,11 @@ def _get_user_label(request: Request) -> str:
     return "sistema"
 
 
-def _require_login(request: Request):
+def _require_login(request: Request, is_api: bool = False):
     uid = request.session.get("user_id") or request.session.get("auth_user_id")
     if not uid:
-        from fastapi.responses import RedirectResponse
+        if is_api:
+            return JSONResponse({"error": "Não autorizado. Faça login."}, status_code=401)
         return RedirectResponse(url="/login", status_code=302)
     return None
 
@@ -128,6 +129,8 @@ def _build_escala_groups(
             except Exception:
                 pass
 
+            has_plate = bool((r.delivery_vehicle_plate or "").strip()) and (r.delivery_vehicle_plate or "").strip() != "-"
+            default_status = "nao_escalado" if not has_plate else "escalado"
             groups[key] = {
                 "date": r.date,
                 "employee_id": r.employee_id,
@@ -137,7 +140,7 @@ def _build_escala_groups(
                 "total_value": 0.0,
                 "total_qty": 0,
                 "route_ids": [],
-                "escala_status": (r.escala_status or "escalado").strip() or "escalado",
+                "escala_status": (r.escala_status or "").strip() or default_status,
             }
         g = groups[key]
         g["total_weight"] += _safe_float(r.tonnage)
@@ -200,8 +203,9 @@ async def escala_page(
     shift: str = "Manhã",
     session: Session = Depends(get_session),
 ):
-    if _require_login(request):
-        return _require_login(request)
+    redir = _require_login(request, is_api=False)
+    if redir:
+        return redir
 
     today = datetime.now().strftime("%Y-%m-%d")
     date = date or today
@@ -232,8 +236,9 @@ async def escala_api_data(
     shift: str = "Manhã",
     session: Session = Depends(get_session),
 ):
-    if _require_login(request):
-        return _require_login(request)
+    redir = _require_login(request, is_api=True)
+    if redir:
+        return redir
 
     today = datetime.now().strftime("%Y-%m-%d")
     date = date or today
@@ -264,8 +269,9 @@ async def escala_api_atualizar(
     request: Request,
     session: Session = Depends(get_session),
 ):
-    if _require_login(request):
-        return _require_login(request)
+    redir = _require_login(request, is_api=True)
+    if redir:
+        return redir
 
     try:
         body = await request.json()
