@@ -170,7 +170,7 @@
             </div>
             <div class="overflow-y-auto p-4 space-y-1 flex-1">
                 <template x-if="quickChange.campo === 'motorista'">
-                    <template x-for="m in apiData.motoristas_disponiveis || []" :key="m.id">
+                    <template x-for="m in (apiData.motoristas_todos || apiData.motoristas_disponiveis || [])" :key="m.id">
                         <button @click="applyQuickChange(m.id, null, null)"
                                 class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-slate-700/80 text-sm text-white flex items-center gap-2">
                             <i data-lucide="user" class="w-4 h-4 text-slate-500 shrink-0"></i>
@@ -190,7 +190,7 @@
                 <template x-if="quickChange.campo === 'ajudante'">
                     <div class="space-y-2">
                         <p class="text-xs text-slate-500 mb-2">Selecione ajudantes (múltipla escolha)</p>
-                        <template x-for="a in (apiData.ajudantes_disponiveis || [])" :key="a.id">
+                        <template x-for="a in (apiData.ajudantes_todos || apiData.ajudantes_disponiveis || [])" :key="a.id">
                             <label class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-700/50 cursor-pointer">
                                 <input type="checkbox" :value="a.id" x-model="quickChange.ajudantesSelected">
                                 <span class="text-sm text-white" x-text="a.name"></span>
