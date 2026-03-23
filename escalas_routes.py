@@ -428,6 +428,45 @@ async def escala_api_atualizar(
 
 _templates = None
 
+mobile_escala_router = APIRouter(tags=["mobile-escala"])
+
+
+@mobile_escala_router.get("/mobile/escala", response_class=HTMLResponse)
+async def mobile_escala_page(
+    request: Request,
+    date: Optional[str] = None,
+    shift: str = "Manhã",
+    session: Session = Depends(get_session),
+):
+    """Escala Operacional acessível em /mobile/escala para colaboradores."""
+    redir = _require_login(request, is_api=False)
+    if redir:
+        return redir
+    perm = _check_escala_access(request, session, is_api=False)
+    if perm:
+        return perm
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    date = date or today
+
+    summary, escalas, motoristas, ajudantes, vehicles = _build_escala_groups(session, date, shift)
+
+    return _templates.TemplateResponse(
+        "escala.html",
+        {
+            "request": request,
+            "selected_date": date,
+            "selected_shift": shift,
+            "shifts": SHIFTS,
+            "summary": summary,
+            "escalas": escalas,
+            "motoristas": motoristas,
+            "ajudantes": ajudantes,
+            "vehicles": vehicles,
+            "today": today,
+        },
+    )
+
 
 def init_escalas_router(templates):
     """Retorna o router. Configura templates para as rotas."""

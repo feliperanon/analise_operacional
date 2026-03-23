@@ -36,7 +36,7 @@ from bi_delivery_routes import router as bi_delivery_router
 from bi_motorista_routes import router as bi_motorista_router
 from devolucoes_routes import init_devolucoes_router
 from documentos_routes import init_documentos_router, ensure_doc_setores_seed
-from escalas_routes import init_escalas_router
+from escalas_routes import init_escalas_router, mobile_escala_router
 from devolucoes_service import sync_route_to_devolucao
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
@@ -2243,9 +2243,9 @@ def require_login(request: Request):
                 raise HTTPException(status_code=403, detail="Acesso negado.")
         return user
 
-    # User is Employee (dict) -> RESTRICTED TO /mobile ONLY
+    # User is Employee (dict) -> RESTRICTED TO /mobile ONLY (+ /escala para API da Escala)
     if isinstance(user, dict) and user.get("type") == "employee":
-        if not path.startswith("/mobile") and not path.startswith("/static") and not path.startswith("/api"):
+        if not path.startswith("/mobile") and not path.startswith("/static") and not path.startswith("/api") and not path.startswith("/escala"):
             # Trying to access Desktop/Admin page -> Redirect to Mobile Dashboard
             # e.g. /smart-flow, /employees, /
             print(f"ðŸâ€â€™ Access Denied: Mobile User {user.get('id')} tried to access {path}")
@@ -4516,7 +4516,7 @@ def _render_mobile_dashboard_template(
             "label": "Escala",
             "description": "Acompanhar escala operacional de motoristas, ajudantes e caminhões.",
             "icon": "calendar-days",
-            "href": "/escala",
+            "href": "/mobile/escala",
             "tone": "consult",
         })
     if has_admin_start_access:
@@ -4615,14 +4615,14 @@ def _render_mobile_dashboard_template(
         if has_gatehouse_access:
             _push_nav_item("gatehouse", "Portaria", "/mobile/portaria", "shield")
         if has_escala_access:
-            _push_nav_item("escala", "Escala", "/escala", "calendar-days")
+            _push_nav_item("escala", "Escala", "/mobile/escala", "calendar-days")
         if has_admin_start_access:
             _push_nav_item("manage_routes", "Rotas", "/mobile/admin/routes", "route")
     else:
         if has_gatehouse_access:
             _push_nav_item("gatehouse", "Portaria", "/mobile/portaria", "shield")
         if has_escala_access:
-            _push_nav_item("escala", "Escala", "/escala", "calendar-days")
+            _push_nav_item("escala", "Escala", "/mobile/escala", "calendar-days")
         if has_admin_start_access:
             _push_nav_item("manage_routes", "Rotas", "/mobile/admin/routes", "route")
         if show_checklist_nav:
@@ -5144,6 +5144,7 @@ async def api_mobile_delivery_history(
 app.include_router(init_devolucoes_router(templates=templates, require_login=require_login, logger=logger))
 app.include_router(init_documentos_router(templates=templates, require_login=require_login))
 app.include_router(init_escalas_router(templates=templates))
+app.include_router(mobile_escala_router)
 app.include_router(init_game_achievements_router(templates=templates, require_leader=require_leader, require_login=require_login, logger=logger))
 app.include_router(init_game_audit_router(require_login=require_login, require_leader=require_leader))
 app.include_router(init_admin_geocoding_router(require_leader=require_leader))
