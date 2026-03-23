@@ -6284,99 +6284,104 @@ async def api_mobile_delivery_session_end(
     payload: MobileDeliverySessionEndPayload,
     session: Session = Depends(get_session)
 ):
-    user_id = request.session.get("user_id")
-    if not user_id:
-        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
     try:
-        user_id = int(user_id)
-    except (TypeError, ValueError):
-        return JSONResponse({"success": False, "error": "Sessão inválida"}, status_code=401)
-    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    km = getattr(payload, "km_return", None)
-    if km is None or (isinstance(km, (int, float)) and (km != km or km <= 0)):  # NaN or <=0
-        return JSONResponse({"success": False, "error": "KM de chegada obrigatório e deve ser maior que zero."}, status_code=400)
-    ds = session.exec(
-        select(models.DeliverySession)
-        .where(models.DeliverySession.employee_id == user_id)
-        .where(models.DeliverySession.date == today_str)
-        .where(models.DeliverySession.status == "open")
-        .order_by(models.DeliverySession.id.desc())
-    ).first()
-    # Fallback: sessão órfã aberta em dia anterior (ex.: sexta-feira), ainda visível no app.
-    # Permite encerrar a sessão realmente aberta para destravar o início do dia atual.
-    if not ds:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+        try:
+            user_id = int(user_id)
+        except (TypeError, ValueError):
+            return JSONResponse({"success": False, "error": "Sessão inválida"}, status_code=401)
+
+        now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        today_str = now_sp.strftime("%Y-%m-%d")
+        week_ago_str = (now_sp.date() - timedelta(days=7)).strftime("%Y-%m-%d")
+        km = getattr(payload, "km_return", None)
+        if km is None or (isinstance(km, (int, float)) and (km != km or km <= 0)):  # NaN or <=0
+            return JSONResponse({"success": False, "error": "KM de chegada obrigatório e deve ser maior que zero."}, status_code=400)
+
         ds = session.exec(
             select(models.DeliverySession)
             .where(models.DeliverySession.employee_id == user_id)
-            .where(models.DeliverySession.date >= week_ago_str)
-            .where(models.DeliverySession.date <= today_str)
+            .where(models.DeliverySession.date == today_str)
             .where(models.DeliverySession.status == "open")
-            .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
+            .order_by(models.DeliverySession.id.desc())
         ).first()
-    if not ds:
-        return JSONResponse({"success": False, "error": "Nenhuma rota aberta para encerrar (hoje ou pendente recente)."}, status_code=400)
-    if km <= 0:
-        return JSONResponse({"success": False, "error": "KM de chegada inválido."}, status_code=400)
 
-    pending = session.exec(
-        select(models.Route)
-        .where(models.Route.type == "delivery")
-        .where(models.Route.date == ds.date)
-        .where(models.Route.employee_id == user_id)
-        .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
-    ).all()
-    auto_closed_as_return = 0
-    if pending:
-        # Sessão antiga: permite fechamento tardio com tratamento automático das pendências
-        # para não bloquear o início da rota do dia atual.
-        if ds.date < today_str:
-            now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
-            for r in pending:
-                r.delivery_status = "devolucao"
-                r.delivery_returned_at = now_sp
-                if not (r.delivery_return_reason or "").strip():
-                    r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
-                session.add(r)
-                auto_closed_as_return += 1
-        else:
-            return JSONResponse(
-                {
-                    "success": False,
-                    "error": f"Ainda existem entregas em aberto na rota de {ds.date}. Finalize ou registre devolução antes de encerrar.",
-                },
-                status_code=400,
-            )
+        # Fallback: sessão órfã aberta em dia anterior (ex.: sexta-feira), ainda visível no app.
+        if not ds:
+            ds = session.exec(
+                select(models.DeliverySession)
+                .where(models.DeliverySession.employee_id == user_id)
+                .where(models.DeliverySession.date >= week_ago_str)
+                .where(models.DeliverySession.date <= today_str)
+                .where(models.DeliverySession.status == "open")
+                .order_by(desc(models.DeliverySession.date), desc(models.DeliverySession.id))
+            ).first()
+        if not ds:
+            return JSONResponse({"success": False, "error": "Nenhuma rota aberta para encerrar (hoje ou pendente recente)."}, status_code=400)
+        if km <= 0:
+            return JSONResponse({"success": False, "error": "KM de chegada inválido."}, status_code=400)
 
-    ds.km_return = km
-    ds.status = "closed"
-    ds.ended_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    session.add(ds)
-    # Atualizar Vehicle.odometer_km com o último KM (histórico)
-    if ds.vehicle_plate:
-        truck = session.exec(
-            select(models.Vehicle)
-            .where(models.Vehicle.placa == ds.vehicle_plate)
-            .where(models.Vehicle.vehicle_type == "caminhao")
-            .where(models.Vehicle.is_active == True)
-        ).first()
-        if truck and (truck.odometer_km is None or float(km) > float(truck.odometer_km or 0)):
-            truck.odometer_km = float(km)
-            truck.updated_at = ds.ended_at
-            session.add(truck)
-    session.commit()
-    return JSONResponse(
-        {
-            "success": True,
-            "session_date": ds.date,
-            "auto_closed_as_return": auto_closed_as_return,
-            "message": (
-                f"Rota de {ds.date} encerrada com fechamento tardio. "
-                f"{auto_closed_as_return} parada(s) pendente(s) foram marcadas como devolução automática."
-                if auto_closed_as_return > 0
-                else "Rota encerrada com sucesso."
-            ),
-        }
-    )
+        pending = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == ds.date)
+            .where(models.Route.employee_id == user_id)
+            .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+        ).all()
+        auto_closed_as_return = 0
+        if pending:
+            if ds.date < today_str:
+                for r in pending:
+                    r.delivery_status = "devolucao"
+                    r.delivery_returned_at = now_sp
+                    if not (r.delivery_return_reason or "").strip():
+                        r.delivery_return_reason = "ENCERRAMENTO TARDIO AUTOMATICO"
+                    session.add(r)
+                    auto_closed_as_return += 1
+            else:
+                return JSONResponse(
+                    {
+                        "success": False,
+                        "error": f"Ainda existem entregas em aberto na rota de {ds.date}. Finalize ou registre devolução antes de encerrar.",
+                    },
+                    status_code=400,
+                )
+
+        ds.km_return = km
+        ds.status = "closed"
+        ds.ended_at = now_sp
+        session.add(ds)
+        if ds.vehicle_plate:
+            truck = session.exec(
+                select(models.Vehicle)
+                .where(models.Vehicle.placa == ds.vehicle_plate)
+                .where(models.Vehicle.vehicle_type == "caminhao")
+                .where(models.Vehicle.is_active == True)
+            ).first()
+            if truck and (truck.odometer_km is None or float(km) > float(truck.odometer_km or 0)):
+                truck.odometer_km = float(km)
+                truck.updated_at = ds.ended_at
+                session.add(truck)
+        session.commit()
+        return JSONResponse(
+            {
+                "success": True,
+                "session_date": ds.date,
+                "auto_closed_as_return": auto_closed_as_return,
+                "message": (
+                    f"Rota de {ds.date} encerrada com fechamento tardio. "
+                    f"{auto_closed_as_return} parada(s) pendente(s) foram marcadas como devolução automática."
+                    if auto_closed_as_return > 0
+                    else "Rota encerrada com sucesso."
+                ),
+            }
+        )
+    except Exception as e:
+        logger.exception("api_mobile_delivery_session_end error: %s", e)
+        session.rollback()
+        return JSONResponse({"success": False, "error": "Erro interno ao encerrar rota. Tente novamente."}, status_code=500)
 
 
 @app.post("/api/mobile/delivery/session/reopen", response_class=JSONResponse)
