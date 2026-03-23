@@ -193,6 +193,10 @@
         border: 1px solid rgba(148,163,184,0.12);
         box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
     }
+    .preview-hero-metric {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(148,163,184,0.10);
+    }
     .preview-action-strip {
         background: rgba(8,15,29,0.42);
         border: 1px solid rgba(148,163,184,0.12);
@@ -251,6 +255,28 @@
         to { opacity: 1; transform: translateY(0); }
     }
     @media (max-width: 640px) {
+        .preview-hero-header {
+            align-items: flex-start;
+        }
+        .preview-hero-summary-grid {
+            grid-template-columns: 1fr;
+        }
+        .preview-hero-support-grid {
+            grid-template-columns: 1fr;
+        }
+        .preview-action-strip {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .preview-action-strip-actions {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        .preview-action-strip-actions > * {
+            text-align: center;
+            justify-content: center;
+        }
         .dashboard-preview-modal {
             align-items: flex-end !important;
             justify-content: stretch !important;
@@ -610,12 +636,12 @@
 
             <section class="preview-hero rounded-[32px] p-5 preview-fade-up">
                 <div class="relative z-10">
-                    <div class="flex items-start justify-between gap-3">
+                    <div class="preview-hero-header flex items-start justify-between gap-3">
                         <div class="min-w-0 flex-1">
                             <p class="preview-section-label">Missão do dia</p>
-                            <div class="mt-2 flex items-center gap-2 flex-wrap">
+                            <div class="mt-2 space-y-2">
                                 <h2 class="text-title-lg text-white">Rota operacional</h2>
-                                <span class="px-2.5 py-1 rounded-full text-caption font-semibold"
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-caption font-semibold"
                                     :class="{
                                         'bg-emerald-500/15 text-emerald-300': totalDeliveryStops > 0 && openDeliveryStops === 0 && completedDeliveryStops > 0,
                                         'bg-blue-500/15 text-blue-300': inProgressDeliveryRoute || deliverySessionOpen,
@@ -639,24 +665,16 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 mt-5">
-                        <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
-                            <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Placa</p>
-                            <p class="text-body-lg font-bold mt-1 text-white" x-text="assignedPlate || '{{ delivery_plate or '—' }}'">{{ delivery_plate or '—' }}</p>
-                        </div>
-                        <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
-                            <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Progresso</p>
-                            <p class="text-body-lg font-bold mt-1 text-white"><span x-text="heroProgressPercent">0</span>%</p>
-                        </div>
-                        <div class="preview-hero-stat col-span-2 rounded-[24px] px-4 py-4">
-                            <div class="flex items-start justify-between gap-4">
-                                <div>
+                    <div class="mt-5 space-y-3">
+                        <div class="preview-hero-stat rounded-[24px] px-4 py-4">
+                            <div class="preview-hero-summary-grid grid grid-cols-2 gap-3">
+                                <div class="preview-hero-metric rounded-[18px] px-3.5 py-3">
                                     <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Rotas concluídas</p>
                                     <p class="text-body-lg font-bold mt-1 text-white">
                                         <span x-text="completedDeliveryStops">{{ delivery_completed }}</span>/<span x-text="totalDeliveryStops">{{ delivery_total }}</span>
                                     </p>
                                 </div>
-                                <div class="text-right">
+                                <div class="preview-hero-metric rounded-[18px] px-3.5 py-3">
                                     <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Rotas em aberto</p>
                                     <p class="text-body-lg font-bold mt-1" style="color: #fbbf24;" x-text="openDeliveryStops">{{ delivery_open }}</p>
                                 </div>
@@ -684,6 +702,16 @@
                             <p class="mt-3 text-caption" style="color: rgba(148,163,184,0.92);" x-show="helperNames.length === 0">
                                 Sem ajudantes informados.
                             </p>
+                        </div>
+                        <div class="preview-hero-support-grid grid grid-cols-2 gap-3">
+                            <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
+                                <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Placa</p>
+                                <p class="text-body-lg font-bold mt-1 text-white" x-text="assignedPlate || '{{ delivery_plate or '—' }}'">{{ delivery_plate or '—' }}</p>
+                            </div>
+                            <div class="preview-hero-stat rounded-[22px] px-3.5 py-3">
+                                <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Progresso</p>
+                                <p class="text-body-lg font-bold mt-1 text-white"><span x-text="heroProgressPercent">0</span>%</p>
+                            </div>
                         </div>
                     </div>
 
@@ -717,7 +745,7 @@
                                     {{ delivery_completed }} concluída(s) e {{ delivery_open }} em aberto hoje.
                                 </p>
                             </div>
-                            <div class="flex items-center gap-2 flex-shrink-0">
+                            <div class="preview-action-strip-actions flex items-center gap-2 flex-shrink-0">
                                 <a href="{{ history_href }}" class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill">
                                     {% if ns.history %}Histórico{% else %}Operação{% endif %}
                                 </a>
