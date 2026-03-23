@@ -6144,7 +6144,75 @@ async def api_mobile_delivery_my_routes(
         })
     except Exception as e:
         logger.exception("api_mobile_delivery_my_routes error: %s", e)
-        raise
+        # Fallback de segurança: evita 500 em produção e mantém as rotas do dia visíveis
+        # enquanto investigamos a causa raiz específica dos dados.
+        try:
+            user_id = request.session.get("user_id")
+            if not user_id:
+                return JSONResponse({"error": "Não autorizado"}, status_code=401)
+            user_id = int(user_id)
+            today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+            routes_today = session.exec(
+                select(models.Route)
+                .where(models.Route.type == "delivery")
+                .where(models.Route.employee_id == user_id)
+                .where(models.Route.date == today_str)
+                .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
+                .order_by(models.Route.id)
+            ).all()
+            payload = []
+            for r in routes_today:
+                payload.append({
+                    "id": r.id,
+                    "date": r.date,
+                    "client_name": "Cliente",
+                    "client_secondary": "",
+                    "address": r.delivery_address or "",
+                    "city": r.delivery_city or "",
+                    "bairro": r.delivery_neighborhood or "",
+                    "state": r.delivery_state or "",
+                    "cep": r.delivery_cep or "",
+                    "maps_url": _maps_link(r.delivery_address, r.delivery_neighborhood, r.delivery_city, r.delivery_state, r.delivery_cep),
+                    "weight": _safe_float(r.tonnage),
+                    "value": _safe_float(r.valor_financeiro),
+                    "status": (r.delivery_status or "pendente"),
+                    "started_at": r.delivery_started_at,
+                    "finished_at": r.delivery_finished_at,
+                    "returned_at": r.delivery_returned_at,
+                    "reopen_count": r.delivery_reopen_count or 0,
+                    "vehicle_plate": r.delivery_vehicle_plate or "",
+                    "order_number": r.delivery_order_number or "",
+                    "client_code": r.delivery_client_code or "",
+                    "latitude": None,
+                    "longitude": None,
+                    "tem_coordenadas": False,
+                    "endereco_completo": "",
+                })
+            assigned_plates = sorted({r.delivery_vehicle_plate for r in routes_today if r.delivery_vehicle_plate})
+            day_cards = [{
+                "date": today_str,
+                "label": f"Entregas do Dia {datetime.strptime(today_str, '%Y-%m-%d').strftime('%d/%m')}",
+                "count": len(payload),
+                "routes": payload,
+            }] if payload else []
+            return JSONResponse({
+                "success": True,
+                "date": today_str,
+                "assigned_plate": assigned_plates[0] if assigned_plates else "",
+                "assigned_plates": assigned_plates,
+                "session_open": False,
+                "is_helper_view": False,
+                "driver_name": "",
+                "session": None,
+                "routes": payload,
+                "day_cards": day_cards,
+                "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
+                "closed_session_today": None,
+                "warning": "fallback_mode_enabled",
+            })
+        except Exception as fallback_error:
+            logger.exception("api_mobile_delivery_my_routes fallback error: %s", fallback_error)
+            return JSONResponse({"success": False, "error": "Falha ao carregar rotas de entrega."}, status_code=500)
 
 
 @app.post("/api/mobile/delivery/session/start", response_class=JSONResponse)
