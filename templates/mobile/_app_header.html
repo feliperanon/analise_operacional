@@ -139,6 +139,18 @@ Fixes: high z-index, stable colors, click priority above page content.
                         </div>
                         <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
                     </a>
+                    {% if "processos" in allowed_pages or user_role == "admin" %}
+                    <a href="/mobile/escala" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
+                            <i data-lucide="calendar-days" class="w-5 h-5"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-body-lg font-semibold" style="color: var(--color-text);">Escala</p>
+                            <p class="text-caption" style="color: var(--color-text-muted);">Quadro operacional</p>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+                    </a>
+                    {% endif %}
                     {% endif %}
 
                     {% if is_employee_session %}
