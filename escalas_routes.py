@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/escala", tags=["escala"])
 
-ESCALA_STATUSES = ("nao_escalado", "escalado", "em_ajuste", "pendencia")
+ESCALA_STATUSES = ("nao_escalado", "escalado")
 SHIFTS = ("Manhã", "Tarde", "Noite")
 
 
@@ -209,11 +209,9 @@ def _build_escala_groups(
             "conflicts": [],
         })
 
-    # Motoristas e ajudantes (todos ativos; ajudantes = mobile_access_helper ou complemento)
-    motoristas = [e for e in emp_map.values() if e.status == "active"]
+    # Motoristas = mobile_access_separation (App Separação) | Ajudantes = mobile_access_helper
+    motoristas = [e for e in emp_map.values() if e.status == "active" and getattr(e, "mobile_access_separation", False)]
     ajudantes = [e for e in emp_map.values() if e.status == "active" and getattr(e, "mobile_access_helper", False)]
-    if not ajudantes:
-        ajudantes = [e for e in emp_map.values() if e.status == "active"]
 
     motoristas.sort(key=lambda x: (x.name or "").lower())
     ajudantes.sort(key=lambda x: (x.name or "").lower())
