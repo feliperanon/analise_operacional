@@ -6354,16 +6354,22 @@ async def api_mobile_delivery_session_end(
         ds.ended_at = now_sp
         session.add(ds)
         if ds.vehicle_plate:
-            truck = session.exec(
-                select(models.Vehicle)
-                .where(models.Vehicle.placa == ds.vehicle_plate)
-                .where(models.Vehicle.vehicle_type == "caminhao")
-                .where(models.Vehicle.is_active == True)
-            ).first()
-            if truck and (truck.odometer_km is None or float(km) > float(truck.odometer_km or 0)):
-                truck.odometer_km = float(km)
-                truck.updated_at = ds.ended_at
-                session.add(truck)
+            try:
+                truck = session.exec(
+                    select(models.Vehicle)
+                    .where(models.Vehicle.placa == ds.vehicle_plate)
+                    .where(models.Vehicle.vehicle_type == "caminhao")
+                    .where(models.Vehicle.is_active == True)
+                ).first()
+                if truck:
+                    new_km = _safe_float(km)
+                    current_km = _safe_float(truck.odometer_km)
+                    if truck.odometer_km is None or new_km > current_km:
+                        truck.odometer_km = new_km
+                        truck.updated_at = ds.ended_at
+                        session.add(truck)
+            except Exception as vehicle_error:
+                logger.error("api_mobile_delivery_session_end vehicle odometer update error: %s", vehicle_error)
         session.commit()
         return JSONResponse(
             {
@@ -6381,7 +6387,14 @@ async def api_mobile_delivery_session_end(
     except Exception as e:
         logger.exception("api_mobile_delivery_session_end error: %s", e)
         session.rollback()
-        return JSONResponse({"success": False, "error": "Erro interno ao encerrar rota. Tente novamente."}, status_code=500)
+        return JSONResponse(
+            {
+                "success": False,
+                "error": "Erro interno ao encerrar rota. Tente novamente.",
+                "debug_hint": "session_end_failure"
+            },
+            status_code=500
+        )
 
 
 @app.post("/api/mobile/delivery/session/reopen", response_class=JSONResponse)
