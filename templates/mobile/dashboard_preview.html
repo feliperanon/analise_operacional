@@ -197,10 +197,6 @@
         background: rgba(255,255,255,0.03);
         border: 1px solid rgba(148,163,184,0.10);
     }
-    .preview-action-strip {
-        background: rgba(8,15,29,0.42);
-        border: 1px solid rgba(148,163,184,0.12);
-    }
     .preview-pill {
         border: 1px solid rgba(148,163,184,0.16);
         background: rgba(15,23,42,0.62);
@@ -263,19 +259,6 @@
         }
         .preview-hero-support-grid {
             grid-template-columns: 1fr;
-        }
-        .preview-action-strip {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        .preview-action-strip-actions {
-            width: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-        }
-        .preview-action-strip-actions > * {
-            text-align: center;
-            justify-content: center;
         }
         .dashboard-preview-modal {
             align-items: flex-end !important;
@@ -738,22 +721,6 @@
                             <span>{{ primary_cta.label }}</span>
                         </a>
                         {% endif %}
-                        <div class="preview-action-strip flex items-center justify-between gap-3 rounded-[22px] px-4 py-3">
-                            <div class="min-w-0">
-                                <p class="text-caption font-semibold" style="color: rgba(148,163,184,0.92);">Leitura rápida</p>
-                                <p class="text-body mt-1 text-white" x-text="heroSupportMessage">
-                                    {{ delivery_completed }} concluída(s) e {{ delivery_open }} em aberto hoje.
-                                </p>
-                            </div>
-                            <div class="preview-action-strip-actions flex items-center gap-2 flex-shrink-0">
-                                <a href="{{ history_href }}" class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill">
-                                    {% if ns.history %}Histórico{% else %}Operação{% endif %}
-                                </a>
-                                <button type="button" @click="showDateFilter = true" class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill">
-                                    Período
-                                </button>
-                            </div>
-                        </div>
                     </div>
                     {% endif %}
                 </div>
