@@ -162,6 +162,7 @@ def create_db_and_tables():
     _migrate_devolucao_ajuste_responsavel_ajudante()
     _migrate_devolucao_observacao_gestor()
     _migrate_devolucao_duplicate_fields()
+    _migrate_route_escala_status()
 
 
 def _migrate_devolucao_observacao_gestor():
@@ -226,6 +227,24 @@ def _migrate_devolucao_duplicate_fields():
             else:
                 for col_name, col_type in cols_sqlite:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _migrate_route_escala_status():
+    """Adiciona coluna escala_status em route e cria tabela escalaalteracaolog."""
+    table = "route"
+    col = "escala_status"
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                cur = conn.execute(text(f"PRAGMA table_info({table})"))
+                existing = [r[1] for r in list(cur) if len(r) > 1]
+                if col not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} TEXT"))
+            else:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} VARCHAR(32)"))
             conn.commit()
     except Exception:
         pass

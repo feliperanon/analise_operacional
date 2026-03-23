@@ -352,7 +352,22 @@ class Route(SQLModel, table=True):
     driver_lat_end: Optional[float] = None    # ao finalizar (entregue) ou devolver
     driver_lon_end: Optional[float] = None
     status: str = "pending" # pending, completed
+    # Módulo Escala: nao_escalado | escalado | em_ajuste | pendencia
+    escala_status: Optional[str] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
+
+
+class EscalaAlteracaoLog(SQLModel, table=True):
+    """Histórico de alterações no módulo Escala operacional."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    date: str = Field(index=True)  # YYYY-MM-DD
+    shift: str = Field(default="Manhã", index=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)  # motorista da escala
+    campo: str = Field(index=True)  # motorista | caminhao | ajudante | status
+    valor_anterior: Optional[str] = None
+    valor_novo: Optional[str] = None
+    altered_by: Optional[str] = None  # email/username do usuário
+    altered_at: datetime = Field(default_factory=datetime.now, index=True)
 
 
 class RouteInsertLog(SQLModel, table=True):
