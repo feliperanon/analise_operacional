@@ -698,9 +698,9 @@
         <div class="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0"
             id="header-edit-backdrop" onclick="closeHeaderEdit()"></div>
         <div class="fixed inset-0 flex items-center justify-center p-4">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-lg transform scale-95 opacity-0 transition-all"
-                id="header-edit-panel">
-                <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl flex flex-col min-w-[380px] min-h-[400px] max-w-[95vw] max-h-[90vh] w-[720px] h-[85vh] resize overflow-hidden transform scale-95 opacity-0 transition-all"
+                id="header-edit-panel" style="resize: both;">
+                <div class="p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
                     <h3 class="text-xl font-bold text-white">Editar Colaborador</h3>
                     <button onclick="closeHeaderEdit()" class="text-slate-400 hover:text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -709,24 +709,30 @@
                         </svg>
                     </button>
                 </div>
-                <div class="p-6 max-h-[80vh] overflow-y-auto">
-                    <form action="/employees/{{ emp.id }}/update" method="POST" id="header-edit-form" class="space-y-4">
+                <div class="flex-1 min-h-0 overflow-y-auto p-4">
+                    <form action="/employees/{{ emp.id }}/update" method="POST" id="header-edit-form" class="space-y-3">
                         <!-- Basic Info -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="md:col-span-2">
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Nome</label>
                                 <input type="text" name="name" value="{{ emp.name|emp_name }}" required
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Matrícula</label>
                                 <input type="text" name="registration_id" value="{{ emp.registration_id }}" required
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Codigo do Vendedor</label>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Telefone</label>
+                                <input type="tel" name="phone" value="{% if emp.phone and emp.phone|length >= 10 %}{% if emp.phone|length == 11 %}({{ emp.phone[0:2] }}) {{ emp.phone[2:7] }}-{{ emp.phone[7:11] }}{% else %}({{ emp.phone[0:2] }}) {{ emp.phone[2:6] }}-{{ emp.phone[6:10] }}{% endif %}{% else %}{{ emp.phone or '' }}{% endif %}"
+                                    placeholder="(31) 99940-9789" maxlength="16" inputmode="numeric"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm font-mono focus:border-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Código do Vendedor</label>
                                 <input type="text" name="seller_code" value="{{ emp.seller_code or '' }}"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                         </div>
 
