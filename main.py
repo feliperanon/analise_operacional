@@ -2418,7 +2418,7 @@ def _build_mobile_hub_access_flags(employee) -> Dict[str, bool]:
         escala = _has_mobile_escala_access(employee)
 
     helper_only = delivery_helper and not (delivery_driver or admin_start)
-    history = delivery_driver or delivery_helper or admin_start
+    history = False  # Módulo Histórico de Entregas desabilitado
     delivery_overview = delivery_driver or delivery_helper
 
     return {
@@ -29270,9 +29270,11 @@ async def api_list_admin_routes(
             d_m = route_duration_minutes(r) or 0
             c = client_by_id.get(r.client_id)
             client_name = (getattr(c, "name", None) or getattr(c, "razao_social", None)) if c else f"Cliente #{r.client_id}"
+            finished_at = (r.delivery_finished_at or r.end_time or "") if st in ("entregue", "devolucao") else None
             bucket["routes"].append({
                 "client": client_name,
                 "start_time": r.delivery_started_at or r.start_time or "--:--",
+                "finished_at": finished_at,
                 "duration_mins": d_m,
                 "tonnage": float(r.tonnage or 0.0),
                 "delivery_status": st,
@@ -29337,6 +29339,22 @@ async def api_list_admin_routes(
             session_names = [str(h).strip() for h in session_helpers if h and str(h).strip() and not str(h).strip().isdigit()]
             bucket["helper_names"] = resolved if resolved else session_names[:3]
             bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+            open_routes_count = len([r for r in bucket["routes"] if (r.get("delivery_status") or "").lower() == "iniciada"])
+            finished_times = [
+                rt["finished_at"] for rt in bucket["routes"]
+                if (rt.get("delivery_status") or "").lower() in ("entregue", "devolucao") and rt.get("finished_at")
+            ]
+            last_finished_at = max(finished_times, key=lambda t: (t or "00:00")) if finished_times else None
+            minutes_without_open = 0
+            if open_routes_count == 0 and last_finished_at:
+                try:
+                    parts = str(last_finished_at).strip().split(":")
+                    h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+                    finished_dt = datetime(now_br.year, now_br.month, now_br.day, h, m, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
+                    minutes_without_open = max(0, int((now_br - finished_dt).total_seconds() // 60))
+                except Exception:
+                    pass
+            bucket["minutes_without_open_client"] = minutes_without_open
             has_delivery_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
             session_started = emp_id in session_open_by_emp
             has_started = has_delivery_started or session_started

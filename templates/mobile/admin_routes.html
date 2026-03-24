@@ -43,7 +43,7 @@
             </div>
         </div>
 
-        <!-- Barra de conclusão total -->
+        <!-- Barra de conclusão total (rotas concluídas / total de rotas) -->
         <div class="mt-3">
             <div class="flex justify-between items-center mb-1">
                 <span class="text-caption" style="color: var(--color-text-muted);">Conclusão das rotas</span>
@@ -96,13 +96,19 @@
                                 <template x-if="getOpenRoutes(card).length > 0">
                                     <div class="mt-2 flex flex-wrap gap-1.5">
                                         <template x-for="r in getOpenRoutes(card).slice(0, 2)" :key="r.client + r.start_time">
-                                            <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption" :class="elapsedMinutes(r) >= 20 ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-slate-700/40'">
-                                                <span class="truncate max-w-[120px] font-medium" :class="elapsedMinutes(r) >= 20 ? 'text-amber-300' : ''" x-text="r.client"></span>
+                                            <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption" :class="clientCardClass(r)">
+                                                <span class="truncate max-w-[120px] font-medium" :class="clientCardTextClass(r)" x-text="r.client"></span>
                                                 <span class="font-mono shrink-0 text-slate-500" x-text="r.start_time"></span>
-                                                <span class="shrink-0 font-mono" :class="elapsedMinutes(r) >= 20 ? 'text-amber-400 font-semibold' : 'text-slate-500'" x-text="elapsedMinutes(r) + ' min'"></span>
+                                                <span class="shrink-0 font-mono" :class="clientCardMinutesClass(r)" x-text="elapsedMinutes(r) + ' min'"></span>
                                             </div>
                                         </template>
                                         <span x-show="getOpenRoutes(card).length > 2" class="text-caption text-slate-500 self-center" x-text="'+' + (getOpenRoutes(card).length - 2) + ' mais'"></span>
+                                    </div>
+                                </template>
+                                <template x-if="getOpenRoutes(card).length === 0 && ((card.completed_deliveries || 0) > 0 || ['all_delivered','closed','in_progress','route_started'].includes(card.route_state))">
+                                    <div class="mt-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption bg-slate-700/40">
+                                        <span class="font-medium text-slate-400">Sem cliente aberto</span>
+                                        <span class="font-mono shrink-0 text-slate-500" x-text="(card.minutes_without_open_client || 0) > 0 ? (card.minutes_without_open_client + ' min') : '—'"></span>
                                     </div>
                                 </template>
                                 <div class="flex items-center gap-2 mt-2 flex-wrap">
@@ -118,18 +124,21 @@
                             </div>
                         </div>
 
-                        <!-- Expandível: lista completa de abertas -->
+                        <!-- Expandível: lista completa de abertas (mesmo estilo do card) -->
                         <div x-show="expandedCard === card.employee_id" class="border-t px-4 pb-4 pt-3" style="border-color: var(--color-border);">
                             <p class="text-caption font-semibold uppercase mb-2" style="color: var(--color-text-muted);">Abertas agora</p>
                             <template x-if="getOpenRoutes(card).length === 0">
-                                <p class="text-caption py-1" style="color: var(--color-text-muted);">Nenhuma em aberto</p>
+                                <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption bg-slate-700/40">
+                                    <span class="font-medium text-slate-400">Sem cliente aberto</span>
+                                    <span class="font-mono shrink-0 text-slate-500" x-text="(card.minutes_without_open_client || 0) > 0 ? (card.minutes_without_open_client + ' min') : '—'"></span>
+                                </div>
                             </template>
-                            <div class="space-y-1.5">
+                            <div class="flex flex-wrap gap-1.5" x-show="getOpenRoutes(card).length > 0">
                                 <template x-for="r in getOpenRoutes(card)" :key="r.client + r.start_time">
-                                    <div class="flex justify-between items-center px-2.5 py-1.5 rounded-lg" :class="elapsedMinutes(r) >= 20 ? 'bg-amber-500/15' : 'bg-slate-800/40'">
-                                        <span class="text-body font-medium truncate flex-1 mr-2" :class="elapsedMinutes(r) >= 20 ? 'text-amber-300' : ''" x-text="r.client"></span>
-                                        <span class="text-caption font-mono shrink-0 mr-2" style="color: var(--color-text-muted);" x-text="r.start_time"></span>
-                                        <span class="text-caption font-mono shrink-0" :class="elapsedMinutes(r) >= 20 ? 'text-amber-400 font-semibold' : 'text-slate-500'" x-text="elapsedMinutes(r) + ' min'"></span>
+                                    <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption" :class="clientCardClass(r)">
+                                        <span class="truncate max-w-[120px] font-medium" :class="clientCardTextClass(r)" x-text="r.client"></span>
+                                        <span class="font-mono shrink-0 text-slate-500" x-text="r.start_time"></span>
+                                        <span class="shrink-0 font-mono" :class="clientCardMinutesClass(r)" x-text="elapsedMinutes(r) + ' min'"></span>
                                     </div>
                                 </template>
                             </div>
@@ -248,6 +257,27 @@
                 const started = new Date(today.getTime() + h * 3600000 + m * 60000);
                 return Math.max(0, Math.floor((now - started) / 60000));
             },
+            clientCardClass(r) {
+                const m = this.elapsedMinutes(r);
+                if (m >= 20) return 'bg-amber-500/20 border border-amber-500/50';
+                if (m >= 11) return 'bg-orange-500/20 border border-orange-500/50';
+                if (m <= 10) return 'bg-emerald-500/20 border border-emerald-500/50';
+                return 'bg-slate-700/40';
+            },
+            clientCardTextClass(r) {
+                const m = this.elapsedMinutes(r);
+                if (m >= 20) return 'text-amber-300';
+                if (m >= 11) return 'text-orange-300';
+                if (m <= 10) return 'text-emerald-300';
+                return '';
+            },
+            clientCardMinutesClass(r) {
+                const m = this.elapsedMinutes(r);
+                if (m >= 20) return 'text-amber-400 font-semibold';
+                if (m >= 11) return 'text-orange-400 font-semibold';
+                if (m <= 10) return 'text-emerald-400 font-semibold';
+                return 'text-slate-500';
+            },
 
             toggleCard(empId) {
                 this.expandedCard = this.expandedCard === empId ? null : empId;
@@ -272,8 +302,11 @@
             },
 
             conclusaoPct() {
-                const total = (this.kpi.abertas || 0) + (this.kpi.rotas_concluidas || 0);
-                return total > 0 ? Math.round((this.kpi.rotas_concluidas || 0) / total * 100) : 0;
+                const paradas = this.kpi.rotas_paradas || 0;
+                const ativas = this.kpi.rotas_ativas || 0;
+                const concluidas = this.kpi.rotas_concluidas || 0;
+                const total = paradas + ativas + concluidas;
+                return total > 0 ? Math.round(concluidas / total * 100) : 0;
             },
 
             async loadRoutes() {

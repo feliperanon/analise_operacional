@@ -78,7 +78,7 @@ Fixes: high z-index, stable colors, click priority above page content.
                     {% set has_delivery_helper_access = mobile_employee and (mobile_employee.mobile_access_helper or (has_mobile_role_fallback and is_helper_role)) %}
                     {% set has_helper_only_access = has_delivery_helper_access and (not has_delivery_driver_access) and (not mobile_employee.mobile_access_admin_start) %}
                     {% set has_checklist_access = mobile_employee and (mobile_employee.mobile_access_checklist or (has_mobile_role_fallback and is_driver_role)) and (not has_helper_only_access) %}
-                    {% set has_history_access = mobile_employee and (has_delivery_driver_access or mobile_employee.mobile_access_admin_start or has_delivery_helper_access) %}
+                    {% set has_history_access = False %}
                     {% set has_returns_access = mobile_employee and (mobile_employee.mobile_access_returns or mobile_employee.mobile_access_admin_start or has_delivery_driver_access) %}
                     {% set has_gatehouse_access = mobile_employee and (mobile_employee.mobile_access_gatehouse or ((not has_explicit_mobile_flags) and is_gatehouse_role)) %}
                     {% set has_escala_access = mobile_employee and mobile_employee.mobile_access_escala %}
@@ -224,18 +224,6 @@ Fixes: high z-index, stable colors, click priority above page content.
                         <div class="flex-1">
                             <p class="text-body-lg font-semibold" style="color: var(--color-text);">Devolução</p>
                             <p class="text-caption" style="color: var(--color-text-muted);">Taxa, prêmio e recargas</p>
-                        </div>
-                        <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
-                    </a>
-                    {% endif %}
-                    {% if has_history_access %}
-                    <a href="/mobile/historico-entregas" onclick="closeMobileNavMenu()" class="interactive flex items-center gap-3 p-3 rounded-lg" style="background: rgba(15,23,42,0.5);">
-                        <div class="w-10 h-10 rounded-lg flex items-center justify-center text-white" style="background: var(--color-primary);">
-                            <i data-lucide="history" class="w-5 h-5"></i>
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-body-lg font-semibold" style="color: var(--color-text);">Histórico</p>
-                            <p class="text-caption" style="color: var(--color-text-muted);">Entregas por período</p>
                         </div>
                         <i data-lucide="chevron-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
                     </a>
