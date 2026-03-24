@@ -381,7 +381,7 @@
                 const completed = card.completed_deliveries || 0;
                 const openCount = total - completed;
                 const pct = total ? (completed / total * 100) : 0;
-                if (openCount >= 5 || pct < 25) return 'bg-red-500/10 border-red-500/50';
+                if (openCount >= 5 || pct < 25) return 'bg-slate-800/40 border-red-500/50';
                 if (openCount >= 3 || pct < 50) return 'bg-amber-500/8 border-amber-500/50';
                 return 'bg-slate-800/40 border-slate-500/40';
             },
