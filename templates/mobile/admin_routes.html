@@ -81,7 +81,7 @@
 
             <div class="space-y-3">
                 <template x-for="card in liveSeparation" :key="card.employee_id">
-                    <div class="overflow-hidden rounded-xl border-2 touch-target" :class="statusCardClass(card)" @click="toggleCard(card.employee_id)">
+                    <div class="overflow-hidden rounded-xl border-2 touch-target" :class="statusCardClass(card)">
                         <div class="p-4 flex items-start gap-3">
                             <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-body status-avatar" :class="statusAvatarClass(card)" x-text="(card.employee_name || '?')[0]"></div>
                             <div class="min-w-0 flex-1">
@@ -118,32 +118,6 @@
                                 <div class="mt-2 h-1.5 rounded-full overflow-hidden" style="background: var(--color-border);">
                                     <div class="h-full rounded-full transition-all" :style="'width:' + (card.total_deliveries ? Math.round((card.completed_deliveries || 0) / card.total_deliveries * 100) : 0) + '%;' + barColorStyle(card)"></div>
                                 </div>
-                            </div>
-                            <div class="shrink-0">
-                                <i data-lucide="chevron-down" class="w-5 h-5 transition-transform" :class="expandedCard === card.employee_id ? 'rotate-180' : ''" style="color: var(--color-text-muted);"></i>
-                            </div>
-                        </div>
-
-                        <!-- Expandível: lista completa de abertas (mesmo estilo do card) -->
-                        <div x-show="expandedCard === card.employee_id" class="border-t px-4 pb-4 pt-3" style="border-color: var(--color-border);">
-                            <p class="text-caption font-semibold uppercase mb-2" style="color: var(--color-text-muted);">Abertas agora</p>
-                            <template x-if="getOpenRoutes(card).length === 0">
-                                <div class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-violet-500/40 bg-violet-500/15">
-                                    <i data-lucide="clock" class="w-4 h-4 text-violet-400 shrink-0"></i>
-                                    <div>
-                                        <span class="text-caption font-semibold text-violet-300 block">Nenhuma em aberto</span>
-                                        <span class="text-caption font-mono text-violet-400/90" x-text="(card.minutes_without_open_client || 0) > 0 ? (card.minutes_without_open_client + ' min sem parada') : 'Aguardando próxima parada'"></span>
-                                    </div>
-                                </div>
-                            </template>
-                            <div class="flex flex-wrap gap-1.5" x-show="getOpenRoutes(card).length > 0">
-                                <template x-for="r in getOpenRoutes(card)" :key="r.client + r.start_time">
-                                    <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption" :class="clientCardClass(r)">
-                                        <span class="truncate max-w-[120px] font-medium" :class="clientCardTextClass(r)" x-text="r.client"></span>
-                                        <span class="font-mono shrink-0 text-slate-500" x-text="r.start_time"></span>
-                                        <span class="shrink-0 font-mono" :class="clientCardMinutesClass(r)" x-text="elapsedMinutes(r) + ' min'"></span>
-                                    </div>
-                                </template>
                             </div>
                         </div>
                     </div>
@@ -239,7 +213,6 @@
             alerts: { clients_over_20min: [] },
             clientesAltoIndice: [],
             kpi: { abertas: 0, rotas_concluidas: 0, rotas_paradas: 0, rotas_ativas: 0 },
-            expandedCard: null,
             liveTick: 0,
 
             init() {
@@ -280,11 +253,6 @@
                 if (m >= 11) return 'text-orange-400 font-semibold';
                 if (m <= 10) return 'text-emerald-400 font-semibold';
                 return 'text-slate-500';
-            },
-
-            toggleCard(empId) {
-                this.expandedCard = this.expandedCard === empId ? null : empId;
-                this.$nextTick(() => lucide.createIcons());
             },
 
             getOpenRoutes(card) {

@@ -698,7 +698,7 @@
         <div class="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0"
             id="header-edit-backdrop" onclick="closeHeaderEdit()"></div>
         <div class="fixed inset-0 flex items-center justify-center p-4">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl flex flex-col min-w-[380px] min-h-[400px] max-w-[95vw] max-h-[90vh] w-[720px] h-[85vh] resize overflow-hidden transform scale-95 opacity-0 transition-all"
+            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl flex flex-col min-w-[400px] min-h-[420px] max-w-[95vw] max-h-[90vh] w-[720px] h-[85vh] overflow-hidden transform scale-95 opacity-0 transition-all"
                 id="header-edit-panel" style="resize: both;">
                 <div class="p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
                     <h3 class="text-xl font-bold text-white">Editar Colaborador</h3>
@@ -725,7 +725,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Telefone</label>
-                                <input type="tel" name="phone" value="{% if emp.phone and emp.phone|length >= 10 %}{% if emp.phone|length == 11 %}({{ emp.phone[0:2] }}) {{ emp.phone[2:7] }}-{{ emp.phone[7:11] }}{% else %}({{ emp.phone[0:2] }}) {{ emp.phone[2:6] }}-{{ emp.phone[6:10] }}{% endif %}{% else %}{{ emp.phone or '' }}{% endif %}"
+                                <input type="tel" name="phone" id="header-edit-phone" value="{% if emp.phone and emp.phone|length >= 10 %}{% if emp.phone|length == 11 %}({{ emp.phone[0:2] }}) {{ emp.phone[2:7] }}-{{ emp.phone[7:11] }}{% else %}({{ emp.phone[0:2] }}) {{ emp.phone[2:6] }}-{{ emp.phone[6:10] }}{% endif %}{% else %}{{ emp.phone or '' }}{% endif %}"
                                     placeholder="(31) 99940-9789" maxlength="16" inputmode="numeric"
                                     class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm font-mono focus:border-blue-500 outline-none">
                             </div>
@@ -736,158 +736,103 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Cargo</label>
                                 <input type="text" name="role" value="{{ emp.role }}" required
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Turno</label>
                                 <select name="work_shift"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
-                                    <option value="Manhã" {% if emp.work_shift=='Manhã' %}selected{% endif %}>Manhã
-                                    </option>
-                                    <option value="Tarde" {% if emp.work_shift=='Tarde' %}selected{% endif %}>Tarde
-                                    </option>
-                                    <option value="Noite" {% if emp.work_shift=='Noite' %}selected{% endif %}>Noite
-                                    </option>
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
+                                    <option value="Manhã" {% if emp.work_shift=='Manhã' %}selected{% endif %}>Manhã</option>
+                                    <option value="Tarde" {% if emp.work_shift=='Tarde' %}selected{% endif %}>Tarde</option>
+                                    <option value="Noite" {% if emp.work_shift=='Noite' %}selected{% endif %}>Noite</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <!-- Schedule & Cost Center -->
-                        <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 mb-1">Horário (ex: 12:00 -
-                                    20:20)</label>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Horário</label>
                                 <input type="text" name="work_schedule" value="{{ emp.work_schedule or '' }}"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                    placeholder="07:00 - 17:00"
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Centro de Custo</label>
                                 <input type="text" name="cost_center" value="{{ emp.cost_center }}" required
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                         </div>
 
-                        <!-- Mobile Access & Status -->
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Status</label>
                                 <select name="status"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
-                                    <option value="active" {% if emp.status=='active' %}selected{% endif %}>Ativo
-                                    </option>
-                                    <option value="vacation" {% if emp.status=='vacation' %}selected{% endif %}>Férias
-                                    </option>
-                                    <option value="away" {% if emp.status=='away' %}selected{% endif %}>Afastado
-                                    </option>
-                                    <option value="fired" {% if emp.status=='fired' %}selected{% endif %}>Demitido
-                                    </option>
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
+                                    <option value="active" {% if emp.status=='active' %}selected{% endif %}>Ativo</option>
+                                    <option value="vacation" {% if emp.status=='vacation' %}selected{% endif %}>Férias</option>
+                                    <option value="away" {% if emp.status=='away' %}selected{% endif %}>Afastado</option>
+                                    <option value="fired" {% if emp.status=='fired' %}selected{% endif %}>Demitido</option>
                                 </select>
                             </div>
-                            <!-- Mobile Access Toggles -->
-                            <div class="flex flex-col justify-end pb-2 space-y-3">
-                                <style>
-                                    .toggle-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: pointer; transition: background .15s; }
-                                    .toggle-row:hover { background: rgba(71,85,105,.25); }
-                                    .toggle-wrap { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
-                                    .toggle-switch-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 10; }
-                                    .toggle-switch { position: absolute; inset: 0; border-radius: 12px; background: #475569; transition: background .2s; pointer-events: none; }
-                                    .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s ease; }
-                                    .toggle-switch-input:checked + .toggle-switch { background: #2563eb; }
-                                    .toggle-switch-input:checked + .toggle-switch::after { transform: translateX(20px); }
-                                </style>
-                                <label class="toggle-row">
-                                    <span class="toggle-wrap">
-                                        <input type="checkbox" name="mobile_access_separation" value="true" class="toggle-switch-input" {% if emp.mobile_access_separation %}checked{% endif %}>
-                                        <span class="toggle-switch"></span>
-                                    </span>
-                                    <span class="text-sm font-medium text-slate-300">Entregas</span>
-                                </label>
-                                <label class="toggle-row">
-                                    <span class="toggle-wrap">
-                                        <input type="checkbox" name="mobile_access_checklist" value="true" class="toggle-switch-input" {% if emp.mobile_access_checklist %}checked{% endif %}>
-                                        <span class="toggle-switch"></span>
-                                    </span>
-                                    <span class="text-sm font-medium text-slate-300">App Checklist Operacional</span>
-                                </label>
-                                <label class="toggle-row">
-                                    <span class="toggle-wrap">
-                                        <input type="checkbox" name="mobile_access_admin_start" value="true" class="toggle-switch-input" {% if emp.mobile_access_admin_start %}checked{% endif %}>
-                                        <span class="toggle-switch"></span>
-                                    </span>
-                                    <span class="text-sm font-medium text-slate-300">Entregas em Tempo Real</span>
-                                </label>
-                                <label class="toggle-row">
-                                    <span class="toggle-wrap">
-                                        <input type="checkbox" name="mobile_access_returns" value="true" class="toggle-switch-input" {% if emp.mobile_access_returns %}checked{% endif %}>
-                                        <span class="toggle-switch"></span>
-                                    </span>
-                                    <span class="text-sm font-medium text-slate-300">Dashboard Devoluções (Avaliação)</span>
-                                </label>
-                                <label class="toggle-row">
-                                    <span class="toggle-wrap">
-                                        <input type="checkbox" name="mobile_access_helper" value="true" class="toggle-switch-input" {% if emp.mobile_access_helper %}checked{% endif %}>
-                                        <span class="toggle-switch"></span>
-                                    </span>
-                                    <span class="text-sm font-medium text-slate-300">Pode ser Ajudante</span>
-                                </label>
-                                <label class="toggle-row">
-                                    <span class="toggle-wrap">
-                                        <input type="checkbox" name="mobile_access_gatehouse" value="true" class="toggle-switch-input" {% if emp.mobile_access_gatehouse %}checked{% endif %}>
-                                        <span class="toggle-switch"></span>
-                                    </span>
-                                    <span class="text-sm font-medium text-slate-300">Módulo Portaria</span>
-                                </label>
-                                <label class="toggle-row">
-                                    <span class="toggle-wrap">
-                                        <input type="checkbox" name="mobile_access_escala" value="true" class="toggle-switch-input" {% if emp.mobile_access_escala %}checked{% endif %}>
-                                        <span class="toggle-switch"></span>
-                                    </span>
-                                    <span class="text-sm font-medium text-slate-300">Módulo Escala</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Dates -->
-                        <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Admissão</label>
                                 <input type="date" name="admission_date"
                                     value="{{ emp.admission_date.strftime('%Y-%m-%d') if emp.admission_date else '' }}"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-400 mb-1">Nascimento</label>
                                 <input type="date" name="birthday"
                                     value="{{ emp.birthday.strftime('%Y-%m-%d') if emp.birthday else '' }}"
-                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-blue-500 outline-none">
+                                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:border-blue-500 outline-none">
+                            </div>
+                            <div></div>
+                        </div>
+
+                        <!-- Mobile Access Toggles -->
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 mb-2">Acessos mobile</label>
+                            <style>
+                                .toggle-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+                                .toggle-row:hover { background: rgba(71,85,105,.25); }
+                                .toggle-wrap { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+                                .toggle-switch-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 10; }
+                                .toggle-switch { position: absolute; inset: 0; border-radius: 11px; background: #475569; transition: background .2s; pointer-events: none; }
+                                .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s ease; }
+                                .toggle-switch-input:checked + .toggle-switch { background: #2563eb; }
+                                .toggle-switch-input:checked + .toggle-switch::after { transform: translateX(18px); }
+                            </style>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_separation" value="true" class="toggle-switch-input" {% if emp.mobile_access_separation %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-300">Entregas</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_checklist" value="true" class="toggle-switch-input" {% if emp.mobile_access_checklist %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-300">Checklist Operacional</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_admin_start" value="true" class="toggle-switch-input" {% if emp.mobile_access_admin_start %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-300">Entregas em Tempo Real</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_returns" value="true" class="toggle-switch-input" {% if emp.mobile_access_returns %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-300">Dashboard Devoluções</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_helper" value="true" class="toggle-switch-input" {% if emp.mobile_access_helper %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-300">Pode ser Ajudante</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_gatehouse" value="true" class="toggle-switch-input" {% if emp.mobile_access_gatehouse %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-300">Módulo Portaria</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_escala" value="true" class="toggle-switch-input" {% if emp.mobile_access_escala %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-300">Módulo Escala</span></label>
                             </div>
                         </div>
 
                         <!-- Work Days -->
                         <div>
                             <label class="block text-xs font-medium text-slate-400 mb-2">Dias de Trabalho</label>
-                            <div class="grid grid-cols-3 gap-2">
+                            <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
                                 {% set days_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
                                 'Sunday'] %}
                                 {% set days_pt = {'Monday':'Seg', 'Tuesday':'Ter', 'Wednesday':'Qua', 'Thursday':'Qui',
                                 'Friday':'Sex', 'Saturday':'Sáb', 'Sunday':'Dom'} %}
                                 {% for d in days_list %}
-                                <label
-                                    class="flex items-center gap-2 cursor-pointer bg-slate-900/50 p-2 rounded hover:bg-slate-700/50 transition">
-                                    <input type="checkbox" name="work_days" value="{{ d }}" {% if d in (emp.work_days
-                                        or '' ) %}checked{% endif %}
-                                        class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800">
+                                <label class="flex items-center gap-1.5 cursor-pointer bg-slate-900/50 p-1.5 rounded hover:bg-slate-700/50 transition">
+                                    <input type="checkbox" name="work_days" value="{{ d }}" {% if d in (emp.work_days or '') %}checked{% endif %}
+                                        class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-3.5 h-3.5">
                                     <span class="text-xs text-slate-300">{{ days_pt[d] }}</span>
                                 </label>
                                 {% endfor %}
                             </div>
                         </div>
 
-                        <div class="pt-4 flex justify-end gap-3 border-t border-slate-700 mt-4">
+                        <div class="pt-3 flex justify-end gap-3 border-t border-slate-700 mt-3">
                             <button type="button" onclick="closeHeaderEdit()"
                                 class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
                             <button type="submit"
@@ -902,6 +847,18 @@
     </div>
 
     <script>
+        function maskPhoneBR(input) {
+            let v = (input.value || '').replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            if (v.length > 6) input.value = '(' + v.slice(0,2) + ') ' + v.slice(2,7) + '-' + v.slice(7);
+            else if (v.length > 2) input.value = '(' + v.slice(0,2) + ') ' + v.slice(2);
+            else if (v.length > 0) input.value = '(' + v;
+            else input.value = '';
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const phoneEl = document.getElementById('header-edit-phone');
+            if (phoneEl) phoneEl.addEventListener('input', function() { maskPhoneBR(this); });
+        });
         // --- HEADER EDIT LOGIC ---
         function openHeaderEdit() {
             const modal = document.getElementById('header-edit-modal');
