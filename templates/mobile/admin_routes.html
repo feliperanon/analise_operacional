@@ -4,44 +4,65 @@
 
 {% block content %}
 <div class="min-h-screen pb-safe" style="background: var(--color-bg);" x-data="routeManager()">
-    <header class="container-mobile py-4 border-b shrink-0 relative z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
-        <div class="flex items-center justify-between">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
+    <header class="container-mobile py-3 border-b shrink-0 sticky top-0 z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
+        <div class="flex items-center justify-between gap-2">
+            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap flex-shrink-0">
                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
             </a>
-            <div class="flex items-center gap-3">
-                <div class="icon-wrap w-10 h-10 flex items-center justify-center" style="background: var(--color-primary); color: white;">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div class="icon-wrap w-10 h-10 flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
                     <i data-lucide="route" class="w-5 h-5"></i>
                 </div>
-                <div>
-                    <h1 class="text-title-lg" style="color: var(--color-text);">Rotas do Dia</h1>
-                    <p class="text-caption-lg">Motoristas, ajudantes e situação</p>
+                <div class="min-w-0">
+                    <h1 class="text-title-lg truncate" style="color: var(--color-text);">Rotas do Dia</h1>
+                    <p class="text-caption-lg">Entregas em tempo real</p>
                 </div>
             </div>
-            <button @click="loadRoutes()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
-                <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+            <button @click="loadRoutes()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap flex-shrink-0" :class="isLoading ? 'opacity-60' : ''">
+                <i data-lucide="refresh-cw" class="w-5 h-5" :class="isLoading ? 'animate-spin' : ''"></i>
             </button>
+        </div>
+
+        <!-- KPIs compactos -->
+        <div class="flex flex-wrap gap-2 mt-3">
+            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style="background: rgba(30,41,59,0.8);">
+                <span class="text-caption" style="color: var(--color-text-muted);">Abertas</span>
+                <span class="text-body font-bold" style="color: var(--color-text);" x-text="kpi.abertas || 0"></span>
+            </div>
+            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style="background: rgba(16,185,129,0.15);">
+                <span class="text-caption" style="color: var(--color-text-muted);">Concluídas</span>
+                <span class="text-body font-bold" style="color: var(--color-success);" x-text="kpi.rotas_concluidas || 0"></span>
+            </div>
+            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style="background: rgba(239,68,68,0.12);">
+                <span class="text-caption" style="color: var(--color-text-muted);">Devoluções</span>
+                <span class="text-body font-bold" style="color: var(--color-danger);" x-text="devolucao_dia.count || 0"></span>
+            </div>
+            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" :style="(alerts.clients_over_20min || []).length > 0 ? 'background: rgba(245,158,11,0.15)' : 'background: rgba(30,41,59,0.8)'">
+                <span class="text-caption" style="color: var(--color-text-muted);">Alertas</span>
+                <span class="text-body font-bold" :style="(alerts.clients_over_20min || []).length > 0 ? 'color: var(--color-warning)' : 'color: var(--color-text)'" x-text="(alerts.clients_over_20min || []).length"></span>
+            </div>
         </div>
     </header>
 
-    <div x-show="isLoading" class="flex items-center justify-center py-20">
+    <div x-show="isLoading" class="flex items-center justify-center py-24">
         <div class="w-10 h-10 border-2 rounded-full animate-spin" style="border-color: var(--color-border); border-top-color: var(--color-primary);"></div>
     </div>
 
-    <div x-show="!isLoading" class="container-mobile py-4 space-y-6">
-        <div>
+    <div x-show="!isLoading" class="container-mobile py-4 space-y-5">
+        <!-- Rotas / Motoristas com entregas -->
+        <section>
             <div class="flex items-center justify-between mb-3">
                 <h2 class="text-title flex items-center gap-2" style="color: var(--color-text);">
                     <div class="icon-wrap w-8 h-8 flex items-center justify-center" style="background: var(--color-success-bg); color: var(--color-success);">
                         <i data-lucide="truck" class="w-4 h-4"></i>
                     </div>
-                    Rotas
+                    Operação
                 </h2>
                 <span class="text-caption font-bold px-3 py-1 rounded-full" style="background: var(--color-primary-bg); color: var(--color-primary);" x-text="liveSeparation.length"></span>
             </div>
 
             <template x-if="liveSeparation.length === 0">
-                <div class="surface p-8 text-center">
+                <div class="surface p-8 text-center rounded-xl">
                     <div class="icon-wrap w-14 h-14 rounded-full mx-auto mb-3"><i data-lucide="inbox" class="w-7 h-7"></i></div>
                     <p class="text-body" style="color: var(--color-text-secondary);">Nenhuma rota no momento</p>
                 </div>
@@ -49,30 +70,111 @@
 
             <div class="space-y-3">
                 <template x-for="card in liveSeparation" :key="card.employee_id">
-                    <div class="surface overflow-hidden rounded-xl" :class="statusCardClass(card)">
+                    <div class="overflow-hidden rounded-xl border-2 touch-target" :class="statusCardClass(card)" @click="toggleCard(card.employee_id)">
                         <div class="p-4 flex items-start gap-3">
-                            <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-body" style="background: var(--color-border-light); color: var(--color-text);" x-text="(card.employee_name || '?')[0]"></div>
+                            <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-body status-avatar" :class="statusAvatarClass(card)" x-text="(card.employee_name || '?')[0]"></div>
                             <div class="min-w-0 flex-1">
                                 <p class="text-body font-bold truncate" style="color: var(--color-text);" x-text="card.employee_name"></p>
                                 <p class="text-caption truncate mt-0.5" style="color: var(--color-text-muted);">
                                     Ajud.: <span x-text="(card.helper_names || []).join(', ') || '—'"></span>
                                     <span class="mx-1">·</span>
                                     Placa: <span x-text="card.plate || '—'"></span>
-                                    <span class="mx-1">·</span>
-                                    <span x-text="(card.total_kg || 0) + ' kg'"></span>
+                                    <span x-show="card.total_kg" class="ml-1">· <span x-text="(card.total_kg || 0) + ' kg'"></span></span>
                                 </p>
+                                <!-- Cliente ativo visível sempre -->
+                                <template x-if="getOpenRoutes(card).length > 0">
+                                    <div class="mt-2 flex flex-wrap gap-1.5">
+                                        <template x-for="r in getOpenRoutes(card).slice(0, 2)" :key="r.client + r.start_time">
+                                            <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption" :class="elapsedMinutes(r) >= 20 ? 'bg-amber-500/20 border border-amber-500/50' : 'bg-slate-700/40'">
+                                                <span class="truncate max-w-[120px] font-medium" :class="elapsedMinutes(r) >= 20 ? 'text-amber-300' : ''" x-text="r.client"></span>
+                                                <span class="font-mono shrink-0 text-slate-500" x-text="r.start_time"></span>
+                                                <span class="shrink-0 font-mono" :class="elapsedMinutes(r) >= 20 ? 'text-amber-400 font-semibold' : 'text-slate-500'" x-text="elapsedMinutes(r) + ' min'"></span>
+                                            </div>
+                                        </template>
+                                        <span x-show="getOpenRoutes(card).length > 2" class="text-caption text-slate-500 self-center" x-text="'+' + (getOpenRoutes(card).length - 2) + ' mais'"></span>
+                                    </div>
+                                </template>
                                 <div class="flex items-center gap-2 mt-2 flex-wrap">
                                     <span class="text-caption font-semibold" style="color: var(--color-text-muted);" x-text="(card.completed_deliveries || 0) + '/' + (card.total_deliveries || 0) + ' entregas'"></span>
                                     <span class="text-caption font-bold px-2 py-0.5 rounded" :class="statusBadgeClass(card)" x-text="statusLabel(card)"></span>
                                 </div>
+                                <div class="mt-2 h-1.5 rounded-full overflow-hidden" style="background: var(--color-border);">
+                                    <div class="h-full rounded-full transition-all" :style="'width:' + (card.total_deliveries ? Math.round((card.completed_deliveries || 0) / card.total_deliveries * 100) : 0) + '%;' + barColorStyle(card)"></div>
+                                </div>
+                            </div>
+                            <div class="shrink-0">
+                                <i data-lucide="chevron-down" class="w-5 h-5 transition-transform" :class="expandedCard === card.employee_id ? 'rotate-180' : ''" style="color: var(--color-text-muted);"></i>
+                            </div>
+                        </div>
+
+                        <!-- Expandível: lista completa de abertas -->
+                        <div x-show="expandedCard === card.employee_id" class="border-t px-4 pb-4 pt-3" style="border-color: var(--color-border);">
+                            <p class="text-caption font-semibold uppercase mb-2" style="color: var(--color-text-muted);">Abertas agora</p>
+                            <template x-if="getOpenRoutes(card).length === 0">
+                                <p class="text-caption py-1" style="color: var(--color-text-muted);">Nenhuma em aberto</p>
+                            </template>
+                            <div class="space-y-1.5">
+                                <template x-for="r in getOpenRoutes(card)" :key="r.client + r.start_time">
+                                    <div class="flex justify-between items-center px-2.5 py-1.5 rounded-lg" :class="elapsedMinutes(r) >= 20 ? 'bg-amber-500/15' : 'bg-slate-800/40'">
+                                        <span class="text-body font-medium truncate flex-1 mr-2" :class="elapsedMinutes(r) >= 20 ? 'text-amber-300' : ''" x-text="r.client"></span>
+                                        <span class="text-caption font-mono shrink-0 mr-2" style="color: var(--color-text-muted);" x-text="r.start_time"></span>
+                                        <span class="text-caption font-mono shrink-0" :class="elapsedMinutes(r) >= 20 ? 'text-amber-400 font-semibold' : 'text-slate-500'" x-text="elapsedMinutes(r) + ' min'"></span>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </div>
                 </template>
             </div>
-        </div>
+        </section>
 
-        <div>
+        <!-- Devoluções do dia -->
+        <section x-show="(devolucao_dia.items_list || []).length > 0">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-title flex items-center gap-2" style="color: var(--color-text);">
+                    <div class="icon-wrap w-8 h-8 flex items-center justify-center" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                        <i data-lucide="package-x" class="w-4 h-4"></i>
+                    </div>
+                    Devoluções do dia
+                </h2>
+                <span class="text-caption font-bold px-3 py-1 rounded-full" style="background: rgba(239,68,68,0.15); color: var(--color-danger);" x-text="devolucao_dia.count || 0"></span>
+            </div>
+            <div class="surface rounded-xl overflow-hidden">
+                <div class="divide-y" style="border-color: var(--color-border);">
+                    <template x-for="item in (devolucao_dia.items_list || [])" :key="item.client_name + item.driver_name">
+                        <div class="px-4 py-2.5 flex items-center gap-2" style="background: rgba(239,68,68,0.06);">
+                            <span class="text-body font-medium truncate flex-1" style="color: var(--color-text);" x-text="item.client_name"></span>
+                            <span class="text-caption shrink-0 truncate max-w-[40%]" style="color: var(--color-text-muted);" x-text="'· ' + item.driver_name"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alto índice devolução -->
+        <section x-show="(clientesAltoIndice || []).length > 0">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-title flex items-center gap-2" style="color: var(--color-text);">
+                    <div class="icon-wrap w-8 h-8 flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
+                        <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                    </div>
+                    Alto índice devolução
+                </h2>
+            </div>
+            <div class="surface rounded-xl overflow-hidden">
+                <div class="divide-y" style="border-color: var(--color-border);">
+                    <template x-for="row in (clientesAltoIndice || [])" :key="row.client_name + row.driver_name">
+                        <div class="px-4 py-2.5 flex items-center gap-2" style="background: rgba(245,158,11,0.06);">
+                            <span class="text-body font-medium truncate flex-1" style="color: var(--color-text);" x-text="row.client_name"></span>
+                            <span class="text-caption shrink-0 truncate max-w-[35%]" style="color: var(--color-text-muted);" x-text="'· ' + row.driver_name"></span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sem Rota -->
+        <section>
             <div class="flex items-center justify-between mb-3">
                 <h2 class="text-title flex items-center gap-2" style="color: var(--color-text);">
                     <div class="icon-wrap w-8 h-8 flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
@@ -84,14 +186,14 @@
             </div>
 
             <template x-if="employeesWithoutRoute.length === 0">
-                <div class="surface p-6 text-center">
-                    <p class="text-body" style="color: var(--color-text-secondary);">Todos os colaboradores possuem rota ativa</p>
+                <div class="surface p-6 text-center rounded-xl">
+                    <p class="text-body" style="color: var(--color-text-secondary);">Todos possuem rota ativa</p>
                 </div>
             </template>
 
             <div class="space-y-2">
                 <template x-for="emp in employeesWithoutRoute" :key="emp.id">
-                    <div class="surface p-3 flex items-center justify-between">
+                    <div class="surface p-3 flex items-center justify-between rounded-xl">
                         <div class="flex items-center gap-3">
                             <span class="text-caption font-semibold px-2 py-1 rounded" style="background: var(--color-primary-bg); color: var(--color-primary);" x-text="emp.registration_id"></span>
                             <span class="text-body font-medium" style="color: var(--color-text);" x-text="emp.name"></span>
@@ -100,7 +202,7 @@
                     </div>
                 </template>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 
@@ -110,8 +212,53 @@
             isLoading: true,
             liveSeparation: [],
             employeesWithoutRoute: [],
+            devolucao_dia: { count: 0, items_list: [] },
+            alerts: { clients_over_20min: [] },
+            clientesAltoIndice: [],
+            kpi: { abertas: 0, rotas_concluidas: 0, rotas_paradas: 0, rotas_ativas: 0 },
+            expandedCard: null,
+            liveTick: 0,
 
-            init() { this.loadRoutes(); this.$nextTick(() => lucide.createIcons()); },
+            init() {
+                this.loadRoutes();
+                this.$nextTick(() => lucide.createIcons());
+                setInterval(() => { this.liveTick++; }, 60000);
+            },
+
+            elapsedMinutes(r) {
+                void this.liveTick;
+                const start = r.start_time;
+                if (!start || typeof start !== 'string') return 0;
+                const parts = String(start).trim().split(':');
+                const h = parseInt(parts[0], 10) || 0;
+                const m = parseInt(parts[1], 10) || 0;
+                const now = new Date();
+                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const started = new Date(today.getTime() + h * 3600000 + m * 60000);
+                return Math.max(0, Math.floor((now - started) / 60000));
+            },
+
+            toggleCard(empId) {
+                this.expandedCard = this.expandedCard === empId ? null : empId;
+                this.$nextTick(() => lucide.createIcons());
+            },
+
+            getOpenRoutes(card) {
+                const routes = card.routes || [];
+                return routes.filter(r => (r.delivery_status || '').toLowerCase() === 'iniciada');
+            },
+
+            getDriverAlerts(card) {
+                const list = this.alerts.clients_over_20min || [];
+                const name = (card.employee_name || '').trim();
+                return list.filter(a => (a.driver_name || '').trim() === name);
+            },
+
+            formatMinutes(m) {
+                m = parseInt(m, 10) || 0;
+                if (m >= 60) return Math.floor(m / 60) + 'h ' + (m % 60) + 'min';
+                return m + ' min';
+            },
 
             async loadRoutes() {
                 this.isLoading = true;
@@ -121,6 +268,10 @@
                     if (data.success) {
                         this.liveSeparation = data.live_separation || [];
                         this.employeesWithoutRoute = data.employees_without_route || [];
+                        this.devolucao_dia = data.devolucao_dia || { count: 0, items_list: [] };
+                        this.alerts = data.alerts || { clients_over_20min: [] };
+                        this.clientesAltoIndice = data.clientes_alto_indice_devolucao || [];
+                        this.kpi = data.kpi || { abertas: 0, rotas_concluidas: 0, rotas_paradas: 0, rotas_ativas: 0 };
                     } else {
                         alert('Erro: ' + (data.error || ''));
                     }
@@ -135,9 +286,10 @@
             statusLabel(card) {
                 const st = card.route_state || '';
                 if (st === 'closed') return 'Encerrada';
-                if (st === 'not_started') return 'Rota parada';
-                if (st === 'route_started') return 'Início';
+                if (st === 'not_started') return 'Não iniciou';
+                if (st === 'route_started') return 'Iniciou';
                 if (st === 'all_delivered') return 'Entregues';
+                if (st === 'over_20_min') return 'Parada >20min';
                 const total = card.total_deliveries || 0;
                 const completed = card.completed_deliveries || 0;
                 const openCount = total - completed;
@@ -153,6 +305,7 @@
                 if (st === 'not_started') return 'bg-slate-600/50 text-slate-400';
                 if (st === 'route_started') return 'bg-sky-500/25 text-sky-300';
                 if (st === 'all_delivered') return 'bg-violet-500/35 text-violet-200';
+                if (st === 'over_20_min') return 'bg-amber-500/30 text-amber-300';
                 const total = card.total_deliveries || 0;
                 const completed = card.completed_deliveries || 0;
                 const openCount = total - completed;
@@ -164,17 +317,47 @@
 
             statusCardClass(card) {
                 const st = card.route_state || '';
-                if (st === 'closed') return 'border-emerald-500/50';
-                if (st === 'not_started') return 'border-slate-500/60';
-                if (st === 'route_started') return 'border-sky-500/50';
-                if (st === 'all_delivered') return 'border-violet-500/50';
+                if (st === 'closed') return 'bg-emerald-500/8 border-emerald-500/50';
+                if (st === 'not_started') return 'bg-slate-700/30 border-slate-500/50';
+                if (st === 'route_started') return 'bg-sky-500/10 border-sky-500/50';
+                if (st === 'all_delivered') return 'bg-violet-500/10 border-violet-500/50';
+                if (st === 'over_20_min') return 'bg-amber-500/15 border-amber-500/60';
                 const total = card.total_deliveries || 0;
                 const completed = card.completed_deliveries || 0;
                 const openCount = total - completed;
                 const pct = total ? (completed / total * 100) : 0;
-                if (openCount >= 5 || pct < 25) return 'border-red-500/50';
-                if (openCount >= 3 || pct < 50) return 'border-amber-500/50';
-                return 'border-slate-500/40';
+                if (openCount >= 5 || pct < 25) return 'bg-red-500/10 border-red-500/50';
+                if (openCount >= 3 || pct < 50) return 'bg-amber-500/8 border-amber-500/50';
+                return 'bg-slate-800/40 border-slate-500/40';
+            },
+
+            statusAvatarClass(card) {
+                const st = card.route_state || '';
+                if (st === 'closed') return 'bg-emerald-500/25 text-emerald-300';
+                if (st === 'not_started') return 'bg-slate-600/60 text-slate-400';
+                if (st === 'route_started') return 'bg-sky-500/25 text-sky-300';
+                if (st === 'all_delivered') return 'bg-violet-500/25 text-violet-300';
+                if (st === 'over_20_min') return 'bg-amber-500/25 text-amber-300';
+                const total = card.total_deliveries || 0;
+                const completed = card.completed_deliveries || 0;
+                const openCount = total - completed;
+                const pct = total ? (completed / total * 100) : 0;
+                if (openCount >= 5 || pct < 25) return 'bg-red-500/20 text-red-300';
+                if (openCount >= 3 || pct < 50) return 'bg-amber-500/20 text-amber-300';
+                return 'bg-slate-600/50 text-slate-300';
+            },
+
+            barColorStyle(card) {
+                const st = card.route_state || '';
+                if (st === 'closed' || st === 'all_delivered') return 'background: linear-gradient(to right, rgb(16,185,129), rgb(52,211,153));';
+                if (st === 'over_20_min') return 'background: linear-gradient(to right, rgb(245,158,11), rgb(251,191,36));';
+                const total = card.total_deliveries || 0;
+                const completed = card.completed_deliveries || 0;
+                const openCount = total - completed;
+                const pct = total ? (completed / total * 100) : 0;
+                if (openCount >= 5 || pct < 25) return 'background: linear-gradient(to right, rgb(239,68,68), rgb(248,113,113));';
+                if (openCount >= 3 || pct < 50) return 'background: linear-gradient(to right, rgb(245,158,11), rgb(251,191,36));';
+                return 'background: linear-gradient(to right, rgb(59,130,246), rgb(34,211,238));';
             }
         };
     }

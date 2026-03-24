@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-8">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">Portaria</h1>
+                <p class="text-slate-400">Histórico de saídas e chegadas confirmadas pelo porteiro. <span class="text-blue-400">Azul = Saída</span> · <span class="text-emerald-400">Verde = Chegada</span></p>
+            </div>
+            <form method="get" action="/portaria" class="flex items-center gap-2 flex-wrap">
+                <input type="date" name="date_from" value="{{ date_from }}" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+                <span class="text-slate-500">até</span>
+                <input type="date" name="date_to" value="{{ date_to }}" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
+                <button type="submit" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm font-medium">Filtrar</button>
+            </form>
+        </div>
+
+        {% if entries %}
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {% for e in entries %}
+            <div class="rounded-xl p-4 {{ e.card_style }} border border-slate-700/60">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold uppercase tracking-wider {% if e.check_type == 'saida' %}text-blue-400{% else %}text-emerald-400{% endif %}">{{ e.card_label }}</span>
+                    <span class="text-sm text-slate-500">{{ e.date_fmt }} {{ e.porteiro_confirmed_at }}</span>
+                </div>
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">Motorista</span>
+                        <span class="font-semibold text-white">{{ e.driver_name }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">Ajudante(s)</span>
+                        <span class="text-slate-300">{{ e.helpers_text or "—" }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">Placa</span>
+                        <span class="font-mono text-slate-200">{{ e.plate or "—" }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">KM</span>
+                        <span class="font-mono text-slate-200">{% if e.km %}{{ "%.1f" | format(e.km) }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">Peso</span>
+                        <span class="font-mono text-slate-200">{% if e.peso_kg %}{{ "%.1f" | format(e.peso_kg) }} kg{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-slate-500">Valor total</span>
+                        <span class="font-mono font-semibold text-slate-200">{% if e.valor_total %}R$ {{ "%.2f" | format(e.valor_total) | replace(".", ",") }}{% else %}—{% endif %}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="rounded-xl p-12 text-center bg-slate-800/50 border border-slate-700">
+            <div class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center bg-slate-700/50 text-slate-500 mb-4">
+                <i data-lucide="shield-off" class="w-8 h-8"></i>
+            </div>
+            <p class="text-lg font-semibold text-slate-300">Nenhum registro no período</p>
+            <p class="text-slate-500 mt-2">As conferências aparecem aqui após o porteiro confirmar saídas e chegadas no app mobile.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

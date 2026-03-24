@@ -421,6 +421,24 @@ class VehicleLocation(SQLModel, table=True):
     longitude: float
     timestamp: datetime = Field(default_factory=datetime.now, index=True)
 
+
+class PortariaCheck(SQLModel, table=True):
+    """Registro de conferência da portaria: saída (azul) e chegada (verde)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    delivery_session_id: int = Field(foreign_key="deliverysession.id", index=True)
+    check_type: str = Field(index=True)  # saida | chegada
+    date: str = Field(index=True)  # YYYY-MM-DD
+    driver_id: int = Field(foreign_key="employee.id", index=True)
+    driver_name: str = Field(index=True)
+    helpers_text: str = Field(default="")
+    vehicle_plate: str = Field(index=True)
+    km: float = Field(default=0.0)
+    peso_total_kg: float = Field(default=0.0)
+    valor_total: float = Field(default=0.0)
+    porteiro_confirmed_at: datetime = Field(default_factory=datetime.now, index=True)
+    porteiro_employee_id: int = Field(foreign_key="employee.id", index=True)
+
+
 # --- Checklist Operacional (Transpaleteira) ---
 
 class TranspalletEquipment(SQLModel, table=True):
