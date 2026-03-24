@@ -4529,8 +4529,8 @@ def _render_mobile_dashboard_template(
     if has_admin_start_access:
         modules.append({
             "key": "manage_routes",
-            "label": "Gerenciar Rotas",
-            "description": "Editar e iniciar rotas manualmente.",
+            "label": "Entregas em Tempo Real",
+            "description": "Acompanhar motoristas, progresso e situação das rotas.",
             "icon": "route",
             "action": "manage_routes",
             "tone": "primary",
@@ -4801,11 +4801,55 @@ async def mobile_portaria_historico_page(
         .where(models.PortariaCheck.date <= dt)
         .order_by(desc(models.PortariaCheck.porteiro_confirmed_at))
     ).all()
+    porteiro_ids = list({pc.porteiro_employee_id for pc in checks if pc.porteiro_employee_id})
+    emp_map = {}
+    if porteiro_ids:
+        emps = session.exec(select(models.Employee).where(models.Employee.id.in_(porteiro_ids))).all()
+        emp_map = {e.id: (e.name or "").strip() for e in emps if e.id}
+    checklist_by_driver_date: Dict[tuple, bool] = {}
+    if hasattr(models, "TranspalletChecklist"):
+        chk = session.exec(
+            select(models.TranspalletChecklist.employee_id, models.TranspalletChecklist.date)
+            .where(models.TranspalletChecklist.date >= df)
+            .where(models.TranspalletChecklist.date <= dt)
+        ).all()
+        for r in chk:
+            did = getattr(r, "employee_id", r[0]) if hasattr(r, "employee_id") else r[0]
+            d = getattr(r, "date", r[1]) if hasattr(r, "date") else r[1]
+            if did and d:
+                checklist_by_driver_date[(int(did), str(d))] = True
+    devolucoes_by_driver_date: Dict[tuple, list] = {}
+    routes_devolucao = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.delivery_status == "devolucao")
+        .where(models.Route.date >= df)
+        .where(models.Route.date <= dt)
+    ).all()
+    client_ids_dev = list({r.client_id for r in routes_devolucao if r.client_id})
+    client_map_dev = {}
+    if client_ids_dev:
+        clients_dev = session.exec(select(models.Client).where(models.Client.id.in_(client_ids_dev))).all()
+        client_map_dev = {c.id: (c.name or c.razao_social or f"Cliente #{c.id}") for c in clients_dev if c.id}
+    for route in routes_devolucao:
+        drv = route.employee_id
+        dt_r = route.date
+        if drv and dt_r:
+            key = (int(drv), str(dt_r)[:10])
+            cname = client_map_dev.get(route.client_id, f"Cliente #{route.client_id}" if route.client_id else "—")
+            lst = devolucoes_by_driver_date.setdefault(key, [])
+            if cname and cname not in lst:
+                lst.append(str(cname or "—"))
     by_session: Dict[int, Dict[str, Any]] = {}
     for pc in checks:
         sid = pc.delivery_session_id
         if sid not in by_session:
+            driver_id = pc.driver_id
+            entry_date = pc.date
+            dev_list = devolucoes_by_driver_date.get((driver_id, str(entry_date)[:10]), [])
+            checklist_done = checklist_by_driver_date.get((driver_id, str(entry_date)[:10]), False)
             by_session[sid] = {
+                "driver_id": driver_id,
                 "driver_name": pc.driver_name,
                 "helpers_text": pc.helpers_text,
                 "plate": pc.vehicle_plate,
@@ -4813,19 +4857,26 @@ async def mobile_portaria_historico_page(
                 "valor_total": pc.valor_total,
                 "saida_at": None,
                 "saida_km": None,
+                "saida_porteiro": None,
                 "chegada_at": None,
                 "chegada_km": None,
-                "date": pc.date,
+                "chegada_porteiro": None,
+                "date": entry_date,
+                "checklist_done": checklist_done,
+                "devolucoes": dev_list,
             }
         data_fmt = fmt_ddmmyyyy(pc.date) if pc.date else "—"
         hora = fmt_hhmm(pc.porteiro_confirmed_at)
         dt_fmt = f"{data_fmt} {hora}" if hora != "—" else data_fmt
+        porteiro_name = emp_map.get(pc.porteiro_employee_id, "")
         if pc.check_type == "saida":
             by_session[sid]["saida_at"] = dt_fmt
             by_session[sid]["saida_km"] = pc.km
+            by_session[sid]["saida_porteiro"] = porteiro_name
         else:
             by_session[sid]["chegada_at"] = dt_fmt
             by_session[sid]["chegada_km"] = pc.km
+            by_session[sid]["chegada_porteiro"] = porteiro_name
     entries = list(by_session.values())
     entries.sort(key=lambda e: (e.get("chegada_at") or e.get("saida_at") or ""), reverse=True)
     return templates.TemplateResponse(
@@ -5384,6 +5435,8 @@ async def api_admin_reset_data(
             counts["DevolucaoImportBatch"] = r.rowcount or 0
             r = session.execute(delete(models.DeliverySession))
             counts["DeliverySession"] = r.rowcount or 0
+            r = session.execute(delete(models.RouteInsertLog))
+            counts["RouteInsertLog"] = r.rowcount or 0
             r = session.execute(delete(models.Route))
             counts["Route"] = r.rowcount or 0
             r = session.execute(delete(models.EmployeeRoutine))
@@ -9562,6 +9615,8 @@ async def admin_reset_delivery_execute(
     counts["DevolucaoImportBatch"] = r.rowcount or 0
     r = session.execute(delete(models.DeliverySession))
     counts["DeliverySession"] = r.rowcount or 0
+    r = session.execute(delete(models.RouteInsertLog))
+    counts["RouteInsertLog"] = r.rowcount or 0
     r = session.execute(delete(models.Route))
     counts["Route"] = r.rowcount or 0
 
@@ -11313,8 +11368,11 @@ async def delete_client(request: Request, client_id: int, session: Session = Dep
     require_login(request)
     client = session.get(models.Client, client_id)
     if client:
-        # Cascade Delete: Remove allocations/routes first
+        # Cascade Delete: Remove RouteInsertLog and routes first
         # WARN: This removes historical production data for this client!
+        route_ids = [r.id for r in session.exec(select(models.Route).where(models.Route.client_id == client_id)).all() if r.id]
+        if route_ids:
+            session.execute(delete(models.RouteInsertLog).where(models.RouteInsertLog.route_id.in_(route_ids)))
         session.exec(delete(models.Route).where(models.Route.client_id == client_id))
         
         session.delete(client)
@@ -12816,10 +12874,16 @@ async def portaria_desktop_page(
         .where(models.PortariaCheck.date <= dt)
         .order_by(desc(models.PortariaCheck.porteiro_confirmed_at))
     ).all()
+    porteiro_ids = list({pc.porteiro_employee_id for pc in checks if pc.porteiro_employee_id})
+    emp_map = {}
+    if porteiro_ids:
+        emps = session.exec(select(models.Employee).where(models.Employee.id.in_(porteiro_ids))).all()
+        emp_map = {e.id: (e.name or "").strip() for e in emps if e.id}
     entries = []
     for pc in checks:
         hora = fmt_hhmm(pc.porteiro_confirmed_at)
         data_fmt = (pc.date[:10] if len(pc.date) >= 10 else pc.date) if pc.date else "—"
+        porteiro_name = emp_map.get(pc.porteiro_employee_id, "")
         entries.append({
             "id": pc.id,
             "check_type": pc.check_type,
@@ -12832,6 +12896,7 @@ async def portaria_desktop_page(
             "peso_kg": pc.peso_total_kg,
             "valor_total": pc.valor_total,
             "porteiro_confirmed_at": hora,
+            "porteiro_name": porteiro_name,
             "card_style": "bg-blue-500/10 border-l-4 border-blue-500" if pc.check_type == "saida" else "bg-emerald-500/10 border-l-4 border-emerald-500",
             "card_label": "Saída" if pc.check_type == "saida" else "Chegada",
         })
@@ -13370,7 +13435,7 @@ async def separacao_page(
     today_br = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     import_requires_password = date_from_str != today_br
 
-    return templates.TemplateResponse("routes.html", {
+    response = templates.TemplateResponse("routes.html", {
         "request": request, 
         "user": user,
         "employees": eligible_employees, 
@@ -13397,6 +13462,10 @@ async def separacao_page(
         "delivery_employees": delivery_employees,
         "delivery_vehicles": delivery_vehicles,
     })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
+
 @app.post("/separacao/add", response_class=RedirectResponse)
 async def add_separacao(
     request: Request,
@@ -15066,6 +15135,9 @@ async def delivery_bulk_action(
                     )
                 )
             )
+            # 2.5. Delete RouteInsertLog (FK para route)
+            if route_ids:
+                session.execute(delete(models.RouteInsertLog).where(models.RouteInsertLog.route_id.in_(route_ids)))
             # 3. Delete Route
             if route_ids:
                 session.execute(delete(models.Route).where(models.Route.id.in_(route_ids)))
@@ -15201,8 +15273,10 @@ async def delivery_bulk_action(
     except Exception as e:
         session.rollback()
         logger.exception("delivery_bulk_action error: %s", e)
+        msg = (str(e).strip()[:200] or "").replace("&", " ").replace("<", " ")
+        detail = f" Detalhe: {msg}" if msg else ""
         feedback_encoded = urlencode({
-            "delivery_feedback": "Erro ao processar ação em massa. Tente novamente ou contate o suporte.",
+            "delivery_feedback": f"Erro ao processar ação em massa.{detail} Tente novamente ou contate o suporte.",
             "delivery_feedback_level": "error",
         })
         return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)

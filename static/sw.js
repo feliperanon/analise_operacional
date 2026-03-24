@@ -9,7 +9,7 @@
  * - Background Sync → fila de ações offline (IndexedDB)
  */
 
-const SW_VERSION = 'nl-entregas-v1.1.3';
+const SW_VERSION = 'nl-entregas-v1.1.4';
 const ASSETS_CACHE = `${SW_VERSION}-assets`;
 const DATA_CACHE = `${SW_VERSION}-data`;
 const CDN_CACHE = `${SW_VERSION}-cdn`;
@@ -36,6 +36,7 @@ const PRECACHE_CDN = [
 // Rotas de API servidas do cache quando offline
 const CACHEABLE_API_ROUTES = [
   '/api/mobile/delivery/my-routes',
+  '/api/mobile/admin/routes',
 ];
 
 // HTML mínimo exibido quando o usuário está offline e a página não está em cache

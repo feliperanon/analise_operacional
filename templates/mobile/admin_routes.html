@@ -1,6 +1,6 @@
 {% extends "mobile/layout.html" %}
 
-{% block title %}Rotas do Dia{% endblock %}
+{% block title %}Entregas em Tempo Real{% endblock %}
 
 {% block content %}
 <div class="min-h-screen pb-safe" style="background: var(--color-bg);" x-data="routeManager()">
@@ -14,8 +14,8 @@
                     <i data-lucide="route" class="w-5 h-5"></i>
                 </div>
                 <div class="min-w-0">
-                    <h1 class="text-title-lg truncate" style="color: var(--color-text);">Rotas do Dia</h1>
-                    <p class="text-caption-lg">Entregas em tempo real</p>
+                    <h1 class="text-title-lg truncate" style="color: var(--color-text);">Entregas em Tempo Real</h1>
+                    <p class="text-caption-lg">Motoristas, progresso e situação</p>
                 </div>
             </div>
             <button @click="loadRoutes()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap flex-shrink-0" :class="isLoading ? 'opacity-60' : ''">
@@ -40,6 +40,17 @@
             <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" :style="(alerts.clients_over_20min || []).length > 0 ? 'background: rgba(245,158,11,0.15)' : 'background: rgba(30,41,59,0.8)'">
                 <span class="text-caption" style="color: var(--color-text-muted);">Alertas</span>
                 <span class="text-body font-bold" :style="(alerts.clients_over_20min || []).length > 0 ? 'color: var(--color-warning)' : 'color: var(--color-text)'" x-text="(alerts.clients_over_20min || []).length"></span>
+            </div>
+        </div>
+
+        <!-- Barra de conclusão total -->
+        <div class="mt-3">
+            <div class="flex justify-between items-center mb-1">
+                <span class="text-caption" style="color: var(--color-text-muted);">Conclusão das rotas</span>
+                <span class="text-caption font-bold" style="color: var(--color-success);" x-text="conclusaoPct() + '%'"></span>
+            </div>
+            <div class="h-2 rounded-full overflow-hidden" style="background: var(--color-border);">
+                <div class="h-full rounded-full transition-all duration-500" style="background: linear-gradient(90deg, var(--color-primary), var(--color-success));" :style="'width:' + conclusaoPct() + '%'"></div>
             </div>
         </div>
     </header>
@@ -258,6 +269,11 @@
                 m = parseInt(m, 10) || 0;
                 if (m >= 60) return Math.floor(m / 60) + 'h ' + (m % 60) + 'min';
                 return m + ' min';
+            },
+
+            conclusaoPct() {
+                const total = (this.kpi.abertas || 0) + (this.kpi.rotas_concluidas || 0);
+                return total > 0 ? Math.round((this.kpi.rotas_concluidas || 0) / total * 100) : 0;
             },
 
             async loadRoutes() {
