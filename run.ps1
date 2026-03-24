@@ -14,6 +14,8 @@ if (Test-Path ".venv\Scripts\python.exe") {
     }
     # --reload-delay: evita dois reloads seguidos; reload-exclude database.py: mudanças só em pool/URL
     # exigem reinício manual (Ctrl+C), mas evita ficar preso reabrindo Postgres a cada save.
+    # Ao salvar arquivos monitorados, o processo reinicia: requisições em voo podem falhar com net::ERR_CONNECTION_RESET.
+    # Para painel TV estável sem reload: uvicorn main:app --host 127.0.0.1 --port 8000
     & ".\.venv\Scripts\python" -m uvicorn main:app --reload --reload-delay 1 --reload-exclude "database.py"
 }
 else {

@@ -43,7 +43,8 @@ from game_audit_routes import init_game_audit_router, parse_reason
 from routers.admin_geocoding import init_admin_geocoding_router
 from services.geocoding_service import geocoding_service
 from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
-from route_duration import route_duration_minutes
+from route_duration import route_duration_minutes, iniciada_elapsed_wall_minutes
+from utils.delivery_projection import compute_delivery_projection
 
 
 def operational_shift_br(dt: datetime) -> str:
@@ -84,6 +85,14 @@ def tv_shift_alert_counts(live_separation: List[Any], now_br: datetime) -> Dict[
         st = b.get("route_state") or ""
         if st in ("not_started", "closed"):
             continue
+        level = str(b.get("route_alert_level") or "").strip().lower()
+        if level == "critico":
+            critico += 1
+            continue
+        if level == "atencao":
+            atencao += 1
+            continue
+
         total = int(b.get("total_deliveries") or 0)
         completed = int(b.get("completed_deliveries") or 0)
         open_count = total - completed
@@ -154,6 +163,10 @@ RESET_TOKEN_TTL_MINUTES = int(os.getenv("RESET_TOKEN_TTL_MINUTES", "30"))
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
 GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
+DELIVERY_OPERATION_START_HOUR = int(os.getenv("DELIVERY_OPERATION_START_HOUR", "8"))
+DELIVERY_OPERATION_END_HOUR = int(os.getenv("DELIVERY_OPERATION_END_HOUR", "17"))
+DELIVERY_BASE_CREW_SIZE = float(os.getenv("DELIVERY_BASE_CREW_SIZE", "2"))
+DELIVERY_ATTENTION_BUFFER_MINUTES = int(os.getenv("DELIVERY_ATTENTION_BUFFER_MINUTES", "45"))
 
 # --- AI Configuration (Google Gemini) ---
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
@@ -2687,13 +2700,17 @@ async def dashboard_entry(
             continue
         d_m = route_duration_minutes(r) or 0
         client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
-        bucket["routes"].append({
+        oe = iniciada_elapsed_wall_minutes(r, selected_date, now_br)
+        rd = {
             "client": client_name,
             "start_time": r.delivery_started_at or r.start_time or "--:--",
             "duration_mins": d_m,
             "tonnage": float(r.tonnage or 0.0),
             "delivery_status": st,
-        })
+        }
+        if oe is not None:
+            rd["open_elapsed_minutes"] = oe
+        bucket["routes"].append(rd)
     sessions_today = session.exec(
         select(models.DeliverySession)
         .where(models.DeliverySession.date == selected_date_str)
@@ -2705,7 +2722,7 @@ async def dashboard_entry(
     for s in sessions_today:
         if s.employee_id and (getattr(s, "vehicle_plate", None) or "").strip():
             session_plate_by_emp.setdefault(s.employee_id, (s.vehicle_plate or "").strip())
-    session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if getattr(s, "helpers_json", None)}
+    session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json) for s in sessions_today if getattr(s, "helpers_json", None)}
     for emp_id, bucket in live_buckets.items():
         emp_routes = [r for r in routes if r.employee_id == emp_id]
         bucket["employee_id"] = emp_id
@@ -2722,12 +2739,16 @@ async def dashboard_entry(
         helper_ids = []
         for r in emp_routes:
             helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
-        bucket["helper_names"] = list(dict.fromkeys(
+        route_helper_names = list(dict.fromkeys(
             (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajudante #{hid}"
             for hid in helper_ids if hid
-        ))[:3]
+        ))
+        bucket["helper_count"] = len(route_helper_names)
+        bucket["helper_names"] = route_helper_names[:3]
         if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
-            bucket["helper_names"] = session_helpers_by_emp[emp_id]
+            session_helper_names = [str(name).strip() for name in (session_helpers_by_emp.get(emp_id) or []) if str(name or "").strip()]
+            bucket["helper_count"] = len(session_helper_names)
+            bucket["helper_names"] = session_helper_names[:3]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
         open_routes_count = len([r for r in emp_routes if (r.delivery_status or "").lower() == "iniciada"])
         finished_times = [(r.delivery_finished_at or r.end_time or "") for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao") and (r.delivery_finished_at or r.end_time)]
@@ -2760,20 +2781,32 @@ async def dashboard_entry(
         bucket["route_ended"] = route_ended
         _emp_ws = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
         bucket["work_shift"] = (getattr(_emp_ws, "work_shift", None) or "Manhã").strip()
+        bucket.update(
+            compute_delivery_projection(
+                bucket,
+                now_br,
+                operation_start_hour=DELIVERY_OPERATION_START_HOUR,
+                operation_end_hour=DELIVERY_OPERATION_END_HOUR,
+                baseline_crew_size=DELIVERY_BASE_CREW_SIZE,
+                attention_buffer_minutes=DELIVERY_ATTENTION_BUFFER_MINUTES,
+            )
+        )
 
     def _live_sort_key(x):
         state = x.get("route_state") or "in_progress"
         open_count = (x.get("total_deliveries") or 0) - (x.get("completed_deliveries") or 0)
-        pct = (x.get("completed_deliveries") or 0) / (x.get("total_deliveries") or 1) * 100
+        alert_level = str(x.get("route_alert_level") or "ok").strip().lower()
+        alert_rank = 0 if alert_level == "critico" else 1 if alert_level == "atencao" else 2
+        delay = int(x.get("projected_finish_delay_minutes") or 0)
         if state == "closed":
-            return (4, 0, -pct)
+            return (4, 0, 0, 0)
         if state == "not_started":
-            return (3, -open_count, -pct)
+            return (3, alert_rank, -delay, -open_count)
         if state == "all_delivered":
-            return (3, -open_count, -pct)
+            return (3, 0, 0, -open_count)
         if state == "route_started":
-            return (1, -open_count, -pct)
-        return (1, -open_count, -pct)
+            return (1, alert_rank, -delay, -open_count)
+        return (1, alert_rank, -delay, -open_count)
 
     live_separation = list(live_buckets.values())
     live_separation.sort(key=_live_sort_key)
@@ -3026,13 +3059,17 @@ async def api_dashboard_tv_data(
             continue
         d_m = route_duration_minutes(r) or 0
         client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
-        bucket["routes"].append({
+        oe = iniciada_elapsed_wall_minutes(r, selected_date, now_br)
+        rd = {
             "client": client_name,
             "start_time": r.delivery_started_at or r.start_time or "--:--",
             "duration_mins": d_m,
             "tonnage": float(r.tonnage or 0.0),
             "delivery_status": st,
-        })
+        }
+        if oe is not None:
+            rd["open_elapsed_minutes"] = oe
+        bucket["routes"].append(rd)
     sessions_today = session.exec(
         select(models.DeliverySession)
         .where(models.DeliverySession.date == selected_date_str)
@@ -3044,7 +3081,7 @@ async def api_dashboard_tv_data(
     for s in sessions_today:
         if s.employee_id and (getattr(s, "vehicle_plate", None) or "").strip():
             session_plate_by_emp.setdefault(s.employee_id, (s.vehicle_plate or "").strip())
-    session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if getattr(s, "helpers_json", None)}
+    session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json) for s in sessions_today if getattr(s, "helpers_json", None)}
 
     for emp_id, bucket in live_buckets.items():
         emp_routes = [r for r in routes if r.employee_id == emp_id]
@@ -3057,12 +3094,16 @@ async def api_dashboard_tv_data(
         helper_ids = []
         for r in emp_routes:
             helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
-        bucket["helper_names"] = list(dict.fromkeys(
+        route_helper_names = list(dict.fromkeys(
             (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajud. #{hid}"
             for hid in helper_ids if hid
-        ))[:3]
+        ))
+        bucket["helper_count"] = len(route_helper_names)
+        bucket["helper_names"] = route_helper_names[:3]
         if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
-            bucket["helper_names"] = session_helpers_by_emp[emp_id]
+            session_helper_names = [str(name).strip() for name in (session_helpers_by_emp.get(emp_id) or []) if str(name or "").strip()]
+            bucket["helper_count"] = len(session_helper_names)
+            bucket["helper_names"] = session_helper_names[:3]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
         open_routes_count = len([r for r in emp_routes if (r.delivery_status or "").lower() == "iniciada"])
         finished_times = [(r.delivery_finished_at or r.end_time or "") for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao") and (r.delivery_finished_at or r.end_time)]
@@ -3095,20 +3136,32 @@ async def api_dashboard_tv_data(
         bucket["route_ended"] = route_ended
         _emp_ws2 = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
         bucket["work_shift"] = (getattr(_emp_ws2, "work_shift", None) or "Manhã").strip()
+        bucket.update(
+            compute_delivery_projection(
+                bucket,
+                now_br,
+                operation_start_hour=DELIVERY_OPERATION_START_HOUR,
+                operation_end_hour=DELIVERY_OPERATION_END_HOUR,
+                baseline_crew_size=DELIVERY_BASE_CREW_SIZE,
+                attention_buffer_minutes=DELIVERY_ATTENTION_BUFFER_MINUTES,
+            )
+        )
 
     def _live_sort_key(x):
         state = x.get("route_state") or "in_progress"
         open_count = (x.get("total_deliveries") or 0) - (x.get("completed_deliveries") or 0)
-        pct = (x.get("completed_deliveries") or 0) / (x.get("total_deliveries") or 1) * 100
+        alert_level = str(x.get("route_alert_level") or "ok").strip().lower()
+        alert_rank = 0 if alert_level == "critico" else 1 if alert_level == "atencao" else 2
+        delay = int(x.get("projected_finish_delay_minutes") or 0)
         if state == "closed":
-            return (4, 0, -pct)
+            return (4, 0, 0, 0)
         if state == "not_started":
-            return (3, -open_count, -pct)
+            return (3, alert_rank, -delay, -open_count)
         if state == "all_delivered":
-            return (3, -open_count, -pct)
+            return (3, 0, 0, -open_count)
         if state == "route_started":
-            return (1, -open_count, -pct)
-        return (1, -open_count, -pct)
+            return (1, alert_rank, -delay, -open_count)
+        return (1, alert_rank, -delay, -open_count)
 
     live_separation = list(live_buckets.values())
     live_separation.sort(key=_live_sort_key)
@@ -29326,7 +29379,7 @@ async def api_list_admin_routes(
         for s in sessions_today:
             if s.employee_id and (getattr(s, "vehicle_plate", None) or "").strip():
                 session_plate_by_emp.setdefault(s.employee_id, (s.vehicle_plate or "").strip())
-        session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json)[:3] for s in sessions_today if getattr(s, "helpers_json", None)}
+        session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json) for s in sessions_today if getattr(s, "helpers_json", None)}
         
         now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
         alerts_over_20min = []
@@ -29375,9 +29428,11 @@ async def api_list_admin_routes(
             resolved = list(dict.fromkeys(
                 (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajud. #{hid}"
                 for hid in helper_ids if hid
-            ))[:3]
+            ))
             session_names = [str(h).strip() for h in session_helpers if h and str(h).strip() and not str(h).strip().isdigit()]
-            bucket["helper_names"] = resolved if resolved else session_names[:3]
+            all_helper_names = resolved if resolved else session_names
+            bucket["helper_count"] = len(all_helper_names)
+            bucket["helper_names"] = all_helper_names[:3]
             bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
             open_routes_count = len([r for r in bucket["routes"] if (r.get("delivery_status") or "").lower() == "iniciada"])
             finished_times = [
@@ -29414,22 +29469,34 @@ async def api_list_admin_routes(
                 bucket["route_state"] = "over_20_min"
             else:
                 bucket["route_state"] = "in_progress"
+            bucket.update(
+                compute_delivery_projection(
+                    bucket,
+                    now_br,
+                    operation_start_hour=DELIVERY_OPERATION_START_HOUR,
+                    operation_end_hour=DELIVERY_OPERATION_END_HOUR,
+                    baseline_crew_size=DELIVERY_BASE_CREW_SIZE,
+                    attention_buffer_minutes=DELIVERY_ATTENTION_BUFFER_MINUTES,
+                )
+            )
         
         def _live_sort_key(x):
             state = x.get("route_state") or "in_progress"
             open_count = (x.get("total_deliveries") or 0) - (x.get("completed_deliveries") or 0)
-            pct = (x.get("completed_deliveries") or 0) / (x.get("total_deliveries") or 1) * 100
+            alert_level = str(x.get("route_alert_level") or "ok").strip().lower()
+            alert_rank = 0 if alert_level == "critico" else 1 if alert_level == "atencao" else 2
+            delay = int(x.get("projected_finish_delay_minutes") or 0)
             if state == "closed":
-                return (4, 0, -pct)
+                return (4, 0, 0, 0)
             if state == "not_started":
-                return (3, -open_count, -pct)
+                return (3, alert_rank, -delay, -open_count)
             if state == "all_delivered":
-                return (3, -open_count, -pct)
+                return (3, 0, 0, -open_count)
             if state == "over_20_min":
-                return (0, -open_count, -pct)  # prioridade: mostrar primeiro
+                return (0, alert_rank, -delay, -open_count)  # prioridade: mostrar primeiro
             if state == "route_started":
-                return (1, -open_count, -pct)
-            return (1, -open_count, -pct)
+                return (1, alert_rank, -delay, -open_count)
+            return (1, alert_rank, -delay, -open_count)
         
         live_separation = list(live_buckets.values())
         live_separation.sort(key=_live_sort_key)
