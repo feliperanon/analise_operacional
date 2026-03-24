@@ -1308,9 +1308,9 @@ document.addEventListener('DOMContentLoaded', function() {
             <form id="editForm" method="POST" class="space-y-3">
                 <!-- Action will be set dynamically -->
                 
-                <!-- Nome e Matrícula -->
+                <!-- Nome, Matrícula e Telefone -->
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
+                    <div class="sm:col-span-2">
                         <label class="block text-xs font-medium text-slate-400 mb-1">Nome</label>
                         <input type="text" name="name" id="editName" required
                             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
@@ -1319,6 +1319,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label class="block text-xs font-medium text-slate-400 mb-1">Matrícula</label>
                         <input type="text" name="registration_id" id="editReg" required
                             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Telefone</label>
+                        <input type="tel" name="phone" id="editPhone" placeholder="(31) 99940-9789"
+                            maxlength="16" inputmode="numeric"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white font-mono focus:outline-none focus:border-blue-500">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Código do Vendedor</label>
@@ -1783,6 +1789,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('editName').value = emp.name;
         document.getElementById('editReg').value = emp.registration_id;
         document.getElementById('editSellerCode').value = emp.seller_code || '';
+        const editPhoneEl = document.getElementById('editPhone');
+        if (editPhoneEl) editPhoneEl.value = typeof formatPhoneForDisplay === 'function' ? formatPhoneForDisplay(emp.phone || '') : (emp.phone || '');
         const editRole = document.getElementById('editRole');
         if (editRole.tagName === 'SELECT' && emp.role) {
             const hasOpt = Array.from(editRole.options).some(o => o.value === emp.role);
