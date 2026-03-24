@@ -341,7 +341,13 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                                 {% endif %}
                                 {% endfor %}
                                 {% if count_open == 0 %}
-                                <p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>
+                                {% set mins_idle = op.minutes_without_open_client|default(0) %}
+                                <div class="inline-flex items-center gap-2 px-2 py-1 rounded-lg border border-violet-500/40 bg-violet-500/15">
+                                    <span class="text-violet-300 font-semibold text-card-meta">Nenhuma em aberto</span>
+                                    {% if mins_idle > 0 %}
+                                    <span class="text-violet-400 font-mono text-card-meta">{{ mins_idle }} min</span>
+                                    {% endif %}
+                                </div>
                                 {% endif %}
                             </div>
                             {% set total_open = 0 %}
@@ -637,7 +643,10 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         var openHtml = openRoutes.slice(0, 4).map(function(r) {
                             return '<div class="open-item flex justify-between items-center text-card-meta bg-slate-900/60 rounded px-1.5 py-0.5"><span class="text-white font-medium truncate flex-1 mr-1">' + (r.client || '').replace(/</g,'&lt;') + '</span><span class="text-slate-500 font-mono shrink-0">' + (r.start_time || '') + '</span></div>';
                         }).join('');
-                        if (openRoutes.length === 0) openHtml = '<p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>';
+                        if (openRoutes.length === 0) {
+                            var minsIdle = op.minutes_without_open_client || 0;
+                            openHtml = '<div class="inline-flex items-center gap-2 px-2 py-1 rounded-lg border border-violet-500/40 bg-violet-500/15"><span class="text-violet-300 font-semibold text-card-meta">Nenhuma em aberto</span>' + (minsIdle > 0 ? '<span class="text-violet-400 font-mono text-card-meta">' + minsIdle + ' min</span>' : '') + '</div>';
+                        }
                         var more = openRoutes.length > 4 ? '<p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+' + (openRoutes.length - 4) + ' mais</p>' : '';
                         var driverAlerts = alertsList.filter(function(a) { return (a.driver_name || '').trim() === (op.employee_name || '').trim(); });
                         var alertBlock = '';

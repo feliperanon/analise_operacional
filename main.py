@@ -2729,6 +2729,19 @@ async def dashboard_entry(
         if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
             bucket["helper_names"] = session_helpers_by_emp[emp_id]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+        open_routes_count = len([r for r in emp_routes if (r.delivery_status or "").lower() == "iniciada"])
+        finished_times = [(r.delivery_finished_at or r.end_time or "") for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao") and (r.delivery_finished_at or r.end_time)]
+        last_finished_at = max(finished_times, key=lambda t: (t or "00:00")) if finished_times else None
+        minutes_without_open = 0
+        if open_routes_count == 0 and last_finished_at:
+            try:
+                parts = str(last_finished_at).strip().split(":")
+                h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+                finished_dt = datetime(now_br.year, now_br.month, now_br.day, h, m, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
+                minutes_without_open = max(0, int((now_br - finished_dt).total_seconds() // 60))
+            except Exception:
+                pass
+        bucket["minutes_without_open_client"] = minutes_without_open
         has_delivery_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
         session_started = emp_id in session_open_by_emp
         has_started = has_delivery_started or session_started
@@ -3051,6 +3064,19 @@ async def api_dashboard_tv_data(
         if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
             bucket["helper_names"] = session_helpers_by_emp[emp_id]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+        open_routes_count = len([r for r in emp_routes if (r.delivery_status or "").lower() == "iniciada"])
+        finished_times = [(r.delivery_finished_at or r.end_time or "") for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao") and (r.delivery_finished_at or r.end_time)]
+        last_finished_at = max(finished_times, key=lambda t: (t or "00:00")) if finished_times else None
+        minutes_without_open = 0
+        if open_routes_count == 0 and last_finished_at:
+            try:
+                parts = str(last_finished_at).strip().split(":")
+                h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+                finished_dt = datetime(now_br.year, now_br.month, now_br.day, h, m, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
+                minutes_without_open = max(0, int((now_br - finished_dt).total_seconds() // 60))
+            except Exception:
+                pass
+        bucket["minutes_without_open_client"] = minutes_without_open
         has_delivery_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
         session_started = emp_id in session_open_by_emp
         has_started = has_delivery_started or session_started
