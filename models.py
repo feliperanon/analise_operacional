@@ -38,6 +38,7 @@ class Employee(SQLModel, table=True):
     role: str # Cargo
     birthday: Optional[datetime] = None
     photo_url: Optional[str] = None
+    phone: Optional[str] = None  # Telefone BR: DDD + número (ex: 31994097893)
     
     # Status
     # active, vacation, away, fired, day_off

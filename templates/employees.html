@@ -1129,90 +1129,106 @@
     }
 </script>
 
-<!-- Modal Added -->
+<!-- Modal Novo Colaborador -->
 <div id="addModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-slate-800 rounded-2xl w-full max-w-3xl border border-slate-700 shadow-2xl p-4 sm:p-6 my-auto max-h-[90vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
+    <div class="bg-slate-800 rounded-2xl w-full max-w-2xl border border-slate-700 shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center p-4 sm:p-6 border-b border-slate-700 shrink-0">
             <h3 class="text-xl font-bold text-white">Novo Colaborador</h3>
-            <button onclick="document.getElementById('addModal').classList.add('hidden')"
-                class="text-slate-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                    </path>
+            <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')"
+                class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700/50 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        <form action="/employees/add" method="POST" class="space-y-4">
-            <div class="grid gap-4 md:grid-cols-3">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Nome Completo</label>
-                    <input type="text" name="name" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Matrícula</label>
-                    <input type="text" name="registration_id" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Código do Vendedor</label>
-                    <input type="text" name="seller_code" placeholder="Ex: 110, 201"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                    <p class="text-xs text-slate-500 mt-0.5">Para importação de devoluções</p>
-                </div>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Cargo</label>
-                    <select name="role" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                        <option value="">Selecione...</option>
-                        {% for c in cargos %}
-                        <option value="{{ c.nome }}">{{ c.nome }}{% if c.salario_base %} — R$ {{ "%.2f"|format(c.salario_base)|replace(".", ",") }}{% endif %}</option>
-                        {% endfor %}
-                    </select>
-                    <p class="text-xs text-slate-500 mt-0.5"><a href="/funcoes" class="text-indigo-400 hover:underline">Cadastrar funções</a></p>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Empresa</label>
-                    <select name="cost_center"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                        <option value="Souza Pinto">Souza Pinto</option>
-                        <option value="Exemplar">Exemplar</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Turno Operacional</label>
-                    <select name="work_shift"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                        <option value="Manhã">Manhã</option>
-                        <option value="Tarde">Tarde</option>
-                        <option value="Noite">Noite</option>
-                    </select>
+        <form action="/employees/add" method="POST" class="overflow-y-auto flex-1 p-4 sm:p-6 space-y-5">
+            <!-- Identificação -->
+            <div class="space-y-3">
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Identificação</h4>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Nome Completo</label>
+                        <input type="text" name="name" required
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Matrícula</label>
+                        <input type="text" name="registration_id" required
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Telefone</label>
+                        <input type="tel" name="phone" id="addPhone" placeholder="(31) 99940-9789"
+                            maxlength="16" inputmode="numeric" autocomplete="tel"
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 font-mono">
+                        <p class="text-xs text-slate-500 mt-0.5">DDD + número (celular ou fixo)</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Código do Vendedor</label>
+                        <input type="text" name="seller_code" placeholder="Ex: 110, 201"
+                            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500">
+                        <p class="text-xs text-slate-500 mt-0.5">Para importação de devoluções</p>
+                    </div>
                 </div>
             </div>
-            <div class="grid gap-4 md:grid-cols-2">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Data Admissão</label>
-                    <input type="date" name="admission_date"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Aniversário</label>
-                    <input type="date" name="birthday"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-blue-500">
+
+            <!-- Cargo e Empresa -->
+            <div class="space-y-3">
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Cargo e Empresa</h4>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Cargo</label>
+                        <select name="role" required class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500">
+                            <option value="">Selecione...</option>
+                            {% for c in cargos %}
+                            <option value="{{ c.nome }}">{{ c.nome }}{% if c.salario_base %} — R$ {{ "%.2f"|format(c.salario_base)|replace(".", ",") }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-slate-500 mt-0.5"><a href="/funcoes" class="text-indigo-400 hover:underline">Cadastrar funções</a></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Empresa</label>
+                        <select name="cost_center" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500">
+                            <option value="Souza Pinto">Souza Pinto</option>
+                            <option value="Exemplar">Exemplar</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Turno Operacional</label>
+                        <select name="work_shift" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500">
+                            <option value="Manhã">Manhã</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noite">Noite</option>
+                        </select>
+                    </div>
                 </div>
             </div>
-            <!-- Seção de Substituição -->
-            <div class="mt-4 border-t border-slate-700 pt-4">
-                <label class="flex items-center gap-2 cursor-pointer mb-3">
+
+            <!-- Datas -->
+            <div class="space-y-3">
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Datas</h4>
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Data Admissão</label>
+                        <input type="date" name="admission_date" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Aniversário</label>
+                        <input type="date" name="birthday" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500">
+                    </div>
+                </div>
+            </div>
+            <!-- Substituição -->
+            <div class="space-y-3 border-t border-slate-700 pt-4">
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-500">Substituição</h4>
+                <label class="flex items-center gap-2 cursor-pointer p-3 rounded-lg bg-slate-900/50 border border-slate-700/50 hover:bg-slate-900/70 transition-colors">
                     <input type="checkbox" id="is_sub" name="is_substitution" value="true"
-                        class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800"
+                        class="rounded text-blue-600 focus:ring-blue-500 border-slate-600 bg-slate-800 w-4 h-4"
                         onchange="toggleSubOptions()">
                     <span class="text-sm font-medium text-white">É Substituição?</span>
                 </label>
 
-                <div id="sub_options"
-                    class="hidden pl-4 space-y-3 bg-slate-900/30 p-3 rounded-lg border border-slate-700/50">
+                <div id="sub_options" class="hidden space-y-3 bg-slate-900/30 p-4 rounded-xl border border-slate-700/50">
                     <!-- Opções Radio -->
                     <div class="flex gap-4">
                         <label class="flex items-center gap-2 cursor-pointer">
@@ -1241,15 +1257,38 @@
                 </div>
             </div>
 
-            <div class="pt-4 flex justify-end gap-3">
+            <div class="pt-4 flex justify-end gap-3 border-t border-slate-700 pt-4">
                 <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')"
-                    class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
-                <button type="submit"
-                    class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">Salvar</button>
+                    class="px-4 py-2.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition-colors">Cancelar</button>
+                <button type="submit" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium shadow-lg shadow-blue-600/25 transition-colors">Salvar</button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+// Máscara telefone BR: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+function maskPhoneBR(input) {
+    let v = (input.value || '').replace(/\D/g, '');
+    if (v.length > 11) v = v.slice(0, 11);
+    if (v.length > 6) input.value = '(' + v.slice(0,2) + ') ' + v.slice(2,7) + '-' + v.slice(7);
+    else if (v.length > 2) input.value = '(' + v.slice(0,2) + ') ' + v.slice(2);
+    else if (v.length > 0) input.value = '(' + v;
+    else input.value = '';
+}
+function formatPhoneForDisplay(phone) {
+    if (!phone || typeof phone !== 'string') return '';
+    const d = phone.replace(/\D/g, '');
+    if (d.length >= 10) return '(' + d.slice(0,2) + ') ' + (d.length === 11 ? d.slice(2,7) + '-' + d.slice(7) : d.slice(2,6) + '-' + d.slice(6));
+    return phone;
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const addPhone = document.getElementById('addPhone');
+    if (addPhone) addPhone.addEventListener('input', function() { maskPhoneBR(this); });
+    const editPhone = document.getElementById('editPhone');
+    if (editPhone) editPhone.addEventListener('input', function() { maskPhoneBR(this); });
+});
+</script>
 <!-- Edit Modal -->
 <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
     <div class="bg-slate-800 rounded-2xl w-full max-w-3xl border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]">
@@ -1350,7 +1389,7 @@
                         .emp-toggle-input:checked + .emp-toggle-track::after { transform: translateX(18px); }
                     </style>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_separation" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Separação</span></label>
+                        <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_separation" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Entregas</span></label>
                         <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_checklist" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Checklist</span></label>
                         <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_admin_start" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Entregas em Tempo Real</span></label>
                         <label class="emp-toggle-row"><span class="emp-toggle-wrap"><input type="checkbox" name="mobile_access_returns" value="true" class="emp-toggle-input"><span class="emp-toggle-track"></span></span><span class="text-xs text-slate-300">Devoluções</span></label>

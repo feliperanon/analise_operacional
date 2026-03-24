@@ -663,6 +663,7 @@ async def lifespan(app: FastAPI):
         ensure_column(engine, "employee", "mobile_access_gatehouse", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "mobile_access_escala", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
+        ensure_column(engine, "employee", "phone", "VARCHAR(20)")
         ensure_column(engine, "deliverysession", "reopen_reason", "VARCHAR(512)")
     except Exception as e:
         logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
@@ -24173,6 +24174,7 @@ async def add_employee(
     name: str = Form(...),
     registration_id: str = Form(...),
     seller_code: str = Form(None),
+    phone: str = Form(None),
     role: str = Form(...),
     work_shift: str = Form(...),
     cost_center: str = Form(...),
@@ -24218,10 +24220,17 @@ async def add_employee(
 
     role_val = (role or "").strip().upper()
     name_val = (name or "").strip().upper()
+    phone_clean = "".join(c for c in (phone or "") if c.isdigit()) if phone else None
+    if phone_clean and len(phone_clean) >= 10:
+        phone_clean = phone_clean[:11]  # DDD (2) + 8 ou 9 dígitos
+    else:
+        phone_clean = phone_clean if (phone_clean and len(phone_clean) >= 10) else None
+
     new_employee = models.Employee(
         name=name_val,
         registration_id=registration_id,
         seller_code=seller_code.strip() if seller_code else None,
+        phone=phone_clean,
         role=role_val,
         work_shift=work_shift,
         cost_center=cost_center,
@@ -25164,6 +25173,7 @@ async def update_employee(
     name: str = Form(...),
     registration_id: str = Form(...),
     seller_code: str = Form(None),
+    phone: str = Form(None),
     role: str = Form(...),
     work_shift: str = Form(...),
     cost_center: str = Form(...),
@@ -25214,9 +25224,10 @@ async def update_employee(
         emp.name = (name or "").strip().upper()
         emp.registration_id = registration_id
         emp.seller_code = seller_code.strip() if seller_code else None
+        phone_clean = "".join(c for c in (phone or "") if c.isdigit()) if phone else None
+        emp.phone = phone_clean[:11] if (phone_clean and len(phone_clean) >= 10) else None
         emp.role = (role or "").strip().upper()
         emp.work_shift = work_shift
-        emp.cost_center = cost_center
         emp.cost_center = cost_center
         emp.work_schedule = work_schedule
         emp.mobile_access_separation = mobile_access_separation

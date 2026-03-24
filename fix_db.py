@@ -48,5 +48,16 @@ try:
         else:
             print("Column 'mobile_access_returns' ALREADY EXISTS.")
 
+        if "phone" not in col_names:
+            print("Column 'phone' MISSING. Adding it...")
+            try:
+                conn.execute(text("ALTER TABLE employee ADD COLUMN phone VARCHAR(20)"))
+                conn.commit()
+                print("Column phone added successfully!")
+            except Exception as e:
+                print(f"Error adding phone: {e}")
+        else:
+            print("Column 'phone' ALREADY EXISTS.")
+
 except Exception as e:
     print(f"Connection failed: {e}")
