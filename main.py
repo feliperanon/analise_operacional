@@ -14741,6 +14741,12 @@ async def finish_delivery_route(
     return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 
+@app.get("/separacao/delivery/bulk-action", response_class=RedirectResponse, include_in_schema=False)
+async def delivery_bulk_action_get():
+    """Redireciona GET para /separacao (formulário deve ser enviado via POST)."""
+    return RedirectResponse(url="/separacao", status_code=303)
+
+
 @app.post("/separacao/delivery/bulk-action", response_class=RedirectResponse)
 async def delivery_bulk_action(
     request: Request,
@@ -14784,140 +14790,150 @@ async def delivery_bulk_action(
         feedback_encoded = urlencode({"delivery_feedback": "Ação inválida.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
 
-    routes = session.exec(
-        select(models.Route)
-        .where(models.Route.type == "delivery")
-        .where(models.Route.date >= df)
-        .where(models.Route.date <= dt)
-        .where(models.Route.shift == shift)
-        .where(models.Route.employee_id.in_(ids_list))
-    ).all()
-    routes = list(routes)
-    route_ids = [r.id for r in routes if r.id]
+    try:
+        routes = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date >= df)
+            .where(models.Route.date <= dt)
+            .where(models.Route.shift == shift)
+            .where(models.Route.employee_id.in_(ids_list))
+        ).all()
+        routes = list(routes)
+        route_ids = [r.id for r in routes if r.id]
 
-    if action_norm == "delete_routes":
-        # 1. Delete Devolucao linked to those routes (or motorista+date no período)
-        if route_ids:
-            session.execute(delete(models.Devolucao).where(models.Devolucao.route_id.in_(route_ids)))
-        session.execute(
-            delete(models.Devolucao).where(
-                models.Devolucao.motorista_id.in_(ids_list),
-                models.Devolucao.data_romaneio >= df,
-                models.Devolucao.data_romaneio <= dt,
+        if action_norm == "delete_routes":
+            # 1. Delete Devolucao linked to those routes (or motorista+date no período)
+            if route_ids:
+                session.execute(delete(models.Devolucao).where(models.Devolucao.route_id.in_(route_ids)))
+            session.execute(
+                delete(models.Devolucao).where(
+                    models.Devolucao.motorista_id.in_(ids_list),
+                    models.Devolucao.data_romaneio >= df,
+                    models.Devolucao.data_romaneio <= dt,
+                )
             )
-        )
-        # 2. Delete DeliverySession for those drivers no período
-        session.execute(
-            delete(models.DeliverySession).where(
-                models.DeliverySession.employee_id.in_(ids_list),
-                models.DeliverySession.date >= df,
-                models.DeliverySession.date <= dt,
+            # 2. Delete DeliverySession for those drivers no período
+            session.execute(
+                delete(models.DeliverySession).where(
+                    models.DeliverySession.employee_id.in_(ids_list),
+                    models.DeliverySession.date >= df,
+                    models.DeliverySession.date <= dt,
+                )
             )
+            # 3. Delete Route
+            if route_ids:
+                session.execute(delete(models.Route).where(models.Route.id.in_(route_ids)))
+            session.commit()
+            feedback_encoded = urlencode({
+                "delivery_feedback": f"Rotas apagadas para {len(ids_list)} motorista(s): {len(routes)} parada(s) removida(s).",
+                "delivery_feedback_level": "success",
+            })
+            return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
+
+        if action_norm == "finalize_routes":
+            # Finalizar entregas dos motoristas selecionados: paradas pendentes/iniciadas/reabertas -> entregue ou devolucao
+            now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+            devolucao_by_route: dict[int, list] = {}
+            if route_ids:
+                devolucoes = session.exec(
+                    select(models.Devolucao).where(models.Devolucao.route_id.in_(route_ids))
+                ).all()
+                for d in devolucoes:
+                    if d.route_id:
+                        devolucao_by_route.setdefault(d.route_id, []).append(d)
+            delivered_count = 0
+            returned_count = 0
+            return_value_total = 0.0
+            total_planned = 0.0
+            for route in routes:
+                st = (route.delivery_status or "").lower()
+                if st in ("entregue", "devolucao"):
+                    continue
+                if st in ("cancelada",):
+                    continue
+                has_devolucao = (
+                    st == "devolucao"
+                    or route.valor_devolucao
+                    or (route.id and route.id in devolucao_by_route)
+                )
+                total_planned += float(route.valor_financeiro or 0.0)
+                if has_devolucao:
+                    route.delivery_status = "devolucao"
+                    route.status = "completed"
+                    returned_count += 1
+                    val = float(route.valor_devolucao or route.valor_financeiro or 0.0)
+                    if not route.valor_devolucao and route.id and route.id in devolucao_by_route:
+                        val = sum(float(d.valor or 0) for d in devolucao_by_route[route.id])
+                    route.valor_devolucao = val
+                    return_value_total += val
+                else:
+                    route.delivery_status = "entregue"
+                    route.status = "completed"
+                    delivered_count += 1
+                # Horários só vêm do mobile; fechamento em massa não cria timestamps
+                _append_delivery_event(
+                    route,
+                    "finalizar" if not has_devolucao else "devolucao",
+                    now,
+                    note="Fechamento em massa (seleção)" if not has_devolucao else "Devolução (fechamento em massa)",
+                )
+                session.add(route)
+            session.commit()
+            total = delivered_count + returned_count
+            rate = (return_value_total / total_planned * 100) if total_planned else 0.0
+            feedback = f"Rotas finalizadas: {delivered_count} entregues, {returned_count} devoluções (R$ {return_value_total:,.2f}, {rate:.1f}% dev.)"
+            feedback_encoded = urlencode({"delivery_feedback": feedback, "delivery_feedback_level": "success"})
+            return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
+
+        # clear_devolucoes - Devolucao por data no período
+        now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+        devolucao_stmt = (
+            delete(models.Devolucao)
+            .where(models.Devolucao.motorista_id.in_(ids_list))
+            .where(models.Devolucao.data_romaneio >= df)
+            .where(models.Devolucao.data_romaneio <= dt)
         )
-        # 3. Delete Route
-        if route_ids:
-            session.execute(delete(models.Route).where(models.Route.id.in_(route_ids)))
+        r_del = session.execute(devolucao_stmt)
+        dev_deleted = r_del.rowcount if hasattr(r_del, "rowcount") else 0
+        # 2. Revert Route.delivery_status from devolucao to reaberta
+        for route in routes:
+            if (route.delivery_status or "").lower() == "devolucao":
+                route.delivery_status = "reaberta"
+                route.status = "pending"
+                route.devolucao_volume = None
+                route.valor_devolucao = None
+                route.delivery_returned_at = None
+                route.delivery_return_category = None
+                route.delivery_return_reason = None
+                route.delivery_notified_commercial = None
+                route.delivery_notified_commercial_name = None
+                route.delivery_notified_logistics = None
+                route.delivery_notified_logistics_name = None
+                route.end_time = None
+                route.delivery_finished_at = None
+                route.driver_lat_start = None
+                route.driver_lon_start = None
+                route.driver_lat_end = None
+                route.driver_lon_end = None
+                route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
+                _append_delivery_event(route, "reabrir", now, note=f"Limpeza de devoluções em massa #{route.delivery_reopen_count}")
+                session.add(route)
         session.commit()
         feedback_encoded = urlencode({
-            "delivery_feedback": f"Rotas apagadas para {len(ids_list)} motorista(s): {len(routes)} parada(s) removida(s).",
+            "delivery_feedback": f"Devoluções limpas: {dev_deleted} registro(s) removido(s); paradas revertidas para reabertas.",
             "delivery_feedback_level": "success",
         })
         return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
 
-    if action_norm == "finalize_routes":
-        # Finalizar entregas dos motoristas selecionados: paradas pendentes/iniciadas/reabertas -> entregue ou devolucao
-        now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
-        devolucao_by_route: dict[int, list] = {}
-        if route_ids:
-            devolucoes = session.exec(
-                select(models.Devolucao).where(models.Devolucao.route_id.in_(route_ids))
-            ).all()
-            for d in devolucoes:
-                if d.route_id:
-                    devolucao_by_route.setdefault(d.route_id, []).append(d)
-        delivered_count = 0
-        returned_count = 0
-        return_value_total = 0.0
-        total_planned = 0.0
-        for route in routes:
-            st = (route.delivery_status or "").lower()
-            if st in ("entregue", "devolucao"):
-                continue
-            if st in ("cancelada",):
-                continue
-            has_devolucao = (
-                st == "devolucao"
-                or route.valor_devolucao
-                or (route.id and route.id in devolucao_by_route)
-            )
-            total_planned += float(route.valor_financeiro or 0.0)
-            if has_devolucao:
-                route.delivery_status = "devolucao"
-                route.status = "completed"
-                returned_count += 1
-                val = float(route.valor_devolucao or route.valor_financeiro or 0.0)
-                if not route.valor_devolucao and route.id and route.id in devolucao_by_route:
-                    val = sum(float(d.valor or 0) for d in devolucao_by_route[route.id])
-                route.valor_devolucao = val
-                return_value_total += val
-            else:
-                route.delivery_status = "entregue"
-                route.status = "completed"
-                delivered_count += 1
-            # Horários só vêm do mobile; fechamento em massa não cria timestamps
-            _append_delivery_event(
-                route,
-                "finalizar" if not has_devolucao else "devolucao",
-                now,
-                note="Fechamento em massa (seleção)" if not has_devolucao else "Devolução (fechamento em massa)",
-            )
-            session.add(route)
-        session.commit()
-        total = delivered_count + returned_count
-        rate = (return_value_total / total_planned * 100) if total_planned else 0.0
-        feedback = f"Rotas finalizadas: {delivered_count} entregues, {returned_count} devoluções (R$ {return_value_total:,.2f}, {rate:.1f}% dev.)"
-        feedback_encoded = urlencode({"delivery_feedback": feedback, "delivery_feedback_level": "success"})
+    except Exception as e:
+        session.rollback()
+        logger.exception("delivery_bulk_action error: %s", e)
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Erro ao processar ação em massa. Tente novamente ou contate o suporte.",
+            "delivery_feedback_level": "error",
+        })
         return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
-
-    # clear_devolucoes - Devolucao por data no período
-    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
-    devolucao_stmt = (
-        delete(models.Devolucao)
-        .where(models.Devolucao.motorista_id.in_(ids_list))
-        .where(models.Devolucao.data_romaneio >= df)
-        .where(models.Devolucao.data_romaneio <= dt)
-    )
-    r_del = session.execute(devolucao_stmt)
-    dev_deleted = r_del.rowcount if hasattr(r_del, "rowcount") else 0
-    # 2. Revert Route.delivery_status from devolucao to reaberta
-    for route in routes:
-        if (route.delivery_status or "").lower() == "devolucao":
-            route.delivery_status = "reaberta"
-            route.status = "pending"
-            route.devolucao_volume = None
-            route.valor_devolucao = None
-            route.delivery_returned_at = None
-            route.delivery_return_category = None
-            route.delivery_return_reason = None
-            route.delivery_notified_commercial = None
-            route.delivery_notified_commercial_name = None
-            route.delivery_notified_logistics = None
-            route.delivery_notified_logistics_name = None
-            route.end_time = None
-            route.delivery_finished_at = None
-            route.driver_lat_start = None
-            route.driver_lon_start = None
-            route.driver_lat_end = None
-            route.driver_lon_end = None
-            route.delivery_reopen_count = (route.delivery_reopen_count or 0) + 1
-            _append_delivery_event(route, "reabrir", now, note=f"Limpeza de devoluções em massa #{route.delivery_reopen_count}")
-            session.add(route)
-    session.commit()
-    feedback_encoded = urlencode({
-        "delivery_feedback": f"Devoluções limpas: {dev_deleted} registro(s) removido(s); paradas revertidas para reabertas.",
-        "delivery_feedback_level": "success",
-    })
-    return RedirectResponse(url=redirect_base + f"&{feedback_encoded}", status_code=303)
 
 
 def _transfer_route_xp_on_driver_change(
