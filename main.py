@@ -4477,6 +4477,7 @@ def _render_mobile_dashboard_template(
     error: Optional[str] = None,
     *,
     template_name: str = "mobile/dashboard.html",
+    hide_mobile_nav_trigger: bool = False,
 ):
     user = get_current_user(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
@@ -4719,6 +4720,7 @@ def _render_mobile_dashboard_template(
             "hub_nav_items": hub_nav_items,
             "module_hub_message": module_hub_message,
             "hub_explicit_access": access_flags["explicit_mode"],
+            "hide_mobile_nav_trigger": hide_mobile_nav_trigger,
         },
     )
 
@@ -4736,6 +4738,7 @@ async def mobile_dashboard(
         module=module,
         error=error,
         template_name="mobile/dashboard.html",
+        hide_mobile_nav_trigger=True,
     )
 
 

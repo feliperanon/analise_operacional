@@ -19,12 +19,13 @@ Fixes: high z-index, stable colors, click priority above page content.
     }
 </script>
 
+{% if not hide_mobile_nav_trigger %}
 <button
     type="button"
     aria-label="Abrir menu"
     onclick="openMobileNavMenu()"
-    class="fixed top-3 right-3 z-[99990] touch-target-icon flex items-center justify-center w-11 h-11 rounded-lg shadow-lg"
-    style="background: #112434; color: #ffffff;">
+    class="mobile-nav-menu-trigger fixed z-[99990] touch-target-icon flex items-center justify-center w-11 h-11 rounded-lg shadow-lg"
+    style="background: #112434; color: #ffffff; top: calc(0.75rem + env(safe-area-inset-top, 0px)); right: calc(0.75rem + env(safe-area-inset-right, 0px));">
     <i data-lucide="menu" class="w-5 h-5"></i>
 </button>
 
@@ -276,3 +277,4 @@ Fixes: high z-index, stable colors, click priority above page content.
         </div>
     </div>
 </div>
+{% endif %}

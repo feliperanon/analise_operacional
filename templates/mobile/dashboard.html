@@ -1,5 +1,14 @@
 {% extends "mobile/layout.html" %}
 
+{% block head_extra %}
+<style>
+    /* iPhone: respiro sob notch / Dynamic Island; sem overlap com menu (oculto nesta página) */
+    .dashboard-hero-safe {
+        padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Offline Banner -->
 <div id="offline-banner" class="offline-banner text-center py-2 text-body font-medium z-50 text-white" style="background: var(--color-danger);">
@@ -20,7 +29,7 @@
     </div>
 </div>
 
-<div x-data="dashboardController()" class="flex flex-col" x-ref="mainContainer" x-cloak @open-delivery-setup-modal="openDeliverySetupModal()">
+<div x-data="dashboardController()" class="flex flex-col min-w-0 w-full overflow-x-hidden" x-ref="mainContainer" x-cloak @open-delivery-setup-modal="openDeliverySetupModal()">
     
     <!-- Module Notice -->
     {% if module_notice %}
@@ -50,7 +59,7 @@
     <div x-show="initialized">
         
         <!-- 1. Identidade + XP (gradiente operacional) -->
-        <section class="py-5" style="background: var(--gradient-header); box-shadow: var(--shadow-elevated);">
+        <section class="py-5 pb-6 dashboard-hero-safe" style="background: var(--gradient-header); box-shadow: var(--shadow-elevated);">
             <div class="container-mobile">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -107,7 +116,7 @@
             </div>
         </section>
 
-        {% if delivery_summary and delivery_summary.enabled %}
+        {% if employee.mobile_access_separation and delivery_summary and delivery_summary.enabled %}
         <section class="container-mobile mt-4">
             <div class="surface p-4">
                 <div class="flex items-start justify-between gap-3">
