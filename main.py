@@ -1,7 +1,7 @@
 # Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
 import asyncio
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -45,6 +45,7 @@ from services.geocoding_service import geocoding_service
 from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
 from route_duration import route_duration_minutes, iniciada_elapsed_wall_minutes
 from utils.delivery_projection import compute_delivery_projection
+from utils.mobile_hub import build_mobile_hub_profile
 
 
 def operational_shift_br(dt: datetime) -> str:
@@ -2894,6 +2895,28 @@ async def dashboard_entry(
         "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
         "items_list": devolucao_items,
     }
+    month_start = selected_date.replace(day=1)
+    if selected_date.month == 12:
+        next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1)
+    else:
+        next_month_start = selected_date.replace(month=selected_date.month + 1, day=1)
+    month_start_str = month_start.strftime("%Y-%m-%d")
+    month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
+    routes_month = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= month_start_str)
+        .where(models.Route.date <= month_end_str)
+        .where(models.Route.employee_id.in_(employee_ids))
+    ).all()
+    month_done = [r for r in routes_month if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+    month_returns = [r for r in month_done if (r.delivery_status or "").lower() == "devolucao"]
+    devolucao_mes = {
+        "count": len(month_returns),
+        "total_entregas": len(month_done),
+        "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in month_returns), 2),
+        "pct": round((len(month_returns) / len(month_done) * 100), 1) if month_done else 0,
+    }
 
     clientes_alto_indice = []
     if is_tv:
@@ -2937,6 +2960,7 @@ async def dashboard_entry(
     dashboard_payload = {
         "cost_centers_summary": cost_centers_summary,
         "devolucao_dia": devolucao_dia,
+        "devolucao_mes": devolucao_mes,
         "kpi": {
             "tonnage": round(total_tonnage, 2),
             "avg_kgh": round(avg_kgh, 1),
@@ -2984,7 +3008,7 @@ async def dashboard_entry(
 @app.get("/api/dashboard/tv-data", response_class=JSONResponse)
 async def api_dashboard_tv_data(
     request: Request,
-    date_ref: Optional[str] = None,
+    date_ref: Optional[str] = Query(None, alias="date"),
     cost_center: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
@@ -3016,6 +3040,7 @@ async def api_dashboard_tv_data(
                 "alerts": {"clients_over_20min": []},
                 "live_separation": [],
                 "devolucao_dia": {},
+                "devolucao_mes": {},
                 "cost_centers_summary": {},
                 "tv_shift_alerts": {"atencao": 0, "critico": 0},
                 "operational_shift": operational_shift_br(datetime.now(ZoneInfo("America/Sao_Paulo"))),
@@ -3211,6 +3236,29 @@ async def api_dashboard_tv_data(
         "items_list": devolucao_items,
     }
 
+    month_start = selected_date.replace(day=1)
+    if selected_date.month == 12:
+        next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1)
+    else:
+        next_month_start = selected_date.replace(month=selected_date.month + 1, day=1)
+    month_start_str = month_start.strftime("%Y-%m-%d")
+    month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
+    routes_month = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= month_start_str)
+        .where(models.Route.date <= month_end_str)
+        .where(models.Route.employee_id.in_(employee_ids))
+    ).all()
+    month_done = [r for r in routes_month if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+    month_returns = [r for r in month_done if (r.delivery_status or "").lower() == "devolucao"]
+    devolucao_mes = {
+        "count": len(month_returns),
+        "total_entregas": len(month_done),
+        "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in month_returns), 2),
+        "pct": round((len(month_returns) / len(month_done) * 100), 1) if month_done else 0,
+    }
+
     alerts_over_20min = []
     for r in routes:
         if (r.delivery_status or "").lower() != "iniciada" or r.driver_lat_start is None:
@@ -3304,6 +3352,7 @@ async def api_dashboard_tv_data(
             "alerts": {"clients_over_20min": alerts_over_20min},
             "live_separation": live_separation,
             "devolucao_dia": devolucao_dia,
+            "devolucao_mes": devolucao_mes,
             "clientes_alto_indice_devolucao": clientes_alto_indice,
             "cost_centers_summary": cost_centers_summary,
             "tv_shift_alerts": {"atencao": _tsa_api["atencao"], "critico": _tsa_api["critico"]},
@@ -4203,6 +4252,121 @@ def _build_returns_alert_payload(
     }
 
 
+def _build_mobile_checklist_summary(session: Session, employee: Any) -> Dict[str, Any]:
+    if not employee or not getattr(employee, "id", None) or not hasattr(models, "TranspalletChecklist"):
+        return {
+            "enabled": False,
+            "total_today": 0,
+            "issues_today": 0,
+            "missing_days": 0,
+            "equipment_count": 0,
+            "last_submitted_at": None,
+        }
+
+    today_sp = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    today_str = today_sp.strftime("%Y-%m-%d")
+    employee_id = int(employee.id)
+
+    today_checklists = session.exec(
+        select(models.TranspalletChecklist)
+        .where(models.TranspalletChecklist.employee_id == employee_id)
+        .where(models.TranspalletChecklist.date == today_str)
+        .order_by(desc(models.TranspalletChecklist.submitted_at))
+    ).all()
+
+    issues_today = sum(
+        1
+        for row in today_checklists
+        if bool(getattr(row, "critical_flag", False) or getattr(row, "nonconforming_keys", None))
+    )
+
+    analysis_end = today_sp - timedelta(days=1)
+    analysis_start = analysis_end - timedelta(days=13)
+    missing_days = 0
+    if analysis_end >= analysis_start:
+        rows_raw = session.exec(
+            select(models.TranspalletChecklist.date)
+            .where(models.TranspalletChecklist.employee_id == employee_id)
+            .where(models.TranspalletChecklist.date >= analysis_start.strftime("%Y-%m-%d"))
+            .where(models.TranspalletChecklist.date <= analysis_end.strftime("%Y-%m-%d"))
+        ).all()
+
+        done_dates = set()
+        for row in rows_raw:
+            value = row[0] if hasattr(row, "__getitem__") and not isinstance(row, str) else row
+            if value is not None:
+                done_dates.add(str(value))
+
+        absence_map = {}
+        if hasattr(models, "EmployeeRoutine"):
+            absences = session.exec(
+                select(models.EmployeeRoutine)
+                .where(models.EmployeeRoutine.employee_id == employee_id)
+                .where(models.EmployeeRoutine.date >= analysis_start.strftime("%Y-%m-%d"))
+                .where(models.EmployeeRoutine.date <= analysis_end.strftime("%Y-%m-%d"))
+                .where(models.EmployeeRoutine.routine != "present")
+            ).all()
+            absence_map = {str(a.date): a.routine for a in absences if getattr(a, "date", None)}
+
+        work_days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+        try:
+            if getattr(employee, "work_days", None):
+                parsed_work_days = json.loads(employee.work_days)
+                if isinstance(parsed_work_days, list) and parsed_work_days:
+                    work_days_list = parsed_work_days
+        except Exception:
+            pass
+
+        cursor = analysis_start
+        while cursor <= analysis_end:
+            day_key = cursor.strftime("%Y-%m-%d")
+            weekday_name = cursor.strftime("%A")
+            if weekday_name in work_days_list and day_key not in absence_map and day_key not in done_dates:
+                missing_days += 1
+            cursor += timedelta(days=1)
+
+    equipment_count = 0
+    try:
+        equipment_count = len(_get_delivery_allowed_plates(session, employee_id, today_str))
+    except Exception:
+        equipment_count = 0
+
+    return {
+        "enabled": True,
+        "total_today": len(today_checklists),
+        "issues_today": issues_today,
+        "missing_days": missing_days,
+        "equipment_count": equipment_count,
+        "last_submitted_at": getattr(today_checklists[0], "submitted_at", None) if today_checklists else None,
+    }
+
+
+def _build_mobile_gatehouse_summary(session: Session) -> Dict[str, Any]:
+    try:
+        gatehouse_data = _build_mobile_gatehouse_data(session)
+    except Exception:
+        return {
+            "enabled": False,
+            "total_pending": 0,
+            "pending_exit": 0,
+            "pending_arrival": 0,
+            "next_driver_name": "",
+            "next_check_type": "",
+        }
+
+    summary = gatehouse_data.get("summary") or {}
+    entries = gatehouse_data.get("entries") or []
+    next_entry = entries[0] if entries else {}
+    return {
+        "enabled": bool(gatehouse_data.get("enabled")),
+        "total_pending": int(summary.get("total_pendentes") or 0),
+        "pending_exit": int(summary.get("saida_pendentes") or 0),
+        "pending_arrival": int(summary.get("chegada_pendentes") or 0),
+        "next_driver_name": str(next_entry.get("driver_name") or "").strip(),
+        "next_check_type": str(next_entry.get("card_label") or "").strip(),
+    }
+
+
 def _build_mobile_dashboard_delivery_summary(session: Session, employee: Any) -> Dict[str, Any]:
     today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     week_ago_str = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)).strftime("%Y-%m-%d")
@@ -4680,6 +4844,27 @@ def _render_mobile_dashboard_template(
         else:
             launcher_modules.append(module)
 
+    checklist_summary = {"enabled": False}
+    if has_checklist_access:
+        checklist_summary = _build_mobile_checklist_summary(session, employee)
+
+    gatehouse_summary = {"enabled": False}
+    if has_gatehouse_access:
+        gatehouse_summary = _build_mobile_gatehouse_summary(session)
+
+    hub_profile = build_mobile_hub_profile(
+        access_flags=access_flags,
+        modules=modules,
+        launcher_modules=launcher_modules,
+        delivery_summary=delivery_summary,
+        active_routes=active_routes_list,
+        completed_routes=completed_routes_list,
+        returns_alert=returns_alert if has_returns_access else {},
+        checklist_summary=checklist_summary,
+        gatehouse_summary=gatehouse_summary,
+    )
+    launcher_modules = hub_profile.get("ordered_launcher_modules") or launcher_modules
+
     hub_nav_items: List[Dict[str, str]] = []
     seen_nav_keys = set()
 
@@ -4770,6 +4955,7 @@ def _render_mobile_dashboard_template(
             "show_delivery_kpis": show_delivery_overview,
             "show_returns_kpi": show_returns_kpi,
             "launcher_modules": launcher_modules,
+            "hub_profile": hub_profile,
             "hub_nav_items": hub_nav_items,
             "module_hub_message": module_hub_message,
             "hub_explicit_access": access_flags["explicit_mode"],

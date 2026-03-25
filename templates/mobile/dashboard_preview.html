@@ -91,6 +91,15 @@
 {% set delivery_operation_href = "/mobile/delivery" %}
 {% set history_href = ns.history.href if ns.history else delivery_operation_href %}
 {% set returns_card_href = ns.returns.href if ns.returns else history_href %}
+{% set hub_profile = hub_profile or {} %}
+{% set hub_stats = hub_profile.stats or [] %}
+{% set hub_pills = hub_profile.pills or [] %}
+{% set hub_primary_action = hub_profile.primary_action or None %}
+{% set hub_key = hub_profile.key or '' %}
+{% set hub_badge_style = hub_profile.badge_style or 'background: rgba(59,130,246,0.16); color: #93c5fd;' %}
+{% set hub_icon_style = hub_profile.icon_style or 'background: rgba(59,130,246,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.16);' %}
+{% set hub_button_style = hub_profile.button_style or 'background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); box-shadow: 0 18px 32px rgba(37,99,235,0.28);' %}
+{% set hub_pill_style = hub_profile.pill_style or 'background: rgba(59,130,246,0.14); color: #bfdbfe; border: 1px solid rgba(96,165,250,0.14);' %}
 
 <style>
     .preview-dashboard-shell {
@@ -644,9 +653,9 @@
                 <div class="relative z-10">
                     <div class="preview-hero-header flex items-start justify-between gap-3">
                         <div class="min-w-0 flex-1">
-                            <p class="preview-section-label">Missão do dia</p>
+                            <p class="preview-section-label">{{ hub_profile.eyebrow if hub_key in ['delivery_driver', 'delivery_helper'] else 'Missão do dia' }}</p>
                             <div class="mt-2 space-y-2">
-                                <h2 class="text-title-lg text-white">Rota operacional</h2>
+                                <h2 class="text-title-lg text-white">{{ hub_profile.title if hub_key in ['delivery_driver', 'delivery_helper'] else 'Rota operacional' }}</h2>
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-caption font-semibold"
                                     :class="{
                                         'bg-emerald-500/15 text-emerald-300': totalDeliveryStops > 0 && openDeliveryStops === 0 && completedDeliveryStops > 0,
@@ -666,8 +675,8 @@
                                 {% endif %}
                             </p>
                         </div>
-                        <div class="w-12 h-12 rounded-[20px] flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.16);">
-                            <i data-lucide="truck" class="w-6 h-6"></i>
+                        <div class="w-12 h-12 rounded-[20px] flex items-center justify-center flex-shrink-0" style="{{ hub_icon_style if hub_key in ['delivery_driver', 'delivery_helper'] else 'background: rgba(59,130,246,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.16);' }}">
+                            <i data-lucide="{{ hub_profile.icon if hub_key in ['delivery_driver', 'delivery_helper'] else 'truck' }}" class="w-6 h-6"></i>
                         </div>
                     </div>
 
@@ -753,24 +762,44 @@
                 <div class="relative z-10">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0 flex-1">
-                            <p class="preview-section-label">Acessos liberados</p>
-                            <h2 class="mt-2 text-title-lg text-white">Central operacional</h2>
+                            <p class="preview-section-label">{{ hub_profile.eyebrow or 'Acessos liberados' }}</p>
+                            <h2 class="mt-2 text-title-lg text-white">{{ hub_profile.title or 'Central operacional' }}</h2>
                             <p class="mt-2 text-body-lg leading-relaxed" style="color: rgba(226,232,240,0.92);">
-                                {{ module_hub_message }}
+                                {{ hub_profile.description or module_hub_message }}
                             </p>
                         </div>
-                        <div class="w-12 h-12 rounded-[20px] flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.16);">
-                            <i data-lucide="layout-grid" class="w-6 h-6"></i>
+                        <div class="w-12 h-12 rounded-[20px] flex items-center justify-center flex-shrink-0" style="{{ hub_icon_style }}">
+                            <i data-lucide="{{ hub_profile.icon or 'layout-grid' }}" class="w-6 h-6"></i>
                         </div>
                     </div>
-                    {% if launcher_modules %}
+                    {% if hub_pills %}
                     <div class="mt-4 flex flex-wrap gap-2">
-                        {% for module in launcher_modules[:3] %}
-                        <span class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill">{{ module.label }}</span>
+                        {% for pill in hub_pills %}
+                        <span class="px-3 py-2 rounded-2xl text-caption font-semibold preview-pill" style="{{ hub_pill_style }}">{{ pill }}</span>
                         {% endfor %}
                     </div>
                     {% endif %}
+                    {% if hub_primary_action and hub_primary_action.href %}
+                    <div class="mt-5">
+                        <a href="{{ hub_primary_action.href }}" class="interactive w-full min-h-[58px] rounded-[22px] px-4 py-3 flex items-center justify-center gap-2 font-semibold text-white preview-quick-link" style="{{ hub_button_style }}">
+                            <i data-lucide="{{ hub_primary_action.icon or 'arrow-right' }}" class="w-5 h-5"></i>
+                            <span>{{ hub_primary_action.label }}</span>
+                        </a>
+                    </div>
+                    {% endif %}
                 </div>
+            </section>
+            {% endif %}
+
+            {% if not show_delivery_overview and hub_stats %}
+            <section class="grid grid-cols-2 gap-3 preview-fade-up">
+                {% for stat in hub_stats %}
+                <div class="preview-kpi rounded-[24px] p-4 {% if hub_stats|length == 1 or (hub_stats|length % 2 == 1 and loop.last) %}col-span-2{% endif %}" style="{{ stat.panel_style }}">
+                    <p class="preview-section-label">{{ stat.label }}</p>
+                    <p class="text-title mt-3" style="{{ stat.value_style }}">{{ stat.value }}</p>
+                    <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">{{ stat.hint }}</p>
+                </div>
+                {% endfor %}
             </section>
             {% endif %}
 
@@ -851,12 +880,12 @@
             <section class="space-y-3 preview-fade-up">
                 <div>
                     <p class="preview-section-label">Módulos</p>
-                    <h2 class="text-title text-white mt-1">{% if show_delivery_overview %}Acessos complementares{% else %}Seus módulos liberados{% endif %}</h2>
+                    <h2 class="text-title text-white mt-1">{% if show_delivery_overview %}Acessos complementares{% else %}{{ hub_profile.section_heading or 'Seus módulos liberados' }}{% endif %}</h2>
                     <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">
                         {% if show_delivery_overview %}
                         Fluxos adicionais disponíveis para o seu cadastro.
                         {% else %}
-                        Escolha um módulo habilitado para continuar.
+                        {{ hub_profile.section_description or 'Escolha um módulo habilitado para continuar.' }}
                         {% endif %}
                     </p>
                 </div>
@@ -873,9 +902,9 @@
                         <i data-lucide="shield-alert" class="w-5 h-5"></i>
                     </div>
                     <div class="min-w-0">
-                        <p class="text-body font-semibold text-white">Sem módulos visíveis nesta home</p>
+                        <p class="text-body font-semibold text-white">{{ hub_profile.empty_title or 'Sem módulos visíveis nesta home' }}</p>
                         <p class="text-caption-lg mt-1" style="color: rgba(148,163,184,0.92);">
-                            Seu cadastro está ativo, mas não há acessos operacionais exibidos neste painel agora.
+                            {{ hub_profile.empty_description or 'Seu cadastro está ativo, mas não há acessos operacionais exibidos neste painel agora.' }}
                         </p>
                     </div>
                 </div>
@@ -1657,6 +1686,7 @@
             assignedPlate: '',
             helperNames: {{ delivery_helper_names | safe }},
             showDeliveryOverview: {{ 'true' if show_delivery_overview else 'false' }},
+            hubProfileKey: {{ (hub_profile.key if hub_profile and hub_profile.key else '')|tojson }},
             todayRouteSummary: {
                 total: Number({{ delivery_total }}) || 0,
                 open: Number({{ delivery_open }}) || 0,
@@ -1698,26 +1728,38 @@
                 return Math.max(0, Math.min(100, Math.round((this.completedDeliveryStops / total) * 100)));
             },
             get heroStatusLabel() {
+                if (this.hubProfileKey === 'delivery_helper' && !this.totalDeliveryStops) return 'Aguardando vínculo';
                 if (!this.totalDeliveryStops) return 'Painel pronto';
                 if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Operação concluída';
-                if (this.inProgressDeliveryRoute) return 'Em rota';
+                if (this.inProgressDeliveryRoute) return this.hubProfileKey === 'delivery_helper' ? 'Em apoio' : 'Em rota';
                 if (this.deliverySessionOpen) return 'Sessão aberta';
                 return 'Pronto para iniciar';
             },
             get heroStatusMessage() {
                 if (!this.totalDeliveryStops) {
+                    if (this.hubProfileKey === 'delivery_helper') {
+                        return 'Você entra como ajudante. Aguarde a vinculação do motorista ou consulte o andamento da rota quando estiver liberada.';
+                    }
                     return 'Nenhuma rota lançada por enquanto. O painel continua pronto para a próxima operação.';
                 }
                 if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) {
-                    return `${this.completedDeliveryStops} rota(s) concluída(s) hoje.`;
+                    return this.hubProfileKey === 'delivery_helper'
+                        ? `${this.completedDeliveryStops} parada(s) concluída(s) com o seu apoio hoje.`
+                        : `${this.completedDeliveryStops} rota(s) concluída(s) hoje.`;
                 }
                 if (this.inProgressDeliveryRoute?.client_name) {
-                    return `Entrega em andamento para ${this.inProgressDeliveryRoute.client_name}.`;
+                    return this.hubProfileKey === 'delivery_helper'
+                        ? `Acompanhando a parada atual em ${this.inProgressDeliveryRoute.client_name}.`
+                        : `Entrega em andamento para ${this.inProgressDeliveryRoute.client_name}.`;
                 }
                 if (this.completedDeliveryStops > 0) {
-                    return `${this.completedDeliveryStops} rota(s) concluída(s) e ${this.openDeliveryStops} em aberto hoje.`;
+                    return this.hubProfileKey === 'delivery_helper'
+                        ? `${this.completedDeliveryStops} parada(s) concluída(s) e ${this.openDeliveryStops} em aberto no apoio de hoje.`
+                        : `${this.completedDeliveryStops} rota(s) concluída(s) e ${this.openDeliveryStops} em aberto hoje.`;
                 }
-                return `${this.openDeliveryStops} rota(s) em aberto hoje.`;
+                return this.hubProfileKey === 'delivery_helper'
+                    ? `${this.openDeliveryStops} parada(s) aguardando apoio hoje.`
+                    : `${this.openDeliveryStops} rota(s) em aberto hoje.`;
             },
             get heroSupportMessage() {
                 if (this.inProgressDeliveryRoute?.client_name) {
@@ -1730,6 +1772,12 @@
                 return `${this.completedDeliveryStops} concluída(s) e ${this.openDeliveryStops} em aberto hoje.`;
             },
             get heroActionLabel() {
+                if (this.hubProfileKey === 'delivery_helper') {
+                    if (!this.totalDeliveryStops) return 'Abrir acompanhamento';
+                    if (this.inProgressDeliveryRoute || this.deliverySessionOpen) return 'Acompanhar rota';
+                    if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Rever entregas';
+                    return 'Abrir rota ativa';
+                }
                 if (!this.totalDeliveryStops) return 'Abrir módulo de entregas';
                 if (this.inProgressDeliveryRoute || this.deliverySessionOpen) return 'Continuar operação';
                 if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Revisar operação';
