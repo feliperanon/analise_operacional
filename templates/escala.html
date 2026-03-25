@@ -75,12 +75,12 @@
                                         </template>
                                     </div>
                                 </div>
-                                <div x-show="(apiData.ajudantes_disponiveis || []).length">
+                                <div x-show="getFilteredAjudantesDisponiveis().length">
                                     <p class="text-[10px] text-blue-500/90 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                                         <i data-lucide="users" class="w-3 h-3"></i> Ajudantes disponíveis
                                     </p>
                                     <div class="flex flex-wrap gap-1">
-                                        <template x-for="a in (apiData.ajudantes_disponiveis || [])" :key="a.id">
+                                        <template x-for="a in getFilteredAjudantesDisponiveis()" :key="a.id">
                                             <span class="inline-flex items-center px-2 py-1 rounded-md text-[11px] bg-blue-500/15 border border-blue-500/30 text-blue-200" x-text="a.name"></span>
                                         </template>
                                     </div>
@@ -126,7 +126,7 @@
                                         <i data-lucide="user" class="w-3 h-3 text-emerald-400 shrink-0"></i>
                                         <span class="text-xs font-medium text-emerald-200 truncate" x-text="esc.driver_name || '—'"></span>
                                     </div>
-                                    <template x-for="(hname, i) in (esc.helper_names || [])" :key="i">
+                                    <template x-for="(hname, i) in getFilteredHelperNames(esc)" :key="i">
                                         <div class="rounded-lg bg-blue-500/15 border border-blue-500/30 px-2 py-1.5 flex items-center gap-1.5">
                                             <i data-lucide="users" class="w-3 h-3 text-blue-400 shrink-0"></i>
                                             <span class="text-xs font-medium text-blue-200 truncate" x-text="hname"></span>

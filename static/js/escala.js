@@ -34,6 +34,45 @@
                 return by;
             },
 
+            normalizePersonName(name) {
+                return String(name || '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .trim()
+                    .toLowerCase();
+            },
+
+            getFilteredAjudantesDisponiveis() {
+                const motoristas = this.apiData.motoristas_disponiveis || [];
+                const ajudantes = this.apiData.ajudantes_disponiveis || [];
+
+                const motoristaIds = new Set(
+                    motoristas
+                        .map((m) => Number(m && m.id))
+                        .filter((id) => Number.isFinite(id))
+                );
+                const motoristaNames = new Set(
+                    motoristas
+                        .map((m) => this.normalizePersonName(m && m.name))
+                        .filter(Boolean)
+                );
+
+                return ajudantes.filter((a) => {
+                    const helperId = Number(a && a.id);
+                    const helperName = this.normalizePersonName(a && a.name);
+                    if (Number.isFinite(helperId) && motoristaIds.has(helperId)) return false;
+                    if (helperName && motoristaNames.has(helperName)) return false;
+                    return true;
+                });
+            },
+
+            getFilteredHelperNames(esc) {
+                const helperNames = Array.isArray(esc && esc.helper_names) ? esc.helper_names : [];
+                const driverName = this.normalizePersonName(esc && esc.driver_name);
+                if (!driverName) return helperNames;
+                return helperNames.filter((name) => this.normalizePersonName(name) !== driverName);
+            },
+
             init() {
                 this.loadData();
             },
