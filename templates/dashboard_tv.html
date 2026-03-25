@@ -215,40 +215,27 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             {% set _n_paradas = dashboard.kpi.rotas_paradas|default(0) if dashboard.kpi else 0 %}
             {% set _n_ativas_real = dashboard.kpi.rotas_ativas|default(0) if dashboard.kpi else 0 %}
             {% set _n_rotas_concl = dashboard.kpi.rotas_concluidas|default(0) if dashboard.kpi else 0 %}
-            <div class="kpi-cell flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 120px;">
-                <div class="leading-tight">
-                    <div id="dash-time" class="font-black text-white text-kpi font-mono">--:--:--</div>
-                    <div id="dash-date" class="text-label text-slate-400 uppercase tracking-wider">Carregando...</div>
-                </div>
-            </div>
-            <div class="kpi-cell flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 170px;">
-                <div class="leading-tight space-y-1">
-                    <div class="flex items-center gap-2">
-                        <span id="dash-shift-name" class="text-card-title font-bold text-blue-400">Turno</span>
-                        <div class="w-10 sm:w-14 h-1.5 sm:h-2 bg-slate-700 rounded-full overflow-hidden">
-                            <div id="dash-shift-bar" class="h-full rounded-full transition-all duration-500" style="width:0%;background:rgb(59 130 246)"></div>
-                        </div>
-                    </div>
-                    <div id="tv-status-badge" class="inline-flex px-2.5 py-1 rounded-md border font-bold text-label uppercase tracking-wider status-normal">Operação normal</div>
-                </div>
-            </div>
-            <div class="kpi-cell flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 180px;">
+            <div class="kpi-cell flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 200px;">
                 <div class="leading-tight">
                     <div class="text-label text-slate-500 uppercase font-semibold">Devolução mês</div>
-                    <div class="font-black text-kpi {{ 'text-red-400' if (_dev_mes.pct|default(0)) > 2 else 'text-emerald-400' }}" id="tv-kpi-devolucao-mes-pct">{{ (_dev_mes.pct|default(0)) }}%</div>
-                    <div class="font-black text-kpi {{ 'text-red-400' if (_dev_mes.total_valor|default(0)) > 0 else 'text-emerald-400' }}" id="tv-kpi-devolucao-mes-valor">R$ {{ "{:,.2f}".format(_dev_mes.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') }}</div>
+                    {% set _dm_pct = _dev_mes.pct|default(0)|float %}
+                    {% set _dm_pct_br = ('%.1f'|format(_dm_pct))|replace('.', ',') %}
+                    {% set _dm_val = "{:,.2f}".format(_dev_mes.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') %}
+                    <div class="font-black text-kpi {{ 'text-red-400' if (_dm_pct > 2 or (_dev_mes.total_valor|default(0)) > 0) else 'text-emerald-400' }}" id="tv-kpi-devolucao-mes-combo">{{ _dm_pct_br }}% = R$ {{ _dm_val }}</div>
                 </div>
             </div>
             <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 95px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Abertas</span>
                 <span id="tv-kpi-abertas" class="font-black text-kpi text-white">{{ _open_total }}</span>
             </div>
-            <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 90px;">
-                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Devolução</span>
-                <span id="tv-kpi-devolucao" class="font-black text-kpi {{ 'text-red-400' if _dev_n > 0 else 'text-emerald-400' }}">{{ _dev_n }}</span>
-                <span id="tv-kpi-devolucao-ctx" class="text-label {{ 'text-amber-400' if _dev_n > 0 else 'text-slate-500' }}">
-                    {% if _dev_n > 0 %}{{ (_dev.pct|default(0)) }}% dia · R$ {{ "{:,.2f}".format(_dev.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') }}{% endif %}
-                </span>
+            <div class="kpi-cell flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 180px;">
+                <div class="leading-tight">
+                    <div class="text-label text-slate-500 uppercase font-semibold">Devolução hoje</div>
+                    {% set _dd_pct = _dev.pct|default(0)|float %}
+                    {% set _dd_pct_br = ('%.1f'|format(_dd_pct))|replace('.', ',') %}
+                    {% set _dd_val = "{:,.2f}".format(_dev.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') %}
+                    <div id="tv-kpi-devolucao-ctx" class="font-black text-kpi {{ 'text-amber-400' if _dev_n > 0 else 'text-slate-500' }}">{% if _dev_n > 0 %}{{ _dd_pct_br }}% = R$ {{ _dd_val }}{% endif %}</div>
+                </div>
             </div>
             <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 85px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Alertas</span>
@@ -273,6 +260,23 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             <div class="kpi-cell flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 70px;">
                 <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Críticas</span>
                 <span id="tv-kpi-criticas" class="font-black text-kpi text-red-400">{{ _critico_kpi }}</span>
+            </div>
+            <div class="kpi-cell flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 120px;">
+                <div class="leading-tight">
+                    <div id="dash-time" class="font-black text-white text-kpi font-mono">--:--:--</div>
+                    <div id="dash-date" class="text-label text-slate-400 uppercase tracking-wider">Carregando...</div>
+                </div>
+            </div>
+            <div class="kpi-cell flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 170px;">
+                <div class="leading-tight space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span id="dash-shift-name" class="text-card-title font-bold text-blue-400">Turno</span>
+                        <div class="w-10 sm:w-14 h-1.5 sm:h-2 bg-slate-700 rounded-full overflow-hidden">
+                            <div id="dash-shift-bar" class="h-full rounded-full transition-all duration-500" style="width:0%;background:rgb(59 130 246)"></div>
+                        </div>
+                    </div>
+                    <div id="tv-status-badge" class="inline-flex px-2.5 py-1 rounded-md border font-bold text-label uppercase tracking-wider status-normal">Operação normal</div>
+                </div>
             </div>
         </section>
 
@@ -522,6 +526,11 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             if (!isFinite(n)) n = 0;
             return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
+        function formatPctBr(v) {
+            var n = Number(v);
+            if (!isFinite(n)) n = 0;
+            return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        }
         function updateTvOpenElapsed() {
             document.querySelectorAll('.tv-open-elapsed[data-start]').forEach(function(el) {
                 var s = el.getAttribute('data-start');
@@ -617,10 +626,23 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
 
                 var set = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
                 set('tv-kpi-abertas', openTotal);
-                set('tv-kpi-devolucao', devCount);
-                set('tv-kpi-devolucao-ctx', devCount ? (dev.pct || 0) + '% dia · ' + formatMoneyBr(dev.total_valor || 0) : '');
-                set('tv-kpi-devolucao-mes-pct', (devMes.pct || 0) + '%');
-                set('tv-kpi-devolucao-mes-valor', formatMoneyBr(devMes.total_valor || 0));
+                var devCtx = document.getElementById('tv-kpi-devolucao-ctx');
+                if (devCtx) {
+                    if (devCount) {
+                        devCtx.textContent = formatPctBr(dev.pct) + '% = ' + formatMoneyBr(dev.total_valor || 0);
+                        devCtx.className = 'font-black text-kpi text-amber-400';
+                    } else {
+                        devCtx.textContent = '';
+                        devCtx.className = 'font-black text-kpi text-slate-500';
+                    }
+                }
+                var dmPct = devMes.pct != null ? Number(devMes.pct) : 0;
+                var dmVal = Number(devMes.total_valor || 0);
+                var dmCombo = document.getElementById('tv-kpi-devolucao-mes-combo');
+                if (dmCombo) {
+                    dmCombo.textContent = formatPctBr(dmPct) + '% = ' + formatMoneyBr(dmVal);
+                    dmCombo.className = 'font-black text-kpi ' + ((dmPct > 2 || dmVal > 0) ? 'text-red-400' : 'text-emerald-400');
+                }
                 set('tv-kpi-alertas', alertsCount);
                 set('tv-kpi-rotas-paradas', kpi.rotas_paradas != null ? kpi.rotas_paradas : (live.filter(function(o) { return (o.route_state || '') === 'not_started'; }).length));
                 set('tv-kpi-rotas-ativas', kpi.rotas_ativas != null ? kpi.rotas_ativas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'in_progress' || s === 'route_started'; }).length));
