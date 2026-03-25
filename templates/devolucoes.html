@@ -154,8 +154,11 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
                                 </label>
                                 <span class="text-slate-400 font-mono text-xs" x-text="d.data_efetiva || d.data_entrega || d.data_romaneio" :title="(d.data_romaneio && d.data_entrega && d.data_romaneio !== d.data_entrega) ? ('Romaneio: ' + d.data_romaneio + ' · Entrega: ' + d.data_entrega) : ''"></span>
                             </div>
-                            <h4 class="text-white font-medium text-sm leading-tight line-clamp-2" x-text="d.client_name"></h4>
+                            <h4 class="text-white font-medium text-sm leading-tight line-clamp-2" x-text="clientDisplayName(d)"></h4>
                             <div class="text-slate-400 text-xs space-y-0.5">
+                                <p><span class="text-slate-500">Cód.:</span> <span x-text="fmtNbBr(d.client_code)"></span></p>
+                                <p><span class="text-slate-500">Fantasia:</span> <span x-text="d.client_fantasia || '-'"></span></p>
+                                <p><span class="text-slate-500">Razão:</span> <span x-text="d.client_razao_social || '-'"></span></p>
                                 <p><span class="text-slate-500">Motorista:</span> <span x-text="d.motorista_name"></span></p>
                                 <p><span class="text-slate-500">Placa:</span> <span class="font-mono" x-text="d.vehicle_plate || '-'"></span></p>
                             </div>
@@ -393,6 +396,28 @@ function devolucoesTable(cfg) {
         sortHint(key) {
             if (this.sortKey !== key) return '⇅';
             return this.sortDir > 0 ? '↑' : '↓';
+        },
+        clientDisplayName(d) {
+            const ra = (d && d.client_razao_social ? String(d.client_razao_social) : '').trim();
+            const fa = (d && d.client_fantasia ? String(d.client_fantasia) : '').trim();
+            const fallback = (d && d.client_name ? String(d.client_name) : '').trim() || '-';
+            if (ra && fa) return ra.length >= fa.length ? ra : fa;
+            return ra || fa || fallback;
+        },
+        fmtNbBr(v) {
+            if (v === null || v === undefined) return '—';
+            const s = String(v).trim();
+            if (!s) return '—';
+            // Se for numérico no estilo Excel (ex.: "11373", "11.373", "11.373,00"), formatar pt-BR.
+            if (/^[0-9.,]+$/.test(s)) {
+                const digits = s.replace(/[.,]/g, '');
+                if (/^\d+$/.test(digits) && digits.length <= 12) {
+                    const n = parseInt(digits, 10);
+                    if (!Number.isNaN(n)) return n.toLocaleString('pt-BR');
+                }
+            }
+            // Alfanumérico (ex.: "61/50") ou formato inesperado: manter como veio.
+            return s;
         },
         fmtValor(v) {
             return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

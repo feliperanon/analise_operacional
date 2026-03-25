@@ -246,7 +246,7 @@
                             <th class="px-3 py-4 w-10">
                                 <input type="checkbox" id="bulk-select-all" class="rounded border-slate-600 bg-slate-800 text-emerald-500" title="Marcar todos">
                             </th>
-                            <th class="px-6 py-4">NB</th>
+                            <th class="px-6 py-4 whitespace-nowrap" title="Número do cliente no cadastro mestre (campo NB). Diferente do ID interno usado na URL /clients/… e em vínculos no banco.">Cód. (NB)</th>
                             <th class="px-3 py-3">Nome</th>
                             <th class="px-3 py-3 whitespace-nowrap">Data cadastro</th>
                             <th class="px-3 py-3 whitespace-nowrap">Última mov.</th>
@@ -263,9 +263,9 @@
                             <td class="px-3 py-3 align-middle">
                                 <input type="checkbox" name="client_ids" value="{{ client.id }}" form="bulk-group-form" class="client-bulk-cb rounded border-slate-600 bg-slate-800 text-emerald-500">
                             </td>
-                            <td class="px-3 py-3 text-slate-400 font-mono tabular-nums text-xs">{{ client.nb|fmt_nb_br }}</td>
+                            <td class="px-3 py-3 text-slate-400 font-mono tabular-nums text-xs cursor-help" title="ID interno do cadastro: {{ client.id }}">{{ client.nb|fmt_nb_br }}</td>
                             <td class="px-3 py-3">
-                                <a href="/clients/{{ client.id }}" class="text-white font-medium hover:text-blue-400 transition-colors">{{ client.name or client.nb or '-' }}</a>
+                                <a href="/clients/{{ client.id }}" class="text-white font-medium hover:text-blue-400 transition-colors" title="ID interno do cadastro: {{ client.id }}">{{ client.name or client.nb or '-' }}</a>
                             </td>
                             <td class="px-6 py-4 text-slate-300 whitespace-nowrap">
                                 {% set data_cad = data_cadastro_by_client.get(client.id) %}

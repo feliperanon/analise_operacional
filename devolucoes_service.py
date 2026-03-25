@@ -1112,6 +1112,7 @@ def _reconcile_devolucao_with_route(
     if not client_id or not motorista_id:
         return None
     routes = []
+    fallback_by_group = False
     for date_str in dates_to_try:
         routes = list(session.exec(
             select(Route)
@@ -1121,11 +1122,64 @@ def _reconcile_devolucao_with_route(
             .where(Route.date == date_str)
             .where(Route.delivery_status.in_(["entregue", "pendente", "iniciada", "reaberta"]))
         ).all())
+        if not routes:
+            # Fallback controlado: quando há cadastros duplicados do mesmo grupo (ex.: DMA),
+            # tenta localizar rota por motorista+data+grupo do cliente.
+            cli = session.get(Client, client_id) if client_id else None
+            group_id = getattr(cli, "client_group_id", None) if cli else None
+            if group_id:
+                target_municipio = _norm_text(getattr(cli, "municipio", None) or None)
+                target_setor = _norm_text(str(getattr(cli, "setor", None) or "") or None)
+                candidate_routes = list(session.exec(
+                    select(Route, Client)
+                    .join(Client, Route.client_id == Client.id)
+                    .where(Route.type == "delivery")
+                    .where(Route.employee_id == motorista_id)
+                    .where(Route.date == date_str)
+                    .where(Route.delivery_status.in_(["entregue", "pendente", "iniciada", "reaberta"]))
+                    .where(Client.client_group_id == group_id)
+                ).all())
+                if candidate_routes:
+                    # Refinar contra mistura entre DMAs diferentes dentro do mesmo grupo.
+                    # Preferir municipio (se existir); senão tentar setor; senão, mantém como está.
+                    refined = candidate_routes
+                    if target_municipio:
+                        refined = [
+                            (rr, cc)
+                            for (rr, cc) in candidate_routes
+                            if _norm_text(getattr(cc, "municipio", None) or None) == target_municipio
+                        ]
+                    if not refined and target_setor:
+                        refined = [
+                            (rr, cc)
+                            for (rr, cc) in candidate_routes
+                            if _norm_text(str(getattr(cc, "setor", None) or "") or None) == target_setor
+                        ]
+                    if not refined:
+                        refined = candidate_routes
+
+                    if len(refined) > 1 and r.get("valor"):
+                        target_valor = float(r.get("valor") or 0.0)
+                        by_valor = [
+                            rr for rr, _cc in refined
+                            if rr.valor_financeiro is not None
+                            and abs(float(rr.valor_financeiro) - target_valor) <= VAL_DUP_TOL
+                        ]
+                        if by_valor:
+                            routes = by_valor
+                        else:
+                            routes = [refined[0][0]]
+                    else:
+                        routes = [refined[0][0]]
+                    fallback_by_group = True
         if routes:
             break
     if not routes:
         return None
     route = routes[0]
+    if fallback_by_group and route.client_id and route.client_id != client_id:
+        # Canoniza devolução no mesmo client_id da rota encontrada.
+        r["client_id"] = route.client_id
     now = datetime.now().strftime("%H:%M")
     route.delivery_status = "devolucao"
     route.status = "completed"
@@ -1196,6 +1250,47 @@ def reconnect_orphan_devolucoes(
                 .where(Route.date == date_str)
             ).all())
             if not routes:
+                cli = session.get(Client, d.client_id) if d.client_id else None
+                group_id = getattr(cli, "client_group_id", None) if cli else None
+                if group_id:
+                    target_municipio = _norm_text(getattr(cli, "municipio", None) or None)
+                    target_setor = _norm_text(str(getattr(cli, "setor", None) or "") or None)
+                    candidate_routes = list(session.exec(
+                        select(Route, Client)
+                        .join(Client, Route.client_id == Client.id)
+                        .where(Route.type == "delivery")
+                        .where(Route.employee_id == d.motorista_id)
+                        .where(Route.date == date_str)
+                        .where(Client.client_group_id == group_id)
+                    ).all())
+                    if candidate_routes:
+                        refined = candidate_routes
+                        if target_municipio:
+                            refined = [
+                                (rr, cc)
+                                for (rr, cc) in candidate_routes
+                                if _norm_text(getattr(cc, "municipio", None) or None) == target_municipio
+                            ]
+                        if not refined and target_setor:
+                            refined = [
+                                (rr, cc)
+                                for (rr, cc) in candidate_routes
+                                if _norm_text(str(getattr(cc, "setor", None) or "") or None) == target_setor
+                            ]
+                        if not refined:
+                            refined = candidate_routes
+
+                        if len(refined) > 1 and valor_dev:
+                            by_valor = [
+                                rr for rr, _cc in candidate_routes
+                                if rr.valor_financeiro is not None
+                                and abs(float(rr.valor_financeiro) - valor_dev) <= VAL_DUP_TOL
+                            ]
+                            # Se existirem múltiplas por valor, preferimos as do conjunto refinado
+                            routes = by_valor if by_valor else [refined[0][0]]
+                        else:
+                            routes = [refined[0][0]]
+            if not routes:
                 routes_client = list(session.exec(
                     select(Route)
                     .where(Route.type == "delivery")
@@ -1225,6 +1320,8 @@ def reconnect_orphan_devolucoes(
                 updated += 1
                 matched = True
             else:
+                if routes[0].client_id and routes[0].client_id != d.client_id:
+                    d.client_id = routes[0].client_id
                 d.route_id = route_id
                 d.validation_status = ""
                 session.add(d)

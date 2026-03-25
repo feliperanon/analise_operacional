@@ -559,10 +559,16 @@ def init_devolucoes_router(
                 aguardando_n += 1
             # Nome do cliente: preferir o mais completo (razao_social ou name, o que for mais longo)
             cname = "-"
+            client_code = ""
+            client_fantasia = ""
+            client_razao_social = ""
             if c:
                 rs = (getattr(c, "razao_social", None) or "").strip()
                 nm = (getattr(c, "name", None) or "").strip()
                 cname = (rs if len(rs) >= len(nm) else nm) or rs or nm or "-"
+                client_code = getattr(c, "nb", None) or ""
+                client_fantasia = (getattr(c, "nome_fantasia", None) or "").strip()
+                client_razao_social = (getattr(c, "razao_social", None) or "").strip()
             rows.append(
                 {
                     "id": dev.id,
@@ -574,6 +580,9 @@ def init_devolucoes_router(
                     "acima_300": ("SIM" if dev.acima_300 in (True, "SIM", "sim", "Sim") else "NAO"),
                     "source": (dev.source or "").strip().upper() or "EXCEL",
                     "client_name": cname,
+                    "client_code": client_code,
+                    "client_fantasia": client_fantasia,
+                    "client_razao_social": client_razao_social,
                     "motorista_id": dev.motorista_id,
                     "motorista_name": (m.name if m else "-") or "",
                     "vehicle_plate": plate or "—",
