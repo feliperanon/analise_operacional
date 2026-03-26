@@ -1172,6 +1172,38 @@ def _reconcile_devolucao_with_route(
                     else:
                         routes = [refined[0][0]]
                     fallback_by_group = True
+            elif cli:
+                # Sem client_group_id: fallback conservador para redes com múltiplos cadastros
+                # usando razão social + município + motorista + data.
+                target_rs = _norm_text(getattr(cli, "razao_social", None) or None)
+                target_municipio = _norm_text(getattr(cli, "municipio", None) or None)
+                if target_rs and target_municipio:
+                    candidate_routes = list(session.exec(
+                        select(Route, Client)
+                        .join(Client, Route.client_id == Client.id)
+                        .where(Route.type == "delivery")
+                        .where(Route.employee_id == motorista_id)
+                        .where(Route.date == date_str)
+                        .where(Route.delivery_status.in_(["entregue", "pendente", "iniciada", "reaberta"]))
+                    ).all())
+                    refined = [
+                        (rr, cc)
+                        for (rr, cc) in candidate_routes
+                        if _norm_text(getattr(cc, "razao_social", None) or None) == target_rs
+                        and _norm_text(getattr(cc, "municipio", None) or None) == target_municipio
+                    ]
+                    if refined:
+                        if len(refined) > 1 and r.get("valor"):
+                            target_valor = float(r.get("valor") or 0.0)
+                            by_valor = [
+                                rr for rr, _cc in refined
+                                if rr.valor_financeiro is not None
+                                and abs(float(rr.valor_financeiro) - target_valor) <= VAL_DUP_TOL
+                            ]
+                            routes = by_valor if by_valor else [refined[0][0]]
+                        else:
+                            routes = [refined[0][0]]
+                        fallback_by_group = True
         if routes:
             break
     if not routes:
@@ -1290,6 +1322,33 @@ def reconnect_orphan_devolucoes(
                             routes = by_valor if by_valor else [refined[0][0]]
                         else:
                             routes = [refined[0][0]]
+                elif cli:
+                    target_rs = _norm_text(getattr(cli, "razao_social", None) or None)
+                    target_municipio = _norm_text(getattr(cli, "municipio", None) or None)
+                    if target_rs and target_municipio:
+                        candidate_routes = list(session.exec(
+                            select(Route, Client)
+                            .join(Client, Route.client_id == Client.id)
+                            .where(Route.type == "delivery")
+                            .where(Route.employee_id == d.motorista_id)
+                            .where(Route.date == date_str)
+                        ).all())
+                        refined = [
+                            (rr, cc)
+                            for (rr, cc) in candidate_routes
+                            if _norm_text(getattr(cc, "razao_social", None) or None) == target_rs
+                            and _norm_text(getattr(cc, "municipio", None) or None) == target_municipio
+                        ]
+                        if refined:
+                            if len(refined) > 1 and valor_dev:
+                                by_valor = [
+                                    rr for rr, _cc in refined
+                                    if rr.valor_financeiro is not None
+                                    and abs(float(rr.valor_financeiro) - valor_dev) <= VAL_DUP_TOL
+                                ]
+                                routes = by_valor if by_valor else [refined[0][0]]
+                            else:
+                                routes = [refined[0][0]]
             if not routes:
                 routes_client = list(session.exec(
                     select(Route)
