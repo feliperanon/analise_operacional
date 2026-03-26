@@ -565,14 +565,14 @@
                     @change="onMobileReturnPhotoSelected($event)">
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" @click="pickMobileReturnPhoto('camera')"
-                        class="rounded-lg px-3 py-2.5 border-2 text-body font-semibold"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                        Tirar foto
+                        class="rounded-lg px-3 py-2.5 border-2 text-body font-bold shadow-sm"
+                        style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.75); color: #fbbf24;">
+                        📸 Tirar foto
                     </button>
                     <button type="button" @click="pickMobileReturnPhoto('gallery')"
-                        class="rounded-lg px-3 py-2.5 border-2 text-body font-semibold"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                        Galeria
+                        class="rounded-lg px-3 py-2.5 border-2 text-body font-bold shadow-sm"
+                        style="background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.75); color: #93c5fd;">
+                        🖼️ Galeria
                     </button>
                 </div>
                 <p class="text-caption" style="color: var(--color-text-muted);" x-show="mobileReturn.photo_name">
