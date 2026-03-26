@@ -555,6 +555,37 @@
                     </template>
                 </select>
             </div>
+            <div x-show="requiresClosedStorePhoto(mobileReturn.reason)" class="space-y-2">
+                <label class="text-section block" style="color: var(--color-text);">
+                    Foto do estabelecimento fechado <span style="color: var(--color-danger);">*</span>
+                </label>
+                <input x-ref="returnPhotoCameraInput" type="file" accept="image/*" capture="environment" class="hidden"
+                    @change="onMobileReturnPhotoSelected($event)">
+                <input x-ref="returnPhotoGalleryInput" type="file" accept="image/*" class="hidden"
+                    @change="onMobileReturnPhotoSelected($event)">
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" @click="pickMobileReturnPhoto('camera')"
+                        class="rounded-lg px-3 py-2.5 border-2 text-body font-semibold"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        Tirar foto
+                    </button>
+                    <button type="button" @click="pickMobileReturnPhoto('gallery')"
+                        class="rounded-lg px-3 py-2.5 border-2 text-body font-semibold"
+                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        Galeria
+                    </button>
+                </div>
+                <p class="text-caption" style="color: var(--color-text-muted);" x-show="mobileReturn.photo_name">
+                    Arquivo: <span x-text="mobileReturn.photo_name"></span>
+                </p>
+                <p class="text-caption" style="color: var(--color-warning);" x-show="mobileReturn.photo_uploading">
+                    Enviando foto...
+                </p>
+                <a x-show="mobileReturn.photo_url" :href="mobileReturn.photo_url" target="_blank" rel="noopener"
+                    class="text-caption underline" style="color: var(--color-primary);">
+                    Ver foto enviada
+                </a>
+            </div>
             <label class="flex items-center gap-2 text-body font-semibold cursor-pointer" style="color: var(--color-text);">
                 <input type="checkbox" x-model="mobileReturn.is_partial"> Devolução parcial
             </label>
@@ -830,7 +861,11 @@
                 notified_commercial: '',
                 notified_commercial_name: '',
                 notified_logistics: '',
-                notified_logistics_name: ''
+                notified_logistics_name: '',
+                photo_file: null,
+                photo_name: '',
+                photo_url: '',
+                photo_uploading: false
             },
             deliverySetup: { plate: '', km_departure: '', helpers: [], helperInput: '' },
             actionLoading: false,
@@ -1417,9 +1452,48 @@
                     notified_commercial: '',
                     notified_commercial_name: '',
                     notified_logistics: '',
-                    notified_logistics_name: ''
+                    notified_logistics_name: '',
+                    photo_file: null,
+                    photo_name: '',
+                    photo_url: '',
+                    photo_uploading: false
                 };
                 this.showMobileReturnModal = true;
+            },
+            requiresClosedStorePhoto(reason) {
+                return ((reason || '').toUpperCase().includes('FECHADO'));
+            },
+            onMobileReturnPhotoSelected(evt) {
+                const f = evt && evt.target && evt.target.files && evt.target.files[0] ? evt.target.files[0] : null;
+                this.mobileReturn.photo_file = f;
+                this.mobileReturn.photo_name = f ? (f.name || 'foto') : '';
+                this.mobileReturn.photo_url = '';
+            },
+            pickMobileReturnPhoto(mode) {
+                const refName = mode === 'camera' ? 'returnPhotoCameraInput' : 'returnPhotoGalleryInput';
+                const input = this.$refs && this.$refs[refName];
+                if (input && typeof input.click === 'function') input.click();
+            },
+            async uploadMobileReturnPhoto(routeId) {
+                if (!this.mobileReturn.photo_file) return null;
+                this.mobileReturn.photo_uploading = true;
+                try {
+                    const fd = new FormData();
+                    fd.append('file', this.mobileReturn.photo_file);
+                    const r = await fetch(`/api/mobile/delivery/route/${routeId}/return-photo`, {
+                        method: 'POST',
+                        body: fd,
+                        credentials: 'same-origin'
+                    });
+                    const data = await r.json().catch(() => ({}));
+                    if (!r.ok || !data.success || !data.photo_url) {
+                        throw new Error(data.error || 'Erro ao enviar foto');
+                    }
+                    this.mobileReturn.photo_url = data.photo_url;
+                    return data.photo_url;
+                } finally {
+                    this.mobileReturn.photo_uploading = false;
+                }
             },
             async confirmMobileReturn() {
                 if (!this.mobileReturnRoute || this.actionLoading) return;
@@ -1432,7 +1506,24 @@
                 if (notifiedCommercial === 'sim' && !commercialName) return alert('Informe o nome da pessoa do Comercial avisada.');
                 if (notifiedLogistics === 'sim' && !logisticsName) return alert('Informe o nome da pessoa da Logística avisada.');
                 const route = this.mobileReturnRoute;
+                const needPhoto = this.requiresClosedStorePhoto(this.mobileReturn.reason);
+                if (needPhoto && !this.mobileReturn.photo_file && !this.mobileReturn.photo_url) {
+                    return alert('Para cliente fechado, anexe a foto do estabelecimento.');
+                }
                 this.actionLoading = true;
+                let photoUrl = this.mobileReturn.photo_url || '';
+                try {
+                    if (needPhoto && !photoUrl) {
+                        if (!navigator.onLine) {
+                            this.actionLoading = false;
+                            return alert('Para cliente fechado é necessário internet para enviar a foto.');
+                        }
+                        photoUrl = await this.uploadMobileReturnPhoto(route.id);
+                    }
+                } catch (e) {
+                    this.actionLoading = false;
+                    return alert(e.message || 'Erro ao enviar foto do estabelecimento.');
+                }
                 const payload = {
                     action: 'devolucao',
                     latitude: this.currentLatitude != null ? this.currentLatitude : undefined,
@@ -1444,7 +1535,8 @@
                     return_notified_commercial: notifiedCommercial === 'sim',
                     return_notified_commercial_name: notifiedCommercial === 'sim' ? commercialName : null,
                     return_notified_logistics: notifiedLogistics === 'sim',
-                    return_notified_logistics_name: notifiedLogistics === 'sim' ? logisticsName : null
+                    return_notified_logistics_name: notifiedLogistics === 'sim' ? logisticsName : null,
+                    return_photo_url: photoUrl || null
                 };
                 const optimisticUpdate = () => {
                     const r = (this.deliveryRoutes || []).find(x => x.id === route.id);

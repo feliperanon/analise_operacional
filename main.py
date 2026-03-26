@@ -337,6 +337,7 @@ def _auto_close_stale_delivery_sessions() -> int:
                 r.delivery_finished_at = now_sp.strftime("%H:%M") if now_sp else None
                 r.delivery_returned_at = None
                 r.delivery_return_reason = None
+                r.delivery_return_photo_url = None
                 r.delivery_return_category = None
                 r.valor_devolucao = None
                 r.devolucao_volume = None
@@ -1314,6 +1315,8 @@ CHECKLIST_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "checklis
 CHECKLIST_MAX_IMAGE_SIZE = 15 * 1024 * 1024
 TICKET_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "tickets")
 TICKET_MAX_IMAGE_SIZE = 5 * 1024 * 1024
+DELIVERY_RETURN_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "delivery_returns")
+DELIVERY_RETURN_MAX_IMAGE_SIZE = 8 * 1024 * 1024
 MAINTENANCE_EMAIL_TO = os.getenv("MAINTENANCE_EMAIL_TO", "").strip()
 MAINTENANCE_EMAIL_FROM = os.getenv("MAINTENANCE_EMAIL_FROM", "").strip()
 DEFAULT_SENDER_EMAIL = "feliperanon@live.com"
@@ -6260,6 +6263,7 @@ class MobileDeliveryActionPayload(BaseModel):
     return_notified_commercial_name: Optional[str] = None
     return_notified_logistics: Optional[bool] = None
     return_notified_logistics_name: Optional[str] = None
+    return_photo_url: Optional[str] = None
 
 
 class SyncBatchPayload(BaseModel):
@@ -6433,6 +6437,7 @@ def ensure_route_schema():
             "delivery_source_file": "VARCHAR(255)",
             "delivery_return_category": "VARCHAR(64)",
             "delivery_return_reason": "TEXT",
+            "delivery_return_photo_url": "TEXT",
             "delivery_notified_commercial": "BOOLEAN",
             "delivery_notified_commercial_name": "TEXT",
             "delivery_notified_logistics": "BOOLEAN",
@@ -6668,6 +6673,7 @@ async def api_mobile_delivery_my_routes(
                         r.delivery_finished_at = now_sp.strftime("%H:%M") if now_sp else None
                         r.delivery_returned_at = None
                         r.delivery_return_reason = None
+                        r.delivery_return_photo_url = None
                         r.delivery_return_category = None
                         r.valor_devolucao = None
                         r.devolucao_volume = None
@@ -7148,6 +7154,7 @@ async def api_mobile_delivery_session_end(
                     r.delivery_finished_at = now_sp.strftime("%H:%M") if now_sp else None
                     r.delivery_returned_at = None
                     r.delivery_return_reason = None
+                    r.delivery_return_photo_url = None
                     r.delivery_return_category = None
                     r.valor_devolucao = None
                     r.devolucao_volume = None
@@ -7416,6 +7423,7 @@ async def api_mobile_delivery_route_action(
                 route.driver_lon_end = payload.longitude
             route.delivery_return_category = None
             route.delivery_return_reason = None
+            route.delivery_return_photo_url = None
             route.delivery_notified_commercial = None
             route.delivery_notified_commercial_name = None
             route.delivery_notified_logistics = None
@@ -7457,6 +7465,8 @@ async def api_mobile_delivery_route_action(
                 return JSONResponse({"error": "Informe o nome da pessoa do Comercial avisada."}, status_code=400)
             if payload.return_notified_logistics and not logistics_name:
                 return JSONResponse({"error": "Informe o nome da pessoa da Logística avisada."}, status_code=400)
+            if _requires_closed_store_photo(payload.return_reason) and not (payload.return_photo_url or "").strip():
+                return JSONResponse({"error": "Para cliente fechado, anexe a foto do estabelecimento."}, status_code=400)
             route.delivery_status = "devolucao"
             route.status = "completed"
             route.end_time = now
@@ -7468,6 +7478,7 @@ async def api_mobile_delivery_route_action(
                 payload.return_reason, "COMERCIAL"
             )
             route.delivery_return_reason = payload.return_reason
+            route.delivery_return_photo_url = (payload.return_photo_url or "").strip() or None
             if payload.latitude is not None and payload.longitude is not None:
                 route.driver_lat_end = payload.latitude
                 route.driver_lon_end = payload.longitude
@@ -7520,6 +7531,7 @@ async def api_mobile_delivery_route_action(
             route.end_time = None
             route.delivery_return_category = None
             route.delivery_return_reason = None
+            route.delivery_return_photo_url = None
             route.delivery_notified_commercial = None
             route.delivery_notified_commercial_name = None
             route.delivery_notified_logistics = None
@@ -7554,6 +7566,31 @@ async def api_mobile_delivery_route_action(
         session.rollback()
         logger.exception("api_mobile_delivery_route_action error route_id=%s action=%s: %s", route_id, getattr(payload, "action", ""), e)
         return JSONResponse({"success": False, "error": "Erro ao processar ação. Tente novamente."}, status_code=500)
+
+
+@app.post("/api/mobile/delivery/route/{route_id}/return-photo", response_class=JSONResponse)
+async def api_mobile_delivery_return_photo_upload(
+    route_id: int,
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+):
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Não autorizado."}, status_code=401)
+    route = session.get(models.Route, route_id)
+    if not route or route.type != "delivery":
+        return JSONResponse({"success": False, "error": "Rota inválida."}, status_code=404)
+    if int(route.employee_id or 0) != int(user_id):
+        return JSONResponse({"success": False, "error": "Acesso negado à rota."}, status_code=403)
+    try:
+        photo_url = await _save_delivery_return_photo(file, route_id, int(user_id))
+        return JSONResponse({"success": True, "photo_url": photo_url})
+    except ValueError as ve:
+        return JSONResponse({"success": False, "error": str(ve)}, status_code=400)
+    except Exception as e:
+        logger.warning("upload return photo route_id=%s: %s", route_id, e, exc_info=True)
+        return JSONResponse({"success": False, "error": "Erro ao enviar foto. Tente novamente."}, status_code=500)
 
 
 @app.post("/api/mobile/delivery/sync-batch", response_class=JSONResponse)
@@ -7617,6 +7654,7 @@ async def api_mobile_delivery_sync_batch(
                     return_notified_commercial_name=a.get("return_notified_commercial_name"),
                     return_notified_logistics=a.get("return_notified_logistics"),
                     return_notified_logistics_name=a.get("return_notified_logistics_name"),
+                    return_photo_url=a.get("return_photo_url"),
                 )
                 if act == "iniciar":
                     if (route.delivery_status or "").lower() in ("entregue", "devolucao"):
@@ -7642,6 +7680,7 @@ async def api_mobile_delivery_sync_batch(
                     if payload.latitude is not None and payload.longitude is not None:
                         route.driver_lat_end = payload.latitude
                         route.driver_lon_end = payload.longitude
+                    route.delivery_return_photo_url = None
                     _append_delivery_event(route, "finalizar", now)
                 elif act == "devolucao":
                     if (route.delivery_status or "").lower() != "iniciada":
@@ -7649,6 +7688,9 @@ async def api_mobile_delivery_sync_batch(
                         continue
                     if not payload.return_reason or payload.return_reason not in DELIVERY_RETURN_REASONS_FLAT:
                         results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Motivo de devolução inválido."})
+                        continue
+                    if _requires_closed_store_photo(payload.return_reason) and not (payload.return_photo_url or "").strip():
+                        results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Para cliente fechado, anexe a foto do estabelecimento."})
                         continue
                     commercial_name = _clean_delivery_contact_name(payload.return_notified_commercial_name)
                     logistics_name = _clean_delivery_contact_name(payload.return_notified_logistics_name)
@@ -7661,6 +7703,7 @@ async def api_mobile_delivery_sync_batch(
                         route.delivery_finished_at = now
                     route.delivery_return_category = DELIVERY_RETURN_REASON_TO_CATEGORY.get(payload.return_reason, "COMERCIAL")
                     route.delivery_return_reason = payload.return_reason
+                    route.delivery_return_photo_url = (payload.return_photo_url or "").strip() or None
                     if payload.latitude is not None and payload.longitude is not None:
                         route.driver_lat_end = payload.latitude
                         route.driver_lon_end = payload.longitude
@@ -7700,6 +7743,7 @@ async def api_mobile_delivery_sync_batch(
                     route.end_time = None
                     route.delivery_return_category = None
                     route.delivery_return_reason = None
+                    route.delivery_return_photo_url = None
                     route.devolucao_volume = None
                     route.valor_devolucao = None
                     route.delivery_returned_at = None
@@ -12914,6 +12958,30 @@ def _build_delivery_return_contacts_note(route: models.Route) -> str:
     return f"Avisou o Comercial: {comercial} | Avisou a Logística: {logistica}"
 
 
+def _requires_closed_store_photo(return_reason: Optional[str]) -> bool:
+    reason = (return_reason or "").strip().upper()
+    # Regras: cliente/ponto fechado precisa evidência fotográfica.
+    return "FECHADO" in reason
+
+
+async def _save_delivery_return_photo(file: UploadFile, route_id: int, user_id: int) -> str:
+    os.makedirs(DELIVERY_RETURN_IMAGE_DIR, exist_ok=True)
+    raw_name = (file.filename or "").strip().lower()
+    ext = os.path.splitext(raw_name)[1] or ".jpg"
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        raise ValueError("Formato inválido. Use JPG, PNG ou WEBP.")
+    content = await file.read()
+    if not content:
+        raise ValueError("Arquivo vazio.")
+    if len(content) > DELIVERY_RETURN_MAX_IMAGE_SIZE:
+        raise ValueError("Imagem excede 8MB.")
+    filename = f"ret_{route_id}_{user_id}_{datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}{ext}"
+    path = os.path.join(DELIVERY_RETURN_IMAGE_DIR, filename)
+    with open(path, "wb") as fp:
+        fp.write(content)
+    return f"/static/uploads/delivery_returns/{filename}"
+
+
 def _build_delivery_sync_token(rows: List[models.Route], date: str, shift: str) -> str:
     parts = [date or "", shift or "", str(len(rows))]
     for r in sorted(rows, key=lambda x: (x.id or 0)):
@@ -13561,6 +13629,7 @@ async def separacao_page(
             "status_label": status_map.get(status_raw, status_raw.title()),
             "return_category": route.delivery_return_category or "",
             "return_reason": route.delivery_return_reason or "",
+            "return_photo_url": route.delivery_return_photo_url or "",
             "planning_date": route.date,
             "started_at": route.delivery_started_at or route.start_time or "",
             "finished_at": route.delivery_finished_at or (route.end_time or ""),
@@ -14277,6 +14346,7 @@ async def update_delivery_status(
         # Horários só vêm do mobile; separacao não cria timestamps
         route.delivery_return_category = return_category
         route.delivery_return_reason = return_reason
+        route.delivery_return_photo_url = None
         route.delivery_notified_commercial = None
         route.delivery_notified_commercial_name = None
         route.delivery_notified_logistics = None
@@ -14296,6 +14366,7 @@ async def update_delivery_status(
         # Horários só vêm do mobile; separacao não cria timestamps
         route.delivery_return_category = None
         route.delivery_return_reason = None
+        route.delivery_return_photo_url = None
         route.delivery_notified_commercial = None
         route.delivery_notified_commercial_name = None
         route.delivery_notified_logistics = None
@@ -15519,6 +15590,7 @@ async def delivery_bulk_action(
                 route.delivery_returned_at = None
                 route.delivery_return_category = None
                 route.delivery_return_reason = None
+                route.delivery_return_photo_url = None
                 route.delivery_notified_commercial = None
                 route.delivery_notified_commercial_name = None
                 route.delivery_notified_logistics = None

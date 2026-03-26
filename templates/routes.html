@@ -686,6 +686,13 @@
                                                 <div class="mt-1 text-[10px] text-orange-300">
                                                     {{ row.return_category }} - {{ row.return_reason }}
                                                 </div>
+                                                {% if row.return_photo_url %}
+                                                <div class="mt-1">
+                                                    <a href="{{ row.return_photo_url }}" target="_blank" rel="noopener" class="text-[10px] text-sky-300 hover:text-sky-200 underline">
+                                                        Ver foto do estabelecimento fechado
+                                                    </a>
+                                                </div>
+                                                {% endif %}
                                                 {% if row.is_partial_return %}
                                                 <div class="mt-1 text-[10px] text-orange-200">
                                                     Devolução parcial • {{ "{:,.2f}".format(row.return_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg • R$ {{ "{:,.2f}".format(row.return_value).replace(",", "X").replace(".", ",").replace("X", ".") }}

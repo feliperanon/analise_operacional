@@ -123,6 +123,33 @@ def test_api_mobile_delivery_return_requires_contact_name_when_answer_is_yes():
     assert payload["error"] == "Informe o nome da pessoa do Comercial avisada."
 
 
+def test_api_mobile_delivery_return_requires_photo_for_closed_store_reason():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        employee, _, route, _ = _seed_mobile_delivery_return_context(session)
+        closed_reason = "PONTO VENDA FECHADO / AUSENTE"
+
+        response = asyncio.run(
+            main.api_mobile_delivery_route_action(
+                _make_request(employee.id),
+                route.id,
+                main.MobileDeliveryActionPayload(
+                    action="devolucao",
+                    return_reason=closed_reason,
+                    return_notified_commercial=False,
+                    return_notified_logistics=False,
+                ),
+                session,
+            )
+        )
+
+    payload = json.loads(response.body)
+    assert response.status_code == 400
+    assert payload["error"] == "Para cliente fechado, anexe a foto do estabelecimento."
+
+
 def test_api_mobile_delivery_return_saves_required_observations_and_syncs_devolucao():
     engine = create_engine("sqlite://")
     SQLModel.metadata.create_all(engine)

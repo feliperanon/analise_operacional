@@ -337,6 +337,7 @@ class Route(SQLModel, table=True):
     delivery_source_file: Optional[str] = None
     delivery_return_category: Optional[str] = Field(default=None, index=True)
     delivery_return_reason: Optional[str] = None
+    delivery_return_photo_url: Optional[str] = None  # URL da foto do estabelecimento fechado
     delivery_notified_commercial: Optional[bool] = None
     delivery_notified_commercial_name: Optional[str] = None
     delivery_notified_logistics: Optional[bool] = None
