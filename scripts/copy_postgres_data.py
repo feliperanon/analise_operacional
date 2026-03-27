@@ -217,7 +217,12 @@ def copy_data(source_url: str, target_url: str, schema: str, *, verbose: bool = 
                 "Banco de destino sem tabelas esperadas. Faltando: " + ", ".join(missing[:20])
             )
 
-        edges = _fk_edges(source_conn, schema)
+        # Em alguns bancos legados as FKs não estão declaradas na origem,
+        # mas existem no destino recém-criado. Usamos as duas visões para
+        # ordenar a carga sem violar constraints.
+        source_edges = _fk_edges(source_conn, schema)
+        target_edges = _fk_edges(target_conn, schema)
+        edges = list(dict.fromkeys([*source_edges, *target_edges]))
         ordered = _topological_tables(tables, edges)
 
         with target_conn.cursor() as tgt_cur:
