@@ -1,9 +1,19 @@
 # -*- coding: utf-8 -*-
 """Testes para compatibilidade de colunas na cópia entre bancos PostgreSQL."""
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 
-from scripts.copy_postgres_data import _build_copy_plan
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "copy_postgres_data.py"
+SPEC = importlib.util.spec_from_file_location("copy_postgres_data", MODULE_PATH)
+assert SPEC and SPEC.loader
+copy_postgres_data = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(copy_postgres_data)
+
+_build_copy_plan = copy_postgres_data._build_copy_plan
 
 
 def _target_column(
