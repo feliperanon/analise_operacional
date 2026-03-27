@@ -406,9 +406,11 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                     </div>
                     <div id="tv-alto-indice-body" class="zone-card-body">
                         {% for row in (dashboard.clientes_alto_indice_devolucao or []) %}
-                        <div class="zone-card-row bg-amber-500/10 border border-amber-500/30 flex items-center gap-2">
-                            <span class="font-medium text-white flex-1 min-w-0 truncate" title="{{ row.client_name }}">{{ row.client_name }}</span>
-                            <span class="text-slate-400 shrink-0 max-w-[45%] truncate" title="{{ row.driver_name }}">· {{ row.driver_name }}</span>
+                        <div class="zone-card-row bg-amber-500/10 border border-amber-500/30">
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-slate-300 text-[11px] truncate" title="{{ row.driver_name }}">{{ row.driver_name }}</span>
+                                <span class="font-medium text-white truncate" title="{{ row.client_name }}">{{ row.client_name }}</span>
+                            </div>
                         </div>
                         {% else %}
                         <p class="zone-card-empty text-slate-500 text-xs">Nenhum no período.</p>
@@ -660,7 +662,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                     } else {
                         var altoHtml = '';
                         altoIndice.forEach(function(row) {
-                            altoHtml += '<div class="zone-card-row bg-amber-500/10 border border-amber-500/30 flex items-center gap-2"><span class="font-medium text-white flex-1 min-w-0 truncate">' + (row.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-slate-400 shrink-0 max-w-[45%] truncate">· ' + (row.driver_name || '').replace(/</g,'&lt;') + '</span></div>';
+                            altoHtml += '<div class="zone-card-row bg-amber-500/10 border border-amber-500/30"><div class="flex flex-col min-w-0"><span class="text-slate-300 text-[11px] truncate">' + (row.driver_name || '').replace(/</g,'&lt;') + '</span><span class="font-medium text-white truncate">' + (row.client_name || '').replace(/</g,'&lt;') + '</span></div></div>';
                         });
                         altoIndiceBody.innerHTML = altoHtml;
                     }
