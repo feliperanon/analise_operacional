@@ -116,6 +116,71 @@ Tabelas recomendadas:
 - Acessar diretamente o PostgreSQL atual do Render usando a `External Database URL` para exportação.
 - Isso é o melhor caminho para colaboradores, usuários, clientes completos e veículos.
 
+### Exportação no Windows PowerShell
+
+Se for usar `pg_dump` no Windows:
+
+1. Entre na pasta do projeto com `cd C:\Projetos\NL`.
+2. Nunca cole o prefixo do prompt `PS C:\...>` nem os `>>`.
+3. Confirme se o cliente PostgreSQL está instalado com `where.exe pg_dump`.
+4. Se não aparecer caminho nenhum, instale o cliente PostgreSQL ou use o script `scripts/copy_postgres_data.py`.
+
+Exemplo seguro no PowerShell:
+
+```powershell
+cd C:\Projetos\NL
+
+$env:PGPASSWORD = "SUA_SENHA"
+$env:PGSSLMODE = "require"
+
+pg_dump `
+  -h "SEU_HOST_RENDER" `
+  -U "SEU_USUARIO" `
+  -d "SEU_BANCO" `
+  -p 5432 `
+  -f ".\backup.sql" `
+  --format=plain `
+  --no-owner `
+  --no-privileges
+
+Remove-Item Env:PGPASSWORD
+Remove-Item Env:PGSSLMODE
+```
+
+Se a intenção for copiar do Postgres atual para outro Postgres novo do Render sem depender de `pg_dump`:
+
+```powershell
+cd C:\Projetos\NL
+
+$env:SOURCE_DATABASE_URL = "postgresql://usuario:senha@host_origem:5432/banco_origem?sslmode=require"
+$env:TARGET_DATABASE_URL = "postgresql://usuario:senha@host_destino:5432/banco_destino?sslmode=require"
+
+python .\scripts\copy_postgres_data.py --schema public
+```
+
+Importante:
+
+- `usuario`, `senha`, `host_origem`, `host_destino`, `banco_origem` e `banco_destino` são apenas placeholders.
+- Não use esses textos literalmente no comando.
+- Se o `.env` local já tiver a `DATABASE_URL` do banco atual, você pode reaproveitá-la como origem e informar só o destino:
+
+```powershell
+cd C:\Projetos\NL
+
+$env:TARGET_DATABASE_URL = "postgresql://usuario:senha@host_destino:5432/banco_destino?sslmode=require"
+
+python .\scripts\copy_postgres_data.py --schema public
+```
+
+Observações importantes:
+
+- O schema e as tabelas já precisam existir no banco de destino.
+- O script faz `TRUNCATE ... CASCADE` antes de copiar.
+- No PowerShell, o acento grave `` ` `` deve ser o último caractere da linha.
+- Para conexão externa ao Render, use `External Database URL`.
+- Se o `.env` local ainda tiver a `DATABASE_URL` do banco antigo, usar placeholders ou uma URL inválida em `DATABASE_URL` pode fazer a aplicação cair no banco antigo como fallback.
+- Para validar que você está no banco certo, só considere o teste válido quando usar a URL real do banco novo e o app subir por completo.
+
 ### Segunda melhor opção
 
 - Criar endpoints protegidos temporários no sistema atual apenas para exportação autenticada.
