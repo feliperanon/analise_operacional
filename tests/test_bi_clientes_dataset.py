@@ -2,7 +2,7 @@
 from pathlib import Path
 import sys
 
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import SQLModel, Session, create_engine, select
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -175,21 +175,64 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
         )
         session.commit()
 
-        session.add(
-            models.Devolucao(
-                data_romaneio="2026-03-10",
-                data_entrega="2026-03-10",
-                client_id=client_a.id,
-                vendedor_id=driver.id,
-                motorista_id=driver.id,
-                valor=250.0,
-                motivo_id=motivo.id,
-                responsabilidade_id=responsabilidade.id,
-                dia=10,
-                semana=11,
-                acima_300="NAO",
-                source="MANUAL",
-            )
+        route_prev = session.exec(
+            select(models.Route)
+            .where(models.Route.client_id == client_a.id)
+            .where(models.Route.date == "2026-02-20")
+        ).one()
+        route_current = session.exec(
+            select(models.Route)
+            .where(models.Route.client_id == client_a.id)
+            .where(models.Route.date == "2026-03-05")
+        ).one()
+
+        session.add_all(
+            [
+                models.Devolucao(
+                    route_id=route_prev.id,
+                    data_romaneio="2026-02-20",
+                    data_entrega="2026-02-20",
+                    client_id=client_a.id,
+                    vendedor_id=driver.id,
+                    motorista_id=driver.id,
+                    valor=50.0,
+                    motivo_id=motivo.id,
+                    responsabilidade_id=responsabilidade.id,
+                    dia=20,
+                    semana=8,
+                    acima_300="NAO",
+                    source="WEB",
+                ),
+                models.Devolucao(
+                    route_id=route_current.id,
+                    data_romaneio="2026-03-05",
+                    data_entrega="2026-03-05",
+                    client_id=client_a.id,
+                    vendedor_id=driver.id,
+                    motorista_id=driver.id,
+                    valor=100.0,
+                    motivo_id=motivo.id,
+                    responsabilidade_id=responsabilidade.id,
+                    dia=5,
+                    semana=10,
+                    acima_300="NAO",
+                    source="WEB",
+                ),
+                models.Devolucao(
+                    data_romaneio="2026-03-10",
+                    data_entrega="2026-03-10",
+                    client_id=client_a.id,
+                    vendedor_id=driver.id,
+                    motorista_id=driver.id,
+                    valor=250.0,
+                    motivo_id=motivo.id,
+                    responsabilidade_id=responsabilidade.id,
+                    dia=10,
+                    semana=11,
+                    acima_300="NAO",
+                    source="MANUAL",
+                ),
+            ]
         )
         session.commit()
 

@@ -102,7 +102,7 @@
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
       {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências", "undo-2", "success" if kpis.return_rate_qtd < 2 else "warning") }}
       {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%", "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
-      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Total acumulado", "wallet", "neutral") }}
+      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Excel até fechamento; sistema após", "wallet", "neutral") }}
       {{ kpi_card("Tempo Médio", kpis.avg_duration_m|fmt_br_duracao, "Rotas finalizadas", "timer", "success") }}
       {{ kpi_card("Mais Rápido", (mais_rapido.avg_duration|fmt_br_duracao) if mais_rapido else "-", mais_rapido.driver_name if mais_rapido else "-", "zap", "success") }}
       {{ kpi_card("Mais Lento", (mais_lento.avg_duration|fmt_br_duracao) if mais_lento else "-", mais_lento.driver_name if mais_lento else "-", "clock", "warning") }}
@@ -1126,6 +1126,4 @@
   .corr-cell.corr-empty { display: inline-flex; align-items: center; justify-content: center; }
 </style>
 {% endblock %}
-
-
 

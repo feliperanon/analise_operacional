@@ -87,7 +87,7 @@
       "undo-2", "warning" if kpis.return_rate_qtd >= 7 else "success") }}
       {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%",
       "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
-      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Impacto financeiro do periodo", "wallet", "danger" if
+      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Excel até fechamento; sistema após", "wallet", "danger" if
       kpis.return_rate_value >= 2 else "warning" if kpis.valor_total_devolvido > 0 else "neutral") }}
       {{ kpi_card("% Acima de R$300", (kpis.devolucoes_acima_300_pct|fmt_br_1) ~ "%",
       kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35
