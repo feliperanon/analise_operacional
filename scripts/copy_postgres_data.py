@@ -111,10 +111,19 @@ def _topological_tables(tables: Iterable[str], edges: Iterable[tuple[str, str]])
 
 
 def _list_columns(conn, schema: str, table: str) -> list[str]:
+    return [column["name"] for column in _list_column_details(conn, schema, table)]
+
+
+def _list_column_details(conn, schema: str, table: str) -> list[dict[str, object]]:
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT column_name
+            SELECT
+                column_name,
+                is_nullable,
+                column_default,
+                is_identity,
+                is_generated
             FROM information_schema.columns
             WHERE table_schema = %s
               AND table_name = %s
@@ -122,7 +131,61 @@ def _list_columns(conn, schema: str, table: str) -> list[str]:
             """,
             (schema, table),
         )
-        return [row[0] for row in cur.fetchall()]
+        return [
+            {
+                "name": row[0],
+                "is_nullable": row[1] == "YES",
+                "column_default": row[2],
+                "is_identity": row[3] == "YES",
+                "is_generated": (row[4] or "NEVER") != "NEVER",
+            }
+            for row in cur.fetchall()
+        ]
+
+
+def _build_copy_plan(
+    source_columns: list[str],
+    target_columns: list[dict[str, object]],
+    *,
+    schema: str,
+    table: str,
+) -> dict[str, list[str]]:
+    target_by_name = {str(column["name"]): column for column in target_columns}
+    source_set = set(source_columns)
+    shared_columns = [name for name in source_columns if name in target_by_name]
+    source_only = [name for name in source_columns if name not in target_by_name]
+    target_only = [str(column["name"]) for column in target_columns if str(column["name"]) not in source_set]
+    required_target_only = [
+        str(column["name"])
+        for column in target_columns
+        if str(column["name"]) not in source_set
+        and not bool(column["is_nullable"])
+        and column["column_default"] is None
+        and not bool(column["is_identity"])
+        and not bool(column["is_generated"])
+    ]
+
+    if required_target_only:
+        raise RuntimeError(
+            f"{schema}.{table}: destino exige coluna(s) ausente(s) na origem: "
+            + ", ".join(required_target_only)
+        )
+    if not shared_columns:
+        raise RuntimeError(
+            f"{schema}.{table}: nenhuma coluna em comum entre origem e destino para copiar dados."
+        )
+
+    return {
+        "columns": shared_columns,
+        "source_only": source_only,
+        "target_only": target_only,
+    }
+
+
+def _resolve_copy_plan(source_conn, target_conn, schema: str, table: str) -> dict[str, list[str]]:
+    source_columns = _list_columns(source_conn, schema, table)
+    target_columns = _list_column_details(target_conn, schema, table)
+    return _build_copy_plan(source_columns, target_columns, schema=schema, table=table)
 
 
 def _quote_csv_identifiers(columns: list[str]) -> str:
@@ -224,6 +287,19 @@ def copy_data(source_url: str, target_url: str, schema: str, *, verbose: bool = 
         target_edges = _fk_edges(target_conn, schema)
         edges = list(dict.fromkeys([*source_edges, *target_edges]))
         ordered = _topological_tables(tables, edges)
+        copy_plans: dict[str, dict[str, list[str]]] = {}
+
+        for table in ordered:
+            plan = _resolve_copy_plan(source_conn, target_conn, schema, table)
+            copy_plans[table] = plan
+            if verbose and plan["source_only"]:
+                skipped = ", ".join(plan["source_only"])
+                print(f"[WARN] {schema}.{table}: ignorando coluna(s) só da origem: {skipped}")
+            if verbose and plan["target_only"]:
+                pending = ", ".join(plan["target_only"])
+                print(
+                    f"[WARN] {schema}.{table}: coluna(s) só do destino ficarão com NULL/default: {pending}"
+                )
 
         with target_conn.cursor() as tgt_cur:
             truncate_stmt = sql.SQL("TRUNCATE TABLE {} CASCADE").format(
@@ -236,7 +312,7 @@ def copy_data(source_url: str, target_url: str, schema: str, *, verbose: bool = 
 
         total_rows = 0
         for table in ordered:
-            columns = _list_columns(source_conn, schema, table)
+            columns = copy_plans[table]["columns"]
             if not columns:
                 continue
             copied = _copy_table(source_conn, target_conn, schema, table, columns)

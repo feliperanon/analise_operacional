@@ -176,6 +176,9 @@ Observações importantes:
 
 - O schema e as tabelas já precisam existir no banco de destino.
 - O script faz `TRUNCATE ... CASCADE` antes de copiar.
+- A ordem de carga considera FKs vistas tanto na origem quanto no destino, reduzindo erro de dependência como `client -> clientgroup`.
+- Se a origem tiver colunas extras que não existem no destino, o script copia só as colunas em comum e emite `[WARN]` com a lista ignorada.
+- Se o destino exigir uma coluna obrigatória que não existe na origem, o script para antes da carga e informa a tabela/coluna incompatível.
 - No PowerShell, o acento grave `` ` `` deve ser o último caractere da linha.
 - Para conexão externa ao Render, use `External Database URL`.
 - Se o `.env` local ainda tiver a `DATABASE_URL` do banco antigo, usar placeholders ou uma URL inválida em `DATABASE_URL` pode fazer a aplicação cair no banco antigo como fallback.
