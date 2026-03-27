@@ -1,71 +1,4 @@
 <!DOCTYPE html>
-<!--
-================================================================================
-PAINEL DE GESTÃO OPERACIONAL — CENTRAL DE COMANDO
-================================================================================
-
-1. DIAGNÓSTICO DA VERSÃO ATUAL
--------------------------------
-- Layout fixo 1920px × 1080px em html/body/root causa corte ou scroll horizontal
-  em desktop menor que Full HD.
-- Painel central usa overflow-y-auto: scroll interno em vez de composição fixa.
-- Faixa de KPIs com min-widths em px pode transbordar em janelas estreitas.
-- Falta indicadores de negócio: total de rotas ativas, rotas em atenção/críticas,
-  motorista com maior/menor avanço.
-- Cards de motorista sem "ritmo" ou resumo de tempo; rodapé operacional mínimo.
-- Bloco de risco e visão do dia funcionais mas sem peso executivo.
-- Zero adaptação para viewport menor: não é verdadeiramente responsivo.
-- Sensação ainda de dashboard técnico, não de central de comando.
-
-2. ESTRATÉGIA DE REDESIGN
---------------------------
-- Abandonar width/height fixos em px no root. Usar viewport (vh/vw) e proporções.
-- Cinco zonas com altura definida em vh (topo 8vh, KPIs 10vh, central 52vh,
-  risco 12vh, dia 10vh) para total ≤100vh e zero scroll vertical global.
-- Painel central: grid 2 linhas × 3 colunas (ou 2 em breakpoint), cada célula
-  com 50% da altura da zona; exibir no máximo 6 motoristas, ordenados por
-  prioridade; sem overflow-y.
-- KPIs: uma faixa única com quebra opcional em 2 linhas em viewport estreito.
-- Bloco de alertas: altura fixa, até 5 itens visíveis, sem scroll.
-- Tipografia com clamp() para escalar entre TV e desktop.
-- Leitura gerencial: "N rotas ativas", "M em atenção", "K críticas", "Maior avanço: X".
-
-3. ESTRATÉGIA DE RESPONSIVIDADE TV + WEB
-----------------------------------------
-- Modo TV (≥1920×1080): composição máxima, 3 colunas de motoristas, todas as
-  informações visíveis; escala 1:1.
-- Modo desktop amplo (1600–1919, 1366–1599): mesma estrutura; fontes e espaços
-  levemente reduzidos via clamp(); 3 colunas mantidas.
-- Modo desktop médio (1280–1365): grid de motoristas em 2 colunas; KPIs podem
-  quebrar em 2 linhas; topo mais compacto.
-- Modo desktop menor (1024–1279): 2 colunas; faixa de KPIs em 2 linhas;
-  blocos de risco e dia compactos.
-- Container principal: width 100%, max-width 1920px, min-height 100vh,
-  overflow hidden, margin 0 auto. Conteúdo nunca ultrapassa viewport.
-- Evitar scroll: alturas em vh; grid da central com 2 linhas; listas limitadas
-  (máx. 5 alertas, máx. 3–4 linhas por card de “abertas”); excesso resumido
-  em “+N mais”.
-
-4. ARQUITETURA VISUAL (5 ZONAS)
--------------------------------
-A. Topo executivo (8vh): identidade, relógio, data, turno, barra, atualização, status.
-B. Faixa KPIs (10vh): centro, equipe/meta, ausentes, concluído, abertas, devolução,
-   alertas, rotas ativas, em atenção, críticas.
-C. Painel central (52vh): título + subtítulo (maior/menor avanço); grid 2×3 ou 2×2
-   de mini-cockpits de motorista (cabeçalho, núcleo desempenho, rodapé operacional).
-D. Alertas/exceções (12vh): título; lista prioritária ou “Operação sem alertas críticos”.
-E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, barra.
-
-5. COMO EVITAR SCROLL
-----------------------
-- Root e body: overflow: hidden; min-height: 100vh.
-- Cada zona com flex-basis em vh e flex-shrink: 0 (ou central flex-grow: 1).
-- Central: grid com 2 linhas (1fr 1fr); células com min-height: 0; conteúdo
-  interno com overflow: hidden e truncate onde necessário.
-- Listas longas: exibir até 4 entregas abertas por card; “+N abertas” se houver mais.
-- Alertas: até 5 itens; “+N alertas” se houver mais.
-================================================================================
--->
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -89,7 +22,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             font-family: inherit;
         }
         .zone-topo { flex: 0 0 8vh; min-height: 64px; max-height: 88px; }
-        .zone-kpis { flex: 0 0 10vh; min-height: 72px; max-height: 100px; }
+        .zone-kpis { flex: 0 0 10vh; min-height: 72px; max-height: 100px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
         .zone-central { flex: 1 1 46vh; min-height: 0; display: flex; flex-direction: row; gap: 0; }
         .zone-central-grid { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
         .zone-sidebar { flex: 0 0 320px; min-width: 280px; max-width: 380px; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border-left: 1px solid rgba(51,65,85,0.8); background: rgba(15,23,42,0.6); overflow-y: auto; }
@@ -191,7 +124,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         </header>
 
         <!-- B. FAIXA DE KPIs -->
-        <section class="zone-kpis relative z-10 flex items-stretch bg-slate-800/60 border-b border-slate-700/70 px-3 sm:px-5 shrink-0 kpi-wrap" id="alerts-over-20min-card" data-date="{{ current_date }}" data-cost-center="{{ current_cost_center|e }}">
+        <section class="zone-kpis relative z-10 flex items-stretch bg-slate-800/60 border-b border-slate-700/70 px-3 sm:px-5 shrink-0 kpi-wrap" id="tv-kpi-context" data-date="{{ current_date }}" data-cost-center="{{ current_cost_center|e }}">
             {% set _s = dashboard.cost_centers_summary or {} %}
             {% set _v = _s.values()|list %}
             {% set _cc = _s.get(current_cost_center) or (_v[0] if _v else none) %}
@@ -497,7 +430,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' kg';
         }
         function getTvRefDateYmd() {
-            var card = document.getElementById('alerts-over-20min-card');
+            var card = document.getElementById('tv-kpi-context');
             var d = card ? card.getAttribute('data-date') : '';
             return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : '';
         }
@@ -599,7 +532,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             return { best: sorted[0], worst: sorted[sorted.length - 1] };
         }
         function fetchTvData() {
-            var card = document.getElementById('alerts-over-20min-card');
+            var card = document.getElementById('tv-kpi-context');
             var date = card ? card.getAttribute('data-date') || '' : '';
             var cc = card ? card.getAttribute('data-cost-center') || '' : '';
             var url = '/api/dashboard/tv-data?date=' + encodeURIComponent(date);
