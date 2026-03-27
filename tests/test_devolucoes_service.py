@@ -3,7 +3,14 @@
 import pytest
 from datetime import datetime
 from unittest.mock import MagicMock
+from pathlib import Path
+import sys
 
+from sqlmodel import SQLModel, Session, create_engine, select
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import models
 from devolucoes_service import (
     parse_valor_pt_br,
     compute_dia,
@@ -20,6 +27,7 @@ from devolucoes_service import (
     DevolucaoRow,
     ValidationResult,
     persist_import_batch,
+    sync_route_to_devolucao,
 )
 
 
@@ -453,3 +461,183 @@ def test_persist_import_batch_grava_batch_erros_e_staging():
     assert "DevolucaoImportBatch" in types
     assert "DevolucaoImportRowError" in types
     assert "DevolucaoStaging" in types
+
+
+def test_sync_route_to_devolucao_reuses_matching_excel_without_creating_web_duplicate():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        employee = models.Employee(
+            registration_id="EMP-DEV-1",
+            name="Motorista Teste",
+            role="Motorista",
+            status="active",
+        )
+        client = models.Client(name="Cliente Teste")
+        resp = models.DevolucaoResponsabilidade(nome="COMERCIAL")
+        session.add(employee)
+        session.add(client)
+        session.add(resp)
+        session.commit()
+        session.refresh(employee)
+        session.refresh(client)
+        session.refresh(resp)
+
+        motivo = models.DevolucaoMotivo(
+            nome="CLIENTE NÃO FEZ PEDIDO",
+            responsabilidade_id=resp.id,
+            nome_normalizado="cliente nao fez pedido",
+        )
+        session.add(motivo)
+        session.commit()
+        session.refresh(motivo)
+
+        route_excel = models.Route(
+            date="2026-03-17",
+            shift="Manhã",
+            employee_id=employee.id,
+            client_id=client.id,
+            start_time="08:00",
+            end_time="13:55",
+            tonnage=100.0,
+            type="delivery",
+            valor_financeiro=680.0,
+            valor_devolucao=680.0,
+            delivery_status="devolucao",
+            status="completed",
+            delivery_return_reason="CLIENTE NÃO FEZ PEDIDO",
+            delivery_return_category="COMERCIAL",
+            delivery_order_number="180",
+            delivery_vehicle_plate="TXG3J89",
+        )
+        route_web = models.Route(
+            date="2026-03-16",
+            shift="Manhã",
+            employee_id=employee.id,
+            client_id=client.id,
+            start_time="08:00",
+            end_time="14:44",
+            tonnage=100.0,
+            type="delivery",
+            valor_financeiro=680.0,
+            valor_devolucao=680.0,
+            delivery_status="devolucao",
+            status="completed",
+            delivery_return_reason="CLIENTE NÃO FEZ PEDIDO",
+            delivery_return_category="COMERCIAL",
+            delivery_order_number="180",
+            delivery_vehicle_plate="TXG3J89",
+        )
+        session.add(route_excel)
+        session.add(route_web)
+        session.commit()
+        session.refresh(route_excel)
+        session.refresh(route_web)
+
+        existing = models.Devolucao(
+            route_id=route_excel.id,
+            data_romaneio="2026-03-16",
+            data_entrega="2026-03-17",
+            client_id=client.id,
+            vendedor_id=employee.id,
+            motorista_id=employee.id,
+            valor=680.0,
+            motivo_id=motivo.id,
+            responsabilidade_id=resp.id,
+            dia=16,
+            semana=12,
+            acima_300="SIM",
+            cluster="600-700",
+            source="EXCEL",
+        )
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+
+        synced = sync_route_to_devolucao(session, route_web, source="WEB")
+        session.commit()
+
+        rows = session.exec(select(models.Devolucao).order_by(models.Devolucao.id)).all()
+        assert synced is not None
+        assert synced.id == existing.id
+        assert len(rows) == 1
+        assert rows[0].source == "EXCEL"
+        assert rows[0].route_id == route_excel.id
+
+
+def test_sync_route_to_devolucao_preserves_existing_excel_source_for_same_route():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        employee = models.Employee(
+            registration_id="EMP-DEV-2",
+            name="Motorista Teste 2",
+            role="Motorista",
+            status="active",
+        )
+        client = models.Client(name="Cliente Teste 2")
+        resp = models.DevolucaoResponsabilidade(nome="MERCADO")
+        session.add(employee)
+        session.add(client)
+        session.add(resp)
+        session.commit()
+        session.refresh(employee)
+        session.refresh(client)
+        session.refresh(resp)
+
+        motivo = models.DevolucaoMotivo(
+            nome="SEM DINHEIRO / CHEQUE",
+            responsabilidade_id=resp.id,
+            nome_normalizado="sem dinheiro cheque",
+        )
+        route = models.Route(
+            date="2026-03-16",
+            shift="Tarde",
+            employee_id=employee.id,
+            client_id=client.id,
+            start_time="08:00",
+            end_time="12:35",
+            tonnage=50.0,
+            type="delivery",
+            valor_financeiro=332.26,
+            valor_devolucao=48.02,
+            delivery_status="devolucao",
+            status="completed",
+            delivery_return_reason="SEM DINHEIRO / CHEQUE",
+            delivery_return_category="MERCADO",
+        )
+        session.add(motivo)
+        session.add(route)
+        session.commit()
+        session.refresh(motivo)
+        session.refresh(route)
+
+        existing = models.Devolucao(
+            route_id=route.id,
+            data_romaneio="2026-03-16",
+            data_entrega="2026-03-17",
+            client_id=client.id,
+            vendedor_id=employee.id,
+            motorista_id=employee.id,
+            valor=48.02,
+            motivo_id=motivo.id,
+            responsabilidade_id=resp.id,
+            dia=16,
+            semana=12,
+            acima_300="NAO",
+            cluster="0-50",
+            source="EXCEL",
+        )
+        session.add(existing)
+        session.commit()
+
+        synced = sync_route_to_devolucao(session, route, source="WEB")
+        session.commit()
+
+        refreshed = session.get(models.Devolucao, existing.id)
+        assert synced is not None
+        assert refreshed is not None
+        assert refreshed.id == existing.id
+        assert refreshed.source == "EXCEL"

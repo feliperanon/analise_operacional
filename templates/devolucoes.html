@@ -164,8 +164,6 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
                             </div>
                             <div class="flex flex-wrap items-center justify-between gap-2 mt-auto pt-2 border-t border-slate-700">
                                 <span class="text-sky-400 font-semibold text-sm" x-text="fmtValor(d.valor)"></span>
-                                <span class="px-2 py-0.5 rounded text-[10px]" :class="d.acima_300 === 'SIM' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-500/20 text-slate-400'" x-text="d.acima_300"></span>
-                                <span class="text-slate-500 text-xs" x-text="d.source"></span>
                             </div>
                             <p x-show="d.is_duplicate_excel" class="text-[10px] text-rose-400 font-semibold">Duplicata planilha — válido: mobile/rota</p>
                             <p x-show="d.validation_status === 'ORPHAN_ROUTE' && !d.is_duplicate_excel" class="text-[10px] text-amber-400">Sem rota no dia — validar</p>

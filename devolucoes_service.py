@@ -943,6 +943,50 @@ def _best_canonical_among_duplicates(candidates: List[Devolucao]) -> Optional[De
     return max(real, key=sort_key)
 
 
+def _find_existing_devolucao_for_route(
+    session: Session,
+    route: "Route",
+    valor: float,
+    *,
+    exclude_id: Optional[int] = None,
+) -> Optional[Devolucao]:
+    """Reaproveita devolução existente quando a rota representa o mesmo evento.
+
+    Critério: mesmo cliente + motorista + valor aproximado e data da rota igual
+    ao romaneio OU à entrega do registro existente.
+    """
+    if not route.client_id or not route.employee_id or not route.date:
+        return None
+    q = (
+        select(Devolucao)
+        .where(Devolucao.client_id == route.client_id)
+        .where(Devolucao.motorista_id == route.employee_id)
+        .where(Devolucao.duplicate_of_id.is_(None))
+        .where(or_(Devolucao.data_romaneio == route.date, Devolucao.data_entrega == route.date))
+    )
+    if exclude_id:
+        q = q.where(Devolucao.id != exclude_id)
+    rows = session.exec(q).all()
+    candidates = [
+        d for d in rows
+        if abs(float(d.valor or 0.0) - float(valor or 0.0)) <= VAL_DUP_TOL
+    ]
+    if not candidates:
+        return None
+
+    def sort_key(d: Devolucao):
+        src = (d.source or "").upper()
+        created = d.created_at or datetime.max
+        return (
+            0 if src in ("EXCEL", "MANUAL") else 1,
+            0 if not getattr(d, "route_id", None) else 1,
+            created,
+            d.id or 0,
+        )
+
+    return min(candidates, key=sort_key)
+
+
 def link_excel_rows_to_canonical(session: Session, canonical: Devolucao) -> int:
     """Marca importações Excel duplicadas da mesma devolução (mobile/rota prevalece)."""
     if not canonical.client_id or not canonical.motorista_id:
@@ -1495,12 +1539,22 @@ def sync_route_to_devolucao(
         existing.valor = valor
         existing.motivo_id = motivo.id
         existing.responsabilidade_id = resp.id
-        existing.source = source
         existing.ajudante_id = ajudante_id
         session.add(existing)
         session.flush()
         link_excel_rows_to_canonical(session, existing)
         return existing
+    represented = _find_existing_devolucao_for_route(session, route, valor)
+    if represented:
+        if not getattr(represented, "route_id", None):
+            represented.route_id = route.id
+        if getattr(represented, "validation_status", "").strip() == "ORPHAN_ROUTE":
+            represented.validation_status = ""
+        if not getattr(represented, "ajudante_id", None):
+            represented.ajudante_id = ajudante_id
+        session.add(represented)
+        session.flush()
+        return represented
     try:
         dt = datetime.strptime(route.date, "%Y-%m-%d") if isinstance(route.date, str) else datetime.now()
     except (ValueError, TypeError):
