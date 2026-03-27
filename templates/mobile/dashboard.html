@@ -65,7 +65,7 @@
                     <div class="flex items-center gap-3 flex-1 min-w-0">
                         <div class="relative flex-shrink-0">
                             <div class="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-white/30 shadow-lg" style="background: var(--color-primary);">
-                                <img src="{{ url_for('static', path='badges/' + gamification.level.badge_image) }}"
+                                <img src="{{ static_path('badges/' + gamification.level.badge_image) }}"
                                     onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
                                     class="w-full h-full object-cover" alt="">
                             </div>

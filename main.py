@@ -25,6 +25,7 @@ import math
 import statistics
 from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlmodel import Session, select, col, delete, text, or_, desc
 from sqlalchemy import func, inspect, not_, and_
 from sqlalchemy.types import String, DateTime
@@ -261,6 +262,15 @@ def _get_reference_datetime(reference: Optional[datetime] = None) -> datetime:
     if reference:
         return reference.astimezone(tz)
     return datetime.now(tz)
+
+
+def _env_flag(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_matches(name: str, *values: str) -> bool:
+    current = os.getenv(name, "").strip().lower()
+    return current in {value.strip().lower() for value in values}
 
 
 def _format_hhmm_sao_paulo(value: Optional[datetime], expected_date: Optional[str] = None) -> Optional[str]:
@@ -738,8 +748,19 @@ app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 app.include_router(bi_delivery_router)
 app.include_router(bi_motorista_router)
 
-# Determine if running in Production (Render sets RENDER=true)
-IS_PROD = os.environ.get("RENDER", "false").lower() == "true"
+# Respect X-Forwarded-* when the app is published behind a trusted HTTPS proxy.
+PROXY_HEADERS_ENABLED = (
+    _env_flag("TRUST_PROXY_HEADERS")
+    or _env_flag("RENDER")
+    or _env_matches("ENV", "prod", "production")
+    or _env_matches("APP_ENV", "prod", "production")
+    or os.getenv("APP_BASE_URL", "").strip().lower().startswith("https://")
+)
+
+if PROXY_HEADERS_ENABLED:
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+IS_PROD = PROXY_HEADERS_ENABLED
 
 # Add Session Middleware with Production Settings
 app.add_middleware(
@@ -989,6 +1010,14 @@ async def well_known_fallback(path: str):
     return Response(content="", media_type="text/plain")
 
 templates = Jinja2Templates(directory="templates")
+
+
+def static_path(path: str) -> str:
+    """Return a relative static path to avoid absolute http/https mismatches in templates."""
+    return str(app.url_path_for("static", path=str(path).lstrip("/")))
+
+
+templates.env.globals["static_path"] = static_path
 
 # Helper function to get user display name
 def get_user_display_name(request: Request, session: Session = None) -> tuple[str, str]:
