@@ -6,13 +6,15 @@
     <title>Gestão Avista • Painel</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
     {# TailAdmin Free — CSS compilado (Tailwind v4); apenas camada visual #}
-    <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
+    <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
     <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
     <style>
         /* Painel claro — fundo + KPIs + cards no mesmo vocabulário visual */
         :root {
-            --gv-bg: #d0dbe1;
+            --gv-bg: #f1f5f9;
             --gv-surface: rgba(30, 41, 59, 0.92);
             --gv-card: rgba(30, 41, 59, 0.94);
             --gv-border: rgba(51, 65, 85, 0.75);
@@ -49,6 +51,10 @@
             width: 100%;
             max-width: 100%;
             overflow: hidden;
+        }
+        /* Painel TV / mural: sem scroll na página — tudo em 100vh */
+        body.dashboard-app #informativo-root {
+            overflow: hidden !important;
         }
         *, *::before, *::after { box-sizing: border-box; }
         html, body {
@@ -157,6 +163,15 @@
                 padding: 1rem 1.5rem 1.25rem;
             }
         }
+        body.dashboard-app .gv-panel-stack {
+            gap: 0.35rem;
+            padding: 0.45rem 0.75rem 0.5rem;
+        }
+        @media (min-width: 768px) {
+            body.dashboard-app .gv-panel-stack {
+                padding: 0.5rem 1rem 0.6rem;
+            }
+        }
         /* Largura máxima do conteúdo — alinhado ao main do TailAdmin (2xl) */
         .ta-main-inner {
             width: 100%;
@@ -195,8 +210,6 @@
             border-radius: 1px;
             background-image: linear-gradient(90deg, var(--grad));
         }
-        .gv-body .gv-dev-card:first-child { --grad: #3b82f6, #6366f1; }
-        .gv-body .gv-dev-card:last-child { --grad: #a855f7, #ec4899; }
         .gv-body .gv-col-mid .gv-surface:nth-child(1) { --grad: #0ea5e9, #06b6d4; }
         .gv-body .gv-col-mid .gv-surface:nth-child(2) { --grad: #f59e0b, #ea580c; }
         .gv-body .gv-col-right .gv-surface { --grad: #22c55e, #14b8a6; }
@@ -206,30 +219,40 @@
             border-radius: 1rem;
             background: #ffffff;
             background-image: none;
-            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
-            padding: 0.85rem 1rem;
+            box-shadow:
+                0 1px 3px 0 rgb(0 0 0 / 0.08),
+                0 4px 14px -4px rgb(15 23 42 / 0.12);
+            padding: 1rem 1.1rem;
             color: #334155;
         }
         .gv-body .gv-surface.ta-card::after {
             display: none;
         }
         .gv-body .gv-surface.ta-card .gv-card-title {
-            text-transform: none;
-            letter-spacing: 0.01em;
-            font-size: 0.9375rem;
-            font-weight: 600;
-            color: #1f2937;
+            font-size: var(--gv-card-body-fs, 0.8125rem);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #0f172a;
         }
         .gv-body .gv-surface.ta-card .gv-card-icon svg {
             stroke: #6b7280;
         }
         .gv-body .gv-surface.ta-card .gv-table-wrap thead th {
             border-bottom: 1px solid rgb(229 231 235);
-            color: #6b7280;
+            color: #64748b;
             font-weight: 600;
-            font-size: 0.6875rem;
+            font-size: var(--gv-card-body-fs, 0.8125rem);
             text-transform: uppercase;
             letter-spacing: 0.05em;
+        }
+        .gv-body .gv-surface.ta-card .gv-table-wrap table {
+            font-size: var(--gv-card-body-fs, 0.8125rem);
+            font-weight: 500;
+        }
+        .gv-body .gv-surface.ta-card .gv-table-wrap tbody td {
+            font-size: var(--gv-card-body-fs, 0.8125rem);
+            font-weight: 500;
         }
         .gv-body .gv-surface.ta-card .gv-table-wrap tbody tr {
             border-bottom: 1px solid rgb(243 244 246);
@@ -241,10 +264,45 @@
             color: #111827;
         }
         .gv-body .gv-surface.ta-card .gv-bday-row {
-            border-bottom-color: rgb(243 244 246);
+            border-bottom: 1px solid rgb(243 244 246);
+            padding: 0.35rem 0;
+        }
+        .gv-body .gv-surface.ta-card .gv-bday-row:last-child {
+            border-bottom: none;
+        }
+        .gv-body .gv-surface.ta-card .gv-bday-row.gv-bday-today {
+            border-bottom: 1px solid rgb(243 244 246);
+        }
+        .gv-body .gv-bday-list .gv-bday-name.gv-fit-oneline {
+            font-size: var(--gv-card-body-fs, 0.8125rem) !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .gv-body .gv-surface.ta-card .gv-aviso-body img {
             border-color: rgb(229 231 235) !important;
+        }
+        .gv-bulletin-carousel-wrap {
+            min-height: 8.5rem;
+        }
+        .gv-bulletin-pane img {
+            max-height: 7rem;
+            width: 100%;
+            object-fit: cover;
+            border-radius: 0.5rem;
+        }
+        .gv-bulletin-dot {
+            width: 0.45rem;
+            height: 0.45rem;
+            border-radius: 9999px;
+            background: rgb(203 213 225);
+            padding: 0;
+            border: none;
+            cursor: pointer;
+            transition: width 0.2s ease, background 0.2s ease;
+        }
+        .gv-bulletin-dot[aria-current="true"] {
+            background: rgb(2 132 199);
+            width: 1rem;
         }
         .gv-body .gv-card-head {
             display: flex;
@@ -279,14 +337,14 @@
             stroke-linecap: round;
             stroke-linejoin: round;
         }
-        /* Título de seção — padrão único para todos os cards (h2.gv-card-title) */
+        /* Títulos de card: único destaque (maiúsculas + extrabold); corpo no mesmo tamanho */
         .gv-body .gv-surface .gv-card-title {
-            font-size: var(--gv-card-title-fs);
-            letter-spacing: var(--gv-card-title-ls);
-            line-height: 1.2;
+            font-size: var(--gv-card-body-fs, 0.8125rem);
+            letter-spacing: 0.06em;
+            line-height: 1.25;
             text-transform: uppercase;
-            color: var(--gv-card-title-color);
-            font-weight: 600;
+            color: #0f172a;
+            font-weight: 800;
             margin: 0;
         }
         .gv-body .gv-table-wrap th {
@@ -294,7 +352,8 @@
             border-bottom-color: rgba(15, 23, 42, 0.12);
         }
         .gv-body .gv-table-wrap thead th {
-            font-weight: 700;
+            font-weight: 600;
+            font-size: var(--gv-card-body-fs, 0.8125rem);
             color: #475569;
         }
         .gv-body .gv-table-wrap tbody tr {
@@ -302,16 +361,22 @@
         }
         .gv-body .gv-fit-oneline {
             color: #1e293b;
-            font-weight: 600;
+            font-weight: 500;
         }
         .gv-body .gv-table-val {
             color: #334155 !important;
         }
         .gv-body .gv-pct-attn {
             color: #dc2626 !important;
+            font-weight: 600 !important;
+        }
+        .gv-body .gv-dev-cards .ta-card .gv-pct-good {
+            color: #15803d !important;
+            font-weight: 600 !important;
         }
         .gv-body .gv-pct-neutral {
             color: #64748b !important;
+            font-weight: 500 !important;
         }
         .gv-body .gv-table-empty {
             color: #94a3b8 !important;
@@ -322,16 +387,16 @@
             line-height: 1.35;
         }
         .gv-body .gv-aviso-body .gv-aviso-heading {
-            font-size: var(--gv-card-title-fs);
-            letter-spacing: 0.04em;
+            font-size: var(--gv-card-body-fs, 0.8125rem);
+            letter-spacing: 0.02em;
             text-transform: none;
-            font-weight: 700;
+            font-weight: 600;
             margin-bottom: 0.35rem;
         }
         .gv-body .gv-aviso-body h4,
         .gv-body .gv-aviso-body .gv-aviso-heading {
             color: #0f172a;
-            font-weight: 700;
+            font-weight: 600;
         }
         .gv-body .gv-aviso-body .gv-aviso-muted {
             color: #64748b;
@@ -345,23 +410,22 @@
             font-size: var(--gv-card-text-fs);
         }
         .gv-body .gv-bday-title-row .gv-bday-cake {
-            font-size: calc(var(--gv-card-title-fs) * 1.05);
+            font-size: calc(var(--gv-card-body-fs, 0.8125rem) * 1.35);
         }
         .gv-body .gv-bday-date {
             color: #64748b;
-            font-size: var(--gv-card-label-fs);
+            font-size: var(--gv-card-body-fs, 0.8125rem);
+            font-weight: 500;
         }
         .gv-body .gv-bday-name.gv-fit-oneline {
             color: #1e293b;
-        }
-        .gv-body .gv-card-title--ferias {
-            color: var(--gv-card-title-ferias-color) !important;
+            font-weight: 500;
         }
         .gv-body .gv-ferias-programadas-label {
-            color: #b45309 !important;
-            font-size: var(--gv-card-title-fs) !important;
-            letter-spacing: var(--gv-card-title-ls);
-            font-weight: 600;
+            color: #0f172a !important;
+            font-size: var(--gv-card-body-fs, 0.8125rem) !important;
+            letter-spacing: 0.06em;
+            font-weight: 800;
             text-transform: uppercase;
         }
         .gv-body .gv-col-right .border-slate-50 {
@@ -387,11 +451,10 @@
         .gv-body .gv-ferias-li {
             padding-top: 0.18rem !important;
             padding-bottom: 0.18rem !important;
-            font-size: var(--gv-card-text-fs) !important;
-            line-height: 1.2;
-        }
-        .gv-body .gv-ferias-li .text-xs {
-            font-size: var(--gv-card-label-fs) !important;
+            font-size: var(--gv-card-body-fs, 0.8125rem) !important;
+            font-weight: 500;
+            line-height: 1.25;
+            color: #475569;
         }
         .gv-body .gv-aviso-body img {
             border-color: rgba(15, 23, 42, 0.12) !important;
@@ -405,58 +468,66 @@
             font-weight: 700;
             margin: 0 0 0.5rem 0;
         }
-        .gv-dash-top {
-            flex: 0 0 auto;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-            width: 100%;
-            background: #ffffff;
-            border: 1px solid rgb(229 231 235);
+        /* Faixa de KPIs: cards individuais (.ta-kpi-card) — visual TailAdmin */
+        .ta-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+        @media (min-width: 1024px) {
+            .ta-kpi-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        @media (min-width: 1280px) {
+            .ta-kpi-grid {
+                grid-template-columns: repeat(6, minmax(0, 1fr));
+            }
+        }
+        .ta-kpi-card {
             border-radius: 1rem;
+            border: 1px solid rgb(229 231 235);
+            background: #ffffff;
             box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
-            overflow: hidden;
-            color: #334155;
+            padding: 0.65rem 0.5rem;
+            min-width: 0;
+            min-height: 5.5rem;
+            display: flex;
+            align-items: stretch;
+            justify-content: center;
         }
-        .gv-dash-top::after {
-            content: "";
-            flex-shrink: 0;
-            height: 2px;
-            background-image: linear-gradient(90deg, #0ea5e9, #6366f1, #a855f7);
-        }
-        .gv-dash-top .zone-topo {
-            flex-shrink: 0;
-            min-height: 48px;
-            max-height: 72px;
-            background: transparent !important;
-            border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
-            backdrop-filter: none;
-        }
-        .gv-dash-top .zone-topo .text-slate-500 {
+        .ta-kpi-shell .ta-kpi-grid .text-slate-500 {
             color: #64748b !important;
         }
-        .gv-dash-top .gv-zone-kpis {
-            background: transparent !important;
-            border-bottom: none !important;
-            text-transform: uppercase;
-        }
-        .gv-dash-top .gv-zone-kpis .kpi-cell {
-            border-right-color: rgb(229 231 235);
-        }
-        .gv-dash-top .gv-zone-kpis .text-slate-500 {
-            color: #64748b !important;
-        }
-        .gv-dash-top .gv-info-clock {
+        .ta-kpi-shell .gv-info-clock {
             color: #0f172a !important;
         }
-        .gv-dash-top .gv-info-date {
+        .ta-kpi-shell #info-date {
             color: #64748b !important;
+            font-variant-numeric: tabular-nums;
         }
-        .gv-dash-top .gv-zone-kpis .text-kpi {
-            font-size: clamp(1rem, 1.65vw, 1.38rem);
+        .ta-kpi-grid .ta-kpi-cell-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+            min-width: 0;
+            flex: 1 1 auto;
+            min-height: 0;
+            padding: 0 0.25rem;
         }
-        .gv-dash-top .gv-zone-kpis .text-label {
+        .ta-kpi-grid .ta-kpi-label {
             font-size: clamp(0.72rem, 1.05vw, 0.88rem);
+            font-weight: 600;
+            color: #64748b;
+            line-height: 1.2;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .ta-kpi-shell .ta-kpi-grid .text-kpi {
+            font-size: clamp(1rem, 1.65vw, 1.38rem);
         }
         /* Barra horizontal “Rota concluída” (substitui o anel circular) */
         .gv-kpi-bar-stack {
@@ -469,8 +540,7 @@
             max-width: 13rem;
             padding: 0 0.15rem;
         }
-        .gv-dash-top .gv-kpi-bar-stack .gv-ring-label {
-            font-size: clamp(0.72rem, 1.05vw, 0.88rem);
+        .ta-kpi-shell .gv-kpi-bar-stack .ta-kpi-label {
             text-align: center;
             max-width: none;
         }
@@ -498,118 +568,100 @@
             background: linear-gradient(90deg, #38bdf8, #6366f1);
             transition: width 0.45s ease;
         }
-        .gv-zone-kpis {
-            flex: 0 0 auto;
-            width: 100%;
-            min-height: 64px;
-            max-height: none;
-            overflow-x: hidden;
-            overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            align-items: stretch;
-            justify-content: stretch;
-            flex-wrap: wrap;
-            box-sizing: border-box;
-        }
-        @media (min-width: 1100px) {
-            .gv-zone-kpis { flex-wrap: nowrap; }
-        }
-        .gv-zone-kpis .kpi-cell {
-            border-right: 1px solid rgba(51, 65, 85, 0.8);
-            justify-content: center;
-            text-align: center;
-            flex: 1 1 auto;
-            min-width: 0;
-        }
-        @media (max-width: 1099px) {
-            .gv-zone-kpis .kpi-cell { flex: 1 1 40%; min-width: 7rem; }
-        }
-        .gv-zone-kpis .kpi-cell:last-child {
-            border-right: none;
-        }
-        .gv-zone-kpis .kpi-cell > .leading-tight,
-        .gv-zone-kpis .kpi-cell > .gv-kpi-bar-stack {
-            width: 100%;
-            justify-content: center;
-        }
-        .gv-zone-kpis .kpi-cell.gv-kpi-tight {
-            flex: 1 1 auto;
-            min-width: 11rem;
-        }
-        .gv-zone-kpis .kpi-cell.gv-kpi-clock-cell {
-            flex: 0.65 0 auto;
-            min-width: 5.5rem;
-        }
         .gv-kpi-label-long {
             line-height: 1.2;
-            max-width: 11rem;
-            letter-spacing: 0.05em;
+            max-width: 12rem;
+            margin-left: auto;
+            margin-right: auto;
         }
-        /* KPIs — leitura operacional (painel informativo) */
-        .gv-zone-kpis .text-kpi {
-            font-size: clamp(1rem, 1.65vw, 1.38rem);
-        }
-        .gv-zone-kpis .text-label {
-            font-size: clamp(0.72rem, 1.05vw, 0.88rem);
-        }
-        .gv-zone-kpis .text-card-title {
+        .ta-kpi-grid .text-card-title {
             font-size: clamp(0.85rem, 1.2vw, 1rem);
         }
-        .gv-zone-kpis .gv-ring-label {
+        .ta-kpi-grid .gv-ring-label {
             font-weight: 600;
             line-height: 1.15;
             max-width: none;
             letter-spacing: 0.02em;
         }
-        .gv-zone-kpis .gv-info-clock {
+        .ta-kpi-grid .gv-info-clock {
             font-variant-numeric: tabular-nums;
             letter-spacing: -0.02em;
         }
-        .gv-zone-kpis .gv-info-date {
-            margin-top: 0.2rem;
-            font-variant-numeric: tabular-nums;
+        /* Modo mural/TV: KPIs mais baixos — libera altura para o grid sem scroll */
+        body.dashboard-app .ta-kpi-shell {
+            flex-shrink: 0;
+        }
+        body.dashboard-app .ta-kpi-grid {
+            gap: 0.4rem;
+        }
+        body.dashboard-app .ta-kpi-card {
+            padding: 0.4rem 0.35rem;
+            min-height: 0;
+            border-radius: 0.75rem;
+        }
+        body.dashboard-app .ta-kpi-grid .ta-kpi-label {
+            font-size: clamp(0.62rem, 0.85vw, 0.75rem);
+            line-height: 1.15;
+        }
+        body.dashboard-app .ta-kpi-shell .ta-kpi-grid .text-kpi {
+            font-size: clamp(0.82rem, 1.2vw, 1.12rem);
+        }
+        body.dashboard-app .ta-kpi-grid .gv-kpi-value-line {
+            margin-top: 0.2rem !important;
+        }
+        body.dashboard-app .gv-kpi-bar-pct {
+            font-size: clamp(0.8rem, 1.15vw, 1.1rem);
+        }
+        body.dashboard-app .gv-kpi-bar-track {
+            height: 8px;
+        }
+        body.dashboard-app .gv-kpi-bar-stack {
+            gap: 0.22rem;
+        }
+        body.dashboard-app .ta-kpi-grid .gv-info-clock {
+            font-size: clamp(0.95rem, 1.4vw, 1.2rem);
+        }
+        body.dashboard-app .ta-kpi-grid #info-date {
+            font-size: clamp(0.62rem, 0.85vw, 0.75rem);
+            margin-top: 0.15rem;
         }
         .gv-stat-good { color: var(--gv-good) !important; font-weight: 600 !important; }
         .gv-stat-attn { color: var(--gv-attn) !important; font-weight: 600 !important; }
-        .gv-dash-top .gv-stat-good { color: #15803d !important; }
-        .gv-dash-top .gv-stat-attn { color: #dc2626 !important; }
-        .gv-zone-kpis .gv-kpi-value-line.gv-stat-good,
-        .gv-zone-kpis .gv-kpi-value-line.gv-stat-attn {
+        .ta-kpi-shell .gv-stat-good { color: #15803d !important; }
+        .ta-kpi-shell .gv-stat-attn { color: #dc2626 !important; }
+        .ta-kpi-grid .gv-kpi-value-line.gv-stat-good,
+        .ta-kpi-grid .gv-kpi-value-line.gv-stat-attn {
             font-weight: 900 !important;
         }
         .gv-delta-worse { color: var(--gv-delta-worse) !important; font-weight: 800 !important; }
         .gv-delta-better { color: var(--gv-delta-better) !important; font-weight: 800 !important; }
         .gv-delta-same { color: var(--gv-neutral) !important; font-weight: 600 !important; }
-        .gv-dash-top .gv-delta-worse { color: #dc2626 !important; }
-        .gv-dash-top .gv-delta-better { color: #15803d !important; }
-        .gv-dash-top .gv-delta-same { color: #64748b !important; }
+        .ta-kpi-shell .gv-delta-worse { color: #dc2626 !important; }
+        .ta-kpi-shell .gv-delta-better { color: #15803d !important; }
+        .ta-kpi-shell .gv-delta-same { color: #64748b !important; }
         .gv-header__pct,
         #hdr-dev-hoje { font-weight: 800 !important; font-variant-numeric: tabular-nums; }
-        .gv-zone-kpis .gv-kpi-value-line {
+        .ta-kpi-grid .gv-kpi-value-line {
             margin: 0;
             line-height: 1.2;
         }
         #hdr-delta {
-            margin: 0.25rem 0 0 0;
-            text-align: center;
             line-height: 1.2;
         }
-        .gv-zone-kpis .gv-kpi-delta-prefix {
-            letter-spacing: 0.05em;
-            display: block;
-            margin-bottom: 0.15rem;
-            text-align: center;
+        body.dashboard-app .gv-body {
+            --gv-card-body-fs: 0.76rem;
+            padding: 0.15rem 0 0.2rem;
+            gap: 0.38rem;
         }
         .gv-body {
-            /* Escala tipográfica dos cards: título = referência; restante deriva */
-            --gv-card-title-fs: 0.78rem;
-            --gv-card-title-ls: 0.07em;
-            --gv-card-title-color: #64748b;
-            --gv-card-title-ferias-color: #15803d;
-            --gv-card-text-fs: 0.72rem;
-            --gv-card-label-fs: 0.68rem;
+            /* Um tamanho para textos; títulos (h2) só destacam com negrito + maiúsculas */
+            --gv-card-body-fs: 0.8125rem;
+            --gv-card-title-fs: var(--gv-card-body-fs);
+            --gv-card-title-ls: 0.06em;
+            --gv-card-title-color: #0f172a;
+            --gv-card-text-fs: var(--gv-card-body-fs);
+            --gv-card-label-fs: var(--gv-card-body-fs);
             display: grid;
-            /* Col. 1: pilha devoluções (máx. 600px); centro e direita dividem o restante */
             grid-template-columns: minmax(0, 37.5rem) minmax(0, 1.55fr) minmax(0, 1.35fr);
             gap: 0.5rem;
             flex: 1 1 auto;
@@ -635,27 +687,48 @@
             flex-direction: column;
             flex-wrap: nowrap;
             gap: 0.38rem;
-            flex: 1 1 0;
-            min-height: 0;
-            align-items: flex-start;
+            flex: 1 1 auto;
+            min-height: min-content;
+            align-items: stretch;
             width: 100%;
             max-width: 37.5rem;
         }
-        .gv-dev-cards .gv-dev-card {
+        .gv-dev-cards .ta-card {
             width: 100%;
             max-width: 37.5rem;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            min-height: 0;
-            flex: 1 1 0;
-            overflow: hidden;
+            flex: 0 0 auto;
+            min-height: min-content;
+            overflow: visible;
         }
         .gv-col-mid { min-height: 0; overflow: hidden; }
-        .gv-body .gv-col-mid .gv-surface {
-            flex: 1;
+        /* Comunicado: altura conforme conteúdo; gráfico de devolução: ocupa o restante da coluna (evita cortar o fim do card). */
+        .gv-body .gv-col-mid .gv-surface:not(.gv-card--devolucao-kpi) {
+            flex: 0 1 auto;
             min-height: 0;
             overflow: hidden;
+        }
+        .gv-body .gv-col-mid .gv-surface.gv-card--devolucao-kpi {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .gv-card--devolucao-kpi .gv-devolucao-kpi-body {
+            flex: 1 1 0;
+            min-height: 0;
+        }
+        .gv-card--devolucao-kpi .gv-chart-devolucao {
+            flex: 1 1 0;
+            min-width: 0;
+            width: 100%;
+            min-height: clamp(9rem, 22vh, 16rem);
+        }
+        @media (max-width: 767px) {
+            .gv-body {
+                grid-template-columns: minmax(0, 1fr);
+            }
         }
         .gv-col-right {
             min-width: 0;
@@ -675,28 +748,28 @@
             min-width: 0;
         }
         .gv-table-wrap { overflow: hidden; flex: 1; min-height: 0; }
-        /* Tabelas devolução — compactas, sem scroll interno */
-        .gv-body .gv-dev-card .gv-table-wrap {
-            overflow: hidden;
-            flex: 1 1 0;
-            min-height: 0;
+        /* Tabelas devolução (ta-card na coluna esquerda): altura natural, sem colapsar */
+        .gv-body .gv-dev-cards .ta-card .gv-table-wrap {
+            overflow: visible;
+            flex: 0 1 auto;
+            min-height: min-content;
         }
-        .gv-body .gv-dev-card .gv-table-wrap table {
+        .gv-body .gv-dev-cards .ta-card .gv-table-wrap table {
             font-size: var(--gv-card-text-fs);
             line-height: 1.18;
         }
-        .gv-body .gv-dev-card .gv-table-wrap thead th {
-            font-size: var(--gv-card-label-fs);
-            font-weight: 700;
+        .gv-body .gv-dev-cards .ta-card .gv-table-wrap thead th {
+            font-size: var(--gv-card-body-fs, 0.8125rem);
+            font-weight: 600;
             letter-spacing: 0.04em;
             padding-top: 0.12rem !important;
             padding-bottom: 0.1rem !important;
         }
-        .gv-body .gv-dev-card .gv-table-wrap tbody td {
+        .gv-body .gv-dev-cards .ta-card .gv-table-wrap tbody td {
             padding-top: 0.1rem !important;
             padding-bottom: 0.08rem !important;
         }
-        .gv-body .gv-dev-card .gv-table-wrap .gv-table-empty {
+        .gv-body .gv-dev-cards .ta-card .gv-table-wrap .gv-table-empty {
             font-size: var(--gv-card-text-fs) !important;
             padding-top: 0.5rem !important;
             padding-bottom: 0.5rem !important;
@@ -793,9 +866,9 @@
             border-bottom-color: transparent;
         }
         .gv-bday-empty { padding: 0.5rem 0; color: #64748b; font-size: 0.8125rem; }
-        .gv-body .gv-bday-empty { font-size: var(--gv-card-label-fs); padding: 0.25rem 0; }
+        .gv-body .gv-bday-empty { font-size: var(--gv-card-body-fs, 0.8125rem); padding: 0.25rem 0; }
         .gv-body .gv-bday-badge-inline {
-            font-size: var(--gv-card-label-fs);
+            font-size: var(--gv-card-body-fs, 0.8125rem);
             padding: 0.12rem 0.32rem;
         }
         .gv-bday-title-row {
@@ -805,11 +878,6 @@
             margin-bottom: 0.25rem;
         }
         .gv-bday-title-row .gv-bday-cake { font-size: 1.15rem; }
-        .gv-card-title--ferias { color: #86efac !important; }
-        .gv-ferias-programadas-label {
-            color: #fca5a5 !important;
-            font-weight: 700;
-        }
         .gv-aviso-body { flex: 1; min-height: 0; overflow: hidden; font-size: 0.875rem; color: #cbd5e1; padding: 2px 0; line-height: 1.45; }
         .gv-aviso-body h4 { color: #f8fafc; }
         .gv-aviso-body .gv-aviso-muted { color: #94a3b8; }
@@ -827,9 +895,6 @@
         .gv-menu-btn:hover {
             background: rgb(249 250 251);
             color: #1f2937;
-        }
-        @media (max-width: 1024px) {
-            .kpi-wrap { flex-wrap: wrap; }
         }
         /* Shell TailAdmin + conteúdo legado Gestão Avista */
         .ta-dashboard-layout {
@@ -849,130 +914,35 @@
         .gv-page.ta-dash-body {
             font-family: Outfit, ui-sans-serif, system-ui, sans-serif;
         }
-        /* Drawer + overlay — tema claro TailAdmin só no painel informativo */
-        body.dashboard-piloto-tailadmin .sidebar-overlay {
-            background-color: rgba(15, 23, 42, 0.35) !important;
+        body.dashboard-app .ta-dash-header {
+            padding-top: 0.35rem;
+            padding-bottom: 0.35rem;
         }
-        body.dashboard-piloto-tailadmin #sidebar-drawer {
-            background-color: #ffffff !important;
-            border-color: rgb(229 231 235) !important;
-            box-shadow: 4px 0 24px rgba(15, 23, 42, 0.06);
+        body.dashboard-app .ta-dash-header h1 {
+            font-size: clamp(1rem, 1.5vw, 1.15rem);
+            line-height: 1.2;
         }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .border-slate-800 {
-            border-color: rgb(229 231 235) !important;
+        body.dashboard-app .ta-dash-header .ta-dash-header__inner {
+            gap: 0.15rem;
         }
-        body.dashboard-piloto-tailadmin #sidebar-drawer h1.text-xl {
-            background: none !important;
-            -webkit-background-clip: unset !important;
-            background-clip: unset !important;
-            color: #111827 !important;
+        body.dashboard-app .gv-dev-cards {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow: hidden;
         }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .sidebar-clock-strip {
-            background-color: rgb(249 250 251) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .sidebar-footer-strip {
-            background-color: #ffffff !important;
-            border-color: rgb(229 231 235) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .sidebar-footer-strip .text-white {
-            color: #111827 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .sidebar-footer-strip .text-slate-500 {
-            color: #6b7280 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .text-yellow-400 {
-            color: #ca8a04 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .hover\:text-yellow-300:hover {
-            color: #a16207 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .hover\:bg-yellow-500\/10:hover {
-            background-color: rgb(254 249 195) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer #sidebar-time {
-            color: #111827 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer #sidebar-date,
-        body.dashboard-piloto-tailadmin #sidebar-drawer #sidebar-shift-progress-text {
-            color: #6b7280 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer #sidebar-shift-start {
-            color: #111827 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer #sidebar-shift-end {
-            color: #9ca3af !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .bg-slate-700 {
-            background-color: rgb(229 231 235) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer a.flex.items-center.gap-3,
-        body.dashboard-piloto-tailadmin #sidebar-drawer button.menu-toggle {
-            color: #374151 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer a.flex.items-center.gap-3:hover,
-        body.dashboard-piloto-tailadmin #sidebar-drawer button.menu-toggle:hover {
-            color: #111827 !important;
-            background-color: rgb(243 244 246) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer a.text-slate-500 {
-            color: #6b7280 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer a.text-slate-500:hover {
-            color: #2563eb !important;
-            background-color: transparent !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer a[href="/dashboard/tv"]:hover {
-            color: #0891b2 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer a[href="/logout"] {
-            color: #e11d48 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer a[href="/logout"]:hover {
-            background-color: rgb(255 241 242) !important;
-            color: #be123c !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .border-cyan-500\/30,
-        body.dashboard-piloto-tailadmin #sidebar-drawer .border-slate-500\/30 {
-            border-color: rgb(229 231 235) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer button[class*="hover:bg-slate-800"] {
-            color: #6b7280 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer button[class*="hover:bg-slate-800"]:hover {
-            color: #111827 !important;
-            background-color: rgb(243 244 246) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .hover\:bg-white\/5:hover {
-            background-color: rgb(243 244 246) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .text-emerald-400 {
-            color: #059669 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .hover\:text-emerald-300:hover {
-            color: #047857 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .hover\:bg-emerald-500\/10:hover {
-            background-color: rgb(209 250 229) !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .text-blue-400 {
-            color: #2563eb !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .hover\:text-blue-300:hover {
-            color: #1d4ed8 !important;
-        }
-        body.dashboard-piloto-tailadmin #sidebar-drawer .hover\:bg-blue-500\/10:hover {
-            background-color: rgb(219 234 254) !important;
+        body.dashboard-app .gv-body .gv-surface.ta-card {
+            padding: 0.75rem 0.85rem;
         }
     </style>
 </head>
-<body class="gv-page ta-dash-body dashboard-piloto-tailadmin text-slate-700 font-outfit" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
+<body class="gv-page ta-dash-body dashboard-app text-slate-700 font-outfit antialiased" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
     {% include "_sidebar.html" %}
     <button @click="sidebarOpen = true" class="gv-menu-btn fixed top-3 left-3 z-[60] flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors" :class="sidebarOpen ? 'hidden' : ''" type="button" title="Menu">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         <span class="text-xs font-medium hidden sm:inline">Menu</span>
     </button>
 
-    <div class="ta-dashboard-layout flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-100 dark:bg-gray-900">
+    <div class="ta-dashboard-layout flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100 dark:bg-gray-900">
         <header class="ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
             <div class="ta-dash-header__inner flex flex-col gap-0.5 pl-12 sm:pl-14">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Painel</p>
@@ -992,8 +962,7 @@
     {% set curr_p = cmp.get('curr_pct_rotas', 0)|float %}
     {% set dhoje_f = dhoje|default(0)|float %}
     {% set bulletins = inf.get('bulletins') or [] %}
-    {% set b0 = bulletins[0] if bulletins|length > 0 else none %}
-    {% set b1 = bulletins[1] if bulletins|length > 1 else none %}
+    {% set featured_bulletins = bulletins[:5] %}
     {% set b_sp = inf.get('birthdays_souza_pinto') %}
     {% set b_ex = inf.get('birthdays_exemplar') %}
     {% if b_sp is none and b_ex is none %}
@@ -1016,7 +985,7 @@
         {%- for b in (items or []) -%}
         <li class="gv-bday-row{% if b.is_today %} gv-bday-today{% endif %}">
             <span class="gv-bday-cake" aria-hidden="true">🎂</span>
-            <span class="gv-bday-name gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(b.name) }}</span>
+            <span class="gv-bday-name gv-fit-oneline">{{ gv_dois_nomes(b.name) }}</span>
             {%- if b.is_today %}<span class="gv-bday-badge-inline">Hoje</span>{% endif -%}
             <span class="gv-bday-date">{{ b.day }}/{{ current_date[5:7] if current_date else '' }}</span>
         </li>
@@ -1027,65 +996,63 @@
     {%- endmacro %}
 
     <main class="gv-shell flex min-h-0 min-w-0 flex-1 flex-col" id="informativo-root" data-date="{{ _d }}" data-cc="{{ _cc|e }}">
-        <div class="gv-panel-aurora" aria-hidden="true">
-            <div class="gv-aurora-blob gv-aurora-blob--tl"></div>
-            <div class="gv-aurora-blob gv-aurora-blob--br"></div>
-        </div>
         <div class="gv-panel-stack">
-        <div class="ta-main-inner flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-        <div class="gv-dash-top">
-            <section class="zone-kpis gv-zone-kpis relative z-10 flex items-stretch px-2 sm:px-4 shrink-0 kpi-wrap rounded-t-xl" aria-label="Indicadores do dia">
-                <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
-                    <div class="leading-tight text-center min-w-0 max-w-[11rem] mx-auto">
-                        <div class="text-label text-slate-500 uppercase font-semibold gv-kpi-label-long mx-auto">Devolução mês passado</div>
-                        <p id="hdr-prev-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if prev_p < 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{{ cmp.get('prev_pct_rotas', 0) }}</span>%</p>
+        <div class="ta-main-inner flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2">
+        <div class="ta-kpi-shell w-full shrink-0">
+            <div class="ta-kpi-grid" aria-label="Indicadores do dia">
+                <div class="ta-kpi-card">
+                    <div class="ta-kpi-cell-inner leading-tight">
+                        <div class="ta-kpi-label gv-kpi-label-long">Devolução mês passado</div>
+                        <p id="hdr-prev-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if prev_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{{ cmp.get('prev_pct_rotas', 0) }}</span>%</p>
                     </div>
                 </div>
-                <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
-                    <div class="leading-tight text-center min-w-0 max-w-[11rem] mx-auto">
-                        <div class="text-label text-slate-500 uppercase font-semibold gv-kpi-label-long mx-auto">Devolução mês atual</div>
-                        <p id="hdr-curr-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p < 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{{ cmp.get('curr_pct_rotas', 0) }}</span>%</p>
+                <div class="ta-kpi-card">
+                    <div class="ta-kpi-cell-inner leading-tight">
+                        <div class="ta-kpi-label gv-kpi-label-long">Devolução mês atual</div>
+                        <p id="hdr-curr-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{{ cmp.get('curr_pct_rotas', 0) }}</span>%</p>
                     </div>
                 </div>
-                <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
-                    <div class="leading-tight text-center min-w-0 mx-auto">
-                        <span class="text-label text-slate-500 font-semibold gv-kpi-delta-prefix">Diferença</span>
+                <div class="ta-kpi-card">
+                    <div class="ta-kpi-cell-inner leading-tight">
+                        <div class="ta-kpi-label">Diferença</div>
                         <p id="hdr-delta" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}">
                             {% if curr_p > prev_p %}▲ +{{ '%.1f'|format(curr_p - prev_p)|replace('.', ',') }}%{% elif curr_p < prev_p %}▼ −{{ '%.1f'|format(prev_p - curr_p)|replace('.', ',') }}%{% else %}= 0%{% endif %}
                         </p>
                     </div>
                 </div>
-                <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
-                    <div class="leading-tight text-center min-w-0 max-w-[11rem] mx-auto">
-                        <div class="text-label text-slate-500 uppercase font-semibold gv-kpi-label-long mx-auto">Devolução hoje</div>
-                        <p id="hdr-dev-hoje-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if dhoje_f < 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-dev-hoje" class="gv-header__pct">{{ dhoje }}</span>%</p>
+                <div class="ta-kpi-card">
+                    <div class="ta-kpi-cell-inner leading-tight">
+                        <div class="ta-kpi-label gv-kpi-label-long">Devolução hoje</div>
+                        <p id="hdr-dev-hoje-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if dhoje_f <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-dev-hoje" class="gv-header__pct">{{ dhoje }}</span>%</p>
                     </div>
                 </div>
-                <div class="kpi-cell gv-kpi-tight flex items-center justify-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0">
-                    <div class="gv-kpi-bar-stack">
-                        <span class="text-label text-slate-500 font-semibold gv-ring-label">Rota concluída</span>
-                        <span id="tonnage-pct-text" class="gv-kpi-bar-pct">{{ '%.0f'|format(pp) }}%</span>
-                        <div class="gv-kpi-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (pp if pp <= 100 else 100)|int }}" aria-labelledby="tonnage-pct-text">
-                            <div id="tonnage-bar-fill" class="gv-kpi-bar-fill" style="width: {{ pp if pp <= 100 else 100 }}%;"></div>
+                <div class="ta-kpi-card">
+                    <div class="ta-kpi-cell-inner">
+                        <div class="gv-kpi-bar-stack mx-auto w-full max-w-[13rem]">
+                            <span class="ta-kpi-label gv-ring-label">Rota concluída</span>
+                            <span id="tonnage-pct-text" class="gv-kpi-bar-pct">{{ '%.0f'|format(pp) }}%</span>
+                            <div class="gv-kpi-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (pp if pp <= 100 else 100)|int }}" aria-labelledby="tonnage-pct-text">
+                                <div id="tonnage-bar-fill" class="gv-kpi-bar-fill" style="width: {{ pp if pp <= 100 else 100 }}%;"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="kpi-cell gv-kpi-clock-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
-                    <div class="leading-tight text-center w-full">
+                <div class="ta-kpi-card">
+                    <div class="ta-kpi-cell-inner leading-tight">
                         <div id="info-clock" class="gv-info-clock font-black text-kpi font-mono">--:--:--</div>
-                        <div id="info-date" class="gv-info-date text-label text-slate-400 uppercase tracking-wider">{{ _d }}</div>
+                        <div id="info-date" class="ta-kpi-label mt-1 tracking-wider">{{ _d }}</div>
                     </div>
                 </div>
-            </section>
+            </div>
         </div>
 
         <div class="gv-body">
             <div class="gv-col gv-col-dev">
                 <div class="gv-dev-cards">
-                    <article class="gv-surface gv-dev-card ta-card">
+                    <article class="gv-surface ta-card">
                         <div class="gv-card-head">
-                            <h2 class="gv-card-title">Dev. motoristas · mês</h2>
-                            <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
+                            <h2 class="gv-card-title">Devolução Motorista</h2>
+                            <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
                         </div>
                         <div class="gv-table-wrap">
                             <table class="w-full text-left">
@@ -1103,7 +1070,7 @@
                                             <span class="gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(r.name) }}</span>
                                         </td>
                                         <td class="py-1 px-0.5 tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
-                                        <td class="py-1 px-0.5 align-middle {{ 'gv-pct-attn' if (r.pct|float) >= 2 else 'gv-pct-neutral' }}">{{ r.pct }}%</td>
+                                        <td class="py-1 px-0.5 align-middle {{ 'gv-pct-attn' if (r.pct|float) > 2 else 'gv-pct-good' }}">{{ r.pct }}%</td>
                                     </tr>
                                     {% else %}
                                     <tr><td colspan="3" class="gv-table-empty text-center">Sem devoluções no mês.</td></tr>
@@ -1112,10 +1079,10 @@
                             </table>
                         </div>
                     </article>
-                    <article class="gv-surface gv-dev-card ta-card">
+                    <article class="gv-surface ta-card">
                         <div class="gv-card-head">
-                            <h2 class="gv-card-title">Dev. ajudantes · mês</h2>
-                            <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                            <h2 class="gv-card-title">Devolução Ajudante</h2>
+                            <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                         </div>
                         <div class="gv-table-wrap">
                             <table class="w-full text-left">
@@ -1133,7 +1100,7 @@
                                             <span class="gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(r.name) }}</span>
                                         </td>
                                         <td class="py-1 px-0.5 tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
-                                        <td class="py-1 px-0.5 align-middle {{ 'gv-pct-attn' if (r.pct|float) >= 2 else 'gv-pct-neutral' }}">{{ r.pct }}%</td>
+                                        <td class="py-1 px-0.5 align-middle {{ 'gv-pct-attn' if (r.pct|float) > 2 else 'gv-pct-good' }}">{{ r.pct }}%</td>
                                     </tr>
                                     {% else %}
                                     <tr><td colspan="3" class="gv-table-empty text-center">Sem devoluções no mês.</td></tr>
@@ -1151,31 +1118,139 @@
                         <h2 class="gv-card-title">Comunicado em destaque</h2>
                         <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📢</span>
                     </div>
-                    <div class="gv-aviso-body" id="bulletin-slot-0">
-                        {% if b0 %}
-                        <h4 class="font-semibold gv-aviso-heading mb-2">{{ b0.title }}</h4>
-                        {% if b0.image_url %}<img src="{{ b0.image_url }}" alt="" class="max-h-28 rounded-lg border border-gray-200 mb-3 object-cover">{% endif %}
-                        {% if b0.body %}<p class="whitespace-pre-wrap">{{ b0.body }}</p>{% endif %}
+                    <div class="gv-aviso-body gv-bulletin-carousel-wrap" id="bulletin-carousel-root" data-interval-ms="{{ inf.get('carousel_interval_ms', 8000) }}">
+                        {% if featured_bulletins|length > 0 %}
+                            {% for b in featured_bulletins %}
+                            <div class="gv-bulletin-pane" data-bulletin-pane{% if not loop.first %} hidden{% endif %}>
+                                <h4 class="font-semibold gv-aviso-heading mb-2">{{ b.title }}</h4>
+                                {% if b.image_url %}
+                                <img src="{{ b.image_url }}" alt="" class="max-h-28 w-full rounded-lg border border-gray-200 mb-3 object-cover" loading="lazy" onerror="this.classList.add('hidden')">
+                                {% endif %}
+                                {% if b.body %}<p class="whitespace-pre-wrap">{{ b.body }}</p>{% endif %}
+                                {% if b.link_url %}
+                                <p class="mt-2 mb-0"><a href="{{ b.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-700 font-medium underline-offset-2 hover:underline">Ver matéria</a></p>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                            {% if featured_bulletins|length > 1 %}
+                            <div class="flex justify-center items-center gap-2 mt-3 pt-2 border-t border-gray-100" role="tablist" aria-label="Navegar avisos">
+                                {% for b in featured_bulletins %}
+                                <button type="button" class="gv-bulletin-dot" data-bulletin-dot aria-label="Aviso {{ loop.index }}"{% if loop.first %} aria-current="true"{% else %} aria-current="false"{% endif %}></button>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
                         {% else %}
                         <p class="gv-aviso-muted">Nenhum aviso neste espaço.</p>
                         {% endif %}
                     </div>
                 </article>
-                <article class="gv-surface ta-card">
+                <article class="gv-surface ta-card gv-card--devolucao-kpi">
                     <div class="gv-card-head">
-                        <h2 class="gv-card-title">Outros avisos</h2>
-                        <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📋</span>
+                        <h2 class="gv-card-title">Índice de devolução mensal</h2>
+                        <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📉</span>
                     </div>
-                    <div class="gv-aviso-body" id="bulletin-slot-1">
-                        {% if b1 %}
-                        <h4 class="font-semibold gv-aviso-heading mb-2">{{ b1.title }}</h4>
-                        {% if b1.image_url %}<img src="{{ b1.image_url }}" alt="" class="max-h-28 rounded-lg border border-gray-200 mb-3 object-cover">{% endif %}
-                        {% if b1.body %}<p class="whitespace-pre-wrap">{{ b1.body }}</p>{% endif %}
-                        {% else %}
-                        <p class="gv-aviso-muted">Nenhum aviso neste espaço.</p>
-                        {% endif %}
+                    <div class="gv-aviso-body gv-devolucao-kpi-body !p-0 min-h-0 flex flex-col">
+                        <p class="text-[10px] text-slate-500 px-3 pt-2 pb-0 m-0 leading-tight">Meta: 2% da receita (linha tracejada). Receita não é exibida no painel.</p>
+                        <div id="chart-informativo-devolucao" class="gv-chart-devolucao w-full flex-1 min-h-0 min-w-0"></div>
                     </div>
                 </article>
+                <script type="application/json" id="devolucao-kpi-json">{{ (inf.get('devolucao_mensal_kpi') or {}) | tojson }}</script>
+                <script>
+                (function() {
+                    function buildKpiChartOptions(k) {
+                        var labels = k.labels || [];
+                        var pct = (k.pct || []).map(function(v) { return v === null || v === undefined ? null : Number(v); });
+                        var metaPct = (k.meta_pct && k.meta_pct.length) ? k.meta_pct.map(Number) : [2,2,2,2,2,2,2,2,2,2,2,2];
+                        return {
+                            chart: {
+                                type: 'line',
+                                fontFamily: 'inherit',
+                                toolbar: { show: false },
+                                zoom: { enabled: false },
+                                animations: { enabled: true },
+                                parentHeightOffset: 0,
+                                redrawOnParentResize: true,
+                                redrawOnWindowResize: true,
+                            },
+                            colors: ['#465fff', '#94a3b8'],
+                            stroke: { width: [2, 2], curve: 'smooth', dashArray: [0, 6] },
+                            fill: { opacity: [0.22, 0] },
+                            series: [
+                                { name: 'Índice %', data: pct },
+                                { name: 'Meta 2%', data: metaPct },
+                            ],
+                            xaxis: {
+                                categories: labels,
+                                labels: { style: { fontSize: '10px' } },
+                            },
+                            yaxis: {
+                                title: { text: '%', style: { fontSize: '11px' } },
+                                labels: {
+                                    formatter: function(val) {
+                                        if (val == null || isNaN(val)) return '';
+                                        return String(Math.round(val * 10) / 10).replace('.', ',');
+                                    },
+                                    style: { fontSize: '10px' },
+                                },
+                                min: 0,
+                            },
+                            dataLabels: { enabled: false },
+                            legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px', offsetY: 2 },
+                            grid: { strokeDashArray: 4, borderColor: '#e2e8f0', padding: { left: 4, right: 4 } },
+                            markers: { size: 0, hover: { size: 4 } },
+                            tooltip: {
+                                shared: true,
+                                intersect: false,
+                                custom: function(ctx) {
+                                    var i = ctx.dataPointIndex;
+                                    var lbl = labels[i] || '';
+                                    var pv = (k.pct || [])[i];
+                                    var vd = (k.valor_devolucao || [])[i];
+                                    var mv = (k.meta_valor_2pct || [])[i];
+                                    var html = '<div class="apexcharts-tooltip-title" style="font-family:inherit;font-size:12px;">' + lbl + '</div>';
+                                    html += '<div class="apexcharts-tooltip-series-group apexcharts-active" style="order:1;display:flex;padding:4px 10px">';
+                                    html += '<span class="apexcharts-tooltip-marker" style="background-color:#465fff"></span>';
+                                    html += '<div class="apexcharts-tooltip-text" style="font-family:inherit;font-size:12px">';
+                                    html += '<div>Índice: ' + (pv != null && pv !== '' ? String(pv).replace('.', ',') + '%' : '—') + '</div>';
+                                    if (vd != null && vd !== '') html += '<div>Devolução: R$ ' + Number(vd).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>';
+                                    html += '</div></div>';
+                                    html += '<div class="apexcharts-tooltip-series-group" style="order:2;display:flex;padding:4px 10px">';
+                                    html += '<span class="apexcharts-tooltip-marker" style="background-color:#94a3b8"></span>';
+                                    html += '<div class="apexcharts-tooltip-text" style="font-family:inherit;font-size:12px">';
+                                    html += '<div>Meta 2% (taxa)</div>';
+                                    if (mv != null && mv !== '') html += '<div>Meta 2% em valor: R$ ' + Number(mv).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>';
+                                    html += '</div></div>';
+                                    return html;
+                                },
+                            },
+                        };
+                    }
+                    var sj = document.getElementById('devolucao-kpi-json');
+                    var el = document.getElementById('chart-informativo-devolucao');
+                    if (!sj || !el || typeof ApexCharts === 'undefined') return;
+                    var kpi = {};
+                    try { kpi = JSON.parse(sj.textContent || '{}'); } catch (e1) { return; }
+                    if (!kpi.labels || !kpi.labels.length) return;
+                    var chart = new ApexCharts(el, buildKpiChartOptions(kpi));
+                    function syncDevolucaoChartSize() {
+                        requestAnimationFrame(function() {
+                            if (chart && typeof chart.resize === 'function') chart.resize();
+                        });
+                    }
+                    chart.render().then(syncDevolucaoChartSize).catch(syncDevolucaoChartSize);
+                    window.addEventListener('resize', syncDevolucaoChartSize);
+                    if (typeof ResizeObserver !== 'undefined') {
+                        var ro = new ResizeObserver(syncDevolucaoChartSize);
+                        ro.observe(el);
+                    }
+                    window._gvDevolucaoKpiChart = chart;
+                    window._gvRebuildDevolucaoKpi = function(k) {
+                        if (!chart || !k || !k.labels) return;
+                        chart.updateOptions(buildKpiChartOptions(k), true, true);
+                        syncDevolucaoChartSize();
+                    };
+                })();
+                </script>
             </div>
 
             <div class="gv-col gv-col-right">
@@ -1188,19 +1263,19 @@
                         <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12v10H4a2 2 0 0 1-2-2V12"/><path d="M22 7H2v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7Z"/><path d="M12 7V3a2 2 0 0 1 4 0v4"/><path d="M12 7V3a2 2 0 0 0-4 0v4"/></svg></span>
                     </div>
                     {{ gv_birthday_rows(b_all, 'card-birthdays-all') }}
-                    <h2 class="gv-card-title gv-card-title--ferias gv-ferias-block">Férias</h2>
+                    <h2 class="gv-card-title gv-ferias-block">Férias</h2>
                     <div class="flex flex-col gv-ferias-stack">
                         <div>
                             <ul id="card-vac-active" class="space-y-0 text-slate-600 m-0 p-0 list-none">
                                 {% for v in (inf.get('vacation_active') or []) %}
-                                <li class="gv-ferias-li py-1 border-b border-slate-50">{{ gv_dois_nomes(v.name) }} <span class="text-slate-400 text-xs">até {{ v.until }} ({{ v.days_left }})</span></li>
+                                <li class="gv-ferias-li py-1 border-b border-slate-50">{{ gv_dois_nomes(v.name) }} — até {{ v.until }} ({{ v.days_left }})</li>
                                 {% else %}
                                 <li class="text-slate-400 gv-ferias-li py-1">—</li>
                                 {% endfor %}
                             </ul>
                         </div>
                         <div>
-                            <p class="font-semibold mb-1 mt-1 uppercase tracking-wider gv-ferias-programadas-label">Programadas</p>
+                            <p class="mb-1 mt-1 gv-ferias-programadas-label">Programadas</p>
                             <ul id="card-vac-up" class="space-y-0 text-slate-600 m-0 p-0 list-none">
                                 {% for v in (inf.get('vacation_upcoming') or []) %}
                                 <li class="gv-ferias-li py-1 border-b border-slate-50">{{ gv_dois_nomes(v.name) }} — {{ v.start }}</li>
@@ -1238,6 +1313,11 @@
 
         function gvFitOneLineText(el) {
             if (!el || el.nodeType !== 1) return;
+            /* Lista de aniversariantes: tamanho fixo (padrão único); sem encolher fonte */
+            if (el.closest('.gv-bday-list')) {
+                el.style.removeProperty('font-size');
+                return;
+            }
             var minFs = parseFloat(el.getAttribute('data-fit-min'), 10);
             var maxFs = parseFloat(el.getAttribute('data-fit-max'), 10);
             if (isNaN(minFs)) minFs = 7;
@@ -1294,11 +1374,11 @@
 
         function devolucaoPctLineClass(v) {
             v = Number(v) || 0;
-            return v < 2 ? 'gv-stat-good' : 'gv-stat-attn';
+            return v <= 2 ? 'gv-stat-good' : 'gv-stat-attn';
         }
         function devolucaoHojeLineClass(v) {
             v = Number(v) || 0;
-            return v < 2 ? 'gv-stat-good' : 'gv-stat-attn';
+            return v <= 2 ? 'gv-stat-good' : 'gv-stat-attn';
         }
         function fmtDeltaLine(prev, curr) {
             var p = Number(prev) || 0;
@@ -1342,24 +1422,68 @@
                     if (hCurr) hCurr.textContent = currV;
                     var linePrev = document.getElementById('hdr-prev-line');
                     var lineCurr = document.getElementById('hdr-curr-line');
-                    if (linePrev) linePrev.className = 'gv-kpi-hdr-line mt-1 ' + devolucaoPctLineClass(prevV);
-                    if (lineCurr) lineCurr.className = 'gv-kpi-hdr-line mt-1 ' + devolucaoPctLineClass(currV);
+                    if (linePrev) linePrev.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + devolucaoPctLineClass(prevV);
+                    if (lineCurr) lineCurr.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + devolucaoPctLineClass(currV);
                     var hd = document.getElementById('hdr-delta');
                     if (hd) {
                         var dl = fmtDeltaLine(prevV, currV);
                         hd.textContent = dl.text;
-                        hd.className = dl.cls;
+                        hd.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + dl.cls;
                     }
                     var hj = document.getElementById('hdr-dev-hoje');
                     var hjl = document.getElementById('hdr-dev-hoje-line');
                     var dh = data.informativo.devolucao_hoje_pct;
                     if (hj != null && dh != null) hj.textContent = dh;
                     if (hjl != null && dh != null) hjl.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + devolucaoHojeLineClass(dh);
+                    if (data.informativo.devolucao_mensal_kpi && typeof window._gvRebuildDevolucaoKpi === 'function') {
+                        window._gvRebuildDevolucaoKpi(data.informativo.devolucao_mensal_kpi);
+                    }
                     gvScheduleFit();
                 })
                 .catch(function() {});
         }
         setInterval(refreshInformativo, 60000);
+
+        (function initBulletinCarousel() {
+            var carouselRoot = document.getElementById('bulletin-carousel-root');
+            if (!carouselRoot) return;
+            var panes = carouselRoot.querySelectorAll('[data-bulletin-pane]');
+            var dots = carouselRoot.querySelectorAll('[data-bulletin-dot]');
+            var n = panes.length;
+            if (n <= 1) return;
+            var intervalMs = parseInt(carouselRoot.getAttribute('data-interval-ms') || '8000', 10);
+            if (intervalMs < 4000) intervalMs = 8000;
+            var idx = 0;
+            var timer = null;
+            function show(i) {
+                idx = (i + n) % n;
+                var j;
+                for (j = 0; j < n; j++) {
+                    if (j === idx) panes[j].removeAttribute('hidden');
+                    else panes[j].setAttribute('hidden', '');
+                }
+                for (j = 0; j < dots.length; j++) {
+                    dots[j].setAttribute('aria-current', j === idx ? 'true' : 'false');
+                }
+            }
+            function next() { show(idx + 1); }
+            function arm() {
+                if (timer) clearInterval(timer);
+                timer = setInterval(next, intervalMs);
+            }
+            var d;
+            for (d = 0; d < dots.length; d++) {
+                (function(j) {
+                    dots[j].addEventListener('click', function() {
+                        show(j);
+                        arm();
+                    });
+                })(d);
+            }
+            carouselRoot.addEventListener('mouseenter', function() { if (timer) clearInterval(timer); });
+            carouselRoot.addEventListener('mouseleave', function() { arm(); });
+            arm();
+        })();
     })();
     </script>
 </body>
