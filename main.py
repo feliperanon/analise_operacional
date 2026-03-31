@@ -2543,6 +2543,69 @@ async def root_entry(request: Request):
     return RedirectResponse(url="/dashboard", status_code=303)
 
 
+def _parse_br_float_form(val: Any) -> Optional[float]:
+    """Parse float a partir de formulário (aceita 1.234,56 ou 1234.56)."""
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    s = s.replace(" ", "")
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]:
+    """Dados para o gráfico de índice de devolução mensal (meta 2% com base na receita informada)."""
+    try:
+        rows = session.exec(
+            select(models.InformativeMonthlyReturn).where(models.InformativeMonthlyReturn.year == year)
+        ).all()
+    except Exception:
+        rows = []
+    by_m = {r.month: r for r in rows}
+    labels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+    pct: List[Optional[float]] = []
+    valor_dev: List[Optional[float]] = []
+    meta_valor: List[Optional[float]] = []
+    for m in range(1, 13):
+        r = by_m.get(m)
+        p = float(r.pct_devolucao) if r and r.pct_devolucao is not None else None
+        v = float(r.valor_devolucao) if r and r.valor_devolucao is not None else None
+        rec = float(r.receita) if r and r.receita is not None else None
+        mv = round(rec * 0.02, 2) if rec is not None and rec > 0 else None
+        pct.append(round(p, 2) if p is not None else None)
+        valor_dev.append(round(v, 2) if v is not None else None)
+        meta_valor.append(mv)
+    return {
+        "year": year,
+        "labels": labels,
+        "pct": pct,
+        "valor_devolucao": valor_dev,
+        "meta_valor_2pct": meta_valor,
+        "meta_pct": [2.0] * 12,
+    }
+
+
+def _informative_carousel_interval_ms(session: Session) -> int:
+    """Intervalo do carrossel de avisos no /dashboard (4–120 s → ms)."""
+    try:
+        c = session.get(models.InformativePanelConfig, 1)
+        if c is not None:
+            sec = int(getattr(c, "carousel_interval_seconds", None) or 8)
+            sec = max(4, min(120, sec))
+            return sec * 1000
+    except Exception:
+        pass
+    return 8000
+
+
 def _build_informativo_extras(
     session: Session,
     selected_date: date,
@@ -2723,6 +2786,7 @@ def _build_informativo_extras(
             "title": b.title,
             "body": b.body or "",
             "image_url": (b.image_url or "").strip(),
+            "link_url": (getattr(b, "link_url", None) or "").strip(),
         }
         for b in bulletins
     ]
@@ -2730,6 +2794,8 @@ def _build_informativo_extras(
     progress_pct = 0.0
     if routes_today_total > 0:
         progress_pct = round(100.0 * routes_today_completed / routes_today_total, 1)
+
+    devolucao_mensal_kpi = _devolucao_mensal_kpi_payload(session, selected_date.year)
 
     return {
         "birthdays_souza_pinto": birthdays_souza_pinto,
@@ -2757,6 +2823,8 @@ def _build_informativo_extras(
             "delivered_kg": round(tonnage_delivered_kg, 2),
             "total_kg": round(tonnage_total_kg, 2),
         },
+        "carousel_interval_ms": _informative_carousel_interval_ms(session),
+        "devolucao_mensal_kpi": devolucao_mensal_kpi,
     }
 
 
@@ -3744,10 +3812,152 @@ async def admin_informativo_page(
     rows = session.exec(
         select(models.InformativeBulletin).order_by(models.InformativeBulletin.sort_order, models.InformativeBulletin.id)
     ).all()
+    panel_sec = 8
+    try:
+        cfg = session.get(models.InformativePanelConfig, 1)
+        if cfg is not None:
+            panel_sec = max(4, min(120, int(cfg.carousel_interval_seconds or 8)))
+    except Exception:
+        pass
+    dry_year = datetime.now().year
+    try:
+        qy = request.query_params.get("dry_year")
+        if qy:
+            dry_year = max(2000, min(2100, int(qy)))
+    except (TypeError, ValueError):
+        pass
+    dr_rows: Dict[int, Dict[str, Optional[float]]] = {m: {} for m in range(1, 13)}
+    try:
+        dr_db = session.exec(
+            select(models.InformativeMonthlyReturn).where(models.InformativeMonthlyReturn.year == dry_year)
+        ).all()
+        for r in dr_db:
+            dr_rows[r.month] = {
+                "pct": r.pct_devolucao,
+                "valor": r.valor_devolucao,
+                "receita": r.receita,
+            }
+    except Exception:
+        pass
     return templates.TemplateResponse(
         "admin_informativo.html",
-        {"request": request, "bulletins": rows, "user": user},
+        {
+            "request": request,
+            "bulletins": rows,
+            "user": user,
+            "panel_carousel_seconds": panel_sec,
+            "dry_year": dry_year,
+            "dr_rows": dr_rows,
+        },
     )
+
+
+@app.post("/admin/informativo/panel-config")
+async def admin_informativo_panel_config(
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+    carousel_interval_seconds: int = Form(8),
+):
+    sec = max(4, min(120, int(carousel_interval_seconds or 8)))
+    cfg = session.get(models.InformativePanelConfig, 1)
+    if cfg is None:
+        cfg = models.InformativePanelConfig(id=1, carousel_interval_seconds=sec)
+        session.add(cfg)
+    else:
+        cfg.carousel_interval_seconds = sec
+    session.commit()
+    return RedirectResponse(url="/admin/informativo?saved=panel", status_code=303)
+
+
+@app.post("/admin/informativo/devolucao-mensal")
+async def admin_informativo_devolucao_mensal(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    form = await request.form()
+    try:
+        year = int(form.get("dry_year") or datetime.now().year)
+    except (TypeError, ValueError):
+        year = datetime.now().year
+    for m in range(1, 13):
+        pct = _parse_br_float_form(form.get(f"dr_m{m}_pct"))
+        val = _parse_br_float_form(form.get(f"dr_m{m}_valor"))
+        rec = _parse_br_float_form(form.get(f"dr_m{m}_receita"))
+        existing = session.exec(
+            select(models.InformativeMonthlyReturn).where(
+                models.InformativeMonthlyReturn.year == year,
+                models.InformativeMonthlyReturn.month == m,
+            )
+        ).first()
+        if pct is None and val is None and rec is None:
+            if existing:
+                session.delete(existing)
+            continue
+        if existing:
+            existing.pct_devolucao = pct
+            existing.valor_devolucao = val
+            existing.receita = rec
+            existing.updated_at = datetime.now()
+            session.add(existing)
+        else:
+            session.add(
+                models.InformativeMonthlyReturn(
+                    year=year,
+                    month=m,
+                    pct_devolucao=pct,
+                    valor_devolucao=val,
+                    receita=rec,
+                    updated_at=datetime.now(),
+                )
+            )
+    session.commit()
+    return RedirectResponse(url="/admin/informativo?saved_devolucao=1", status_code=303)
+
+
+@app.get("/admin/informativo/{bulletin_id}/edit", response_class=HTMLResponse)
+async def admin_informativo_edit_page(
+    request: Request,
+    bulletin_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    b = session.get(models.InformativeBulletin, bulletin_id)
+    if not b:
+        raise HTTPException(status_code=404, detail="Aviso não encontrado")
+    return templates.TemplateResponse(
+        "admin_informativo_edit.html",
+        {"request": request, "bulletin": b, "user": user},
+    )
+
+
+@app.post("/admin/informativo/{bulletin_id}/update")
+async def admin_informativo_update(
+    request: Request,
+    bulletin_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+    title: str = Form(""),
+    body: str = Form(""),
+    image_url: str = Form(""),
+    link_url: str = Form(""),
+    sort_order: int = Form(0),
+):
+    b = session.get(models.InformativeBulletin, bulletin_id)
+    if not b:
+        raise HTTPException(status_code=404, detail="Aviso não encontrado")
+    title = (title or "").strip()
+    if not title:
+        return RedirectResponse(url=f"/admin/informativo/{bulletin_id}/edit?err=1", status_code=303)
+    b.title = title[:200]
+    b.body = (body or "").strip() or None
+    b.image_url = (image_url or "").strip()[:500] or None
+    b.link_url = (link_url or "").strip()[:500] or None
+    b.sort_order = int(sort_order or 0)
+    b.updated_at = datetime.now()
+    session.add(b)
+    session.commit()
+    return RedirectResponse(url="/admin/informativo?updated=1", status_code=303)
 
 
 @app.post("/admin/informativo")
@@ -3758,6 +3968,7 @@ async def admin_informativo_create(
     title: str = Form(""),
     body: str = Form(""),
     image_url: str = Form(""),
+    link_url: str = Form(""),
     sort_order: int = Form(0),
 ):
     title = (title or "").strip()
@@ -3767,6 +3978,7 @@ async def admin_informativo_create(
         title=title[:200],
         body=(body or "").strip() or None,
         image_url=(image_url or "").strip()[:500] or None,
+        link_url=(link_url or "").strip()[:500] or None,
         sort_order=int(sort_order or 0),
         is_active=True,
         updated_at=datetime.now(),

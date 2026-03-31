@@ -79,7 +79,7 @@ class Employee(SQLModel, table=True):
 
     events: List["Event"] = Relationship(back_populates="employee")
 
-from sqlalchemy import Column, JSON
+from sqlalchemy import Column, JSON, UniqueConstraint
 from datetime import datetime
 
 class DailyOperation(SQLModel, table=True):
@@ -996,10 +996,32 @@ class InformativeBulletin(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str = Field(max_length=200)
     body: Optional[str] = None  # texto livre; quebras de linha viram <br> no template
-    image_url: Optional[str] = Field(default=None, max_length=500)
+    image_url: Optional[str] = Field(default=None, max_length=500)  # URL direta de imagem (.jpg, .png, etc.)
+    link_url: Optional[str] = Field(default=None, max_length=500)  # matéria / site (abre em nova aba)
     sort_order: int = Field(default=0, index=True)
     is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class InformativePanelConfig(SQLModel, table=True):
+    """Configuração global do carrossel do painel /dashboard (singleton id=1)."""
+    __tablename__ = "informative_panel_config"
+    id: int = Field(default=1, primary_key=True)
+    carousel_interval_seconds: int = Field(default=8, ge=4, le=120)
+
+
+class InformativeMonthlyReturn(SQLModel, table=True):
+    """Índice de devolução mensal (painel informativo): %, valores e receita (receita só para meta 2%)."""
+    __tablename__ = "informative_monthly_return"
+    __table_args__ = (UniqueConstraint("year", "month", name="uq_informative_monthly_return_year_month"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    year: int = Field(index=True)
+    month: int = Field(ge=1, le=12, index=True)  # 1=jan … 12=dez
+    pct_devolucao: Optional[float] = Field(default=None)  # % sobre receita (informado)
+    valor_devolucao: Optional[float] = Field(default=None)  # R$ devolvido
+    receita: Optional[float] = Field(default=None)  # R$ receita (não exibida no gráfico; meta = 2% disso)
     updated_at: datetime = Field(default_factory=datetime.now)
 
 

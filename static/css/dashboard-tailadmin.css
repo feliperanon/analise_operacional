@@ -1,0 +1,117 @@
+/**
+ * Tema drawer/sidebar TailAdmin — apenas em páginas com body.dashboard-app
+ * (/dashboard e /dashboard/tv)
+ */
+body.dashboard-app .sidebar-overlay {
+  background-color: rgba(15, 23, 42, 0.35) !important;
+}
+body.dashboard-app #sidebar-drawer {
+  background-color: #ffffff !important;
+  border-color: rgb(229 231 235) !important;
+  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.06);
+}
+body.dashboard-app #sidebar-drawer .border-slate-800 {
+  border-color: rgb(229 231 235) !important;
+}
+body.dashboard-app #sidebar-drawer h1.text-xl {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: #111827 !important;
+}
+body.dashboard-app #sidebar-drawer .sidebar-clock-strip {
+  background-color: rgb(249 250 251) !important;
+}
+body.dashboard-app #sidebar-drawer .sidebar-footer-strip {
+  background-color: #ffffff !important;
+  border-color: rgb(229 231 235) !important;
+}
+body.dashboard-app #sidebar-drawer .sidebar-footer-strip .text-white {
+  color: #111827 !important;
+}
+body.dashboard-app #sidebar-drawer .sidebar-footer-strip .text-slate-500 {
+  color: #6b7280 !important;
+}
+body.dashboard-app #sidebar-drawer .text-yellow-400 {
+  color: #ca8a04 !important;
+}
+body.dashboard-app #sidebar-drawer .hover\:text-yellow-300:hover {
+  color: #a16207 !important;
+}
+body.dashboard-app #sidebar-drawer .hover\:bg-yellow-500\/10:hover {
+  background-color: rgb(254 249 195) !important;
+}
+body.dashboard-app #sidebar-drawer #sidebar-time {
+  color: #111827 !important;
+}
+body.dashboard-app #sidebar-drawer #sidebar-date,
+body.dashboard-app #sidebar-drawer #sidebar-shift-progress-text {
+  color: #6b7280 !important;
+}
+body.dashboard-app #sidebar-drawer #sidebar-shift-start {
+  color: #111827 !important;
+}
+body.dashboard-app #sidebar-drawer #sidebar-shift-end {
+  color: #9ca3af !important;
+}
+body.dashboard-app #sidebar-drawer .bg-slate-700 {
+  background-color: rgb(229 231 235) !important;
+}
+body.dashboard-app #sidebar-drawer a.flex.items-center.gap-3,
+body.dashboard-app #sidebar-drawer button.menu-toggle {
+  color: #374151 !important;
+}
+body.dashboard-app #sidebar-drawer a.flex.items-center.gap-3:hover,
+body.dashboard-app #sidebar-drawer button.menu-toggle:hover {
+  color: #111827 !important;
+  background-color: rgb(243 244 246) !important;
+}
+body.dashboard-app #sidebar-drawer a.text-slate-500 {
+  color: #6b7280 !important;
+}
+body.dashboard-app #sidebar-drawer a.text-slate-500:hover {
+  color: #2563eb !important;
+  background-color: transparent !important;
+}
+body.dashboard-app #sidebar-drawer a[href="/dashboard/tv"]:hover {
+  color: #0891b2 !important;
+}
+body.dashboard-app #sidebar-drawer a[href="/logout"] {
+  color: #e11d48 !important;
+}
+body.dashboard-app #sidebar-drawer a[href="/logout"]:hover {
+  background-color: rgb(255 241 242) !important;
+  color: #be123c !important;
+}
+body.dashboard-app #sidebar-drawer .border-cyan-500\/30,
+body.dashboard-app #sidebar-drawer .border-slate-500\/30 {
+  border-color: rgb(229 231 235) !important;
+}
+body.dashboard-app #sidebar-drawer button[class*="hover:bg-slate-800"] {
+  color: #6b7280 !important;
+}
+body.dashboard-app #sidebar-drawer button[class*="hover:bg-slate-800"]:hover {
+  color: #111827 !important;
+  background-color: rgb(243 244 246) !important;
+}
+body.dashboard-app #sidebar-drawer .hover\:bg-white\/5:hover {
+  background-color: rgb(243 244 246) !important;
+}
+body.dashboard-app #sidebar-drawer .text-emerald-400 {
+  color: #059669 !important;
+}
+body.dashboard-app #sidebar-drawer .hover\:text-emerald-300:hover {
+  color: #047857 !important;
+}
+body.dashboard-app #sidebar-drawer .hover\:bg-emerald-500\/10:hover {
+  background-color: rgb(209 250 229) !important;
+}
+body.dashboard-app #sidebar-drawer .text-blue-400 {
+  color: #2563eb !important;
+}
+body.dashboard-app #sidebar-drawer .hover\:text-blue-300:hover {
+  color: #1d4ed8 !important;
+}
+body.dashboard-app #sidebar-drawer .hover\:bg-blue-500\/10:hover {
+  background-color: rgb(219 234 254) !important;
+}

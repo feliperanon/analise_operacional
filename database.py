@@ -163,6 +163,8 @@ def create_db_and_tables():
     _migrate_devolucao_observacao_gestor()
     _migrate_devolucao_duplicate_fields()
     _migrate_route_escala_status()
+    _migrate_informative_bulletin_link_url()
+    _migrate_informative_panel_config()
 
 
 def _migrate_devolucao_observacao_gestor():
@@ -245,6 +247,70 @@ def _migrate_route_escala_status():
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} TEXT"))
             else:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} VARCHAR(32)"))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _migrate_informative_bulletin_link_url():
+    """Adiciona coluna link_url em informative_bulletin (URL da matéria / site)."""
+    table = "informative_bulletin"
+    col = "link_url"
+    col_type = "VARCHAR(500)" if "postgresql" in str(engine.url).lower() else "TEXT"
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                cur = conn.execute(text(f"PRAGMA table_info({table})"))
+                existing = [r[1] for r in list(cur) if len(r) > 1]
+                if col not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+            else:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _migrate_informative_panel_config():
+    """Cria tabela informative_panel_config (intervalo do carrossel no /dashboard)."""
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                conn.execute(
+                    text(
+                        """
+                        CREATE TABLE IF NOT EXISTS informative_panel_config (
+                            id INTEGER PRIMARY KEY,
+                            carousel_interval_seconds INTEGER NOT NULL DEFAULT 8
+                        )
+                        """
+                    )
+                )
+                conn.execute(
+                    text(
+                        "INSERT OR IGNORE INTO informative_panel_config (id, carousel_interval_seconds) VALUES (1, 8)"
+                    )
+                )
+            else:
+                conn.execute(
+                    text(
+                        """
+                        CREATE TABLE IF NOT EXISTS informative_panel_config (
+                            id INTEGER PRIMARY KEY,
+                            carousel_interval_seconds INTEGER NOT NULL DEFAULT 8
+                        )
+                        """
+                    )
+                )
+                conn.execute(
+                    text(
+                        """
+                        INSERT INTO informative_panel_config (id, carousel_interval_seconds)
+                        VALUES (1, 8)
+                        ON CONFLICT (id) DO NOTHING
+                        """
+                    )
+                )
             conn.commit()
     except Exception:
         pass

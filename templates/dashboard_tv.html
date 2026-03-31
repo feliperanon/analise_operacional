@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
     <title>Central de Comando • Painel Operacional</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
+    <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
     <link rel="stylesheet" href="/static/styles.css">
     {# Mesma origem que a página: evita avisos de Tracking Prevention (storage) do Edge em CDNs #}
     <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; overflow: hidden; min-height: 100vh; background: #0f172a; color: #fff; }
+        html, body { margin: 0; padding: 0; overflow: hidden; min-height: 100vh; background: #030712; color: #fff; }
         .panel-root {
             width: 100%;
             max-width: 1920px;
@@ -751,11 +753,32 @@
             color: #67e8f9;
             text-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
         }
+
+        /* Shell TailAdmin (modo escuro — painel TV / parede) */
+        body.dashboard-app .panel-root {
+            font-family: Outfit, ui-sans-serif, system-ui, sans-serif;
+        }
+        body.dashboard-app .zone-topo {
+            border-color: rgb(55 65 81) !important;
+            background: rgba(3, 7, 18, 0.94) !important;
+        }
+        body.dashboard-app .zone-kpis {
+            border-color: rgb(55 65 81) !important;
+            background: rgba(17, 24, 39, 0.88) !important;
+        }
+        body.dashboard-app .zone-sidebar {
+            border-color: rgb(55 65 81) !important;
+            background: rgba(17, 24, 39, 0.72) !important;
+        }
+        body.dashboard-app .zone-card {
+            border-radius: 1rem !important;
+            border-color: rgb(55 65 81) !important;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-white" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
+<body class="dashboard-app bg-gray-950 text-white font-outfit antialiased" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
     {% include "_sidebar.html" %}
-    <button @click="sidebarOpen = true" class="fixed top-2 left-2 z-[60] flex items-center gap-2 p-2.5 rounded-xl bg-slate-800/95 border border-slate-600 text-white shadow-lg hover:bg-slate-700 transition-colors" :class="sidebarOpen ? 'hidden' : ''" title="Abrir menu e navegar">
+    <button @click="sidebarOpen = true" class="fixed top-3 left-3 z-[60] flex items-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2.5 text-gray-100 shadow-sm transition-colors hover:bg-gray-800" :class="sidebarOpen ? 'hidden' : ''" title="Abrir menu e navegar" type="button">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
         </svg>

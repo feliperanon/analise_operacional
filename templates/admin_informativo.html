@@ -2,12 +2,73 @@
 {% block content %}
 <div class="p-8 max-w-3xl mx-auto">
     <h1 class="text-2xl font-bold text-white mb-2">Avisos do Informativo</h1>
-    <p class="text-slate-400 text-sm mb-6">Textos e imagens exibidos no painel <a href="/dashboard" class="text-sky-400 hover:underline">/dashboard</a> (colaboradores). Cole URL de imagem hospedada ou use upload externo.</p>
+    <p class="text-slate-400 text-sm mb-6">Até <strong class="text-slate-300">5 avisos</strong> (menor <strong class="text-slate-300">ordem</strong> primeiro) rodam no card &quot;Comunicado em destaque&quot; no <a href="/dashboard" class="text-sky-400 hover:underline">/dashboard</a>. Imagem = URL direta de arquivo; matéria = link do site.</p>
 
+    {% if request.query_params.get('saved_devolucao') == '1' %}
+    <p class="mb-4 text-emerald-400 text-sm">Dados de devolução mensal (índice) salvos.</p>
+    {% endif %}
+    {% if request.query_params.get('saved') == 'panel' %}
+    <p class="mb-4 text-emerald-400 text-sm">Tempo do carrossel salvo.</p>
+    {% endif %}
+    {% if request.query_params.get('updated') %}
+    <p class="mb-4 text-emerald-400 text-sm">Aviso atualizado.</p>
+    {% endif %}
     {% if request.query_params.get('err') %}
     <p class="mb-4 text-amber-400 text-sm">Informe um título.</p>
     {% endif %}
 
+    <div class="mb-8 p-5 rounded-xl border border-slate-600 bg-slate-800/50">
+        <h2 class="text-sm font-semibold text-white mb-1">Painel /dashboard — troca de tela</h2>
+        <p class="text-xs text-slate-500 mb-3">Intervalo entre um aviso e o próximo no carrossel (4 a 120 segundos).</p>
+        <form method="post" action="/admin/informativo/panel-config" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">Segundos</label>
+                <input type="number" name="carousel_interval_seconds" min="4" max="120" value="{{ panel_carousel_seconds }}" class="w-28 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white">
+            </div>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold">Salvar tempo</button>
+        </form>
+    </div>
+
+    <div class="mb-10 p-6 rounded-xl border border-slate-600 bg-slate-800/50">
+        <h2 class="text-lg font-semibold text-white mb-1">Índice de devolução mensal (painel)</h2>
+        <p class="text-xs text-slate-500 mb-4">Alimenta o card <strong class="text-slate-400">Índice de devolução</strong> no <a href="/dashboard" class="text-sky-400 hover:underline">/dashboard</a>. A <strong class="text-slate-400">receita</strong> não aparece no gráfico; serve para calcular a meta de <strong class="text-slate-400">2% em valor</strong> (tooltip). O eixo do gráfico é % (índice + linha de meta 2%).</p>
+        <form method="get" action="/admin/informativo" class="flex flex-wrap items-end gap-3 mb-5">
+            <div>
+                <label class="block text-xs text-slate-400 mb-1">Ano</label>
+                <input type="number" name="dry_year" min="2000" max="2100" value="{{ dry_year }}" class="w-28 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white">
+            </div>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-semibold">Carregar ano</button>
+        </form>
+        <form method="post" action="/admin/informativo/devolucao-mensal" class="overflow-x-auto">
+            <input type="hidden" name="dry_year" value="{{ dry_year }}">
+            <table class="w-full text-sm text-left border-collapse min-w-[720px]">
+                <thead>
+                    <tr class="border-b border-slate-600 text-slate-400 text-xs uppercase">
+                        <th class="py-2 pr-3">Mês</th>
+                        <th class="py-2 pr-3">% devolução (índice)</th>
+                        <th class="py-2 pr-3">Valor devolução (R$)</th>
+                        <th class="py-2 pr-3">Receita (R$) <span class="normal-case text-slate-500 font-normal">— não exibida no painel</span></th>
+                    </tr>
+                </thead>
+                <tbody class="text-slate-200">
+                    {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
+                    {% for mes_nome in meses %}
+                    {% set m = loop.index %}
+                    {% set row = dr_rows.get(m) or {} %}
+                    <tr class="border-b border-slate-700/80">
+                        <td class="py-2 pr-3 font-medium text-white">{{ mes_nome }}</td>
+                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_pct" value="{{ row.get('pct') if row.get('pct') is not none else '' }}" class="w-full max-w-[140px] bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-sm" placeholder="—" inputmode="decimal"></td>
+                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_valor" value="{{ row.get('valor') if row.get('valor') is not none else '' }}" class="w-full max-w-[160px] bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-sm" placeholder="—" inputmode="decimal"></td>
+                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ row.get('receita') if row.get('receita') is not none else '' }}" class="w-full max-w-[160px] bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-sm" placeholder="—" inputmode="decimal"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="mt-5 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">Salvar índice de devolução</button>
+        </form>
+    </div>
+
+    <h2 class="text-lg font-semibold text-white mb-3">Novo aviso</h2>
     <form method="post" action="/admin/informativo" class="mb-10 p-6 rounded-xl border border-slate-600 bg-slate-800/50 space-y-4">
         <div>
             <label class="block text-xs text-slate-400 mb-1">Título *</label>
@@ -19,11 +80,16 @@
         </div>
         <div>
             <label class="block text-xs text-slate-400 mb-1">URL da imagem (opcional)</label>
-            <input type="url" name="image_url" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" placeholder="https://…">
+            <input type="url" name="image_url" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" placeholder="https://exemplo.com/imagem.jpg">
+        </div>
+        <div>
+            <label class="block text-xs text-slate-400 mb-1">URL da matéria / site (opcional)</label>
+            <input type="url" name="link_url" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" placeholder="https://…">
         </div>
         <div>
             <label class="block text-xs text-slate-400 mb-1">Ordem</label>
             <input type="number" name="sort_order" value="0" class="w-32 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white">
+            <p class="text-[11px] text-slate-500 mt-1">Menor número aparece primeiro no painel.</p>
         </div>
         <button type="submit" class="px-5 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold">Publicar</button>
     </form>
@@ -32,15 +98,22 @@
     <ul class="space-y-3">
         {% for b in bulletins or [] %}
         <li class="flex flex-wrap items-start justify-between gap-3 p-4 rounded-xl border border-slate-700 bg-slate-800/40">
-            <div>
-                <p class="font-bold text-white">{{ b.title }}</p>
-                {% if b.image_url %}<p class="text-xs text-slate-500 mt-1 break-all">{{ b.image_url }}</p>{% endif %}
+            <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2 mb-1">
+                    <span class="text-xs font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-700">Ordem {{ b.sort_order }}</span>
+                    <p class="font-bold text-white">{{ b.title }}</p>
+                </div>
+                {% if b.image_url %}<p class="text-xs text-slate-500 mt-1 break-all">Imagem: {{ b.image_url }}</p>{% endif %}
+                {% if b.link_url %}<p class="text-xs text-slate-500 mt-1 break-all">Matéria: {{ b.link_url }}</p>{% endif %}
                 <p class="text-slate-400 text-sm mt-2 whitespace-pre-wrap">{{ b.body or '' }}</p>
-                <p class="text-[10px] text-slate-600 mt-2">Ordem {{ b.sort_order }} · {% if b.is_active %}ativo{% else %}inativo{% endif %}</p>
+                <p class="text-[10px] text-slate-600 mt-2">{% if b.is_active %}ativo{% else %}inativo{% endif %}</p>
             </div>
-            <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
-                <button type="submit" class="text-rose-400 hover:text-rose-300 text-sm">Excluir</button>
-            </form>
+            <div class="flex flex-col sm:flex-row gap-2 shrink-0">
+                <a href="/admin/informativo/{{ b.id }}/edit" class="text-center px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium">Editar</a>
+                <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
+                    <button type="submit" class="w-full text-rose-400 hover:text-rose-300 text-sm px-3 py-2">Excluir</button>
+                </form>
+            </div>
         </li>
         {% else %}
         <li class="text-slate-500 text-sm">Nenhum aviso ainda.</li>
