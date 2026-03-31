@@ -1,0 +1,260 @@
+/**
+ * Shell compartilhado com /dashboard: layout claro TailAdmin + scroll em páginas longas.
+ */
+html.ga-html-scroll {
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html.ga-html-scroll body.gv-page.page-scrollable {
+  height: auto;
+  min-height: 100vh;
+  max-height: none;
+  overflow: visible;
+}
+
+body.dashboard-app.page-scrollable.gv-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100vh;
+}
+
+body.dashboard-app.page-scrollable .ta-dashboard-layout {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
+.ga-dash-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: visible;
+}
+
+main.ga-main-scroll {
+  overflow: visible;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.gv-shell {
+  width: 100%;
+  max-width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  padding-left: max(0.2rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.2rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(0.15rem, env(safe-area-inset-bottom, 0px));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.ga-panel-stack.gv-panel-stack {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0.75rem;
+  padding: 0.75rem 0 1rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .ga-panel-stack.gv-panel-stack {
+    padding: 1rem 0 1.25rem;
+  }
+}
+
+.ta-main-inner {
+  width: 100%;
+  max-width: 1536px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 640px) {
+  .ta-main-inner {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+.gv-menu-btn {
+  border: 1px solid rgb(229 231 235);
+  background: #ffffff;
+  color: #475569;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.gv-menu-btn:hover {
+  background: rgb(249 250 251);
+  color: #1f2937;
+}
+
+/* Tema claro: painéis e cartões da página Colaboradores */
+.ga-employee-theme .employees-shell {
+  --ga-border: rgb(229 231 235);
+  --ga-surface: #ffffff;
+  --ga-muted: rgb(100 116 139);
+  --ga-text: rgb(15 23 42);
+}
+
+.ga-employee-theme .ops-panel {
+  border-radius: 1rem;
+  border: 1px solid var(--ga-border);
+  background: var(--ga-surface);
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.06),
+    0 4px 14px -4px rgb(15 23 42 / 0.08);
+  color: var(--ga-text);
+}
+
+.ga-employee-theme .ops-card {
+  border: 1px solid var(--ga-border);
+  background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+.ga-employee-theme .ops-card::before {
+  opacity: 0.85;
+}
+
+.ga-employee-theme .ops-card--selected {
+  border-color: rgb(59 130 246 / 0.45);
+  background: linear-gradient(180deg, rgb(239 246 255) 0%, #ffffff 100%);
+  box-shadow: 0 4px 20px rgb(59 130 246 / 0.12);
+}
+
+.ga-employee-theme .ops-card__eyebrow {
+  color: rgb(100 116 139);
+}
+
+.ga-employee-theme .ops-card__value {
+  color: rgb(15 23 42);
+}
+
+.ga-employee-theme .ops-card__meta,
+.ga-employee-theme .ops-card__description {
+  color: rgb(100 116 139);
+}
+
+.ga-employee-theme .ops-toolbar-control,
+.ga-employee-theme .ops-toolbar-search,
+.ga-employee-theme .view-toggle-btn,
+.ga-employee-theme .ops-toolbar-ghost-btn {
+  border-color: rgb(203 213 225);
+  background: rgb(248 250 252);
+  color: rgb(51 65 85);
+}
+
+.ga-employee-theme .ops-toolbar-control:hover,
+.ga-employee-theme .ops-toolbar-search:hover,
+.ga-employee-theme .view-toggle-btn:hover {
+  border-color: rgb(148 163 184);
+  background: #ffffff;
+  color: rgb(15 23 42);
+}
+
+.ga-employee-theme .ops-toolbar-search:focus-within {
+  border-color: rgb(59 130 246);
+  box-shadow: 0 0 0 1px rgb(59 130 246 / 0.2);
+  background: #ffffff;
+}
+
+.ga-employee-theme .ops-toolbar-search__input {
+  color: rgb(15 23 42);
+}
+
+.ga-employee-theme .ops-toolbar-search__input::placeholder {
+  color: rgb(148 163 184);
+}
+
+.ga-employee-theme .ops-toolbar-label {
+  color: rgb(100 116 139);
+}
+
+.ga-employee-theme .view-toggle-btn.is-active {
+  border-color: rgb(148 163 184);
+  background: rgb(241 245 249);
+  color: rgb(15 23 42);
+}
+
+.ga-employee-theme .filter-btn.filter-btn--active {
+  border-color: rgb(148 163 184);
+  background: rgb(226 232 240);
+  color: rgb(15 23 42);
+}
+
+.ga-employee-theme .employee-action-btn {
+  border-color: rgb(203 213 225);
+  background: rgb(248 250 252);
+}
+
+.ga-employee-theme .employee-action-btn:hover {
+  border-color: rgb(148 163 184);
+  background: #ffffff;
+}
+
+.ga-employee-theme #employeesTable thead {
+  background: rgb(249 250 251 / 0.95);
+  color: rgb(71 85 105);
+  border-color: var(--ga-border);
+}
+
+.ga-employee-theme #employees-table-panel > div:first-child {
+  border-color: rgb(229 231 235) !important;
+}
+
+.ga-employee-theme #roleFilterMenu .absolute.z-30 {
+  border-color: rgb(229 231 235) !important;
+  background: #ffffff !important;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+.ga-employee-theme #roleFilterSearch {
+  border-color: rgb(203 213 225) !important;
+  background: rgb(248 250 252) !important;
+  color: rgb(15 23 42) !important;
+}
+
+.ga-employee-theme #visibleEmployeesCounter {
+  border-color: rgb(203 213 225) !important;
+  background: rgb(248 250 252) !important;
+  color: rgb(71 85 105) !important;
+}
+
+.ga-employee-theme #employeesTable tbody tr {
+  border-color: rgb(241 245 249);
+}
+
+@media (max-width: 767px) {
+  .ga-employee-theme #employeesTable tr.employee-row {
+    border: 1px solid var(--ga-border);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+
+  .ga-employee-theme #employeesTable tr.employee-row td {
+    border-color: rgb(241 245 249);
+  }
+
+  .ga-employee-theme #employeesTable tr.employee-row td[data-label]::before {
+    color: rgb(100 116 139);
+  }
+}

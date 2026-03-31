@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full ga-html-scroll">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <title>{% block title %}Gestão Avista{% endblock %}</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="apple-touch-icon" href="/static/icons/pwa-192.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
+    <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
+    <link rel="stylesheet" href="/static/css/gestao-avista-page.css">
+    <script src="/static/vendor/lucide/lucide-0.563.0.min.js"></script>
+    <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
+    <style>[x-cloak]{display:none!important}</style>
+    {% block head_extra %}{% endblock %}
+    <script>
+    (function() {
+        var _mem = {};
+        function fallback() {
+            return { getItem: function(k) { return _mem[k] !== undefined ? _mem[k] : null; }, setItem: function(k, v) { _mem[k] = String(v); }, removeItem: function(k) { delete _mem[k]; } };
+        }
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.setItem) {
+                sessionStorage.setItem('_tp', '1');
+                sessionStorage.removeItem('_tp');
+                window.__safeSession = sessionStorage;
+            } else { window.__safeSession = fallback(); }
+        } catch (e) { window.__safeSession = fallback(); }
+    })();
+    </script>
+</head>
+<body class="gv-page ta-dash-body dashboard-app text-slate-700 font-outfit antialiased page-scrollable" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false, checklists: false } }">
+    {% include "_sidebar.html" %}
+    <button type="button" @click="sidebarOpen = true" class="gv-menu-btn fixed top-3 left-3 z-[60] flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors print-hidden" :class="sidebarOpen ? 'hidden' : ''" title="Menu">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <span class="text-xs font-medium hidden sm:inline">Menu</span>
+    </button>
+
+    <div class="ta-dashboard-layout ga-dash-layout flex min-h-0 flex-1 flex-col bg-slate-100 dark:bg-gray-900">
+        <header class="ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
+            <div class="ta-dash-header__inner flex w-full flex-col gap-0.5 pl-12 sm:pl-14">
+                {% block header_breadcrumb %}
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Painel</p>
+                {% endblock %}
+                {% block header_title %}
+                <h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Gestão Avista</h1>
+                {% endblock %}
+                {% block header_subtitle %}{% endblock %}
+            </div>
+        </header>
+
+        <main class="gv-shell ga-main-scroll flex min-h-0 min-w-0 flex-1 flex-col" id="ga-page-root">
+            <div class="gv-panel-stack ga-panel-stack">
+                <div class="ta-main-inner flex min-h-0 min-w-0 flex-1 flex-col gap-4 md:gap-5 pb-8">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </main>
+    </div>
+    {% block body_scripts %}{% endblock %}
+</body>
+</html>
