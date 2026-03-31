@@ -188,6 +188,52 @@
         .gv-body .gv-col-mid .gv-surface:nth-child(1) { --grad: #0ea5e9, #06b6d4; }
         .gv-body .gv-col-mid .gv-surface:nth-child(2) { --grad: #f59e0b, #ea580c; }
         .gv-body .gv-col-right .gv-surface { --grad: #22c55e, #14b8a6; }
+        /* TailAdmin — cartões (.ta-card) sobrescrevem gradiente/::after dos .gv-surface */
+        .gv-body .gv-surface.ta-card {
+            border: 1px solid rgb(229 231 235);
+            border-radius: 1rem;
+            background: #ffffff;
+            background-image: none;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+            padding: 0.85rem 1rem;
+            color: #334155;
+        }
+        .gv-body .gv-surface.ta-card::after {
+            display: none;
+        }
+        .gv-body .gv-surface.ta-card .gv-card-title {
+            text-transform: none;
+            letter-spacing: 0.01em;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .gv-body .gv-surface.ta-card .gv-card-icon svg {
+            stroke: #6b7280;
+        }
+        .gv-body .gv-surface.ta-card .gv-table-wrap thead th {
+            border-bottom: 1px solid rgb(229 231 235);
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 0.6875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .gv-body .gv-surface.ta-card .gv-table-wrap tbody tr {
+            border-bottom: 1px solid rgb(243 244 246);
+        }
+        .gv-body .gv-surface.ta-card .gv-table-wrap tbody tr:last-child {
+            border-bottom: none;
+        }
+        .gv-body .gv-surface.ta-card .gv-table-wrap .gv-fit-oneline {
+            color: #111827;
+        }
+        .gv-body .gv-surface.ta-card .gv-bday-row {
+            border-bottom-color: rgb(243 244 246);
+        }
+        .gv-body .gv-surface.ta-card .gv-aviso-body img {
+            border-color: rgb(229 231 235) !important;
+        }
         .gv-body .gv-card-head {
             display: flex;
             flex-direction: row;
@@ -353,11 +399,10 @@
             flex-direction: column;
             min-width: 0;
             width: 100%;
-            background-image: linear-gradient(to bottom left, #e4e8ea, #f2f6f9);
-            border-radius: 1.75rem;
-            box-shadow:
-                inset -2px 2px 0 0 hsl(0 0% 100% / 0.9),
-                -12px 16px 32px hsl(0 0% 0% / 0.16);
+            background: #ffffff;
+            border: 1px solid rgb(229 231 235);
+            border-radius: 1rem;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
             overflow: hidden;
             color: #334155;
         }
@@ -383,7 +428,7 @@
             border-bottom: none !important;
         }
         .gv-dash-top .gv-zone-kpis .kpi-cell {
-            border-right-color: rgba(15, 23, 42, 0.1);
+            border-right-color: rgb(229 231 235);
         }
         .gv-dash-top .gv-zone-kpis .text-slate-500 {
             color: #64748b !important;
@@ -555,7 +600,7 @@
             display: grid;
             /* Col. 1: pilha devoluções (máx. 600px); centro e direita dividem o restante */
             grid-template-columns: minmax(0, 37.5rem) minmax(0, 1.55fr) minmax(0, 1.35fr);
-            gap: 0.4rem;
+            gap: 0.5rem;
             flex: 1 1 auto;
             min-height: 0;
             min-width: 0;
@@ -563,7 +608,8 @@
             align-items: stretch;
             align-content: stretch;
             width: 100%;
-            padding-top: 0.35rem;
+            padding: 0.35rem clamp(0.5rem, 1.2vw, 1rem) 0.4rem;
+            box-sizing: border-box;
         }
         .gv-col { display: flex; flex-direction: column; gap: 0.38rem; min-height: 0; min-width: 0; width: 100%; }
         .gv-col-dev {
@@ -853,7 +899,7 @@
         </div>
         <div class="gv-panel-stack">
         <div class="gv-dash-top">
-            <section class="zone-kpis gv-zone-kpis relative z-10 flex items-stretch px-2 sm:px-4 shrink-0 kpi-wrap rounded-t-[1.75rem]" aria-label="Indicadores do dia">
+            <section class="zone-kpis gv-zone-kpis relative z-10 flex items-stretch px-2 sm:px-4 shrink-0 kpi-wrap rounded-t-xl" aria-label="Indicadores do dia">
                 <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
                     <div class="leading-tight text-center min-w-0 max-w-[11rem] mx-auto">
                         <div class="text-label text-slate-500 uppercase font-semibold gv-kpi-label-long mx-auto">Devolução mês passado</div>
@@ -901,7 +947,7 @@
         <div class="gv-body">
             <div class="gv-col gv-col-dev">
                 <div class="gv-dev-cards">
-                    <article class="gv-surface gv-dev-card">
+                    <article class="gv-surface gv-dev-card ta-card">
                         <div class="gv-card-head">
                             <h2 class="gv-card-title">Dev. motoristas · mês</h2>
                             <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
@@ -931,7 +977,7 @@
                             </table>
                         </div>
                     </article>
-                    <article class="gv-surface gv-dev-card">
+                    <article class="gv-surface gv-dev-card ta-card">
                         <div class="gv-card-head">
                             <h2 class="gv-card-title">Dev. ajudantes · mês</h2>
                             <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
@@ -965,7 +1011,7 @@
             </div>
 
             <div class="gv-col gv-col-mid">
-                <article class="gv-surface">
+                <article class="gv-surface ta-card">
                     <div class="gv-card-head">
                         <h2 class="gv-card-title">Comunicado em destaque</h2>
                         <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📢</span>
@@ -973,14 +1019,14 @@
                     <div class="gv-aviso-body" id="bulletin-slot-0">
                         {% if b0 %}
                         <h4 class="font-semibold gv-aviso-heading mb-2">{{ b0.title }}</h4>
-                        {% if b0.image_url %}<img src="{{ b0.image_url }}" alt="" class="max-h-28 rounded-lg border border-slate-600 mb-3 object-cover">{% endif %}
+                        {% if b0.image_url %}<img src="{{ b0.image_url }}" alt="" class="max-h-28 rounded-lg border border-gray-200 mb-3 object-cover">{% endif %}
                         {% if b0.body %}<p class="whitespace-pre-wrap">{{ b0.body }}</p>{% endif %}
                         {% else %}
                         <p class="gv-aviso-muted">Nenhum aviso neste espaço.</p>
                         {% endif %}
                     </div>
                 </article>
-                <article class="gv-surface">
+                <article class="gv-surface ta-card">
                     <div class="gv-card-head">
                         <h2 class="gv-card-title">Outros avisos</h2>
                         <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📋</span>
@@ -988,7 +1034,7 @@
                     <div class="gv-aviso-body" id="bulletin-slot-1">
                         {% if b1 %}
                         <h4 class="font-semibold gv-aviso-heading mb-2">{{ b1.title }}</h4>
-                        {% if b1.image_url %}<img src="{{ b1.image_url }}" alt="" class="max-h-28 rounded-lg border border-slate-600 mb-3 object-cover">{% endif %}
+                        {% if b1.image_url %}<img src="{{ b1.image_url }}" alt="" class="max-h-28 rounded-lg border border-gray-200 mb-3 object-cover">{% endif %}
                         {% if b1.body %}<p class="whitespace-pre-wrap">{{ b1.body }}</p>{% endif %}
                         {% else %}
                         <p class="gv-aviso-muted">Nenhum aviso neste espaço.</p>
@@ -998,7 +1044,7 @@
             </div>
 
             <div class="gv-col gv-col-right">
-                <article class="gv-surface">
+                <article class="gv-surface ta-card">
                     <div class="gv-card-head gv-card-head--bday">
                         <div class="gv-bday-title-row">
                             <span class="gv-bday-cake" aria-hidden="true">🎂</span>
