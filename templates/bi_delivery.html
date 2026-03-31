@@ -389,7 +389,7 @@
 <script>
   const chartData = {{ chart_payload_json| safe }} || {};
   const detailRows = {{ detail_rows_json| safe }} || [];
-  window.__biChartData = chartData;
+  window.__biChartData = { ...chartData, kpis: {{ kpis|tojson|safe }} };
   window.__biDetailRows = detailRows;
 
   const token = (name, fallback) => {

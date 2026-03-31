@@ -1,0 +1,8 @@
+---
+description: Painel Gestão Avista (dashboard informativo / TV)
+globs: templates/dashboard_informativo.html
+---
+
+- **Sem scroll**: a página usa `html.gv-tv-root` com `overflow: hidden`. Não introduzir `overflow-y: auto` nas colunas do corpo (`.gv-col-dev`, `.gv-col-mid`, `.gv-col-right`) nem scroll interno nas tabelas de devolução; o conteúdo deve caber via tipografia compacta, `min-height: 0` e flex.
+- **Botão Menu** (`gv-menu-btn`): `fixed`, `z-[60]`, `left-3`. O cabeçalho `.gv-informativo-zone-topo` precisa de `padding-left` suficiente para o título **Gestão Avista** não ficar sob o botão.
+- **Tipografia dos cards**: `.gv-body` define `--gv-card-title-fs`, `--gv-card-text-fs`, `--gv-card-label-fs`. Títulos de seção (`h2.gv-card-title`) usam o mesmo padrão; textos e tabelas derivam dessas variáveis — ajustar a escala ali, não tamanhos soltos por card.

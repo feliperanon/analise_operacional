@@ -17,7 +17,7 @@
           </div>
           <div>
             <h1 class="text-title-lg">BI Devoluções</h1>
-            <p class="text-caption mt-1">Análise avançada de devoluções — motivos, responsabilidades, clientes, motoristas, ajudantes e mapa de calor.</p>
+            <p class="text-caption mt-1">Análise avançada de devoluções — motivos, responsabilidades, clientes, motoristas, vendedores e mapa de calor.</p>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
@@ -104,7 +104,7 @@
     <section class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8 gap-3">
       {{ kpi_card("Total Devoluções", total_qtd|fmt_br_int, "ocorrências no período", "package-x", "danger", period_label) }}
       {{ kpi_card("Valor Total", total_valor|fmt_br_moeda, "soma das devoluções", "dollar-sign", "danger", period_label) }}
-      {{ kpi_card("Devolução % Valor", pct_devolucao_valor|fmt_br_1 ~ "%", "sobre valor das rotas no período (meta ≤ 2%)", "percent", "danger" if pct_devolucao_valor >= 4 else ("warning" if pct_devolucao_valor >= 2 else "neutral"), period_label) }}
+      {{ kpi_card("Devolução % (rotas)", pct_devolucao_valor|fmt_br_1 ~ "%", "Paradas com status devolução ÷ paradas concluídas (entregue + devolução), rotas de entrega — mesmo critério da Central de Comando (meta ≤ 2%)", "percent", "danger" if pct_devolucao_valor >= 4 else ("warning" if pct_devolucao_valor >= 2 else "neutral"), period_label) }}
       {{ kpi_card("Clientes Afetados", total_clientes_afetados|fmt_br_int, "clientes únicos", "users", "warning", period_label) }}
       {{ kpi_card("Motoristas Envolvidos", total_motoristas_envolvidos|fmt_br_int, "motoristas únicos", "truck", "warning", period_label) }}
       {{ kpi_card("Média / Dia", media_por_dia|fmt_br_1, "devoluções por dia", "trending-up", "neutral", period_label) }}
@@ -160,9 +160,8 @@
       {{ chart_card("Top Clientes (devoluções)", "Clique em um cliente para ver lista de devoluções (data, motorista, motivo)", "chartTopClientes", period_label) }}
     </div>
 
-    <!-- ===== GRÁFICOS LINHA 4: Ajudantes + Vendedores ===== -->
-    <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {{ chart_card("Top Ajudantes (devoluções)", "Ajudantes com maior incidência (devoluções sem ajudante aparecem como \"Sem ajudante\")", "chartTopAjudantes", period_label) }}
+    <!-- ===== GRÁFICOS LINHA 4: Vendedores ===== -->
+    <div class="grid grid-cols-1 gap-4">
       {{ chart_card("Top Vendedores (devoluções)", "Clique em um vendedor para ver detalhe por responsabilidade e motivos", "chartTopVendedores", period_label) }}
     </div>
 
@@ -254,30 +253,6 @@
       </tr>
       {% else %}
       <tr><td colspan="5" class="text-center text-caption text-slate-500">Nenhum dado</td></tr>
-      {% endfor %}
-    </tbody>
-    {% endcall %}
-
-    <!-- ===== TABELA TOP AJUDANTES ===== -->
-    {% call table_section("Ranking de Ajudantes", "Ajudantes com maior incidência de devoluções", "tableAjudantes", period_label) %}
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Ajudante</th>
-        <th>Devoluções</th>
-        <th>Valor Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in top_ajudantes %}
-      <tr>
-        <td class="text-caption text-slate-500">{{ loop.index }}</td>
-        <td class="font-medium">{{ row.ajudante }}</td>
-        <td><span class="status-badge status-warning">{{ row.qtd }}</span></td>
-        <td>{{ row.valor|fmt_br_moeda }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="4" class="text-center text-caption text-slate-500">Nenhum dado</td></tr>
       {% endfor %}
     </tbody>
     {% endcall %}
@@ -503,7 +478,6 @@
   const respBreakdown     = {{ resp_breakdown_json | safe }};
   const topMotoristas     = {{ top_motoristas_json | safe }};
   const topClientes       = {{ top_clientes_json | safe }};
-  const topAjudantes      = {{ top_ajudantes_json | default('[]') | safe }};
   const topVendedores     = {{ top_vendedores_json | safe }};
   const vendedorDrill     = {{ vendedor_drill_json | safe }};
   const respDrill         = {{ resp_drill_json | default('{}') | safe }};
@@ -820,37 +794,6 @@
         },
         onHover: function(ev, elements) { ev.native.target.style.cursor = elements.length ? 'pointer' : 'default'; }
       }
-    });
-  })();
-
-  // --- Top Ajudantes ---
-  (function() {
-    const ctx = document.getElementById('chartTopAjudantes');
-    const card = document.querySelector('[data-chart-id="chartTopAjudantes"]');
-    if (!ctx || typeof Chart === 'undefined') return;
-    const dataAjudantes = Array.isArray(topAjudantes) ? topAjudantes : [];
-    if (!dataAjudantes.length) {
-      var wrap = card && card.querySelector('.mt-4');
-      if (wrap) wrap.innerHTML = '<p class="text-body text-slate-500 py-8 text-center">Nenhuma devolução no período. Ao cadastrar devoluções com ajudante, o ranking aparecerá aqui.</p>';
-      return;
-    }
-    const labels = dataAjudantes.map(a => (a && a.ajudante != null) ? (String(a.ajudante).length > 18 ? String(a.ajudante).slice(0, 16) + '…' : String(a.ajudante)) : '—');
-    const values = dataAjudantes.map(a => Number(a && a.qtd) || 0);
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{ label: 'Devoluções', data: values, backgroundColor: '#8b5cf6bb', borderColor: '#8b5cf6', borderWidth: 1 }]
-      },
-      options: {
-        ...baseOpts(),
-        indexAxis: 'y',
-        plugins: { ...baseOpts().plugins, legend: { display: false }, tooltip: tooltipPctQtd() },
-        scales: {
-          x: { min: 0, ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
-          y: { ticks: { color: tickColor, font: FONT }, grid: { color: gridColor } },
-        },
-      },
     });
   })();
 

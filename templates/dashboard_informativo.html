@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="gv-tv-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <title>Gestão Avista • Painel</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
+    <style>
+        /* Painel claro — fundo + KPIs + cards no mesmo vocabulário visual */
+        :root {
+            --gv-bg: #d0dbe1;
+            --gv-surface: rgba(30, 41, 59, 0.92);
+            --gv-card: rgba(30, 41, 59, 0.94);
+            --gv-border: rgba(51, 65, 85, 0.75);
+            --gv-border-strong: rgba(71, 85, 105, 0.9);
+            --gv-text: #334155;
+            --gv-heading: #0f172a;
+            --gv-muted: #64748b;
+            --gv-ring-track: #cbd5e1;
+            --gv-good: #86efac;
+            --gv-good-bg: rgba(34, 197, 94, 0.15);
+            --gv-attn: #fca5a5;
+            --gv-attn-bg: rgba(239, 68, 68, 0.12);
+            --gv-delta-worse: #f87171;
+            --gv-delta-better: #4ade80;
+            --gv-neutral: #94a3b8;
+        }
+        /* Gestão Avista: viewport sem scroll; não usar overflow-y auto nas colunas do painel —
+           tipografia e flex devem caber numa tela (botão Menu fixed: reservar espaço à esquerda). */
+        html.gv-tv-root {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+        html.gv-tv-root body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        body.gv-page > main.gv-shell {
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            max-height: 100%;
+            min-height: 100vh;
+            background: var(--gv-bg);
+            color: var(--gv-text);
+        }
+        .gv-page {
+            width: 100%;
+            max-width: 100vw;
+            min-height: 100vh;
+            min-height: 100dvh;
+            height: 100vh;
+            height: 100dvh;
+            max-height: 100vh;
+            max-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .gv-shell {
+            width: 100%;
+            max-width: 100%;
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            margin: 0;
+            padding: 0;
+            /* Menu é fixed: não empurrar toda a página; só safe-area nas bordas */
+            padding-left: max(0.2rem, env(safe-area-inset-left, 0px));
+            padding-right: max(0.2rem, env(safe-area-inset-right, 0px));
+            padding-bottom: max(0.15rem, env(safe-area-inset-bottom, 0px));
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        /* Botão Menu: fixed left-3 top-3 z-60 (~48px + ícone + gap) — título só começa depois dele */
+        .gv-informativo-zone-topo {
+            padding-left: max(4.85rem, calc(env(safe-area-inset-left, 0px) + 4.1rem));
+            padding-right: 0.75rem;
+        }
+        @media (min-width: 640px) {
+            .gv-informativo-zone-topo {
+                padding-left: max(5.65rem, calc(env(safe-area-inset-left, 0px) + 5rem));
+            }
+        }
+        /* Título — compacto (cabe na faixa) + azul brilhante */
+        .gv-informativo-page-title {
+            font-size: clamp(0.95rem, 1.85vw, 1.35rem);
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+            margin: 0;
+            background: linear-gradient(100deg, #7dd3fc 0%, #38bdf8 28%, #0ea5e9 52%, #22d3ee 88%, #a5f3fc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.45));
+        }
+        .gv-panel-aurora {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        .gv-aurora-blob {
+            position: absolute;
+            border-radius: 9999px;
+            filter: blur(90px);
+        }
+        .gv-aurora-blob--tl {
+            top: 0;
+            left: 0;
+            width: 35%;
+            height: 40%;
+            background: rgba(37, 99, 235, 0.06);
+        }
+        .gv-aurora-blob--br {
+            bottom: 0;
+            right: 0;
+            width: 35%;
+            height: 40%;
+            background: rgba(147, 51, 234, 0.05);
+        }
+        .gv-panel-stack {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            gap: 0.35rem;
+            padding: 0.3rem 0.4rem 0.35rem;
+            box-sizing: border-box;
+        }
+        .gv-surface {
+            background: var(--gv-card);
+            border: 2px solid var(--gv-border);
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+        }
+        /* Cards no corpo: modelo claro (gradiente + sombra + barra inferior) — alinhado ao layout de referência */
+        .gv-body .gv-surface {
+            --grad: #3b82f6, #8b5cf6;
+            position: relative;
+            border: none;
+            border-radius: 1.75rem;
+            background-image: linear-gradient(to bottom left, #e0e4e6, #f2f6f9);
+            box-shadow:
+                inset -2px 2px 0 0 hsl(0 0% 100% / 0.92),
+                -14px 18px 36px hsl(0 0% 0% / 0.22);
+            color: #444447;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 0.62rem 0.72rem;
+        }
+        .gv-body .gv-surface::after {
+            content: "";
+            flex-shrink: 0;
+            display: block;
+            height: 2px;
+            margin-top: auto;
+            border-radius: 1px;
+            background-image: linear-gradient(90deg, var(--grad));
+        }
+        .gv-body .gv-dev-card:first-child { --grad: #3b82f6, #6366f1; }
+        .gv-body .gv-dev-card:last-child { --grad: #a855f7, #ec4899; }
+        .gv-body .gv-col-mid .gv-surface:nth-child(1) { --grad: #0ea5e9, #06b6d4; }
+        .gv-body .gv-col-mid .gv-surface:nth-child(2) { --grad: #f59e0b, #ea580c; }
+        .gv-body .gv-col-right .gv-surface { --grad: #22c55e, #14b8a6; }
+        .gv-body .gv-card-head {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 0.3rem;
+            margin-bottom: 0.22rem;
+            flex-shrink: 0;
+        }
+        .gv-body .gv-card-head .gv-card-title {
+            margin-bottom: 0;
+        }
+        .gv-body .gv-card-icon {
+            flex-shrink: 0;
+            font-size: calc(var(--gv-card-title-fs, 0.78rem) * 1.65);
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gv-body .gv-card-icon--emoji {
+            font-size: calc(var(--gv-card-title-fs, 0.78rem) * 1.35);
+        }
+        .gv-body .gv-card-icon svg {
+            width: calc(var(--gv-card-title-fs, 0.78rem) * 1.65);
+            height: calc(var(--gv-card-title-fs, 0.78rem) * 1.65);
+            display: block;
+            stroke: #64748b;
+            fill: none;
+            stroke-width: 1.65;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        /* Título de seção — padrão único para todos os cards (h2.gv-card-title) */
+        .gv-body .gv-surface .gv-card-title {
+            font-size: var(--gv-card-title-fs);
+            letter-spacing: var(--gv-card-title-ls);
+            line-height: 1.2;
+            text-transform: uppercase;
+            color: var(--gv-card-title-color);
+            font-weight: 600;
+            margin: 0;
+        }
+        .gv-body .gv-table-wrap th {
+            color: #64748b;
+            border-bottom-color: rgba(15, 23, 42, 0.12);
+        }
+        .gv-body .gv-table-wrap thead th {
+            font-weight: 700;
+            color: #475569;
+        }
+        .gv-body .gv-table-wrap tbody tr {
+            border-bottom-color: rgba(15, 23, 42, 0.08);
+        }
+        .gv-body .gv-fit-oneline {
+            color: #1e293b;
+            font-weight: 600;
+        }
+        .gv-body .gv-table-val {
+            color: #334155 !important;
+        }
+        .gv-body .gv-pct-attn {
+            color: #dc2626 !important;
+        }
+        .gv-body .gv-pct-neutral {
+            color: #64748b !important;
+        }
+        .gv-body .gv-table-empty {
+            color: #94a3b8 !important;
+        }
+        .gv-body .gv-aviso-body {
+            color: #475569;
+            font-size: var(--gv-card-text-fs);
+            line-height: 1.35;
+        }
+        .gv-body .gv-aviso-body .gv-aviso-heading {
+            font-size: var(--gv-card-title-fs);
+            letter-spacing: 0.04em;
+            text-transform: none;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+        }
+        .gv-body .gv-aviso-body h4,
+        .gv-body .gv-aviso-body .gv-aviso-heading {
+            color: #0f172a;
+            font-weight: 700;
+        }
+        .gv-body .gv-aviso-body .gv-aviso-muted {
+            color: #64748b;
+        }
+        .gv-body .gv-bday-row {
+            border-bottom-color: rgba(15, 23, 42, 0.1);
+            padding: 0.12rem 0;
+            gap: 0.25rem;
+        }
+        .gv-body .gv-bday-cake {
+            font-size: var(--gv-card-text-fs);
+        }
+        .gv-body .gv-bday-title-row .gv-bday-cake {
+            font-size: calc(var(--gv-card-title-fs) * 1.05);
+        }
+        .gv-body .gv-bday-date {
+            color: #64748b;
+            font-size: var(--gv-card-label-fs);
+        }
+        .gv-body .gv-bday-name.gv-fit-oneline {
+            color: #1e293b;
+        }
+        .gv-body .gv-card-title--ferias {
+            color: var(--gv-card-title-ferias-color) !important;
+        }
+        .gv-body .gv-ferias-programadas-label {
+            color: #b45309 !important;
+            font-size: var(--gv-card-title-fs) !important;
+            letter-spacing: var(--gv-card-title-ls);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .gv-body .gv-col-right .border-slate-50 {
+            border-color: rgba(15, 23, 42, 0.1) !important;
+        }
+        .gv-body .gv-col-right .text-slate-600 {
+            color: #475569 !important;
+        }
+        .gv-body .gv-col-right .text-slate-400 {
+            color: #94a3b8 !important;
+        }
+        .gv-body .gv-bday-today {
+            background: rgba(34, 197, 94, 0.12);
+            padding: 0.22rem 0.2rem;
+        }
+        .gv-body .gv-ferias-block {
+            margin-top: 0.5rem !important;
+        }
+        .gv-body .gv-ferias-stack {
+            gap: 0.3rem;
+            font-size: var(--gv-card-text-fs);
+        }
+        .gv-body .gv-ferias-li {
+            padding-top: 0.18rem !important;
+            padding-bottom: 0.18rem !important;
+            font-size: var(--gv-card-text-fs) !important;
+            line-height: 1.2;
+        }
+        .gv-body .gv-ferias-li .text-xs {
+            font-size: var(--gv-card-label-fs) !important;
+        }
+        .gv-body .gv-aviso-body img {
+            border-color: rgba(15, 23, 42, 0.12) !important;
+        }
+        /* Fora do .gv-body (outros templates) — no painel informativo use .gv-body .gv-surface .gv-card-title */
+        .gv-card-title {
+            font-size: 0.8125rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            font-weight: 700;
+            margin: 0 0 0.5rem 0;
+        }
+        .gv-dash-top {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            width: 100%;
+            background-image: linear-gradient(to bottom left, #e4e8ea, #f2f6f9);
+            border-radius: 1.75rem;
+            box-shadow:
+                inset -2px 2px 0 0 hsl(0 0% 100% / 0.9),
+                -12px 16px 32px hsl(0 0% 0% / 0.16);
+            overflow: hidden;
+            color: #334155;
+        }
+        .gv-dash-top::after {
+            content: "";
+            flex-shrink: 0;
+            height: 2px;
+            background-image: linear-gradient(90deg, #0ea5e9, #6366f1, #a855f7);
+        }
+        .gv-dash-top .zone-topo {
+            flex-shrink: 0;
+            min-height: 48px;
+            max-height: 72px;
+            background: transparent !important;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+            backdrop-filter: none;
+        }
+        .gv-dash-top .zone-topo .text-slate-500 {
+            color: #64748b !important;
+        }
+        .gv-dash-top .gv-zone-kpis {
+            background: transparent !important;
+            border-bottom: none !important;
+        }
+        .gv-dash-top .gv-zone-kpis .kpi-cell {
+            border-right-color: rgba(15, 23, 42, 0.1);
+        }
+        .gv-dash-top .gv-zone-kpis .text-slate-500 {
+            color: #64748b !important;
+        }
+        .gv-dash-top .gv-info-clock {
+            color: #0f172a !important;
+        }
+        .gv-dash-top .gv-info-date {
+            color: #64748b !important;
+        }
+        .gv-dash-top .gv-zone-kpis .text-kpi {
+            font-size: clamp(1rem, 1.65vw, 1.38rem);
+        }
+        .gv-dash-top .gv-zone-kpis .text-label {
+            font-size: clamp(0.72rem, 1.05vw, 0.88rem);
+        }
+        /* Barra horizontal “Rota ok” (substitui o anel circular) */
+        .gv-kpi-bar-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.35rem;
+            width: 100%;
+            min-width: 9.5rem;
+            max-width: 13rem;
+            padding: 0 0.15rem;
+        }
+        .gv-dash-top .gv-kpi-bar-stack .gv-ring-label {
+            font-size: clamp(0.58rem, 0.85vw, 0.7rem);
+            text-align: center;
+            max-width: none;
+        }
+        .gv-kpi-bar-pct {
+            font-size: clamp(0.95rem, 1.85vw, 1.38rem);
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            color: #0f172a;
+            text-align: center;
+            letter-spacing: -0.02em;
+        }
+        .gv-kpi-bar-track {
+            height: 12px;
+            border-radius: 9999px;
+            background: rgba(15, 23, 42, 0.1);
+            overflow: hidden;
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+        }
+        .gv-kpi-bar-fill {
+            height: 100%;
+            width: 0%;
+            min-width: 0;
+            border-radius: 9999px;
+            background: linear-gradient(90deg, #38bdf8, #6366f1);
+            transition: width 0.45s ease;
+        }
+        .gv-zone-kpis {
+            flex: 0 0 auto;
+            width: 100%;
+            min-height: 64px;
+            max-height: none;
+            overflow-x: hidden;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            align-items: stretch;
+            justify-content: stretch;
+            flex-wrap: wrap;
+            box-sizing: border-box;
+        }
+        @media (min-width: 1100px) {
+            .gv-zone-kpis { flex-wrap: nowrap; }
+        }
+        .gv-zone-kpis .kpi-cell {
+            border-right: 1px solid rgba(51, 65, 85, 0.8);
+            justify-content: center;
+            text-align: center;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        @media (max-width: 1099px) {
+            .gv-zone-kpis .kpi-cell { flex: 1 1 40%; min-width: 7rem; }
+        }
+        .gv-zone-kpis .kpi-cell:last-child {
+            border-right: none;
+        }
+        .gv-zone-kpis .kpi-cell > .leading-tight,
+        .gv-zone-kpis .kpi-cell > .gv-kpi-bar-stack {
+            width: 100%;
+            justify-content: center;
+        }
+        .gv-zone-kpis .kpi-cell.gv-kpi-tight {
+            flex: 1 1 auto;
+            min-width: 8.5rem;
+        }
+        .gv-zone-kpis .kpi-cell.gv-kpi-clock-cell {
+            flex: 0.65 0 auto;
+            min-width: 5.5rem;
+        }
+        .gv-kpi-label-long {
+            line-height: 1.2;
+            max-width: 11rem;
+            letter-spacing: 0.05em;
+        }
+        /* KPIs — leitura operacional (painel informativo) */
+        .gv-zone-kpis .text-kpi {
+            font-size: clamp(1rem, 1.65vw, 1.38rem);
+        }
+        .gv-zone-kpis .text-label {
+            font-size: clamp(0.72rem, 1.05vw, 0.88rem);
+        }
+        .gv-zone-kpis .text-card-title {
+            font-size: clamp(0.85rem, 1.2vw, 1rem);
+        }
+        .gv-zone-kpis .gv-ring-label {
+            font-weight: 600;
+            line-height: 1.15;
+            max-width: 5rem;
+            letter-spacing: 0.02em;
+        }
+        .gv-zone-kpis .gv-info-clock {
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+        }
+        .gv-zone-kpis .gv-info-date {
+            margin-top: 0.2rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .gv-stat-good { color: var(--gv-good) !important; font-weight: 600 !important; }
+        .gv-stat-attn { color: var(--gv-attn) !important; font-weight: 600 !important; }
+        .gv-dash-top .gv-stat-good { color: #15803d !important; }
+        .gv-dash-top .gv-stat-attn { color: #dc2626 !important; }
+        .gv-zone-kpis .gv-kpi-value-line.gv-stat-good,
+        .gv-zone-kpis .gv-kpi-value-line.gv-stat-attn {
+            font-weight: 900 !important;
+        }
+        .gv-delta-worse { color: var(--gv-delta-worse) !important; font-weight: 800 !important; }
+        .gv-delta-better { color: var(--gv-delta-better) !important; font-weight: 800 !important; }
+        .gv-delta-same { color: var(--gv-neutral) !important; font-weight: 600 !important; }
+        .gv-dash-top .gv-delta-worse { color: #dc2626 !important; }
+        .gv-dash-top .gv-delta-better { color: #15803d !important; }
+        .gv-dash-top .gv-delta-same { color: #64748b !important; }
+        .gv-header__pct,
+        #hdr-dev-hoje { font-weight: 800 !important; font-variant-numeric: tabular-nums; }
+        .gv-zone-kpis .gv-kpi-value-line {
+            margin: 0;
+            line-height: 1.2;
+        }
+        #hdr-delta {
+            margin: 0.25rem 0 0 0;
+            text-align: center;
+            line-height: 1.2;
+        }
+        /* “Diferença” em caixa normal (não como os rótulos em maiúsculas da TV) */
+        .gv-zone-kpis .gv-kpi-delta-prefix {
+            text-transform: none;
+            letter-spacing: 0.02em;
+            display: block;
+            margin-bottom: 0.15rem;
+            text-align: center;
+        }
+        .gv-body {
+            /* Escala tipográfica dos cards: título = referência; restante deriva */
+            --gv-card-title-fs: 0.78rem;
+            --gv-card-title-ls: 0.07em;
+            --gv-card-title-color: #64748b;
+            --gv-card-title-ferias-color: #15803d;
+            --gv-card-text-fs: 0.72rem;
+            --gv-card-label-fs: 0.68rem;
+            display: grid;
+            /* Col. 1: pilha devoluções (máx. 600px); centro e direita dividem o restante */
+            grid-template-columns: minmax(0, 37.5rem) minmax(0, 1.55fr) minmax(0, 1.35fr);
+            gap: 0.4rem;
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            overflow: hidden;
+            align-items: stretch;
+            align-content: stretch;
+            width: 100%;
+            padding-top: 0.35rem;
+        }
+        .gv-col { display: flex; flex-direction: column; gap: 0.38rem; min-height: 0; min-width: 0; width: 100%; }
+        .gv-col-dev {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .gv-dev-cards {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            gap: 0.38rem;
+            flex: 1 1 0;
+            min-height: 0;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 37.5rem;
+        }
+        .gv-dev-cards .gv-dev-card {
+            width: 100%;
+            max-width: 37.5rem;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            flex: 1 1 0;
+            overflow: hidden;
+        }
+        .gv-col-mid { min-height: 0; overflow: hidden; }
+        .gv-body .gv-col-mid .gv-surface {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+        .gv-col-right {
+            min-width: 0;
+            max-width: none;
+            flex-shrink: 1;
+        }
+        .gv-body .gv-col-right .gv-surface {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            max-width: none;
+            box-sizing: border-box;
+        }
+        .gv-body .gv-card-head--bday .gv-bday-title-row {
+            margin-bottom: 0;
+            flex: 1;
+            min-width: 0;
+        }
+        .gv-table-wrap { overflow: hidden; flex: 1; min-height: 0; }
+        /* Tabelas devolução — compactas, sem scroll interno */
+        .gv-body .gv-dev-card .gv-table-wrap {
+            overflow: hidden;
+            flex: 1 1 0;
+            min-height: 0;
+        }
+        .gv-body .gv-dev-card .gv-table-wrap table {
+            font-size: var(--gv-card-text-fs);
+            line-height: 1.18;
+        }
+        .gv-body .gv-dev-card .gv-table-wrap thead th {
+            font-size: var(--gv-card-label-fs);
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            padding-top: 0.12rem !important;
+            padding-bottom: 0.1rem !important;
+        }
+        .gv-body .gv-dev-card .gv-table-wrap tbody td {
+            padding-top: 0.1rem !important;
+            padding-bottom: 0.08rem !important;
+        }
+        .gv-body .gv-dev-card .gv-table-wrap .gv-table-empty {
+            font-size: var(--gv-card-text-fs) !important;
+            padding-top: 0.5rem !important;
+            padding-bottom: 0.5rem !important;
+        }
+        .gv-table-wrap table {
+            font-size: 0.875rem;
+            table-layout: fixed;
+            width: 100%;
+            font-weight: 500;
+        }
+        .gv-table-wrap th {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #94a3b8;
+        }
+        .gv-table-wrap .gv-name-cell {
+            width: 52%;
+            vertical-align: middle;
+            overflow: hidden;
+            padding-left: 0.25rem;
+            padding-right: 0.25rem;
+            text-align: left;
+        }
+        .gv-table-wrap .gv-name-cell .gv-fit-oneline {
+            max-width: 100%;
+            vertical-align: middle;
+        }
+        .gv-table-wrap th:nth-child(2),
+        .gv-table-wrap td:nth-child(2) { width: 30%; text-align: center; }
+        .gv-table-wrap th:nth-child(3),
+        .gv-table-wrap td:nth-child(3) { width: 18%; text-align: center; }
+        .gv-table-wrap th:first-child { text-align: left; }
+        .gv-fit-oneline {
+            display: block;
+            white-space: nowrap;
+            line-height: 1.2;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .gv-table-wrap thead th {
+            font-weight: 600;
+            color: #94a3b8;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.85);
+        }
+        .gv-table-wrap tbody tr { border-bottom: 1px solid rgba(51, 65, 85, 0.45); }
+        .gv-table-wrap tbody tr:last-child { border-bottom: none; }
+        .gv-pct-good { color: var(--gv-good); font-weight: 500; }
+        .gv-pct-neutral { color: #94a3b8; font-weight: 600; }
+        .gv-pct-attn { color: #f87171; font-weight: 800; }
+        .gv-bday-list { list-style: none; margin: 0; padding: 0; }
+        .gv-bday-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.35rem;
+            flex-wrap: nowrap;
+            padding: 0.42rem 0;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.55);
+        }
+        .gv-bday-row:last-child { border-bottom: none; }
+        .gv-bday-cake {
+            flex-shrink: 0;
+            font-size: 1.05rem;
+            line-height: 1;
+        }
+        .gv-bday-name.gv-fit-oneline {
+            flex: 1;
+            min-width: 0;
+            font-weight: 700;
+        }
+        .gv-bday-badge-inline {
+            flex-shrink: 0;
+            font-size: 0.625rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #fff;
+            background: #2f6b58;
+            padding: 0.18rem 0.4rem;
+            border-radius: 4px;
+        }
+        .gv-bday-date {
+            flex-shrink: 0;
+            font-weight: 700;
+            font-size: 0.8125rem;
+            color: #94a3b8;
+            font-variant-numeric: tabular-nums;
+        }
+        .gv-bday-today {
+            background: rgba(34, 197, 94, 0.14);
+            border-radius: 8px;
+            padding: 0.35rem 0.3rem;
+            margin: 0.08rem 0;
+            border-bottom-color: transparent;
+        }
+        .gv-bday-empty { padding: 0.5rem 0; color: #64748b; font-size: 0.8125rem; }
+        .gv-body .gv-bday-empty { font-size: var(--gv-card-label-fs); padding: 0.25rem 0; }
+        .gv-body .gv-bday-badge-inline {
+            font-size: var(--gv-card-label-fs);
+            padding: 0.12rem 0.32rem;
+        }
+        .gv-bday-title-row {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-bottom: 0.25rem;
+        }
+        .gv-bday-title-row .gv-bday-cake { font-size: 1.15rem; }
+        .gv-card-title--ferias { color: #86efac !important; }
+        .gv-ferias-programadas-label {
+            color: #fca5a5 !important;
+            font-weight: 700;
+        }
+        .gv-aviso-body { flex: 1; min-height: 0; overflow: hidden; font-size: 0.875rem; color: #cbd5e1; padding: 2px 0; line-height: 1.45; }
+        .gv-aviso-body h4 { color: #f8fafc; }
+        .gv-aviso-body .gv-aviso-muted { color: #94a3b8; }
+        .gv-col-right .border-slate-50 { border-color: rgba(51, 65, 85, 0.55) !important; }
+        .gv-col-right .text-slate-600 { color: #cbd5e1 !important; }
+        .gv-col-right .text-slate-400 { color: #94a3b8 !important; }
+        .gv-table-val { color: #cbd5e1 !important; }
+        .gv-table-empty { color: #64748b !important; }
+        .gv-menu-btn {
+            border: 1px solid rgba(15, 23, 42, 0.12);
+            background: linear-gradient(to bottom left, #eef1f4, #f8fafc);
+            color: #334155;
+            box-shadow: -3px 5px 14px rgba(0, 0, 0, 0.12);
+        }
+        .gv-menu-btn:hover { filter: brightness(0.97); }
+        @media (max-width: 1024px) {
+            .kpi-wrap { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body class="gv-page text-slate-700" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
+    {% include "_sidebar.html" %}
+    <button @click="sidebarOpen = true" class="gv-menu-btn fixed top-3 left-3 z-[60] flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors hover:brightness-110" :class="sidebarOpen ? 'hidden' : ''" type="button" title="Menu">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <span class="text-xs font-medium hidden sm:inline">Menu</span>
+    </button>
+
+    {% set inf = informativo or {} %}
+    {% set _cc = current_cost_center or 'Todos' %}
+    {% set _d = current_date or '' %}
+    {% set tt = inf.get('tonnage_today') or {} %}
+    {% set cmp = inf.get('devolucao_compare') or {} %}
+    {% set pp = tt.get('progress_pct') or 0 %}
+    {% set dhoje = inf.get('devolucao_hoje_pct', 0) %}
+    {% set prev_p = cmp.get('prev_pct_rotas', 0)|float %}
+    {% set curr_p = cmp.get('curr_pct_rotas', 0)|float %}
+    {% set dhoje_f = dhoje|default(0)|float %}
+    {% set bulletins = inf.get('bulletins') or [] %}
+    {% set b0 = bulletins[0] if bulletins|length > 0 else none %}
+    {% set b1 = bulletins[1] if bulletins|length > 1 else none %}
+    {% set b_sp = inf.get('birthdays_souza_pinto') %}
+    {% set b_ex = inf.get('birthdays_exemplar') %}
+    {% if b_sp is none and b_ex is none %}
+        {% set legacy = inf.get('birthdays_month') or [] %}
+        {% set b_sp = [] %}
+        {% set b_ex = legacy %}
+    {% endif %}
+    {% set b_all = ((b_sp or []) + (b_ex or []))|sort(attribute='day') %}
+
+    {% macro gv_dois_nomes(n) -%}
+    {%- set t = (n|string)|trim -%}
+    {%- if t -%}
+    {%- set partes = t.split() -%}
+    {%- if partes|length >= 2 -%}{{ partes[0] }} {{ partes[1] }}{%- elif partes|length == 1 -%}{{ partes[0] }}{%- endif -%}
+    {%- endif -%}
+    {%- endmacro %}
+
+    {% macro gv_birthday_rows(items, list_id) -%}
+    <ul id="{{ list_id }}" class="gv-bday-list">
+        {%- for b in (items or []) -%}
+        <li class="gv-bday-row{% if b.is_today %} gv-bday-today{% endif %}">
+            <span class="gv-bday-cake" aria-hidden="true">🎂</span>
+            <span class="gv-bday-name gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(b.name) }}</span>
+            {%- if b.is_today %}<span class="gv-bday-badge-inline">Hoje</span>{% endif -%}
+            <span class="gv-bday-date">{{ b.day }}/{{ current_date[5:7] if current_date else '' }}</span>
+        </li>
+        {%- else -%}
+        <li class="gv-bday-empty">Nenhum neste mês.</li>
+        {%- endfor -%}
+    </ul>
+    {%- endmacro %}
+
+    <main class="gv-shell" id="informativo-root" data-date="{{ _d }}" data-cc="{{ _cc|e }}">
+        <div class="gv-panel-aurora" aria-hidden="true">
+            <div class="gv-aurora-blob gv-aurora-blob--tl"></div>
+            <div class="gv-aurora-blob gv-aurora-blob--br"></div>
+        </div>
+        <div class="gv-panel-stack">
+        <div class="gv-dash-top">
+            <header class="zone-topo gv-informativo-zone-topo relative z-10 flex items-center justify-start pr-4 sm:pr-6 shrink-0 min-w-0">
+                <h1 class="gv-informativo-page-title truncate min-w-0">Gestão Avista</h1>
+            </header>
+            <section class="zone-kpis gv-zone-kpis relative z-10 flex items-stretch px-2 sm:px-4 shrink-0 kpi-wrap" aria-label="Indicadores do dia">
+                <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
+                    <div class="leading-tight text-center min-w-0 max-w-[11rem] mx-auto">
+                        <div class="text-label text-slate-500 uppercase font-semibold gv-kpi-label-long mx-auto">Devolução mês passado</div>
+                        <p id="hdr-prev-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if prev_p < 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{{ cmp.get('prev_pct_rotas', 0) }}</span>%</p>
+                    </div>
+                </div>
+                <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
+                    <div class="leading-tight text-center min-w-0 max-w-[11rem] mx-auto">
+                        <div class="text-label text-slate-500 uppercase font-semibold gv-kpi-label-long mx-auto">Devolução mês atual</div>
+                        <p id="hdr-curr-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p < 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{{ cmp.get('curr_pct_rotas', 0) }}</span>%</p>
+                    </div>
+                </div>
+                <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
+                    <div class="leading-tight text-center min-w-0 mx-auto">
+                        <span class="text-label text-slate-500 font-semibold gv-kpi-delta-prefix">Diferença</span>
+                        <p id="hdr-delta" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}">
+                            {% if curr_p > prev_p %}▲ +{{ '%.1f'|format(curr_p - prev_p)|replace('.', ',') }}%{% elif curr_p < prev_p %}▼ −{{ '%.1f'|format(prev_p - curr_p)|replace('.', ',') }}%{% else %}= 0%{% endif %}
+                        </p>
+                    </div>
+                </div>
+                <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
+                    <div class="leading-tight text-center min-w-0 max-w-[11rem] mx-auto">
+                        <div class="text-label text-slate-500 uppercase font-semibold gv-kpi-label-long mx-auto">Devolução hoje</div>
+                        <p id="hdr-dev-hoje-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if dhoje_f < 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-dev-hoje" class="gv-header__pct">{{ dhoje }}</span>%</p>
+                    </div>
+                </div>
+                <div class="kpi-cell gv-kpi-tight flex items-center justify-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0">
+                    <div class="gv-kpi-bar-stack">
+                        <span class="text-label text-slate-500 font-semibold gv-ring-label">Rota ok</span>
+                        <span id="tonnage-pct-text" class="gv-kpi-bar-pct">{{ '%.0f'|format(pp) }}%</span>
+                        <div class="gv-kpi-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (pp if pp <= 100 else 100)|int }}" aria-labelledby="tonnage-pct-text">
+                            <div id="tonnage-bar-fill" class="gv-kpi-bar-fill" style="width: {{ pp if pp <= 100 else 100 }}%;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="kpi-cell gv-kpi-clock-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
+                    <div class="leading-tight text-center w-full">
+                        <div id="info-clock" class="gv-info-clock font-black text-kpi font-mono">--:--:--</div>
+                        <div id="info-date" class="gv-info-date text-label text-slate-400 uppercase tracking-wider">{{ _d }}</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="gv-body">
+            <div class="gv-col gv-col-dev">
+                <div class="gv-dev-cards">
+                    <article class="gv-surface gv-dev-card">
+                        <div class="gv-card-head">
+                            <h2 class="gv-card-title">Dev. motoristas · mês</h2>
+                            <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
+                        </div>
+                        <div class="gv-table-wrap">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr>
+                                        <th class="py-1 px-0.5">Colaborador</th>
+                                        <th class="py-1 px-0.5">Valor (R$)</th>
+                                        <th class="py-1 px-0.5">%</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ranking-body">
+                                    {% for r in (inf.get('devolucao_ranking_motoristas') or inf.get('devolucao_ranking') or []) %}
+                                    <tr>
+                                        <td class="gv-name-cell py-1 px-0.5" data-fit-container>
+                                            <span class="gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(r.name) }}</span>
+                                        </td>
+                                        <td class="py-1 px-0.5 tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
+                                        <td class="py-1 px-0.5 align-middle {{ 'gv-pct-attn' if (r.pct|float) >= 2 else 'gv-pct-neutral' }}">{{ r.pct }}%</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="gv-table-empty text-center">Sem devoluções no mês.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                    <article class="gv-surface gv-dev-card">
+                        <div class="gv-card-head">
+                            <h2 class="gv-card-title">Dev. ajudantes · mês</h2>
+                            <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                        </div>
+                        <div class="gv-table-wrap">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr>
+                                        <th class="py-1 px-0.5">Colaborador</th>
+                                        <th class="py-1 px-0.5">Valor (R$)</th>
+                                        <th class="py-1 px-0.5">%</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for r in (inf.get('devolucao_ranking_ajudantes') or []) %}
+                                    <tr>
+                                        <td class="gv-name-cell py-1 px-0.5" data-fit-container>
+                                            <span class="gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(r.name) }}</span>
+                                        </td>
+                                        <td class="py-1 px-0.5 tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
+                                        <td class="py-1 px-0.5 align-middle {{ 'gv-pct-attn' if (r.pct|float) >= 2 else 'gv-pct-neutral' }}">{{ r.pct }}%</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="gv-table-empty text-center">Sem devoluções no mês.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+            </div>
+
+            <div class="gv-col gv-col-mid">
+                <article class="gv-surface">
+                    <div class="gv-card-head">
+                        <h2 class="gv-card-title">Comunicado em destaque</h2>
+                        <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📢</span>
+                    </div>
+                    <div class="gv-aviso-body" id="bulletin-slot-0">
+                        {% if b0 %}
+                        <h4 class="font-semibold gv-aviso-heading mb-2">{{ b0.title }}</h4>
+                        {% if b0.image_url %}<img src="{{ b0.image_url }}" alt="" class="max-h-28 rounded-lg border border-slate-600 mb-3 object-cover">{% endif %}
+                        {% if b0.body %}<p class="whitespace-pre-wrap">{{ b0.body }}</p>{% endif %}
+                        {% else %}
+                        <p class="gv-aviso-muted">Nenhum aviso neste espaço.</p>
+                        {% endif %}
+                    </div>
+                </article>
+                <article class="gv-surface">
+                    <div class="gv-card-head">
+                        <h2 class="gv-card-title">Outros avisos</h2>
+                        <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📋</span>
+                    </div>
+                    <div class="gv-aviso-body" id="bulletin-slot-1">
+                        {% if b1 %}
+                        <h4 class="font-semibold gv-aviso-heading mb-2">{{ b1.title }}</h4>
+                        {% if b1.image_url %}<img src="{{ b1.image_url }}" alt="" class="max-h-28 rounded-lg border border-slate-600 mb-3 object-cover">{% endif %}
+                        {% if b1.body %}<p class="whitespace-pre-wrap">{{ b1.body }}</p>{% endif %}
+                        {% else %}
+                        <p class="gv-aviso-muted">Nenhum aviso neste espaço.</p>
+                        {% endif %}
+                    </div>
+                </article>
+            </div>
+
+            <div class="gv-col gv-col-right">
+                <article class="gv-surface">
+                    <div class="gv-card-head gv-card-head--bday">
+                        <div class="gv-bday-title-row">
+                            <span class="gv-bday-cake" aria-hidden="true">🎂</span>
+                            <h2 class="gv-card-title !mb-0">Aniversariantes</h2>
+                        </div>
+                        <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12v10H4a2 2 0 0 1-2-2V12"/><path d="M22 7H2v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7Z"/><path d="M12 7V3a2 2 0 0 1 4 0v4"/><path d="M12 7V3a2 2 0 0 0-4 0v4"/></svg></span>
+                    </div>
+                    {{ gv_birthday_rows(b_all, 'card-birthdays-all') }}
+                    <h2 class="gv-card-title gv-card-title--ferias gv-ferias-block">Férias</h2>
+                    <div class="flex flex-col gv-ferias-stack">
+                        <div>
+                            <ul id="card-vac-active" class="space-y-0 text-slate-600 m-0 p-0 list-none">
+                                {% for v in (inf.get('vacation_active') or []) %}
+                                <li class="gv-ferias-li py-1 border-b border-slate-50">{{ gv_dois_nomes(v.name) }} <span class="text-slate-400 text-xs">até {{ v.until }} ({{ v.days_left }})</span></li>
+                                {% else %}
+                                <li class="text-slate-400 gv-ferias-li py-1">—</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div>
+                            <p class="font-semibold mb-1 mt-1 uppercase tracking-wider gv-ferias-programadas-label">Programadas</p>
+                            <ul id="card-vac-up" class="space-y-0 text-slate-600 m-0 p-0 list-none">
+                                {% for v in (inf.get('vacation_upcoming') or []) %}
+                                <li class="gv-ferias-li py-1 border-b border-slate-50">{{ gv_dois_nomes(v.name) }} — {{ v.start }}</li>
+                                {% else %}
+                                <li class="text-slate-400 gv-ferias-li py-1">—</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </div>
+        </div>
+    </main>
+
+    <script>
+    (function() {
+        function tickClock() {
+            var el = document.getElementById('info-clock');
+            var dEl = document.getElementById('info-date');
+            if (!el) return;
+            var now = new Date();
+            var br = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(now);
+            var h = '', m = '', s = '';
+            br.forEach(function(p) { if (p.type === 'hour') h = p.value; if (p.type === 'minute') m = p.value; if (p.type === 'second') s = p.value; });
+            el.textContent = h + ':' + m + ':' + s;
+            if (dEl && !dEl.dataset.fixed) {
+                dEl.textContent = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(now);
+            }
+        }
+        tickClock();
+        setInterval(tickClock, 1000);
+
+        function gvFitOneLineText(el) {
+            if (!el || el.nodeType !== 1) return;
+            var minFs = parseFloat(el.getAttribute('data-fit-min'), 10);
+            var maxFs = parseFloat(el.getAttribute('data-fit-max'), 10);
+            if (isNaN(minFs)) minFs = 7;
+            if (isNaN(maxFs)) maxFs = 11;
+            var container = el.closest('[data-fit-container]') || el.closest('.gv-bday-row') || el.parentElement;
+            if (!container) return;
+            el.style.whiteSpace = 'nowrap';
+            el.style.display = el.closest('.gv-name-cell') ? 'inline-block' : 'block';
+            var avail;
+            if (container.classList.contains('gv-bday-row')) {
+                var rowW = container.clientWidth;
+                var other = 0;
+                for (var i = 0; i < container.children.length; i++) {
+                    if (container.children[i] !== el) other += container.children[i].offsetWidth;
+                }
+                avail = Math.max(28, rowW - other - 8);
+            } else {
+                var cs = window.getComputedStyle(container);
+                var padL = parseFloat(cs.paddingLeft) || 0;
+                var padR = parseFloat(cs.paddingRight) || 0;
+                avail = container.clientWidth - padL - padR;
+            }
+            var fs = maxFs;
+            var step = 0.25;
+            el.style.fontSize = fs + 'px';
+            var guard = 100;
+            while (fs > minFs && el.scrollWidth > avail + 0.5 && guard-- > 0) {
+                fs -= step;
+                el.style.fontSize = fs + 'px';
+            }
+        }
+        function gvFitAll() {
+            document.querySelectorAll('.gv-fit-oneline').forEach(function(el) {
+                gvFitOneLineText(el);
+            });
+        }
+        function gvScheduleFit() {
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    gvFitAll();
+                });
+            });
+        }
+        gvScheduleFit();
+        window.addEventListener('resize', function() {
+            clearTimeout(window._gvFitDebounce);
+            window._gvFitDebounce = setTimeout(gvScheduleFit, 120);
+        });
+        var gvBodyEl = document.querySelector('.gv-body');
+        if (gvBodyEl && typeof ResizeObserver !== 'undefined') {
+            var _ro = new ResizeObserver(function() { gvScheduleFit(); });
+            _ro.observe(gvBodyEl);
+        }
+
+        function devolucaoPctLineClass(v) {
+            v = Number(v) || 0;
+            return v < 2 ? 'gv-stat-good' : 'gv-stat-attn';
+        }
+        function devolucaoHojeLineClass(v) {
+            v = Number(v) || 0;
+            return v < 2 ? 'gv-stat-good' : 'gv-stat-attn';
+        }
+        function fmtDeltaLine(prev, curr) {
+            var p = Number(prev) || 0;
+            var c = Number(curr) || 0;
+            if (c > p) {
+                var a = Math.round((c - p) * 10) / 10;
+                return { cls: 'gv-delta-worse', text: '▲ +' + String(a).replace('.', ',') + '%' };
+            }
+            if (c < p) {
+                var q = Math.round((p - c) * 10) / 10;
+                return { cls: 'gv-delta-better', text: '▼ \u2212' + String(q).replace('.', ',') + '%' };
+            }
+            return { cls: 'gv-delta-same', text: '= 0%' };
+        }
+
+        var root = document.getElementById('informativo-root');
+        function refreshInformativo() {
+            if (!root) return;
+            var d = root.dataset.date || '';
+            var cc = encodeURIComponent(root.dataset.cc || 'Todos');
+            fetch('/api/dashboard/informativo-data?date=' + encodeURIComponent(d) + '&cost_center=' + cc, { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (!data || !data.informativo) return;
+                    var ton = (data.informativo || {}).tonnage_today || {};
+                    var cmp = (data.informativo || {}).devolucao_compare || {};
+                    var elPct = document.getElementById('tonnage-pct-text');
+                    var barFill = document.getElementById('tonnage-bar-fill');
+                    var barTrack = barFill && barFill.parentElement;
+                    var pct = Math.min(100, Math.max(0, ton.progress_pct || 0));
+                    if (elPct) elPct.textContent = Math.round(pct) + '%';
+                    if (barFill) barFill.style.width = pct + '%';
+                    if (barTrack && barTrack.setAttribute) {
+                        barTrack.setAttribute('aria-valuenow', String(Math.round(pct)));
+                    }
+                    var prevV = cmp.prev_pct_rotas;
+                    var currV = cmp.curr_pct_rotas;
+                    var hPrev = document.getElementById('hdr-prev-pct');
+                    var hCurr = document.getElementById('hdr-curr-pct');
+                    if (hPrev) hPrev.textContent = prevV;
+                    if (hCurr) hCurr.textContent = currV;
+                    var linePrev = document.getElementById('hdr-prev-line');
+                    var lineCurr = document.getElementById('hdr-curr-line');
+                    if (linePrev) linePrev.className = 'gv-kpi-hdr-line mt-1 ' + devolucaoPctLineClass(prevV);
+                    if (lineCurr) lineCurr.className = 'gv-kpi-hdr-line mt-1 ' + devolucaoPctLineClass(currV);
+                    var hd = document.getElementById('hdr-delta');
+                    if (hd) {
+                        var dl = fmtDeltaLine(prevV, currV);
+                        hd.textContent = dl.text;
+                        hd.className = dl.cls;
+                    }
+                    var hj = document.getElementById('hdr-dev-hoje');
+                    var hjl = document.getElementById('hdr-dev-hoje-line');
+                    var dh = data.informativo.devolucao_hoje_pct;
+                    if (hj != null && dh != null) hj.textContent = dh;
+                    if (hjl != null && dh != null) hjl.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + devolucaoHojeLineClass(dh);
+                    gvScheduleFit();
+                })
+                .catch(function() {});
+        }
+        setInterval(refreshInformativo, 60000);
+    })();
+    </script>
+</body>
+</html>

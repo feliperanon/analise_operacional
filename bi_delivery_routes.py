@@ -3363,17 +3363,31 @@ def _build_bi_devolucoes_dataset(
     total_qtd = len(devs)
     total_valor = sum(d.valor for d in devs)
 
-    # Base de valor (rotas no período) para % de devolução em valor
+    # Mesmo critério da Central de Comando (dashboard TV / devolucao_mes em main.py):
+    # % = paradas com status "devolucao" / paradas concluídas ("entregue" + "devolucao"), só rotas type=delivery.
     date_str_i = date_i.strftime("%Y-%m-%d")
     date_str_f = date_f.strftime("%Y-%m-%d")
-    routes_in_period = session.exec(
+    rq_base = (
         select(models.Route)
+        .where(models.Route.type == "delivery")
         .where(models.Route.date >= date_str_i)
         .where(models.Route.date <= date_str_f)
-        .where(models.Route.valor_financeiro.is_not(None))
-    ).all()
-    valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_in_period)
-    pct_devolucao_valor = round(total_valor / valor_base_rotas * 100, 2) if valor_base_rotas and valor_base_rotas > 0 else 0.0
+    )
+    if motorista_id:
+        rq_base = rq_base.where(models.Route.employee_id == motorista_id)
+    if client_ids_dev:
+        if len(client_ids_dev) == 1:
+            rq_base = rq_base.where(models.Route.client_id == client_ids_dev[0])
+        else:
+            rq_base = rq_base.where(models.Route.client_id.in_(client_ids_dev))
+    routes_delivery_period = session.exec(rq_base).all()
+    _done_status = {"entregue", "devolucao"}
+    month_done = [r for r in routes_delivery_period if (r.delivery_status or "").strip().lower() in _done_status]
+    month_returns = [r for r in month_done if (r.delivery_status or "").strip().lower() == "devolucao"]
+    pct_devolucao_valor = round((len(month_returns) / len(month_done) * 100.0), 1) if month_done else 0.0
+
+    # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
+    valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
 
     # mapa de cores por responsabilidade (evita string matching no template)
     _RESP_COLORS_DETAIL = {"MERCADO": "var(--color-danger)", "COMERCIAL": "var(--color-warning)"}
@@ -3397,8 +3411,6 @@ def _build_bi_devolucoes_dataset(
     per_cluster: dict[str, dict] = {}
     # por motorista
     per_motorista: dict[str, dict] = {}
-    # por ajudante
-    per_ajudante: dict[str, dict] = {}
     # por vendedor
     per_vendedor: dict[str, dict] = {}
     # drill vendedor: responsabilidade e motivos por vendedor
@@ -3507,12 +3519,6 @@ def _build_bi_devolucoes_dataset(
         if (d.acima_300 or "NAO") == "SIM":
             mts["acima300"] += 1
 
-        # per_ajudante (inclui "Sem ajudante" quando ajudante_nome é —)
-        label_ajudante = ajudante_nome if ajudante_nome != "—" else "Sem ajudante"
-        ats = per_ajudante.setdefault(label_ajudante, {"ajudante": label_ajudante, "qtd": 0, "valor": 0.0})
-        ats["qtd"] += 1
-        ats["valor"] = round(ats["valor"] + val, 2)
-
         # per_vendedor
         vs = per_vendedor.setdefault(vendedor_nome, {"vendedor": vendedor_nome, "qtd": 0, "valor": 0.0})
         vs["qtd"] += 1
@@ -3563,7 +3569,6 @@ def _build_bi_devolucoes_dataset(
     # --- top N ---
     top_clientes = sorted(per_cliente.values(), key=lambda x: x["qtd"], reverse=True)[:20]
     top_motoristas = sorted(per_motorista.values(), key=lambda x: x["qtd"], reverse=True)[:20]
-    top_ajudantes = sorted(per_ajudante.values(), key=lambda x: x["qtd"], reverse=True)[:15]
     top_motivos = sorted(per_motivo.values(), key=lambda x: x["qtd"], reverse=True)[:15]
     top_vendedores = sorted(per_vendedor.values(), key=lambda x: x["qtd"], reverse=True)[:15]
     top_clusters = sorted(per_cluster.values(), key=lambda x: x["qtd"], reverse=True)[:15]
@@ -3687,7 +3692,6 @@ def _build_bi_devolucoes_dataset(
         "top_motivos": top_motivos,
         "top_clientes": top_clientes,
         "top_motoristas": top_motoristas,
-        "top_ajudantes": top_ajudantes,
         "top_vendedores": top_vendedores,
         "top_clusters": top_clusters,
         # heatmap
@@ -3710,7 +3714,6 @@ def _build_bi_devolucoes_dataset(
         "resp_drill_json": json.dumps(resp_drill, ensure_ascii=False, default=str),
         "top_motoristas_json": json.dumps(top_motoristas, ensure_ascii=False, default=str),
         "top_clientes_json": json.dumps(top_clientes, ensure_ascii=False, default=str),
-        "top_ajudantes_json": json.dumps(top_ajudantes, ensure_ascii=False, default=str),
         "top_vendedores_json": json.dumps(top_vendedores, ensure_ascii=False, default=str),
         "vendedor_drill_json": json.dumps(vendedor_drill, ensure_ascii=False, default=str),
         "top_clusters_json": json.dumps(top_clusters, ensure_ascii=False, default=str),

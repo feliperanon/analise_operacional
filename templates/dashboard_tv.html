@@ -22,20 +22,20 @@
             font-family: inherit;
         }
         .zone-topo { flex: 0 0 8vh; min-height: 64px; max-height: 88px; }
-        .zone-kpis { flex: 0 0 10vh; min-height: 72px; max-height: 100px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
-        .zone-central { flex: 1 1 46vh; min-height: 0; display: flex; flex-direction: row; gap: 0; }
-        .zone-central-grid { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-        .zone-sidebar { flex: 0 0 320px; min-width: 280px; max-width: 380px; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border-left: 1px solid rgba(51,65,85,0.8); background: rgba(15,23,42,0.6); overflow-y: auto; }
+        .zone-kpis { flex: 0 0 10vh; min-height: 72px; max-height: 100px; overflow: hidden; }
+        .zone-central { flex: 1 1 46vh; min-height: 0; display: flex; flex-direction: row; gap: 0; overflow: hidden; }
+        .zone-central-grid { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+        .zone-sidebar { flex: 0 0 320px; min-width: 280px; max-width: 380px; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px; border-left: 1px solid rgba(51,65,85,0.8); background: rgba(15,23,42,0.6); overflow: hidden; min-height: 0; }
         .zone-dia { flex: 0 0 8vh; min-height: 56px; max-height: 80px; }
 
         .zone-card { flex: 0 0 auto; min-width: 0; min-height: 0; max-height: 50%; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; border-width: 2px; }
         .zone-sidebar .zone-card { flex: 1 1 auto; min-height: 80px; max-height: none; }
         .zone-card .zone-card-header { flex-shrink: 0; padding: 6px 10px; border-bottom-width: 1px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-        .zone-card .zone-card-body { flex: 1; min-height: 0; padding: 6px 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+        .zone-card .zone-card-body { flex: 1; min-height: 0; padding: 6px 10px; overflow: hidden; display: flex; flex-direction: column; gap: 4px; }
         .zone-card .zone-card-body .zone-card-row { padding: 5px 8px; border-radius: 6px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: clamp(0.65rem, 0.9vw, 0.75rem); min-height: 0; }
         .zone-card .zone-card-body .zone-card-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .zone-card .zone-card-empty { font-size: clamp(0.65rem, 0.9vw, 0.75rem); padding: 4px 0; }
-        .driver-card .tv-open-client { transition: color 0.2s ease; }
+        .tv-balloon-driver .tv-open-client { transition: color 0.2s ease; }
 
         .panel-root .text-clock { font-size: clamp(1.75rem, 4vw, 2.75rem); }
         .panel-root .text-kpi { font-size: clamp(0.875rem, 1.5vw, 1.25rem); }
@@ -49,29 +49,32 @@
         .status-normal { background: rgba(34, 197, 94, 0.2); border-color: rgba(34, 197, 94, 0.5); color: #86efac; }
         .status-atencao { background: rgba(234, 179, 8, 0.2); border-color: rgba(234, 179, 8, 0.5); color: #fde047; }
         .status-critico { background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.6); color: #fca5a5; }
-        .driver-card--atencao { border-color: rgba(234, 179, 8, 0.6); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(234,179,8,0.06)); }
-        .driver-card--critico { border-color: rgba(239, 68, 68, 0.5); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(239,68,68,0.05)); }
-        .driver-card--ok { border-color: rgba(51, 65, 85, 0.9); }
-        .driver-card--not-started { border-color: rgba(100, 116, 139, 0.8); background: linear-gradient(135deg, rgba(30,41,59,0.98), rgba(71,85,105,0.15)); }
-        .driver-card--route-started { border-color: rgba(56, 189, 248, 0.7); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(56,189,248,0.1)); }
-        .driver-card--all-delivered { border-color: rgba(167, 139, 250, 0.7); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(124,58,237,0.14)); box-shadow: 0 0 20px rgba(139, 92, 246, 0.12); }
-        .driver-card--closed { border-color: rgba(34, 197, 94, 0.65); background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(34,197,94,0.12)); }
-        .bar-pct--ok { background: linear-gradient(to right, rgb(59 130 246), rgb(34 211 238)); }
-        .driver-card--closed .bar-pct--ok { background: linear-gradient(to right, rgb(34 197 94), rgb(52 211 153)); }
-        .bar-pct--entregues { background: linear-gradient(to right, rgb(124 58 237), rgb(192 132 252)); }
-        .bar-pct--atencao { background: linear-gradient(to right, rgb(234 179 8), rgb(251 191 36)); }
-        .bar-pct--critico { background: linear-gradient(to right, rgb(239 68 68), rgb(248 113 113)); }
 
-        .driver-grid { display: grid; gap: clamp(6px, 0.8vh, 12px); padding: clamp(6px, 0.8vh, 10px); min-height: 0; flex: 1 1 auto; align-content: stretch; }
-        .driver-grid .driver-cell { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-        .driver-card { height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border-radius: 0.75rem; border-width: 2px; padding: 0.5rem 0.75rem; }
-        .driver-card .card-head { flex-shrink: 0; border-bottom: 1px solid rgba(51,65,85,0.6); padding-bottom: 0.2rem; margin-bottom: 0.2rem; }
-        .driver-card .card-core { flex-shrink: 0; margin-bottom: 0.2rem; }
-        .driver-card .card-foot { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; font-size: clamp(0.55rem, 0.75vw, 0.65rem); }
-        .driver-card .open-list { overflow: hidden; display: flex; flex-direction: column; gap: 2px; max-height: 100%; }
-        .driver-card .open-item { flex-shrink: 0; }
-        .driver-card--dense .w-8 { width: 1.5rem; height: 1.5rem; font-size: 0.65rem; }
-        .driver-card--dense { padding: 0.35rem 0.5rem; }
+        .driver-grid {
+            display: grid;
+            gap: clamp(6px, 0.8vh, 12px);
+            padding: clamp(6px, 0.8vh, 10px);
+            min-height: 0;
+            flex: 1 1 auto;
+            align-content: stretch;
+            grid-auto-rows: 1fr;
+            overflow: hidden;
+            position: relative;
+        }
+        .driver-grid.tv-grid--alert .driver-cell:not(:has(.tv-balloon-list-row--slow)):not(:has(.tv-balloon-idle-pill--slow)) {
+            opacity: 0.38;
+            transition: opacity 0.35s ease;
+        }
+        .driver-grid .driver-cell {
+            min-height: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-self: stretch;
+            position: relative;
+            z-index: 1;
+            transition: opacity 0.35s ease;
+        }
         @media (max-width: 1024px) {
             .zone-topo { flex: 0 0 7vh; }
             .kpi-wrap { flex-wrap: wrap; }
@@ -84,6 +87,669 @@
         }
         .animate-bounce-slow {
             animation: bounce-slow 4s ease-in-out infinite;
+        }
+
+        /* From Uiverse.io by Smit-Prajapati — balão de alertas (classes prefixadas) */
+        .balloon-uiverse-card {
+            width: min(90vw, 360px);
+            min-height: 200px;
+            background: #243137;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: all 0.5s ease-in-out;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+        }
+        .balloon-uiverse-card--min {
+            width: auto;
+            min-height: 0;
+            padding: 10px 14px;
+            align-items: center;
+            justify-content: center;
+        }
+        .balloon-uiverse-card--min .balloon-uiverse-frame,
+        .balloon-uiverse-card--min .balloon-uiverse-bottom-text,
+        .balloon-uiverse-card--min .balloon-uiverse-hero,
+        .balloon-uiverse-card--min .balloon-uiverse-body {
+            display: none !important;
+        }
+        .balloon-uiverse-card--min .balloon-uiverse-min-only {
+            display: flex !important;
+        }
+        .balloon-uiverse-min-only {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: #bd9f67;
+        }
+        .balloon-uiverse-card .bu-logo-main {
+            fill: #bd9f67;
+        }
+        .balloon-uiverse-card .bu-logo-second {
+            fill: none;
+            stroke: #bd9f67;
+            stroke-width: 1px;
+        }
+        .balloon-uiverse-frame {
+            position: absolute;
+            inset: 0;
+            border: 2px solid #bd9f67;
+            opacity: 0;
+            transform: rotate(10deg);
+            transition: all 0.5s ease-in-out;
+            pointer-events: none;
+            border-radius: inherit;
+            z-index: 1;
+        }
+        .balloon-uiverse-bottom-text {
+            position: absolute;
+            left: 50%;
+            bottom: 13px;
+            transform: translateX(-50%);
+            font-size: 6px;
+            text-transform: uppercase;
+            padding: 0 5px 0 8px;
+            color: #bd9f67;
+            background: #243137;
+            opacity: 0;
+            letter-spacing: 7px;
+            transition: all 0.5s ease-in-out;
+            z-index: 2;
+            white-space: nowrap;
+        }
+        .balloon-uiverse-hero {
+            position: relative;
+            flex-shrink: 0;
+            min-height: 120px;
+            display: grid;
+            place-content: center;
+            padding: 16px 12px 8px;
+        }
+        .balloon-uiverse-content {
+            transition: all 0.5s ease-in-out;
+            position: relative;
+        }
+        .balloon-uiverse-content .balloon-uiverse-logo {
+            height: 35px;
+            position: relative;
+            width: 33px;
+            overflow: hidden;
+            margin: 0 auto;
+            transition: all 1s ease-in-out;
+        }
+        .balloon-uiverse-content .balloon-uiverse-logo .logo1 {
+            height: 33px;
+            position: absolute;
+            left: 0;
+        }
+        .balloon-uiverse-content .balloon-uiverse-logo .logo2 {
+            height: 33px;
+            position: absolute;
+            left: 33px;
+        }
+        .balloon-uiverse-content .balloon-uiverse-logo .trail {
+            position: absolute;
+            right: 0;
+            height: 100%;
+            width: 100%;
+            opacity: 0;
+        }
+        .balloon-uiverse-logo-bottom-text {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            margin-top: 30px;
+            color: #bd9f67;
+            padding-left: 8px;
+            font-size: 11px;
+            opacity: 0;
+            letter-spacing: normal;
+            transition: all 0.5s ease-in-out 0.5s;
+            white-space: nowrap;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .balloon-uiverse-card:hover {
+            border-radius: 0;
+            transform: scale(1.03);
+        }
+        .balloon-uiverse-card:hover .balloon-uiverse-logo {
+            width: 134px;
+            animation: balloon-uiverse-opacity 1s ease-in-out;
+        }
+        .balloon-uiverse-card:hover .balloon-uiverse-frame {
+            inset: 15px;
+            opacity: 1;
+            transform: rotate(0);
+        }
+        .balloon-uiverse-card:hover .balloon-uiverse-bottom-text {
+            letter-spacing: 3px;
+            opacity: 1;
+            transform: translateX(-50%);
+        }
+        .balloon-uiverse-card:hover .balloon-uiverse-logo-bottom-text {
+            opacity: 1;
+            letter-spacing: 6px;
+        }
+        .balloon-uiverse-card:hover .trail {
+            animation: balloon-uiverse-trail 1s ease-in-out;
+        }
+        @keyframes balloon-uiverse-opacity {
+            0% { border-right: 1px solid transparent; }
+            10% { border-right: 1px solid #bd9f67; }
+            80% { border-right: 1px solid #bd9f67; }
+            100% { border-right: 1px solid transparent; }
+        }
+        @keyframes balloon-uiverse-trail {
+            0% {
+                background: linear-gradient(90deg, rgba(189, 159, 103, 0) 90%, rgb(189, 159, 103) 100%);
+                opacity: 0;
+            }
+            30% {
+                background: linear-gradient(90deg, rgba(189, 159, 103, 0) 70%, rgb(189, 159, 103) 100%);
+                opacity: 1;
+            }
+            70% {
+                background: linear-gradient(90deg, rgba(189, 159, 103, 0) 70%, rgb(189, 159, 103) 100%);
+                opacity: 1;
+            }
+            95% {
+                background: linear-gradient(90deg, rgba(189, 159, 103, 0) 90%, rgb(189, 159, 103) 100%);
+                opacity: 0;
+            }
+        }
+        .balloon-uiverse-body {
+            position: relative;
+            z-index: 3;
+            padding: 0 14px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .balloon-uiverse-body > p {
+            margin: 0;
+            color: #bd9f67;
+            font-size: 0.95rem;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+        .balloon-uiverse-body .alerts-count {
+            font-size: 1.35rem;
+            font-weight: 900;
+            color: #e8d4b0;
+        }
+        .balloon-uiverse-list {
+            background: rgba(189, 159, 103, 0.08);
+            border: 1px solid rgba(189, 159, 103, 0.35);
+            border-radius: 8px;
+            max-height: 8rem;
+            overflow: hidden;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .balloon-uiverse-list-row {
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: rgba(189, 159, 103, 0.12);
+            color: #e2e8f0;
+        }
+        .balloon-uiverse-list-row span:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+        .balloon-uiverse-list-row .dur {
+            flex-shrink: 0;
+            font-weight: 900;
+            color: #bd9f67;
+        }
+        .balloon-uiverse-btn {
+            width: 100%;
+            padding: 10px 12px;
+            background: #1a2529;
+            color: #bd9f67;
+            border: 1px solid rgba(189, 159, 103, 0.45);
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .balloon-uiverse-btn:hover {
+            background: #2a3840;
+            border-color: #bd9f67;
+        }
+        .balloon-uiverse-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 10;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #1a2529;
+            border: 2px solid rgba(189, 159, 103, 0.6);
+            color: #bd9f67;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .balloon-uiverse-close:hover {
+            background: #2a3840;
+            transform: scale(1.05);
+        }
+
+        /* Cards de motorista — mesmo modelo balloon, cores por categoria/status */
+        .tv-balloon-driver {
+            --tv-accent: #64748b;
+            --tv-accent-bright: #94a3b8;
+            --tv-accent-soft: rgba(100, 116, 139, 0.2);
+            --tv-accent-border: rgba(100, 116, 139, 0.55);
+            --tv-body-text: #e2e8f0;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            background: #1a2229;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.42);
+            border: 2px solid var(--tv-accent-border);
+            transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s;
+        }
+        .tv-balloon-driver:hover {
+            transform: scale(1.012);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+        }
+        .tv-balloon-driver--encerrada {
+            --tv-accent: #34d399;
+            --tv-accent-bright: #6ee7b7;
+            --tv-accent-soft: rgba(52, 211, 153, 0.14);
+            --tv-accent-border: rgba(52, 211, 153, 0.55);
+        }
+        .tv-balloon-driver--retorno {
+            --tv-accent: #a78bfa;
+            --tv-accent-bright: #c4b5fd;
+            --tv-accent-soft: rgba(167, 139, 250, 0.16);
+            --tv-accent-border: rgba(167, 139, 250, 0.55);
+        }
+        .tv-balloon-driver--aguardando {
+            --tv-accent: #94a3b8;
+            --tv-accent-bright: #cbd5e1;
+            --tv-accent-soft: rgba(148, 163, 184, 0.12);
+            --tv-accent-border: rgba(148, 163, 184, 0.45);
+        }
+        .tv-balloon-driver--inicio {
+            --tv-accent: #38bdf8;
+            --tv-accent-bright: #7dd3fc;
+            --tv-accent-soft: rgba(56, 189, 248, 0.14);
+            --tv-accent-border: rgba(56, 189, 248, 0.55);
+        }
+        .tv-balloon-driver--normal {
+            --tv-accent: #22d3ee;
+            --tv-accent-bright: #67e8f9;
+            --tv-accent-soft: rgba(34, 211, 238, 0.12);
+            --tv-accent-border: rgba(34, 211, 238, 0.45);
+        }
+        .tv-balloon-driver--atencao {
+            --tv-accent: #fbbf24;
+            --tv-accent-bright: #fde047;
+            --tv-accent-soft: rgba(251, 191, 36, 0.18);
+            --tv-accent-border: rgba(251, 191, 36, 0.6);
+        }
+        .tv-balloon-driver--critico {
+            --tv-accent: #f87171;
+            --tv-accent-bright: #fecaca;
+            --tv-accent-soft: rgba(248, 113, 113, 0.2);
+            --tv-accent-border: rgba(248, 113, 113, 0.65);
+        }
+        .tv-balloon-driver .tv-balloon-frame {
+            position: absolute;
+            inset: 0;
+            border: 2px solid var(--tv-accent);
+            opacity: 0;
+            transform: rotate(8deg);
+            transition: all 0.45s ease;
+            pointer-events: none;
+            border-radius: inherit;
+            z-index: 1;
+        }
+        .tv-balloon-driver:hover .tv-balloon-frame {
+            inset: 10px;
+            opacity: 0.85;
+            transform: rotate(0);
+        }
+        .tv-balloon-driver .tv-balloon-hero {
+            position: relative;
+            flex-shrink: 0;
+            min-height: 0;
+            padding: 5px 8px 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            background: linear-gradient(165deg, rgba(36, 49, 55, 0.95) 0%, rgba(15, 23, 42, 0.92) 100%);
+        }
+        .tv-balloon-driver--dense .tv-balloon-hero { padding: 4px 6px 3px; }
+        /* Uma linha: evita “Crítico” duplicado quando categoria = status */
+        .tv-balloon-hero-line {
+            margin: 0;
+            font-size: clamp(0.58rem, 0.9vw, 0.7rem);
+            font-weight: 900;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--tv-accent-bright);
+            text-shadow: 0 0 14px var(--tv-accent-soft);
+            line-height: 1.2;
+            text-align: center;
+        }
+        .tv-balloon-hero-line .tv-hero-sep {
+            opacity: 0.55;
+            font-weight: 700;
+            margin: 0 0.2em;
+            color: var(--tv-accent);
+        }
+        .tv-balloon-hero-line .tv-hero-sub {
+            color: var(--tv-accent);
+            font-weight: 800;
+        }
+        .tv-balloon-body {
+            position: relative;
+            z-index: 3;
+            padding: 0 8px 7px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+            min-height: 0;
+        }
+        /* Faixa fixa para ETA (ou vazio): mesma altura em todos os cards */
+        .tv-balloon-meta-slot {
+            flex-shrink: 0;
+            min-height: 1.65rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .tv-balloon-foot-wrapper {
+            flex: 1 1 0;
+            min-height: 4.25rem;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .tv-balloon-title-line {
+            margin: 0;
+            font-size: clamp(0.65rem, 0.95vw, 0.75rem);
+            font-weight: 700;
+            color: var(--tv-body-text);
+            line-height: 1.25;
+        }
+        .tv-balloon-title-line strong {
+            color: #fff;
+            font-weight: 800;
+        }
+        .tv-balloon-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 3px;
+            font-weight: 500;
+            color: color-mix(in srgb, var(--tv-accent) 55%, #94a3b8);
+            font-size: clamp(0.55rem, 0.78vw, 0.625rem);
+            margin-top: 2px;
+        }
+        .tv-meta-ajud {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 4px 8px;
+            align-items: start;
+            width: 100%;
+        }
+        .tv-meta-k {
+            color: color-mix(in srgb, var(--tv-accent) 45%, #64748b);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.9em;
+            letter-spacing: 0.04em;
+            padding-top: 0.05em;
+        }
+        .tv-ajud-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            min-width: 0;
+        }
+        .tv-ajud-line {
+            display: block;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+        .tv-meta-placa {
+            display: block;
+            width: 100%;
+        }
+        .tv-balloon-progress-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .tv-balloon-progress-row .tv-entregas {
+            font-size: clamp(0.6rem, 0.85vw, 0.6875rem);
+            font-weight: 700;
+            color: color-mix(in srgb, var(--tv-accent) 70%, #cbd5e1);
+        }
+        .tv-balloon-progress-row .tv-pct {
+            font-size: clamp(0.75rem, 1.15vw, 0.9rem);
+            font-weight: 900;
+            color: var(--tv-accent-bright);
+        }
+        .tv-balloon-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(15, 23, 42, 0.85);
+            border-radius: 999px;
+            overflow: hidden;
+            border: 1px solid var(--tv-accent-border);
+        }
+        .tv-balloon-bar > div {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--tv-accent), var(--tv-accent-bright));
+            transition: width 0.5s ease;
+        }
+        @keyframes tv-client-shake {
+            0%, 100% { transform: translateX(0); }
+            15% { transform: translateX(-3px); }
+            30% { transform: translateX(3px); }
+            45% { transform: translateX(-2px); }
+            60% { transform: translateX(2px); }
+            75% { transform: translateX(-1px); }
+        }
+        .tv-balloon-list {
+            background: var(--tv-accent-soft);
+            border: 1px solid var(--tv-accent-border);
+            border-radius: 8px;
+            flex: 1 1 0;
+            min-height: 3rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+            padding: 5px 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            isolation: isolate;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+        }
+        .tv-balloon-list::-webkit-scrollbar { width: 4px; }
+        .tv-balloon-list::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.45);
+            border-radius: 4px;
+        }
+        .tv-balloon-driver--dense .tv-balloon-list { min-height: 2.5rem; padding: 4px 3px; }
+        .tv-balloon-list-row {
+            font-size: clamp(0.55rem, 0.75vw, 0.625rem);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            background: color-mix(in srgb, var(--tv-accent) 8%, #0f172a);
+            color: #e2e8f0;
+            order: 2;
+            flex-shrink: 0;
+        }
+        .tv-balloon-list-row--slow {
+            order: 1;
+            position: relative;
+            z-index: 1;
+            animation: tv-client-shake 0.55s ease-in-out infinite;
+            box-shadow: none;
+            background: linear-gradient(135deg, rgba(253, 224, 71, 0.82), rgba(250, 204, 21, 0.68)) !important;
+            border: none !important;
+            outline: 1px solid rgba(161, 98, 7, 0.85);
+            outline-offset: -1px;
+            padding: 4px 6px;
+        }
+        .tv-balloon-list-row--slow,
+        .tv-balloon-list-row--slow .tv-open-client,
+        .tv-balloon-list-row--slow .dur,
+        .tv-balloon-list-row--slow .text-slate-500 {
+            color: #422006 !important;
+        }
+        .tv-balloon-list-row span:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-transform: uppercase;
+        }
+        .tv-balloon-list-row .dur {
+            flex-shrink: 0;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            color: var(--tv-accent-bright);
+        }
+        .tv-balloon-foot-label {
+            margin: 0 0 2px;
+            font-size: clamp(0.5rem, 0.72vw, 0.5625rem);
+            font-weight: 800;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--tv-accent);
+        }
+        .tv-balloon-idle-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 8px;
+            border-radius: 8px;
+            border: 1px solid var(--tv-accent-border);
+            background: var(--tv-accent-soft);
+        }
+        .tv-balloon-idle-pill span:first-child {
+            font-weight: 800;
+            color: var(--tv-accent-bright);
+            font-size: clamp(0.55rem, 0.78vw, 0.625rem);
+        }
+        .tv-balloon-idle-pill .mono {
+            font-family: ui-monospace, monospace;
+            color: var(--tv-accent);
+            font-size: clamp(0.55rem, 0.75vw, 0.6rem);
+        }
+        .tv-balloon-idle-pill--slow {
+            animation: tv-client-shake 0.55s ease-in-out infinite;
+            position: relative;
+            background: linear-gradient(135deg, rgba(253, 224, 71, 0.82), rgba(250, 204, 21, 0.68)) !important;
+            border: none !important;
+            outline: 1px solid rgba(161, 98, 7, 0.85);
+            outline-offset: -1px;
+        }
+        .tv-balloon-idle-pill--slow span {
+            color: #422006 !important;
+        }
+        .tv-balloon-eta {
+            font-size: clamp(0.55rem, 0.78vw, 0.625rem);
+            color: color-mix(in srgb, var(--tv-accent) 50%, #64748b);
+        }
+
+        /* Sidebar / zonas — mesmo vocabulário visual (frame + cabeçalho em destaque) */
+        .tv-zone-balloon {
+            --z-accent: #f87171;
+            --z-accent-bright: #fecaca;
+            --z-accent-soft: rgba(248, 113, 113, 0.12);
+            --z-border: rgba(248, 113, 113, 0.45);
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid var(--z-border);
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.95));
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+        }
+        .tv-zone-balloon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 2px solid var(--z-accent);
+            opacity: 0.12;
+            border-radius: inherit;
+            pointer-events: none;
+        }
+        .tv-zone-balloon--amber {
+            --z-accent: #fbbf24;
+            --z-accent-bright: #fde68a;
+            --z-accent-soft: rgba(251, 191, 36, 0.12);
+            --z-border: rgba(251, 191, 36, 0.45);
+        }
+        .tv-zone-balloon .zone-card-header {
+            border-bottom: 1px solid var(--z-border);
+            background: var(--z-accent-soft);
+        }
+        .tv-zone-balloon .zone-card-header h2 {
+            color: var(--z-accent-bright);
+            text-shadow: 0 0 20px var(--z-accent-soft);
+        }
+        .tv-zone-balloon .zone-card-row {
+            border-color: var(--z-border) !important;
+            background: color-mix(in srgb, var(--z-accent) 6%, rgba(15,23,42,0.6)) !important;
+        }
+        .tv-zone-balloon .zone-card-row span.font-medium {
+            color: #f8fafc;
+        }
+
+        .zone-dia.tv-dia-balloon {
+            background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+            border-top: 1px solid rgba(56, 189, 248, 0.25);
+            box-shadow: inset 0 1px 0 rgba(56, 189, 248, 0.08);
+        }
+        .zone-dia.tv-dia-balloon #tv-dia-pct {
+            color: #67e8f9;
+            text-shadow: 0 0 18px rgba(34, 211, 238, 0.25);
         }
     </style>
 </head>
@@ -217,13 +883,17 @@
         <section class="zone-central relative z-10 min-h-0">
             <div class="zone-central-grid flex flex-col min-h-0">
             {% set _nl = (dashboard.live_separation or [])|length %}
-            <div class="flex items-center justify-between px-3 sm:px-5 py-1.5 shrink-0">
-                <h2 class="text-label sm:text-sm font-bold text-slate-400 uppercase tracking-wider">Operação em tempo real</h2>
-                <p class="text-label text-slate-500 truncate max-w-[50%] sm:max-w-none"></p>
-            </div>
+            {% set ns_grid_slow = namespace(v=false) %}
+            {% for op in (dashboard.live_separation or []) %}
+                {% for r in op.routes %}
+                    {% if ((r.delivery_status or '')|lower) == 'iniciada' and ((r.open_elapsed_minutes|default(0))|int > 20) %}
+                        {% set ns_grid_slow.v = true %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
             {% set _gcols = 3 %}{% if _nl <= 1 %}{% set _gcols = 1 %}{% elif _nl <= 2 %}{% set _gcols = 2 %}{% elif _nl <= 6 %}{% set _gcols = 3 %}{% elif _nl <= 12 %}{% set _gcols = 4 %}{% else %}{% set _gcols = 5 %}{% endif %}
             {% set _grows = ((_nl + _gcols - 1) // _gcols) if _gcols and _nl else 1 %}
-            <div id="tv-live-separation" class="driver-grid flex-1 min-h-0" style="grid-template-columns: repeat({{ _gcols }}, minmax(0, 1fr)); grid-template-rows: repeat({{ _grows }}, minmax(0, 1fr));">
+            <div id="tv-live-separation" class="driver-grid flex-1 min-h-0{% if ns_grid_slow.v %} tv-grid--alert{% endif %}" style="grid-template-columns: repeat({{ _gcols }}, minmax(0, 1fr)); grid-template-rows: repeat({{ _grows }}, minmax(0, 1fr));">
                 {% for op in (dashboard.live_separation or []) %}
                 {% set ns_in = namespace(c=0) %}
                 {% for r in op.routes %}
@@ -234,72 +904,92 @@
                 {% set open_count = total - completed %}
                 {% set pct_d = (completed / total * 100) if total and total > 0 else 0 %}
                 {% set rs = op.route_state|default('in_progress') %}
-                {% if rs == 'closed' %}{% set card_class = 'driver-card--closed' %}{% set status_label = 'Encerrada' %}{% set badge_cls = 'bg-emerald-500/30 text-emerald-200' %}{% set bar_cls = 'bar-pct--ok' %}
-                {% elif rs == 'not_started' %}{% set card_class = 'driver-card--not-started' %}{% set status_label = 'Rota parada' %}{% set badge_cls = 'bg-slate-600/50 text-slate-400' %}{% set bar_cls = 'bar-pct--ok' %}
-                {% elif rs == 'route_started' %}{% set card_class = 'driver-card--route-started' %}{% set status_label = 'Início' %}{% set badge_cls = 'bg-sky-500/25 text-sky-300' %}{% set bar_cls = 'bar-pct--ok' %}
-                {% elif rs == 'all_delivered' %}{% set card_class = 'driver-card--all-delivered' %}{% set status_label = 'Retornado' %}{% set badge_cls = 'bg-violet-500/35 text-violet-200 ring-1 ring-violet-400/40' %}{% set bar_cls = 'bar-pct--entregues' %}
-                {% else %}{% set card_status = op.route_alert_level|default('ok') %}{% set card_class = 'driver-card--' ~ card_status %}{% set status_label = op.route_alert_label|default('Normal') %}{% set badge_cls = 'bg-red-500/20 text-red-300' if card_status == 'critico' else ('bg-amber-500/25 text-amber-300' if card_status == 'atencao' else 'bg-slate-600/50 text-slate-400') %}{% set bar_cls = 'bar-pct--' ~ card_status %}{% endif %}
-                {% set pct_cls = 'text-emerald-300' if rs in ('closed', 'all_delivered') else 'text-blue-300' %}
-                {% set dense = ' driver-card--dense' if _nl > 6 else '' %}
+                {% if rs == 'closed' %}{% set tvm = 'tv-balloon-driver--encerrada' %}{% set tvc = 'Encerramento' %}{% set tvs = 'Encerrada' %}
+                {% elif rs == 'not_started' %}{% set tvm = 'tv-balloon-driver--aguardando' %}{% set tvc = 'Aguardando' %}{% set tvs = 'Rota parada' %}
+                {% elif rs == 'route_started' %}{% set tvm = 'tv-balloon-driver--inicio' %}{% set tvc = 'Em rota' %}{% set tvs = 'Início' %}
+                {% elif rs == 'all_delivered' %}{% set tvm = 'tv-balloon-driver--retorno' %}{% set tvc = 'Retorno' %}{% set tvs = 'Retornando' %}
+                {% else %}{% set card_status = op.route_alert_level|default('ok') %}
+                    {% if card_status == 'critico' %}{% set tvm = 'tv-balloon-driver--critico' %}{% set tvc = 'Crítico' %}{% set tvs = op.route_alert_label|default('Crítico') %}
+                    {% elif card_status == 'atencao' %}{% set tvm = 'tv-balloon-driver--atencao' %}{% set tvc = 'Atenção' %}{% set tvs = op.route_alert_label|default('Atenção') %}
+                    {% else %}{% set tvm = 'tv-balloon-driver--normal' %}{% set tvc = 'Em rota' %}{% set tvs = op.route_alert_label|default('Normal') %}
+                    {% endif %}
+                {% endif %}
+                {% set dense = ' tv-balloon-driver--dense' if _nl > 6 else '' %}
                 <div class="driver-cell">
-                    <article class="driver-card {{ card_class }}{{ dense }} border">
-                        <div class="card-head flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">{{ (op.employee_name or "?")[0] }}</div>
-                            <div class="min-w-0 flex-1">
-                                <p class="font-bold text-white text-card-title truncate leading-tight">{{ op.employee_name }}</p>
-                                <p class="text-card-meta text-slate-500 truncate">Ajud.: {{ (op.helper_names|join(', '))[:18] if op.helper_names else '—' }}{% if op.helper_names and (op.helper_names|join(', '))|length > 18 %}…{% endif %} · Placa: {{ op.plate or '—' }} · Peso: {% if op.total_kg is defined and op.total_kg is not none %}{{ tv_kg_br(op.total_kg) }}{% else %}—{% endif %}</p>
-                            </div>
+                    <article class="tv-balloon-driver {{ tvm }}{{ dense }}">
+                        <div class="tv-balloon-frame" aria-hidden="true"></div>
+                        <div class="tv-balloon-hero">
+                            {% if tvc == tvs %}
+                            <p class="tv-balloon-hero-line">{{ tvs }}</p>
+                            {% else %}
+                            <p class="tv-balloon-hero-line"><span class="tv-hero-sub">{{ tvc }}</span><span class="tv-hero-sep">·</span><span>{{ tvs }}</span></p>
+                            {% endif %}
                         </div>
-                        <div class="card-core flex items-center justify-between gap-2">
-                            <span class="text-card-meta font-bold text-slate-300">{{ completed }}/{{ total }} entregas</span>
-                            <span class="text-card-title font-black {{ pct_cls }}">{{ "%.0f"|format(pct_d) }}%</span>
-                            <span class="text-card-meta font-semibold px-1.5 py-0.5 rounded {{ badge_cls }}">{{ status_label }}</span>
+                        <div class="tv-balloon-body">
+                            <p class="tv-balloon-title-line"><strong>{{ op.employee_name }}</strong><span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">{% for h in op.helper_names or [] %}{% set w = h.split() %}<span class="tv-ajud-line">{% if w|length > 1 %}{{ w[0] }} {{ w[1] }}{% else %}{{ w[0] }}{% endif %}</span>{% else %}<span class="tv-ajud-line">—</span>{% endfor %}</span></span><span class="tv-meta-placa">Placa: {{ op.plate or '—' }} · Peso: {% if op.total_kg is defined and op.total_kg is not none %}{{ tv_kg_br(op.total_kg) }}{% else %}—{% endif %}</span></span></p>
+                        <div class="tv-balloon-progress-row">
+                            <span class="tv-entregas">{{ completed }}/{{ total }} entregas</span>
+                            <span class="tv-pct">{{ "%.0f"|format(pct_d) }}%</span>
                         </div>
-                        <div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1">
-                            <div class="h-full rounded-full transition-all bar-pct {{ bar_cls }}" style="width: {{ pct_d }}%"></div>
+                        <div class="tv-balloon-bar">
+                            <div style="width: {{ pct_d }}%"></div>
                         </div>
+                        <div class="tv-balloon-meta-slot">
                         {% if rs not in ('closed', 'not_started', 'all_delivered') and op.projected_finish_at %}
-                        <div class="flex items-center justify-between gap-2 text-card-meta text-slate-500 mb-1">
+                        <div class="tv-balloon-eta flex items-center justify-between gap-2">
                             <span class="truncate">Média {{ "%.0f"|format(op.avg_minutes_per_delivery|default(0)) }} min/cliente · Equipe {{ op.crew_size|default(1) }}</span>
-                            <span class="shrink-0">ETA {{ op.projected_finish_at }}</span>
+                            <span class="shrink-0 font-semibold">ETA {{ op.projected_finish_at }}</span>
                         </div>
                         {% endif %}
-                        {# Alerta >20 min: só cor do nome na linha "Abertas agora" (sem bloco duplicado) #}
-                        {# Rodapé "Abertas agora": oculto em Encerrada/Retornado sem parada iniciada (evita mensagem incoerente) #}
+                        </div>
                         {% set show_abertas_foot = (ns_in.c > 0) or (rs not in ('closed', 'all_delivered')) %}
                         {% if show_abertas_foot %}
-                        <div class="card-foot">
-                            <p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p>
-                            <div class="open-list">
+                        <div class="tv-balloon-foot-wrapper">
+                            <p class="tv-balloon-foot-label">Abertas agora</p>
+                            <div class="tv-balloon-list open-list">
                                 {% set count_open = 0 %}
                                 {% for r in op.routes %}
                                 {% if ((r.delivery_status or '')|lower) == 'iniciada' %}
-                                {% if count_open < 4 %}
-                                <div class="open-item flex justify-between items-center gap-1 text-card-meta bg-slate-900/60 rounded px-1.5 py-0.5">
-                                    {% set _oem = r.open_elapsed_minutes|default(none) %}
-                                    <span class="tv-open-client font-medium truncate flex-1 min-w-0 mr-1 {% if _oem is not none and (_oem|int) > 20 %}text-amber-300 font-semibold{% else %}text-white{% endif %}">{{ r.client }}</span>
-                                    <span class="text-slate-500 font-mono shrink-0">{{ r.start_time }}</span>
-                                    <span class="text-emerald-400/90 font-mono shrink-0 tv-open-elapsed whitespace-nowrap" data-start="{{ r.start_time|e }}">—</span>
+                                {% set _oem = (r.open_elapsed_minutes|default(0))|int %}
+                                {% if _oem > 20 and count_open < 4 %}
+                                <div class="tv-balloon-list-row open-item tv-balloon-list-row--slow">
+                                    <span class="tv-open-client font-semibold truncate flex-1 min-w-0">{{ r.client }}</span>
+                                    <span class="text-slate-500 font-mono shrink-0 text-[10px]">{{ r.start_time }}</span>
+                                    <span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="{{ r.start_time|e }}">—</span>
+                                </div>
+                                {% set count_open = count_open + 1 %}
+                                {% endif %}
+                                {% endif %}
+                                {% endfor %}
+                                {% for r in op.routes %}
+                                {% if ((r.delivery_status or '')|lower) == 'iniciada' %}
+                                {% set _oem = (r.open_elapsed_minutes|default(0))|int %}
+                                {% if _oem <= 20 and count_open < 4 %}
+                                <div class="tv-balloon-list-row open-item">
+                                    <span class="tv-open-client font-semibold truncate flex-1 min-w-0 text-slate-100">{{ r.client }}</span>
+                                    <span class="text-slate-500 font-mono shrink-0 text-[10px]">{{ r.start_time }}</span>
+                                    <span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="{{ r.start_time|e }}">—</span>
                                 </div>
                                 {% set count_open = count_open + 1 %}
                                 {% endif %}
                                 {% endif %}
                                 {% endfor %}
                                 {% if count_open == 0 %}
-                                {% set mins_idle = op.minutes_without_open_client|default(0) %}
-                                <div class="inline-flex items-center gap-2 px-2 py-1 rounded-lg border border-violet-500/40 bg-violet-500/15">
-                                    <span class="text-violet-300 font-semibold text-card-meta">Nenhuma em aberto</span>
+                                {% set mins_idle = op.minutes_without_open_client|default(0)|int %}
+                                <div class="tv-balloon-idle-pill{% if mins_idle > 20 %} tv-balloon-idle-pill--slow{% endif %}"{% if mins_idle > 0 %} data-idle-mins="{{ mins_idle }}"{% endif %}>
+                                    <span>Nenhuma em aberto</span>
                                     {% if mins_idle > 0 %}
-                                    <span class="text-violet-400 font-mono text-card-meta">{{ tv_duracao_br(mins_idle) }}</span>
+                                    <span class="mono tv-idle-mins-display">{{ tv_duracao_br(mins_idle) }}</span>
                                     {% endif %}
                                 </div>
                                 {% endif %}
                             </div>
                             {% if ns_in.c > 4 %}
-                            <p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+{{ ns_in.c - 4 }} mais</p>
+                            <p class="text-[10px] font-semibold shrink-0 mt-0.5" style="color: color-mix(in srgb, var(--tv-accent) 65%, #64748b);">+{{ ns_in.c - 4 }} mais</p>
                             {% endif %}
                         </div>
                         {% endif %}
+                        </div>
                     </article>
                 </div>
                 {% endfor %}
@@ -311,9 +1001,9 @@
             <!-- Sidebar: cards em coluna (sem scroll, texto que se ajusta) -->
             <div class="zone-sidebar">
                 <!-- Card: Devoluções do dia (compacto: Cliente · Motorista) -->
-                <div class="zone-card border-red-500/50 bg-slate-900/90">
-                    <div class="zone-card-header border-red-500/40 bg-red-500/15">
-                        <h2 class="text-xs font-bold text-red-300 uppercase tracking-wider truncate">Devoluções do dia</h2>
+                <div class="zone-card tv-zone-balloon">
+                    <div class="zone-card-header">
+                        <h2 class="text-xs font-bold uppercase tracking-wider truncate">Devoluções do dia</h2>
                         <span id="tv-devolucoes-count" class="text-base font-black text-red-400 tabular-nums shrink-0">{{ (dashboard.devolucao_dia or {}).count|default(0) }}</span>
                     </div>
                     <div id="tv-devolucoes-body" class="zone-card-body">
@@ -333,9 +1023,9 @@
                     </div>
                 </div>
                 <!-- Card: Alto índice (compacto: Cliente · Motorista, sem quantidade) -->
-                <div class="zone-card border-amber-500/50 bg-slate-900/90">
-                    <div class="zone-card-header border-amber-500/40 bg-amber-500/15">
-                        <h2 class="text-xs font-bold text-amber-300 uppercase tracking-wider truncate">Alto índice devolução</h2>
+                <div class="zone-card tv-zone-balloon tv-zone-balloon--amber">
+                    <div class="zone-card-header">
+                        <h2 class="text-xs font-bold uppercase tracking-wider truncate">Alto índice devolução</h2>
                     </div>
                     <div id="tv-alto-indice-body" class="zone-card-body">
                         {% for row in (dashboard.clientes_alto_indice_devolucao or []) %}
@@ -361,7 +1051,7 @@
             {% set _ns2.open = _ns2.open + (op.total_deliveries|default(0) - op.completed_deliveries|default(0)) %}
         {% endfor %}
         {% set pct_dia = (concluidas_dia / (concluidas_dia + _ns2.open) * 100) if (concluidas_dia + _ns2.open) > 0 else 0 %}
-        <footer class="zone-dia relative z-10 flex items-center gap-4 px-3 sm:px-5 py-2 border-t border-slate-700/70 bg-slate-900/80 shrink-0">
+        <footer class="zone-dia tv-dia-balloon relative z-10 flex items-center gap-4 px-3 sm:px-5 py-2 shrink-0">
             <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Dia</span>
             <span id="tv-dia-pct" class="text-kpi-big font-black text-blue-300 shrink-0">{{ "%.0f"|format(pct_dia) }}%</span>
             <span class="text-card-meta text-slate-500 shrink-0">concluído</span>
@@ -473,16 +1163,24 @@
                 el.textContent = mins === null ? '—' : formatDuracaoBr(mins);
                 var item = el.closest('.open-item');
                 var clientEl = item ? item.querySelector('.tv-open-client') : null;
-                if (clientEl) {
+                if (item && clientEl) {
                     if (mins !== null && mins > 20) {
-                        clientEl.classList.remove('text-white');
-                        clientEl.classList.add('text-amber-300', 'font-semibold');
+                        item.classList.add('tv-balloon-list-row--slow');
+                        clientEl.classList.remove('text-slate-100', 'text-white', 'text-amber-300', 'font-semibold');
                     } else {
-                        clientEl.classList.add('text-white');
-                        clientEl.classList.remove('text-amber-300', 'font-semibold');
+                        item.classList.remove('tv-balloon-list-row--slow');
+                        clientEl.classList.remove('text-amber-300', 'font-semibold', 'text-white');
+                        clientEl.classList.add('text-slate-100');
                     }
                 }
             });
+            refreshSlowCardElevation();
+        }
+        function refreshSlowCardElevation() {
+            var grid = document.getElementById('tv-live-separation');
+            if (!grid) return;
+            var any = grid.querySelector('.tv-balloon-list-row--slow, .tv-balloon-idle-pill--slow');
+            grid.classList.toggle('tv-grid--alert', !!any);
         }
         window.formatDuracaoBr = formatDuracaoBr;
 
@@ -493,20 +1191,48 @@
             return false;
         }
 
-        function driverCardStatus(op) {
-            return (op && op.route_alert_level) ? op.route_alert_level : 'ok';
+        function escTv(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
         }
-        function driverCardFromRouteState(op) {
+        function driverBalloonTheme(op) {
             var state = op.route_state || 'in_progress';
-            if (state === 'closed') return { class: 'driver-card--closed', label: 'Encerrada', barClass: 'bar-pct bar-pct--ok' };
-            if (state === 'not_started') return { class: 'driver-card--not-started', label: 'Rota parada', barClass: 'bar-pct bar-pct--ok' };
-            if (state === 'route_started') return { class: 'driver-card--route-started', label: 'Início', barClass: 'bar-pct bar-pct--ok' };
-            if (state === 'all_delivered') return { class: 'driver-card--all-delivered', label: 'Retornado', barClass: 'bar-pct bar-pct--entregues' };
-            var status = driverCardStatus(op);
-            var statusClass = status === 'critico' ? 'driver-card--critico' : (status === 'atencao' ? 'driver-card--atencao' : 'driver-card--ok');
-            var statusLabel = op.route_alert_label || (status === 'critico' ? 'Crítico' : (status === 'atencao' ? 'Atenção' : 'Normal'));
-            var barClass = 'bar-pct bar-pct--' + status;
-            return { class: statusClass, label: statusLabel, barClass: barClass };
+            if (state === 'closed') return { mod: 'tv-balloon-driver--encerrada', categoria: 'Encerramento', statusHero: 'Encerrada' };
+            if (state === 'not_started') return { mod: 'tv-balloon-driver--aguardando', categoria: 'Aguardando', statusHero: 'Rota parada' };
+            if (state === 'route_started') return { mod: 'tv-balloon-driver--inicio', categoria: 'Em rota', statusHero: 'Início' };
+            if (state === 'all_delivered') return { mod: 'tv-balloon-driver--retorno', categoria: 'Retorno', statusHero: 'Retornando' };
+            var al = op.route_alert_level || 'ok';
+            if (al === 'critico') return { mod: 'tv-balloon-driver--critico', categoria: 'Crítico', statusHero: String(op.route_alert_label || 'Crítico') };
+            if (al === 'atencao') return { mod: 'tv-balloon-driver--atencao', categoria: 'Atenção', statusHero: String(op.route_alert_label || 'Atenção') };
+            return { mod: 'tv-balloon-driver--normal', categoria: 'Em rota', statusHero: String(op.route_alert_label || 'Normal') };
+        }
+        function tvHeroLineHtml(th) {
+            var c = String(th.categoria || ''), s = String(th.statusHero || '');
+            if (c === s) return '<p class="tv-balloon-hero-line">' + escTv(s) + '</p>';
+            return '<p class="tv-balloon-hero-line"><span class="tv-hero-sub">' + escTv(c) + '</span><span class="tv-hero-sep">·</span><span>' + escTv(s) + '</span></p>';
+        }
+        function formatHelpersHtml(names) {
+            if (!names || !names.length) return '<span class="tv-ajud-line">' + escTv('—') + '</span>';
+            return names.map(function(h) {
+                var w = String(h || '').trim().split(/\s+/).filter(Boolean);
+                var line = w.length > 1 ? (w[0] + ' ' + w[1]) : (w[0] || '—');
+                return '<span class="tv-ajud-line">' + escTv(line) + '</span>';
+            }).join('');
+        }
+        function openRouteMinutesForSort(r) {
+            var live = elapsedMinutesFromStart(r.start_time);
+            if (live !== null) return live;
+            if (typeof r.open_elapsed_minutes === 'number') return r.open_elapsed_minutes;
+            return 0;
+        }
+        function sortOpenRoutesForDisplay(routes) {
+            var open = (routes || []).filter(function(r) { return String(r.delivery_status || '').toLowerCase() === 'iniciada'; });
+            open.sort(function(a, b) {
+                var ma = openRouteMinutesForSort(a), mb = openRouteMinutesForSort(b);
+                var wa = ma > 20 ? 1 : 0, wb = mb > 20 ? 1 : 0;
+                if (wa !== wb) return wb - wa;
+                return mb - ma;
+            });
+            return open;
         }
         function computeLiveGridDims(n) {
             var cols = 3;
@@ -531,13 +1257,18 @@
             });
             return { best: sorted[0], worst: sorted[sorted.length - 1] };
         }
+        var tvDataFetchInFlight = false;
         function fetchTvData() {
+            if (tvDataFetchInFlight) return;
             var card = document.getElementById('tv-kpi-context');
             var date = card ? card.getAttribute('data-date') || '' : '';
             var cc = card ? card.getAttribute('data-cost-center') || '' : '';
             var url = '/api/dashboard/tv-data?date=' + encodeURIComponent(date);
             if (cc) url += '&cost_center=' + encodeURIComponent(cc);
-            function attemptFetch(attemptsLeft) {
+            tvDataFetchInFlight = true;
+            /* Retries com backoff: hot-reload do uvicorn e falhas de rede (ex.: ERR_CONNECTION_RESET) derrubam a conexão; 3×600ms não cobre o restart. */
+            var tvDataRetryDelaysMs = [400, 900, 1800, 3200, 5000, 8000];
+            function attemptFetch(attemptIndex) {
             fetch(url, { credentials: 'same-origin' }).then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.json();
@@ -637,62 +1368,66 @@
                         container.innerHTML = '<div class="col-span-full flex items-center justify-center text-slate-500 text-card-title py-8" style="grid-column: 1 / -1;">Nenhuma rota programada para o dia.</div>';
                     } else {
                     container.innerHTML = live.map(function(op) {
-                        var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed;
+                        var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0;
                         var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
                         var stR = op.route_state || '';
-                        var pctColorCls = stR === 'all_delivered' ? 'text-violet-300' : (stR === 'closed' ? 'text-emerald-300' : 'text-blue-300');
-                        var stateUi = driverCardFromRouteState(op);
-                        var statusClass = stateUi.class;
-                        var statusLabel = stateUi.label;
-                        var statusBg = (op.route_state === 'closed') ? 'bg-emerald-500/30 text-emerald-200' : (op.route_state === 'not_started') ? 'bg-slate-600/50 text-slate-400' : (op.route_state === 'route_started') ? 'bg-sky-500/25 text-sky-300' : (op.route_state === 'all_delivered') ? 'bg-violet-500/35 text-violet-200 ring-1 ring-violet-400/40' : (statusClass === 'driver-card--critico') ? 'bg-red-500/20 text-red-300' : (statusClass === 'driver-card--atencao') ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400';
-                        var barClass = stateUi.barClass;
-                        var denseCls = nLive > 6 ? ' driver-card--dense' : '';
-                        var helpers = (op.helper_names || []).join(', ');
-                        if (helpers.length > 18) helpers = helpers.substring(0, 16) + '…';
+                        var th = driverBalloonTheme(op);
+                        var denseCls = nLive > 6 ? ' tv-balloon-driver--dense' : '';
                         var pesoStr = formatKgBr(op.total_kg);
-                        var openRoutes = (op.routes || []).filter(function(r) { return String(r.delivery_status || '').toLowerCase() === 'iniciada'; });
+                        var helpersInner = formatHelpersHtml(op.helper_names || []);
+                        var openRoutes = sortOpenRoutesForDisplay(op.routes || []);
                         var showFoot = shouldShowAbertasFoot(stR, openRoutes.length);
                         var openHtml = '';
                         var more = '';
                         if (showFoot) {
                             openHtml = openRoutes.slice(0, 4).map(function(r) {
                                 var stAttr = String(r.start_time || '').replace(/\\/g, '\\\\').replace(/"/g, '&quot;');
+                                var liveM = elapsedMinutesFromStart(r.start_time);
                                 var oem = (typeof r.open_elapsed_minutes === 'number') ? r.open_elapsed_minutes : null;
-                                var slowCls = (oem !== null && oem > 20) ? 'text-amber-300 font-semibold' : 'text-white';
-                                return '<div class="open-item flex justify-between items-center gap-1 text-card-meta bg-slate-900/60 rounded px-1.5 py-0.5"><span class="tv-open-client font-medium truncate flex-1 min-w-0 mr-1 ' + slowCls + '">' + (r.client || '').replace(/</g,'&lt;') + '</span><span class="text-slate-500 font-mono shrink-0">' + (r.start_time || '').replace(/</g,'&lt;') + '</span><span class="text-emerald-400/90 font-mono shrink-0 tv-open-elapsed whitespace-nowrap" data-start="' + stAttr + '">—</span></div>';
+                                var eff = liveM !== null ? liveM : (oem !== null ? oem : 0);
+                                var rowSlow = eff > 20 ? ' tv-balloon-list-row--slow' : '';
+                                var txtCls = eff > 20 ? '' : 'text-slate-100';
+                                return '<div class="tv-balloon-list-row open-item' + rowSlow + '"><span class="tv-open-client font-semibold truncate flex-1 min-w-0 ' + txtCls + '">' + escTv(r.client) + '</span><span class="text-slate-500 font-mono shrink-0 text-[10px]">' + escTv(r.start_time) + '</span><span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="' + stAttr + '">—</span></div>';
                             }).join('');
                             if (openRoutes.length === 0) {
-                                var minsIdle = op.minutes_without_open_client || 0;
-                                openHtml = '<div class="inline-flex items-center gap-2 px-2 py-1 rounded-lg border border-violet-500/40 bg-violet-500/15"><span class="text-violet-300 font-semibold text-card-meta">Nenhuma em aberto</span>' + (minsIdle > 0 ? '<span class="text-violet-400 font-mono text-card-meta">' + formatDuracaoBr(minsIdle) + '</span>' : '') + '</div>';
+                                var minsIdle = Number(op.minutes_without_open_client || 0);
+                                var idleSlow = minsIdle > 20 ? ' tv-balloon-idle-pill--slow' : '';
+                                var idleAttr = minsIdle > 0 ? ' data-idle-mins="' + minsIdle + '"' : '';
+                                openHtml = '<div class="tv-balloon-idle-pill' + idleSlow + '"' + idleAttr + '><span>Nenhuma em aberto</span>' + (minsIdle > 0 ? '<span class="mono tv-idle-mins-display">' + formatDuracaoBr(minsIdle) + '</span>' : '') + '</div>';
                             }
-                            more = openRoutes.length > 4 ? '<p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+' + (openRoutes.length - 4) + ' mais</p>' : '';
+                            more = openRoutes.length > 4 ? '<p class="text-[10px] font-semibold shrink-0 mt-0.5" style="color: color-mix(in srgb, var(--tv-accent) 65%, #64748b);">+' + (openRoutes.length - 4) + ' mais</p>' : '';
                         }
-                        var projectionHtml = '';
+                        var projectionInner = '';
                         if (['closed', 'not_started', 'all_delivered'].indexOf(stR) === -1 && op.projected_finish_at) {
                             var avgMin = Math.round(Number(op.avg_minutes_per_delivery || 0));
                             var crewSize = Number(op.crew_size || 1);
-                            projectionHtml = '<div class="flex items-center justify-between gap-2 text-card-meta text-slate-500 mb-1"><span class="truncate">Média ' + avgMin + ' min/cliente · Equipe ' + crewSize + '</span><span class="shrink-0">ETA ' + String(op.projected_finish_at).replace(/</g, '&lt;') + '</span></div>';
+                            projectionInner = '<div class="tv-balloon-eta flex items-center justify-between gap-2"><span class="truncate">Média ' + avgMin + ' min/cliente · Equipe ' + crewSize + '</span><span class="shrink-0 font-semibold">ETA ' + escTv(op.projected_finish_at) + '</span></div>';
                         }
-                        var footBlock = showFoot ? ('<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div>') : '';
-                        return '<div class="driver-cell"><article class="driver-card ' + statusClass + denseCls + ' border">' +
-                            '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 truncate">Ajud.: ' + (helpers || '—').replace(/</g,'&lt;') + ' · Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</p></div></div>' +
-                            '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black ' + pctColorCls + '">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
-                            '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full rounded-full transition-all ' + barClass + '" style="width:' + pctR + '%"></div></div>' +
-                            projectionHtml +
-                            footBlock + '</article></div>';
+                        var metaSlotHtml = '<div class="tv-balloon-meta-slot">' + projectionInner + '</div>';
+                        var footBlock = showFoot ? ('<div class="tv-balloon-foot-wrapper"><p class="tv-balloon-foot-label">Abertas agora</p><div class="tv-balloon-list open-list">' + openHtml + '</div>' + more + '</div>') : '';
+                        return '<div class="driver-cell"><article class="tv-balloon-driver ' + th.mod + denseCls + '">' +
+                            '<div class="tv-balloon-frame" aria-hidden="true"></div>' +
+                            '<div class="tv-balloon-hero">' + tvHeroLineHtml(th) + '</div>' +
+                            '<div class="tv-balloon-body">' +
+                            '<p class="tv-balloon-title-line"><strong>' + escTv(op.employee_name) + '</strong><span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">' + helpersInner + '</span></span><span class="tv-meta-placa">Placa: ' + escTv(op.plate || '—') + ' · Peso: ' + escTv(pesoStr) + '</span></span></p>' +
+                            '<div class="tv-balloon-progress-row"><span class="tv-entregas">' + completed + '/' + total + ' entregas</span><span class="tv-pct">' + pctR + '%</span></div>' +
+                            '<div class="tv-balloon-bar"><div style="width:' + pctR + '%"></div></div>' +
+                            metaSlotHtml + footBlock + '</div></article></div>';
                     }).join('');
                     }
                     updateTvOpenElapsed();
                 }
+                tvDataFetchInFlight = false;
             }).catch(function() {
-                if (attemptsLeft > 1) {
-                    setTimeout(function() { attemptFetch(attemptsLeft - 1); }, 600);
+                if (attemptIndex < tvDataRetryDelaysMs.length) {
+                    setTimeout(function() { attemptFetch(attemptIndex + 1); }, tvDataRetryDelaysMs[attemptIndex]);
                 } else {
+                    tvDataFetchInFlight = false;
                     setLastUpdate();
                 }
             });
             }
-            attemptFetch(3);
+            attemptFetch(0);
         }
         updateClock();
         setLastUpdate();
@@ -702,7 +1437,7 @@
         } else {
             updateTvOpenElapsed();
         }
-        setInterval(updateTvOpenElapsed, 15000);
+        setInterval(updateTvOpenElapsed, 5000);
         fetchTvData();
         setInterval(fetchTvData, 60000);
     })();
@@ -717,37 +1452,54 @@
          style="display: none;">
          
          <div :class="!isMinimized ? 'animate-bounce-slow' : ''">
-             <div class="relative bg-amber-500 text-slate-900 p-4 sm:p-6 rounded-2xl border-4 border-amber-300 shadow-[0_0_30px_rgba(245,158,11,0.5)] max-w-sm sm:max-w-md w-[90vw]"
-                  :class="isMinimized ? 'p-3 border-2 text-center rounded-xl bg-amber-600/90 text-white backdrop-blur-md w-auto' : ''">
-                 
-                 <button x-show="!isMinimized" @click.stop="minimize()" class="absolute -top-4 -right-4 w-10 h-10 bg-slate-900 border-2 border-amber-300 text-amber-300 rounded-full flex items-center justify-center hover:bg-slate-800 transition-colors shadow-lg">
+             <div class="balloon-uiverse-card"
+                  :class="isMinimized ? 'balloon-uiverse-card--min' : ''">
+
+                 <div class="balloon-uiverse-frame" aria-hidden="true"></div>
+
+                 <button type="button" x-show="!isMinimized" @click.stop="minimize()" class="balloon-uiverse-close" title="Minimizar">
                      <i data-lucide="x" class="w-5 h-5"></i>
                  </button>
 
-                 <div x-show="!isMinimized" class="flex flex-col gap-3">
-                     <div class="flex items-center gap-3">
-                         <div class="p-2 bg-amber-900 text-amber-300 rounded-lg shadow-inner">
-                             <i data-lucide="alert-triangle" class="w-8 h-8 animate-pulse"></i>
+                 <div class="balloon-uiverse-min-only">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 animate-pulse" aria-hidden="true">
+                         <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+                         <path d="M12 9v4"/><path d="M12 17h.01"/>
+                     </svg>
+                     <span class="text-xs font-black uppercase tracking-wider"><span x-text="alertsCount"></span> alerta(s)</span>
+                 </div>
+
+                 <div class="balloon-uiverse-hero">
+                     <p class="balloon-uiverse-bottom-text">atenção</p>
+                     <div class="balloon-uiverse-content">
+                         <div class="balloon-uiverse-logo">
+                             <svg class="logo1 bu-logo-main" xmlns="http://www.w3.org/2000/svg" width="33" height="33" viewBox="0 0 24 24" aria-hidden="true">
+                                 <defs><clipPath id="bu-al-clip-l"><rect x="0" y="0" width="12" height="24"/></clipPath></defs>
+                                 <path clip-path="url(#bu-al-clip-l)" d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+                             </svg>
+                             <svg class="logo2 bu-logo-main" xmlns="http://www.w3.org/2000/svg" width="33" height="33" viewBox="0 0 24 24" aria-hidden="true">
+                                 <defs><clipPath id="bu-al-clip-r"><rect x="12" y="0" width="12" height="24"/></clipPath></defs>
+                                 <path clip-path="url(#bu-al-clip-r)" d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+                             </svg>
+                             <div class="trail" aria-hidden="true"></div>
                          </div>
-                         <h3 class="text-2xl font-black uppercase tracking-tight leading-none drop-shadow-sm">Atenção!</h3>
+                         <p class="balloon-uiverse-logo-bottom-text">parados +20 min</p>
                      </div>
-                     <p class="font-bold text-lg leading-tight"><span x-text="alertsCount" class="text-2xl text-amber-900 font-black"></span> cliente(s) parado(s) há mais de 20 minutos!</p>
-                     <div class="bg-amber-400/30 p-2 rounded-xl max-h-40 overflow-y-auto custom-scrollbar space-y-1.5 border border-amber-400/50">
+                 </div>
+
+                 <div class="balloon-uiverse-body">
+                     <p><span x-text="alertsCount" class="alerts-count"></span> cliente(s) parado(s) há mais de 20 minutos!</p>
+                     <div class="balloon-uiverse-list custom-scrollbar">
                          <template x-for="a in topAlerts" :key="a.client_name">
-                             <div class="text-sm font-semibold flex justify-between items-center bg-amber-100/40 px-2 py-1.5 rounded shadow-sm">
-                                 <span x-text="a.client_name" class="truncate mr-2 uppercase"></span>
-                                 <span class="text-amber-900 font-black text-base shrink-0" x-text="durBr(a.minutes)"></span>
+                             <div class="balloon-uiverse-list-row">
+                                 <span x-text="a.client_name"></span>
+                                 <span class="dur" x-text="durBr(a.minutes)"></span>
                              </div>
                          </template>
                      </div>
-                     <button @click.stop="minimize()" class="mt-2 w-full py-3 bg-slate-900 text-amber-400 rounded-xl font-bold uppercase text-sm hover:bg-slate-800 transition-colors shadow-md border border-slate-700">
-                         Entendi (Lembrar em 5 min)
+                     <button type="button" @click.stop="minimize()" class="balloon-uiverse-btn">
+                         Entendi (lembrar em 5 min)
                      </button>
-                 </div>
-
-                 <div x-show="isMinimized" class="flex flex-col items-center justify-center gap-1.5">
-                     <i data-lucide="alert-triangle" class="w-6 h-6 text-amber-300 animate-pulse drop-shadow"></i>
-                     <span class="text-xs font-black uppercase tracking-wider"><span x-text="alertsCount"></span> Alerta(s)</span>
                  </div>
              </div>
          </div>

@@ -988,6 +988,21 @@ class DevolucaoAjusteResponsabilidade(SQLModel, table=True):
     updated_by: Optional[str] = None
 
 
+# --- Painel Informativo (avisos para colaboradores no /dashboard) ---
+
+class InformativeBulletin(SQLModel, table=True):
+    """Aviso exibido no painel Informativo (texto e/ou imagem)."""
+    __tablename__ = "informative_bulletin"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str = Field(max_length=200)
+    body: Optional[str] = None  # texto livre; quebras de linha viram <br> no template
+    image_url: Optional[str] = Field(default=None, max_length=500)
+    sort_order: int = Field(default=0, index=True)
+    is_active: bool = Field(default=True, index=True)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
 # --- Documentos Institucionais (Processos e Padronização) ---
 
 class DocSetor(SQLModel, table=True):

@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 import traceback
 import os
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 import math
 import statistics
 from email.message import EmailMessage
@@ -2543,6 +2543,249 @@ async def root_entry(request: Request):
     return RedirectResponse(url="/dashboard", status_code=303)
 
 
+def _build_informativo_extras(
+    session: Session,
+    selected_date: date,
+    selected_date_str: str,
+    employees_all: List[Any],
+    dashboard_payload: Dict[str, Any],
+    routes_today_total: int,
+    routes_today_completed: int,
+    tonnage_delivered_kg: float,
+    tonnage_total_kg: float,
+    motorista_ids_scope: Optional[List[int]] = None,
+) -> Dict[str, Any]:
+    """Dados do painel Informativo: aniversários, férias, ranking devolução, avisos, comparativo de meses."""
+    month_start = selected_date.replace(day=1)
+    if selected_date.month == 12:
+        next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1)
+    else:
+        next_month_start = selected_date.replace(month=selected_date.month + 1, day=1)
+    month_start_str = month_start.strftime("%Y-%m-%d")
+    month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
+    prev_month_end = month_start - timedelta(days=1)
+    prev_month_start = prev_month_end.replace(day=1)
+    prev_month_start_str = prev_month_start.strftime("%Y-%m-%d")
+    prev_month_end_str = prev_month_end.strftime("%Y-%m-%d")
+
+    emp_active = [e for e in employees_all if (getattr(e, "status", None) or "").lower() != "fired"]
+    emp_by_id = {e.id: e for e in emp_active if e.id is not None}
+
+    birthdays_souza_pinto: List[Dict[str, Any]] = []
+    birthdays_exemplar: List[Dict[str, Any]] = []
+    for e in emp_active:
+        if not e.birthday:
+            continue
+        bday = e.birthday.date()
+        if bday.month != selected_date.month:
+            continue
+        lbl = cost_center_display_label(e.cost_center)
+        entry = {
+            "name": e.name,
+            "day": bday.day,
+            "is_today": bday.day == selected_date.day,
+        }
+        if lbl == "Souza Pinto":
+            birthdays_souza_pinto.append(entry)
+        elif lbl == "Exemplar":
+            birthdays_exemplar.append(entry)
+    birthdays_souza_pinto.sort(key=lambda x: x["day"])
+    birthdays_exemplar.sort(key=lambda x: x["day"])
+
+    vac_active = []
+    vac_upcoming = []
+    for e in emp_active:
+        if not e.vacation_start or not e.vacation_end:
+            continue
+        vs = e.vacation_start.date()
+        ve = e.vacation_end.date()
+        if vs <= selected_date <= ve:
+            vac_active.append({
+                "name": e.name,
+                "until": ve.strftime("%d/%m/%Y"),
+                "days_left": (ve - selected_date).days + 1,
+            })
+        elif vs > selected_date:
+            vac_upcoming.append({
+                "name": e.name,
+                "start": vs.strftime("%d/%m/%Y"),
+                "in_days": (vs - selected_date).days,
+            })
+    vac_upcoming.sort(key=lambda x: x["in_days"])
+
+    devs_curr_q = (
+        select(models.Devolucao)
+        .where(models.Devolucao.data_romaneio >= month_start_str)
+        .where(models.Devolucao.data_romaneio <= month_end_str)
+    )
+    if motorista_ids_scope:
+        devs_curr_q = devs_curr_q.where(models.Devolucao.motorista_id.in_(motorista_ids_scope))
+    devs_curr = session.exec(devs_curr_q).all()
+    by_motor: Dict[int, Dict[str, Any]] = defaultdict(lambda: {"valor": 0.0, "count": 0})
+    by_helper: Dict[int, Dict[str, Any]] = defaultdict(lambda: {"valor": 0.0, "count": 0})
+    for d in devs_curr:
+        mid = d.motorista_id
+        by_motor[mid]["valor"] += float(d.valor or 0)
+        by_motor[mid]["count"] += 1
+        hid = getattr(d, "ajudante_id", None)
+        if hid:
+            by_helper[hid]["valor"] += float(d.valor or 0)
+            by_helper[hid]["count"] += 1
+    total_val_mes = sum(v["valor"] for v in by_motor.values()) or 0.0
+    denom = total_val_mes if total_val_mes > 0 else 1.0
+    devolucao_ranking = []
+    for mid, v in by_motor.items():
+        emp = emp_by_id.get(mid)
+        devolucao_ranking.append({
+            "name": emp.name if emp else f"Colaborador #{mid}",
+            "valor": round(v["valor"], 2),
+            "count": int(v["count"]),
+            "pct": round(100.0 * v["valor"] / denom, 1),
+        })
+    devolucao_ranking.sort(key=lambda x: (x.get("name") or "").casefold())
+    devolucao_ranking_helper = []
+    for hid, v in by_helper.items():
+        emp = emp_by_id.get(hid)
+        devolucao_ranking_helper.append({
+            "name": emp.name if emp else f"Colaborador #{hid}",
+            "valor": round(v["valor"], 2),
+            "count": int(v["count"]),
+            "pct": round(100.0 * v["valor"] / denom, 1),
+        })
+    devolucao_ranking_helper.sort(key=lambda x: (x.get("name") or "").casefold())
+
+    devs_prev_q = (
+        select(models.Devolucao)
+        .where(models.Devolucao.data_romaneio >= prev_month_start_str)
+        .where(models.Devolucao.data_romaneio <= prev_month_end_str)
+    )
+    if motorista_ids_scope:
+        devs_prev_q = devs_prev_q.where(models.Devolucao.motorista_id.in_(motorista_ids_scope))
+    devs_prev = session.exec(devs_prev_q).all()
+    prev_valor = sum(float(d.valor or 0) for d in devs_prev)
+    curr_valor = sum(float(d.valor or 0) for d in devs_curr)
+
+    routes_prev_q = (
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= prev_month_start_str)
+        .where(models.Route.date <= prev_month_end_str)
+    )
+    routes_curr_q = (
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= month_start_str)
+        .where(models.Route.date <= month_end_str)
+    )
+    if motorista_ids_scope:
+        routes_prev_q = routes_prev_q.where(models.Route.employee_id.in_(motorista_ids_scope))
+        routes_curr_q = routes_curr_q.where(models.Route.employee_id.in_(motorista_ids_scope))
+    routes_prev = session.exec(routes_prev_q).all()
+    routes_curr_m = session.exec(routes_curr_q).all()
+
+    def _mes_pct_route(rs: List[Any]) -> float:
+        done = [r for r in rs if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+        ret = [r for r in done if (r.delivery_status or "").lower() == "devolucao"]
+        return round((len(ret) / len(done) * 100), 1) if done else 0.0
+
+    pct_prev = _mes_pct_route(routes_prev)
+    pct_curr = _mes_pct_route(routes_curr_m)
+    delta_pp = round(float(pct_prev) - float(pct_curr), 1)
+
+    dd_board = dashboard_payload.get("devolucao_dia") or {}
+    if isinstance(dd_board, dict) and "pct" in dd_board:
+        devolucao_hoje_pct = round(float(dd_board.get("pct") or 0), 1)
+    else:
+        q_today = (
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == selected_date_str)
+        )
+        if motorista_ids_scope:
+            q_today = q_today.where(models.Route.employee_id.in_(motorista_ids_scope))
+        routes_hoje = session.exec(q_today).all()
+        done_h = [r for r in routes_hoje if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+        ret_h = [r for r in done_h if (r.delivery_status or "").lower() == "devolucao"]
+        devolucao_hoje_pct = round((len(ret_h) / len(done_h) * 100), 1) if done_h else 0.0
+
+    bulletins = []
+    try:
+        bulletins = session.exec(
+            select(models.InformativeBulletin)
+            .where(models.InformativeBulletin.is_active == True)
+            .order_by(models.InformativeBulletin.sort_order, models.InformativeBulletin.id)
+        ).all()
+    except Exception:
+        bulletins = []
+    bulletin_list = [
+        {
+            "id": b.id,
+            "title": b.title,
+            "body": b.body or "",
+            "image_url": (b.image_url or "").strip(),
+        }
+        for b in bulletins
+    ]
+
+    progress_pct = 0.0
+    if routes_today_total > 0:
+        progress_pct = round(100.0 * routes_today_completed / routes_today_total, 1)
+
+    return {
+        "birthdays_souza_pinto": birthdays_souza_pinto,
+        "birthdays_exemplar": birthdays_exemplar,
+        "vacation_active": vac_active,
+        "vacation_upcoming": vac_upcoming,
+        "devolucao_ranking": devolucao_ranking,
+        "devolucao_ranking_motoristas": devolucao_ranking,
+        "devolucao_ranking_ajudantes": devolucao_ranking_helper,
+        "bulletins": bulletin_list,
+        "devolucao_compare": {
+            "prev_month_label": prev_month_start.strftime("%m/%Y"),
+            "curr_month_label": month_start.strftime("%m/%Y"),
+            "prev_valor": round(prev_valor, 2),
+            "curr_valor": round(curr_valor, 2),
+            "prev_pct_rotas": pct_prev,
+            "curr_pct_rotas": pct_curr,
+        },
+        "devolucao_hoje_pct": devolucao_hoje_pct,
+        "devolucao_mes_delta_pp": delta_pp,
+        "tonnage_today": {
+            "routes_total": routes_today_total,
+            "routes_completed": routes_today_completed,
+            "progress_pct": progress_pct,
+            "delivered_kg": round(tonnage_delivered_kg, 2),
+            "total_kg": round(tonnage_total_kg, 2),
+        },
+    }
+
+
+def _kpi_devolucao_mes_registros(
+    session: Session,
+    month_start_str: str,
+    month_end_str: str,
+    motorista_ids: Optional[List[int]],
+) -> tuple[float, int]:
+    """Soma e quantidade na tabela Devolucao (data romaneio no mês) — alinha com /devolucoes."""
+    if not motorista_ids:
+        return 0.0, 0
+    q_sum = (
+        select(func.coalesce(func.sum(models.Devolucao.valor), 0.0))
+        .where(models.Devolucao.data_romaneio >= month_start_str)
+        .where(models.Devolucao.data_romaneio <= month_end_str)
+        .where(models.Devolucao.motorista_id.in_(motorista_ids))
+    )
+    q_cnt = (
+        select(func.count(models.Devolucao.id))
+        .where(models.Devolucao.data_romaneio >= month_start_str)
+        .where(models.Devolucao.data_romaneio <= month_end_str)
+        .where(models.Devolucao.motorista_id.in_(motorista_ids))
+    )
+    total_v = float(session.exec(q_sum).one() or 0.0)
+    cnt = int(session.exec(q_cnt).one() or 0)
+    return total_v, cnt
+
+
 def _infer_shift_name(now_br: datetime) -> str:
     hhmm = now_br.hour * 60 + now_br.minute
     # 05:00 - 13:20
@@ -2943,10 +3186,13 @@ async def dashboard_entry(
     ).all()
     month_done = [r for r in routes_month if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
     month_returns = [r for r in month_done if (r.delivery_status or "").lower() == "devolucao"]
+    mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(
+        session, month_start_str, month_end_str, employee_id_list if employee_id_list else None
+    )
     devolucao_mes = {
-        "count": len(month_returns),
+        "count": mes_cnt_reg,
         "total_entregas": len(month_done),
-        "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in month_returns), 2),
+        "total_valor": round(mes_valor_reg, 2),
         "pct": round((len(month_returns) / len(month_done) * 100), 1) if month_done else 0,
     }
 
@@ -2989,6 +3235,7 @@ async def dashboard_entry(
         clientes_alto_indice.sort(key=lambda x: -x["count"])
         clientes_alto_indice = clientes_alto_indice[:10]
 
+    tonnage_delivered_today = float(sum(float(r.tonnage or 0.0) for r in completed_routes))
     dashboard_payload = {
         "cost_centers_summary": cost_centers_summary,
         "devolucao_dia": devolucao_dia,
@@ -2997,6 +3244,7 @@ async def dashboard_entry(
             "tonnage": round(total_tonnage, 2),
             "avg_kgh": round(avg_kgh, 1),
             "completed_routes_count": completed_count,
+            "routes_total": len(routes),
             "headcount": selected_headcount,
             "target_headcount": selected_target,
             "rotas_paradas": rotas_paradas_count,
@@ -3024,12 +3272,28 @@ async def dashboard_entry(
         }
         dashboard_payload["operational_shift"] = _tv_shift_kv["operational_shift"]
 
-    template_name = "dashboard_tv.html" if is_tv else "index.html"
+    informativo_ctx: Optional[Dict[str, Any]] = None
+    if not is_tv:
+        informativo_ctx = _build_informativo_extras(
+            session,
+            selected_date,
+            selected_date_str,
+            employees_all,
+            dashboard_payload,
+            len(routes),
+            completed_count,
+            tonnage_delivered_today,
+            total_tonnage,
+            motorista_ids_scope=employee_id_list if employee_id_list else None,
+        )
+
+    template_name = "dashboard_tv.html" if is_tv else "dashboard_informativo.html"
     return templates.TemplateResponse(
         template_name,
         {
             "request": request,
             "dashboard": dashboard_payload,
+            "informativo": informativo_ctx or {},
             "current_cost_center": selected_cost_center or "Todos",
             "cost_center_options": cost_center_options,
             "current_date": selected_date_str,
@@ -3284,10 +3548,13 @@ async def api_dashboard_tv_data(
     ).all()
     month_done = [r for r in routes_month if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
     month_returns = [r for r in month_done if (r.delivery_status or "").lower() == "devolucao"]
+    mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(
+        session, month_start_str, month_end_str, employee_ids if employee_ids else None
+    )
     devolucao_mes = {
-        "count": len(month_returns),
+        "count": mes_cnt_reg,
         "total_entregas": len(month_done),
-        "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in month_returns), 2),
+        "total_valor": round(mes_valor_reg, 2),
         "pct": round((len(month_returns) / len(month_done) * 100), 1) if month_done else 0,
     }
 
@@ -3392,6 +3659,135 @@ async def api_dashboard_tv_data(
         },
     }
     return JSONResponse(payload)
+
+
+@app.get("/api/dashboard/informativo-data", response_class=JSONResponse)
+async def api_dashboard_informativo_data(
+    request: Request,
+    date_ref: Optional[str] = Query(None, alias="date"),
+    cost_center: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    """Atualização JSON do painel Informativo (aniversários, férias, devolução, avisos, tonelagem)."""
+    user = get_current_user(request)
+    if not user:
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    if isinstance(user, dict) and user.get("type") == "employee":
+        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    selected_date = now_br.date()
+    if date_ref:
+        try:
+            selected_date = datetime.strptime(date_ref, "%Y-%m-%d").date()
+        except Exception:
+            pass
+    selected_date_str = selected_date.strftime("%Y-%m-%d")
+    selected_cc = parse_cost_center_filter(cost_center or "Todos")
+    employees_all = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
+    employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cc)]
+    employee_ids = list({e.id for e in employees if e.id is not None})
+    if not employee_ids:
+        empty = _build_informativo_extras(
+            session, selected_date, selected_date_str, employees_all, {}, 0, 0, 0.0, 0.0, motorista_ids_scope=None
+        )
+        return JSONResponse(
+            {
+                "date": selected_date_str,
+                "cost_center": selected_cc or "Todos",
+                "informativo": empty,
+                "kpi": {"routes_total": 0, "routes_completed": 0, "tonnage_total_kg": 0.0, "tonnage_delivered_kg": 0.0},
+            }
+        )
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == selected_date_str)
+        .where(models.Route.employee_id.in_(employee_ids))
+    ).all()
+    completed_statuses = {"entregue", "devolucao"}
+    completed_routes = [r for r in routes if (r.delivery_status or "").lower() in completed_statuses]
+    total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
+    delivered_kg = float(sum(float(r.tonnage or 0.0) for r in completed_routes))
+    inf = _build_informativo_extras(
+        session,
+        selected_date,
+        selected_date_str,
+        employees_all,
+        {},
+        len(routes),
+        len(completed_routes),
+        delivered_kg,
+        total_tonnage,
+        motorista_ids_scope=employee_ids if employee_ids else None,
+    )
+    return JSONResponse(
+        {
+            "date": selected_date_str,
+            "cost_center": selected_cc or "Todos",
+            "informativo": inf,
+            "kpi": {
+                "routes_total": len(routes),
+                "routes_completed": len(completed_routes),
+                "tonnage_total_kg": round(total_tonnage, 2),
+                "tonnage_delivered_kg": round(delivered_kg, 2),
+            },
+        }
+    )
+
+
+@app.get("/admin/informativo", response_class=HTMLResponse)
+async def admin_informativo_page(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    rows = session.exec(
+        select(models.InformativeBulletin).order_by(models.InformativeBulletin.sort_order, models.InformativeBulletin.id)
+    ).all()
+    return templates.TemplateResponse(
+        "admin_informativo.html",
+        {"request": request, "bulletins": rows, "user": user},
+    )
+
+
+@app.post("/admin/informativo")
+async def admin_informativo_create(
+    request: Request,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+    title: str = Form(""),
+    body: str = Form(""),
+    image_url: str = Form(""),
+    sort_order: int = Form(0),
+):
+    title = (title or "").strip()
+    if not title:
+        return RedirectResponse(url="/admin/informativo?err=1", status_code=303)
+    b = models.InformativeBulletin(
+        title=title[:200],
+        body=(body or "").strip() or None,
+        image_url=(image_url or "").strip()[:500] or None,
+        sort_order=int(sort_order or 0),
+        is_active=True,
+        updated_at=datetime.now(),
+    )
+    session.add(b)
+    session.commit()
+    return RedirectResponse(url="/admin/informativo", status_code=303)
+
+
+@app.post("/admin/informativo/{bulletin_id}/delete")
+async def admin_informativo_delete(
+    request: Request,
+    bulletin_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    b = session.get(models.InformativeBulletin, bulletin_id)
+    if b:
+        session.delete(b)
+        session.commit()
+    return RedirectResponse(url="/admin/informativo", status_code=303)
 
 
 @app.get("/api/dashboard/alerts-over-20min", response_class=JSONResponse)

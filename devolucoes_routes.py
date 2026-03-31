@@ -10,7 +10,8 @@ import json
 from fastapi import Request, Depends, UploadFile, File, APIRouter, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlmodel import Session, select, func, delete
-from sqlalchemy import tuple_, and_, or_, func
+from sqlalchemy import tuple_, and_, or_, func, literal, case
+from sqlalchemy.exc import IntegrityError
 from types import SimpleNamespace
 from pydantic import BaseModel
 
@@ -67,6 +68,11 @@ def _fmt_data_hora_pt_br(s: Optional[str]) -> str:
     except Exception:
         pass
     return s
+
+
+def _fmt_moeda_br(v: float) -> str:
+    s = f"{float(v):,.2f}"
+    return "R$ " + s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
@@ -468,10 +474,6 @@ def init_devolucoes_router(
             period_label = f"{year:04d}-{month:02d}"
 
         # Só colunas usadas nos selects (menos tráfego Redis/Postgres que ORM completo)
-        cr = session.exec(
-            select(models.Client.id, models.Client.name, models.Client.nb).order_by(models.Client.name)
-        ).all()
-        clients = [SimpleNamespace(id=a, name=b, nb=c) for a, b, c in cr]
         er = session.exec(
             select(models.Employee.id, models.Employee.name, models.Employee.seller_code)
             .where(models.Employee.status != "fired")
@@ -483,53 +485,134 @@ def init_devolucoes_router(
             select(models.DevolucaoResponsabilidade).where(models.DevolucaoResponsabilidade.is_active == True)
         ).all()
 
-        # Trazer para a lista as devoluções feitas no mobile/desktop (Route com status devolucao)
-        # que ainda não têm registro em Devolucao — assim passam a aparecer em /devolucoes.
+        # Trazer para a lista apenas devoluções com evidência de origem MOBILE
+        # (evita criar registros WEB automáticos que poluem indicadores e duplicatas).
         try:
             routes_devolucao = session.exec(
                 select(models.Route)
+                .outerjoin(models.Devolucao, models.Devolucao.route_id == models.Route.id)
                 .where(models.Route.type == "delivery")
                 .where(models.Route.date >= start_date)
                 .where(models.Route.date <= end_date)
                 .where(func.lower(models.Route.delivery_status) == "devolucao")
-            ).all()
-            eff_date_col = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
-            rids_raw = session.exec(
-                select(models.Devolucao.route_id).where(
-                    models.Devolucao.route_id.isnot(None),
-                    eff_date_col >= start_date,
-                    eff_date_col <= end_date,
+                .where(models.Devolucao.id.is_(None))
+                .where(
+                    or_(
+                        models.Route.delivery_notified_commercial.isnot(None),
+                        models.Route.delivery_notified_logistics.isnot(None),
+                        and_(
+                            models.Route.driver_lat_end.isnot(None),
+                            models.Route.driver_lon_end.isnot(None),
+                        ),
+                    )
                 )
             ).all()
-            existing_route_ids = {int(x[0]) if isinstance(x, (tuple, list)) else int(x) for x in rids_raw if x is not None}
             synced = 0
             for r in routes_devolucao:
-                if r.id not in existing_route_ids:
-                    dev = sync_route_to_devolucao(session, r, source="WEB")
-                    if dev:
-                        synced += 1
-                        existing_route_ids.add(r.id)
+                dev = sync_route_to_devolucao(session, r, source="MOBILE")
+                if dev:
+                    synced += 1
             if synced:
                 session.commit()
         except Exception:
             session.rollback()
 
-        # Filtra por data da entrega (quando disponível), senão data do romaneio
+        # Período principal = DATA ROMANEIO (como planilha Excel: coluna DATA ROMANEIO, linhas de dados após cabeçalhos).
+        # Data efetiva (entrega senão romaneio) pode incluir mais linhas no mesmo mês civil e inflava o total vs Excel.
         eff_date = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
-        count_q = (
+        rom_in_period = and_(
+            models.Devolucao.data_romaneio >= start_date,
+            models.Devolucao.data_romaneio <= end_date,
+        )
+        count_q = select(func.count(models.Devolucao.id)).where(rom_in_period)
+        total_count = session.exec(count_q).one()
+
+        sum_valor_q = (
+            select(func.coalesce(func.sum(models.Devolucao.valor), 0.0)).where(rom_in_period)
+        )
+        period_total_valor = float(session.exec(sum_valor_q).one() or 0.0)
+
+        aguard_period_q = (
             select(func.count(models.Devolucao.id))
+            .where(rom_in_period)
+            .where(
+                or_(
+                    models.Devolucao.duplicate_of_id.isnot(None),
+                    models.Devolucao.validation_status.in_(["DUPLICATE_EXCEL", "ORPHAN_ROUTE"]),
+                )
+            )
+        )
+        period_aguardando_count = session.exec(aguard_period_q).one()
+
+        dup_period_q = (
+            select(func.count(models.Devolucao.id))
+            .where(rom_in_period)
+            .where(models.Devolucao.duplicate_of_id.isnot(None))
+        )
+        period_duplicate_excel_count = session.exec(dup_period_q).one()
+
+        # Referência operacional: mesma janela de datas, mas por data efetiva (pode divergir do Excel).
+        eff_count_q = select(func.count(models.Devolucao.id)).where(eff_date >= start_date).where(eff_date <= end_date)
+        period_effetiva_count = session.exec(eff_count_q).one()
+        sum_valor_eff_q = (
+            select(func.coalesce(func.sum(models.Devolucao.valor), 0.0))
             .where(eff_date >= start_date)
             .where(eff_date <= end_date)
         )
-        total_count = session.exec(count_q).one()
+        period_effetiva_valor = float(session.exec(sum_valor_eff_q).one() or 0.0)
+
+        # Origem no período por DATA ROMANEIO (alinhado à listagem e aos KPIs principais).
+        src_key = func.upper(func.coalesce(func.trim(models.Devolucao.source), literal("")))
+        src_label = case(
+            (src_key == literal(""), literal("EXCEL")),
+            else_=src_key,
+        )
+        group_src_q = (
+            select(
+                src_label.label("origem"),
+                func.count(models.Devolucao.id).label("cnt"),
+                func.coalesce(func.sum(models.Devolucao.valor), 0.0).label("sv"),
+            )
+            .where(rom_in_period)
+            .group_by(src_label)
+        )
+        by_source: Dict[str, Dict[str, Any]] = {}
+        for row in session.exec(group_src_q).all():
+            label = (getattr(row, "origem", None) or "EXCEL").strip() or "EXCEL"
+            sv = float(row.sv or 0.0)
+            by_source[label] = {
+                "count": int(row.cnt),
+                "valor": sv,
+                "valor_fmt": _fmt_moeda_br(sv),
+            }
+
+        latest_import_batch = session.exec(
+            select(models.DevolucaoImportBatch)
+            .where(models.DevolucaoImportBatch.status == "committed")
+            .order_by(models.DevolucaoImportBatch.committed_at.desc(), models.DevolucaoImportBatch.id.desc())
+        ).first()
+        last_import_summary = None
+        if latest_import_batch:
+            total_rows = int(latest_import_batch.total_rows or 0)
+            invalid_count = int(latest_import_batch.invalid_count or 0)
+            created_count = int(latest_import_batch.valid_count or 0)
+            skipped_count = max(0, total_rows - invalid_count - created_count)
+            last_import_summary = {
+                "batch_id": latest_import_batch.id,
+                "filename": latest_import_batch.filename or "import.xlsx",
+                "total_rows": total_rows,
+                "invalid_count": invalid_count,
+                "created_count": created_count,
+                "skipped_count": skipped_count,
+                "committed_at": latest_import_batch.committed_at.isoformat() if latest_import_batch.committed_at else None,
+            }
 
         base_q = (
             select(models.Devolucao)
-            .where(eff_date >= start_date)
-            .where(eff_date <= end_date)
-            .order_by(eff_date.desc(), models.Devolucao.created_at.desc())
+            .where(rom_in_period)
+            .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.created_at.desc())
         )
-        per_page_effective = min(max(1, per_page or 250), 10000)
+        per_page_effective = min(max(1, per_page or 100), 10000)
         offset = max(0, (page - 1) * per_page_effective)
         devolucoes = session.exec(base_q.offset(offset).limit(per_page_effective)).all()
 
@@ -542,7 +625,6 @@ def init_devolucoes_router(
         plate_by_cmd = _plate_by_client_motorista_date(session, devolucoes, route_map)
 
         rows = []
-        aguardando_n = 0
         for dev in devolucoes:
             c = client_map.get(dev.client_id)
             m = emp_map.get(dev.motorista_id)
@@ -555,8 +637,6 @@ def init_devolucoes_router(
             if not plate:
                 plate = plate_by_cmd.get((dev.client_id, dev.motorista_id, data_efetiva), "")
             aguardando = bool(dup_of) or vstat in ("DUPLICATE_EXCEL", "ORPHAN_ROUTE")
-            if aguardando:
-                aguardando_n += 1
             # Nome do cliente: preferir o mais completo (razao_social ou name, o que for mais longo)
             cname = "-"
             client_code = ""
@@ -599,7 +679,6 @@ def init_devolucoes_router(
             "devolucoes.html",
             {
                 "request": request,
-                "clients": clients,
                 "employees": employees,
                 "motivos": motivos,
                 "responsabilidades": responsabilidades,
@@ -622,7 +701,18 @@ def init_devolucoes_router(
                     "prev_page": page - 1 if page > 1 else 1,
                     "next_page": page + 1 if page < total_pages else total_pages,
                 },
-                "aguardando_count": aguardando_n,
+                "period_stats": {
+                    "total_count": total_count,
+                    "total_valor": period_total_valor,
+                    "total_valor_fmt": _fmt_moeda_br(period_total_valor),
+                    "aguardando_count": period_aguardando_count,
+                    "duplicate_excel_count": period_duplicate_excel_count,
+                    "effetiva_count": period_effetiva_count,
+                    "effetiva_valor": period_effetiva_valor,
+                    "effetiva_valor_fmt": _fmt_moeda_br(period_effetiva_valor),
+                    "by_source": by_source,
+                },
+                "last_import_summary": last_import_summary,
                 "devolucoes_table_rows": rows,
             },
         )
@@ -824,7 +914,30 @@ def init_devolucoes_router(
             session.commit()
             _devolucoes_backfill_span(session, valid_rows)
             return JSONResponse({"ok": True, "batch_id": batch_id, "created": created, "skipped": len(skipped)})
+        except ValueError as e:
+            try:
+                session.rollback()
+            except Exception:
+                pass
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+        except IntegrityError as e:
+            try:
+                session.rollback()
+            except Exception:
+                pass
+            logger.exception(f"Integridade ao commitar importacao de devolucoes: {e}")
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": "Conflito ao gravar (possível duplicata). Recarregue o preview e tente novamente.",
+                },
+                status_code=409,
+            )
         except Exception as e:
+            try:
+                session.rollback()
+            except Exception:
+                pass
             logger.exception(f"Erro ao commitar importacao de devolucoes: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
@@ -844,15 +957,8 @@ def init_devolucoes_router(
         session.add(route)
 
     def _can_delete_devolucao(d: models.Devolucao) -> bool:
-        """Permite excluir: duplicata de planilha, órfão, ou devolução com origem EXCEL, WEB ou MOBILE."""
-        dup_of = getattr(d, "duplicate_of_id", None)
-        vstat = (getattr(d, "validation_status", None) or "").strip()
-        src = (getattr(d, "source", None) or "").strip().upper()
-        if dup_of or vstat in ("ORPHAN_ROUTE", "DUPLICATE_EXCEL"):
-            return True
-        if src in ("EXCEL", "WEB", "MOBILE"):
-            return True
-        return False
+        """Permite excluir qualquer devolução selecionada na tela (ação administrativa)."""
+        return True
 
     @router.delete("/api/devolucoes/{devolucao_id}", response_class=JSONResponse)
     async def api_devolucoes_delete_shadow_or_orphan(
@@ -867,7 +973,7 @@ def init_devolucoes_router(
             return JSONResponse({"ok": False, "error": "Não encontrado."}, status_code=404)
         if not _can_delete_devolucao(d):
             return JSONResponse(
-                {"ok": False, "error": "Só é possível excluir duplicata de planilha, órfão ou devoluções com origem Excel, Web ou Mobile."},
+                {"ok": False, "error": "Não foi possível excluir este registro."},
                 status_code=400,
             )
         route_id = getattr(d, "route_id", None)
@@ -898,7 +1004,7 @@ def init_devolucoes_router(
                 skipped.append({"id": devolucao_id, "reason": "Não encontrado."})
                 continue
             if not _can_delete_devolucao(d):
-                skipped.append({"id": devolucao_id, "reason": "Só é possível excluir duplicata de planilha, órfão ou devoluções com origem Excel, Web ou Mobile."})
+                skipped.append({"id": devolucao_id, "reason": "Não foi possível excluir este registro."})
                 continue
             route_id = getattr(d, "route_id", None)
             _clear_route_devolucao(session, route_id)

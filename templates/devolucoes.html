@@ -3,11 +3,14 @@
 {% block content %}
 {% set _filters = filters or {} %}
 {% set _pagination = pagination or {} %}
+{% set _period_stats = period_stats or {} %}
+{% set _last_import = last_import_summary or {} %}
 <script>
 window.__DEVOLUCOES_TABLE_ROWS = {{ devolucoes_table_rows|tojson }};
 window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_date': _filters.get('end_date')}|tojson }};
+window.__DEVOLUCOES_PERIOD_STATS = {{ _period_stats|tojson }};
 </script>
-<div class="p-8" x-data="devolucoesTable({ rows: window.__DEVOLUCOES_TABLE_ROWS || [] })">
+<div class="p-8" x-data="devolucoesTable({ rows: window.__DEVOLUCOES_TABLE_ROWS || [], periodStats: window.__DEVOLUCOES_PERIOD_STATS || {} })">
     <div class="max-w-7xl mx-auto">
         <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
             <div>
@@ -47,12 +50,33 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
             <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
             <span id="import-success-text"></span>
         </div>
+        {% if _last_import %}
+        {% set _last_has_gap = (_last_import.get('invalid_count', 0) | int) > 0 or (_last_import.get('skipped_count', 0) | int) > 0 %}
+        <div class="mb-6 rounded-xl border p-4 text-sm {{ 'border-amber-500/30 bg-amber-500/10 text-amber-100' if _last_has_gap else 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' }}">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <div class="font-semibold">{{ 'Última importação com diferença entre arquivo e base' if _last_has_gap else 'Última importação concluída' }}</div>
+                    <div class="mt-1 font-medium text-slate-100">{{ _last_import.get('filename') }}</div>
+                    <div class="mt-1 text-xs text-slate-200">
+                        {{ _last_import.get('total_rows', 0) }} linha(s) no arquivo ·
+                        {{ _last_import.get('created_count', 0) }} gravada(s) ·
+                        {{ _last_import.get('invalid_count', 0) }} inválida(s) ·
+                        {{ _last_import.get('skipped_count', 0) }} duplicada(s) ignorada(s)
+                    </div>
+                </div>
+                {% if _last_import.get('invalid_count', 0) %}
+                <a href="/api/devolucoes/import/{{ _last_import.get('batch_id') }}/errors.xlsx" class="text-xs font-semibold text-amber-200 underline underline-offset-2 hover:text-white">Baixar inválidas</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        <div id="last-import-summary-msg" class="hidden mb-6 rounded-xl border p-4 text-sm"></div>
 
         <div class="mb-4 flex flex-wrap items-center gap-4">
             <div class="flex flex-wrap items-center gap-2">
-                <a href="/devolucoes?hoje=1&page=1&per_page={{ _pagination.get('per_page', 250) }}" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ 'bg-sky-600 text-white' if _filters.get('period_label') == 'Hoje' else 'bg-slate-700 text-slate-300 hover:bg-slate-600' }}">Hoje</a>
+                <a href="/devolucoes?hoje=1&page=1&per_page={{ _pagination.get('per_page', 100) }}" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ 'bg-sky-600 text-white' if _filters.get('period_label') == 'Hoje' else 'bg-slate-700 text-slate-300 hover:bg-slate-600' }}">Hoje</a>
                 <form method="get" action="/devolucoes" class="flex items-center gap-2 flex-wrap" id="devolucoes-filter-form">
-                    <input type="hidden" name="per_page" value="{{ _pagination.get('per_page', 250) }}">
+                    <input type="hidden" name="per_page" value="{{ _pagination.get('per_page', 100) }}">
                     <input type="hidden" name="page" value="1">
                     <label class="text-slate-400 text-sm">De</label>
                     <input type="date" name="date_from" value="{{ _filters.get('date_from') or '' }}" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
@@ -91,7 +115,7 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
             <span class="text-slate-500 text-sm mr-1">Aba:</span>
             <button type="button" @click="tab = 'todas'" :class="tab === 'todas' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors">Todas</button>
             <button type="button" @click="tab = 'aguardando'" :class="tab === 'aguardando' ? 'bg-amber-600/30 text-amber-200 border border-amber-500/40' : 'text-slate-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent">
-                Aguardando validação <span class="text-amber-400 font-bold">({{ aguardando_count }})</span>
+                Aguardando validação <span class="text-amber-400 font-bold">({{ _period_stats.get('aguardando_count', 0) }})</span>
             </button>
             <span class="text-slate-600 mx-2">|</span>
             <span class="text-slate-500 text-sm">Origem:</span>
@@ -101,6 +125,56 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
             <button type="button" @click="sourceFilter = 'EXCEL'" :class="sourceFilter === 'EXCEL' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Excel</button>
             <button type="button" @click="sourceFilter = 'MANUAL'" :class="sourceFilter === 'MANUAL' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Manual</button>
         </div>
+
+        <div class="mb-2 text-xs text-slate-500">Indicadores principais: período <span class="text-slate-400">{{ _filters.get('date_from') or _filters.get('start_date') }}</span>–<span class="text-slate-400">{{ _filters.get('date_to') or _filters.get('end_date') }}</span>, pela <span class="text-slate-300">data do romaneio</span> (mesmo critério da coluna DATA ROMANEIO no Excel após a linha de cabeçalho) — todas as páginas.</div>
+        <div class="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="rounded-xl border border-slate-700 bg-slate-800/60 p-3">
+                <p class="text-[11px] text-slate-500 uppercase tracking-wide">Total de devoluções</p>
+                <p class="text-xl font-bold text-white" x-text="totalDevolucoes"></p>
+            </div>
+            <div class="rounded-xl border border-slate-700 bg-slate-800/60 p-3">
+                <p class="text-[11px] text-slate-500 uppercase tracking-wide">Valor total</p>
+                <p class="text-xl font-bold text-sky-400" x-text="fmtValor(totalValorDevolucoes)"></p>
+            </div>
+            <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+                <p class="text-[11px] text-amber-300/80 uppercase tracking-wide">Aguardando</p>
+                <p class="text-xl font-bold text-amber-300" x-text="totalAguardando"></p>
+            </div>
+            <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
+                <p class="text-[11px] text-rose-300/80 uppercase tracking-wide">Duplicata planilha</p>
+                <p class="text-xl font-bold text-rose-300" x-text="totalDuplicatas"></p>
+            </div>
+        </div>
+        {% set _ps = period_stats or {} %}
+        {% set _bs = _ps.get('by_source') or {} %}
+        <div class="mb-4 rounded-xl border border-slate-600 bg-slate-900/40 p-4 text-sm text-slate-300 space-y-2">
+            <p class="text-slate-200 font-medium">Visão operacional (opcional)</p>
+            <p class="text-slate-400">Quando a <strong class="text-slate-200">data de entrega</strong> cai no mês mas o <strong class="text-slate-200">romaneio</strong> é de outro mês, o critério acima (romaneio) bate com a planilha; o critério abaixo inclui essas entregas pelo mês da entrega.</p>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                <div class="rounded-lg border border-slate-700/80 bg-slate-800/40 p-3">
+                    <p class="text-[11px] text-slate-500 uppercase tracking-wide">Data efetiva no período (entrega, senão romaneio)</p>
+                    <p class="text-lg font-semibold text-white">{{ _ps.get('effetiva_count', 0) }} <span class="text-slate-500 text-sm font-normal">linhas</span></p>
+                    <p class="text-sky-400 font-semibold">{{ _ps.get('effetiva_valor_fmt', 'R$ 0,00') }}</p>
+                    <p class="text-[11px] text-slate-500 mt-1">Pode ser maior que o total principal se houver entregas no mês com romaneio em outro mês.</p>
+                </div>
+                <div class="rounded-lg border border-slate-700/80 bg-slate-800/40 p-3">
+                    <p class="text-[11px] text-slate-500 uppercase tracking-wide">Por origem (data do romaneio no período)</p>
+                    <ul class="mt-1 space-y-1 text-xs text-slate-200">
+                        {% for key in ['EXCEL', 'MOBILE', 'WEB', 'MANUAL'] %}
+                            {% if key in _bs %}
+                                <li class="flex justify-between gap-2"><span>{{ key }}</span><span class="font-mono text-slate-300">{{ _bs[key].count }} · {{ _bs[key].get('valor_fmt', '') }}</span></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% for k, v in _bs.items() %}
+                            {% if k not in ['EXCEL', 'MOBILE', 'WEB', 'MANUAL'] %}
+                                <li class="flex justify-between gap-2"><span>{{ k }}</span><span class="font-mono text-slate-300">{{ v.count }} · {{ v.get('valor_fmt', '') }}</span></li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <p class="mb-4 text-xs text-slate-500" x-show="hasLocalFilters" x-cloak>Lista filtrada nesta página: <span class="text-slate-300 font-medium" x-text="filtered.length"></span> visível(is). Os números acima são do período completo.</p>
 
         <div class="mb-4 flex flex-wrap items-center gap-3" x-show="filtered.length > 0">
             <label class="inline-flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white text-sm">
@@ -130,9 +204,9 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
                 {% if _pagination and _pagination.get('total_pages', 1) > 1 %}
                 {% set _date_q = 'hoje=1' if _filters.get('period_label') == 'Hoje' else ('date_from=' + (_filters.get('date_from') or '') + '&date_to=' + (_filters.get('date_to') or '')) %}
                 <nav class="flex items-center gap-1">
-                    <a href="/devolucoes?{{ _date_q }}&page={{ _pagination.get('prev_page', 1) }}&per_page={{ _pagination.get('per_page', 250) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_prev') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">← Anterior</a>
+                    <a href="/devolucoes?{{ _date_q }}&page={{ _pagination.get('prev_page', 1) }}&per_page={{ _pagination.get('per_page', 100) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_prev') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">← Anterior</a>
                     <span class="px-2 text-slate-400 text-sm">Pág. {{ _pagination.get('page', 1) }} / {{ _pagination.get('total_pages', 1) }}</span>
-                    <a href="/devolucoes?{{ _date_q }}&page={{ _pagination.get('next_page', 1) }}&per_page={{ _pagination.get('per_page', 250) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_next') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">Próxima →</a>
+                    <a href="/devolucoes?{{ _date_q }}&page={{ _pagination.get('next_page', 1) }}&per_page={{ _pagination.get('per_page', 100) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_next') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">Próxima →</a>
                 </nav>
                 {% endif %}
             </div>
@@ -155,10 +229,10 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
                                 <span class="text-slate-400 font-mono text-xs" x-text="d.data_efetiva || d.data_entrega || d.data_romaneio" :title="(d.data_romaneio && d.data_entrega && d.data_romaneio !== d.data_entrega) ? ('Romaneio: ' + d.data_romaneio + ' · Entrega: ' + d.data_entrega) : ''"></span>
                             </div>
                             <h4 class="text-white font-medium text-sm leading-tight line-clamp-2" x-text="clientDisplayName(d)"></h4>
-                            <div class="text-slate-400 text-xs space-y-0.5">
-                                <p><span class="text-slate-500">Cód.:</span> <span x-text="fmtNbBr(d.client_code)"></span></p>
-                                <p><span class="text-slate-500">Fantasia:</span> <span x-text="d.client_fantasia || '-'"></span></p>
-                                <p><span class="text-slate-500">Razão:</span> <span x-text="d.client_razao_social || '-'"></span></p>
+                            <div class="text-slate-400 text-xs space-y-0.5 bg-slate-900/40 border border-slate-700/70 rounded-lg p-2">
+                                <p><span class="text-slate-500">Cód.:</span> <span class="font-mono" x-text="fmtNbBr(d.client_code)"></span></p>
+                                <p><span class="text-slate-500">Fantasia:</span> <span class="truncate inline-block max-w-full align-bottom" x-text="d.client_fantasia || '-'"></span></p>
+                                <p><span class="text-slate-500">Razão:</span> <span class="truncate inline-block max-w-full align-bottom" x-text="d.client_razao_social || '-'"></span></p>
                                 <p><span class="text-slate-500">Motorista:</span> <span x-text="d.motorista_name"></span></p>
                                 <p><span class="text-slate-500">Placa:</span> <span class="font-mono" x-text="d.vehicle_plate || '-'"></span></p>
                             </div>
@@ -197,12 +271,16 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-xs font-medium text-slate-400 mb-1">Cliente *</label>
-                    <select name="client_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">Selecione</option>
-                        {% for c in clients %}
-                        <option value="{{ c.id }}">{{ c.name }}{% if c.nb %} ({{ c.nb }}){% endif %}</option>
-                        {% endfor %}
-                    </select>
+                    <input type="hidden" name="client_id" id="manual-client-id" required>
+                    <div id="manual-client-selected" class="hidden mb-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+                        <div id="manual-client-selected-name" class="font-medium"></div>
+                        <div id="manual-client-selected-detail" class="text-xs text-emerald-100/80"></div>
+                        <button type="button" id="manual-client-clear" class="mt-2 text-xs font-semibold text-emerald-300 hover:text-emerald-200">Remover e buscar outro</button>
+                    </div>
+                    <div class="relative">
+                        <input type="search" id="manual-client-search" autocomplete="off" placeholder="Digite nome, NB, fantasia ou endereço" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                        <div id="manual-client-suggestions" class="hidden absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl"></div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-400 mb-1">Vendedor *</label>
@@ -268,8 +346,10 @@ window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_
 
 <script>
 function devolucoesTable(cfg) {
+    const ps = cfg.periodStats && typeof cfg.periodStats === 'object' ? cfg.periodStats : (typeof window !== 'undefined' && window.__DEVOLUCOES_PERIOD_STATS) || {};
     return {
         rows: Array.isArray(cfg.rows) ? cfg.rows : [],
+        periodStats: ps,
         selectedIds: [],
         searchQ: '',
         sourceFilter: '',
@@ -334,9 +414,31 @@ function devolucoesTable(cfg) {
                 return (b.id - a.id) * dir;
             });
         },
+        get hasLocalFilters() {
+            if (this.tab !== 'todas') return true;
+            if (this.sourceFilter) return true;
+            if (this.motoristaFilterIds && this.motoristaFilterIds.length > 0) return true;
+            return !!(this.searchQ || '').trim();
+        },
         get deletableFiltered() {
             return this.filtered.filter(d => d.can_delete_aguardando);
         },
+            get totalDevolucoes() {
+                const n = this.periodStats && this.periodStats.total_count;
+                return n != null ? Number(n) : this.filtered.length;
+            },
+            get totalValorDevolucoes() {
+                const v = this.periodStats && this.periodStats.total_valor;
+                return v != null ? Number(v) : this.filtered.reduce((acc, d) => acc + Number(d.valor || 0), 0);
+            },
+            get totalAguardando() {
+                const n = this.periodStats && this.periodStats.aguardando_count;
+                return n != null ? Number(n) : this.filtered.filter(d => d.aguardando).length;
+            },
+            get totalDuplicatas() {
+                const n = this.periodStats && this.periodStats.duplicate_excel_count;
+                return n != null ? Number(n) : this.filtered.filter(d => d.is_duplicate_excel).length;
+            },
         toggleSelect(id) {
             const i = this.selectedIds.indexOf(id);
             if (i === -1) this.selectedIds.push(id);
@@ -527,6 +629,8 @@ function devolucoesTable(cfg) {
 
 let _importValidRows = [];
 let _importFilename = '';
+let manualClientSearchTimer = null;
+let _lastImportPreview = null;
 
 document.getElementById('devolucoes-excel-input')?.addEventListener('change', async function() {
     const file = this.files?.[0];
@@ -547,6 +651,13 @@ document.getElementById('devolucoes-excel-input')?.addEventListener('change', as
         }
         _importValidRows = j.valid_rows || [];
         _importFilename = file.name;
+        _lastImportPreview = {
+            filename: file.name,
+            batch_id: j.batch_id || null,
+            total: Number(j.total || 0),
+            valid_count: Number(j.valid_count || 0),
+            invalid_count: Number(j.invalid_count || 0),
+        };
         document.getElementById('import-commit-btn').style.display = '';
         document.getElementById('import-valid-count').textContent = j.valid_count;
         document.getElementById('import-invalid-count').textContent = j.invalid_count;
@@ -584,10 +695,27 @@ document.getElementById('import-commit-btn')?.addEventListener('click', async fu
         const r = await fetch('/api/devolucoes/import/commit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ valid_rows: _importValidRows, filename: _importFilename })
+            body: JSON.stringify({
+                valid_rows: _importValidRows,
+                filename: _importFilename,
+                batch_id: (_lastImportPreview && _lastImportPreview.batch_id) || null,
+            })
         });
         const j = await r.json();
         if (j.ok) {
+            const importSummary = {
+                filename: _importFilename || (_lastImportPreview && _lastImportPreview.filename) || '',
+                batch_id: (_lastImportPreview && _lastImportPreview.batch_id) || j.batch_id || null,
+                total: _lastImportPreview ? _lastImportPreview.total : _importValidRows.length,
+                valid_count: _lastImportPreview ? _lastImportPreview.valid_count : _importValidRows.length,
+                invalid_count: _lastImportPreview ? _lastImportPreview.invalid_count : 0,
+                created: Number(j.created || 0),
+                skipped: Number(j.skipped || 0),
+                when: new Date().toISOString(),
+            };
+            try {
+                localStorage.setItem('devolucoesLastImportSummary', JSON.stringify(importSummary));
+            } catch (_err) {}
             document.getElementById('import-preview-box').classList.add('hidden');
             document.getElementById('import-success-text').textContent = 'Importação concluída: ' + j.created + ' registrado(s)' + (j.skipped ? ', ' + j.skipped + ' duplicado(s) ignorado(s)' : '') + '.';
             document.getElementById('import-success-msg').classList.remove('hidden');
@@ -612,10 +740,193 @@ function openManualModal() {
     const today = new Date().toISOString().slice(0, 10);
     modal.querySelector('input[name="data_romaneio"]').value = today;
     modal.querySelector('input[name="data_entrega"]').value = today;
+    modal.querySelector('#manual-client-search')?.focus();
 }
 function closeManualModal() {
-    document.getElementById('manualDevolucaoModal').classList.add('hidden');
-    document.getElementById('manualDevolucaoModal').classList.remove('flex');
+    const modal = document.getElementById('manualDevolucaoModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.getElementById('manual-devolucao-form')?.reset();
+    clearManualClient();
+}
+
+function formatImportSummary(summary) {
+    const parts = [];
+    if (summary.total != null) parts.push(summary.total + ' linha(s) no arquivo');
+    if (summary.valid_count != null) parts.push(summary.valid_count + ' válida(s)');
+    if (summary.invalid_count != null) parts.push(summary.invalid_count + ' inválida(s)');
+    if (summary.created != null) parts.push(summary.created + ' gravada(s)');
+    if (summary.skipped != null) parts.push(summary.skipped + ' duplicada(s) ignorada(s)');
+    return parts.join(' · ');
+}
+
+function renderLastImportSummary() {
+    const box = document.getElementById('last-import-summary-msg');
+    if (!box) return;
+    let raw = null;
+    try {
+        raw = localStorage.getItem('devolucoesLastImportSummary');
+    } catch (_err) {
+        return;
+    }
+    if (!raw) return;
+
+    let summary = null;
+    try {
+        summary = JSON.parse(raw);
+    } catch (_err) {
+        return;
+    }
+    if (!summary || !summary.when) return;
+
+    const importedAt = new Date(summary.when);
+    if (Number.isNaN(importedAt.getTime())) return;
+    if (Date.now() - importedAt.getTime() > 24 * 60 * 60 * 1000) {
+        try {
+            localStorage.removeItem('devolucoesLastImportSummary');
+        } catch (_err) {}
+        return;
+    }
+
+    const hasGap = Number(summary.invalid_count || 0) > 0 || Number(summary.skipped || 0) > 0;
+    box.className = 'mb-6 rounded-xl border p-4 text-sm ' + (hasGap
+        ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
+        : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100');
+    const title = hasGap ? 'Última importação com diferença entre arquivo e base' : 'Última importação concluída';
+    const fileLabel = summary.filename ? `<div class="mt-1 font-medium text-slate-100">${summary.filename}</div>` : '';
+    const details = formatImportSummary(summary);
+    const errorsLink = summary.batch_id && Number(summary.invalid_count || 0) > 0
+        ? `<a href="/api/devolucoes/import/${summary.batch_id}/errors.xlsx" class="mt-2 inline-flex text-xs font-semibold text-amber-200 underline underline-offset-2 hover:text-white">Baixar linhas inválidas</a>`
+        : '';
+
+    box.innerHTML = `
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <div class="font-semibold">${title}</div>
+                ${fileLabel}
+                <div class="mt-1 text-xs text-slate-200">${details}</div>
+            </div>
+            <button type="button" id="dismiss-last-import-summary" class="text-xs font-semibold text-slate-200 hover:text-white">Fechar</button>
+        </div>
+        ${errorsLink}
+    `;
+    box.classList.remove('hidden');
+    document.getElementById('dismiss-last-import-summary')?.addEventListener('click', function() {
+        box.classList.add('hidden');
+        try {
+            localStorage.removeItem('devolucoesLastImportSummary');
+        } catch (_err) {}
+    });
+}
+
+function clearManualClient() {
+    const selectedBox = document.getElementById('manual-client-selected');
+    const suggestionsEl = document.getElementById('manual-client-suggestions');
+    const searchEl = document.getElementById('manual-client-search');
+    const clientIdEl = document.getElementById('manual-client-id');
+    if (clientIdEl) clientIdEl.value = '';
+    document.getElementById('manual-client-selected-name').textContent = '';
+    document.getElementById('manual-client-selected-detail').textContent = '';
+    if (searchEl) {
+        searchEl.value = '';
+        searchEl.placeholder = 'Digite nome, NB, fantasia ou endereço';
+    }
+    if (selectedBox) selectedBox.classList.add('hidden');
+    if (suggestionsEl) {
+        suggestionsEl.classList.add('hidden');
+        suggestionsEl.innerHTML = '';
+    }
+}
+
+function selectManualClient(client) {
+    const selectedBox = document.getElementById('manual-client-selected');
+    const suggestionsEl = document.getElementById('manual-client-suggestions');
+    const searchEl = document.getElementById('manual-client-search');
+    const clientIdEl = document.getElementById('manual-client-id');
+    if (!clientIdEl || !selectedBox || !searchEl || !suggestionsEl) return;
+    clientIdEl.value = client.id || '';
+    document.getElementById('manual-client-selected-name').textContent = client.name || 'Cliente selecionado';
+    document.getElementById('manual-client-selected-detail').textContent = [client.nb ? 'NB: ' + client.nb : '', client.nome_fantasia || '', client.endereco || ''].filter(Boolean).join(' | ');
+    selectedBox.classList.remove('hidden');
+    searchEl.value = '';
+    searchEl.placeholder = 'Cliente selecionado';
+    suggestionsEl.classList.add('hidden');
+    suggestionsEl.innerHTML = '';
+}
+
+function initManualClientSearch() {
+    const searchEl = document.getElementById('manual-client-search');
+    const suggestionsEl = document.getElementById('manual-client-suggestions');
+    const clearBtn = document.getElementById('manual-client-clear');
+    if (!searchEl || !suggestionsEl) return;
+
+    clearBtn?.addEventListener('click', function() {
+        clearManualClient();
+        searchEl.focus();
+    });
+
+    searchEl.addEventListener('input', function() {
+        const q = this.value.trim();
+        if (document.getElementById('manual-client-id')?.value) {
+            document.getElementById('manual-client-id').value = '';
+            document.getElementById('manual-client-selected')?.classList.add('hidden');
+        }
+        if (q.length < 2) {
+            suggestionsEl.classList.add('hidden');
+            suggestionsEl.innerHTML = '';
+            return;
+        }
+
+        clearTimeout(manualClientSearchTimer);
+        manualClientSearchTimer = setTimeout(async function() {
+            try {
+                const response = await fetch('/api/delivery/clients/search?q=' + encodeURIComponent(q));
+                const data = await response.json();
+                if (!Array.isArray(data) || data.length === 0) {
+                    suggestionsEl.innerHTML = '<div class="px-3 py-4 text-sm text-slate-500">Nenhum cliente encontrado.</div>';
+                } else {
+                    suggestionsEl.innerHTML = data.map(function(client, index) {
+                        const line1 = (client.name || 'Cliente').replace(/[&<>"]/g, function(ch) {
+                            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch];
+                        });
+                        const detail = [client.nb ? 'NB: ' + client.nb : '', client.nome_fantasia || '', client.endereco || ''].filter(Boolean).join(' | ');
+                        const safeDetail = detail.replace(/[&<>"]/g, function(ch) {
+                            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch];
+                        });
+                        return `
+                            <button type="button" class="manual-client-suggestion block w-full border-b border-slate-800 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800 last:border-0" data-index="${index}">
+                                <div class="font-medium">${line1}</div>
+                                <div class="mt-0.5 text-xs text-slate-400">${safeDetail || 'Sem detalhes'}</div>
+                            </button>
+                        `;
+                    }).join('');
+                    suggestionsEl.querySelectorAll('.manual-client-suggestion').forEach(function(btn) {
+                        btn.addEventListener('mousedown', function(event) {
+                            event.preventDefault();
+                            const client = data[Number(btn.dataset.index)];
+                            if (client) selectManualClient(client);
+                        });
+                    });
+                }
+                suggestionsEl.classList.remove('hidden');
+            } catch (_err) {
+                suggestionsEl.innerHTML = '<div class="px-3 py-4 text-sm text-rose-400">Erro ao buscar clientes.</div>';
+                suggestionsEl.classList.remove('hidden');
+            }
+        }, 250);
+    });
+
+    searchEl.addEventListener('blur', function() {
+        setTimeout(function() {
+            suggestionsEl.classList.add('hidden');
+        }, 120);
+    });
+
+    searchEl.addEventListener('focus', function() {
+        if (suggestionsEl.innerHTML.trim()) {
+            suggestionsEl.classList.remove('hidden');
+        }
+    });
 }
 
 document.getElementById('manual-devolucao-form')?.addEventListener('submit', async function(e) {
@@ -634,6 +945,11 @@ document.getElementById('manual-devolucao-form')?.addEventListener('submit', asy
         observacao: fd.get('observacao') || null,
         ajudante_id: fd.get('ajudante_id') ? parseInt(fd.get('ajudante_id')) : null
     };
+    if (!Number.isFinite(payload.client_id)) {
+        alert('Selecione um cliente para continuar.');
+        document.getElementById('manual-client-search')?.focus();
+        return;
+    }
     try {
         const r = await fetch('/api/devolucoes', {
             method: 'POST',
@@ -652,6 +968,8 @@ document.getElementById('manual-devolucao-form')?.addEventListener('submit', asy
     }
 });
 
+initManualClientSearch();
+renderLastImportSummary();
 if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
 document.addEventListener('alpine:initialized', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
 </script>

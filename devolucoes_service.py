@@ -1633,6 +1633,64 @@ def rematch_motoristas_from_ajudantes(
     return updated
 
 
+def _dedupe_valid_rows_by_hash(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Mantém uma linha por idempotency_hash (última ocorrência). Evita INSERT duplicado na mesma transação."""
+    by_h: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        h = r.get("idempotency_hash")
+        if h is None:
+            continue
+        key = str(h).strip()
+        if not key:
+            continue
+        by_h[key] = r
+    return list(by_h.values())
+
+
+def normalize_commit_row(r: Dict[str, Any]) -> Dict[str, Any]:
+    """Tipos e strings após JSON (IDs podem vir como float; datas como string)."""
+    raw_h = r.get("idempotency_hash")
+    h = str(raw_h).strip() if raw_h is not None else ""
+    if not h:
+        raise ValueError("Linha sem idempotency_hash. Recarregue o preview e tente novamente.")
+    out: Dict[str, Any] = {}
+    for key in ("data_romaneio", "data_entrega"):
+        v = r.get(key)
+        if v is None or (isinstance(v, str) and not str(v).strip()):
+            raise ValueError(f"Campo obrigatório ausente: {key}")
+        out[key] = str(v)[:10]
+    for key in ("client_id", "vendedor_id", "motorista_id", "motivo_id", "responsabilidade_id"):
+        v = r.get(key)
+        if v is None or (isinstance(v, str) and not str(v).strip()):
+            raise ValueError(f"Campo obrigatório ausente ou inválido: {key}")
+        try:
+            out[key] = int(float(v))
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Campo obrigatório ausente ou inválido: {key}") from e
+    aj = r.get("ajudante_id")
+    if aj is None or (isinstance(aj, str) and not str(aj).strip()):
+        out["ajudante_id"] = None
+    else:
+        try:
+            out["ajudante_id"] = int(float(aj))
+        except (TypeError, ValueError):
+            out["ajudante_id"] = None
+    try:
+        out["valor"] = float(r.get("valor") or 0)
+    except (TypeError, ValueError):
+        out["valor"] = 0.0
+    obs = r.get("observacao")
+    out["observacao"] = str(obs) if obs is not None else None
+    out["dia"] = int(float(r.get("dia") or 0))
+    out["semana"] = int(float(r.get("semana") or 0))
+    am = r.get("acima_300") or "NAO"
+    out["acima_300"] = str(am).upper() if str(am).strip() else "NAO"
+    cl = r.get("cluster")
+    out["cluster"] = str(cl).strip() if cl is not None and str(cl).strip() else None
+    out["idempotency_hash"] = h
+    return out
+
+
 def save_batch(
     session: Session,
     valid_rows: List[Dict],
@@ -1648,9 +1706,15 @@ def save_batch(
     """
     created = 0
     skipped = []
+    rows_in = _dedupe_valid_rows_by_hash(list(valid_rows or []))
+    if valid_rows and not rows_in:
+        raise ValueError(
+            "Nenhuma linha com idempotency_hash válido. Recarregue o preview e confirme de novo."
+        )
     motivos = {m.id: m.nome for m in session.exec(select(DevolucaoMotivo)).all()}
     resp_map = {r.id: r.nome for r in session.exec(select(DevolucaoResponsabilidade)).all()}
-    for r in valid_rows:
+    for raw in rows_in:
+        r = normalize_commit_row(raw)
         motivo_nome = motivos.get(r.get("motivo_id"), "Importado")
         resp_nome = resp_map.get(r.get("responsabilidade_id"), "IMPORT")
         existing = session.exec(
@@ -1715,8 +1779,14 @@ def save_batch(
             validation_status=val_stat,
         )
         session.add(dev)
+        session.flush()
         created += 1
     batch_id = metadata.get("batch_id") if metadata else None
+    if batch_id is not None:
+        try:
+            batch_id = int(batch_id)
+        except (TypeError, ValueError):
+            batch_id = None
     if batch_id:
         batch = session.get(DevolucaoImportBatch, batch_id)
         if batch:
