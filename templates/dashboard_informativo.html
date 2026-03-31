@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="gv-tv-root">
+<html lang="pt-BR" class="gv-tv-root h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
     <title>Gestão Avista • Painel</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    {# TailAdmin Free — CSS compilado (Tailwind v4); apenas camada visual #}
+    <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
     <link rel="stylesheet" href="/static/styles.css">
     <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
     <style>
@@ -769,14 +771,35 @@
         @media (max-width: 1024px) {
             .kpi-wrap { flex-wrap: wrap; }
         }
+        /* Shell TailAdmin + conteúdo legado Gestão Avista */
+        .ta-dashboard-layout {
+            flex: 1 1 0;
+            min-height: 0;
+            min-width: 0;
+        }
+        .ta-dash-header {
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+        }
+        .gv-page.ta-dash-body {
+            font-family: Outfit, ui-sans-serif, system-ui, sans-serif;
+        }
     </style>
 </head>
-<body class="gv-page text-slate-700" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
+<body class="gv-page ta-dash-body text-slate-700 font-outfit" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
     {% include "_sidebar.html" %}
     <button @click="sidebarOpen = true" class="gv-menu-btn fixed top-3 left-3 z-[60] flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors hover:brightness-110" :class="sidebarOpen ? 'hidden' : ''" type="button" title="Menu">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         <span class="text-xs font-medium hidden sm:inline">Menu</span>
     </button>
+
+    <div class="ta-dashboard-layout flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-100 dark:bg-gray-900">
+        <header class="ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
+            <div class="flex w-full flex-col gap-0.5 pl-12 sm:pl-14">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Painel</p>
+                <h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Gestão Avista</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400"><span class="font-semibold text-gray-600 dark:text-gray-300">{{ current_cost_center or 'Todos' }}</span> · referência {{ current_date or '' }}</p>
+            </div>
+        </header>
 
     {% set inf = informativo or {} %}
     {% set _cc = current_cost_center or 'Todos' %}
@@ -823,17 +846,14 @@
     </ul>
     {%- endmacro %}
 
-    <main class="gv-shell" id="informativo-root" data-date="{{ _d }}" data-cc="{{ _cc|e }}">
+    <main class="gv-shell flex min-h-0 min-w-0 flex-1 flex-col" id="informativo-root" data-date="{{ _d }}" data-cc="{{ _cc|e }}">
         <div class="gv-panel-aurora" aria-hidden="true">
             <div class="gv-aurora-blob gv-aurora-blob--tl"></div>
             <div class="gv-aurora-blob gv-aurora-blob--br"></div>
         </div>
         <div class="gv-panel-stack">
         <div class="gv-dash-top">
-            <header class="zone-topo gv-informativo-zone-topo relative z-10 flex items-center justify-start pr-4 sm:pr-6 shrink-0 min-w-0">
-                <h1 class="gv-informativo-page-title truncate min-w-0">Gestão Avista</h1>
-            </header>
-            <section class="zone-kpis gv-zone-kpis relative z-10 flex items-stretch px-2 sm:px-4 shrink-0 kpi-wrap" aria-label="Indicadores do dia">
+            <section class="zone-kpis gv-zone-kpis relative z-10 flex items-stretch px-2 sm:px-4 shrink-0 kpi-wrap rounded-t-[1.75rem]" aria-label="Indicadores do dia">
                 <div class="kpi-cell flex items-center justify-center px-2 sm:px-3 py-1.5 min-w-0 flex-shrink-0">
                     <div class="leading-tight text-center min-w-0 max-w-[11rem] mx-auto">
                         <div class="text-label text-slate-500 uppercase font-semibold gv-kpi-label-long mx-auto">Devolução mês passado</div>
@@ -1014,6 +1034,7 @@
         </div>
         </div>
     </main>
+    </div>
 
     <script>
     (function() {

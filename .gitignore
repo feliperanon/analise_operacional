@@ -24,3 +24,6 @@ logs.txt
 debug_alloc.log
 tmp/
 artifacts/
+
+# Template TailAdmin (clone local; não versionar node_modules)
+vendor/tailadmin-template/node_modules/
