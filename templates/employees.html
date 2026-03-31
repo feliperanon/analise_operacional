@@ -170,6 +170,13 @@
         box-shadow: none;
     }
 
+    /* Ícone da busca: tamanho fixo mesmo se Tailwind/CSS falhar (evita SVG ~300×150px) */
+    .ops-toolbar-search > svg {
+        width: 1rem;
+        height: 1rem;
+        flex-shrink: 0;
+    }
+
     .ops-toolbar-label {
         font-size: 0.64rem;
         font-weight: 700;
@@ -685,7 +692,7 @@
             <div class="flex flex-wrap items-center gap-2 sm:gap-3">
                 <span class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 mr-1 sm:mr-0">Busca rápida</span>
                 <div class="ops-toolbar-search flex-1 min-w-0 sm:flex-initial sm:min-w-0">
-                    <svg class="h-4 w-4 flex-shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-4 w-4 flex-shrink-0 text-slate-500" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                     <input type="text" id="searchInput" placeholder="Nome, matrícula ou função" onkeyup="filterTable()" class="ops-toolbar-search__input">
@@ -703,7 +710,7 @@
                             <button type="button" onclick="clearRoleFilters()" class="text-[11px] text-blue-400 hover:text-blue-300">Limpar</button>
                         </div>
                         <div class="relative mb-2">
-                            <svg class="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
                             <input type="text" id="roleFilterSearch" oninput="filterRoleOptions()" placeholder="Buscar função..." class="h-9 w-full rounded-xl border border-slate-800 bg-slate-900 pl-8 pr-2 text-xs text-slate-200 placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50">
