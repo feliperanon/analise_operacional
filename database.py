@@ -105,6 +105,9 @@ primary_candidates = _ordered_remote_candidates()
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 REQUIRE_RENDER_DB = os.environ.get("REQUIRE_RENDER_DB", "false").lower() == "true"
 FORCE_LOCAL_DB = os.environ.get("FORCE_LOCAL_DB", "false").lower() == "true"
+_RENDER_PLATFORM = (os.environ.get("RENDER") or "").strip().lower() in ("1", "true", "yes", "on")
+# No Render, nunca fazer fallback silencioso para SQLite se Postgres foi configurado e falhou.
+_STRICT_REMOTE = REQUIRE_RENDER_DB or _RENDER_PLATFORM
 
 db_url = local_sqlite_url
 if FORCE_LOCAL_DB:
@@ -120,21 +123,22 @@ elif primary_candidates:
             break
     else:
         import logging
-        logging.getLogger(__name__).warning(
+        log = logging.getLogger(__name__)
+        if _STRICT_REMOTE:
+            raise RuntimeError(
+                "Falha ao conectar no PostgreSQL configurado (Render ou REQUIRE_RENDER_DB). "
+                "Verifique DATABASE_URL e conectividade; fallback para SQLite não é permitido neste ambiente."
+            )
+        log.warning(
             "Falha ao conectar em qualquer banco remoto configurado. Usando SQLite local."
         )
-        if REQUIRE_RENDER_DB:
-            raise RuntimeError(
-                "REQUIRE_RENDER_DB=true e falha ao conectar em qualquer banco remoto configurado. "
-                "Verifique DATABASE_URL/RENDER_DATABASE_URL/RENDER_POSTGRES_URL e conectividade."
-            )
         db_url = local_sqlite_url
         os.environ["ACTIVE_DATABASE_SOURCE"] = "local_fallback"
 else:
-    if REQUIRE_RENDER_DB:
+    if _STRICT_REMOTE:
         raise RuntimeError(
-            "REQUIRE_RENDER_DB=true mas nenhuma URL remota foi encontrada. "
-            "Defina DATABASE_URL (ou RENDER_DATABASE_URL/RENDER_POSTGRES_URL)."
+            "Nenhuma URL de PostgreSQL encontrada (DATABASE_URL / RENDER_*). "
+            "Defina DATABASE_URL no painel do Render ou desative RENDER para desenvolvimento local."
         )
     os.environ["ACTIVE_DATABASE_SOURCE"] = "local"
 

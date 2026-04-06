@@ -54,8 +54,9 @@ O Blueprint pede valores para:
 | Variável | O que colocar |
 |----------|---------------|
 | **ADMIN_EMAIL** | E-mail do admin (ex: admin@empresa.com) |
-| **ADMIN_PASS** | Senha do admin |
+| **ADMIN_PASS** | Senha do admin (evite `admin` / vazio) |
 | **APP_BASE_URL** | Deixe em branco na primeira vez |
+| **IMPORT_AUTH_PASSWORD** | Senha para importação em datas ≠ hoje (obrigatória no Render) |
 
 ### Passo 4: Deploy
 
@@ -110,8 +111,17 @@ Em **Environment** do Web Service, adicione:
 | `ADMIN_EMAIL` | Seu e-mail de admin |
 | `ADMIN_PASS` | Senha do admin |
 | `APP_BASE_URL` | `https://seu-servico.onrender.com` (preencher depois do deploy) |
+| `IMPORT_AUTH_PASSWORD` | Obrigatória com `RENDER=true` (validada na subida) |
+| `ENV` / `ENVIRONMENT` | Opcional: `production` (o blueprint já define) |
+| `DEBUG` | `false` em produção |
 
-Variáveis adicionais e comentários para desenvolvimento local: veja `.env.example`. O Render define automaticamente `RENDER=true` no serviço web (usado para pool do banco e cabeçalhos de proxy).
+Variáveis SMTP, Gemini, etc.: veja `.env.example` e preencha no painel **sem** commitar segredos. O Render define `RENDER=true` (pool do banco, proxy headers; `TRUST_PROXY_HEADERS` só se precisar forçar).
+
+### Segurança e segredos
+
+- Não commite `DATABASE_URL`, senhas SMTP, chaves de API nem `SECRET_KEY`.
+- Não publique prints do painel com valores visíveis nem cole credenciais em chats ou issues.
+- Se houver vazamento: altere a senha do Postgres no Render, regenere `SECRET_KEY`, revogue senha de app do Gmail e chaves de API, e defina um novo `IMPORT_AUTH_PASSWORD`.
 
 ### 4. Deploy
 

@@ -158,10 +158,6 @@ logger.addHandler(console_handler)
 _DEFAULT_SECRET_KEY = "your-secret-key-change-in-production"
 SECRET_KEY = os.getenv("SECRET_KEY", _DEFAULT_SECRET_KEY)
 _render_host = os.getenv("RENDER", "").strip().lower() in {"1", "true", "yes", "on"}
-if _render_host and (SECRET_KEY or "").strip() == _DEFAULT_SECRET_KEY:
-    logger.critical(
-        "Render: SECRET_KEY está com o valor padrão inseguro. Defina SECRET_KEY única em Environment."
-    )
 
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", os.getenv("ADMIN_USER", "admin@local"))
 ADMIN_PASS = os.getenv("ADMIN_PASS", "admin")
@@ -677,6 +673,7 @@ def sync_sectors_on_startup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     delivery_autoclose_task = None
+    _validate_render_environment()
     create_db_and_tables()
     try:
         ensure_vehicle_schema()
@@ -725,7 +722,11 @@ async def lifespan(app: FastAPI):
         logger.error(f"Erro ao seed setores documentos: {e}")
     try:
         db_source = os.environ.get("ACTIVE_DATABASE_SOURCE", "unknown")
-        logger.info(f"DATABASE URL DETECTADA: {engine.url} | source={db_source}")
+        try:
+            db_safe = engine.url.render_as_string(hide_password=True)
+        except Exception:
+            db_safe = "(engine url indisponível)"
+        logger.info("DATABASE engine: %s | source=%s", db_safe, db_source)
         sync_sectors_on_startup()
     except Exception as e:
         logger.error(f"Erro ao iniciar sync: {e}")
@@ -1354,19 +1355,47 @@ DELIVERY_RETURN_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "de
 DELIVERY_RETURN_MAX_IMAGE_SIZE = 8 * 1024 * 1024
 MAINTENANCE_EMAIL_TO = os.getenv("MAINTENANCE_EMAIL_TO", "").strip()
 MAINTENANCE_EMAIL_FROM = os.getenv("MAINTENANCE_EMAIL_FROM", "").strip()
-DEFAULT_SENDER_EMAIL = "feliperanon@live.com"
-MAINTENANCE_EMAIL_FROM_FIXED = (
-    MAINTENANCE_EMAIL_FROM
-    or DEFAULT_SENDER_EMAIL
-)
 SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
 SMTP_PORT_RAW = os.getenv("SMTP_PORT", "587").strip()
 SMTP_USER = os.getenv("SMTP_USER", "").strip()
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_TLS_RAW = os.getenv("SMTP_TLS", "true").strip()
 SMTP_USE_SSL_RAW = os.getenv("SMTP_USE_SSL", "").strip()
+# Remetente: explícito ou mesmo login SMTP (ex.: Gmail)
+MAINTENANCE_EMAIL_FROM_FIXED = (MAINTENANCE_EMAIL_FROM or SMTP_USER or "").strip()
+SMTP_HOST_FIXED = SMTP_HOST
+SMTP_USER_FIXED = SMTP_USER
+SMTP_PASS_FIXED = (SMTP_PASS or "").strip()
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
+IMPORT_AUTH_PASSWORD = (os.getenv("IMPORT_AUTH_PASSWORD") or "").strip()
 ALERT_SETTINGS_PATH = "/admin/alerts/settings"
+
+
+def _validate_render_environment() -> None:
+    """No Render, exige segredos mínimos; não registra valores de segredos."""
+    if not _render_host:
+        return
+    if (SECRET_KEY or "").strip() == _DEFAULT_SECRET_KEY:
+        raise RuntimeError(
+            "Render: defina SECRET_KEY forte em Environment (não use o placeholder padrão do código)."
+        )
+    if not IMPORT_AUTH_PASSWORD:
+        raise RuntimeError(
+            "Render: defina IMPORT_AUTH_PASSWORD em Environment (protege importação para datas diferentes de hoje)."
+        )
+    base_url = (APP_BASE_URL or "").strip().lower()
+    if not base_url:
+        logger.warning(
+            "Render: APP_BASE_URL vazio — defina https://<seu-serviço>.onrender.com para links e cookies seguros."
+        )
+    elif not base_url.startswith("https://"):
+        logger.warning("Render: APP_BASE_URL deve usar https:// em produção.")
+    weak_pass = (ADMIN_PASS or "").strip().lower()
+    if weak_pass in ("admin", "admin123", ""):
+        logger.critical(
+            "Render: ADMIN_PASS fraco ou vazio — altere no painel imediatamente."
+        )
+
 
 def parse_bool_env(value: str, default: bool = False) -> bool:
     if value is None:
@@ -1439,7 +1468,7 @@ def smtp_config_error(recipient_list: List[str]) -> Optional[str]:
         missing.append("SMTP_PASS")
     from_val = (MAINTENANCE_EMAIL_FROM_FIXED or "").strip()
     if not from_val:
-        missing.append("MAINTENANCE_EMAIL_FROM")
+        missing.append("MAINTENANCE_EMAIL_FROM ou SMTP_USER (remetente)")
     if "brevo" in host_val.lower() and from_val.lower().endswith("@smtp-brevo.com"):
         missing.append("MAINTENANCE_EMAIL_FROM (use remetente validado no Brevo)")
     if missing:
@@ -1734,9 +1763,9 @@ Data/Hora do registro: {now_str}
                     server.login(SMTP_USER_FIXED, SMTP_PASS_FIXED)
                 server.send_message(msg)
         return True, None
-    except Exception as exc:
-        logger.exception('Erro ao enviar e-mail de manutenção')
-        return False, str(exc)
+    except Exception:
+        logger.exception("Erro ao enviar e-mail de manutenção")
+        return False, "Falha ao enviar e-mail (SMTP). Verifique host, porta, TLS/SSL e credenciais no painel."
 
 async def save_checklist_images(files: List[UploadFile]) -> List[str]:
     ensure_checklist_dir()
@@ -14556,9 +14585,6 @@ async def delete_separacao(
         session.commit()
         return RedirectResponse(url=f"/separacao?date={date}&shift={shift}", status_code=status.HTTP_303_SEE_OTHER)
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
-
-
-IMPORT_AUTH_PASSWORD = os.getenv("IMPORT_AUTH_PASSWORD", "571232").strip()
 
 
 @app.post("/separacao/import-entregas", response_class=HTMLResponse)
@@ -29752,10 +29778,9 @@ Data/Hora do registro: {datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d
             smtp.send_message(msg)
         logger.info(f"E-mail de alerta ({alert_type}) enviado com sucesso para {employee.name}.")
         return True, None
-    except Exception as exc:
-        error_msg = str(exc)
-        logger.error(f"Erro ao enviar e-mail de alerta ({alert_type}): {error_msg}")
-        return False, error_msg
+    except Exception:
+        logger.exception("Erro ao enviar e-mail de alerta (%s)", alert_type)
+        return False, "Falha ao enviar e-mail (SMTP). Verifique as variáveis SMTP no painel."
 
 
 def send_absence_alert_email_background(
@@ -29822,13 +29847,18 @@ def send_absence_alert_email_background(
                 )
                 session.add(alert_log)
                 session.commit()
-            print(f"ðŸâ€œ§ [Background] E-mail de {alert_type_labels.get(alert_type, 'alerta')} enviado para {len(recipients)} destinatário(s) - {employee_name}")
+            logger.info(
+                "[Background] E-mail de %s enviado para %s destinatário(s).",
+                alert_type_labels.get(alert_type, "alerta"),
+                len(recipients),
+            )
         else:
-            print(f"⚠️ [Background] Falha ao enviar e-mail de {alert_type_labels.get(alert_type, 'alerta')}: {email_error}")
-    except Exception as exc:
-        print(f"⚠️ [Background] Erro ao processar envio de e-mail: {exc}")
-        import traceback
-        traceback.print_exc()
+            logger.warning(
+                "[Background] Falha ao enviar e-mail de %s (detalhe só em log nível ERROR/EXCEPTION).",
+                alert_type_labels.get(alert_type, "alerta"),
+            )
+    except Exception:
+        logger.exception("[Background] Erro ao processar envio de e-mail")
 
 
 @app.get("/admin/alerts/settings", response_class=HTMLResponse)
