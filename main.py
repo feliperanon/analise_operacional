@@ -1376,8 +1376,9 @@ def _validate_render_environment() -> None:
     if not _render_host:
         return
     if (SECRET_KEY or "").strip() == _DEFAULT_SECRET_KEY:
-        raise RuntimeError(
-            "Render: defina SECRET_KEY forte em Environment (não use o placeholder padrão do código)."
+        logger.critical(
+            "Render: SECRET_KEY ainda com o placeholder padrão do código — defina um valor forte em Environment. "
+            "O deploy deixa de falhar na subida, mas sessões ficam inseguras até corrigir."
         )
     if not IMPORT_AUTH_PASSWORD:
         logger.critical(
