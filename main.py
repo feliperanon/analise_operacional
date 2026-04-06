@@ -117,6 +117,7 @@ from urllib.parse import urlencode
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
+from render_env_validation import DEFAULT_SECRET_KEY_PLACEHOLDER, validate_render_environment
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env", override=False)
@@ -153,8 +154,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(LOG_LEVEL)
 logger.addHandler(handler)
 logger.addHandler(console_handler)
-
-from render_env_validation import DEFAULT_SECRET_KEY_PLACEHOLDER, validate_render_environment
 
 # --- Config ---
 SECRET_KEY = os.getenv("SECRET_KEY", DEFAULT_SECRET_KEY_PLACEHOLDER)
@@ -1370,34 +1369,6 @@ SMTP_PASS_FIXED = (SMTP_PASS or "").strip()
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
 IMPORT_AUTH_PASSWORD = (os.getenv("IMPORT_AUTH_PASSWORD") or "").strip()
 ALERT_SETTINGS_PATH = "/admin/alerts/settings"
-
-
-def _validate_render_environment() -> None:
-    """No Render, checa configuração mínima: loga avisos/críticos sem valores secretos; não encerra o processo por SECRET_KEY placeholder."""
-    if not _render_host:
-        return
-    if (SECRET_KEY or "").strip() == _DEFAULT_SECRET_KEY:
-        logger.critical(
-            "Render: SECRET_KEY ainda com o placeholder padrão do código — defina um valor forte em Environment. "
-            "O deploy deixa de falhar na subida, mas sessões ficam inseguras até corrigir."
-        )
-    if not IMPORT_AUTH_PASSWORD:
-        logger.critical(
-            "Render: IMPORT_AUTH_PASSWORD vazio — o app sobe, mas importação para datas ≠ hoje fica bloqueada. "
-            "Defina no Environment (ou use generateValue no blueprint e copie o valor no painel)."
-        )
-    base_url = (APP_BASE_URL or "").strip().lower()
-    if not base_url:
-        logger.warning(
-            "Render: APP_BASE_URL vazio — defina https://<seu-serviço>.onrender.com para links e cookies seguros."
-        )
-    elif not base_url.startswith("https://"):
-        logger.warning("Render: APP_BASE_URL deve usar https:// em produção.")
-    weak_pass = (ADMIN_PASS or "").strip().lower()
-    if weak_pass in ("admin", "admin123", ""):
-        logger.critical(
-            "Render: ADMIN_PASS fraco ou vazio — altere no painel imediatamente."
-        )
 
 
 def parse_bool_env(value: str, default: bool = False) -> bool:
