@@ -7575,32 +7575,35 @@ async def api_mobile_delivery_my_routes(
                     "ended_at": _format_hhmm_sao_paulo(ds_closed.ended_at, ds_closed.date),
                 }
 
-        return JSONResponse({
-            "success": True,
-            "date": today_str,
-            "assigned_plate": assigned_plates[0] if assigned_plates else "",
-            "assigned_plates": assigned_plates,
-            "session_open": bool(session_open),
-            "is_helper_view": is_helper_view,
-            "driver_name": driver_name,
-            "helper_names": helper_names,
-            "session": {
-                "id": session_open.id if session_open else None,
-                "date": session_open.date if session_open else None,
-                "km_departure": session_open.km_departure if session_open else None,
-                "vehicle_plate": session_open.vehicle_plate if session_open else None,
-                "helpers": _parse_session_helpers(session_open.helpers_json) if session_open and session_open.helpers_json else [],
-                "started_at": _format_hhmm_sao_paulo(
-                    session_open.started_at if session_open else None,
-                    session_open.date if session_open else None,
-                ),
-            } if session_open else None,
-            "today_summary": today_summary,
-            "routes": payload,
-            "day_cards": day_cards,
-            "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
-            "closed_session_today": closed_session_today,
-        })
+        return JSONResponse(
+            {
+                "success": True,
+                "date": today_str,
+                "assigned_plate": assigned_plates[0] if assigned_plates else "",
+                "assigned_plates": assigned_plates,
+                "session_open": bool(session_open),
+                "is_helper_view": is_helper_view,
+                "driver_name": driver_name,
+                "helper_names": helper_names,
+                "session": {
+                    "id": session_open.id if session_open else None,
+                    "date": session_open.date if session_open else None,
+                    "km_departure": session_open.km_departure if session_open else None,
+                    "vehicle_plate": session_open.vehicle_plate if session_open else None,
+                    "helpers": _parse_session_helpers(session_open.helpers_json) if session_open and session_open.helpers_json else [],
+                    "started_at": _format_hhmm_sao_paulo(
+                        session_open.started_at if session_open else None,
+                        session_open.date if session_open else None,
+                    ),
+                } if session_open else None,
+                "today_summary": today_summary,
+                "routes": payload,
+                "day_cards": day_cards,
+                "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
+                "closed_session_today": closed_session_today,
+            },
+            headers={"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"},
+        )
     except Exception as e:
         logger.exception("api_mobile_delivery_my_routes error: %s", e)
         # Fallback de segurança: evita 500 em produção e mantém as rotas do dia visíveis
@@ -7656,33 +7659,36 @@ async def api_mobile_delivery_my_routes(
             }] if payload else []
             open_statuses = {"pendente", "iniciada", "reaberta"}
             completed_statuses = {"entregue", "devolucao"}
-            return JSONResponse({
-                "success": True,
-                "date": today_str,
-                "assigned_plate": assigned_plates[0] if assigned_plates else "",
-                "assigned_plates": assigned_plates,
-                "session_open": False,
-                "is_helper_view": False,
-                "driver_name": "",
-                "helper_names": [],
-                "session": None,
-                "today_summary": {
-                    "total": len(routes_today),
-                    "open": sum(
-                        1 for route in routes_today
-                        if str(getattr(route, "delivery_status", "") or "").strip().lower() in open_statuses
-                    ),
-                    "completed": sum(
-                        1 for route in routes_today
-                        if str(getattr(route, "delivery_status", "") or "").strip().lower() in completed_statuses
-                    ),
+            return JSONResponse(
+                {
+                    "success": True,
+                    "date": today_str,
+                    "assigned_plate": assigned_plates[0] if assigned_plates else "",
+                    "assigned_plates": assigned_plates,
+                    "session_open": False,
+                    "is_helper_view": False,
+                    "driver_name": "",
+                    "helper_names": [],
+                    "session": None,
+                    "today_summary": {
+                        "total": len(routes_today),
+                        "open": sum(
+                            1 for route in routes_today
+                            if str(getattr(route, "delivery_status", "") or "").strip().lower() in open_statuses
+                        ),
+                        "completed": sum(
+                            1 for route in routes_today
+                            if str(getattr(route, "delivery_status", "") or "").strip().lower() in completed_statuses
+                        ),
+                    },
+                    "routes": payload,
+                    "day_cards": day_cards,
+                    "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
+                    "closed_session_today": None,
+                    "warning": "fallback_mode_enabled",
                 },
-                "routes": payload,
-                "day_cards": day_cards,
-                "return_reasons": DELIVERY_RETURN_REASONS_FLAT,
-                "closed_session_today": None,
-                "warning": "fallback_mode_enabled",
-            })
+                headers={"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"},
+            )
         except Exception as fallback_error:
             logger.exception("api_mobile_delivery_my_routes fallback error: %s", fallback_error)
             return JSONResponse({"success": False, "error": "Falha ao carregar rotas de entrega."}, status_code=500)

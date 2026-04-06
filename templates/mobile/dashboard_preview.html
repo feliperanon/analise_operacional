@@ -2189,10 +2189,21 @@
                 if (this.dateFilterFrom) params.set('date_from', this.dateFilterFrom);
                 if (this.dateFilterTo) params.set('date_to', this.dateFilterTo);
                 if (params.toString()) url += '?' + params.toString();
-                fetch(url)
-                    .then(r => r.json())
+                fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+                    .then(async (r) => {
+                        const data = await r.json().catch(() => ({}));
+                        if (!r.ok) {
+                            console.error('[NL mobile] dashboard_preview my-routes HTTP', r.status, data);
+                            return null;
+                        }
+                        if (!data.success) {
+                            console.error('[NL mobile] dashboard_preview my-routes rejeitada', data);
+                            return null;
+                        }
+                        return data;
+                    })
                     .then(data => {
-                        if (!data.success) return;
+                        if (!data) return;
                         const allRoutes = Array.isArray(data.routes) ? data.routes : [];
                         const completedRoutes = allRoutes.filter(r => this.isCompletedDeliveryRoute(r));
                         const activeRoutes = allRoutes.filter(r => !this.isCompletedDeliveryRoute(r));
@@ -2213,23 +2224,24 @@
                         if (!this.selectedDeliveryDay) {
                             this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
                         } else if (!this.deliveryDayCards.find(c => c.date === this.selectedDeliveryDay)) {
-                        this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
-                    }
-                    this.deliverySessionOpen = !!data.session_open;
-                    this.assignedPlate = data.assigned_plate || '';
-                    this.helperNames = Array.isArray(data.helper_names)
-                        ? data.helper_names.filter(name => String(name || '').trim()).slice(0, 3)
-                        : [];
-                    this.todayRouteSummary = {
-                        total: Number(data?.today_summary?.total) || 0,
-                        open: Number(data?.today_summary?.open) || 0,
-                        completed: Number(data?.today_summary?.completed) || 0,
-                    };
-                    this.mobileReturnReasons = data.return_reasons || [];
-                    if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
-                        this.mobileReturn.reason = this.mobileReturnReasons[0];
-                    }
-                    });
+                            this.selectedDeliveryDay = this.deliveryDayCards.length ? this.deliveryDayCards[0].date : '';
+                        }
+                        this.deliverySessionOpen = !!data.session_open;
+                        this.assignedPlate = data.assigned_plate || '';
+                        this.helperNames = Array.isArray(data.helper_names)
+                            ? data.helper_names.filter(name => String(name || '').trim()).slice(0, 3)
+                            : [];
+                        this.todayRouteSummary = {
+                            total: Number(data?.today_summary?.total) || 0,
+                            open: Number(data?.today_summary?.open) || 0,
+                            completed: Number(data?.today_summary?.completed) || 0,
+                        };
+                        this.mobileReturnReasons = data.return_reasons || [];
+                        if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
+                            this.mobileReturn.reason = this.mobileReturnReasons[0];
+                        }
+                    })
+                    .catch((e) => console.error('[NL mobile] dashboard_preview my-routes rede', e));
             },
 
             startDeliverySession() {

@@ -1,15 +1,15 @@
 /**
  * Service Worker — Souza Pinto PWA Offline
- * Versão: 1.1.0
+ * Versão: 1.1.5 (my-routes sem cache SW — evita JSON obsoleto vs API nova)
  *
  * Estratégias:
  * - Cache First → assets estáticos (CSS, JS) e CDN (Alpine, Lucide, fontes)
- * - Network First com fallback → páginas /mobile/* e API my-routes
+ * - Network First com fallback → páginas /mobile/* ; GET my-routes não passa pelo SW (sempre rede)
  * - Fallback HTML offline para navegação sem cache
  * - Background Sync → fila de ações offline (IndexedDB)
  */
 
-const SW_VERSION = 'nl-entregas-v1.1.4';
+const SW_VERSION = 'nl-entregas-v1.1.5';
 const ASSETS_CACHE = `${SW_VERSION}-assets`;
 const DATA_CACHE = `${SW_VERSION}-data`;
 const CDN_CACHE = `${SW_VERSION}-cdn`;
@@ -33,9 +33,8 @@ const PRECACHE_CDN = [
   'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap',
 ];
 
-// Rotas de API servidas do cache quando offline
+// APIs com cache SW (offline). Não incluir my-routes: evita 200 com JSON antigo após POST/ações.
 const CACHEABLE_API_ROUTES = [
-  '/api/mobile/delivery/my-routes',
   '/api/mobile/admin/routes',
 ];
 

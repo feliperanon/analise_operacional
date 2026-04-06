@@ -158,8 +158,16 @@
             <p class="text-caption" style="color: var(--color-text-muted);">Aguarde um momento.</p>
         </div>
     </div>
+    <!-- Falha ao interpretar API (ex.: 401, JSON inválido, success:false com HTTP 200) -->
+    <div class="container-mobile py-6" x-show="deliveryLoadError && !deliveryDataLoading" x-cloak>
+        <div class="surface p-4 rounded-xl border" style="border-color: var(--color-danger); background: var(--color-danger-bg);">
+            <p class="text-body font-semibold mb-2" style="color: var(--color-danger);">Não foi possível carregar as rotas</p>
+            <p class="text-caption mb-3" style="color: var(--color-text-body);" x-text="deliveryLoadError"></p>
+            <button type="button" @click="loadDeliveryData()" class="w-full py-3 rounded-lg font-semibold text-body text-white interactive" style="background: var(--color-primary);">Tentar novamente</button>
+        </div>
+    </div>
     <!-- Conteúdo quando dados carregados -->
-    <div x-show="!deliveryDataLoading" x-cloak>
+    <div x-show="!deliveryDataLoading && !deliveryLoadError" x-cloak>
     <!-- Day selector (compact, today+ only) -->
     <div class="container-mobile mt-2" x-show="visibleDayCards.length > 1" x-cloak>
         <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -828,6 +836,8 @@
             employees: Array.isArray(payload.employees) ? payload.employees : [],
             returnsAlert: payload.returnsAlert || {},
             deliveryDataLoading: true,
+            deliveryLoadError: '',
+            sessionApiDate: null,
             deliveryRoutes: [],
             deliveryDayCards: [],
             selectedDeliveryDay: '',
@@ -974,7 +984,13 @@
             get completedDeliveryRoutes() { return this.orderedDeliveryRoutes.filter(r => ['entregue', 'devolucao'].includes(this.routeStatus(r))); },
             get visibleDayCards() {
                 const today = this.todayRef;
-                return (this.deliveryDayCards || []).filter(c => c.date >= today);
+                const sess = this.sessionApiDate;
+                const open = this.deliverySessionOpen;
+                return (this.deliveryDayCards || []).filter((c) => {
+                    if (!c || !c.date) return false;
+                    if (c.date >= today) return true;
+                    return !!(open && sess && c.date === sess);
+                });
             },
             get dayStats() {
                 const rows = (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
@@ -1112,7 +1128,10 @@
                 return `${Math.floor(diff / 3600)}h atrás`;
             },
             haptic(type) { if ('vibrate' in navigator) { const p = { success: [10,50,30], light: [10] }; navigator.vibrate(p[type] || p.light); } },
-            routeStatus(route) { return ((route && route.status) || 'pendente').toString().toLowerCase().trim(); },
+            routeStatus(route) {
+                const raw = (route && (route.status != null && route.status !== '' ? route.status : route.delivery_status)) || 'pendente';
+                return String(raw).toLowerCase().trim();
+            },
             routeStatusCardClass(route) {
                 const s = this.routeStatus(route);
                 if (s === 'iniciada') return 'route-glow-blue';
@@ -1128,12 +1147,18 @@
             formatDateBR(v) { if (!v) return ''; const p = v.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v; },
             formatTimer(st) {
                 if (!st) return "00:00:00";
-                const [h, m] = st.split(':').map(x => parseInt(x, 10));
-                if (isNaN(h) || isNaN(m)) return "--:--";
+                let s = String(st).trim();
+                if (s.includes('T')) {
+                    const p = s.split('T');
+                    s = (p[1] || p[0] || '').slice(0, 8);
+                }
+                const parts = s.split(':').map((x) => parseInt(x, 10));
+                if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return "--:--";
+                const h = parts[0], m = parts[1];
                 const now = new Date(); const start = new Date(); start.setHours(h, m, 0, 0);
                 if (start > now) start.setDate(start.getDate() - 1);
                 let diff = Math.max(0, now - start);
-                const s = Math.floor(diff / 1000), hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+                const totalSec = Math.floor(diff / 1000), hh = Math.floor(totalSec / 3600), mm = Math.floor((totalSec % 3600) / 60), ss = totalSec % 60;
                 return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
             },
             openStartEntry() {
@@ -1208,42 +1233,92 @@
             },
             loadDeliveryData() {
                 this.deliveryDataLoading = true;
-                fetch('/api/mobile/delivery/my-routes', { cache: 'no-store' }).then(r => r.json()).then(data => {
-                    this.deliveryDataLoading = false;
-                    if (!data.success) return;
-                    this.deliveryRoutes = data.routes || [];
-                    this.deliveryDayCards = data.day_cards || [];
-                    const sessionDate = data.session && data.session.date ? data.session.date : null;
-                    this.serverToday = data.date || this.serverToday || (typeof window.nlTodaySp === 'function' ? window.nlTodaySp() : '');
-                    const today = this.todayRef;
-                    const hasSessionOpen = !!data.session_open;
-                    const visible = (this.deliveryDayCards || []).filter(c => c.date >= today || (hasSessionOpen && sessionDate && c.date === sessionDate));
-                    const prev = this.selectedDeliveryDay;
-                    if (data.session_open && sessionDate && visible.some(c => c.date === sessionDate)) {
-                        this.selectedDeliveryDay = sessionDate;
-                    } else {
-                        const todayCard = visible.find(c => c.date === today);
-                        if (todayCard) {
-                            this.selectedDeliveryDay = today;
-                        } else if (prev && visible.some(c => c.date === prev)) {
-                            this.selectedDeliveryDay = prev;
-                        } else {
-                            this.selectedDeliveryDay = visible[0]?.date || '';
+                this.deliveryLoadError = '';
+                const url = '/api/mobile/delivery/my-routes';
+                fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+                    .then(async (r) => {
+                        const ct = (r.headers.get('content-type') || '').toLowerCase();
+                        let data = {};
+                        if (ct.includes('application/json')) {
+                            try {
+                                data = await r.json();
+                            } catch (e) {
+                                console.warn('[NL delivery] JSON inválido em my-routes', e);
+                            }
+                        } else if (r.ok) {
+                            console.warn('[NL delivery] my-routes sem application/json:', ct);
                         }
-                    }
-                    this.deliverySessionOpen = !!data.session_open;
-                    this.isHelperView = !!data.is_helper_view;
-                    if (data.is_helper_view && data.driver_name) this.driverName = data.driver_name;
-                    this.assignedPlate = data.assigned_plate || '';
-                    const s = data.session || {};
-                    this.sessionHelpers = Array.isArray(s.helpers) ? s.helpers : [];
-                    this.sessionKmDeparture = s.km_departure != null ? String(s.km_departure) : '';
-                    this.sessionStartedAt = s.started_at || '';
-                    this.mobileReturnReasons = data.return_reasons || [];
-                    if (!this.mobileReturn.reason && this.mobileReturnReasons.length) this.mobileReturn.reason = this.mobileReturnReasons[0];
-                    this.closedSessionToday = data.closed_session_today || null;
-                    this.$nextTick(() => lucide.createIcons());
-                }).catch(() => { this.deliveryDataLoading = false; });
+                        if (!r.ok) {
+                            const msg = (data && (data.error || data.detail)) || ('Erro HTTP ' + r.status);
+                            console.warn('[NL delivery] my-routes falhou', r.status, data);
+                            return { __err: msg };
+                        }
+                        if (!data || typeof data !== 'object') {
+                            console.warn('[NL delivery] my-routes payload não-objeto');
+                            return { __err: 'Resposta inválida do servidor.' };
+                        }
+                        if (data.success === false || data.offline === true) {
+                            const msg = data.error || data.message || (data.offline ? 'Sem conexão — não foi possível obter rotas atualizadas.' : 'Não foi possível carregar as rotas.');
+                            console.warn('[NL delivery] my-routes success=false', data);
+                            return { __err: msg };
+                        }
+                        if (data.success !== true) {
+                            console.warn('[NL delivery] my-routes sem success:true', data);
+                            return { __err: 'Formato de resposta inesperado. Atualize a página ou tente novamente.' };
+                        }
+                        return data;
+                    })
+                    .then((data) => {
+                        this.deliveryDataLoading = false;
+                        if (data && data.__err) {
+                            this.deliveryLoadError = data.__err;
+                            return;
+                        }
+                        this.deliveryLoadError = '';
+                        const routes = Array.isArray(data.routes) ? data.routes : [];
+                        const dayCards = Array.isArray(data.day_cards) ? data.day_cards : [];
+                        this.deliveryRoutes = routes;
+                        this.deliveryDayCards = dayCards;
+                        const sessionDate = data.session && data.session.date ? data.session.date : null;
+                        this.sessionApiDate = (data.session_open && sessionDate) ? sessionDate : null;
+                        this.serverToday = data.date || this.serverToday || (typeof window.nlTodaySp === 'function' ? window.nlTodaySp() : '');
+                        const today = this.todayRef;
+                        const hasSessionOpen = !!data.session_open;
+                        const visible = dayCards.filter((c) => c && c.date && (c.date >= today || (hasSessionOpen && sessionDate && c.date === sessionDate)));
+                        const prev = this.selectedDeliveryDay;
+                        if (data.session_open && sessionDate && visible.some((c) => c.date === sessionDate)) {
+                            this.selectedDeliveryDay = sessionDate;
+                        } else {
+                            const todayCard = visible.find((c) => c.date === today);
+                            if (todayCard) {
+                                this.selectedDeliveryDay = today;
+                            } else if (prev && visible.some((c) => c.date === prev)) {
+                                this.selectedDeliveryDay = prev;
+                            } else {
+                                this.selectedDeliveryDay = visible[0]?.date || '';
+                            }
+                        }
+                        this.deliverySessionOpen = !!data.session_open;
+                        this.isHelperView = !!data.is_helper_view;
+                        if (data.is_helper_view && data.driver_name) this.driverName = data.driver_name;
+                        this.assignedPlate = data.assigned_plate || '';
+                        const s = data.session || {};
+                        this.sessionHelpers = Array.isArray(s.helpers) ? s.helpers : [];
+                        this.sessionKmDeparture = s.km_departure != null ? String(s.km_departure) : '';
+                        this.sessionStartedAt = s.started_at || '';
+                        this.mobileReturnReasons = Array.isArray(data.return_reasons) ? data.return_reasons : [];
+                        if (!this.mobileReturn.reason && this.mobileReturnReasons.length) this.mobileReturn.reason = this.mobileReturnReasons[0];
+                        this.closedSessionToday = data.closed_session_today || null;
+                        if (data.warning === 'fallback_mode_enabled') {
+                            console.warn('[NL delivery] API em modo fallback (rotas do dia simplificadas).');
+                        }
+                        this.$nextTick(() => lucide.createIcons());
+                    })
+                    .catch((err) => {
+                        this.deliveryDataLoading = false;
+                        this.deliveryLoadError = 'Falha de rede ou timeout ao carregar rotas.';
+                        console.warn('[NL delivery] my-routes fetch', err);
+                    });
             },
             toggleDeliveryDay(date) { this.selectedDeliveryDay = this.selectedDeliveryDay === date ? '' : date; },
             startDeliverySession() {

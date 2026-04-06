@@ -1145,10 +1145,21 @@
                 if (this.dateFilterFrom) params.set('date_from', this.dateFilterFrom);
                 if (this.dateFilterTo) params.set('date_to', this.dateFilterTo);
                 if (params.toString()) url += '?' + params.toString();
-                fetch(url)
-                    .then(r => r.json())
+                fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+                    .then(async (r) => {
+                        const data = await r.json().catch(() => ({}));
+                        if (!r.ok) {
+                            console.error('[NL mobile] dashboard my-routes HTTP', r.status, data);
+                            return null;
+                        }
+                        if (!data.success) {
+                            console.error('[NL mobile] dashboard my-routes rejeitada', data);
+                            return null;
+                        }
+                        return data;
+                    })
                     .then(data => {
-                        if (!data.success) return;
+                        if (!data) return;
                         const allRoutes = Array.isArray(data.routes) ? data.routes : [];
                         const completedRoutes = allRoutes.filter(r => this.isCompletedDeliveryRoute(r));
                         const activeRoutes = allRoutes.filter(r => !this.isCompletedDeliveryRoute(r));
@@ -1177,7 +1188,8 @@
                         if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
                             this.mobileReturn.reason = this.mobileReturnReasons[0];
                         }
-                    });
+                    })
+                    .catch((e) => console.error('[NL mobile] dashboard my-routes rede', e));
             },
 
             startDeliverySession() {
