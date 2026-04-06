@@ -56,7 +56,7 @@ O Blueprint pede valores para:
 | **ADMIN_EMAIL** | E-mail do admin (ex: admin@empresa.com) |
 | **ADMIN_PASS** | Senha do admin (evite `admin` / vazio) |
 | **APP_BASE_URL** | Deixe em branco na primeira vez |
-| **IMPORT_AUTH_PASSWORD** | No blueprint o Render **gera** automaticamente; copie em **Environment** se for usar importação em datas ≠ hoje |
+| **IMPORT_AUTH_PASSWORD** | Senha para importação em datas ≠ hoje (obrigatória no Render) |
 
 ### Passo 4: Deploy
 
@@ -106,16 +106,17 @@ Em **Environment** do Web Service, adicione:
 | Key | Value |
 |-----|-------|
 | `DATABASE_URL` | Cole a Internal Database URL do PostgreSQL |
-| `SECRET_KEY` | Gere uma chave (ex: `openssl rand -hex 32`) |
-| `REQUIRE_RENDER_DB` | `true` (recomendado: evita fallback silencioso para SQLite se o Postgres falhar) |
+| `SECRET_KEY` | Gere uma chave segura |
+| `REQUIRE_RENDER_DB` | `true` |
 | `ADMIN_EMAIL` | Seu e-mail de admin |
-| `ADMIN_PASS` | Senha forte (evite `admin` / vazio) |
+| `ADMIN_PASS` | Senha do admin |
 | `APP_BASE_URL` | `https://seu-servico.onrender.com` (preencher depois do deploy) |
-| `IMPORT_AUTH_PASSWORD` | Defina manualmente ou deixe o blueprint gerar; sem valor, o app sobe, mas importação em datas ≠ hoje fica bloqueada |
-| `ENV` / `ENVIRONMENT` | Opcional: `production` (o blueprint já define) |
+| `IMPORT_AUTH_PASSWORD` | Senha obrigatória para importação em datas diferentes de hoje |
+| `ENV` / `ENVIRONMENT` | Opcional: `production` |
 | `DEBUG` | `false` em produção |
 
-Variáveis SMTP, Gemini, etc.: veja `.env.example` e preencha no painel **sem** commitar segredos. O Render define `RENDER=true` (pool do banco, proxy headers; `TRUST_PROXY_HEADERS` só se precisar forçar).
+Variáveis adicionais e comentários para desenvolvimento local: veja `.env.example`.
+No Render, `RENDER=true` é definido automaticamente no Web Service e pode ser usado para ajustes de produção, como proxy headers, pool do banco e validações obrigatórias de ambiente.
 
 ### Segurança e segredos
 
