@@ -723,7 +723,7 @@
             min-height: 0;
             overflow: visible;
         }
-        /* Legenda fora do Apex; área do gráfico com altura mínima confortável para 12 meses inclinados */
+        /* Legenda fora do Apex; linha temporal: menos altura mínima que o antigo gráfico de barras */
         .gv-card--devolucao-kpi .gv-devolucao-kpi-legend {
             flex-shrink: 0;
         }
@@ -731,7 +731,7 @@
             flex: 1 1 auto;
             min-width: 0;
             width: 100%;
-            min-height: clamp(288px, 38vh, 460px);
+            min-height: clamp(260px, 36vh, 440px);
             overflow: visible;
         }
         @media (max-width: 767px) {
@@ -1159,14 +1159,21 @@
                         <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📉</span>
                     </div>
                     <div class="gv-aviso-body gv-devolucao-kpi-body !p-0 min-h-0 flex flex-col">
-                        <p class="text-[10px] text-slate-500 px-3 pt-2 pb-1 m-0 leading-tight">Meta: 2% da receita (linha tracejada). Receita não é exibida no painel.</p>
-                        <div class="gv-devolucao-kpi-legend flex flex-wrap items-center justify-center gap-x-5 gap-y-1 px-3 pb-1.5 border-b border-slate-200/90 dark:border-slate-600/80" aria-hidden="true">
+                        <div class="gv-devolucao-kpi-legend flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3 py-1.5 border-b border-slate-200/90 dark:border-slate-600/80" aria-hidden="true">
                             <span class="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                                 <span class="inline-block h-2 w-2 shrink-0 rounded-full bg-[#465fff]" style="box-shadow:0 0 0 1px rgba(15,23,42,0.08)"></span>
-                                Índice %
+                                Até 2%
                             </span>
                             <span class="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                                <span class="inline-block h-0 w-5 shrink-0 border-t-2 border-dashed border-[#94a3b8]"></span>
+                                <span class="inline-block h-2 w-2 shrink-0 rounded-full bg-[#dc2626]" style="box-shadow:0 0 0 1px rgba(15,23,42,0.08)"></span>
+                                Acima de 2%
+                            </span>
+                            <span class="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                                <span class="inline-block h-2 w-2 shrink-0 rounded-sm bg-[#cbd5e1]" style="box-shadow:0 0 0 1px rgba(15,23,42,0.08)"></span>
+                                Sem dado
+                            </span>
+                            <span class="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                                <span class="inline-block h-0 w-5 shrink-0 border-t-2 border-dashed border-[#ea580c]"></span>
                                 Meta 2%
                             </span>
                         </div>
@@ -1179,16 +1186,29 @@
                     function buildKpiChartOptions(k) {
                         var labels = k.labels || [];
                         var pct = (k.pct || []).map(function(v) { return v === null || v === undefined ? null : Number(v); });
-                        var metaPct = (k.meta_pct && k.meta_pct.length) ? k.meta_pct.map(Number) : [2,2,2,2,2,2,2,2,2,2,2,2];
                         var nums = [];
                         pct.forEach(function(v) { if (v != null && !isNaN(v)) nums.push(v); });
-                        metaPct.forEach(function(v) { if (v != null && !isNaN(v)) nums.push(v); });
-                        var dataMax = nums.length ? Math.max.apply(null, nums) : 2;
-                        var yMax = Math.max(2.5, dataMax);
-                        yMax = Math.ceil(yMax * 1.2 * 10) / 10;
+                        var dataMax = nums.length ? Math.max.apply(null, nums) : 0;
+                        var xMax = Math.max(4, dataMax * 1.12);
+                        xMax = Math.ceil(xMax * 10) / 10;
+                        var segAte2 = pct.map(function(p) {
+                            if (p == null || isNaN(p)) return null;
+                            return Math.min(p, 2);
+                        });
+                        var segAcima = pct.map(function(p) {
+                            if (p == null || isNaN(p)) return null;
+                            return Math.max(0, p - 2);
+                        });
+                        var tickAmt;
+                        if (xMax <= 10) {
+                            tickAmt = Math.min(12, Math.max(5, Math.ceil(xMax) + 1));
+                        } else {
+                            tickAmt = 7;
+                        }
                         return {
                             chart: {
-                                type: 'line',
+                                type: 'bar',
+                                stacked: true,
                                 fontFamily: 'inherit',
                                 toolbar: { show: false },
                                 zoom: { enabled: false },
@@ -1197,49 +1217,82 @@
                                 redrawOnParentResize: true,
                                 redrawOnWindowResize: true,
                             },
-                            colors: ['#465fff', '#94a3b8'],
-                            stroke: { width: [2, 2], curve: 'smooth', dashArray: [0, 6] },
-                            fill: { opacity: [0.22, 0] },
+                            colors: ['#465fff', '#dc2626'],
+                            plotOptions: {
+                                bar: {
+                                    horizontal: true,
+                                    barHeight: '78%',
+                                    borderRadius: 2,
+                                    borderRadiusApplication: 'end',
+                                    borderRadiusWhenStacked: 'last',
+                                },
+                            },
+                            stroke: { width: 1, colors: ['#fff'] },
+                            fill: { opacity: 1 },
                             series: [
-                                { name: 'Índice %', data: pct },
-                                { name: 'Meta 2%', data: metaPct },
+                                { name: 'Até 2%', data: segAte2 },
+                                { name: 'Acima de 2%', data: segAcima },
                             ],
                             xaxis: {
                                 categories: labels,
-                                tickPlacement: 'on',
+                                min: 0,
+                                max: xMax,
+                                tickAmount: tickAmt,
+                                decimalsInFloat: 1,
                                 axisBorder: { show: true, color: '#e2e8f0' },
                                 axisTicks: { show: true, color: '#e2e8f0' },
-                                labels: {
-                                    style: { fontSize: '10px', fontWeight: 500 },
-                                    rotate: -45,
-                                    rotateAlways: true,
-                                    hideOverlappingLabels: false,
-                                    trim: false,
+                                title: {
+                                    text: 'Índice (% da receita)',
+                                    style: { fontSize: '11px', fontWeight: 600, color: '#64748b' },
                                     offsetY: 2,
                                 },
-                            },
-                            yaxis: {
-                                title: { text: '%', style: { fontSize: '11px' } },
                                 labels: {
                                     formatter: function(val) {
                                         if (val == null || isNaN(val)) return '';
-                                        return String(Math.round(val * 10) / 10).replace('.', ',');
+                                        return String(Math.round(Number(val) * 10) / 10).replace('.', ',') + '%';
                                     },
-                                    style: { fontSize: '10px' },
-                                    maxWidth: 48,
+                                    style: { fontSize: '11px', fontWeight: 600 },
+                                    hideOverlappingLabels: false,
                                 },
-                                min: 0,
-                                max: yMax,
+                            },
+                            yaxis: {
+                                labels: {
+                                    style: { fontSize: '12px', fontWeight: 700, colors: '#334155' },
+                                    maxWidth: 72,
+                                    trim: false,
+                                },
                             },
                             dataLabels: { enabled: false },
                             legend: { show: false },
                             grid: {
                                 strokeDashArray: 4,
                                 borderColor: '#e2e8f0',
-                                padding: { top: 6, right: 6, bottom: 72, left: 4 },
-                                xaxis: { lines: { show: false } },
+                                padding: { top: 4, right: 10, bottom: 36, left: 4 },
+                                xaxis: { lines: { show: true } },
+                                yaxis: { lines: { show: false } },
                             },
-                            markers: { size: 0, hover: { size: 4 } },
+                            markers: { size: 0, hover: { size: 0 } },
+                            annotations: {
+                                xaxis: [{
+                                    x: 2,
+                                    borderColor: '#ea580c',
+                                    strokeDashArray: 6,
+                                    borderWidth: 2,
+                                    opacity: 1,
+                                    label: {
+                                        borderWidth: 0,
+                                        offsetY: -2,
+                                        style: {
+                                            background: '#ffedd5',
+                                            color: '#9a3412',
+                                            fontSize: '11px',
+                                            fontWeight: 700,
+                                            padding: { left: 6, right: 6, top: 2, bottom: 2 },
+                                        },
+                                        text: 'Meta 2%',
+                                    },
+                                }],
+                            },
                             tooltip: {
                                 shared: true,
                                 intersect: false,
@@ -1259,7 +1312,7 @@
                                     html += '<div class="apexcharts-tooltip-series-group" style="order:2;display:flex;padding:4px 10px">';
                                     html += '<span class="apexcharts-tooltip-marker" style="background-color:#94a3b8"></span>';
                                     html += '<div class="apexcharts-tooltip-text" style="font-family:inherit;font-size:12px">';
-                                    html += '<div>Meta 2% (taxa)</div>';
+                                    html += '<div>Meta 2% (taxa fixa no gráfico)</div>';
                                     if (mv != null && mv !== '') html += '<div>Meta 2% em valor: R$ ' + Number(mv).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>';
                                     html += '</div></div>';
                                     return html;
