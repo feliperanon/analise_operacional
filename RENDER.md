@@ -115,7 +115,8 @@ Em **Environment** do Web Service, adicione:
 | `ENV` / `ENVIRONMENT` | Opcional: `production` |
 | `DEBUG` | `false` em produção |
 
-Variáveis adicionais e comentários para desenvolvimento local: veja `.env.example`.
+Variáveis adicionais, como SMTP, Gemini e outras integrações, devem ser configuradas no painel **Environment** do Render conforme necessário. Para desenvolvimento local e exemplos sem segredos reais, consulte o arquivo `.env.example`.
+
 No Render, `RENDER=true` é definido automaticamente no Web Service e pode ser usado para ajustes de produção, como proxy headers, pool do banco e validações obrigatórias de ambiente.
 
 ### Segurança e segredos
