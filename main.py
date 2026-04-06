@@ -117,7 +117,11 @@ from urllib.parse import urlencode
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
-from render_env_validation import DEFAULT_SECRET_KEY_PLACEHOLDER, validate_render_environment
+from render_env_validation import (
+    DEFAULT_SECRET_KEY_PLACEHOLDER,
+    render_platform_active,
+    validate_render_environment,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env", override=False)
@@ -672,8 +676,16 @@ def sync_sectors_on_startup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     delivery_autoclose_task = None
-    # Configuração de ambiente não fatal: só logs (validate_render_environment); não usar raise aqui.
-    validate_render_environment(logger)
+    # Configuração de ambiente não fatal: só logs; não usar raise aqui.
+    validate_render_environment(
+        logger,
+        render_platform_active(os.environ.get("RENDER")),
+        SECRET_KEY,
+        DEFAULT_SECRET_KEY_PLACEHOLDER,
+        IMPORT_AUTH_PASSWORD,
+        APP_BASE_URL,
+        ADMIN_PASS,
+    )
     create_db_and_tables()
     try:
         ensure_vehicle_schema()

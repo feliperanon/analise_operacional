@@ -16,51 +16,63 @@ CHECKLIST RÁPIDO (humano / IA):
 - [ ] Não misturar log com raise no mesmo bloco de checagem de env.
 - [ ] Não adicionar docstring duplicada na função.
 - [ ] Não mudar comportamento crítico sem revisar diff e tests/test_render_env_validation.py.
+
+API estável: `DEFAULT_SECRET_KEY_PLACEHOLDER`, `render_platform_active`, `validate_render_environment`.
+A validação recebe valores explícitos (sem ler os.environ dentro da função), para testes e acoplamento mínimos.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 
-# Deve coincidir com o fallback usado em main para SECRET_KEY (única fonte aqui; main importa isto).
+__all__ = (
+    "DEFAULT_SECRET_KEY_PLACEHOLDER",
+    "render_platform_active",
+    "validate_render_environment",
+)
+
+# Fallback de desenvolvimento; em produção deve ser substituído por segredo forte no painel.
 DEFAULT_SECRET_KEY_PLACEHOLDER = "your-secret-key-change-in-production"
 
 _RENDER_TRUTHY = frozenset({"1", "true", "yes", "on"})
 
 
-def _is_render_platform() -> bool:
-    return (os.environ.get("RENDER") or "").strip().lower() in _RENDER_TRUTHY
+def render_platform_active(render_env_value: str | None) -> bool:
+    """True se a variável de ambiente RENDER do painel indica execução na plataforma Render."""
+    return (render_env_value or "").strip().lower() in _RENDER_TRUTHY
 
 
-def validate_render_environment(logger: logging.Logger) -> None:
+def validate_render_environment(
+    logger: logging.Logger,
+    is_render: bool,
+    secret_key: str,
+    default_secret_key_placeholder: str,
+    import_auth_password: str,
+    app_base_url: str,
+    admin_pass: str,
+) -> None:
     """
     No Render: avisa sobre configuração fraca ou incompleta.
 
-    Não levanta exceção por configuração não fatal; não registra valores secretos.
+    Não lê os.environ; não levanta exceção por configuração não fatal; não registra segredos.
     """
-    if not _is_render_platform():
+    if not is_render:
         return
 
-    secret_raw = os.environ.get("SECRET_KEY")
-    if secret_raw is None:
-        effective_secret = DEFAULT_SECRET_KEY_PLACEHOLDER
-    else:
-        effective_secret = (secret_raw or "").strip() or DEFAULT_SECRET_KEY_PLACEHOLDER
-    if effective_secret == DEFAULT_SECRET_KEY_PLACEHOLDER:
+    sk = (secret_key or "").strip()
+    if not sk or sk == (default_secret_key_placeholder or "").strip():
         logger.critical(
-            "Render: SECRET_KEY ainda com o placeholder padrão — defina um valor forte em Environment. "
-            "O app sobe, mas sessões ficam inseguras até corrigir."
+            "Render: SECRET_KEY ausente, vazio ou ainda com o placeholder padrão — defina um valor "
+            "forte em Environment. O app sobe, mas sessões ficam inseguras até corrigir."
         )
 
-    import_auth = (os.environ.get("IMPORT_AUTH_PASSWORD") or "").strip()
-    if not import_auth:
+    if not (import_auth_password or "").strip():
         logger.critical(
             "Render: IMPORT_AUTH_PASSWORD vazio — o app sobe, mas importação para datas diferentes "
             "de hoje fica bloqueada. Defina no Environment ou use generateValue no blueprint."
         )
 
-    base_url = (os.environ.get("APP_BASE_URL") or "").strip().lower()
+    base_url = (app_base_url or "").strip().lower()
     if not base_url:
         logger.warning(
             "Render: APP_BASE_URL vazio — defina https://<seu-serviço>.onrender.com para links e cookies seguros."
@@ -68,8 +80,8 @@ def validate_render_environment(logger: logging.Logger) -> None:
     elif not base_url.startswith("https://"):
         logger.warning("Render: APP_BASE_URL deve usar https:// em produção.")
 
-    admin_pass = (os.environ.get("ADMIN_PASS") or "").strip().lower()
-    if admin_pass in ("admin", "admin123", ""):
+    weak = (admin_pass or "").strip().lower()
+    if weak in ("admin", "admin123", ""):
         logger.critical(
             "Render: ADMIN_PASS fraco ou vazio — altere no painel imediatamente."
         )

@@ -19,6 +19,14 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def main() -> int:
+    r0 = subprocess.run(
+        [sys.executable, "-m", "py_compile", "main.py", "render_env_validation.py"],
+        cwd=ROOT,
+        check=False,
+    )
+    if r0.returncode != 0:
+        return r0.returncode
+
     r = subprocess.run(
         [sys.executable, "-m", "unittest", "tests.test_render_env_validation", "-v"],
         cwd=ROOT,
