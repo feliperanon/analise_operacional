@@ -10,7 +10,8 @@
     <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
     <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
     <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+    {# Mesmo domínio: evita Tracking Prevention (Edge/Safari) bloquear storage em script de terceiros #}
+    <script src="/static/vendor/apexcharts/apexcharts-3.45.2.min.js"></script>
     <style>
         /* Painel claro — fundo + KPIs + cards no mesmo vocabulário visual */
         :root {

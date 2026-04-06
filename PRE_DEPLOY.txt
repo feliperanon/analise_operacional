@@ -1,0 +1,20 @@
+Checklist mínimo — incidente / deploy Render (não substitui CI)
+
+1) Sintaxe e import de startup
+   python scripts/render_env_startup_check.py
+
+2) Git: nada crítico faltando no commit
+   git status
+   Confirmar: render_env_validation.py versionado se main.py o importa.
+   Confirmar: qualquer arquivo novo em static/ referenciado por templates.
+
+3) Evitar no mesmo PR (alto risco de regressão)
+   - lifespan / imports em main.py
+   + grandes mudanças em templates mobile
+   + service worker + bump de versão esquecido
+   Misturar só com smoke do item 1 e revisão explícita.
+
+4) Após deploy
+   - Abrir /mobile/delivery (logado), lista carrega sem tela vazia silenciosa.
+   - DevTools → Application → Service Worker: script atualizado (layout NL_SW_VERSION).
+   - Dashboard informativo: se usar /static/vendor/apexcharts/, o arquivo existe no deploy.

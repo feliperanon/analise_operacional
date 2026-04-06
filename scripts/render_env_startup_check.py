@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Verificação rápida anti-regressão: testes de validate_render_environment + import de main.
+Verificação rápida anti-regressão: sintaxe de módulos de startup + testes de env Render + import de main.
+
+Rodar antes de merge/deploy crítico (evita commit sem módulo novo ou sintaxe quebrada).
 
 Uso (na raiz do repositório):
   python scripts/render_env_startup_check.py
@@ -20,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def main() -> int:
     r0 = subprocess.run(
-        [sys.executable, "-m", "py_compile", "main.py", "render_env_validation.py"],
+        [sys.executable, "-m", "py_compile", "main.py", "render_env_validation.py", "database.py"],
         cwd=ROOT,
         check=False,
     )
@@ -44,7 +46,10 @@ def main() -> int:
         env=env,
         timeout=180,
     )
-    return r2.returncode
+    if r2.returncode != 0:
+        return r2.returncode
+    print("PRE_DEPLOY_SMOKE_OK: py_compile + unittest + import main")
+    return 0
 
 
 if __name__ == "__main__":
