@@ -123,8 +123,6 @@ load_dotenv(dotenv_path=BASE_DIR / ".env", override=False)
 # Performance: Use INFO level in production, DEBUG only when explicitly enabled
 LOG_LEVEL = logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO
 
-# Diagnostic
-print(f"DEBUG: Loaded .env. SMTP_HOST='{os.getenv('SMTP_HOST')}'")
 try:
     # Avoid mojibake in Windows/PowerShell console output.
     sys.stdout.reconfigure(encoding="utf-8")
@@ -157,7 +155,14 @@ logger.addHandler(handler)
 logger.addHandler(console_handler)
 
 # --- Config ---
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+_DEFAULT_SECRET_KEY = "your-secret-key-change-in-production"
+SECRET_KEY = os.getenv("SECRET_KEY", _DEFAULT_SECRET_KEY)
+_render_host = os.getenv("RENDER", "").strip().lower() in {"1", "true", "yes", "on"}
+if _render_host and (SECRET_KEY or "").strip() == _DEFAULT_SECRET_KEY:
+    logger.critical(
+        "Render: SECRET_KEY está com o valor padrão inseguro. Defina SECRET_KEY única em Environment."
+    )
+
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", os.getenv("ADMIN_USER", "admin@local"))
 ADMIN_PASS = os.getenv("ADMIN_PASS", "admin")
 ADMIN_ROLE = os.getenv("ADMIN_ROLE", "admin")
@@ -753,6 +758,7 @@ PROXY_HEADERS_ENABLED = (
     _env_flag("TRUST_PROXY_HEADERS")
     or _env_flag("RENDER")
     or _env_matches("ENV", "prod", "production")
+    or _env_matches("ENVIRONMENT", "prod", "production")
     or _env_matches("APP_ENV", "prod", "production")
     or os.getenv("APP_BASE_URL", "").strip().lower().startswith("https://")
 )

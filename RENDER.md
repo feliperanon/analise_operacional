@@ -106,9 +106,12 @@ Em **Environment** do Web Service, adicione:
 |-----|-------|
 | `DATABASE_URL` | Cole a Internal Database URL do PostgreSQL |
 | `SECRET_KEY` | Gere uma chave (ex: `openssl rand -hex 32`) |
+| `REQUIRE_RENDER_DB` | `true` (recomendado: evita fallback silencioso para SQLite se o Postgres falhar) |
 | `ADMIN_EMAIL` | Seu e-mail de admin |
 | `ADMIN_PASS` | Senha do admin |
 | `APP_BASE_URL` | `https://seu-servico.onrender.com` (preencher depois do deploy) |
+
+Variáveis adicionais e comentários para desenvolvimento local: veja `.env.example`. O Render define automaticamente `RENDER=true` no serviço web (usado para pool do banco e cabeçalhos de proxy).
 
 ### 4. Deploy
 

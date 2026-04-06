@@ -17,6 +17,9 @@ services:
         fromDatabase:
           name: analise-db
           property: connectionString
+      # Evita subir com SQLite local se o Postgres estiver inacessível (comportamento indesejado no Render).
+      - key: REQUIRE_RENDER_DB
+        value: "true"
       - key: SECRET_KEY
         generateValue: true
       - key: ADMIN_EMAIL

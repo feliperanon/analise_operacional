@@ -145,10 +145,21 @@ _engine_kw = dict(
     pool_recycle=1800,
     pool_timeout=30,
 )
+
+
+def _is_production_profile() -> bool:
+    """Pool maior em produção: ENV/ENVIRONMENT ou host Render (RENDER=true no painel)."""
+    env = (os.environ.get("ENV") or "").strip().lower()
+    env2 = (os.environ.get("ENVIRONMENT") or "").strip().lower()
+    if env in ("prod", "production") or env2 in ("prod", "production"):
+        return True
+    return (os.environ.get("RENDER") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
 # Postgres remoto (ex.: Render EUA): mais conexões reutilizáveis reduzem latência sob carga.
 # Em dev, pool menor evita dois processos (reload) disputando muitas conexões no Render.
 if "postgresql" in (db_url or "").lower():
-    if os.environ.get("ENV", "").lower() in ("prod", "production"):
+    if _is_production_profile():
         _engine_kw["pool_size"] = int(os.environ.get("DB_POOL_SIZE", "8") or "8")
         _engine_kw["max_overflow"] = int(os.environ.get("DB_MAX_OVERFLOW", "12") or "12")
     else:
