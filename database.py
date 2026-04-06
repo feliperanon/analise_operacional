@@ -99,7 +99,7 @@ def _ordered_remote_candidates() -> list[tuple[str, str]]:
     return ordered
 
 
-# Render-first: tenta banco remoto primeiro; fallback local apenas se indisponível.
+# Com DATABASE_URL/RENDER_*: Postgres obrigatório (sem fallback silencioso para SQLite). Sem URL: SQLite em dev.
 primary_candidates = _ordered_remote_candidates()
 
 # Performance: only echo SQL in DEBUG mode
@@ -145,16 +145,11 @@ elif primary_candidates:
         os.environ["ACTIVE_DATABASE_SOURCE"] = "render"
         os.environ["ACTIVE_DATABASE_URL_SOURCE"] = chosen_source
     else:
-        if _STRICT_REMOTE:
-            raise RuntimeError(
-                "Falha ao conectar no PostgreSQL configurado (Render ou REQUIRE_RENDER_DB). "
-                "Verifique DATABASE_URL e conectividade; fallback para SQLite não é permitido neste ambiente."
-            )
-        log.warning(
-            "Falha ao conectar em qualquer banco remoto configurado. Usando SQLite local."
+        raise RuntimeError(
+            "Falha ao conectar no PostgreSQL configurado (DATABASE_URL / RENDER_*). "
+            "Verifique URL, rede, TLS (Render exige SSL) e firewall. "
+            "Para subir só com SQLite local, defina FORCE_LOCAL_DB=true e remova DATABASE_URL do .env/ambiente."
         )
-        db_url = local_sqlite_url
-        os.environ["ACTIVE_DATABASE_SOURCE"] = "local_fallback"
 else:
     if _STRICT_REMOTE:
         raise RuntimeError(

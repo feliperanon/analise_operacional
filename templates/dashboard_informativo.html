@@ -663,7 +663,8 @@
             --gv-card-text-fs: var(--gv-card-body-fs);
             --gv-card-label-fs: var(--gv-card-body-fs);
             display: grid;
-            grid-template-columns: minmax(0, 37.5rem) minmax(0, 1.55fr) minmax(0, 1.35fr);
+            /* Devolução motorista/ajudante | comunicado + gráfico (flexível) | aniversários/férias */
+            grid-template-columns: minmax(0, 450px) minmax(0, 1fr) minmax(0, 300px);
             gap: 0.5rem;
             flex: 1 1 auto;
             min-height: 0;
@@ -692,11 +693,11 @@
             min-height: min-content;
             align-items: stretch;
             width: 100%;
-            max-width: 37.5rem;
+            max-width: 450px;
         }
         .gv-dev-cards .ta-card {
             width: 100%;
-            max-width: 37.5rem;
+            max-width: 450px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
@@ -704,7 +705,8 @@
             min-height: min-content;
             overflow: visible;
         }
-        .gv-col-mid { min-height: 0; overflow: hidden; }
+        /* visible: rótulos do gráfico de devolução não são cortados; cards individuais controlam overflow */
+        .gv-col-mid { min-height: 0; overflow: visible; }
         /* Comunicado: altura conforme conteúdo; gráfico de devolução: ocupa o restante da coluna (evita cortar o fim do card). */
         .gv-body .gv-col-mid .gv-surface:not(.gv-card--devolucao-kpi) {
             flex: 0 1 auto;
@@ -714,17 +716,23 @@
         .gv-body .gv-col-mid .gv-surface.gv-card--devolucao-kpi {
             flex: 1 1 0;
             min-height: 0;
-            overflow: hidden;
+            overflow: visible;
         }
         .gv-card--devolucao-kpi .gv-devolucao-kpi-body {
             flex: 1 1 0;
             min-height: 0;
+            overflow: visible;
+        }
+        /* Legenda fora do Apex; área do gráfico com altura mínima confortável para 12 meses inclinados */
+        .gv-card--devolucao-kpi .gv-devolucao-kpi-legend {
+            flex-shrink: 0;
         }
         .gv-card--devolucao-kpi .gv-chart-devolucao {
-            flex: 1 1 0;
+            flex: 1 1 auto;
             min-width: 0;
             width: 100%;
-            min-height: clamp(9rem, 22vh, 16rem);
+            min-height: clamp(288px, 38vh, 460px);
+            overflow: visible;
         }
         @media (max-width: 767px) {
             .gv-body {
@@ -1151,7 +1159,17 @@
                         <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📉</span>
                     </div>
                     <div class="gv-aviso-body gv-devolucao-kpi-body !p-0 min-h-0 flex flex-col">
-                        <p class="text-[10px] text-slate-500 px-3 pt-2 pb-0 m-0 leading-tight">Meta: 2% da receita (linha tracejada). Receita não é exibida no painel.</p>
+                        <p class="text-[10px] text-slate-500 px-3 pt-2 pb-1 m-0 leading-tight">Meta: 2% da receita (linha tracejada). Receita não é exibida no painel.</p>
+                        <div class="gv-devolucao-kpi-legend flex flex-wrap items-center justify-center gap-x-5 gap-y-1 px-3 pb-1.5 border-b border-slate-200/90 dark:border-slate-600/80" aria-hidden="true">
+                            <span class="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                                <span class="inline-block h-2 w-2 shrink-0 rounded-full bg-[#465fff]" style="box-shadow:0 0 0 1px rgba(15,23,42,0.08)"></span>
+                                Índice %
+                            </span>
+                            <span class="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                                <span class="inline-block h-0 w-5 shrink-0 border-t-2 border-dashed border-[#94a3b8]"></span>
+                                Meta 2%
+                            </span>
+                        </div>
                         <div id="chart-informativo-devolucao" class="gv-chart-devolucao w-full flex-1 min-h-0 min-w-0"></div>
                     </div>
                 </article>
@@ -1162,6 +1180,12 @@
                         var labels = k.labels || [];
                         var pct = (k.pct || []).map(function(v) { return v === null || v === undefined ? null : Number(v); });
                         var metaPct = (k.meta_pct && k.meta_pct.length) ? k.meta_pct.map(Number) : [2,2,2,2,2,2,2,2,2,2,2,2];
+                        var nums = [];
+                        pct.forEach(function(v) { if (v != null && !isNaN(v)) nums.push(v); });
+                        metaPct.forEach(function(v) { if (v != null && !isNaN(v)) nums.push(v); });
+                        var dataMax = nums.length ? Math.max.apply(null, nums) : 2;
+                        var yMax = Math.max(2.5, dataMax);
+                        yMax = Math.ceil(yMax * 1.2 * 10) / 10;
                         return {
                             chart: {
                                 type: 'line',
@@ -1182,7 +1206,17 @@
                             ],
                             xaxis: {
                                 categories: labels,
-                                labels: { style: { fontSize: '10px' } },
+                                tickPlacement: 'on',
+                                axisBorder: { show: true, color: '#e2e8f0' },
+                                axisTicks: { show: true, color: '#e2e8f0' },
+                                labels: {
+                                    style: { fontSize: '10px', fontWeight: 500 },
+                                    rotate: -45,
+                                    rotateAlways: true,
+                                    hideOverlappingLabels: false,
+                                    trim: false,
+                                    offsetY: 2,
+                                },
                             },
                             yaxis: {
                                 title: { text: '%', style: { fontSize: '11px' } },
@@ -1192,12 +1226,19 @@
                                         return String(Math.round(val * 10) / 10).replace('.', ',');
                                     },
                                     style: { fontSize: '10px' },
+                                    maxWidth: 48,
                                 },
                                 min: 0,
+                                max: yMax,
                             },
                             dataLabels: { enabled: false },
-                            legend: { position: 'top', horizontalAlign: 'right', fontSize: '11px', offsetY: 2 },
-                            grid: { strokeDashArray: 4, borderColor: '#e2e8f0', padding: { left: 4, right: 4 } },
+                            legend: { show: false },
+                            grid: {
+                                strokeDashArray: 4,
+                                borderColor: '#e2e8f0',
+                                padding: { top: 6, right: 6, bottom: 72, left: 4 },
+                                xaxis: { lines: { show: false } },
+                            },
                             markers: { size: 0, hover: { size: 4 } },
                             tooltip: {
                                 shared: true,
@@ -1238,7 +1279,19 @@
                             if (chart && typeof chart.resize === 'function') chart.resize();
                         });
                     }
-                    chart.render().then(syncDevolucaoChartSize).catch(syncDevolucaoChartSize);
+                    function applyDevolucaoChartHeightOnce() {
+                        var h = el.clientHeight;
+                        if (h >= 260 && chart) {
+                            try {
+                                chart.updateOptions({ chart: { height: h } }, false, false);
+                            } catch (e2) { /* ignore */ }
+                        }
+                        syncDevolucaoChartSize();
+                    }
+                    chart.render().then(function() {
+                        applyDevolucaoChartHeightOnce();
+                        setTimeout(applyDevolucaoChartHeightOnce, 100);
+                    }).catch(syncDevolucaoChartSize);
                     window.addEventListener('resize', syncDevolucaoChartSize);
                     if (typeof ResizeObserver !== 'undefined') {
                         var ro = new ResizeObserver(syncDevolucaoChartSize);
@@ -1248,7 +1301,7 @@
                     window._gvRebuildDevolucaoKpi = function(k) {
                         if (!chart || !k || !k.labels) return;
                         chart.updateOptions(buildKpiChartOptions(k), true, true);
-                        syncDevolucaoChartSize();
+                        applyDevolucaoChartHeightOnce();
                     };
                 })();
                 </script>

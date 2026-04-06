@@ -17,6 +17,7 @@ venv/
 # Variáveis de ambiente
 .env
 .env.*
+!.env.example
 
 # Sistema
 .DS_Store

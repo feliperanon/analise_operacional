@@ -2582,6 +2582,30 @@ def _parse_br_float_form(val: Any) -> Optional[float]:
         return None
 
 
+def _format_br_pct_form(val: Any) -> str:
+    """Percentual para exibição em campo (vírgula como separador decimal)."""
+    if val is None:
+        return ""
+    try:
+        x = float(val)
+    except (TypeError, ValueError):
+        return ""
+    s = f"{x:.6f}".rstrip("0").rstrip(".")
+    return s.replace(".", ",")
+
+
+def _format_br_money_form(val: Any) -> str:
+    """Valor monetário: milhar com ponto, decimais com vírgula (ex.: 1.234,56)."""
+    if val is None:
+        return ""
+    try:
+        x = float(val)
+    except (TypeError, ValueError):
+        return ""
+    s = f"{x:,.2f}"
+    return s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]:
     """Dados para o gráfico de índice de devolução mensal (meta 2% com base na receita informada)."""
     try:
@@ -3860,6 +3884,14 @@ async def admin_informativo_page(
             }
     except Exception:
         pass
+    dr_display: Dict[int, Dict[str, str]] = {}
+    for m in range(1, 13):
+        row = dr_rows.get(m) or {}
+        dr_display[m] = {
+            "pct": _format_br_pct_form(row.get("pct")),
+            "valor": _format_br_money_form(row.get("valor")),
+            "receita": _format_br_money_form(row.get("receita")),
+        }
     return templates.TemplateResponse(
         "admin_informativo.html",
         {
@@ -3869,6 +3901,7 @@ async def admin_informativo_page(
             "panel_carousel_seconds": panel_sec,
             "dry_year": dry_year,
             "dr_rows": dr_rows,
+            "dr_display": dr_display,
         },
     )
 

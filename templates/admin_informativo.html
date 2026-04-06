@@ -1,123 +1,225 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="p-8 max-w-3xl mx-auto">
-    <h1 class="text-2xl font-bold text-white mb-2">Avisos do Informativo</h1>
-    <p class="text-slate-400 text-sm mb-6">Até <strong class="text-slate-300">5 avisos</strong> (menor <strong class="text-slate-300">ordem</strong> primeiro) rodam no card &quot;Comunicado em destaque&quot; no <a href="/dashboard" class="text-sky-400 hover:underline">/dashboard</a>. Imagem = URL direta de arquivo; matéria = link do site.</p>
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+    <title>Gestão Avista • Informativo (administração)</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
+    <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
+    <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
+    <style>
+        .gv-menu-btn {
+            border: 1px solid rgb(229 231 235);
+            background: #ffffff;
+            color: #475569;
+            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        .gv-menu-btn:hover {
+            background: rgb(249 250 251);
+            color: #1f2937;
+        }
+        .admin-inf-scroll {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .admin-inf-card {
+            border-radius: 1rem;
+            border: 1px solid rgb(229 231 235);
+            background: #fff;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
+        }
+        .dark .admin-inf-card {
+            border-color: rgb(55 65 81);
+            background: rgb(17 24 39);
+        }
+        .admin-inf-input {
+            width: 100%;
+            border-radius: 0.5rem;
+            border: 1px solid rgb(209 213 219);
+            background: #fff;
+            color: #111827;
+            padding: 0.375rem 0.625rem;
+            font-size: 0.875rem;
+        }
+        .admin-inf-input::placeholder { color: #9ca3af; }
+        .admin-inf-input:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 1px #6366f1;
+        }
+        .dark .admin-inf-input {
+            border-color: rgb(75 85 99);
+            background: rgb(31 41 55);
+            color: #f9fafb;
+        }
+    </style>
+</head>
+<body class="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-100 font-outfit text-slate-800 antialiased dark:bg-gray-900 dark:text-gray-100 dashboard-app"
+      x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false, checklists: false } }">
+    {% include "_sidebar.html" %}
+    <button type="button" class="gv-menu-btn fixed top-3 left-3 z-[60] flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors print:hidden"
+            title="Menu" @click="sidebarOpen = true" :class="sidebarOpen ? 'hidden' : ''">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <span class="hidden text-xs font-medium sm:inline">Menu</span>
+    </button>
 
-    {% if request.query_params.get('saved_devolucao') == '1' %}
-    <p class="mb-4 text-emerald-400 text-sm">Dados de devolução mensal (índice) salvos.</p>
-    {% endif %}
-    {% if request.query_params.get('saved') == 'panel' %}
-    <p class="mb-4 text-emerald-400 text-sm">Tempo do carrossel salvo.</p>
-    {% endif %}
-    {% if request.query_params.get('updated') %}
-    <p class="mb-4 text-emerald-400 text-sm">Aviso atualizado.</p>
-    {% endif %}
-    {% if request.query_params.get('err') %}
-    <p class="mb-4 text-amber-400 text-sm">Informe um título.</p>
-    {% endif %}
-
-    <div class="mb-8 p-5 rounded-xl border border-slate-600 bg-slate-800/50">
-        <h2 class="text-sm font-semibold text-white mb-1">Painel /dashboard — troca de tela</h2>
-        <p class="text-xs text-slate-500 mb-3">Intervalo entre um aviso e o próximo no carrossel (4 a 120 segundos).</p>
-        <form method="post" action="/admin/informativo/panel-config" class="flex flex-wrap items-end gap-3">
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">Segundos</label>
-                <input type="number" name="carousel_interval_seconds" min="4" max="120" value="{{ panel_carousel_seconds }}" class="w-28 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white">
+    <div class="ta-dashboard-layout flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header class="ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
+            <div class="ta-dash-header__inner flex w-full max-w-6xl flex-col gap-0.5 pl-12 sm:pl-14">
+                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Administração / Informativo</p>
+                <h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Painel informativo</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Comunicados no <a href="/dashboard" class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">/dashboard</a> · números no padrão brasileiro (vírgula decimal, ponto nos milhares)</p>
             </div>
-            <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold">Salvar tempo</button>
-        </form>
+        </header>
+
+        <main class="admin-inf-scroll px-4 py-5 sm:px-6">
+            <div class="mx-auto w-full max-w-5xl space-y-6 pb-10">
+
+                {% if request.query_params.get('saved_devolucao') == '1' %}
+                <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">Dados de devolução mensal (índice) salvos.</p>
+                {% endif %}
+                {% if request.query_params.get('saved') == 'panel' %}
+                <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">Tempo do carrossel salvo.</p>
+                {% endif %}
+                {% if request.query_params.get('updated') %}
+                <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">Aviso atualizado.</p>
+                {% endif %}
+                {% if request.query_params.get('err') %}
+                <p class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">Informe um título.</p>
+                {% endif %}
+
+                <section class="admin-inf-card p-5 sm:p-6">
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Carrossel no painel</h2>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Intervalo entre um aviso e o próximo no card <span class="font-medium text-gray-700 dark:text-gray-300">Comunicado em destaque</span> (de 4 a 120 segundos).</p>
+                    <form method="post" action="/admin/informativo/panel-config" class="mt-4 flex flex-wrap items-end gap-3">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Segundos</label>
+                            <input type="number" name="carousel_interval_seconds" min="4" max="120" value="{{ panel_carousel_seconds }}"
+                                   class="admin-inf-input w-32 tabular-nums" inputmode="numeric">
+                        </div>
+                        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Salvar tempo</button>
+                    </form>
+                </section>
+
+                <section class="admin-inf-card p-5 sm:p-6">
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Índice de devolução mensal</h2>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alimenta o gráfico <span class="font-medium text-gray-700 dark:text-gray-300">Índice de devolução mensal</span> no painel. A <span class="font-medium">receita</span> não aparece no gráfico; serve para calcular a meta de 2% em valor (tooltip). Eixo vertical em porcentagem.</p>
+                    <form method="get" action="/admin/informativo" class="mt-4 flex flex-wrap items-end gap-3">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Ano</label>
+                            <input type="number" name="dry_year" min="2000" max="2100" value="{{ dry_year }}" class="admin-inf-input w-32 tabular-nums" inputmode="numeric">
+                        </div>
+                        <button type="submit" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700">Carregar ano</button>
+                    </form>
+                    <p class="mt-3 text-[11px] leading-snug text-gray-500 dark:text-gray-400">Percentual: vírgula decimal (ex.: <span class="tabular-nums">2,5</span>). Valores em reais: milhar com ponto e centavos com vírgula (ex.: <span class="tabular-nums">1.234,56</span>).</p>
+                    <form method="post" action="/admin/informativo/devolucao-mensal" class="mt-4 overflow-x-auto">
+                        <input type="hidden" name="dry_year" value="{{ dry_year }}">
+                        <table class="w-full min-w-[720px] border-collapse text-left text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                                    <th class="py-2.5 pr-3">Mês</th>
+                                    <th class="py-2.5 pr-3">% devolução (índice)</th>
+                                    <th class="py-2.5 pr-3">Valor devolução (R$)</th>
+                                    <th class="py-2.5 pr-3">Receita (R$) <span class="font-normal normal-case text-gray-400">— não exibida no painel</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-gray-800 dark:text-gray-200">
+                                {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
+                                {% for mes_nome in meses %}
+                                {% set m = loop.index %}
+                                {% set dd = dr_display.get(m) or {} %}
+                                <tr class="border-b border-gray-100 dark:border-gray-700/80">
+                                    <td class="py-2.5 pr-3 font-medium text-gray-900 dark:text-white">{{ mes_nome }}</td>
+                                    <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_pct" value="{{ dd.get('pct', '') }}" class="admin-inf-input max-w-[9rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                    <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_valor" value="{{ dd.get('valor', '') }}" class="admin-inf-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                    <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ dd.get('receita', '') }}" class="admin-inf-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <button type="submit" class="mt-5 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500">Salvar índice de devolução</button>
+                    </form>
+                </section>
+
+                <section class="admin-inf-card p-5 sm:p-6">
+                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Novo aviso</h2>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Até cinco avisos ativos; menor <span class="font-medium">ordem</span> aparece primeiro no carrossel.</p>
+                    <form method="post" action="/admin/informativo" class="mt-4 space-y-4">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Título <span class="text-rose-600">*</span></label>
+                            <input type="text" name="title" required maxlength="200" class="admin-inf-input">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Texto</label>
+                            <textarea name="body" rows="4" class="admin-inf-input min-h-[6rem]" placeholder="Comunicado interno…"></textarea>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">URL da imagem (opcional)</label>
+                            <input type="url" name="image_url" class="admin-inf-input" placeholder="https://exemplo.com/imagem.jpg">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">URL da matéria / site (opcional)</label>
+                            <input type="url" name="link_url" class="admin-inf-input" placeholder="https://…">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Ordem</label>
+                            <input type="number" name="sort_order" value="0" class="admin-inf-input w-36 tabular-nums" inputmode="numeric">
+                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Número menor = aparece antes no painel.</p>
+                        </div>
+                        <button type="submit" class="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-500">Publicar</button>
+                    </form>
+                </section>
+
+                <section>
+                    <h2 class="mb-3 text-base font-semibold text-gray-900 dark:text-white">Publicados</h2>
+                    <ul class="space-y-3">
+                        {% for b in bulletins or [] %}
+                        <li class="admin-inf-card flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
+                            <div class="min-w-0 flex-1">
+                                <div class="mb-1 flex flex-wrap items-center gap-2">
+                                    <span class="rounded border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-[10px] text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">Ordem {{ b.sort_order }}</span>
+                                    <p class="font-bold text-gray-900 dark:text-white">{{ b.title }}</p>
+                                </div>
+                                {% if b.image_url %}<p class="mt-1 break-all text-xs text-gray-500 dark:text-gray-400">Imagem: {{ b.image_url }}</p>{% endif %}
+                                {% if b.link_url %}<p class="mt-1 break-all text-xs text-gray-500 dark:text-gray-400">Matéria: {{ b.link_url }}</p>{% endif %}
+                                <p class="mt-2 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{{ b.body or '' }}</p>
+                                <p class="mt-2 text-[10px] uppercase tracking-wide text-gray-400">{% if b.is_active %}Ativo{% else %}Inativo{% endif %}</p>
+                            </div>
+                            <div class="flex shrink-0 flex-col gap-2 sm:flex-row">
+                                <a href="/admin/informativo/{{ b.id }}/edit" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-center text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700">Editar</a>
+                                <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
+                                    <button type="submit" class="w-full px-3 py-2 text-sm text-rose-600 hover:text-rose-500 dark:text-rose-400">Excluir</button>
+                                </form>
+                            </div>
+                        </li>
+                        {% else %}
+                        <li class="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">Nenhum aviso ainda.</li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            </div>
+        </main>
     </div>
 
-    <div class="mb-10 p-6 rounded-xl border border-slate-600 bg-slate-800/50">
-        <h2 class="text-lg font-semibold text-white mb-1">Índice de devolução mensal (painel)</h2>
-        <p class="text-xs text-slate-500 mb-4">Alimenta o card <strong class="text-slate-400">Índice de devolução</strong> no <a href="/dashboard" class="text-sky-400 hover:underline">/dashboard</a>. A <strong class="text-slate-400">receita</strong> não aparece no gráfico; serve para calcular a meta de <strong class="text-slate-400">2% em valor</strong> (tooltip). O eixo do gráfico é % (índice + linha de meta 2%).</p>
-        <form method="get" action="/admin/informativo" class="flex flex-wrap items-end gap-3 mb-5">
-            <div>
-                <label class="block text-xs text-slate-400 mb-1">Ano</label>
-                <input type="number" name="dry_year" min="2000" max="2100" value="{{ dry_year }}" class="w-28 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white">
-            </div>
-            <button type="submit" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-semibold">Carregar ano</button>
-        </form>
-        <form method="post" action="/admin/informativo/devolucao-mensal" class="overflow-x-auto">
-            <input type="hidden" name="dry_year" value="{{ dry_year }}">
-            <table class="w-full text-sm text-left border-collapse min-w-[720px]">
-                <thead>
-                    <tr class="border-b border-slate-600 text-slate-400 text-xs uppercase">
-                        <th class="py-2 pr-3">Mês</th>
-                        <th class="py-2 pr-3">% devolução (índice)</th>
-                        <th class="py-2 pr-3">Valor devolução (R$)</th>
-                        <th class="py-2 pr-3">Receita (R$) <span class="normal-case text-slate-500 font-normal">— não exibida no painel</span></th>
-                    </tr>
-                </thead>
-                <tbody class="text-slate-200">
-                    {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
-                    {% for mes_nome in meses %}
-                    {% set m = loop.index %}
-                    {% set row = dr_rows.get(m) or {} %}
-                    <tr class="border-b border-slate-700/80">
-                        <td class="py-2 pr-3 font-medium text-white">{{ mes_nome }}</td>
-                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_pct" value="{{ row.get('pct') if row.get('pct') is not none else '' }}" class="w-full max-w-[140px] bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-sm" placeholder="—" inputmode="decimal"></td>
-                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_valor" value="{{ row.get('valor') if row.get('valor') is not none else '' }}" class="w-full max-w-[160px] bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-sm" placeholder="—" inputmode="decimal"></td>
-                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ row.get('receita') if row.get('receita') is not none else '' }}" class="w-full max-w-[160px] bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-white text-sm" placeholder="—" inputmode="decimal"></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <button type="submit" class="mt-5 px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">Salvar índice de devolução</button>
-        </form>
-    </div>
-
-    <h2 class="text-lg font-semibold text-white mb-3">Novo aviso</h2>
-    <form method="post" action="/admin/informativo" class="mb-10 p-6 rounded-xl border border-slate-600 bg-slate-800/50 space-y-4">
-        <div>
-            <label class="block text-xs text-slate-400 mb-1">Título *</label>
-            <input type="text" name="title" required maxlength="200" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white">
-        </div>
-        <div>
-            <label class="block text-xs text-slate-400 mb-1">Texto</label>
-            <textarea name="body" rows="4" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" placeholder="Comunicado interno…"></textarea>
-        </div>
-        <div>
-            <label class="block text-xs text-slate-400 mb-1">URL da imagem (opcional)</label>
-            <input type="url" name="image_url" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" placeholder="https://exemplo.com/imagem.jpg">
-        </div>
-        <div>
-            <label class="block text-xs text-slate-400 mb-1">URL da matéria / site (opcional)</label>
-            <input type="url" name="link_url" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm" placeholder="https://…">
-        </div>
-        <div>
-            <label class="block text-xs text-slate-400 mb-1">Ordem</label>
-            <input type="number" name="sort_order" value="0" class="w-32 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white">
-            <p class="text-[11px] text-slate-500 mt-1">Menor número aparece primeiro no painel.</p>
-        </div>
-        <button type="submit" class="px-5 py-2.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-semibold">Publicar</button>
-    </form>
-
-    <h2 class="text-lg font-semibold text-white mb-3">Publicados</h2>
-    <ul class="space-y-3">
-        {% for b in bulletins or [] %}
-        <li class="flex flex-wrap items-start justify-between gap-3 p-4 rounded-xl border border-slate-700 bg-slate-800/40">
-            <div class="min-w-0 flex-1">
-                <div class="flex flex-wrap items-center gap-2 mb-1">
-                    <span class="text-xs font-mono text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-700">Ordem {{ b.sort_order }}</span>
-                    <p class="font-bold text-white">{{ b.title }}</p>
-                </div>
-                {% if b.image_url %}<p class="text-xs text-slate-500 mt-1 break-all">Imagem: {{ b.image_url }}</p>{% endif %}
-                {% if b.link_url %}<p class="text-xs text-slate-500 mt-1 break-all">Matéria: {{ b.link_url }}</p>{% endif %}
-                <p class="text-slate-400 text-sm mt-2 whitespace-pre-wrap">{{ b.body or '' }}</p>
-                <p class="text-[10px] text-slate-600 mt-2">{% if b.is_active %}ativo{% else %}inativo{% endif %}</p>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-2 shrink-0">
-                <a href="/admin/informativo/{{ b.id }}/edit" class="text-center px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium">Editar</a>
-                <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
-                    <button type="submit" class="w-full text-rose-400 hover:text-rose-300 text-sm px-3 py-2">Excluir</button>
-                </form>
-            </div>
-        </li>
-        {% else %}
-        <li class="text-slate-500 text-sm">Nenhum aviso ainda.</li>
-        {% endfor %}
-    </ul>
-</div>
-{% endblock %}
+    <script>
+    (function() {
+        var _mem = {};
+        function fallback() {
+            return { getItem: function(k) { return _mem[k] !== undefined ? _mem[k] : null; }, setItem: function(k, v) { _mem[k] = String(v); }, removeItem: function(k) { delete _mem[k]; } };
+        }
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage.setItem) {
+                sessionStorage.setItem('_tp', '1');
+                sessionStorage.removeItem('_tp');
+                window.__safeSession = sessionStorage;
+            } else { window.__safeSession = fallback(); }
+        } catch (e) { window.__safeSession = fallback(); }
+    })();
+    </script>
+</body>
+</html>
