@@ -1372,7 +1372,7 @@ ALERT_SETTINGS_PATH = "/admin/alerts/settings"
 
 
 def _validate_render_environment() -> None:
-    """No Render, exige segredos mínimos; não registra valores de segredos."""
+    """No Render, checa configuração mínima: loga avisos/críticos sem valores secretos; não encerra o processo por SECRET_KEY placeholder."""
     if not _render_host:
         return
     if (SECRET_KEY or "").strip() == _DEFAULT_SECRET_KEY:
