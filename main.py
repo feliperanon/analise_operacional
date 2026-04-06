@@ -154,10 +154,10 @@ logger.setLevel(LOG_LEVEL)
 logger.addHandler(handler)
 logger.addHandler(console_handler)
 
+from render_env_validation import DEFAULT_SECRET_KEY_PLACEHOLDER, validate_render_environment
+
 # --- Config ---
-_DEFAULT_SECRET_KEY = "your-secret-key-change-in-production"
-SECRET_KEY = os.getenv("SECRET_KEY", _DEFAULT_SECRET_KEY)
-_render_host = os.getenv("RENDER", "").strip().lower() in {"1", "true", "yes", "on"}
+SECRET_KEY = os.getenv("SECRET_KEY", DEFAULT_SECRET_KEY_PLACEHOLDER)
 
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", os.getenv("ADMIN_USER", "admin@local"))
 ADMIN_PASS = os.getenv("ADMIN_PASS", "admin")
@@ -673,7 +673,8 @@ def sync_sectors_on_startup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     delivery_autoclose_task = None
-    _validate_render_environment()
+    # Configuração de ambiente não fatal: só logs (validate_render_environment); não usar raise aqui.
+    validate_render_environment(logger)
     create_db_and_tables()
     try:
         ensure_vehicle_schema()
