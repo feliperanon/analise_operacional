@@ -2619,6 +2619,7 @@ def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]
     pct: List[Optional[float]] = []
     valor_dev: List[Optional[float]] = []
     meta_valor: List[Optional[float]] = []
+    receita_m: List[Optional[float]] = []
     for m in range(1, 13):
         r = by_m.get(m)
         p = float(r.pct_devolucao) if r and r.pct_devolucao is not None else None
@@ -2628,11 +2629,13 @@ def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]
         pct.append(round(p, 2) if p is not None else None)
         valor_dev.append(round(v, 2) if v is not None else None)
         meta_valor.append(mv)
+        receita_m.append(round(rec, 2) if rec is not None else None)
     return {
         "year": year,
         "labels": labels,
         "pct": pct,
         "valor_devolucao": valor_dev,
+        "receita_mensal": receita_m,
         "meta_valor_2pct": meta_valor,
         "meta_pct": [2.0] * 12,
     }

@@ -108,7 +108,7 @@
 
                 <section class="admin-inf-card p-5 sm:p-6">
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white">Índice de devolução mensal</h2>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alimenta o gráfico <span class="font-medium text-gray-700 dark:text-gray-300">Índice de devolução mensal</span> no painel. A <span class="font-medium">receita</span> não aparece no gráfico; serve para calcular a meta de 2% em valor (tooltip). Eixo vertical em porcentagem.</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alimenta o gráfico <span class="font-medium text-gray-700 dark:text-gray-300">Índice de devolução mensal</span> no painel: o painel mostra só <span class="font-medium">percentual</span> (devolução vs meta 2%). <span class="font-medium">Receita</span> e <span class="font-medium">valor em R$</span> aqui servem para calcular esses percentuais por mês; valores em reais não aparecem no gráfico do painel.</p>
                     <form method="get" action="/admin/informativo" class="mt-4 flex flex-wrap items-end gap-3">
                         <div>
                             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Ano</label>
@@ -125,7 +125,7 @@
                                     <th class="py-2.5 pr-3">Mês</th>
                                     <th class="py-2.5 pr-3">% devolução (índice)</th>
                                     <th class="py-2.5 pr-3">Valor devolução (R$)</th>
-                                    <th class="py-2.5 pr-3">Receita (R$) <span class="font-normal normal-case text-gray-400">— não exibida no painel</span></th>
+                                    <th class="py-2.5 pr-3">Receita (R$) <span class="font-normal normal-case text-gray-400">— base da meta 2%; não aparece no gráfico do painel</span></th>
                                 </tr>
                             </thead>
                             <tbody class="text-gray-800 dark:text-gray-200">
