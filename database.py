@@ -2,6 +2,7 @@ from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import text
 
 import os
+import time
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv, dotenv_values
@@ -115,15 +116,35 @@ if FORCE_LOCAL_DB:
     # está indisponível ou REQUIRE_RENDER_DB=true no .env compartilhado.
     os.environ["ACTIVE_DATABASE_SOURCE"] = "local_forced"
 elif primary_candidates:
-    for source_name, primary_db_url in primary_candidates:
-        if _can_connect(primary_db_url, DEBUG, log_failure=False):
-            db_url = primary_db_url
-            os.environ["ACTIVE_DATABASE_SOURCE"] = "render"
-            os.environ["ACTIVE_DATABASE_URL_SOURCE"] = source_name
+    import logging
+
+    log = logging.getLogger(__name__)
+    # Na primeira subida no Render o Postgres pode aceitar conexão alguns segundos depois do web service.
+    max_rounds = 4 if _STRICT_REMOTE else 1
+    pause_sec = 4
+    chosen_url = None
+    chosen_source = None
+    for round_i in range(max_rounds):
+        for source_name, primary_db_url in primary_candidates:
+            if _can_connect(primary_db_url, DEBUG, log_failure=False):
+                chosen_url = primary_db_url
+                chosen_source = source_name
+                break
+        if chosen_url:
             break
+        if round_i < max_rounds - 1:
+            log.warning(
+                "Postgres ainda indisponível (tentativa %s/%s); aguardando %ss…",
+                round_i + 1,
+                max_rounds,
+                pause_sec,
+            )
+            time.sleep(pause_sec)
+    if chosen_url:
+        db_url = chosen_url
+        os.environ["ACTIVE_DATABASE_SOURCE"] = "render"
+        os.environ["ACTIVE_DATABASE_URL_SOURCE"] = chosen_source
     else:
-        import logging
-        log = logging.getLogger(__name__)
         if _STRICT_REMOTE:
             raise RuntimeError(
                 "Falha ao conectar no PostgreSQL configurado (Render ou REQUIRE_RENDER_DB). "

@@ -1380,8 +1380,9 @@ def _validate_render_environment() -> None:
             "Render: defina SECRET_KEY forte em Environment (não use o placeholder padrão do código)."
         )
     if not IMPORT_AUTH_PASSWORD:
-        raise RuntimeError(
-            "Render: defina IMPORT_AUTH_PASSWORD em Environment (protege importação para datas diferentes de hoje)."
+        logger.critical(
+            "Render: IMPORT_AUTH_PASSWORD vazio — o app sobe, mas importação para datas ≠ hoje fica bloqueada. "
+            "Defina no Environment (ou use generateValue no blueprint e copie o valor no painel)."
         )
     base_url = (APP_BASE_URL or "").strip().lower()
     if not base_url:

@@ -28,8 +28,9 @@ services:
         sync: false
       - key: APP_BASE_URL
         sync: false
+      # Valor gerado automaticamente; copie em Environment se precisar na UI de importação.
       - key: IMPORT_AUTH_PASSWORD
-        sync: false
+        generateValue: true
       - key: ENV
         value: production
       - key: ENVIRONMENT

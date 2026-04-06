@@ -56,7 +56,7 @@ O Blueprint pede valores para:
 | **ADMIN_EMAIL** | E-mail do admin (ex: admin@empresa.com) |
 | **ADMIN_PASS** | Senha do admin (evite `admin` / vazio) |
 | **APP_BASE_URL** | Deixe em branco na primeira vez |
-| **IMPORT_AUTH_PASSWORD** | Senha para importação em datas ≠ hoje (obrigatória no Render) |
+| **IMPORT_AUTH_PASSWORD** | No blueprint o Render **gera** automaticamente; copie em **Environment** se for usar importação em datas ≠ hoje |
 
 ### Passo 4: Deploy
 
@@ -109,9 +109,9 @@ Em **Environment** do Web Service, adicione:
 | `SECRET_KEY` | Gere uma chave (ex: `openssl rand -hex 32`) |
 | `REQUIRE_RENDER_DB` | `true` (recomendado: evita fallback silencioso para SQLite se o Postgres falhar) |
 | `ADMIN_EMAIL` | Seu e-mail de admin |
-| `ADMIN_PASS` | Senha do admin |
+| `ADMIN_PASS` | Senha forte (evite `admin` / vazio) |
 | `APP_BASE_URL` | `https://seu-servico.onrender.com` (preencher depois do deploy) |
-| `IMPORT_AUTH_PASSWORD` | Obrigatória com `RENDER=true` (validada na subida) |
+| `IMPORT_AUTH_PASSWORD` | Defina manualmente ou deixe o blueprint gerar; sem valor, o app sobe, mas importação em datas ≠ hoje fica bloqueada |
 | `ENV` / `ENVIRONMENT` | Opcional: `production` (o blueprint já define) |
 | `DEBUG` | `false` em produção |
 
