@@ -1,0 +1,540 @@
+/**
+ * Design system — componentes reutilizáveis (superfície, KPI, foco, formulários, tabela).
+ */
+.sys-page-header {
+  box-shadow: var(--sys-shadow-sm);
+}
+
+.sys-page-header__inner {
+  width: 100%;
+  max-width: 1536px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* —— Três famílias de cartão: surface | kpi | focus —— */
+.sys-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+  border-radius: var(--sys-radius-xl);
+}
+
+.sys-card--surface {
+  background: var(--sys-surface);
+  border: 1px solid var(--sys-border);
+  box-shadow: var(--sys-shadow-card);
+  color: var(--sys-text-body);
+  padding: var(--sys-space-4) 1.1rem;
+}
+
+.sys-card--kpi,
+.sys-kpi-card {
+  background: var(--sys-surface);
+  border: 1px solid var(--sys-border);
+  box-shadow: var(--sys-shadow-sm);
+  border-radius: var(--sys-radius-xl);
+  padding: var(--sys-space-3) var(--sys-space-2);
+  min-width: 0;
+  min-height: 5.5rem;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.sys-card--focus {
+  background: linear-gradient(135deg, rgb(248 250 252) 0%, var(--sys-surface) 48%, rgb(240 253 250) 100%);
+  border: 1px solid rgb(165 243 252 / 0.6);
+  border-left: 3px solid var(--sys-accent);
+  box-shadow: var(--sys-shadow-card);
+  padding: var(--sys-space-4) 1.1rem;
+}
+
+/* Faixa KPI */
+.sys-kpi-shell {
+  width: 100%;
+}
+
+.sys-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sys-gap-sm);
+}
+
+@media (min-width: 1024px) {
+  .sys-kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .sys-kpi-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.sys-kpi-cell-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 var(--sys-space-1);
+}
+
+.sys-kpi-label {
+  font-size: clamp(0.72rem, 1.05vw, 0.88rem);
+  font-weight: 600;
+  color: var(--sys-text-muted);
+  line-height: var(--sys-leading-tight);
+  letter-spacing: var(--sys-tracking-wide);
+  text-transform: uppercase;
+}
+
+/* Cabeçalho de página / seção */
+.sys-section-title {
+  font-size: var(--sys-text-sm);
+  letter-spacing: 0.06em;
+  line-height: var(--sys-leading-tight);
+  text-transform: uppercase;
+  color: var(--sys-text-primary);
+  font-weight: 800;
+  margin: 0;
+}
+
+/* Título editorial / admin (sentence case — painéis, formulários) */
+.sys-section-heading {
+  margin: 0;
+  font-size: var(--sys-text-md);
+  font-weight: 600;
+  color: var(--sys-text-primary);
+  line-height: var(--sys-leading-tight);
+}
+
+.sys-card-head {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sys-space-1);
+  margin-bottom: 0.22rem;
+  flex-shrink: 0;
+}
+
+.sys-card-head .sys-section-title {
+  margin-bottom: 0;
+}
+
+/* Barra de filtros (toolbar de formulário) */
+.sys-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sys-gap-sm);
+  padding: var(--sys-space-3) var(--sys-space-4);
+  background: var(--sys-surface);
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-lg);
+  box-shadow: var(--sys-shadow-xs);
+}
+
+/* Rótulo + campo empilhados: alinhar controles pela base */
+.sys-filter-bar--end {
+  align-items: flex-end;
+}
+
+/* Botões e campos — altura 44px */
+.sys-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sys-space-2);
+  min-height: var(--sys-control-height);
+  padding: 0 var(--sys-control-padding-x);
+  font-family: var(--sys-font-sans);
+  font-size: var(--sys-control-font-size);
+  font-weight: 600;
+  line-height: 1;
+  border-radius: var(--sys-radius-md);
+  border: 1px solid var(--sys-border);
+  background: var(--sys-surface);
+  color: var(--sys-text-body);
+  box-shadow: var(--sys-shadow-xs);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.sys-btn:hover {
+  background: var(--sys-bg-subtle);
+  color: var(--sys-text-primary);
+}
+
+.sys-btn--primary {
+  background: var(--sys-btn-primary-bg);
+  border-color: var(--sys-btn-primary-border);
+  color: #fff;
+  box-shadow: var(--sys-shadow-xs);
+}
+
+.sys-btn--primary:hover {
+  background: var(--sys-btn-primary-bg-hover);
+  border-color: var(--sys-btn-primary-bg-hover);
+  color: #fff;
+}
+
+.sys-btn--secondary {
+  background: var(--sys-surface);
+  border-color: var(--sys-btn-secondary-border);
+  color: #1f2937;
+}
+
+.sys-btn--secondary:hover {
+  background: var(--sys-bg-subtle);
+  color: var(--sys-text-primary);
+}
+
+.sys-btn--success {
+  background: var(--sys-btn-success-bg);
+  border-color: var(--sys-btn-success-border);
+  color: #fff;
+}
+
+.sys-btn--success:hover {
+  background: var(--sys-btn-success-bg-hover);
+  border-color: var(--sys-btn-success-bg-hover);
+  color: #fff;
+}
+
+.sys-btn--sky {
+  background: var(--sys-btn-sky-bg);
+  border-color: var(--sys-btn-sky-border);
+  color: #fff;
+}
+
+.sys-btn--sky:hover {
+  background: var(--sys-btn-sky-bg-hover);
+  border-color: var(--sys-btn-sky-bg-hover);
+  color: #fff;
+}
+
+.sys-btn--ghost-danger {
+  min-height: var(--sys-control-height);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--sys-btn-danger-ghost);
+  padding-left: var(--sys-space-3);
+  padding-right: var(--sys-space-3);
+}
+
+.sys-btn--ghost-danger:hover {
+  background: rgb(255 241 242);
+  color: var(--sys-btn-danger-ghost-hover);
+}
+
+.sys-input,
+.sys-select {
+  font-family: var(--sys-font-sans);
+  font-size: var(--sys-control-font-size);
+  min-height: var(--sys-control-height);
+  padding: 0 var(--sys-space-3);
+  border-radius: var(--sys-radius-md);
+  border: 1px solid var(--sys-border);
+  background: var(--sys-surface);
+  color: var(--sys-text-primary);
+  box-shadow: var(--sys-shadow-xs);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sys-input:focus,
+.sys-select:focus,
+.sys-btn:focus-visible {
+  outline: 2px solid var(--sys-accent);
+  outline-offset: 2px;
+}
+
+textarea.sys-input {
+  min-height: 6rem;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+/* Botão menu (drawer) — usado em vários templates dashboard */
+.gv-menu-btn {
+  border: 1px solid var(--sys-border);
+  background: var(--sys-surface);
+  color: var(--sys-text-muted);
+  box-shadow: var(--sys-shadow-xs);
+}
+
+.gv-menu-btn:hover {
+  background: var(--sys-bg-subtle);
+  color: var(--sys-text-primary);
+}
+
+/* Badges de status */
+.sys-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--sys-text-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.18rem 0.4rem;
+  border-radius: var(--sys-radius-sm);
+  line-height: 1;
+}
+
+.sys-badge--ok {
+  color: var(--sys-ok-fg);
+  background: var(--sys-ok-bg);
+  border: 1px solid var(--sys-ok-border);
+}
+
+.sys-badge--alert {
+  color: var(--sys-alert-fg);
+  background: var(--sys-alert-bg);
+  border: 1px solid var(--sys-alert-border);
+}
+
+.sys-badge--critical {
+  color: var(--sys-critical-fg);
+  background: var(--sys-critical-bg);
+  border: 1px solid var(--sys-critical-border);
+}
+
+.sys-badge--neutral {
+  color: var(--sys-neutral-fg);
+  background: var(--sys-neutral-bg);
+  border: 1px solid var(--sys-neutral-border);
+}
+
+/* Tabela / lista */
+.sys-table-wrap {
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Tabelas largas: scroll horizontal sem perder o padrão visual */
+.sys-table-wrap--x-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-width: 100%;
+}
+
+.sys-table-wrap--x-scroll table {
+  table-layout: auto;
+}
+
+.sys-table-wrap table {
+  table-layout: fixed;
+  width: 100%;
+  font-size: var(--sys-text-base);
+  font-weight: 500;
+}
+
+.sys-table-wrap th {
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  color: var(--sys-text-faint);
+}
+
+.sys-table-wrap thead th {
+  font-weight: 600;
+  color: var(--sys-text-muted);
+  border-bottom: 1px solid var(--sys-border);
+}
+
+.sys-table-wrap tbody tr {
+  border-bottom: 1px solid rgb(243 244 246);
+}
+
+.sys-table-wrap tbody tr:last-child {
+  border-bottom: none;
+}
+
+html.dark .sys-table-wrap tbody tr {
+  border-bottom-color: rgb(55 65 81);
+}
+
+/* Bloco de seção (fieldset visual) */
+.sys-section {
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-lg);
+  padding: var(--sys-space-4);
+  background: var(--sys-bg-subtle);
+}
+
+.sys-section__label {
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--sys-tracking-wide);
+  color: var(--sys-text-muted);
+  margin-bottom: var(--sys-space-2);
+}
+
+/* Rótulo colado ao campo (formulários densos) */
+label.sys-section__label--field {
+  display: block;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+}
+
+/* Cartão com padding confortável (admin, formulários longos) */
+.sys-card--comfort {
+  padding: 1.25rem 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .sys-card--comfort {
+    padding: 1.5rem;
+  }
+}
+
+/* Alertas / mensagens flash */
+.sys-alert {
+  border-radius: var(--sys-radius-lg);
+  padding: var(--sys-space-3) var(--sys-space-4);
+  font-size: var(--sys-text-base);
+  line-height: var(--sys-leading-snug);
+  border-width: 1px;
+  border-style: solid;
+  margin: 0;
+}
+
+.sys-alert--success {
+  border-color: var(--sys-alert-success-border);
+  background: var(--sys-alert-success-bg);
+  color: var(--sys-alert-success-fg);
+}
+
+.sys-alert--warn {
+  border-color: var(--sys-alert-warn-border);
+  background: var(--sys-alert-warn-bg);
+  color: var(--sys-alert-warn-fg);
+}
+
+.sys-alert--danger {
+  border-color: var(--sys-alert-danger-border);
+  background: var(--sys-alert-danger-bg);
+  color: var(--sys-alert-danger-fg);
+}
+
+.sys-alert--info {
+  border-color: var(--sys-alert-info-border);
+  background: var(--sys-alert-info-bg);
+  color: var(--sys-alert-info-fg);
+}
+
+/* Estado vazio de listas / tabelas */
+.sys-empty-state {
+  border-radius: var(--sys-radius-lg);
+  border: 1px dashed var(--sys-border-strong);
+  padding: var(--sys-space-6) var(--sys-space-4);
+  text-align: center;
+  font-size: var(--sys-text-base);
+  color: var(--sys-text-muted);
+  margin: 0;
+  list-style: none;
+}
+
+/* ========== Dark mode (classe `dark` no elemento html — Tailwind) ========== */
+html.dark .sys-section-heading {
+  color: #fff;
+}
+
+html.dark .sys-input,
+html.dark .sys-select {
+  border-color: rgb(75 85 99);
+  background: rgb(31 41 55);
+  color: #f9fafb;
+}
+
+html.dark .sys-input::placeholder {
+  color: #9ca3af;
+}
+
+html.dark .sys-card.sys-card--surface {
+  border-color: rgb(55 65 81);
+  background: rgb(17 24 39);
+  color: rgb(229 231 235);
+}
+
+html.dark .sys-card.sys-card--focus {
+  background: linear-gradient(135deg, rgb(15 23 42) 0%, rgb(17 24 39) 50%, rgb(15 23 42) 100%);
+  border-color: rgb(55 65 81 / 0.9);
+  border-left-color: var(--sys-accent-strong);
+}
+
+html.dark .sys-filter-bar {
+  background: rgb(17 24 39);
+  border-color: rgb(55 65 81);
+}
+
+html.dark .sys-badge--neutral {
+  border-color: rgb(75 85 99);
+  background: rgb(31 41 55);
+  color: rgb(209 213 219);
+}
+
+html.dark .sys-btn--secondary {
+  background: rgb(31 41 55);
+  border-color: rgb(75 85 99);
+  color: #f9fafb;
+}
+
+html.dark .sys-btn--secondary:hover {
+  background: rgb(55 65 81);
+  color: #fff;
+}
+
+html.dark .sys-btn--ghost-danger:hover {
+  background: rgb(127 29 29 / 0.25);
+  color: #fda4af;
+}
+
+html.dark .sys-section__label {
+  color: rgb(209 213 219);
+}
+
+html.dark .sys-empty-state {
+  border-color: rgb(75 85 99);
+  color: rgb(156 163 175);
+}
+
+html.dark .sys-alert--success {
+  border-color: rgb(6 78 59 / 0.5);
+  background: rgb(6 78 59 / 0.35);
+  color: rgb(167 243 208);
+}
+
+html.dark .sys-alert--warn {
+  border-color: rgb(120 53 15 / 0.5);
+  background: rgb(69 26 3 / 0.35);
+  color: rgb(253 230 138);
+}
+
+html.dark .sys-alert--danger {
+  border-color: rgb(127 29 29 / 0.45);
+  background: rgb(127 29 29 / 0.25);
+  color: rgb(254 202 202);
+}
+
+html.dark .sys-alert--info {
+  border-color: rgb(30 58 138 / 0.5);
+  background: rgb(30 58 138 / 0.2);
+  color: rgb(191 219 254);
+}

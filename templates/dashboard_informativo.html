@@ -9,948 +9,14 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
     <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
+    <link rel="stylesheet" href="/static/css/system-tokens.css">
+    <link rel="stylesheet" href="/static/css/system-layout.css">
+    <link rel="stylesheet" href="/static/css/system-components.css">
+    <link rel="stylesheet" href="/static/css/system-utilities.css">
+    <link rel="stylesheet" href="/static/css/pages/dashboard-informativo.css">
     <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
     {# Mesmo domínio: evita Tracking Prevention (Edge/Safari) bloquear storage em script de terceiros #}
     <script src="/static/vendor/apexcharts/apexcharts-3.45.2.min.js"></script>
-    <style>
-        /* Painel claro — fundo + KPIs + cards no mesmo vocabulário visual */
-        :root {
-            --gv-bg: #f1f5f9;
-            --gv-surface: rgba(30, 41, 59, 0.92);
-            --gv-card: rgba(30, 41, 59, 0.94);
-            --gv-border: rgba(51, 65, 85, 0.75);
-            --gv-border-strong: rgba(71, 85, 105, 0.9);
-            --gv-text: #334155;
-            --gv-heading: #0f172a;
-            --gv-muted: #64748b;
-            --gv-ring-track: #cbd5e1;
-            --gv-good: #86efac;
-            --gv-good-bg: rgba(34, 197, 94, 0.15);
-            --gv-attn: #fca5a5;
-            --gv-attn-bg: rgba(239, 68, 68, 0.12);
-            --gv-delta-worse: #f87171;
-            --gv-delta-better: #4ade80;
-            --gv-neutral: #94a3b8;
-        }
-        /* Gestão Avista: viewport sem scroll; não usar overflow-y auto nas colunas do painel —
-           tipografia e flex devem caber numa tela (botão Menu fixed: reservar espaço à esquerda). */
-        html.gv-tv-root {
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-        }
-        html.gv-tv-root body {
-            height: 100%;
-            width: 100%;
-            margin: 0;
-            overflow: hidden;
-        }
-        body.gv-page > main.gv-shell {
-            flex: 1 1 auto;
-            min-height: 0;
-            min-width: 0;
-            width: 100%;
-            max-width: 100%;
-            overflow: hidden;
-        }
-        /* Painel TV / mural: sem scroll na página — tudo em 100vh */
-        body.dashboard-app #informativo-root {
-            overflow: hidden !important;
-        }
-        *, *::before, *::after { box-sizing: border-box; }
-        html, body {
-            margin: 0;
-            width: 100%;
-            height: 100%;
-            max-height: 100%;
-            min-height: 100vh;
-            background: var(--gv-bg);
-            color: var(--gv-text);
-        }
-        .gv-page {
-            width: 100%;
-            max-width: 100vw;
-            min-height: 100vh;
-            min-height: 100dvh;
-            height: 100vh;
-            height: 100dvh;
-            max-height: 100vh;
-            max-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-sizing: border-box;
-        }
-        .gv-shell {
-            width: 100%;
-            max-width: 100%;
-            flex: 1 1 auto;
-            min-height: 0;
-            min-width: 0;
-            margin: 0;
-            padding: 0;
-            /* Menu é fixed: não empurrar toda a página; só safe-area nas bordas */
-            padding-left: max(0.2rem, env(safe-area-inset-left, 0px));
-            padding-right: max(0.2rem, env(safe-area-inset-right, 0px));
-            padding-bottom: max(0.15rem, env(safe-area-inset-bottom, 0px));
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            box-sizing: border-box;
-            overflow: hidden;
-        }
-        /* Botão Menu: fixed left-3 top-3 z-60 (~48px + ícone + gap) — título só começa depois dele */
-        .gv-informativo-zone-topo {
-            padding-left: max(4.85rem, calc(env(safe-area-inset-left, 0px) + 4.1rem));
-            padding-right: 0.75rem;
-        }
-        @media (min-width: 640px) {
-            .gv-informativo-zone-topo {
-                padding-left: max(5.65rem, calc(env(safe-area-inset-left, 0px) + 5rem));
-            }
-        }
-        /* Título — compacto (cabe na faixa) + azul brilhante */
-        .gv-informativo-page-title {
-            font-size: clamp(0.95rem, 1.85vw, 1.35rem);
-            font-weight: 900;
-            letter-spacing: -0.02em;
-            line-height: 1.15;
-            margin: 0;
-            background: linear-gradient(100deg, #7dd3fc 0%, #38bdf8 28%, #0ea5e9 52%, #22d3ee 88%, #a5f3fc 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.45));
-        }
-        .gv-panel-aurora {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            z-index: 0;
-            overflow: hidden;
-        }
-        .gv-aurora-blob {
-            position: absolute;
-            border-radius: 9999px;
-            filter: blur(90px);
-        }
-        .gv-aurora-blob--tl {
-            top: 0;
-            left: 0;
-            width: 35%;
-            height: 40%;
-            background: rgba(37, 99, 235, 0.06);
-        }
-        .gv-aurora-blob--br {
-            bottom: 0;
-            right: 0;
-            width: 35%;
-            height: 40%;
-            background: rgba(147, 51, 234, 0.05);
-        }
-        .gv-panel-stack {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-height: 0;
-            gap: 0.5rem;
-            padding: 0.75rem 1rem 1rem;
-            box-sizing: border-box;
-        }
-        @media (min-width: 768px) {
-            .gv-panel-stack {
-                padding: 1rem 1.5rem 1.25rem;
-            }
-        }
-        body.dashboard-app .gv-panel-stack {
-            gap: 0.35rem;
-            padding: 0.45rem 0.75rem 0.5rem;
-        }
-        @media (min-width: 768px) {
-            body.dashboard-app .gv-panel-stack {
-                padding: 0.5rem 1rem 0.6rem;
-            }
-        }
-        /* Largura máxima do conteúdo — alinhado ao main do TailAdmin (2xl) */
-        .ta-main-inner {
-            width: 100%;
-            max-width: 1536px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .gv-surface {
-            background: var(--gv-card);
-            border: 2px solid var(--gv-border);
-            border-radius: 12px;
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
-        }
-        /* Cards no corpo: modelo claro (gradiente + sombra + barra inferior) — alinhado ao layout de referência */
-        .gv-body .gv-surface {
-            --grad: #3b82f6, #8b5cf6;
-            position: relative;
-            border: none;
-            border-radius: 1.75rem;
-            background-image: linear-gradient(to bottom left, #e0e4e6, #f2f6f9);
-            box-shadow:
-                inset -2px 2px 0 0 hsl(0 0% 100% / 0.92),
-                -14px 18px 36px hsl(0 0% 0% / 0.22);
-            color: #444447;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            padding: 0.62rem 0.72rem;
-        }
-        .gv-body .gv-surface::after {
-            content: "";
-            flex-shrink: 0;
-            display: block;
-            height: 2px;
-            margin-top: auto;
-            border-radius: 1px;
-            background-image: linear-gradient(90deg, var(--grad));
-        }
-        .gv-body .gv-col-mid .gv-surface:nth-child(1) { --grad: #0ea5e9, #06b6d4; }
-        .gv-body .gv-col-mid .gv-surface:nth-child(2) { --grad: #f59e0b, #ea580c; }
-        .gv-body .gv-col-right .gv-surface { --grad: #22c55e, #14b8a6; }
-        /* TailAdmin — cartões (.ta-card) sobrescrevem gradiente/::after dos .gv-surface */
-        .gv-body .gv-surface.ta-card {
-            border: 1px solid rgb(229 231 235);
-            border-radius: 1rem;
-            background: #ffffff;
-            background-image: none;
-            box-shadow:
-                0 1px 3px 0 rgb(0 0 0 / 0.08),
-                0 4px 14px -4px rgb(15 23 42 / 0.12);
-            padding: 1rem 1.1rem;
-            color: #334155;
-        }
-        .gv-body .gv-surface.ta-card::after {
-            display: none;
-        }
-        .gv-body .gv-surface.ta-card .gv-card-title {
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: #0f172a;
-        }
-        .gv-body .gv-surface.ta-card .gv-card-icon svg {
-            stroke: #6b7280;
-        }
-        .gv-body .gv-surface.ta-card .gv-table-wrap thead th {
-            border-bottom: 1px solid rgb(229 231 235);
-            color: #64748b;
-            font-weight: 600;
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .gv-body .gv-surface.ta-card .gv-table-wrap table {
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            font-weight: 500;
-        }
-        .gv-body .gv-surface.ta-card .gv-table-wrap tbody td {
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            font-weight: 500;
-        }
-        .gv-body .gv-surface.ta-card .gv-table-wrap tbody tr {
-            border-bottom: 1px solid rgb(243 244 246);
-        }
-        .gv-body .gv-surface.ta-card .gv-table-wrap tbody tr:last-child {
-            border-bottom: none;
-        }
-        .gv-body .gv-surface.ta-card .gv-table-wrap .gv-fit-oneline {
-            color: #111827;
-        }
-        .gv-body .gv-surface.ta-card .gv-bday-row {
-            border-bottom: 1px solid rgb(243 244 246);
-            padding: 0.35rem 0;
-        }
-        .gv-body .gv-surface.ta-card .gv-bday-row:last-child {
-            border-bottom: none;
-        }
-        .gv-body .gv-surface.ta-card .gv-bday-row.gv-bday-today {
-            border-bottom: 1px solid rgb(243 244 246);
-        }
-        .gv-body .gv-bday-list .gv-bday-name.gv-fit-oneline {
-            font-size: var(--gv-card-body-fs, 0.8125rem) !important;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .gv-body .gv-surface.ta-card .gv-aviso-body img {
-            border-color: rgb(229 231 235) !important;
-        }
-        .gv-bulletin-carousel-wrap {
-            min-height: 8.5rem;
-        }
-        .gv-bulletin-pane img {
-            max-height: 7rem;
-            width: 100%;
-            object-fit: cover;
-            border-radius: 0.5rem;
-        }
-        .gv-bulletin-dot {
-            width: 0.45rem;
-            height: 0.45rem;
-            border-radius: 9999px;
-            background: rgb(203 213 225);
-            padding: 0;
-            border: none;
-            cursor: pointer;
-            transition: width 0.2s ease, background 0.2s ease;
-        }
-        .gv-bulletin-dot[aria-current="true"] {
-            background: rgb(2 132 199);
-            width: 1rem;
-        }
-        .gv-body .gv-card-head {
-            display: flex;
-            flex-direction: row;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 0.3rem;
-            margin-bottom: 0.22rem;
-            flex-shrink: 0;
-        }
-        .gv-body .gv-card-head .gv-card-title {
-            margin-bottom: 0;
-        }
-        .gv-body .gv-card-icon {
-            flex-shrink: 0;
-            font-size: calc(var(--gv-card-title-fs, 0.78rem) * 1.65);
-            line-height: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .gv-body .gv-card-icon--emoji {
-            font-size: calc(var(--gv-card-title-fs, 0.78rem) * 1.35);
-        }
-        .gv-body .gv-card-icon svg {
-            width: calc(var(--gv-card-title-fs, 0.78rem) * 1.65);
-            height: calc(var(--gv-card-title-fs, 0.78rem) * 1.65);
-            display: block;
-            stroke: #64748b;
-            fill: none;
-            stroke-width: 1.65;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-        /* Títulos de card: único destaque (maiúsculas + extrabold); corpo no mesmo tamanho */
-        .gv-body .gv-surface .gv-card-title {
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            letter-spacing: 0.06em;
-            line-height: 1.25;
-            text-transform: uppercase;
-            color: #0f172a;
-            font-weight: 800;
-            margin: 0;
-        }
-        .gv-body .gv-table-wrap th {
-            color: #64748b;
-            border-bottom-color: rgba(15, 23, 42, 0.12);
-        }
-        .gv-body .gv-table-wrap thead th {
-            font-weight: 600;
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            color: #475569;
-        }
-        .gv-body .gv-table-wrap tbody tr {
-            border-bottom-color: rgba(15, 23, 42, 0.08);
-        }
-        .gv-body .gv-fit-oneline {
-            color: #1e293b;
-            font-weight: 500;
-        }
-        .gv-body .gv-table-val {
-            color: #334155 !important;
-        }
-        .gv-body .gv-pct-attn {
-            color: #dc2626 !important;
-            font-weight: 600 !important;
-        }
-        .gv-body .gv-dev-cards .ta-card .gv-pct-good {
-            color: #15803d !important;
-            font-weight: 600 !important;
-        }
-        .gv-body .gv-pct-neutral {
-            color: #64748b !important;
-            font-weight: 500 !important;
-        }
-        .gv-body .gv-table-empty {
-            color: #94a3b8 !important;
-        }
-        .gv-body .gv-aviso-body {
-            color: #475569;
-            font-size: var(--gv-card-text-fs);
-            line-height: 1.35;
-        }
-        .gv-body .gv-aviso-body .gv-aviso-heading {
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            letter-spacing: 0.02em;
-            text-transform: none;
-            font-weight: 600;
-            margin-bottom: 0.35rem;
-        }
-        .gv-body .gv-aviso-body h4,
-        .gv-body .gv-aviso-body .gv-aviso-heading {
-            color: #0f172a;
-            font-weight: 600;
-        }
-        .gv-body .gv-aviso-body .gv-aviso-muted {
-            color: #64748b;
-        }
-        .gv-body .gv-bday-row {
-            border-bottom-color: rgba(15, 23, 42, 0.1);
-            padding: 0.12rem 0;
-            gap: 0.25rem;
-        }
-        .gv-body .gv-bday-cake {
-            font-size: var(--gv-card-text-fs);
-        }
-        .gv-body .gv-bday-title-row .gv-bday-cake {
-            font-size: calc(var(--gv-card-body-fs, 0.8125rem) * 1.35);
-        }
-        .gv-body .gv-bday-date {
-            color: #64748b;
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            font-weight: 500;
-        }
-        .gv-body .gv-bday-name.gv-fit-oneline {
-            color: #1e293b;
-            font-weight: 500;
-        }
-        .gv-body .gv-ferias-programadas-label {
-            color: #0f172a !important;
-            font-size: var(--gv-card-body-fs, 0.8125rem) !important;
-            letter-spacing: 0.06em;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-        .gv-body .gv-col-right .border-slate-50 {
-            border-color: rgba(15, 23, 42, 0.1) !important;
-        }
-        .gv-body .gv-col-right .text-slate-600 {
-            color: #475569 !important;
-        }
-        .gv-body .gv-col-right .text-slate-400 {
-            color: #94a3b8 !important;
-        }
-        .gv-body .gv-bday-today {
-            background: rgba(34, 197, 94, 0.12);
-            padding: 0.22rem 0.2rem;
-        }
-        .gv-body .gv-ferias-block {
-            margin-top: 0.5rem !important;
-        }
-        .gv-body .gv-ferias-stack {
-            gap: 0.3rem;
-            font-size: var(--gv-card-text-fs);
-        }
-        .gv-body .gv-ferias-li {
-            padding-top: 0.18rem !important;
-            padding-bottom: 0.18rem !important;
-            font-size: var(--gv-card-body-fs, 0.8125rem) !important;
-            font-weight: 500;
-            line-height: 1.25;
-            color: #475569;
-        }
-        .gv-body .gv-aviso-body img {
-            border-color: rgba(15, 23, 42, 0.12) !important;
-        }
-        /* Fora do .gv-body (outros templates) — no painel informativo use .gv-body .gv-surface .gv-card-title */
-        .gv-card-title {
-            font-size: 0.8125rem;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: #94a3b8;
-            font-weight: 700;
-            margin: 0 0 0.5rem 0;
-        }
-        /* Faixa de KPIs: cards individuais (.ta-kpi-card) — visual TailAdmin */
-        .ta-kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.75rem;
-        }
-        @media (min-width: 1024px) {
-            .ta-kpi-grid {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-            }
-        }
-        @media (min-width: 1280px) {
-            .ta-kpi-grid {
-                grid-template-columns: repeat(6, minmax(0, 1fr));
-            }
-        }
-        .ta-kpi-card {
-            border-radius: 1rem;
-            border: 1px solid rgb(229 231 235);
-            background: #ffffff;
-            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
-            padding: 0.65rem 0.5rem;
-            min-width: 0;
-            min-height: 5.5rem;
-            display: flex;
-            align-items: stretch;
-            justify-content: center;
-        }
-        .ta-kpi-shell .ta-kpi-grid .text-slate-500 {
-            color: #64748b !important;
-        }
-        .ta-kpi-shell .gv-info-clock {
-            color: #0f172a !important;
-        }
-        .ta-kpi-shell #info-date {
-            color: #64748b !important;
-            font-variant-numeric: tabular-nums;
-        }
-        .ta-kpi-grid .ta-kpi-cell-inner {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            width: 100%;
-            min-width: 0;
-            flex: 1 1 auto;
-            min-height: 0;
-            padding: 0 0.25rem;
-        }
-        .ta-kpi-grid .ta-kpi-label {
-            font-size: clamp(0.72rem, 1.05vw, 0.88rem);
-            font-weight: 600;
-            color: #64748b;
-            line-height: 1.2;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
-        .ta-kpi-shell .ta-kpi-grid .text-kpi {
-            font-size: clamp(1rem, 1.65vw, 1.38rem);
-        }
-        /* Barra horizontal “Rota concluída” (substitui o anel circular) */
-        .gv-kpi-bar-stack {
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 0.35rem;
-            width: 100%;
-            min-width: 11rem;
-            max-width: 13rem;
-            padding: 0 0.15rem;
-        }
-        .ta-kpi-shell .gv-kpi-bar-stack .ta-kpi-label {
-            text-align: center;
-            max-width: none;
-        }
-        .gv-kpi-bar-pct {
-            font-size: clamp(0.95rem, 1.85vw, 1.38rem);
-            font-weight: 900;
-            font-variant-numeric: tabular-nums;
-            line-height: 1;
-            color: #0f172a;
-            text-align: center;
-            letter-spacing: -0.02em;
-        }
-        .gv-kpi-bar-track {
-            height: 12px;
-            border-radius: 9999px;
-            background: rgba(15, 23, 42, 0.1);
-            overflow: hidden;
-            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
-        }
-        .gv-kpi-bar-fill {
-            height: 100%;
-            width: 0%;
-            min-width: 0;
-            border-radius: 9999px;
-            background: linear-gradient(90deg, #38bdf8, #6366f1);
-            transition: width 0.45s ease;
-        }
-        .gv-kpi-label-long {
-            line-height: 1.2;
-            max-width: 12rem;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .ta-kpi-grid .text-card-title {
-            font-size: clamp(0.85rem, 1.2vw, 1rem);
-        }
-        .ta-kpi-grid .gv-ring-label {
-            font-weight: 600;
-            line-height: 1.15;
-            max-width: none;
-            letter-spacing: 0.02em;
-        }
-        .ta-kpi-grid .gv-info-clock {
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -0.02em;
-        }
-        /* Modo mural/TV: KPIs mais baixos — libera altura para o grid sem scroll */
-        body.dashboard-app .ta-kpi-shell {
-            flex-shrink: 0;
-        }
-        body.dashboard-app .ta-kpi-grid {
-            gap: 0.4rem;
-        }
-        body.dashboard-app .ta-kpi-card {
-            padding: 0.4rem 0.35rem;
-            min-height: 0;
-            border-radius: 0.75rem;
-        }
-        body.dashboard-app .ta-kpi-grid .ta-kpi-label {
-            font-size: clamp(0.62rem, 0.85vw, 0.75rem);
-            line-height: 1.15;
-        }
-        body.dashboard-app .ta-kpi-shell .ta-kpi-grid .text-kpi {
-            font-size: clamp(0.82rem, 1.2vw, 1.12rem);
-        }
-        body.dashboard-app .ta-kpi-grid .gv-kpi-value-line {
-            margin-top: 0.2rem !important;
-        }
-        body.dashboard-app .gv-kpi-bar-pct {
-            font-size: clamp(0.8rem, 1.15vw, 1.1rem);
-        }
-        body.dashboard-app .gv-kpi-bar-track {
-            height: 8px;
-        }
-        body.dashboard-app .gv-kpi-bar-stack {
-            gap: 0.22rem;
-        }
-        body.dashboard-app .ta-kpi-grid .gv-info-clock {
-            font-size: clamp(0.95rem, 1.4vw, 1.2rem);
-        }
-        body.dashboard-app .ta-kpi-grid #info-date {
-            font-size: clamp(0.62rem, 0.85vw, 0.75rem);
-            margin-top: 0.15rem;
-        }
-        .gv-stat-good { color: var(--gv-good) !important; font-weight: 600 !important; }
-        .gv-stat-attn { color: var(--gv-attn) !important; font-weight: 600 !important; }
-        .ta-kpi-shell .gv-stat-good { color: #15803d !important; }
-        .ta-kpi-shell .gv-stat-attn { color: #dc2626 !important; }
-        .ta-kpi-grid .gv-kpi-value-line.gv-stat-good,
-        .ta-kpi-grid .gv-kpi-value-line.gv-stat-attn {
-            font-weight: 900 !important;
-        }
-        .gv-delta-worse { color: var(--gv-delta-worse) !important; font-weight: 800 !important; }
-        .gv-delta-better { color: var(--gv-delta-better) !important; font-weight: 800 !important; }
-        .gv-delta-same { color: var(--gv-neutral) !important; font-weight: 600 !important; }
-        .ta-kpi-shell .gv-delta-worse { color: #dc2626 !important; }
-        .ta-kpi-shell .gv-delta-better { color: #15803d !important; }
-        .ta-kpi-shell .gv-delta-same { color: #64748b !important; }
-        .gv-header__pct,
-        #hdr-dev-hoje { font-weight: 800 !important; font-variant-numeric: tabular-nums; }
-        .ta-kpi-grid .gv-kpi-value-line {
-            margin: 0;
-            line-height: 1.2;
-        }
-        #hdr-delta {
-            line-height: 1.2;
-        }
-        body.dashboard-app .gv-body {
-            --gv-card-body-fs: 0.76rem;
-            padding: 0.15rem 0 0.2rem;
-            gap: 0.38rem;
-        }
-        .gv-body {
-            /* Um tamanho para textos; títulos (h2) só destacam com negrito + maiúsculas */
-            --gv-card-body-fs: 0.8125rem;
-            --gv-card-title-fs: var(--gv-card-body-fs);
-            --gv-card-title-ls: 0.06em;
-            --gv-card-title-color: #0f172a;
-            --gv-card-text-fs: var(--gv-card-body-fs);
-            --gv-card-label-fs: var(--gv-card-body-fs);
-            display: grid;
-            /* Devolução motorista/ajudante | comunicado + gráfico (flexível) | aniversários/férias */
-            grid-template-columns: minmax(0, 450px) minmax(0, 1fr) minmax(0, 300px);
-            gap: 0.5rem;
-            flex: 1 1 auto;
-            min-height: 0;
-            min-width: 0;
-            overflow: hidden;
-            align-items: stretch;
-            align-content: stretch;
-            width: 100%;
-            padding: 0.35rem 0 0.45rem;
-            box-sizing: border-box;
-        }
-        .gv-col { display: flex; flex-direction: column; gap: 0.38rem; min-height: 0; min-width: 0; width: 100%; }
-        .gv-col-dev {
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-            min-width: 0;
-            overflow: hidden;
-        }
-        .gv-dev-cards {
-            display: flex;
-            flex-direction: column;
-            flex-wrap: nowrap;
-            gap: 0.38rem;
-            flex: 1 1 auto;
-            min-height: min-content;
-            align-items: stretch;
-            width: 100%;
-            max-width: 450px;
-        }
-        .gv-dev-cards .ta-card {
-            width: 100%;
-            max-width: 450px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            flex: 0 0 auto;
-            min-height: min-content;
-            overflow: visible;
-        }
-        /* visible: rótulos do gráfico de devolução não são cortados; cards individuais controlam overflow */
-        .gv-col-mid { min-height: 0; overflow: visible; }
-        /* Comunicado: altura conforme conteúdo; gráfico de devolução: ocupa o restante da coluna (evita cortar o fim do card). */
-        .gv-body .gv-col-mid .gv-surface:not(.gv-card--devolucao-kpi) {
-            flex: 0 1 auto;
-            min-height: 0;
-            overflow: hidden;
-        }
-        .gv-body .gv-col-mid .gv-surface.gv-card--devolucao-kpi {
-            flex: 1 1 0;
-            min-height: 0;
-            overflow: visible;
-        }
-        .gv-card--devolucao-kpi .gv-devolucao-kpi-body {
-            flex: 1 1 0;
-            min-height: 0;
-            overflow: visible;
-        }
-        /* Legenda fora do Apex; linha temporal: menos altura mínima que o antigo gráfico de barras */
-        .gv-card--devolucao-kpi .gv-devolucao-kpi-legend {
-            flex-shrink: 0;
-        }
-        .gv-card--devolucao-kpi .gv-chart-devolucao {
-            flex: 1 1 auto;
-            min-width: 0;
-            width: 100%;
-            min-height: clamp(260px, 36vh, 440px);
-            overflow: visible;
-        }
-        /* Apex às vezes aplica opacidade do fill ao traço; sem isso a linha some (stroke rgba(...,0)). */
-        .gv-card--devolucao-kpi .gv-chart-devolucao .apexcharts-line {
-            stroke-opacity: 1;
-        }
-        .gv-card--devolucao-kpi .gv-chart-devolucao .apexcharts-marker {
-            fill-opacity: 1;
-            stroke-opacity: 1;
-        }
-        @media (max-width: 767px) {
-            .gv-body {
-                grid-template-columns: minmax(0, 1fr);
-            }
-        }
-        .gv-col-right {
-            min-width: 0;
-            max-width: none;
-            flex-shrink: 1;
-        }
-        .gv-body .gv-col-right .gv-surface {
-            flex: 1;
-            min-height: 0;
-            overflow: hidden;
-            max-width: none;
-            box-sizing: border-box;
-        }
-        .gv-body .gv-card-head--bday .gv-bday-title-row {
-            margin-bottom: 0;
-            flex: 1;
-            min-width: 0;
-        }
-        .gv-table-wrap { overflow: hidden; flex: 1; min-height: 0; }
-        /* Tabelas devolução (ta-card na coluna esquerda): altura natural, sem colapsar */
-        .gv-body .gv-dev-cards .ta-card .gv-table-wrap {
-            overflow: visible;
-            flex: 0 1 auto;
-            min-height: min-content;
-        }
-        .gv-body .gv-dev-cards .ta-card .gv-table-wrap table {
-            font-size: var(--gv-card-text-fs);
-            line-height: 1.18;
-        }
-        .gv-body .gv-dev-cards .ta-card .gv-table-wrap thead th {
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            font-weight: 600;
-            letter-spacing: 0.04em;
-            padding-top: 0.12rem !important;
-            padding-bottom: 0.1rem !important;
-        }
-        .gv-body .gv-dev-cards .ta-card .gv-table-wrap tbody td {
-            padding-top: 0.1rem !important;
-            padding-bottom: 0.08rem !important;
-        }
-        .gv-body .gv-dev-cards .ta-card .gv-table-wrap .gv-table-empty {
-            font-size: var(--gv-card-text-fs) !important;
-            padding-top: 0.5rem !important;
-            padding-bottom: 0.5rem !important;
-        }
-        .gv-table-wrap table {
-            font-size: 0.875rem;
-            table-layout: fixed;
-            width: 100%;
-            font-weight: 500;
-        }
-        .gv-table-wrap th {
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #94a3b8;
-        }
-        .gv-table-wrap .gv-name-cell {
-            width: 52%;
-            vertical-align: middle;
-            overflow: hidden;
-            padding-left: 0.25rem;
-            padding-right: 0.25rem;
-            text-align: left;
-        }
-        .gv-table-wrap .gv-name-cell .gv-fit-oneline {
-            max-width: 100%;
-            vertical-align: middle;
-        }
-        .gv-table-wrap th:nth-child(2),
-        .gv-table-wrap td:nth-child(2) { width: 30%; text-align: center; }
-        .gv-table-wrap th:nth-child(3),
-        .gv-table-wrap td:nth-child(3) { width: 18%; text-align: center; }
-        .gv-table-wrap th:first-child { text-align: left; }
-        .gv-fit-oneline {
-            display: block;
-            white-space: nowrap;
-            line-height: 1.2;
-            font-weight: 600;
-            color: #f1f5f9;
-        }
-        .gv-table-wrap thead th {
-            font-weight: 600;
-            color: #94a3b8;
-            border-bottom: 1px solid rgba(51, 65, 85, 0.85);
-        }
-        .gv-table-wrap tbody tr { border-bottom: 1px solid rgba(51, 65, 85, 0.45); }
-        .gv-table-wrap tbody tr:last-child { border-bottom: none; }
-        .gv-pct-good { color: var(--gv-good); font-weight: 500; }
-        .gv-pct-neutral { color: #94a3b8; font-weight: 600; }
-        .gv-pct-attn { color: #f87171; font-weight: 800; }
-        .gv-bday-list { list-style: none; margin: 0; padding: 0; }
-        .gv-bday-row {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: 0.35rem;
-            flex-wrap: nowrap;
-            padding: 0.42rem 0;
-            border-bottom: 1px solid rgba(51, 65, 85, 0.55);
-        }
-        .gv-bday-row:last-child { border-bottom: none; }
-        .gv-bday-cake {
-            flex-shrink: 0;
-            font-size: 1.05rem;
-            line-height: 1;
-        }
-        .gv-bday-name.gv-fit-oneline {
-            flex: 1;
-            min-width: 0;
-            font-weight: 700;
-        }
-        .gv-bday-badge-inline {
-            flex-shrink: 0;
-            font-size: 0.625rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #fff;
-            background: #2f6b58;
-            padding: 0.18rem 0.4rem;
-            border-radius: 4px;
-        }
-        .gv-bday-date {
-            flex-shrink: 0;
-            font-weight: 700;
-            font-size: 0.8125rem;
-            color: #94a3b8;
-            font-variant-numeric: tabular-nums;
-        }
-        .gv-bday-today {
-            background: rgba(34, 197, 94, 0.14);
-            border-radius: 8px;
-            padding: 0.35rem 0.3rem;
-            margin: 0.08rem 0;
-            border-bottom-color: transparent;
-        }
-        .gv-bday-empty { padding: 0.5rem 0; color: #64748b; font-size: 0.8125rem; }
-        .gv-body .gv-bday-empty { font-size: var(--gv-card-body-fs, 0.8125rem); padding: 0.25rem 0; }
-        .gv-body .gv-bday-badge-inline {
-            font-size: var(--gv-card-body-fs, 0.8125rem);
-            padding: 0.12rem 0.32rem;
-        }
-        .gv-bday-title-row {
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            margin-bottom: 0.25rem;
-        }
-        .gv-bday-title-row .gv-bday-cake { font-size: 1.15rem; }
-        .gv-aviso-body { flex: 1; min-height: 0; overflow: hidden; font-size: 0.875rem; color: #cbd5e1; padding: 2px 0; line-height: 1.45; }
-        .gv-aviso-body h4 { color: #f8fafc; }
-        .gv-aviso-body .gv-aviso-muted { color: #94a3b8; }
-        .gv-col-right .border-slate-50 { border-color: rgba(51, 65, 85, 0.55) !important; }
-        .gv-col-right .text-slate-600 { color: #cbd5e1 !important; }
-        .gv-col-right .text-slate-400 { color: #94a3b8 !important; }
-        .gv-table-val { color: #cbd5e1 !important; }
-        .gv-table-empty { color: #64748b !important; }
-        .gv-menu-btn {
-            border: 1px solid rgb(229 231 235);
-            background: #ffffff;
-            color: #475569;
-            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-        }
-        .gv-menu-btn:hover {
-            background: rgb(249 250 251);
-            color: #1f2937;
-        }
-        /* Shell TailAdmin + conteúdo legado Gestão Avista */
-        .ta-dashboard-layout {
-            flex: 1 1 0;
-            min-height: 0;
-            min-width: 0;
-        }
-        .ta-dash-header {
-            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
-        }
-        .ta-dash-header__inner {
-            width: 100%;
-            max-width: 1536px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .gv-page.ta-dash-body {
-            font-family: Outfit, ui-sans-serif, system-ui, sans-serif;
-        }
-        body.dashboard-app .ta-dash-header {
-            padding-top: 0.35rem;
-            padding-bottom: 0.35rem;
-        }
-        body.dashboard-app .ta-dash-header h1 {
-            font-size: clamp(1rem, 1.5vw, 1.15rem);
-            line-height: 1.2;
-        }
-        body.dashboard-app .ta-dash-header .ta-dash-header__inner {
-            gap: 0.15rem;
-        }
-        body.dashboard-app .gv-dev-cards {
-            flex: 1 1 0;
-            min-height: 0;
-            overflow: hidden;
-        }
-        body.dashboard-app .gv-body .gv-surface.ta-card {
-            padding: 0.75rem 0.85rem;
-        }
-    </style>
 </head>
 <body class="gv-page ta-dash-body dashboard-app text-slate-700 font-outfit antialiased" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
     {% include "_sidebar.html" %}
@@ -960,7 +26,7 @@
     </button>
 
     <div class="ta-dashboard-layout flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100 dark:bg-gray-900">
-        <header class="ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
+        <header class="sys-page-header ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
             <div class="ta-dash-header__inner flex flex-col gap-0.5 pl-12 sm:pl-14">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Painel</p>
                 <h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Gestão Avista</h1>
@@ -1014,39 +80,39 @@
 
     <main class="gv-shell flex min-h-0 min-w-0 flex-1 flex-col" id="informativo-root" data-date="{{ _d }}" data-cc="{{ _cc|e }}">
         <div class="gv-panel-stack">
-        <div class="ta-main-inner flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2">
-        <div class="ta-kpi-shell w-full shrink-0">
-            <div class="ta-kpi-grid" aria-label="Indicadores do dia">
-                <div class="ta-kpi-card">
-                    <div class="ta-kpi-cell-inner leading-tight">
-                        <div class="ta-kpi-label gv-kpi-label-long">Devolução mês passado</div>
+        <div class="sys-main-inner flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2">
+        <div class="sys-kpi-shell sys-region-kpis w-full shrink-0">
+            <div class="sys-kpi-grid" aria-label="Indicadores do dia">
+                <div class="sys-kpi-card">
+                    <div class="sys-kpi-cell-inner leading-tight">
+                        <div class="sys-kpi-label gv-kpi-label-long">Devolução mês passado</div>
                         <p id="hdr-prev-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if prev_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{{ cmp.get('prev_pct_rotas', 0) }}</span>%</p>
                     </div>
                 </div>
-                <div class="ta-kpi-card">
-                    <div class="ta-kpi-cell-inner leading-tight">
-                        <div class="ta-kpi-label gv-kpi-label-long">Devolução mês atual</div>
+                <div class="sys-kpi-card">
+                    <div class="sys-kpi-cell-inner leading-tight">
+                        <div class="sys-kpi-label gv-kpi-label-long">Devolução mês atual</div>
                         <p id="hdr-curr-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{{ cmp.get('curr_pct_rotas', 0) }}</span>%</p>
                     </div>
                 </div>
-                <div class="ta-kpi-card">
-                    <div class="ta-kpi-cell-inner leading-tight">
-                        <div class="ta-kpi-label">Diferença</div>
+                <div class="sys-kpi-card">
+                    <div class="sys-kpi-cell-inner leading-tight">
+                        <div class="sys-kpi-label">Diferença</div>
                         <p id="hdr-delta" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}">
                             {% if curr_p > prev_p %}▲ +{{ '%.1f'|format(curr_p - prev_p)|replace('.', ',') }}%{% elif curr_p < prev_p %}▼ −{{ '%.1f'|format(prev_p - curr_p)|replace('.', ',') }}%{% else %}= 0%{% endif %}
                         </p>
                     </div>
                 </div>
-                <div class="ta-kpi-card">
-                    <div class="ta-kpi-cell-inner leading-tight">
-                        <div class="ta-kpi-label gv-kpi-label-long">Devolução hoje</div>
+                <div class="sys-kpi-card">
+                    <div class="sys-kpi-cell-inner leading-tight">
+                        <div class="sys-kpi-label gv-kpi-label-long">Devolução hoje</div>
                         <p id="hdr-dev-hoje-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if dhoje_f <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-dev-hoje" class="gv-header__pct">{{ dhoje }}</span>%</p>
                     </div>
                 </div>
-                <div class="ta-kpi-card">
-                    <div class="ta-kpi-cell-inner">
+                <div class="sys-kpi-card">
+                    <div class="sys-kpi-cell-inner">
                         <div class="gv-kpi-bar-stack mx-auto w-full max-w-[13rem]">
-                            <span class="ta-kpi-label gv-ring-label">Rota concluída</span>
+                            <span class="sys-kpi-label gv-ring-label">Rota concluída</span>
                             <span id="tonnage-pct-text" class="gv-kpi-bar-pct">{{ '%.0f'|format(pp) }}%</span>
                             <div class="gv-kpi-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (pp if pp <= 100 else 100)|int }}" aria-labelledby="tonnage-pct-text">
                                 <div id="tonnage-bar-fill" class="gv-kpi-bar-fill" style="width: {{ pp if pp <= 100 else 100 }}%;"></div>
@@ -1054,10 +120,10 @@
                         </div>
                     </div>
                 </div>
-                <div class="ta-kpi-card">
-                    <div class="ta-kpi-cell-inner leading-tight">
+                <div class="sys-kpi-card">
+                    <div class="sys-kpi-cell-inner leading-tight">
                         <div id="info-clock" class="gv-info-clock font-black text-kpi font-mono">--:--:--</div>
-                        <div id="info-date" class="ta-kpi-label mt-1 tracking-wider">{{ _d }}</div>
+                        <div id="info-date" class="sys-kpi-label mt-1 tracking-wider">{{ _d }}</div>
                     </div>
                 </div>
             </div>
@@ -1066,7 +132,7 @@
         <div class="gv-body">
             <div class="gv-col gv-col-dev">
                 <div class="gv-dev-cards">
-                    <article class="gv-surface ta-card">
+                    <article class="sys-card sys-card--surface">
                         <div class="gv-card-head">
                             <h2 class="gv-card-title">Devolução Motorista</h2>
                             <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
@@ -1096,7 +162,7 @@
                             </table>
                         </div>
                     </article>
-                    <article class="gv-surface ta-card">
+                    <article class="sys-card sys-card--surface">
                         <div class="gv-card-head">
                             <h2 class="gv-card-title">Devolução Ajudante</h2>
                             <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
@@ -1130,7 +196,7 @@
             </div>
 
             <div class="gv-col gv-col-mid">
-                <article class="gv-surface ta-card">
+                <article class="sys-card sys-card--focus">
                     <div class="gv-card-head">
                         <h2 class="gv-card-title">Comunicado em destaque</h2>
                         <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📢</span>
@@ -1161,7 +227,7 @@
                         {% endif %}
                     </div>
                 </article>
-                <article class="gv-surface ta-card gv-card--devolucao-kpi">
+                <article class="sys-card sys-card--surface gv-card--devolucao-kpi">
                     <div class="gv-card-head">
                         <h2 class="gv-card-title">Índice de devolução mensal</h2>
                         <span class="gv-card-icon gv-card-icon--emoji" aria-hidden="true">📉</span>
@@ -1170,12 +236,13 @@
                         <div class="gv-devolucao-kpi-legend flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-3 py-1.5 border-b border-slate-200/90 dark:border-slate-600/80" aria-hidden="true">
                             <span class="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                                 <span class="inline-block h-0 w-6 shrink-0" style="border-top:2.5px solid #465fff"></span>
-                                Devolução (%)
+                                Devolução (R$)
                             </span>
                             <span class="inline-flex items-center gap-2 text-[11px] font-medium text-slate-600 dark:text-slate-300">
                                 <span class="inline-block h-0 w-6 shrink-0" style="border-top:2px dashed #ea580c"></span>
-                                Meta 2%
+                                Meta 2% da receita (R$)
                             </span>
+                            <span class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Eixo em R$ para o teto variar por mês · índice % no tooltip</span>
                         </div>
                         <div id="chart-informativo-devolucao" class="gv-chart-devolucao w-full flex-1 min-h-0 min-w-0"></div>
                     </div>
@@ -1184,6 +251,10 @@
                 <script>
                 (function() {
                     function buildKpiChartOptions(k) {
+                        function fmtBRL(n) {
+                            if (n == null || isNaN(n)) return '—';
+                            return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        }
                         function fmtPct2(v) {
                             if (v == null || isNaN(v)) return '—';
                             return Number(v).toFixed(2).replace('.', ',') + '%';
@@ -1205,26 +276,31 @@
                             var x = Number(r);
                             return isNaN(x) || x <= 0 ? null : x;
                         });
-                        var percentualReal = [];
-                        var percentualMeta = [];
-                        for (var mi = 0; mi < n; mi++) {
-                            var rec = receitaArr[mi];
-                            var vd = valorDev[mi];
-                            var pr = null;
-                            if (rec != null && vd != null) {
-                                pr = Number(((vd / rec) * 100).toFixed(2));
-                            } else if (pctStored[mi] != null) {
-                                pr = Number(Number(pctStored[mi]).toFixed(2));
+                        for (var vi = 0; vi < n; vi++) {
+                            if (valorDev[vi] == null && pctStored[vi] != null && receitaArr[vi] != null) {
+                                valorDev[vi] = Math.round((pctStored[vi] / 100) * receitaArr[vi] * 100) / 100;
                             }
-                            percentualReal.push(pr);
-                            percentualMeta.push(rec != null ? 2 : null);
                         }
+                        var metaRs = (k.meta_valor_2pct || []).map(function(mv) {
+                            if (mv == null || mv === '') return null;
+                            var x = Number(mv);
+                            return isNaN(x) || x <= 0 ? null : x;
+                        });
                         var peakVals = [];
-                        percentualReal.forEach(function(v) { if (v != null && !isNaN(v)) peakVals.push(v); });
-                        percentualMeta.forEach(function(v) { if (v != null && !isNaN(v)) peakVals.push(v); });
-                        var peak = peakVals.length ? Math.max.apply(null, peakVals) : 0;
-                        var yMax = peak <= 0 ? 4 : Math.max(4, Math.ceil((peak + 0.35) * 10) / 10);
-                        if (yMax < 2.5) yMax = 2.5;
+                        valorDev.forEach(function(v) { if (v != null && !isNaN(v)) peakVals.push(v); });
+                        metaRs.forEach(function(v) { if (v != null && !isNaN(v)) peakVals.push(v); });
+                        var dataMax = peakVals.length ? Math.max.apply(null, peakVals) : 0;
+                        var yMaxRaw = dataMax > 0 ? dataMax * 1.14 : 100000;
+                        var step = yMaxRaw >= 500000 ? 50000 : (yMaxRaw >= 100000 ? 10000 : (yMaxRaw >= 20000 ? 5000 : 1000));
+                        var yMax = Math.max(step, Math.ceil(yMaxRaw / step) * step);
+                        var tickAmt = yMax >= 500000 ? 6 : 7;
+                        var pctNoMes = function(idx) {
+                            var rec = receitaArr[idx];
+                            var vd = valorDev[idx];
+                            if (rec != null && vd != null) return Number(((vd / rec) * 100).toFixed(2));
+                            if (pctStored[idx] != null) return Number(Number(pctStored[idx]).toFixed(2));
+                            return null;
+                        };
                         return {
                             chart: {
                                 type: 'line',
@@ -1245,8 +321,8 @@
                                 connectNulls: false,
                             },
                             series: [
-                                { name: 'Devolução (%)', data: percentualReal },
-                                { name: 'Meta 2%', data: percentualMeta },
+                                { name: 'Devolução (R$)', data: valorDev },
+                                { name: 'Meta 2% (R$)', data: metaRs },
                             ],
                             xaxis: {
                                 categories: labels,
@@ -1262,16 +338,23 @@
                             yaxis: {
                                 min: 0,
                                 max: yMax,
-                                tickAmount: 6,
-                                decimalsInFloat: 2,
+                                tickAmount: tickAmt,
+                                decimalsInFloat: 0,
                                 title: {
-                                    text: 'Percentual (%)',
+                                    text: 'Valor (R$)',
                                     style: { fontSize: '11px', fontWeight: 600, color: '#64748b' },
                                 },
                                 labels: {
                                     formatter: function(val) {
                                         if (val == null || isNaN(val)) return '';
-                                        return Number(val).toFixed(2).replace('.', ',') + '%';
+                                        var v = Math.round(Number(val));
+                                        if (v >= 1000000) {
+                                            return (v / 1000000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' mi';
+                                        }
+                                        if (v >= 1000) {
+                                            return (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil';
+                                        }
+                                        return v.toLocaleString('pt-BR');
                                     },
                                     style: { fontSize: '11px', fontWeight: 600, colors: '#334155' },
                                 },
@@ -1302,12 +385,18 @@
                                     html += '<div class="apexcharts-tooltip-series-group apexcharts-active" style="order:1;display:flex;padding:4px 10px">';
                                     html += '<span class="apexcharts-tooltip-marker" style="background-color:#465fff"></span>';
                                     html += '<div class="apexcharts-tooltip-text" style="font-family:inherit;font-size:12px">';
-                                    html += '<div>Devolução: ' + fmtPct2(percentualReal[i]) + '</div>';
+                                    html += '<div>Devolução: ' + fmtBRL(valorDev[i]) + '</div>';
+                                    html += '<div>Índice: ' + fmtPct2(pctNoMes(i)) + '</div>';
                                     html += '</div></div>';
                                     html += '<div class="apexcharts-tooltip-series-group" style="order:2;display:flex;padding:4px 10px">';
                                     html += '<span class="apexcharts-tooltip-marker" style="background-color:#ea580c"></span>';
                                     html += '<div class="apexcharts-tooltip-text" style="font-family:inherit;font-size:12px">';
-                                    html += '<div>Meta: ' + (percentualMeta[i] != null ? '2,00%' : '—') + '</div>';
+                                    if (metaRs[i] != null && !isNaN(Number(metaRs[i]))) {
+                                        html += '<div>Meta 2% (teto do mês): ' + fmtBRL(metaRs[i]) + '</div>';
+                                        html += '<div>Equivale a 2,00% da receita do mês</div>';
+                                    } else {
+                                        html += '<div>Meta 2%: — (informe receita do mês no admin)</div>';
+                                    }
                                     html += '</div></div>';
                                     return html;
                                 },
@@ -1355,7 +444,7 @@
             </div>
 
             <div class="gv-col gv-col-right">
-                <article class="gv-surface ta-card">
+                <article class="sys-card sys-card--surface">
                     <div class="gv-card-head gv-card-head--bday">
                         <div class="gv-bday-title-row">
                             <span class="gv-bday-cake" aria-hidden="true">🎂</span>

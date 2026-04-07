@@ -1,8 +1,10 @@
 ---
 description: Painel Gestão Avista (dashboard informativo / TV)
-globs: templates/dashboard_informativo.html
+globs: templates/dashboard_informativo.html, templates/dashboard_tv.html, static/css/pages/dashboard-informativo.css, static/css/pages/dashboard-tv.css, static/css/system-*.css
 ---
 
-- **Sem scroll**: a página usa `html.gv-tv-root` com `overflow: hidden`. Não introduzir `overflow-y: auto` nas colunas do corpo (`.gv-col-dev`, `.gv-col-mid`, `.gv-col-right`) nem scroll interno nas tabelas de devolução; o conteúdo deve caber via tipografia compacta, `min-height: 0` e flex.
-- **Botão Menu** (`gv-menu-btn`): `fixed`, `z-[60]`, `left-3`. O cabeçalho `.gv-informativo-zone-topo` precisa de `padding-left` suficiente para o título **Gestão Avista** não ficar sob o botão.
-- **Tipografia dos cards**: `.gv-body` define `--gv-card-title-fs`, `--gv-card-text-fs`, `--gv-card-label-fs`. Títulos de seção (`h2.gv-card-title`) usam o mesmo padrão; textos e tabelas derivam dessas variáveis — ajustar a escala ali, não tamanhos soltos por card.
+- **Contrato visual geral**: ver `.cursor/rules/gestao-avista-design-system.mdc`.
+- **Sem scroll (informativo)**: `html.gv-tv-root` com `overflow: hidden`. Não introduzir `overflow-y: auto` nas colunas do corpo (`.gv-col-dev`, `.gv-col-mid`, `.gv-col-right`) nem scroll interno nas tabelas de devolução; o conteúdo deve caber via tipografia compacta, `min-height: 0` e flex.
+- **Sem scroll (TV)**: `dashboard_tv.html` + `pages/dashboard-tv.css` — viewport mural; não tratar como página com `ga-main-scroll`.
+- **Botão Menu** (`gv-menu-btn`): `fixed`, `z-[60]`, `left-3`. No informativo, `.ta-dash-header__inner` usa `pl-12 sm:pl-14`. No TV mural, usar `gv-menu-btn tv-menu-on-dark` (override em `dashboard-tv.css`).
+- **Tipografia dos cards (informativo)**: `.gv-body` define `--gv-card-title-fs`, `--gv-card-text-fs`, `--gv-card-label-fs`. Títulos (`h2.gv-card-title`) seguem esse padrão.

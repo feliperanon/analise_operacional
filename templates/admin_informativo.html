@@ -8,58 +8,14 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
     <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
+    <link rel="stylesheet" href="/static/css/system-tokens.css">
+    <link rel="stylesheet" href="/static/css/system-layout.css">
+    <link rel="stylesheet" href="/static/css/system-components.css">
+    <link rel="stylesheet" href="/static/css/system-utilities.css">
+    <link rel="stylesheet" href="/static/css/pages/admin-informativo.css">
     <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
-    <style>
-        .gv-menu-btn {
-            border: 1px solid rgb(229 231 235);
-            background: #ffffff;
-            color: #475569;
-            box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-        }
-        .gv-menu-btn:hover {
-            background: rgb(249 250 251);
-            color: #1f2937;
-        }
-        .admin-inf-scroll {
-            flex: 1 1 auto;
-            min-height: 0;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        .admin-inf-card {
-            border-radius: 1rem;
-            border: 1px solid rgb(229 231 235);
-            background: #fff;
-            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
-        }
-        .dark .admin-inf-card {
-            border-color: rgb(55 65 81);
-            background: rgb(17 24 39);
-        }
-        .admin-inf-input {
-            width: 100%;
-            border-radius: 0.5rem;
-            border: 1px solid rgb(209 213 219);
-            background: #fff;
-            color: #111827;
-            padding: 0.375rem 0.625rem;
-            font-size: 0.875rem;
-        }
-        .admin-inf-input::placeholder { color: #9ca3af; }
-        .admin-inf-input:focus {
-            outline: 2px solid transparent;
-            outline-offset: 2px;
-            border-color: #6366f1;
-            box-shadow: 0 0 0 1px #6366f1;
-        }
-        .dark .admin-inf-input {
-            border-color: rgb(75 85 99);
-            background: rgb(31 41 55);
-            color: #f9fafb;
-        }
-    </style>
 </head>
-<body class="flex h-screen min-h-0 flex-col overflow-hidden bg-slate-100 font-outfit text-slate-800 antialiased dark:bg-gray-900 dark:text-gray-100 dashboard-app"
+<body class="admin-informativo-page flex h-screen min-h-0 flex-col overflow-hidden bg-slate-100 font-outfit text-slate-800 antialiased dark:bg-gray-900 dark:text-gray-100 dashboard-app"
       x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false, checklists: false } }">
     {% include "_sidebar.html" %}
     <button type="button" class="gv-menu-btn fixed top-3 left-3 z-[60] flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors print:hidden"
@@ -69,120 +25,122 @@
     </button>
 
     <div class="ta-dashboard-layout flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header class="ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
-            <div class="ta-dash-header__inner flex w-full max-w-6xl flex-col gap-0.5 pl-12 sm:pl-14">
+        <header class="sys-page-header ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
+            <div class="sys-main-inner flex w-full flex-col gap-0.5 pl-12 sm:pl-14">
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Administração / Informativo</p>
                 <h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Painel informativo</h1>
                 <p class="text-xs text-gray-500 dark:text-gray-400">Comunicados no <a href="/dashboard" class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">/dashboard</a> · números no padrão brasileiro (vírgula decimal, ponto nos milhares)</p>
             </div>
         </header>
 
-        <main class="admin-inf-scroll px-4 py-5 sm:px-6">
-            <div class="mx-auto w-full max-w-5xl space-y-6 pb-10">
+        <main class="admin-informativo-main px-4 py-5 sm:px-6">
+            <div class="admin-informativo-inner sys-main-inner mx-auto w-full space-y-6 pb-10">
 
                 {% if request.query_params.get('saved_devolucao') == '1' %}
-                <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">Dados de devolução mensal (índice) salvos.</p>
+                <p class="sys-alert sys-alert--success">Dados de devolução mensal (índice) salvos.</p>
                 {% endif %}
                 {% if request.query_params.get('saved') == 'panel' %}
-                <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">Tempo do carrossel salvo.</p>
+                <p class="sys-alert sys-alert--success">Tempo do carrossel salvo.</p>
                 {% endif %}
                 {% if request.query_params.get('updated') %}
-                <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">Aviso atualizado.</p>
+                <p class="sys-alert sys-alert--success">Aviso atualizado.</p>
                 {% endif %}
                 {% if request.query_params.get('err') %}
-                <p class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">Informe um título.</p>
+                <p class="sys-alert sys-alert--warn">Informe um título.</p>
                 {% endif %}
 
-                <section class="admin-inf-card p-5 sm:p-6">
-                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Carrossel no painel</h2>
+                <section class="sys-card sys-card--surface sys-card--comfort">
+                    <h2 class="sys-section-heading">Carrossel no painel</h2>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Intervalo entre um aviso e o próximo no card <span class="font-medium text-gray-700 dark:text-gray-300">Comunicado em destaque</span> (de 4 a 120 segundos).</p>
-                    <form method="post" action="/admin/informativo/panel-config" class="mt-4 flex flex-wrap items-end gap-3">
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Segundos</label>
+                    <form method="post" action="/admin/informativo/panel-config" class="sys-filter-bar sys-filter-bar--end mt-4">
+                        <div class="min-w-0">
+                            <label class="sys-section__label sys-section__label--field">Segundos</label>
                             <input type="number" name="carousel_interval_seconds" min="4" max="120" value="{{ panel_carousel_seconds }}"
-                                   class="admin-inf-input w-32 tabular-nums" inputmode="numeric">
+                                   class="sys-input w-32 max-w-full tabular-nums" inputmode="numeric">
                         </div>
-                        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">Salvar tempo</button>
+                        <button type="submit" class="sys-btn sys-btn--primary shrink-0">Salvar tempo</button>
                     </form>
                 </section>
 
-                <section class="admin-inf-card p-5 sm:p-6">
-                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Índice de devolução mensal</h2>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alimenta o gráfico <span class="font-medium text-gray-700 dark:text-gray-300">Índice de devolução mensal</span> no painel: o painel mostra só <span class="font-medium">percentual</span> (devolução vs meta 2%). <span class="font-medium">Receita</span> e <span class="font-medium">valor em R$</span> aqui servem para calcular esses percentuais por mês; valores em reais não aparecem no gráfico do painel.</p>
-                    <form method="get" action="/admin/informativo" class="mt-4 flex flex-wrap items-end gap-3">
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Ano</label>
-                            <input type="number" name="dry_year" min="2000" max="2100" value="{{ dry_year }}" class="admin-inf-input w-32 tabular-nums" inputmode="numeric">
+                <section class="sys-card sys-card--surface sys-card--comfort">
+                    <h2 class="sys-section-heading">Índice de devolução mensal</h2>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alimenta o gráfico <span class="font-medium text-gray-700 dark:text-gray-300">Índice de devolução mensal</span> no painel: eixo em <span class="font-medium">R$</span> (devolução vs teto de 2% da <span class="font-medium">receita daquele mês</span>, para a linha da meta variar). O <span class="font-medium">índice %</span> aparece no tooltip.</p>
+                    <form method="get" action="/admin/informativo" class="sys-filter-bar sys-filter-bar--end mt-4">
+                        <div class="min-w-0">
+                            <label class="sys-section__label sys-section__label--field">Ano</label>
+                            <input type="number" name="dry_year" min="2000" max="2100" value="{{ dry_year }}" class="sys-input w-32 max-w-full tabular-nums" inputmode="numeric">
                         </div>
-                        <button type="submit" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700">Carregar ano</button>
+                        <button type="submit" class="sys-btn sys-btn--secondary shrink-0">Carregar ano</button>
                     </form>
                     <p class="mt-3 text-[11px] leading-snug text-gray-500 dark:text-gray-400">Percentual: vírgula decimal (ex.: <span class="tabular-nums">2,5</span>). Valores em reais: milhar com ponto e centavos com vírgula (ex.: <span class="tabular-nums">1.234,56</span>).</p>
-                    <form method="post" action="/admin/informativo/devolucao-mensal" class="mt-4 overflow-x-auto">
+                    <form method="post" action="/admin/informativo/devolucao-mensal" class="mt-4">
                         <input type="hidden" name="dry_year" value="{{ dry_year }}">
-                        <table class="w-full min-w-[720px] border-collapse text-left text-sm">
-                            <thead>
-                                <tr class="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:text-gray-400">
-                                    <th class="py-2.5 pr-3">Mês</th>
-                                    <th class="py-2.5 pr-3">% devolução (índice)</th>
-                                    <th class="py-2.5 pr-3">Valor devolução (R$)</th>
-                                    <th class="py-2.5 pr-3">Receita (R$) <span class="font-normal normal-case text-gray-400">— base da meta 2%; não aparece no gráfico do painel</span></th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-gray-800 dark:text-gray-200">
-                                {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
-                                {% for mes_nome in meses %}
-                                {% set m = loop.index %}
-                                {% set dd = dr_display.get(m) or {} %}
-                                <tr class="border-b border-gray-100 dark:border-gray-700/80">
-                                    <td class="py-2.5 pr-3 font-medium text-gray-900 dark:text-white">{{ mes_nome }}</td>
-                                    <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_pct" value="{{ dd.get('pct', '') }}" class="admin-inf-input max-w-[9rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
-                                    <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_valor" value="{{ dd.get('valor', '') }}" class="admin-inf-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
-                                    <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ dd.get('receita', '') }}" class="admin-inf-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                        <button type="submit" class="mt-5 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500">Salvar índice de devolução</button>
+                        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+                            <table class="w-full min-w-[720px] border-collapse text-left text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                                        <th class="py-2.5 pr-3">Mês</th>
+                                        <th class="py-2.5 pr-3">% devolução (índice)</th>
+                                        <th class="py-2.5 pr-3">Valor devolução (R$)</th>
+                                        <th class="py-2.5 pr-3">Receita (R$) <span class="font-normal normal-case text-gray-400">— base da meta 2%; não aparece no gráfico do painel</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-gray-800 dark:text-gray-200">
+                                    {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
+                                    {% for mes_nome in meses %}
+                                    {% set m = loop.index %}
+                                    {% set dd = dr_display.get(m) or {} %}
+                                    <tr class="border-b border-gray-100 dark:border-gray-700/80">
+                                        <td class="py-2.5 pr-3 font-medium text-gray-900 dark:text-white">{{ mes_nome }}</td>
+                                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_pct" value="{{ dd.get('pct', '') }}" class="sys-input max-w-[9rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_valor" value="{{ dd.get('valor', '') }}" class="sys-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ dd.get('receita', '') }}" class="sys-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="submit" class="sys-btn sys-btn--success mt-5">Salvar índice de devolução</button>
                     </form>
                 </section>
 
-                <section class="admin-inf-card p-5 sm:p-6">
-                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Novo aviso</h2>
+                <section class="sys-card sys-card--focus sys-card--comfort">
+                    <h2 class="sys-section-heading">Novo aviso</h2>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Até cinco avisos ativos; menor <span class="font-medium">ordem</span> aparece primeiro no carrossel.</p>
                     <form method="post" action="/admin/informativo" class="mt-4 space-y-4">
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Título <span class="text-rose-600">*</span></label>
-                            <input type="text" name="title" required maxlength="200" class="admin-inf-input">
+                            <label class="sys-section__label sys-section__label--field">Título <span class="text-rose-600">*</span></label>
+                            <input type="text" name="title" required maxlength="200" class="sys-input">
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Texto</label>
-                            <textarea name="body" rows="4" class="admin-inf-input min-h-[6rem]" placeholder="Comunicado interno…"></textarea>
+                            <label class="sys-section__label sys-section__label--field">Texto</label>
+                            <textarea name="body" rows="4" class="sys-input" placeholder="Comunicado interno…"></textarea>
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">URL da imagem (opcional)</label>
-                            <input type="url" name="image_url" class="admin-inf-input" placeholder="https://exemplo.com/imagem.jpg">
+                            <label class="sys-section__label sys-section__label--field">URL da imagem (opcional)</label>
+                            <input type="url" name="image_url" class="sys-input" placeholder="https://exemplo.com/imagem.jpg">
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">URL da matéria / site (opcional)</label>
-                            <input type="url" name="link_url" class="admin-inf-input" placeholder="https://…">
+                            <label class="sys-section__label sys-section__label--field">URL da matéria / site (opcional)</label>
+                            <input type="url" name="link_url" class="sys-input" placeholder="https://…">
                         </div>
                         <div>
-                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Ordem</label>
-                            <input type="number" name="sort_order" value="0" class="admin-inf-input w-36 tabular-nums" inputmode="numeric">
+                            <label class="sys-section__label sys-section__label--field">Ordem</label>
+                            <input type="number" name="sort_order" value="0" class="sys-input w-36 tabular-nums" inputmode="numeric">
                             <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Número menor = aparece antes no painel.</p>
                         </div>
-                        <button type="submit" class="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-500">Publicar</button>
+                        <button type="submit" class="sys-btn sys-btn--sky">Publicar</button>
                     </form>
                 </section>
 
                 <section>
-                    <h2 class="mb-3 text-base font-semibold text-gray-900 dark:text-white">Publicados</h2>
+                    <h2 class="sys-section-heading mb-3">Publicados</h2>
                     <ul class="space-y-3">
                         {% for b in bulletins or [] %}
-                        <li class="admin-inf-card flex flex-wrap items-start justify-between gap-3 p-4 sm:p-5">
+                        <li class="sys-card sys-card--surface admin-inf-bulletin-row flex flex-wrap items-start justify-between gap-3">
                             <div class="min-w-0 flex-1">
                                 <div class="mb-1 flex flex-wrap items-center gap-2">
-                                    <span class="rounded border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-[10px] text-gray-600 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">Ordem {{ b.sort_order }}</span>
+                                    <span class="sys-badge sys-badge--neutral font-mono text-[10px]">Ordem {{ b.sort_order }}</span>
                                     <p class="font-bold text-gray-900 dark:text-white">{{ b.title }}</p>
                                 </div>
                                 {% if b.image_url %}<p class="mt-1 break-all text-xs text-gray-500 dark:text-gray-400">Imagem: {{ b.image_url }}</p>{% endif %}
@@ -190,15 +148,15 @@
                                 <p class="mt-2 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{{ b.body or '' }}</p>
                                 <p class="mt-2 text-[10px] uppercase tracking-wide text-gray-400">{% if b.is_active %}Ativo{% else %}Inativo{% endif %}</p>
                             </div>
-                            <div class="flex shrink-0 flex-col gap-2 sm:flex-row">
-                                <a href="/admin/informativo/{{ b.id }}/edit" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-center text-sm font-medium text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700">Editar</a>
+                            <div class="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+                                <a href="/admin/informativo/{{ b.id }}/edit" class="sys-btn sys-btn--secondary inline-flex items-center justify-center text-center text-sm font-medium no-underline">Editar</a>
                                 <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
-                                    <button type="submit" class="w-full px-3 py-2 text-sm text-rose-600 hover:text-rose-500 dark:text-rose-400">Excluir</button>
+                                    <button type="submit" class="sys-btn sys-btn--ghost-danger w-full text-sm font-medium">Excluir</button>
                                 </form>
                             </div>
                         </li>
                         {% else %}
-                        <li class="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400">Nenhum aviso ainda.</li>
+                        <li class="sys-empty-state">Nenhum aviso ainda.</li>
                         {% endfor %}
                     </ul>
                 </section>

@@ -1,0 +1,33 @@
+/**
+ * Admin informativo (lista + editar) — só composição e larguras deste fluxo.
+ * Componentes, dark mode e variantes: system-components.css + system-tokens.css
+ */
+
+/* Main rolável (painel executivo / TV usa outro padrão) */
+.admin-informativo-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Largura do conteúdo da lista (mais estreito que sys-main-inner 1536px) */
+.admin-informativo-inner {
+  max-width: 64rem;
+}
+
+/* Formulário “editar” mais estreito (equivalente ao antigo max-w-3xl) */
+.admin-informativo-inner.admin-informativo-inner--narrow {
+  max-width: 48rem;
+}
+
+/* Linha da lista “Publicados”: densidade horizontal */
+.admin-informativo-page .sys-card.sys-card--surface.admin-inf-bulletin-row {
+  padding: 1rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .admin-informativo-page .sys-card.sys-card--surface.admin-inf-bulletin-row {
+    padding: 1.25rem 1.5rem;
+  }
+}

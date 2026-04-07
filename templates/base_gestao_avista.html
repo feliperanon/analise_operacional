@@ -9,6 +9,10 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
     <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
+    <link rel="stylesheet" href="/static/css/system-tokens.css">
+    <link rel="stylesheet" href="/static/css/system-layout.css">
+    <link rel="stylesheet" href="/static/css/system-components.css">
+    <link rel="stylesheet" href="/static/css/system-utilities.css">
     <link rel="stylesheet" href="/static/css/gestao-avista-page.css">
     <script src="/static/vendor/lucide/lucide-0.563.0.min.js"></script>
     <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
@@ -38,8 +42,8 @@
     </button>
 
     <div class="ta-dashboard-layout ga-dash-layout flex min-h-0 flex-1 flex-col bg-slate-100 dark:bg-gray-900">
-        <header class="ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
-            <div class="ta-dash-header__inner flex w-full flex-col gap-0.5 pl-12 sm:pl-14">
+        <header class="sys-page-header ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
+            <div class="sys-main-inner ta-dash-header__inner flex w-full flex-col gap-0.5 pl-12 sm:pl-14">
                 {% block header_breadcrumb %}
                 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Painel</p>
                 {% endblock %}
@@ -52,7 +56,7 @@
 
         <main class="gv-shell ga-main-scroll flex min-h-0 min-w-0 flex-1 flex-col" id="ga-page-root">
             <div class="gv-panel-stack ga-panel-stack">
-                <div class="ta-main-inner flex min-h-0 min-w-0 flex-1 flex-col gap-4 md:gap-5 pb-8">
+                <div class="sys-main-inner ta-main-inner flex min-h-0 min-w-0 flex-1 flex-col gap-4 md:gap-5 pb-8">
                     {% block content %}{% endblock %}
                 </div>
             </div>

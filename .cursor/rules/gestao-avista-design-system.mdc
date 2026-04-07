@@ -1,0 +1,96 @@
+---
+description: Contrato do design system Gestão à Vista (system-*.css + páginas)
+globs: templates/dashboard_informativo.html, templates/dashboard_tv.html, templates/base_gestao_avista.html, templates/admin_informativo*.html, templates/employees.html, static/css/system-*.css, static/css/pages/dashboard-*.css, static/css/pages/admin-informativo.css, static/css/pages/employees.css, static/css/gestao-avista-page.css
+---
+
+## Onde cada coisa vive
+
+| Arquivo | Papel |
+|---------|--------|
+| `static/css/system-tokens.css` | Espaçamento, raios, sombras, tipografia, paleta, estados semânticos, tokens de botão/alerta |
+| `static/css/system-layout.css` | Shells genéricos (`sys-page`, `sys-shell`), `sys-main-inner` / `ta-main-inner`, regiões (`sys-region-*`), grids utilitários |
+| `static/css/system-components.css` | Cartões, KPIs, botões variantes, inputs, filter bar, alertas, empty state, tabela, badges, dark mode dos componentes listados, `gv-menu-btn` |
+| `static/css/system-utilities.css` | Helpers leves (`sys-min-zero`, `sys-sr-only`, …) |
+| `static/css/pages/*.css` | Só comportamento **exclusivo** daquela tela (viewport TV, densidade mural, larguras de admin, grid de balões, etc.) |
+| `static/css/gestao-avista-page.css` | Shell com **scroll** no main, padding do `ta-main-inner` neste fluxo (sem tema específico de Colaboradores — ver `pages/employees.css`) |
+
+## O que vai em `system-components.css`
+
+- Componente reutilizável em **duas ou mais** telas da família (dashboard, TV, admin, base GA).
+- Variantes semânticas (botão primário, alerta, badge).
+- Dark mode **compartilhado** (`html.dark`) para esses componentes.
+
+Não colocar: animações só do mural TV, alturas em `vh` do painel comando, overrides de balão operacional — isso fica em `pages/dashboard-tv.css` (ou outro page CSS).
+
+## O que fica em CSS de página
+
+- Regras de **viewport** (com/sem scroll na raiz).
+- **Escala** e densidade para leitura à distância (TV).
+- **Uma** tela com layout único (ex.: faixa KPI do TV em `flex` + `kpi-cell`).
+- Larguras máximas específicas (ex.: `admin-informativo-inner`).
+
+## Famílias de cartão
+
+- **`sys-card sys-card--surface`** — conteúdo padrão, formulários, listas em painel claro.
+- **`sys-card sys-card--focus`** — bloco de destaque (ex.: “Novo aviso”, comunicado em evidência) com acento visual.
+- **`sys-kpi-card` / faixa KPI** — métricas compactas no painel executivo; no TV a faixa usa classes próprias do mural (`zone-kpis`, `kpi-cell`), não `sys-kpi-card`, para não misturar pele clara com mural escuro.
+- **`sys-card--comfort`** — padding maior em blocos de formulário admin.
+
+## Botões e filtros
+
+- Base: `sys-btn`. Variantes: `--primary`, `--secondary`, `--success`, `--sky`, `--ghost-danger`.
+- **`sys-filter-bar`** — linha de filtros; com rótulo sobre campo, usar **`sys-filter-bar--end`** para alinhar pela base.
+
+## Alertas e vazio
+
+- **`sys-alert`** + `--success` | `--warn` | `--danger` | `--info`.
+- **`sys-empty-state`** — lista/tabela sem dados.
+
+## Títulos
+
+- **`sys-section-title`** — rótulo operacional em uppercase (cards densos).
+- **`sys-section-heading`** — título editorial / admin (sentence case).
+
+## Rótulos de campo
+
+- **`sys-section__label sys-section__label--field`** — uppercase compacto colado ao input.
+
+## Tabelas largas
+
+- Wrapper: **`sys-table-wrap sys-table-wrap--x-scroll`** (scroll horizontal sem gambiarra de utilitários soltos).
+
+## Dark mode
+
+- Estratégia atual: **`html.dark`** + overrides em `system-components.css` para cartões, inputs, filter bar, alertas, etc.
+- Painel **TV** é escuro **por padrão** no próprio CSS da página, não depende de `html.dark`.
+- **Exceção conhecida:** com `html.dark`, cartões `sys-card--surface` no `/dashboard` também escurecem; se o painel executivo tiver de permanecer sempre claro, usar escopo futuro (ex.: classe na página) — não misturar no page CSS do TV.
+
+## Scroll
+
+- **Sem scroll na raiz** — `dashboard_informativo.html` (`html.gv-tv-root`, `overflow: hidden`), `dashboard_tv.html` (`dashboard-tv.css` em `html, body`).
+- **Com scroll no conteúdo** — `base_gestao_avista.html` + `gestao-avista-page.css` (`ga-html-scroll`, `page-scrollable`, main com overflow visível).
+- **Admin informativo** — scroll só em `main.admin-informativo-main`.
+
+## Cadeia de CSS recomendada (ordem)
+
+1. `styles.css` (Tailwind v4)
+2. `vendor/tailadmin/style.css`
+3. `dashboard-tailadmin.css`
+4. `system-tokens.css` → `system-layout.css` → `system-components.css` → `system-utilities.css`
+5. CSS de página (`pages/…`) ou `gestao-avista-page.css`
+
+## Mural TV (`dashboard_tv.html`)
+
+- `html.tv-mural` — escopo do modo parede (viewport escuro, não depende de `html.dark`).
+- Faixa de KPIs: células usam **`sys-kpi-card`** + **`tv-kpi-cell`**; a pele clara padrão do DS é neutralizada em `dashboard-tv.css` (fundo transparente, sem borda/sombra).
+- Cartões da sidebar: **`sys-card`** + `zone-card` + variantes `tv-zone-balloon`.
+- Topo: **`sys-page-header`** + `tv-mural-header` — sombra padrão do DS substituída por linha discreta no escuro.
+- Fundo viewport: token **`--sys-tv-canvas-bg`** (`system-tokens.css`).
+
+## Templates de referência
+
+- Lista/admin: `admin_informativo.html`, `admin_informativo_edit.html`
+- Painel executivo: `dashboard_informativo.html` + `pages/dashboard-informativo.css`
+- Mural: `dashboard_tv.html` + `pages/dashboard-tv.css`
+- Base scroll GA: `base_gestao_avista.html` (filho: `employees.html` + `pages/employees.css`)
+- Colaboradores: `employees.html` — `sys-card`, `sys-kpi-card` + `employees-kpi`, `sys-filter-bar`, `sys-table-wrap--x-scroll`, `sys-alert`, `sys-section-heading` / `sys-section-title`, `sys-badge`; hooks legados `ops-card--interactive` / `ops-card--selected` preservados para o JS de filtros.
