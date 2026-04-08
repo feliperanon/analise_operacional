@@ -4495,6 +4495,59 @@ def _normalize_mobile_matricula(raw: Optional[str]) -> str:
     return s.strip()
 
 
+def _employee_by_matricula(session: Session, reg: str) -> Optional[models.Employee]:
+    """Resolve colaborador pela matrícula com várias tolerâncias (igualdade exata, caixa, zeros à esquerda)."""
+    if not reg:
+        return None
+    emp = session.exec(
+        select(models.Employee).where(models.Employee.registration_id == reg)
+    ).first()
+    if emp:
+        return emp
+    emp = session.exec(
+        select(models.Employee).where(
+            func.lower(func.trim(models.Employee.registration_id)) == reg.lower()
+        )
+    ).first()
+    if emp:
+        return emp
+    if reg.isdigit():
+        compact = str(int(reg, 10))
+        if compact != reg:
+            emp = session.exec(
+                select(models.Employee).where(models.Employee.registration_id == compact)
+            ).first()
+            if emp:
+                return emp
+        emp = session.exec(
+            select(models.Employee).where(
+                func.lower(func.trim(models.Employee.registration_id)) == compact.lower()
+            )
+        ).first()
+        if emp:
+            return emp
+    sc = session.exec(
+        select(models.Employee).where(
+            models.Employee.seller_code.is_not(None),
+            func.trim(models.Employee.seller_code) == reg,
+        )
+    ).first()
+    if sc:
+        return sc
+    if reg.isdigit():
+        compact = str(int(reg, 10))
+        if compact != reg:
+            sc = session.exec(
+                select(models.Employee).where(
+                    models.Employee.seller_code.is_not(None),
+                    func.trim(models.Employee.seller_code) == compact,
+                )
+            ).first()
+            if sc:
+                return sc
+    return None
+
+
 @app.get("/mobile/login", response_class=HTMLResponse)
 async def mobile_login_page(request: Request, error: Optional[str] = None):
     user = get_current_user(request)
@@ -4520,15 +4573,7 @@ async def mobile_auth(
     if not reg:
         return RedirectResponse(url="/mobile/login?error=missing_registration", status_code=303)
 
-    employee = session.exec(
-        select(models.Employee).where(models.Employee.registration_id == reg)
-    ).first()
-    if not employee:
-        employee = session.exec(
-            select(models.Employee).where(
-                func.lower(func.trim(models.Employee.registration_id)) == reg.lower()
-            )
-        ).first()
+    employee = _employee_by_matricula(session, reg)
     if not employee:
         return RedirectResponse(url="/mobile/login?error=invalid_registration", status_code=303)
 
