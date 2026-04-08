@@ -68,12 +68,7 @@
 
 <body class="antialiased min-h-screen flex flex-col theme-tech-steel" style="background-color: var(--color-bg); color: var(--color-text-body); font-family: var(--font-sans);">
     <div class="flex flex-col min-h-screen flex-1">
-        <!-- Header (não exibir no login) -->
-        {% if not hide_header %}
-        {% include 'mobile/_app_header.html' %}
-        {% endif %}
-
-        <!-- Main Content (z-0 para ficar atrás do menu overlay) -->
+        <!-- Cada tela mobile define seu próprio topo (dashboard, entregas, etc.). Sem menu flutuante global. -->
         <main class="flex-1 pb-safe relative z-0">
             {% block content %}{% endblock %}
         </main>
