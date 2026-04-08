@@ -33,17 +33,17 @@
 
 {% block content %}
 <div class="min-h-screen pb-safe">
-    <header class="py-4" style="background: var(--gradient-header);">
+    <header class="py-3 mobile-header-op pt-safe">
         <div class="container-mobile">
             <div class="flex items-center justify-between gap-3">
-                <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.18); color: white;">
+                <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive">
                     <i data-lucide="arrow-left" class="w-5 h-5"></i>
                 </a>
                 <div class="text-center flex-1 min-w-0">
-                    <h1 class="text-title-lg text-white font-bold">Portaria</h1>
-                    <p class="text-caption text-blue-200">Conferir saída e chegada das rotas</p>
+                    <h1 class="text-body-lg font-semibold truncate" style="color: var(--color-text);">Portaria</h1>
+                    <p class="text-caption truncate" style="color: var(--color-text-muted);">Saída e chegada das rotas</p>
                 </div>
-                <a href="/mobile/portaria/historico" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" style="background: rgba(255,255,255,0.18); color: white;" title="Ver histórico">
+                <a href="/mobile/portaria/historico" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" title="Histórico">
                     <i data-lucide="history" class="w-5 h-5"></i>
                 </a>
             </div>

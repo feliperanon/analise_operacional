@@ -655,16 +655,18 @@ def _load_financial_devolucao_rows(
     driver_id: Optional[int],
     plate: str,
     status: str,
-) -> list[dict]:
+) -> tuple[list[dict], set[int]]:
     """Base financeira do BI.
 
     Regra de fechamento:
     - até a última data coberta pelo Excel no recorte, Excel é a fonte oficial;
     - depois disso, usa a base consolidada do sistema sem duplicatas.
+
+    Retorna também os route_id já cobertos por linhas Devolucao em ``selected`` (evita duplicar valor com a rota).
     """
     st = (status or "Todos").strip().lower()
     if st not in ("todos", "devolucao"):
-        return []
+        return [], set()
 
     pl = (plate or "Todos").strip().upper()
     q = (
@@ -676,7 +678,7 @@ def _load_financial_devolucao_rows(
         q = q.where(models.Devolucao.motorista_id == driver_id)
     devolucoes = session.exec(q.order_by(models.Devolucao.data_romaneio, models.Devolucao.created_at)).all()
     if not devolucoes:
-        return []
+        return [], set()
 
     route_ids = sorted({int(d.route_id) for d in devolucoes if d.route_id is not None})
     route_map = {
@@ -698,7 +700,7 @@ def _load_financial_devolucao_rows(
                 continue
         filtered.append(d)
     if not filtered:
-        return []
+        return [], set()
 
     def _effective_date(dev: models.Devolucao) -> str:
         return str(dev.data_entrega or dev.data_romaneio or "").strip()
@@ -720,7 +722,7 @@ def _load_financial_devolucao_rows(
     else:
         selected = [d for d in filtered if d.duplicate_of_id is None]
     if not selected:
-        return []
+        return [], set()
 
     emp_ids = sorted({int(d.motorista_id) for d in selected if d.motorista_id})
     cli_ids = sorted({int(d.client_id) for d in selected if d.client_id})
@@ -795,7 +797,70 @@ def _load_financial_devolucao_rows(
                 "acima_300": "SIM" if (str(d.acima_300 or "").upper() == "SIM" or val >= 300) else "NAO",
             }
         )
-    return rows
+    covered_route_ids = {int(d.route_id) for d in selected if d.route_id is not None}
+    return rows, covered_route_ids
+
+
+def _financial_gap_rows_from_routes(
+    routes: list,
+    covered_route_ids: set[int],
+    emp_map: dict,
+    cli_map: dict,
+) -> list[dict]:
+    """Rotas com devolução operacional sem registro Devolucao na consolidação financeira (completa valor e gráficos)."""
+    gap: list[dict] = []
+    for r in routes:
+        status_raw = (r.delivery_status or "pendente").strip().lower()
+        if status_raw == "devolucao" and (r.delivery_return_reason or "").strip().upper() == "ENCERRAMENTO TARDIO AUTOMATICO":
+            status_raw = "entregue"
+        if status_raw != "devolucao":
+            continue
+        rid = int(r.id) if r.id is not None else None
+        if rid is not None and rid in covered_route_ids:
+            continue
+        emp = emp_map.get(r.employee_id)
+        cli = cli_map.get(r.client_id)
+        driver_name = emp.name if emp else f"Motorista #{r.employee_id}"
+        client_name = cli.name if cli else f"Cliente #{r.client_id}"
+        planned_v = float(r.valor_financeiro or 0.0)
+        ret_v = float(r.valor_devolucao if r.valor_devolucao is not None else (planned_v if status_raw == "devolucao" else 0.0))
+        val = round(ret_v, 2)
+        motivo = (r.delivery_return_reason or "Nao informado").strip() or "Nao informado"
+        resp = (r.delivery_return_category or "Nao informado").strip() or "Nao informado"
+        client_window = ""
+        if cli and getattr(cli, "janela_horario_inicio", None) and getattr(cli, "janela_horario_fim", None):
+            client_window = f"{cli.janela_horario_inicio} - {cli.janela_horario_fim}"
+        gap.append(
+            {
+                "devolucao_id": None,
+                "route_id": r.id,
+                "date": r.date,
+                "delivery_date": r.date,
+                "driver_id": r.employee_id,
+                "driver_name": driver_name,
+                "client_id": r.client_id,
+                "client_name": client_name,
+                "client_city": (getattr(cli, "municipio", None) or "").strip() if cli else "",
+                "client_bairro": (getattr(cli, "bairro", None) or "").strip() if cli else "",
+                "client_segmento": (getattr(cli, "segmento", None) or "").strip() if cli else "",
+                "client_prioridade": (getattr(cli, "prioridade_logistica", None) or "").strip() if cli else "",
+                "client_status_operacional": (getattr(cli, "status_operacional", None) or "").strip() if cli else "",
+                "client_status_cadastro": (getattr(cli, "status_cliente", None) or "").strip() if cli else "",
+                "client_address": (cli.get_full_address() or cli.endereco or "").strip() if cli else "",
+                "client_window": client_window,
+                "shift": (r.shift or "-").strip() if r.shift else "-",
+                "plate": ((r.delivery_vehicle_plate or "-").strip().upper() if r.delivery_vehicle_plate else "-"),
+                "value": val,
+                "returned_value": val,
+                "motivo": motivo,
+                "responsabilidade": resp,
+                "cluster": "Sem Cluster",
+                "source": "ROTA",
+                "standalone": False,
+                "acima_300": "SIM" if val >= 300 else "NAO",
+            }
+        )
+    return gap
 
 
 def _build_bi_delivery_dataset(
@@ -1054,7 +1119,7 @@ def _build_bi_delivery_dataset(
         if not is_possible_dup:
             ex_rows.append({"score": 55, "date": d.data_romaneio, "shift": "-", "driver_name": driver, "driver_id": d.motorista_id, "client_name": client, "status": "devolucao", "planned_kg": 0.0, "planned_value": 0.0, "returned_kg": 0.0, "returned_value": round(ret_v, 2), "reopen_count": 0, "duration_m": None, "source": "MANUAL"})
 
-    financial_rows = _load_financial_devolucao_rows(
+    financial_rows, covered_financial_route_ids = _load_financial_devolucao_rows(
         session=session,
         date_i=date_i,
         date_f=date_f,
@@ -1063,6 +1128,7 @@ def _build_bi_delivery_dataset(
         plate=plate,
         status=status,
     )
+    gap_financial_rows: list[dict] = []
     if financial_rows:
         returned_value = 0.0
         returned_value_manual = 0.0
@@ -1075,7 +1141,8 @@ def _build_bi_delivery_dataset(
         driver_return_value: dict[str, float] = {}
         driver_standalone_value: dict[str, float] = {}
 
-        for row in financial_rows:
+        def _accumulate_financial_row(row: dict) -> None:
+            nonlocal returned_value, returned_value_manual
             date_key = str(row.get("date") or "")
             driver_name = str(row.get("driver_name") or "-").strip() or "-"
             client_name = str(row.get("client_name") or "Sem cliente").strip() or "Sem cliente"
@@ -1103,6 +1170,15 @@ def _build_bi_delivery_dataset(
             cr["qtd"] += 1
             cr["valor"] = round(cr["valor"] + val, 2)
 
+        for row in financial_rows:
+            _accumulate_financial_row(row)
+
+        gap_financial_rows = _financial_gap_rows_from_routes(
+            routes, covered_financial_route_ids, emp_map, cli_map
+        )
+        for row in gap_financial_rows:
+            _accumulate_financial_row(row)
+
         for driver_name, driver_data in per_driver.items():
             driver_data["returned_value"] = round(driver_return_value.get(driver_name, 0.0), 2)
             driver_data["manual_returned_value"] = round(driver_standalone_value.get(driver_name, 0.0), 2)
@@ -1124,6 +1200,8 @@ def _build_bi_delivery_dataset(
                 },
             )
             per_day[date_key]["returned_value"] = round(val, 2)
+
+    financial_rows_all = (financial_rows + gap_financial_rows) if financial_rows else []
 
     avg_duration = statistics.mean(dur_list) if dur_list else 0.0
     global_return_rate = (returned_stops / max(1, planned_stops) * 100.0) if (planned_stops or manual) else 0.0
@@ -1252,7 +1330,7 @@ def _build_bi_delivery_dataset(
     motivos_rows = sorted([{"motivo": v["motivo"], "qtd": int(v["qtd"]), "valor": round(v["valor"], 2), "pct": round(v["qtd"] / total_mot * 100.0, 2)} for v in motivo_agg_ok.values()], key=lambda x: (x["qtd"], x["valor"]), reverse=True)
 
     # Motivo x Motorista x Qtd x Valor x % valor real (para gráfico detalhado)
-    financial_detail_rows = financial_rows if financial_rows else [
+    financial_detail_rows = financial_rows_all if financial_rows_all else [
         {
             "date": r.get("date"),
             "driver_name": r.get("driver_name"),
@@ -1417,7 +1495,7 @@ def _build_bi_delivery_dataset(
         q_prev = q_prev.where(models.Route.delivery_vehicle_plate == pl)
     prev_routes = session.exec(q_prev).all()
     prev_month_planned_val = round(sum(float(r.valor_financeiro or 0.0) for r in prev_routes), 2)
-    prev_financial_rows = _load_financial_devolucao_rows(
+    prev_financial_rows, prev_covered_route_ids = _load_financial_devolucao_rows(
         session=session,
         date_i=prev_first,
         date_f=prev_last,
@@ -1426,15 +1504,42 @@ def _build_bi_delivery_dataset(
         plate=plate,
         status=status,
     )
-    prev_month_qtd = len(prev_financial_rows)
-    prev_month_valor = round(sum(float(r.get("value") or r.get("returned_value") or 0.0) for r in prev_financial_rows), 2)
-    prev_month_manual_valor = round(sum(float(r.get("value") or r.get("returned_value") or 0.0) for r in prev_financial_rows if r.get("standalone")), 2)
+    prev_emp_ids = sorted({r.employee_id for r in prev_routes if r.employee_id})
+    prev_cli_ids = sorted({r.client_id for r in prev_routes if r.client_id})
+    prev_emp_map = {
+        e.id: e
+        for e in (
+            session.exec(select(models.Employee).where(models.Employee.id.in_(prev_emp_ids))).all()
+            if prev_emp_ids
+            else []
+        )
+    }
+    prev_cli_map = {
+        c.id: c
+        for c in (
+            session.exec(select(models.Client).where(models.Client.id.in_(prev_cli_ids))).all()
+            if prev_cli_ids
+            else []
+        )
+    }
+    prev_gap_rows = _financial_gap_rows_from_routes(
+        prev_routes, prev_covered_route_ids, prev_emp_map, prev_cli_map
+    )
+    prev_financial_rows_all = prev_financial_rows + prev_gap_rows
+    prev_month_qtd = len(prev_financial_rows_all)
+    prev_month_valor = round(
+        sum(float(r.get("value") or r.get("returned_value") or 0.0) for r in prev_financial_rows_all), 2
+    )
+    prev_month_manual_valor = round(
+        sum(float(r.get("value") or r.get("returned_value") or 0.0) for r in prev_financial_rows_all if r.get("standalone")),
+        2,
+    )
     prev_month_base = prev_month_planned_val + prev_month_manual_valor
     if prev_month_base <= 0:
         prev_month_base = prev_month_valor
     prev_month_pct = round(_pct(prev_month_valor, prev_month_base), 2)
     prev_ret_value_day: dict[str, float] = {}
-    for row in prev_financial_rows:
+    for row in prev_financial_rows_all:
         prev_key = str(row.get("date") or "")
         prev_ret_value_day[prev_key] = round(
             prev_ret_value_day.get(prev_key, 0.0) + float(row.get("value") or row.get("returned_value") or 0.0),
@@ -1447,10 +1552,10 @@ def _build_bi_delivery_dataset(
 
     devolucoes_acima_300_count = len(
         [
-            r for r in (financial_rows or [])
+            r for r in (financial_rows_all or [])
             if str(r.get("acima_300") or "").upper() == "SIM"
         ]
-    ) if financial_rows else len([r for r in route_rows if r.get("acima_300") == "SIM"])
+    ) if financial_rows_all else len([r for r in route_rows if r.get("acima_300") == "SIM"])
 
     kpis = {
         "planned_stops": planned_stops,
@@ -1478,7 +1583,7 @@ def _build_bi_delivery_dataset(
         "total_devolucoes": returned_stops,
         "valor_total_devolvido": round(returned_value, 2),
         "devolucoes_acima_300_count": devolucoes_acima_300_count,
-        "devolucoes_acima_300_pct": round((devolucoes_acima_300_count / max(1, len(financial_rows) or returned_stops)) * 100.0, 2) if (financial_rows or returned_stops) else 0.0,
+        "devolucoes_acima_300_pct": round((devolucoes_acima_300_count / max(1, len(financial_rows_all) or returned_stops)) * 100.0, 2) if (financial_rows_all or returned_stops) else 0.0,
         "risk_label": risk_label,
         "risk_severity": risk_severity,
         "meta_devolucao_pct": 2.0,
@@ -1536,7 +1641,7 @@ def _build_bi_delivery_dataset(
         "detail_total": len(detail_rows),
         "filters_query": filters_query,
         "all_route_rows": route_rows,
-        "all_financial_rows": financial_rows,
+        "all_financial_rows": financial_rows_all,
         "motivos_rows": motivos_rows[:12],
         "responsabilidade_rows": resp_rows,
         "cluster_rows": cluster_rows,

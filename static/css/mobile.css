@@ -35,6 +35,13 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     100% { background-position: -200% 0; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .skeleton {
+        animation: none;
+        background: var(--color-border);
+    }
+}
+
 .skeleton-card {
     height: 96px;
     border-radius: var(--radius-lg);

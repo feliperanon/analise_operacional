@@ -3,14 +3,14 @@
 {% block title %}Devolução - Avaliação{% endblock %}
 
 {% block content %}
-<header class="container-mobile py-3 border-b shrink-0" style="border-color: var(--color-border); background: var(--color-surface);">
+<header class="container-mobile py-3 border-b shrink-0 mobile-header-op">
     <div class="flex items-center justify-between gap-3">
-        <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: var(--color-surface-solid); color: var(--color-text);">
+        <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive">
             <i data-lucide="arrow-left" class="w-5 h-5"></i>
         </a>
         <div class="flex-1 min-w-0">
-            <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-primary);">Devolução</span>
-            <h1 class="text-section truncate" style="color: var(--color-text);">Dashboard de Avaliação</h1>
+            <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-text-muted);">Devoluções</span>
+            <h1 class="text-body-lg font-semibold truncate" style="color: var(--color-text);">Resumo e prêmio</h1>
         </div>
     </div>
 </header>
@@ -30,7 +30,7 @@
         </button>
         <div class="grid grid-cols-3 gap-2 mb-4">
             <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
-                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">Total (R$)</p>
+                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">Total Ajust. (R$)</p>
                 <p id="totalReturnValue" class="text-sm font-bold leading-tight" style="color: var(--color-danger);">R$ 0,00</p>
             </div>
             <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
@@ -45,6 +45,7 @@
         <div class="h-64 w-full" style="color: #ffffff;">
             <canvas id="performanceChart"></canvas>
         </div>
+        <div id="dailySeriesAudit" class="mt-3 space-y-1.5 text-caption max-h-40 overflow-y-auto"></div>
 
         <div id="cargaDescargaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3" style="background: var(--color-surface-solid); border-color: var(--color-border);">
             <div class="flex items-start justify-between gap-3">
@@ -111,7 +112,7 @@
                 <p><strong>2,01% até 2,5%</strong> = R$ 180,00</p>
                 <p><strong>Acima de 2,51%</strong> = R$ 0,00</p>
             </div>
-            <p class="mt-3 text-xs" style="color: var(--color-text-muted);">O percentual é calculado pelo valor devolvido sobre o valor total entregue no período. No mês atual, a conta vai do dia 1 até hoje.</p>
+                <p class="mt-3 text-xs" style="color: var(--color-text-muted);">O percentual ajustado é o mesmo do desktop (Avaliar): devoluções atribuídas ao motorista sobre o total de paradas (entregas + devoluções), por contagem — não é cálculo por valor financeiro. No mês atual, o período vai do dia 1 até hoje.</p>
             <button onclick="closeModal('modalHelpDevolucao')" class="mt-4 w-full py-2 rounded-lg text-body font-medium" style="background: var(--color-primary); color: white;">Entendi</button>
         </div>
     </div>
@@ -184,6 +185,13 @@
         return 0;
     }
 
+    /** Percentual pt-BR alinhado ao desktop: até 2 casas, sem forçar 3,23 → 3,2. */
+    function formatPctBrDesktop(n) {
+        const x = Number(n);
+        if (!Number.isFinite(x)) return '0%';
+        return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(x) + '%';
+    }
+
     function normalizeNumericArray(input, size, fallback = 0) {
         const arr = Array.isArray(input) ? input : [];
         const out = [];
@@ -215,6 +223,7 @@
                         chart_percents: [],
                         chart_adjusted_values: [],
                         chart_adjusted_percents: [],
+                        chart_dates_iso: [],
                         top_clients: [],
                         total_entregas_value: 0,
                         carga_descarga_count: 0,
@@ -227,30 +236,35 @@
                 data.carga_descarga_by_day = data.carga_descarga_by_day ?? [];
                 data.cesta_basica_eligible = data.cesta_basica_eligible ?? false;
                 data.cesta_basica_value = data.cesta_basica_value ?? 0;
-                const totalVal = Number(data.total_value) || 0;
+                // Regra solicitada: card "Total (R$)" exibe o consolidado ajustado do desktop.
+                const totalVal = Number.isFinite(Number(data.total_value_adjusted))
+                    ? Number(data.total_value_adjusted)
+                    : (Number(data.total_value) || 0);
                 const percentVal = Number(data.percent_valor) || 0;
                 const percentValAdjusted = Number.isFinite(Number(data.percent_valor_adjusted))
                     ? Number(data.percent_valor_adjusted)
-                    : percentVal;
-                const premioAdjusted = Number.isFinite(Number(data.premio_devolucao_adjusted))
+                    : 0;
+                const premioAdjusted = ('premio_devolucao_adjusted' in data && Number.isFinite(Number(data.premio_devolucao_adjusted)))
                     ? Number(data.premio_devolucao_adjusted)
                     : premioPorDevolucao(percentValAdjusted);
                 const labels = Array.isArray(data.chart_labels) ? data.chart_labels : [];
-                const values = normalizeNumericArray(data.chart_values, labels.length, 0);
-                const percents = normalizeNumericArray(data.chart_percents, labels.length, 0);
+                const datesIso = Array.isArray(data.chart_dates_iso) ? data.chart_dates_iso : [];
+                const nDays = datesIso.length > 0 ? datesIso.length : labels.length;
+                const axisIso = datesIso.length === nDays ? datesIso : Array.from({ length: nDays }, (_, i) => String(labels[i] || ''));
+                const values = normalizeNumericArray(data.chart_values, nDays, 0);
+                const percents = normalizeNumericArray(data.chart_percents, nDays, 0);
                 const rawAdjustedValues = Array.isArray(data.chart_adjusted_values) ? data.chart_adjusted_values : [];
                 const rawAdjustedPercents = Array.isArray(data.chart_adjusted_percents) ? data.chart_adjusted_percents : [];
-                const adjustedValues = normalizeNumericArray(rawAdjustedValues, labels.length, 0)
-                    .map((v, i) => Number.isFinite(Number(rawAdjustedValues[i])) ? v : values[i]);
-                const adjustedPercents = normalizeNumericArray(rawAdjustedPercents, labels.length, 0)
-                    .map((v, i) => Number.isFinite(Number(rawAdjustedPercents[i])) ? v : percents[i]);
+                // Nunca espelhar a série original no ajustado: ausência/null => 0 (regra do desktop por dia).
+                const adjustedValues = normalizeNumericArray(rawAdjustedValues, nDays, 0);
+                const adjustedPercents = normalizeNumericArray(rawAdjustedPercents, nDays, 0);
                 const totalEntregas = Number(data.total_entregas_value) || 0;
 
                 const totalReturnValueEl = document.getElementById('totalReturnValue');
                 const totalReturnPercentEl = document.getElementById('totalReturnPercent');
                 const premioEl = document.getElementById('premioDevolucao');
                 if (totalReturnValueEl) totalReturnValueEl.textContent = `R$ ${totalVal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                if (totalReturnPercentEl) totalReturnPercentEl.textContent = percentValAdjusted.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
+                if (totalReturnPercentEl) totalReturnPercentEl.textContent = formatPctBrDesktop(percentValAdjusted);
                 if (premioEl) premioEl.textContent = `R$ ${premioAdjusted.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
                 const cargaCount = Number(data.carga_descarga_count) || 0;
@@ -303,7 +317,12 @@
                     return pct > meta ? 'rgba(239, 68, 68, 1)' : 'rgba(16, 185, 129, 1)';
                 });
 
-                const labelsBR = labels.map(l => {
+                const labelsBR = axisIso.map((l, idx) => {
+                    const iso = axisIso[idx];
+                    if (iso && String(iso).length >= 10) {
+                        const p = String(iso).slice(0, 10).split('-');
+                        if (p.length === 3) return `${p[2]}/${p[1]}`;
+                    }
                     if (!l || l.length < 2) return l;
                     const parts = l.split('-');
                     if (parts.length >= 3) return `${parts[2]}/${parts[1]}`;
@@ -328,8 +347,9 @@
                                 borderColor: barBorders,
                                 borderWidth: 1,
                                 borderRadius: 8,
-                                barThickness: 12,
-                                maxBarThickness: 14
+                                categoryPercentage: 0.7,
+                                barPercentage: 0.9,
+                                maxBarThickness: 18
                             },
                             {
                                 label: 'Ajustado',
@@ -338,8 +358,9 @@
                                 borderColor: 'rgba(253, 224, 71, 1)',
                                 borderWidth: 1,
                                 borderRadius: 8,
-                                barThickness: 12,
-                                maxBarThickness: 14
+                                categoryPercentage: 0.7,
+                                barPercentage: 0.9,
+                                maxBarThickness: 18
                             }
                         ]
                     },
@@ -360,7 +381,13 @@
                                 callbacks: {
                                     title: (ctx) => {
                                         if (!ctx || !ctx.length) return '';
-                                        return `Período ${ctx[0].label}`;
+                                        const i = ctx[0].dataIndex;
+                                        const iso = axisIso[i];
+                                        if (iso && String(iso).length >= 10) {
+                                            const p = String(iso).slice(0, 10).split('-');
+                                            if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+                                        }
+                                        return `Dia ${ctx[0].label}`;
                                     },
                                     label: (c) => {
                                         if (c.datasetIndex > 0) return '';
@@ -372,8 +399,8 @@
                                         return [
                                             `Original: R$ ${original.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
                                             `Ajustado: R$ ${ajustado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-                                            `% original: ${pOriginal.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%`,
-                                            `% ajustado: ${pAjustado.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%`
+                                            `% original do dia: ${formatPctBrDesktop(pOriginal)}`,
+                                            `% ajustado do dia: ${formatPctBrDesktop(pAjustado)}`
                                         ];
                                     },
                                     footer: (ctx) => {
@@ -395,6 +422,31 @@
                         }
                     }
                 });
+
+                const dailyAuditEl = document.getElementById('dailySeriesAudit');
+                if (dailyAuditEl) {
+                    const rows = [];
+                    for (let i = 0; i < nDays; i++) {
+                        const iso = axisIso[i] || '';
+                        const original = Number(values[i]) || 0;
+                        const ajustado = Number(adjustedValues[i]) || 0;
+                        if (original === 0 && ajustado === 0) continue;
+                        const p = String(iso).slice(0, 10).split('-');
+                        const dia = p.length === 3 ? `${p[2]}/${p[1]}` : labelsBR[i];
+                        const semAjuste = original > 0 && ajustado === 0;
+                        rows.push(`
+                            <div class="flex items-center justify-between py-1 border-b border-slate-700/40 last:border-0">
+                                <span style="color: var(--color-text-muted);">${dia}</span>
+                                <span style="color: ${semAjuste ? 'var(--color-warning)' : 'var(--color-text-secondary)'};">
+                                    Orig: R$ ${original.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    · Ajust: R$ ${ajustado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    ${semAjuste ? ' · sem ajustado no dia' : ''}
+                                </span>
+                            </div>
+                        `);
+                    }
+                    dailyAuditEl.innerHTML = rows.join('');
+                }
             })
             .catch(err => {
                 console.error('Erro ao carregar devoluções:', err);
@@ -404,7 +456,7 @@
                 const cestaStatus = document.getElementById('cestaBasicaStatus');
                 const cestaValor = document.getElementById('cestaBasicaValor');
                 if (v) v.textContent = 'R$ 0,00';
-                if (p) p.textContent = (0).toLocaleString('pt-BR', {minimumFractionDigits: 1}) + '%';
+                if (p) p.textContent = formatPctBrDesktop(0);
                 if (premio) premio.textContent = 'R$ 0,00';
                 if (cestaStatus) cestaStatus.textContent = '—';
                 if (cestaValor) cestaValor.textContent = 'R$ 0,00';

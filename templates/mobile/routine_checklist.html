@@ -7,7 +7,7 @@
 <div x-data="checklistController()" class="min-h-screen pb-32" style="background: var(--color-bg);">
 
     <!-- Header HUD (minimal) -->
-    <header class="container-mobile py-3 border-b shrink-0" style="border-color: var(--color-border); background: rgba(15,23,42,0.8); backdrop-filter: blur(8px);">
+    <header class="container-mobile py-3 border-b shrink-0 mobile-header-op pt-safe">
         <div class="flex items-center justify-between gap-3">
             <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: rgba(30,41,59,0.8); color: var(--color-text-body);">
                 <i data-lucide="arrow-left" class="w-5 h-5 lucide-thick"></i>
@@ -103,7 +103,7 @@
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
                         <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg"
-                            :style="items['{{ item.key }}'] === true ? 'background: var(--color-success); color: white; box-shadow: var(--color-success-neon);' : (items['{{ item.key }}'] === false ? 'background: var(--color-danger); color: white; box-shadow: var(--color-danger-pulse);' : 'background: var(--color-border); color: var(--color-text-muted);')">
+                            :style="items['{{ item.key }}'] === true ? 'background: var(--color-success); color: white;' : (items['{{ item.key }}'] === false ? 'background: var(--color-danger); color: white;' : 'background: var(--color-border); color: var(--color-text-muted);')">
                             <i :data-lucide="items['{{ item.key }}'] === false ? 'alert-triangle' : 'check'" class="w-5 h-5 lucide-thick"></i>
                         </div>
                         <span class="text-body font-medium" style="color: var(--color-text-body);">{{ item.label }}</span>

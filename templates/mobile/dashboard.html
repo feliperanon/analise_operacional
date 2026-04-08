@@ -58,59 +58,56 @@
     <!-- Main Content -->
     <div x-show="initialized">
         
-        <!-- 1. Identidade + XP (gradiente operacional) -->
-        <section class="py-5 pb-6 dashboard-hero-safe" style="background: var(--gradient-header); box-shadow: var(--shadow-elevated);">
+        <!-- 1. Identidade + XP — barra operacional (sem hero gradiente) -->
+        <section class="py-3 pb-4 dashboard-hero-safe mobile-header-op">
             <div class="container-mobile">
                 <div class="flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
                         <div class="relative flex-shrink-0">
-                            <div class="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-white/30 shadow-lg" style="background: var(--color-primary);">
+                            <div class="w-11 h-11 rounded-lg overflow-hidden border" style="background: var(--color-primary); border-color: var(--color-border);">
                                 <img src="{{ static_path('badges/' + gamification.level.badge_image) }}"
                                     onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
                                     class="w-full h-full object-cover" alt="">
                             </div>
-                            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-semibold text-white border-2 border-white shadow" style="background: var(--color-primary);">{{ gamification.level.level }}</span>
+                            <span class="absolute -bottom-0.5 -right-0.5 min-w-[1rem] h-4 px-0.5 rounded flex items-center justify-center text-[9px] font-semibold text-white border" style="background: var(--color-primary); border-color: var(--color-surface-solid);">{{ gamification.level.level }}</span>
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-2">
-                                <h1 class="text-title truncate text-white">{{ employee.name|emp_name }}</h1>
+                                <h1 class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ employee.name|emp_name }}</h1>
                                 {% if streak_days and streak_days > 0 %}
-                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/90 text-amber-900" title="{{ streak_days }} dias seguidos">
+                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0" style="background: var(--color-warning-bg); color: var(--color-warning);" title="{{ streak_days }} dias seguidos">
                                     <i data-lucide="flame" class="w-3 h-3"></i>{{ streak_days }}
                                 </span>
                                 {% endif %}
                             </div>
-                            <p class="text-caption-lg mt-0.5 text-blue-100">{{ gamification.level.name }}</p>
+                            <p class="text-caption mt-0.5 truncate" style="color: var(--color-text-muted);">{{ gamification.level.name }}</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg text-white" style="background: #3b82f6;">
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" title="Conquistas">
                             <i data-lucide="award" class="w-5 h-5"></i>
                         </a>
-                        <a href="/mobile/logout" class="touch-target-icon flex items-center justify-center rounded-lg text-white" style="background: rgba(239,68,68,0.9);" title="Sair">
+                        <a href="/mobile/logout" class="touch-target-icon flex items-center justify-center rounded-lg interactive" style="background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid rgba(239,68,68,0.25);" title="Sair">
                             <i data-lucide="log-out" class="w-5 h-5"></i>
                         </a>
                     </div>
                 </div>
                 <div class="mt-3">
-                    <div class="flex items-center justify-between text-caption-lg mb-1">
-                        <span class="text-blue-100">XP <strong class="text-white" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong>
-                            <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded-full ml-1 text-white" style="background: #3b82f6;" aria-label="Dicas"><i data-lucide="lightbulb" class="w-3 h-3"></i></button>
+                    <div class="flex items-center justify-between text-caption mb-1" style="color: var(--color-text-secondary);">
+                        <span>XP <strong style="color: var(--color-text);" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong>
+                            <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded ml-0.5 icon-wrap interactive" aria-label="Dicas"><i data-lucide="lightbulb" class="w-3 h-3"></i></button>
                         </span>
                         {% if gamification.next_level %}
-                        <span class="text-blue-200">Próx: {{ gamification.next_level.name }}</span>
+                        <span class="truncate max-w-[50%] text-right">Próx.: {{ gamification.next_level.name }}</span>
                         {% else %}
-                        <span class="font-semibold text-amber-300">Máx.</span>
+                        <span class="font-medium" style="color: var(--color-warning);">Nível máx.</span>
                         {% endif %}
                     </div>
-                    <div class="h-2 w-full rounded-full overflow-hidden relative" style="background-color: #1e3a8a;">
-                        <div class="h-full transition-all duration-700 ease-out rounded-full absolute inset-y-0 left-0" style="background-color: #ffffff;" :style="`width: ${xpProgressPercent}%`"></div>
-                        <div class="xp-shine absolute inset-0 rounded-full overflow-hidden pointer-events-none" x-show="dailyXp > 0">
-                            <div class="absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-blue-100 to-transparent animate-xp-shine"></div>
-                        </div>
+                    <div class="h-1.5 w-full rounded-full overflow-hidden" style="background: var(--color-border);">
+                        <div class="h-full transition-all duration-500 ease-out rounded-full" style="background: var(--color-primary);" :style="`width: ${xpProgressPercent}%`"></div>
                     </div>
-                    <p class="text-caption mt-1 text-center font-semibold text-amber-300" x-show="dailyXp > 0">
-                        +<span x-text="dailyXp"></span> XP hoje! Continue assim!
+                    <p class="text-caption mt-1 text-center font-medium" style="color: var(--color-text-secondary);" x-show="dailyXp > 0">
+                        +<span x-text="dailyXp"></span> XP hoje
                     </p>
                 </div>
             </div>
@@ -236,18 +233,7 @@
     </section>
     {% endif %}
 
-    <!-- 4. Acesso rápido -->
-    <section class="container-mobile mt-4" x-show="initialized">
-        <h2 class="text-section mb-3" style="color: var(--color-text);">Acesso rápido</h2>
-        <div class="grid grid-cols-2 gap-3">
-            <a href="/mobile/achievements" class="interactive block surface p-5 rounded-xl min-h-[100px] flex flex-col items-center justify-center gap-3 text-center transition-all active:scale-[0.98]">
-                <div class="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
-                    <i data-lucide="trophy" class="w-7 h-7"></i>
-                </div>
-                <p class="text-body font-semibold truncate w-full" style="color: var(--color-text);">Conquistas</p>
-            </a>
-        </div>
-    </section>
+    <!-- 4. Bônus / eventos (secundário — sem bloco duplicado de Conquistas no corpo) -->
 
     <!-- 4a. Time Bonuses (Bônus por Horário) -->
     {% if time_bonuses %}
@@ -955,7 +941,7 @@
                 this.haptic('success');
                 this.playSuccessSound();
                 if (typeof confetti === 'function') {
-                    confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 }, colors: ['#1e3a8a', '#3b82f6', '#60a5fa'] });
+                    confetti({ particleCount: 22, spread: 55, origin: { y: 0.65 }, colors: ['#3b82f6', '#64748b'] });
                 }
                 setTimeout(() => popup.classList.add('hidden'), 2000);
             },

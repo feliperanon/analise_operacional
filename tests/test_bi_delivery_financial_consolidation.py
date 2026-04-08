@@ -167,14 +167,14 @@ def test_bi_financial_kpis_use_consolidated_devolucao_rows():
         )
 
     assert delivery_dataset["kpis"]["total_devolucoes"] == 3
-    assert delivery_dataset["kpis"]["valor_total_devolvido"] == 350.0
-    assert delivery_dataset["kpis"]["return_rate_value"] == 17.07
+    assert delivery_dataset["kpis"]["valor_total_devolvido"] == 650.0
+    assert delivery_dataset["kpis"]["return_rate_value"] == 31.71
     assert delivery_dataset["kpis"]["devolucao_mes_anterior_valor"] == 0.0
-    assert delivery_dataset["tactical_rows"][0]["returned_value"] == 350.0
-    assert len(delivery_dataset["all_financial_rows"]) == 2
+    assert delivery_dataset["tactical_rows"][0]["returned_value"] == 650.0
+    assert len(delivery_dataset["all_financial_rows"]) == 3
 
     client_row = clientes_dataset["all_client_rows"][0]
-    assert clientes_dataset["executive_kpis"]["returned_value"] == 350.0
-    assert clientes_dataset["executive_kpis"]["return_pct_value"] == 17.07
-    assert client_row["returned_value"] == 350.0
-    assert client_row["returned_occurrences"] == 2
+    assert clientes_dataset["executive_kpis"]["returned_value"] == 650.0
+    assert clientes_dataset["executive_kpis"]["return_pct_value"] == 31.71
+    assert client_row["returned_value"] == 650.0
+    assert client_row["returned_occurrences"] == 3

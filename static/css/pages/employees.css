@@ -2,11 +2,696 @@
  * Colaboradores (templates/employees.html) — camada contextual sobre system-*.css.
  * Mantém hooks JS: .employee-row, .filter-btn*, .view-toggle-btn, .ops-card--selected, [data-summary-filter].
  * Visão agrupada: IDs `${center.key}-employees` / `-count` e `#grouped-view` vêm do JS; classes employees-grouped-* são só pele.
+ *
+ * Escala tipográfica (miolo claro): --sys-text-* + classes employees-text-*
+ *   página / painel: .employees-table-panel__title, .employees-hero__title
+ *   seção / kicker:  .employees-text-section-label, .employees-table-panel__kicker
+ *   corpo / célula:  .employees-text-body, .employees-data-table__cell
+ *   auxiliar:        .employees-text-muted, .employees-text-caption
+ *   KPI label:       .sys-kpi-label  |  valor: .employees-kpi__value  |  meta: .employees-kpi__meta, .employees-kpi__denom
+ *   tabela thead:    .employees-data-table__head  |  ações: .employees-menu-item__title / __hint
  */
 
-/* ----- Escopo (wrapper da página) ----- */
-.ga-employee-theme.employees-page.employees-shell {
+/* ----- Escopo + tokens (tipografia, superfície, ações) ----- */
+.ga-employee-theme.employees-page {
   --employees-kpi-accent: var(--sys-accent);
+  --emp-radius: var(--sys-radius-lg);
+  --emp-radius-lg: var(--sys-radius-xl);
+  --emp-radius-sm: var(--sys-radius-md);
+  --emp-border: var(--sys-border);
+  --emp-border-strong: var(--sys-border-strong);
+  --emp-surface: var(--sys-surface);
+  --emp-surface-subtle: var(--sys-bg-subtle);
+  --emp-shadow-card: var(--sys-shadow-xs);
+  --emp-shadow-elevated: 0 4px 24px rgb(15 23 42 / 0.07);
+  --emp-shadow-float: 0 12px 48px rgb(15 23 42 / 0.1);
+  --emp-text-strong: var(--sys-text-primary);
+  --emp-text-body: var(--sys-text-body);
+  --emp-text-muted: var(--sys-text-muted);
+  --emp-text-caption: var(--sys-text-muted);
+  --emp-text-faint: var(--sys-text-faint);
+  --emp-action-primary: var(--sys-btn-primary-bg);
+  --emp-action-primary-hover: var(--sys-btn-primary-bg-hover);
+  --emp-action-primary-soft: var(--sys-alert-info-bg);
+  --emp-focus-ring: 0 0 0 3px rgb(59 130 246 / 0.22);
+  --emp-toolbar-h: var(--sys-control-height);
+  --emp-success: var(--sys-ok-fg);
+  --emp-amber: var(--sys-alert-fg);
+  --emp-danger: var(--sys-critical-fg);
+}
+
+.ga-employee-theme.employees-page.employees-page--premium {
+  color: var(--emp-text-body);
+}
+
+/* Tipografia utilitária (hierarquia única no miolo) */
+.ga-employee-theme.employees-page .employees-text-strong {
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-text-body {
+  color: var(--emp-text-body);
+}
+
+.ga-employee-theme.employees-page .employees-text-muted {
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-text-caption {
+  color: var(--emp-text-caption);
+}
+
+.ga-employee-theme.employees-page .employees-text-section-label {
+  color: var(--emp-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ga-employee-theme.employees-page .employees-text-danger {
+  color: var(--emp-danger);
+}
+
+.ga-employee-theme.employees-page .employees-table-panel__title {
+  color: var(--emp-text-strong);
+  font-weight: 700;
+}
+
+/* ----- Hero principal + toolbar executiva ----- */
+.ga-employee-theme.employees-page .employees-hero {
+  border: 1px solid var(--emp-border);
+  box-shadow: var(--emp-shadow-card), var(--emp-shadow-elevated);
+  border-radius: var(--emp-radius-lg);
+  background: linear-gradient(165deg, var(--emp-surface) 0%, var(--emp-surface-subtle) 100%);
+}
+
+.ga-employee-theme.employees-page .employees-hero__glow {
+  opacity: 0.22;
+}
+
+.ga-employee-theme.employees-page .employees-hero__glow--tr {
+  background: rgb(56 189 248 / 0.35);
+}
+
+.ga-employee-theme.employees-page .employees-hero__glow--bl {
+  background: rgb(129 140 248 / 0.28);
+}
+
+.ga-employee-theme.employees-page .employees-hero__icon-ring {
+  background: linear-gradient(145deg, var(--sys-btn-primary-bg) 0%, #4338ca 100%);
+  box-shadow: 0 8px 20px rgb(79 70 229 / 0.28);
+  border-radius: var(--emp-radius-lg);
+}
+
+.ga-employee-theme.employees-page .employees-hero__eyebrow {
+  color: var(--sys-alert-info-fg);
+  border-color: var(--sys-alert-info-border);
+  background: var(--sys-alert-info-bg);
+  letter-spacing: 0.14em;
+}
+
+.ga-employee-theme.employees-page .employees-hero__title {
+  color: var(--emp-text-strong);
+  font-weight: 700;
+  letter-spacing: var(--sys-tracking-tight);
+  line-height: var(--sys-leading-tight);
+}
+
+.ga-employee-theme.employees-page .employees-hero__lead {
+  color: var(--emp-text-body);
+  line-height: var(--sys-leading-normal);
+  font-size: var(--sys-text-base);
+}
+
+.ga-employee-theme.employees-page .employees-hero__chip {
+  border-radius: var(--sys-radius-full);
+  border-width: 1px;
+  border-style: solid;
+  font-size: var(--sys-text-xs);
+  font-weight: 600;
+}
+
+.ga-employee-theme.employees-page .employees-hero__chip--success {
+  border-color: var(--sys-ok-border);
+  background: var(--sys-ok-bg);
+  color: var(--sys-ok-fg);
+}
+
+.ga-employee-theme.employees-page .employees-hero__chip--neutral {
+  border-color: var(--emp-border);
+  background: var(--emp-surface);
+  color: var(--emp-text-body);
+}
+
+.ga-employee-theme.employees-page .employees-hero__chip--info {
+  border-color: var(--sys-alert-info-border);
+  background: var(--sys-alert-info-bg);
+  color: var(--sys-alert-info-fg);
+}
+
+.ga-employee-theme.employees-page .employees-hero__toolbar {
+  align-self: stretch;
+}
+
+.ga-employee-theme.employees-page .employees-hero__chevron {
+  color: var(--emp-text-muted);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ga-employee-theme.employees-page .employees-cta--import.is-open .employees-hero__chevron {
+  transform: rotate(180deg);
+  color: var(--emp-text-strong);
+}
+
+/* CTAs: presença alinhada a --sys-control-height */
+.ga-employee-theme.employees-page .employees-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--emp-toolbar-h);
+  padding-left: 1.125rem;
+  padding-right: 1.125rem;
+  font-size: var(--sys-control-font-size);
+  font-weight: 600;
+  border-radius: var(--emp-radius);
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.15s ease;
+}
+
+.ga-employee-theme.employees-page .employees-cta__icon {
+  display: inline-flex;
+  opacity: 0.92;
+}
+
+.ga-employee-theme.employees-page .employees-cta--import.sys-btn--secondary {
+  border-width: 1.5px;
+  border-color: var(--emp-border-strong);
+  background: var(--emp-surface);
+  color: var(--emp-text-strong);
+  box-shadow: var(--sys-shadow-xs);
+}
+
+.ga-employee-theme.employees-page .employees-cta--import.sys-btn--secondary:hover {
+  border-color: var(--emp-text-muted);
+  background: var(--emp-surface-subtle);
+  box-shadow: var(--sys-shadow-sm);
+}
+
+.ga-employee-theme.employees-page .employees-cta--import.sys-btn--secondary.is-open {
+  border-color: rgb(99 102 241 / 0.45);
+  background: var(--sys-alert-info-bg);
+  box-shadow: var(--emp-focus-ring);
+}
+
+.ga-employee-theme.employees-page .employees-cta--primary.sys-btn--primary {
+  min-width: 11rem;
+  box-shadow: 0 1px 2px rgb(49 46 129 / 0.12), 0 6px 20px rgb(79 70 229 / 0.22);
+}
+
+.ga-employee-theme.employees-page .employees-cta--primary.sys-btn--primary:hover {
+  box-shadow: 0 2px 4px rgb(49 46 129 / 0.14), 0 8px 28px rgb(79 70 229 / 0.28);
+  transform: translateY(-1px);
+}
+
+.ga-employee-theme.employees-page .employees-hero__import-menu {
+  overflow: hidden;
+  border: 1px solid var(--emp-border-strong);
+  background: var(--emp-surface);
+  box-shadow: var(--emp-shadow-float);
+  border-radius: var(--emp-radius-lg);
+}
+
+.ga-employee-theme.employees-page .employees-hero__import-menu-title {
+  margin: 0;
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-hero__import-menu-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--emp-border) 12%, var(--emp-border) 88%, transparent);
+}
+
+.ga-employee-theme.employees-page .employees-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.ga-employee-theme.employees-page .employees-menu-item:hover {
+  background: var(--emp-surface-subtle);
+}
+
+.ga-employee-theme.employees-page .employees-menu-item__icon {
+  display: flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sys-radius-md);
+  border: 1px solid transparent;
+}
+
+.ga-employee-theme.employees-page .employees-menu-item__icon--emerald {
+  background: var(--sys-ok-bg);
+  border-color: var(--sys-ok-border);
+  color: var(--sys-ok-fg);
+}
+
+.ga-employee-theme.employees-page .employees-menu-item__icon--amber {
+  background: var(--sys-alert-bg);
+  border-color: var(--sys-alert-border);
+  color: var(--sys-alert-fg);
+}
+
+.ga-employee-theme.employees-page .employees-menu-item__icon--blue {
+  background: var(--sys-alert-info-bg);
+  border-color: var(--sys-alert-info-border);
+  color: var(--sys-alert-info-fg);
+}
+
+.ga-employee-theme.employees-page .employees-menu-item__icon--slate {
+  background: var(--sys-neutral-bg);
+  border-color: var(--sys-neutral-border);
+  color: var(--sys-neutral-fg);
+}
+
+.ga-employee-theme.employees-page .employees-menu-item__text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-top: 0.125rem;
+}
+
+.ga-employee-theme.employees-page .employees-menu-item__title {
+  font-size: var(--sys-text-sm);
+  font-weight: 600;
+  color: var(--emp-text-strong);
+  line-height: var(--sys-leading-snug);
+}
+
+.ga-employee-theme.employees-page .employees-menu-item__hint {
+  font-size: var(--sys-text-xs);
+  color: var(--emp-text-muted);
+  line-height: var(--sys-leading-snug);
+}
+
+/* ----- Barra de filtros (faixa operacional) ----- */
+.ga-employee-theme.employees-page .employees-filter-bar-card {
+  border: 1px solid var(--emp-border);
+  box-shadow: var(--emp-shadow-card);
+  border-radius: var(--emp-radius-lg);
+  background: var(--emp-surface);
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar__label {
+  flex-shrink: 0;
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-filter-counter {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--emp-toolbar-h);
+  padding: 0 0.85rem;
+  border: 1px solid var(--emp-border);
+  border-radius: var(--sys-radius-full);
+  background: var(--emp-surface-subtle);
+  font-size: var(--sys-text-xs);
+  font-weight: 600;
+  color: var(--emp-text-caption);
+  white-space: nowrap;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar__link-sub {
+  display: inline-flex;
+  min-height: var(--emp-toolbar-h);
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: var(--emp-radius);
+  border: 1px solid rgb(216 180 254);
+  background: rgb(250 245 255);
+  padding: 0 0.85rem;
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  color: rgb(88 28 135);
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar__link-sub:hover {
+  background: rgb(243 232 255);
+  border-color: rgb(192 132 252);
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-trigger__caret {
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-trigger::marker {
+  content: "";
+}
+
+.ga-employee-theme.employees-page .employees-role-details[open] .employees-role-filter-trigger {
+  border-color: rgb(99 102 241 / 0.4);
+  background: var(--sys-alert-info-bg);
+  box-shadow: var(--emp-focus-ring);
+}
+
+/* Dropdown de funções */
+.ga-employee-theme.employees-page #roleFilterMenu .employees-role-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--emp-border-strong) !important;
+  background: var(--emp-surface) !important;
+  box-shadow: var(--emp-shadow-float) !important;
+  border-radius: var(--emp-radius-lg) !important;
+}
+
+.ga-employee-theme.employees-page .employees-role-dropdown__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem 0.65rem;
+  border-bottom: 1px solid var(--emp-border);
+  background: linear-gradient(180deg, var(--emp-surface-subtle) 0%, var(--emp-surface) 100%);
+}
+
+.ga-employee-theme.employees-page .employees-role-dropdown__head-title {
+  margin: 0;
+  font-size: var(--sys-text-sm);
+  font-weight: 700;
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-role-dropdown__head-sub {
+  margin: 0.2rem 0 0;
+  font-size: var(--sys-text-xs);
+  color: var(--emp-text-muted);
+  line-height: var(--sys-leading-snug);
+  max-width: 14rem;
+}
+
+.ga-employee-theme.employees-page .employees-role-dropdown__clear {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+  border: 0;
+  border-radius: var(--sys-radius-sm);
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  color: var(--sys-btn-primary-bg);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ga-employee-theme.employees-page .employees-role-dropdown__clear:hover {
+  background: var(--sys-alert-info-bg);
+  color: var(--emp-action-primary-hover);
+}
+
+.ga-employee-theme.employees-page .employees-role-dropdown__search-wrap {
+  position: relative;
+  padding: 0.65rem 0.75rem 0.5rem;
+}
+
+.ga-employee-theme.employees-page .employees-role-dropdown__search-icon {
+  position: absolute;
+  left: 1.25rem;
+  top: 50%;
+  height: 0.875rem;
+  width: 0.875rem;
+  translate: 0 -50%;
+  color: var(--emp-text-muted);
+  pointer-events: none;
+}
+
+.ga-employee-theme.employees-page #roleFilterSearch.employees-role-dropdown__search,
+.ga-employee-theme.employees-page #roleFilterSearch {
+  height: var(--sys-control-height-sm);
+  border: 1px solid var(--emp-border-strong) !important;
+  border-radius: var(--emp-radius) !important;
+  background: var(--emp-surface-subtle) !important;
+  color: var(--emp-text-strong) !important;
+  font-size: var(--sys-text-sm) !important;
+}
+
+.ga-employee-theme.employees-page #roleFilterSearch:focus {
+  outline: none;
+  border-color: var(--sys-btn-primary-bg) !important;
+  box-shadow: var(--emp-focus-ring) !important;
+  background: var(--emp-surface) !important;
+}
+
+.ga-employee-theme.employees-page .employees-role-dropdown__options {
+  max-height: 13.5rem;
+  overflow-y: auto;
+  padding: 0.35rem 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-row {
+  border-radius: var(--emp-radius-sm);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-row--opt {
+  border: 1px solid transparent;
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-row:hover {
+  background: var(--emp-surface-subtle);
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-row:has(.employees-role-filter-checkbox:checked) {
+  background: var(--sys-alert-info-bg);
+  border-color: rgb(191 219 254 / 0.8);
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-checkbox {
+  height: 1rem;
+  width: 1rem;
+  border-color: var(--emp-border-strong);
+  background: var(--emp-surface);
+  accent-color: var(--sys-btn-primary-bg);
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-checkbox:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.ga-employee-theme.employees-page .employees-role-filter-label {
+  font-size: var(--sys-text-sm);
+  font-weight: 500;
+  color: var(--emp-text-body);
+  line-height: var(--sys-leading-snug);
+}
+
+/* ----- Painel + tabela de dados ----- */
+.ga-employee-theme.employees-page #employees-table-panel.employees-table-panel {
+  border: 1px solid var(--emp-border);
+  box-shadow: var(--emp-shadow-card), var(--emp-shadow-elevated);
+  border-radius: var(--emp-radius-lg);
+  background: var(--emp-surface);
+}
+
+.ga-employee-theme.employees-page .employees-table-panel__head {
+  border-color: var(--emp-border) !important;
+  background: linear-gradient(180deg, var(--emp-surface-subtle) 0%, var(--emp-surface) 55%);
+}
+
+.ga-employee-theme.employees-page .employees-table-panel__kicker {
+  margin: 0;
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-table-panel__lede {
+  color: var(--emp-text-body);
+  line-height: var(--sys-leading-normal);
+}
+
+.ga-employee-theme.employees-page .employees-table-panel__aside {
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-data-table {
+  color: var(--emp-text-body);
+  font-size: var(--sys-text-sm);
+}
+
+.ga-employee-theme.employees-page .employees-data-table__head {
+  background: var(--emp-surface-subtle);
+  color: var(--emp-text-caption);
+  border-color: var(--emp-border);
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__th {
+  border-bottom: 1px solid var(--emp-border);
+  vertical-align: middle;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__th:hover {
+  background: rgb(241 245 249 / 0.85);
+}
+
+.ga-employee-theme.employees-page .employees-data-table__th--static {
+  cursor: default;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__th--static:hover {
+  background: transparent;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__sort-icon {
+  color: var(--emp-text-faint);
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__th:hover .employees-data-table__sort-icon {
+  color: var(--sys-btn-primary-bg);
+  opacity: 1;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__sort-icon--active {
+  color: var(--sys-btn-primary-bg);
+  opacity: 1;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__body {
+  border-color: var(--emp-border);
+}
+
+.ga-employee-theme.employees-page .employees-data-table__row {
+  border-color: transparent;
+  box-shadow: inset 0 -1px 0 var(--emp-border);
+  transition: background 0.14s ease, box-shadow 0.14s ease;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__row:hover {
+  background: linear-gradient(90deg, rgb(248 250 252 / 0.95) 0%, rgb(239 246 255 / 0.35) 100%);
+  box-shadow: inset 0 -1px 0 rgb(191 219 254 / 0.5);
+}
+
+.ga-employee-theme.employees-page .employees-data-table__avatar {
+  border: 1px solid var(--emp-border);
+  background: linear-gradient(145deg, rgb(241 245 249), rgb(226 232 240));
+  color: var(--emp-text-caption);
+  font-size: var(--sys-text-xs);
+}
+
+.ga-employee-theme.employees-page .employees-data-table__name-link {
+  color: var(--emp-text-strong);
+  font-weight: 600;
+  font-size: var(--sys-text-sm);
+  text-decoration: none;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__name-link:hover {
+  color: var(--sys-btn-primary-bg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ga-employee-theme.employees-page .employees-data-table__cell {
+  font-size: var(--sys-text-sm);
+}
+
+.ga-employee-theme.employees-page .employees-data-table__cell--muted {
+  color: var(--emp-text-muted);
+  font-size: var(--sys-text-sm);
+}
+
+/* Pills (empresa / status) — saturação contida */
+.ga-employee-theme.employees-page .employees-pill {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  border-radius: var(--sys-radius-sm);
+  border: 1px solid var(--emp-border);
+  padding: 0.2rem 0.5rem;
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.ga-employee-theme.employees-page .employees-pill--cyan {
+  border-color: rgb(165 243 252 / 0.9);
+  background: rgb(236 254 255 / 0.85);
+  color: rgb(14 116 144);
+}
+
+.ga-employee-theme.employees-page .employees-pill--emerald {
+  border-color: var(--sys-ok-border);
+  background: var(--sys-ok-bg);
+  color: var(--sys-ok-fg);
+}
+
+.ga-employee-theme.employees-page .employees-pill--neutral {
+  border-color: var(--sys-neutral-border);
+  background: var(--sys-neutral-bg);
+  color: var(--sys-neutral-fg);
+}
+
+.ga-employee-theme.employees-page .employees-pill--status {
+  border-radius: var(--sys-radius-full);
+  font-weight: 600;
+}
+
+.ga-employee-theme.employees-page .employees-pill--vacation {
+  border-color: var(--sys-alert-info-border);
+  background: var(--sys-alert-info-bg);
+  color: var(--sys-alert-info-fg);
+}
+
+.ga-employee-theme.employees-page .employees-pill--pending {
+  border-color: var(--sys-alert-border);
+  background: var(--sys-alert-bg);
+  color: var(--sys-alert-fg);
 }
 
 /* ----- KPIs: sys-kpi-card + employees-kpi ----- */
@@ -14,8 +699,8 @@
   position: relative;
   align-items: stretch;
   justify-content: flex-start;
-  min-height: 5.15rem;
-  padding: 0.8rem 0.9rem;
+  min-height: 6.75rem;
+  padding: 0.85rem 1rem;
   overflow: hidden;
   text-align: left;
   border: 1px solid var(--sys-border);
@@ -69,14 +754,30 @@
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgb(100 116 139);
 }
 
 .ga-employee-theme.employees-page .employees-kpi__value {
   font-size: 1.55rem;
   line-height: 1;
   font-weight: 700;
-  color: rgb(15 23 42);
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-kpi__value--state.employees-kpi__value--blue {
+  color: rgb(37 99 235);
+}
+
+.ga-employee-theme.employees-page .employees-kpi__value--state.employees-kpi__value--amber {
+  color: var(--emp-amber);
+}
+
+.ga-employee-theme.employees-page .employees-kpi__value--state.employees-kpi__value--red {
+  color: var(--emp-danger);
+}
+
+.ga-employee-theme.employees-page .employees-kpi__denom {
+  color: var(--emp-text-muted);
+  font-weight: 600;
 }
 
 .ga-employee-theme.employees-page .employees-kpi__meta {
@@ -87,31 +788,33 @@
   align-items: center;
   gap: 0.45rem;
   font-size: 0.68rem;
-  color: rgb(100 116 139);
+  color: var(--emp-text-muted);
 }
 
 /* ----- Busca e controles da toolbar ----- */
 .ga-employee-theme.employees-page .ops-toolbar-control {
-  height: 2.25rem;
+  height: var(--emp-toolbar-h);
+  min-height: var(--emp-toolbar-h);
   min-width: 0;
-  border-radius: 0.75rem;
-  border: 1px solid rgb(203 213 225);
-  background: rgb(248 250 252);
-  color: rgb(51 65 85);
-  font-size: 0.8125rem;
-  transition: all 0.18s ease;
+  border-radius: var(--emp-radius);
+  border: 1px solid var(--emp-border-strong);
+  background: var(--emp-surface);
+  color: var(--emp-text-body);
+  font-size: var(--sys-control-font-size);
+  font-weight: 500;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-control:hover {
-  border-color: rgb(148 163 184);
-  background: #ffffff;
-  color: rgb(15 23 42);
+  border-color: var(--emp-text-muted);
+  background: var(--emp-surface-subtle);
+  color: var(--emp-text-strong);
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-control:focus {
   outline: none;
-  border-color: rgb(59 130 246);
-  box-shadow: 0 0 0 1px rgb(59 130 246 / 0.2);
+  border-color: var(--sys-btn-primary-bg);
+  box-shadow: var(--emp-focus-ring);
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-search {
@@ -120,23 +823,24 @@
   max-width: 280px;
   align-items: center;
   gap: 0.5rem;
-  height: 2.25rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgb(203 213 225);
-  background: rgb(248 250 252);
-  padding: 0 0.75rem;
-  transition: all 0.18s ease;
+  height: var(--emp-toolbar-h);
+  min-height: var(--emp-toolbar-h);
+  border-radius: var(--emp-radius);
+  border: 1px solid var(--emp-border-strong);
+  background: var(--emp-surface);
+  padding: 0 0.85rem;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-search:hover {
-  border-color: rgb(148 163 184);
-  background: #ffffff;
+  border-color: var(--emp-text-muted);
+  background: var(--emp-surface-subtle);
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-search:focus-within {
-  border-color: rgb(59 130 246);
-  box-shadow: 0 0 0 1px rgb(59 130 246 / 0.2);
-  background: #ffffff;
+  border-color: var(--sys-btn-primary-bg);
+  box-shadow: var(--emp-focus-ring);
+  background: var(--emp-surface);
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-search__input {
@@ -146,12 +850,14 @@
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 0.8125rem;
-  color: rgb(15 23 42);
+  font-size: var(--sys-control-font-size);
+  font-weight: 500;
+  color: var(--emp-text-strong);
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-search__input::placeholder {
-  color: rgb(148 163 184);
+  color: var(--emp-text-faint);
+  font-weight: 400;
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-search__input:focus {
@@ -160,40 +866,51 @@
 }
 
 .ga-employee-theme.employees-page .ops-toolbar-search > svg {
-  width: 1rem;
-  height: 1rem;
+  width: 1.05rem;
+  height: 1.05rem;
   flex-shrink: 0;
+  color: var(--emp-text-muted);
 }
 
-.ga-employee-theme.employees-page .view-toggle-btn {
+.ga-employee-theme.employees-page .employees-view-toggle {
   display: inline-flex;
-  height: 2.25rem;
-  min-height: 2.25rem;
+  align-items: stretch;
+  gap: 0;
+  padding: 3px;
+  border-radius: var(--emp-radius);
+  border: 1px solid var(--emp-border-strong);
+  background: var(--emp-surface-subtle);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6);
+}
+
+.ga-employee-theme.employees-page .employees-view-toggle .view-toggle-btn {
+  display: inline-flex;
+  height: calc(var(--emp-toolbar-h) - 6px);
+  min-height: calc(var(--emp-toolbar-h) - 6px);
   min-width: 0;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgb(203 213 225);
-  background: rgb(248 250 252);
-  padding: 0 0.65rem;
-  font-size: 0.8125rem;
-  color: rgb(100 116 139);
+  border: none;
+  border-radius: calc(var(--emp-radius) - 2px);
+  background: transparent;
+  padding: 0 0.75rem;
+  font-size: var(--sys-text-sm);
+  font-weight: 600;
+  color: var(--emp-text-muted);
   white-space: nowrap;
-  transition: all 0.18s ease;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.ga-employee-theme.employees-page .view-toggle-btn:hover {
-  border-color: rgb(148 163 184);
-  background: #ffffff;
-  color: rgb(15 23 42);
+.ga-employee-theme.employees-page .employees-view-toggle .view-toggle-btn:hover {
+  color: var(--emp-text-strong);
+  background: rgb(255 255 255 / 0.65);
 }
 
-.ga-employee-theme.employees-page .view-toggle-btn.is-active {
-  border-color: rgb(148 163 184);
-  background: rgb(241 245 249);
-  color: rgb(15 23 42);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+.ga-employee-theme.employees-page .employees-view-toggle .view-toggle-btn.is-active {
+  background: var(--emp-surface);
+  color: var(--emp-text-strong);
+  box-shadow: var(--sys-shadow-xs);
 }
 
 .ga-employee-theme.employees-page .filter-btn {
@@ -212,19 +929,27 @@
 
 .ga-employee-theme.employees-page .ops-toolbar-ghost-btn {
   display: inline-flex;
-  height: 2.25rem;
-  min-height: 2.25rem;
+  height: var(--emp-toolbar-h);
+  min-height: var(--emp-toolbar-h);
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgb(203 213 225);
-  background: rgb(248 250 252);
-  padding: 0 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: rgb(51 65 85);
+  border-radius: var(--emp-radius);
+  border: 1px solid var(--emp-border-strong);
+  background: var(--emp-surface);
+  padding: 0 1rem;
+  font-size: var(--sys-text-sm);
+  font-weight: 700;
+  color: var(--emp-text-body);
   white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.ga-employee-theme.employees-page .ops-toolbar-ghost-btn:hover {
+  border-color: var(--emp-text-muted);
+  background: var(--emp-surface-subtle);
+  color: var(--emp-text-strong);
 }
 
 .ga-employee-theme.employees-page .filter-btn[data-filter="vacation"].filter-btn--status-active {
@@ -242,84 +967,99 @@
   background: rgba(153, 27, 27, 0.12);
 }
 
-/* ----- Ações por linha ----- */
+/* ----- Ações por linha (faixa coesa) ----- */
+.ga-employee-theme.employees-page .employees-action-strip {
+  max-width: 22rem;
+}
+
 .ga-employee-theme.employees-page .employee-action-btn {
   display: inline-flex;
-  height: 2.4rem;
-  width: 2.4rem;
+  height: 2.5rem;
+  width: 2.5rem;
   align-items: center;
   justify-content: center;
-  border-radius: 0.9rem;
-  border: 1px solid rgb(203 213 225);
-  background: rgb(248 250 252);
-  transition: all 0.18s ease;
+  border-radius: var(--sys-radius-md);
+  border: 1px solid var(--emp-border);
+  background: var(--emp-surface);
+  color: var(--emp-text-muted);
+  box-shadow: var(--sys-shadow-xs);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
 }
 
 .ga-employee-theme.employees-page .employee-action-btn:hover {
   transform: translateY(-1px);
-  border-color: rgb(148 163 184);
-  background: #ffffff;
+  border-color: var(--emp-border-strong);
+  background: var(--emp-surface-subtle);
+  box-shadow: var(--sys-shadow-sm);
 }
 
 .ga-employee-theme.employees-page .employee-action-btn--edit {
-  color: rgb(202 138 4);
+  color: rgb(161 98 7);
+  border-color: rgb(253 230 138 / 0.85);
+  background: rgb(254 252 232 / 0.65);
+}
+
+.ga-employee-theme.employees-page .employee-action-btn--edit:hover {
+  color: rgb(133 77 14);
+  border-color: rgb(252 211 77);
+  background: rgb(254 249 195 / 0.9);
 }
 
 .ga-employee-theme.employees-page .employee-action-btn--vacation {
-  color: rgb(217 119 6);
+  color: var(--sys-alert-info-fg);
+  border-color: var(--sys-alert-info-border);
+  background: var(--sys-alert-info-bg);
+}
+
+.ga-employee-theme.employees-page .employee-action-btn--vacation:hover {
+  border-color: rgb(147 197 253);
 }
 
 .ga-employee-theme.employees-page .employee-action-btn--return {
-  color: rgb(5 150 105);
+  color: var(--sys-ok-fg);
+  border-color: var(--sys-ok-border);
+  background: var(--sys-ok-bg);
+}
+
+.ga-employee-theme.employees-page .employee-action-btn--return:hover {
+  border-color: rgb(74 222 128);
 }
 
 .ga-employee-theme.employees-page .employee-action-btn--away {
-  color: rgb(234 88 12);
+  color: var(--sys-alert-fg);
+  border-color: var(--sys-alert-border);
+  background: var(--sys-alert-bg);
+}
+
+.ga-employee-theme.employees-page .employee-action-btn--away:hover {
+  border-color: rgb(251 191 36);
 }
 
 .ga-employee-theme.employees-page .employee-action-btn--fire {
-  color: rgb(220 38 38);
+  color: var(--sys-critical-fg);
+  border-color: var(--sys-critical-border);
+  background: var(--sys-critical-bg);
+}
+
+.ga-employee-theme.employees-page .employee-action-btn--fire:hover {
+  border-color: rgb(248 113 113);
 }
 
 .ga-employee-theme.employees-page .employee-action-btn--delete {
-  color: rgb(100 116 139);
+  color: var(--emp-text-muted);
+  border-color: var(--emp-border);
+  background: var(--emp-surface-subtle);
 }
 
 .ga-employee-theme.employees-page .employee-action-btn--delete:hover {
-  color: rgb(220 38 38);
-}
-
-/* ----- Tabela e painel de funções ----- */
-.ga-employee-theme.employees-page #employeesTable thead {
-  background: rgb(249 250 251 / 0.95);
-  color: rgb(71 85 105);
-  border-color: var(--sys-border);
-}
-
-.ga-employee-theme.employees-page #employees-table-panel > .employees-table-panel__head {
-  border-color: var(--sys-border);
-}
-
-.ga-employee-theme.employees-page #employeesTable tbody tr {
-  border-color: rgb(241 245 249);
-}
-
-.ga-employee-theme.employees-page #roleFilterMenu .employees-role-dropdown {
-  border: 1px solid var(--sys-border) !important;
-  background: var(--sys-surface) !important;
-  box-shadow: var(--sys-shadow-card);
-}
-
-.ga-employee-theme.employees-page #roleFilterSearch {
-  border-color: rgb(203 213 225) !important;
-  background: rgb(248 250 252) !important;
-  color: rgb(15 23 42) !important;
-}
-
-.ga-employee-theme.employees-page #visibleEmployeesCounter {
-  border: 1px solid rgb(203 213 225) !important;
-  background: rgb(248 250 252) !important;
-  color: rgb(71 85 105) !important;
+  color: var(--sys-critical-fg);
+  border-color: var(--sys-critical-border);
+  background: var(--sys-critical-bg);
 }
 
 /* ----- Tabela em cards (mobile) ----- */
@@ -437,8 +1177,24 @@ html.dark .ga-employee-theme.employees-page .employees-kpi .sys-kpi-label {
   color: rgb(148 163 184);
 }
 
-html.dark .ga-employee-theme.employees-page .employees-kpi__value {
+html.dark .ga-employee-theme.employees-page .employees-kpi__value:not(.employees-kpi__value--state) {
   color: #f9fafb;
+}
+
+html.dark .ga-employee-theme.employees-page .employees-kpi__value--state.employees-kpi__value--blue {
+  color: rgb(147 197 253);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-kpi__value--state.employees-kpi__value--amber {
+  color: rgb(253 186 116);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-kpi__value--state.employees-kpi__value--red {
+  color: rgb(252 165 165);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-kpi__denom {
+  color: rgb(148 163 184);
 }
 
 html.dark .ga-employee-theme.employees-page .employees-kpi__meta {
@@ -481,34 +1237,273 @@ html.dark .ga-employee-theme.employees-page .view-toggle-btn.is-active {
   color: #fff;
 }
 
+html.dark .ga-employee-theme.employees-page .employees-view-toggle {
+  border-color: rgb(75 85 99);
+  background: rgb(17 24 39);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-view-toggle .view-toggle-btn {
+  border: none;
+  color: rgb(148 163 184);
+  background: transparent;
+}
+
+html.dark .ga-employee-theme.employees-page .employees-view-toggle .view-toggle-btn:hover {
+  color: rgb(248 250 252);
+  background: rgb(55 65 81 / 0.55);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-view-toggle .view-toggle-btn.is-active {
+  background: rgb(55 65 81);
+  color: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+}
+
 html.dark .ga-employee-theme.employees-page .filter-btn.filter-btn--active {
   border-color: rgb(75 85 99);
   background: rgb(55 65 81);
   color: #fff;
 }
 
-html.dark .ga-employee-theme.employees-page .employee-action-btn {
-  border-color: rgb(75 85 99);
-  background: rgb(31 41 55);
-}
-
-html.dark .ga-employee-theme.employees-page .employee-action-btn:hover {
-  border-color: rgb(100 116 139);
-  background: rgb(55 65 81);
-}
-
-html.dark .ga-employee-theme.employees-page #employeesTable thead {
-  background: rgb(17 24 39 / 0.95);
+html.dark .ga-employee-theme.employees-page .employees-data-table__head {
+  background: rgb(17 24 39 / 0.96);
   color: rgb(209 213 219);
   border-color: rgb(55 65 81);
 }
 
-html.dark .ga-employee-theme.employees-page #employees-table-panel > .employees-table-panel__head {
+html.dark .ga-employee-theme.employees-page .employees-data-table__th:hover {
+  background: rgb(55 65 81 / 0.45);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__sort-icon {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__th:hover .employees-data-table__sort-icon {
+  color: rgb(147 197 253);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__sort-icon--active {
+  color: rgb(147 197 253);
+}
+
+html.dark .ga-employee-theme.employees-page #employees-table-panel.employees-table-panel {
+  border-color: rgb(55 65 81);
+  background: rgb(17 24 39);
+}
+
+html.dark .ga-employee-theme.employees-page #employees-table-panel.employees-table-panel > .employees-table-panel__head {
+  border-color: rgb(55 65 81);
+  background: rgb(31 41 55 / 0.6);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table {
+  color: rgb(226 232 240);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__body {
   border-color: rgb(55 65 81);
 }
 
-html.dark .ga-employee-theme.employees-page #employeesTable tbody tr {
+html.dark .ga-employee-theme.employees-page .employees-data-table__row {
+  border-color: transparent;
+  box-shadow: inset 0 -1px 0 rgb(55 65 81);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__row:hover {
+  background: rgb(55 65 81 / 0.4);
+  box-shadow: inset 0 -1px 0 rgb(75 85 99);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__name-link {
+  color: rgb(248 250 252);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__name-link:hover {
+  color: rgb(147 197 253);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__cell--muted {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-text-strong {
+  color: rgb(248 250 252);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-text-body {
+  color: rgb(203 213 225);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-text-muted,
+html.dark .ga-employee-theme.employees-page .employees-text-caption {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-text-danger {
+  color: rgb(252 165 165);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-text-section-label {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-table-panel__title {
+  color: rgb(248 250 252);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-table-panel__kicker {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-table-panel__lede {
+  color: rgb(203 213 225);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-table-panel__aside {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-data-table__avatar {
+  border-color: rgb(75 85 99);
+  background: linear-gradient(145deg, rgb(55 65 81), rgb(31 41 55));
+  color: rgb(203 213 225);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-pill--cyan {
+  border-color: rgb(6 182 212 / 0.35);
+  background: rgb(22 78 99 / 0.45);
+  color: rgb(165 243 252);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-pill--emerald {
+  border-color: rgb(52 211 153 / 0.3);
+  background: rgb(6 78 59 / 0.45);
+  color: rgb(167 243 208);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-pill--neutral {
+  border-color: rgb(75 85 99);
+  background: rgb(31 41 55);
+  color: rgb(203 213 225);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-pill--vacation {
+  border-color: rgb(59 130 246 / 0.35);
+  background: rgb(30 58 138 / 0.4);
+  color: rgb(191 219 254);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-pill--pending {
+  border-color: rgb(251 191 36 / 0.35);
+  background: rgb(120 53 15 / 0.35);
+  color: rgb(253 230 138);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-hero {
+  background: rgb(17 24 39);
   border-color: rgb(55 65 81);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-hero__glow {
+  opacity: 0.2;
+}
+
+html.dark .ga-employee-theme.employees-page .employees-hero__title {
+  color: rgb(248 250 252);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-hero__lead {
+  color: rgb(203 213 225);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-hero__eyebrow {
+  color: rgb(147 197 253);
+  border-color: rgb(59 130 246 / 0.35);
+  background: rgb(30 58 138 / 0.35);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-hero__chip--neutral {
+  border-color: rgb(75 85 99);
+  background: rgb(31 41 55);
+  color: rgb(203 213 225);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-hero__import-menu {
+  border-color: rgb(55 65 81);
+  background: rgb(17 24 39);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-menu-item:hover {
+  background: rgb(55 65 81);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-menu-item__title {
+  color: rgb(248 250 252);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-menu-item__hint {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-hero__import-menu-title {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-cta--import.sys-btn--secondary.is-open {
+  background: rgb(30 58 138 / 0.35);
+  border-color: rgb(99 102 241 / 0.45);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-filter-bar-card {
+  background: rgb(17 24 39);
+  border-color: rgb(55 65 81);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-filter-bar__link-sub {
+  border-color: rgb(126 34 206 / 0.35);
+  background: rgb(88 28 135 / 0.25);
+  color: rgb(233 213 255);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-filter-row:hover {
+  background: rgb(55 65 81 / 0.5);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-filter-label {
+  color: rgb(226 232 240);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-filter-checkbox {
+  border-color: rgb(100 116 139);
+  background: rgb(31 41 55);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-dropdown__head {
+  border-color: rgb(55 65 81);
+  background: linear-gradient(180deg, rgb(31 41 55) 0%, rgb(17 24 39) 100%);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-dropdown__head-title {
+  color: rgb(248 250 252);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-dropdown__head-sub {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-dropdown__clear {
+  color: rgb(147 197 253);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-dropdown__clear:hover {
+  background: rgb(55 65 81);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-role-filter-row:has(.employees-role-filter-checkbox:checked) {
+  background: rgb(30 58 138 / 0.25);
+  border-color: rgb(59 130 246 / 0.35);
 }
 
 html.dark .ga-employee-theme.employees-page #roleFilterMenu .employees-role-dropdown {
@@ -522,7 +1517,7 @@ html.dark .ga-employee-theme.employees-page #roleFilterSearch {
   color: #f9fafb !important;
 }
 
-html.dark .ga-employee-theme.employees-page #visibleEmployeesCounter {
+html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   border-color: rgb(75 85 99) !important;
   background: rgb(31 41 55) !important;
   color: rgb(209 213 219) !important;

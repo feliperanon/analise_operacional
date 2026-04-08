@@ -39,6 +39,11 @@ from devolucoes_routes import init_devolucoes_router
 from documentos_routes import init_documentos_router, ensure_doc_setores_seed
 from escalas_routes import init_escalas_router, mobile_escala_router
 from devolucoes_service import sync_route_to_devolucao
+from devolucoes_consolidado import (
+    returns_mobile_bundle_for_user,
+    top_clients_ajudante,
+    top_clients_motorista,
+)
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
 from routers.admin_geocoding import init_admin_geocoding_router
@@ -4742,24 +4747,23 @@ def _compute_employee_returns_metrics(
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Calcula KPIs de devolucao do colaborador no mesmo criterio do endpoint mobile."""
+    """KPIs mobile alinhados ao resumo consolidado do desktop (/devolucoes/avaliar)."""
     total_value = 0.0
     percent_valor = 0.0
     total_value_adjusted = 0.0
     percent_valor_adjusted = 0.0
     chart_labels: List[str] = []
+    chart_dates_iso: List[str] = []
     chart_values: List[float] = []
     chart_percents: List[float] = []
     chart_adjusted_values: List[float] = []
     chart_adjusted_percents: List[float] = []
     top_clients: List[Dict[str, Any]] = []
     total_entregas_value = 0.0
-    participant_routes: List[Any] = []
-    devolucao_rows: List[Any] = []
-    combined: List[Dict[str, Any]] = []
     since = None
-    route_return_entries_count = 0
-    participant_route_ids: set[int] = set()
+    consolidado_role = ""
+    consolidado_row: Dict[str, Any] = {}
+    returns_bundle: Dict[str, Any] = {}
 
     try:
         if date_from and date_to:
@@ -4772,8 +4776,26 @@ def _compute_employee_returns_metrics(
             since = since_dt.strftime("%Y-%m-%d")
             until = until_dt.strftime("%Y-%m-%d")
 
-        _, emp_by_name = _load_employee_name_maps(session, include_fired=False)
+        consolidado_role, returns_bundle = returns_mobile_bundle_for_user(session, int(user_id), since, until)
+        consolidado_row = returns_bundle["row"]
+        total_value = float(consolidado_row.get("valor_original") or 0.0)
+        total_value_adjusted = float(consolidado_row.get("valor_ajustado") or 0.0)
+        percent_valor = float(consolidado_row.get("pct_original") or 0.0)
+        percent_valor_adjusted = float(consolidado_row.get("pct_ajustado") or 0.0)
 
+        chart_labels = list(returns_bundle.get("chart_labels") or [])
+        chart_dates_iso = list(returns_bundle.get("chart_dates_iso") or [])
+        chart_values = list(returns_bundle.get("chart_values") or [])
+        chart_adjusted_values = list(returns_bundle.get("chart_adjusted_values") or [])
+        chart_percents = list(returns_bundle.get("chart_percents") or [])
+        chart_adjusted_percents = list(returns_bundle.get("chart_adjusted_percents") or [])
+
+        if consolidado_role == "motorista":
+            top_clients = top_clients_motorista(session, int(user_id), since, until)
+        else:
+            top_clients = top_clients_ajudante(session, int(user_id), since, until)
+
+        _, emp_by_name = _load_employee_name_maps(session, include_fired=False)
         sessions_for_period = session.exec(
             select(models.DeliverySession)
             .where(models.DeliverySession.date >= since)
@@ -4784,146 +4806,21 @@ def _compute_employee_returns_metrics(
             session_helpers_by_driver[(delivery_session.employee_id or 0, delivery_session.date)] = _parse_session_helpers(
                 delivery_session.helpers_json
             )
-
         routes_in_period = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
             .where(models.Route.date >= since)
             .where(models.Route.date <= until)
         ).all()
-        total_val_by_date: Dict[str, float] = {}
         for route in routes_in_period:
             helper_ids = _resolve_delivery_route_helper_ids(route, session_helpers_by_driver, emp_by_name)
-            if int(route.employee_id or 0) != int(user_id) and int(user_id) not in helper_ids:
-                continue
-            participant_routes.append(route)
-            if route.id:
-                participant_route_ids.add(int(route.id))
-            metrics = _delivery_route_return_metrics(route)
-            route_date = route.date or ""
-            total_entregas_value += metrics["planned_value"]
-            if route_date:
-                total_val_by_date[route_date] = total_val_by_date.get(route_date, 0.0) + metrics["planned_value"]
-            if not metrics["has_return"]:
-                continue
-            route_return_entries_count += 1
-            combined.append({
-                "date": route_date,
-                "client_id": route.client_id,
-                "value": metrics["returned_value"],
-                "volume": metrics["returned_weight"],
-            })
-
-        devolucao_query = (
-            select(models.Devolucao)
-            .where(
-                or_(
-                    models.Devolucao.motorista_id == user_id,
-                    models.Devolucao.ajudante_id == user_id,
-                )
-            )
-            .where(models.Devolucao.data_romaneio >= since)
-            .where(models.Devolucao.data_romaneio <= until)
-        )
-        if participant_route_ids:
-            devolucao_query = devolucao_query.where(
-                or_(
-                    models.Devolucao.route_id.is_(None),
-                    models.Devolucao.route_id.notin_(participant_route_ids),
-                )
-            )
-        devolucao_rows = session.exec(devolucao_query).all()
-        ajustes_map: Dict[int, Any] = {}
-        devolucao_ids = [int(d.id) for d in devolucao_rows if getattr(d, "id", None)]
-        if devolucao_ids:
-            ajustes_rows = session.exec(
-                select(models.DevolucaoAjusteResponsabilidade).where(
-                    models.DevolucaoAjusteResponsabilidade.devolucao_id.in_(devolucao_ids)
-                )
-            ).all()
-            for ajuste in ajustes_rows:
-                ajustes_map[int(ajuste.devolucao_id)] = ajuste
-
-        for d in devolucao_rows:
-            value = _safe_float(d.valor)
-            if value <= 0:
-                continue
-            ajuste = ajustes_map.get(int(d.id)) if getattr(d, "id", None) else None
-            responsavel_motorista = True
-            responsavel_ajudante = True
-            if ajuste is not None:
-                responsavel_motorista = bool(getattr(ajuste, "responsavel_motorista", True))
-                responsavel_ajudante = bool(getattr(ajuste, "responsavel_ajudante", True))
-            user_as_motorista = int(getattr(d, "motorista_id", 0) or 0) == int(user_id)
-            user_as_ajudante = int(getattr(d, "ajudante_id", 0) or 0) == int(user_id)
-            apply_adjusted = False
-            if user_as_motorista:
-                apply_adjusted = apply_adjusted or responsavel_motorista
-            if user_as_ajudante:
-                apply_adjusted = apply_adjusted or responsavel_ajudante
-            # Fallback seguro: quando não há papel claro na devolução, mantém valor original.
-            if not user_as_motorista and not user_as_ajudante:
-                apply_adjusted = True
-            adjusted_value = value if apply_adjusted else 0.0
-            entry_date = d.data_romaneio or d.data_entrega or ""
-            combined.append({
-                "date": entry_date,
-                "client_id": d.client_id,
-                "value": value,
-                "adjusted_value": adjusted_value,
-                "volume": 0.0,
-            })
-            total_entregas_value += value
-            if entry_date:
-                total_val_by_date[entry_date] = total_val_by_date.get(entry_date, 0.0) + value
-
-        total_value = sum(float(x.get("value") or 0.0) for x in combined)
-        total_value_adjusted = sum(float(x.get("adjusted_value", x.get("value", 0.0)) or 0.0) for x in combined)
-        percent_valor = (total_value / total_entregas_value * 100) if total_entregas_value else 0.0
-        percent_valor_adjusted = (total_value_adjusted / total_entregas_value * 100) if total_entregas_value else 0.0
-
-        by_date: Dict[str, float] = {}
-        by_date_adjusted: Dict[str, float] = {}
-        for item in combined:
-            d = item.get("date") or ""
-            if d not in by_date:
-                by_date[d] = 0.0
-            if d not in by_date_adjusted:
-                by_date_adjusted[d] = 0.0
-            by_date[d] += float(item.get("value") or 0.0)
-            by_date_adjusted[d] += float(item.get("adjusted_value", item.get("value", 0.0)) or 0.0)
-        sorted_dates = sorted(by_date.keys(), reverse=True)[:14]
-        chart_labels = [d[-5:] if len(d) >= 5 else d for d in sorted_dates]
-        chart_values = [by_date[d] for d in sorted_dates]
-        chart_adjusted_values = [by_date_adjusted.get(d, by_date.get(d, 0.0)) for d in sorted_dates]
-        chart_percents = []
-        chart_adjusted_percents = []
-        for d in sorted_dates:
-            tot = total_val_by_date.get(d) or 0
-            dev_original = by_date.get(d) or 0
-            dev_adjusted = by_date_adjusted.get(d, dev_original) or 0
-            pct_original = (dev_original / tot * 100) if tot > 0 else 0.0
-            pct_adjusted = (dev_adjusted / tot * 100) if tot > 0 else 0.0
-            chart_percents.append(round(pct_original, 1))
-            chart_adjusted_percents.append(round(pct_adjusted, 1))
-
-        client_ids = list({x.get("client_id") for x in combined if x.get("client_id")})
-        clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
-        client_map = {c.id: c for c in clients}
-        top_clients_map: Dict[str, Dict[str, Any]] = {}
-        for item in combined:
-            c = client_map.get(item.get("client_id"))
-            name = (c.razao_social or c.name or "Cliente") if c else "Cliente"
-            val = float(item.get("value") or 0.0)
-            vol = float(item.get("volume") or 0.0)
-            existing = top_clients_map.get(name)
-            if existing:
-                existing["value"] = existing.get("value", 0) + val
-                existing["volume"] = existing.get("volume", 0) + vol
-                existing["count"] = existing.get("count", 0) + 1
+            if consolidado_role == "motorista":
+                if int(route.employee_id or 0) != int(user_id):
+                    continue
             else:
-                top_clients_map[name] = {"name": name, "value": val, "volume": vol, "count": 1}
-        top_clients = sorted(top_clients_map.values(), key=lambda x: x.get("value", 0), reverse=True)
+                if int(route.employee_id or 0) != int(user_id) and int(user_id) not in helper_ids:
+                    continue
+            total_entregas_value += float(_delivery_route_return_metrics(route).get("planned_value") or 0.0)
     except Exception as e:
         logger.exception(f"Error computing returns metrics: {e}")
         if since is None:
@@ -4937,13 +4834,64 @@ def _compute_employee_returns_metrics(
     cesta_eligible = _check_cesta_basica_eligible(session, user_id, since, until)
     cesta_value = CESTA_BASICA_PRIZE if cesta_eligible else 0.0
 
-    return {
+    series_checks = returns_bundle.get("_series_checks") if isinstance(returns_bundle, dict) else None
+    chart_adj_sum = sum(float(x or 0) for x in chart_adjusted_values)
+    chart_orig_sum = sum(float(x or 0) for x in chart_values)
+    if isinstance(series_checks, dict):
+        if not series_checks.get("sum_adjusted_matches") or not series_checks.get("sum_original_matches"):
+            logger.error(
+                "returns: fechamento série diária vs consolidado falhou",
+                extra={
+                    "user_id": user_id,
+                    "since": since,
+                    "until": until,
+                    "series_checks": series_checks,
+                },
+            )
+    elif chart_values or chart_adjusted_values:
+        logger.error(
+            "returns: bundle sem _series_checks com dados de gráfico",
+            extra={"user_id": user_id, "since": since, "until": until},
+        )
+
+    pct_adj_for_prize = float(percent_valor_adjusted or 0.0)
+
+    closure_ok = bool(
+        isinstance(series_checks, dict)
+        and series_checks.get("sum_original_matches")
+        and series_checks.get("sum_adjusted_matches")
+    )
+    debug_payload: Dict[str, Any] = {
+        "days": int(days or 30),
+        "since": since,
+        "consolidado_role": consolidado_role,
+        "consolidado_entregues": consolidado_row.get("entregues"),
+        "consolidado_devolucoes_total": consolidado_row.get("devolucoes_total"),
+        "consolidado_devolucoes_attributed": consolidado_row.get("devolucoes_attributed"),
+        "adjusted_series_sum": chart_adj_sum,
+        "original_series_sum": chart_orig_sum,
+        "chart_days_count": len(chart_dates_iso),
+        "series_closure_ok": closure_ok,
+    }
+    if LOG_LEVEL == logging.DEBUG and isinstance(series_checks, dict):
+        debug_payload["returns_series_checks"] = series_checks
+        debug_payload["chart_dates_iso"] = chart_dates_iso
+        debug_payload["bucket_date_field"] = str(series_checks.get("grouping_field") or "")
+        daily_audit = returns_bundle.get("_daily_by_iso") if isinstance(returns_bundle, dict) else None
+        if isinstance(daily_audit, dict) and daily_audit:
+            debug_payload["daily_series_by_iso"] = daily_audit
+            debug_payload["devolucao_ids_by_day"] = {
+                k: list(v.get("devolucao_ids") or []) for k, v in daily_audit.items()
+            }
+
+    result = {
         "total_value": float(total_value or 0.0),
         "percent_valor": float(percent_valor or 0.0),
-        "total_value_adjusted": float(total_value_adjusted if total_value_adjusted is not None else total_value or 0.0),
-        "percent_valor_adjusted": float(percent_valor_adjusted if percent_valor_adjusted is not None else percent_valor or 0.0),
-        "premio_devolucao_adjusted": float(_return_rate_to_prize(float(percent_valor_adjusted if percent_valor_adjusted is not None else percent_valor or 0.0))),
+        "total_value_adjusted": float(total_value_adjusted or 0.0),
+        "percent_valor_adjusted": float(percent_valor_adjusted or 0.0),
+        "premio_devolucao_adjusted": float(_return_rate_to_prize(pct_adj_for_prize)),
         "chart_labels": chart_labels,
+        "chart_dates_iso": chart_dates_iso,
         "chart_values": chart_values,
         "chart_percents": chart_percents,
         "chart_adjusted_values": chart_adjusted_values,
@@ -4956,16 +4904,9 @@ def _compute_employee_returns_metrics(
         "carga_descarga_by_day": carga_by_day,
         "cesta_basica_eligible": cesta_eligible,
         "cesta_basica_value": cesta_value,
-        "_debug": {
-            "days": int(days or 30),
-            "since": since,
-            "route_returns_count": route_return_entries_count,
-            "participant_routes_count": len(participant_routes),
-            "devolucao_rows_count": len(devolucao_rows),
-            "participant_route_ids_count": len(participant_route_ids),
-            "combined_count": len(combined),
-        },
+        "_debug": debug_payload,
     }
+    return result
 
 
 def _build_returns_alert_payload(

@@ -16,6 +16,7 @@ Dark Mode Futurista, alto contraste, legibilidade sob luz solar.
         --color-text-body: #cbd5e1;
         --color-text-secondary: #94a3b8;
         --color-text-muted: #64748b;
+        --color-text-inverse: #ffffff;
 
         --color-icon: #94a3b8;
 
@@ -32,10 +33,10 @@ Dark Mode Futurista, alto contraste, legibilidade sob luz solar.
         --color-warning: #f59e0b;
         --color-warning-bg: rgba(245, 158, 11, 0.15);
 
-        /* === GLOW BORDERS (Status) === */
-        --glow-ok: 0 0 0 1px #10b981, 0 0 12px rgba(16, 185, 129, 0.3);
-        --glow-fail: 0 0 0 1px #ef4444, 0 0 12px rgba(239, 68, 68, 0.3);
-        --glow-pending: 0 0 0 1px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.3);
+        /* === Status (borda clara — sem neon; melhor sob sol e menos repaint) === */
+        --glow-ok: inset 0 0 0 1px rgba(16, 185, 129, 0.55);
+        --glow-fail: inset 0 0 0 1px rgba(239, 68, 68, 0.55);
+        --glow-pending: inset 0 0 0 1px rgba(100, 116, 139, 0.5);
 
         /* === CARDS (sólido, sem transparência) === */
         --card-bg: #0f172a;
@@ -126,9 +127,15 @@ Dark Mode Futurista, alto contraste, legibilidade sob luz solar.
         border-radius: var(--radius-lg);
         transition: box-shadow 0.2s, border-color 0.2s;
     }
-    .action-tile.status-ok { border-color: #10b981; box-shadow: var(--glow-ok); }
-    .action-tile.status-fail { border-color: #ef4444; box-shadow: var(--glow-fail); }
-    .action-tile.status-pending { border-color: var(--color-border); }
+    .action-tile.status-ok { border-color: rgba(16, 185, 129, 0.45); box-shadow: var(--glow-ok); }
+    .action-tile.status-fail { border-color: rgba(239, 68, 68, 0.45); box-shadow: var(--glow-fail); }
+    .action-tile.status-pending { border-color: var(--color-border); box-shadow: none; }
+
+    /* Cabeçalho de tela operacional (sem gradiente / sem vitrine) */
+    .mobile-header-op {
+        background: var(--color-surface-solid);
+        border-bottom: 1px solid var(--color-border);
+    }
 
     .icon-wrap {
         width: 40px;
