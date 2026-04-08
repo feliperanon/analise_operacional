@@ -34,7 +34,7 @@
                 <p id="totalReturnValue" class="text-sm font-bold leading-tight" style="color: var(--color-danger);">R$ 0,00</p>
             </div>
             <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
-                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">% Devolvido</p>
+                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">% Devolvido Ajust.</p>
                 <p id="totalReturnPercent" class="text-sm font-bold leading-tight" style="color: var(--color-warning);">0%</p>
             </div>
             <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-success-bg); border-color: var(--color-success);">
@@ -177,6 +177,25 @@
         sel.value = `${ano}-${String(mesAtual).padStart(2,'0')}`;
     }
 
+    function premioPorDevolucao(pct) {
+        if (pct <= 1.5) return 300;
+        if (pct <= 2.0) return 250;
+        if (pct <= 2.5) return 180;
+        return 0;
+    }
+
+    function normalizeNumericArray(input, size, fallback = 0) {
+        const arr = Array.isArray(input) ? input : [];
+        const out = [];
+        for (let i = 0; i < size; i++) {
+            const raw = arr[i];
+            const n = Number(raw);
+            const fb = Number(fallback);
+            out.push(Number.isFinite(n) ? n : (Number.isFinite(fb) ? fb : 0));
+        }
+        return out;
+    }
+
     function loadReturnData() {
         const periodEl = document.getElementById('returnPeriodFilter');
         const period = periodEl ? String(periodEl.value || '').trim() : '';
@@ -185,7 +204,22 @@
             .then(r => r.ok ? r.json() : Promise.reject(new Error('Erro')))
             .then(data => {
                 if (!data || typeof data.total_value !== 'number') {
-                    data = { total_value: 0, percent_valor: 0, chart_labels: [], chart_values: [], chart_percents: [], top_clients: [], total_entregas_value: 0, carga_descarga_count: 0, carga_descarga_value: 0 };
+                    data = {
+                        total_value: 0,
+                        percent_valor: 0,
+                        total_value_adjusted: 0,
+                        percent_valor_adjusted: 0,
+                        premio_devolucao_adjusted: 0,
+                        chart_labels: [],
+                        chart_values: [],
+                        chart_percents: [],
+                        chart_adjusted_values: [],
+                        chart_adjusted_percents: [],
+                        top_clients: [],
+                        total_entregas_value: 0,
+                        carga_descarga_count: 0,
+                        carga_descarga_value: 0
+                    };
                 }
                 data.carga_descarga_count = data.carga_descarga_count ?? 0;
                 data.carga_descarga_value = data.carga_descarga_value ?? 0;
@@ -195,25 +229,29 @@
                 data.cesta_basica_value = data.cesta_basica_value ?? 0;
                 const totalVal = Number(data.total_value) || 0;
                 const percentVal = Number(data.percent_valor) || 0;
+                const percentValAdjusted = Number.isFinite(Number(data.percent_valor_adjusted))
+                    ? Number(data.percent_valor_adjusted)
+                    : percentVal;
+                const premioAdjusted = Number.isFinite(Number(data.premio_devolucao_adjusted))
+                    ? Number(data.premio_devolucao_adjusted)
+                    : premioPorDevolucao(percentValAdjusted);
                 const labels = Array.isArray(data.chart_labels) ? data.chart_labels : [];
-                const values = Array.isArray(data.chart_values) ? data.chart_values : [];
-                const percents = Array.isArray(data.chart_percents) ? data.chart_percents : [];
+                const values = normalizeNumericArray(data.chart_values, labels.length, 0);
+                const percents = normalizeNumericArray(data.chart_percents, labels.length, 0);
+                const rawAdjustedValues = Array.isArray(data.chart_adjusted_values) ? data.chart_adjusted_values : [];
+                const rawAdjustedPercents = Array.isArray(data.chart_adjusted_percents) ? data.chart_adjusted_percents : [];
+                const adjustedValues = normalizeNumericArray(rawAdjustedValues, labels.length, 0)
+                    .map((v, i) => Number.isFinite(Number(rawAdjustedValues[i])) ? v : values[i]);
+                const adjustedPercents = normalizeNumericArray(rawAdjustedPercents, labels.length, 0)
+                    .map((v, i) => Number.isFinite(Number(rawAdjustedPercents[i])) ? v : percents[i]);
                 const totalEntregas = Number(data.total_entregas_value) || 0;
 
                 const totalReturnValueEl = document.getElementById('totalReturnValue');
                 const totalReturnPercentEl = document.getElementById('totalReturnPercent');
                 const premioEl = document.getElementById('premioDevolucao');
                 if (totalReturnValueEl) totalReturnValueEl.textContent = `R$ ${totalVal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-                if (totalReturnPercentEl) totalReturnPercentEl.textContent = percentVal.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
-
-                function premioPorDevolucao(pct) {
-                    if (pct <= 1.5) return 300;
-                    if (pct <= 2.0) return 250;
-                    if (pct <= 2.5) return 180;
-                    return 0;
-                }
-                const premio = premioPorDevolucao(percentVal);
-                if (premioEl) premioEl.textContent = `R$ ${premio.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                if (totalReturnPercentEl) totalReturnPercentEl.textContent = percentValAdjusted.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
+                if (premioEl) premioEl.textContent = `R$ ${premioAdjusted.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
                 const cargaCount = Number(data.carga_descarga_count) || 0;
                 const cargaValor = Number(data.carga_descarga_value) || 0;
@@ -282,15 +320,28 @@
                     type: 'bar',
                     data: {
                         labels: labelsBR,
-                        datasets: [{
-                            label: 'Devoluções (R$)',
-                            data: values,
-                            backgroundColor: barColors,
-                            borderColor: barBorders,
-                            borderWidth: 1,
-                            borderRadius: 8,
-                            barThickness: 16
-                        }]
+                        datasets: [
+                            {
+                                label: 'Original',
+                                data: values,
+                                backgroundColor: barColors,
+                                borderColor: barBorders,
+                                borderWidth: 1,
+                                borderRadius: 8,
+                                barThickness: 12,
+                                maxBarThickness: 14
+                            },
+                            {
+                                label: 'Ajustado',
+                                data: adjustedValues,
+                                backgroundColor: 'rgba(250, 204, 21, 0.9)',
+                                borderColor: 'rgba(253, 224, 71, 1)',
+                                borderWidth: 1,
+                                borderRadius: 8,
+                                barThickness: 12,
+                                maxBarThickness: 14
+                            }
+                        ]
                     },
                     options: {
                         responsive: true,
@@ -301,14 +352,35 @@
                             }
                         },
                         plugins: {
-                            legend: { display: false },
+                            legend: {
+                                display: true,
+                                labels: { color: '#ffffff', boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'rectRounded' }
+                            },
                             tooltip: {
                                 callbacks: {
-                                    label: (c) => `R$ ${c.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-                                    afterLabel: (c) => {
+                                    title: (ctx) => {
+                                        if (!ctx || !ctx.length) return '';
+                                        return `Período ${ctx[0].label}`;
+                                    },
+                                    label: (c) => {
+                                        if (c.datasetIndex > 0) return '';
                                         const i = c.dataIndex;
+                                        const original = Number(values[i]) || 0;
+                                        const ajustado = Number(adjustedValues[i]) || 0;
+                                        const pOriginal = Number(percents[i]) || 0;
+                                        const pAjustado = Number(adjustedPercents[i]) || 0;
+                                        return [
+                                            `Original: R$ ${original.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+                                            `Ajustado: R$ ${ajustado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+                                            `% original: ${pOriginal.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%`,
+                                            `% ajustado: ${pAjustado.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1})}%`
+                                        ];
+                                    },
+                                    footer: (ctx) => {
+                                        if (!ctx || !ctx.length) return '';
+                                        const i = ctx[0].dataIndex;
                                         const p = percents[i] != null ? percents[i] : 0;
-                                        return p.toLocaleString('pt-BR', {minimumFractionDigits: 1}) + '% devolvido';
+                                        return p > meta ? 'Acima da meta de 2,0%' : 'Dentro da meta de 2,0%';
                                     }
                                 }
                             }
@@ -328,10 +400,12 @@
                 console.error('Erro ao carregar devoluções:', err);
                 const v = document.getElementById('totalReturnValue');
                 const p = document.getElementById('totalReturnPercent');
+                const premio = document.getElementById('premioDevolucao');
                 const cestaStatus = document.getElementById('cestaBasicaStatus');
                 const cestaValor = document.getElementById('cestaBasicaValor');
                 if (v) v.textContent = 'R$ 0,00';
                 if (p) p.textContent = (0).toLocaleString('pt-BR', {minimumFractionDigits: 1}) + '%';
+                if (premio) premio.textContent = 'R$ 0,00';
                 if (cestaStatus) cestaStatus.textContent = '—';
                 if (cestaValor) cestaValor.textContent = 'R$ 0,00';
             });

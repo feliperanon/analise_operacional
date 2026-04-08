@@ -4745,9 +4745,13 @@ def _compute_employee_returns_metrics(
     """Calcula KPIs de devolucao do colaborador no mesmo criterio do endpoint mobile."""
     total_value = 0.0
     percent_valor = 0.0
+    total_value_adjusted = 0.0
+    percent_valor_adjusted = 0.0
     chart_labels: List[str] = []
     chart_values: List[float] = []
     chart_percents: List[float] = []
+    chart_adjusted_values: List[float] = []
+    chart_adjusted_percents: List[float] = []
     top_clients: List[Dict[str, Any]] = []
     total_entregas_value = 0.0
     participant_routes: List[Any] = []
@@ -4829,16 +4833,44 @@ def _compute_employee_returns_metrics(
                 )
             )
         devolucao_rows = session.exec(devolucao_query).all()
+        ajustes_map: Dict[int, Any] = {}
+        devolucao_ids = [int(d.id) for d in devolucao_rows if getattr(d, "id", None)]
+        if devolucao_ids:
+            ajustes_rows = session.exec(
+                select(models.DevolucaoAjusteResponsabilidade).where(
+                    models.DevolucaoAjusteResponsabilidade.devolucao_id.in_(devolucao_ids)
+                )
+            ).all()
+            for ajuste in ajustes_rows:
+                ajustes_map[int(ajuste.devolucao_id)] = ajuste
 
         for d in devolucao_rows:
             value = _safe_float(d.valor)
             if value <= 0:
                 continue
+            ajuste = ajustes_map.get(int(d.id)) if getattr(d, "id", None) else None
+            responsavel_motorista = True
+            responsavel_ajudante = True
+            if ajuste is not None:
+                responsavel_motorista = bool(getattr(ajuste, "responsavel_motorista", True))
+                responsavel_ajudante = bool(getattr(ajuste, "responsavel_ajudante", True))
+            user_as_motorista = int(getattr(d, "motorista_id", 0) or 0) == int(user_id)
+            user_as_ajudante = int(getattr(d, "ajudante_id", 0) or 0) == int(user_id)
+            apply_adjusted = False
+            if user_as_motorista:
+                apply_adjusted = apply_adjusted or responsavel_motorista
+            if user_as_ajudante:
+                apply_adjusted = apply_adjusted or responsavel_ajudante
+            # Fallback seguro: quando não há papel claro na devolução, mantém valor original.
+            if not user_as_motorista and not user_as_ajudante:
+                apply_adjusted = True
+            adjusted_value = value if apply_adjusted else 0.0
             entry_date = d.data_romaneio or d.data_entrega or ""
             combined.append({
                 "date": entry_date,
                 "client_id": d.client_id,
                 "value": value,
+                "adjusted_value": adjusted_value,
                 "volume": 0.0,
             })
             total_entregas_value += value
@@ -4846,23 +4878,34 @@ def _compute_employee_returns_metrics(
                 total_val_by_date[entry_date] = total_val_by_date.get(entry_date, 0.0) + value
 
         total_value = sum(float(x.get("value") or 0.0) for x in combined)
+        total_value_adjusted = sum(float(x.get("adjusted_value", x.get("value", 0.0)) or 0.0) for x in combined)
         percent_valor = (total_value / total_entregas_value * 100) if total_entregas_value else 0.0
+        percent_valor_adjusted = (total_value_adjusted / total_entregas_value * 100) if total_entregas_value else 0.0
 
         by_date: Dict[str, float] = {}
+        by_date_adjusted: Dict[str, float] = {}
         for item in combined:
             d = item.get("date") or ""
             if d not in by_date:
                 by_date[d] = 0.0
+            if d not in by_date_adjusted:
+                by_date_adjusted[d] = 0.0
             by_date[d] += float(item.get("value") or 0.0)
+            by_date_adjusted[d] += float(item.get("adjusted_value", item.get("value", 0.0)) or 0.0)
         sorted_dates = sorted(by_date.keys(), reverse=True)[:14]
         chart_labels = [d[-5:] if len(d) >= 5 else d for d in sorted_dates]
         chart_values = [by_date[d] for d in sorted_dates]
+        chart_adjusted_values = [by_date_adjusted.get(d, by_date.get(d, 0.0)) for d in sorted_dates]
         chart_percents = []
+        chart_adjusted_percents = []
         for d in sorted_dates:
             tot = total_val_by_date.get(d) or 0
-            dev = by_date.get(d) or 0
-            pct = (dev / tot * 100) if tot > 0 else 0.0
-            chart_percents.append(round(pct, 1))
+            dev_original = by_date.get(d) or 0
+            dev_adjusted = by_date_adjusted.get(d, dev_original) or 0
+            pct_original = (dev_original / tot * 100) if tot > 0 else 0.0
+            pct_adjusted = (dev_adjusted / tot * 100) if tot > 0 else 0.0
+            chart_percents.append(round(pct_original, 1))
+            chart_adjusted_percents.append(round(pct_adjusted, 1))
 
         client_ids = list({x.get("client_id") for x in combined if x.get("client_id")})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
@@ -4897,9 +4940,14 @@ def _compute_employee_returns_metrics(
     return {
         "total_value": float(total_value or 0.0),
         "percent_valor": float(percent_valor or 0.0),
+        "total_value_adjusted": float(total_value_adjusted if total_value_adjusted is not None else total_value or 0.0),
+        "percent_valor_adjusted": float(percent_valor_adjusted if percent_valor_adjusted is not None else percent_valor or 0.0),
+        "premio_devolucao_adjusted": float(_return_rate_to_prize(float(percent_valor_adjusted if percent_valor_adjusted is not None else percent_valor or 0.0))),
         "chart_labels": chart_labels,
         "chart_values": chart_values,
         "chart_percents": chart_percents,
+        "chart_adjusted_values": chart_adjusted_values,
+        "chart_adjusted_percents": chart_adjusted_percents,
         "top_clients": top_clients,
         "total_entregas_value": float(total_entregas_value or 0.0),
         "carga_descarga_count": carga_count,
