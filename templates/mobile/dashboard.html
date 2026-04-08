@@ -56,228 +56,214 @@
     </template>
 
     <!-- Main Content -->
-    <div x-show="initialized">
+    <div x-show="initialized" class="pb-6">
         
-        <!-- 1. Identidade + XP — barra operacional (sem hero gradiente) -->
-        <section class="py-3 pb-4 dashboard-hero-safe mobile-header-op">
-            <div class="container-mobile">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="relative flex-shrink-0">
-                            <div class="w-11 h-11 rounded-lg overflow-hidden border" style="background: var(--color-primary); border-color: var(--color-border);">
-                                <img src="{{ static_path('badges/' + gamification.level.badge_image) }}"
-                                    onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
-                                    class="w-full h-full object-cover" alt="">
-                            </div>
-                            <span class="absolute -bottom-0.5 -right-0.5 min-w-[1rem] h-4 px-0.5 rounded flex items-center justify-center text-[9px] font-semibold text-white border" style="background: var(--color-primary); border-color: var(--color-surface-solid);">{{ gamification.level.level }}</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <h1 class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ employee.name|emp_name }}</h1>
-                                {% if streak_days and streak_days > 0 %}
-                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0" style="background: var(--color-warning-bg); color: var(--color-warning);" title="{{ streak_days }} dias seguidos">
-                                    <i data-lucide="flame" class="w-3 h-3"></i>{{ streak_days }}
-                                </span>
-                                {% endif %}
-                            </div>
-                            <p class="text-caption mt-0.5 truncate" style="color: var(--color-text-muted);">{{ gamification.level.name }}</p>
+        <!-- 1. Header Operacional (Compacto) -->
+        <section class="dashboard-hero-safe bg-surface border-b pb-3 pt-3 px-4" style="border-color: var(--color-border-light);">
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <div class="w-10 h-10 rounded-full overflow-hidden border-2" style="background: var(--color-primary); border-color: var(--color-primary-border);">
+                            <img src="{{ static_path('badges/' + gamification.level.badge_image) }}"
+                                onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
+                                class="w-full h-full object-cover" alt="">
                         </div>
                     </div>
-                    <div class="flex items-center gap-1.5 flex-shrink-0">
-                        <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" title="Conquistas">
-                            <i data-lucide="award" class="w-5 h-5"></i>
-                        </a>
-                        <a href="/mobile/logout" class="touch-target-icon flex items-center justify-center rounded-lg interactive" style="background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid rgba(239,68,68,0.25);" title="Sair">
-                            <i data-lucide="log-out" class="w-5 h-5"></i>
-                        </a>
+                    <div>
+                        <p class="text-[10px] uppercase font-bold tracking-wider" style="color: var(--color-text-muted);">
+                            Hoje
+                        </p>
+                        <h1 class="text-body-lg font-bold truncate leading-tight" style="color: var(--color-text);">{{ employee.name|emp_name }}</h1>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <div class="flex items-center justify-between text-caption mb-1" style="color: var(--color-text-secondary);">
-                        <span>XP <strong style="color: var(--color-text);" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong>
-                            <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded ml-0.5 icon-wrap interactive" aria-label="Dicas"><i data-lucide="lightbulb" class="w-3 h-3"></i></button>
-                        </span>
-                        {% if gamification.next_level %}
-                        <span class="truncate max-w-[50%] text-right">Próx.: {{ gamification.next_level.name }}</span>
-                        {% else %}
-                        <span class="font-medium" style="color: var(--color-warning);">Nível máx.</span>
-                        {% endif %}
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-bold" style="background: var(--color-border-light); color: var(--color-text);">
+                        <i data-lucide="zap" class="w-3.5 h-3.5" style="color: #f59e0b;"></i> Nvl {{ gamification.level.level }}
                     </div>
-                    <div class="h-1.5 w-full rounded-full overflow-hidden" style="background: var(--color-border);">
-                        <div class="h-full transition-all duration-500 ease-out rounded-full" style="background: var(--color-primary);" :style="`width: ${xpProgressPercent}%`"></div>
-                    </div>
-                    <p class="text-caption mt-1 text-center font-medium" style="color: var(--color-text-secondary);" x-show="dailyXp > 0">
-                        +<span x-text="dailyXp"></span> XP hoje
-                    </p>
+                    <a href="/mobile/logout" class="touch-target-icon flex items-center justify-center rounded-full" style="background: var(--color-danger-bg); color: var(--color-danger);" aria-label="Sair">
+                        <i data-lucide="power" class="w-4 h-4"></i>
+                    </a>
                 </div>
             </div>
         </section>
 
+        <!-- 2. CARD PRINCIPAL: Missão do Dia (Entregas / Inicialização) -->
         {% if employee.mobile_access_separation and delivery_summary and delivery_summary.enabled %}
         <section class="container-mobile mt-4">
-            <div class="surface p-4">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-primary);">Entregas de Hoje</p>
-                        <h2 class="text-section mt-1" style="color: var(--color-text);">
-                            {% if delivery_summary.total_today > 0 %}
-                            {{ delivery_summary.total_today }} parada(s) lançada(s)
-                            {% else %}
-                            Nenhuma rota lançada hoje
-                            {% endif %}
-                        </h2>
-                        {% if delivery_summary.assigned_plate %}
-                        <p class="text-caption-lg mt-1">Placa planejada: <strong>{{ delivery_summary.assigned_plate }}</strong></p>
-                        {% endif %}
+            <div class="surface shadow-sm rounded-xl overflow-hidden" style="border: 2px solid var(--color-primary-border);">
+                <div class="p-4" style="background: var(--color-surface);">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                                <i data-lucide="truck" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-section font-bold leading-tight" style="color: var(--color-text);">Rota do Dia</h2>
+                                {% if delivery_summary.assigned_plate %}
+                                <p class="text-caption font-medium mt-0.5" style="color: var(--color-text-muted);">Veículo: <strong>{{ delivery_summary.assigned_plate }}</strong></p>
+                                {% else %}
+                                <p class="text-caption mt-0.5" style="color: var(--color-text-muted);">Pronto para iniciar</p>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <a href="/mobile/delivery" class="touch-target-icon flex items-center justify-center rounded-lg text-white flex-shrink-0" style="background: var(--color-primary);">
-                        <i data-lucide="truck" class="w-5 h-5"></i>
-                    </a>
+
+                    {% if delivery_summary.total_today > 0 %}
+                    <div class="grid grid-cols-3 gap-2 mb-4">
+                        <div class="p-2 rounded-lg text-center" style="background: var(--color-border-light);">
+                            <p class="text-[10px] uppercase font-bold text-gray-500">Total</p>
+                            <p class="text-body font-bold mt-0.5" style="color: var(--color-text);">{{ delivery_summary.total_today }}</p>
+                        </div>
+                        <div class="p-2 rounded-lg text-center" style="background: rgba(16,185,129,0.1);">
+                            <p class="text-[10px] uppercase font-bold text-green-600">Feitas</p>
+                            <p class="text-body font-bold mt-0.5 text-green-600">{{ delivery_summary.completed_today }}</p>
+                        </div>
+                        <div class="p-2 rounded-lg text-center" style="background: rgba(245,158,11,0.1);">
+                            <p class="text-[10px] uppercase font-bold text-amber-600">Restam</p>
+                            <p class="text-body font-bold mt-0.5 text-amber-600">{{ delivery_summary.open_today }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- CTA Principal -->
+                    <button type="button" @click="deliverySessionOpen ? window.location.href='/mobile/delivery' : openDeliverySetupModal()" 
+                        class="w-full py-3.5 rounded-lg flex justify-center items-center gap-2 font-bold transition-all disabled:opacity-50"
+                        style="background: var(--color-primary); color: white;">
+                        <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+                        <span x-text="deliverySessionOpen ? 'Continuar Operação' : 'Iniciar Expediente'"></span>
+                    </button>
                 </div>
-                <div class="grid grid-cols-3 gap-3 mt-4">
-                    <div class="rounded-xl p-3 text-center" style="background: var(--color-border-light);">
-                        <p class="text-caption">Total</p>
-                        <p class="text-title mt-1" style="color: var(--color-text);">{{ delivery_summary.total_today }}</p>
-                    </div>
-                    <div class="rounded-xl p-3 text-center" style="background: rgba(245,158,11,0.12);">
-                        <p class="text-caption">Em aberto</p>
-                        <p class="text-title mt-1" style="color: #f59e0b;">{{ delivery_summary.open_today }}</p>
-                    </div>
-                    <div class="rounded-xl p-3 text-center" style="background: rgba(16,185,129,0.12);">
-                        <p class="text-caption">Concluídas</p>
-                        <p class="text-title mt-1" style="color: #10b981;">{{ delivery_summary.completed_today }}</p>
-                    </div>
-                </div>
-                <a href="/mobile/delivery" class="interactive block w-full surface mt-3 p-3 text-center font-semibold" style="color: var(--color-text); border: 1px solid var(--color-border);">
-                    <span x-text="deliverySessionOpen ? 'Continuar rota' : 'Abrir rota do dia'"></span>
-                </a>
             </div>
         </section>
         {% endif %}
 
+        <!-- 3. Alertas Operacionais: Devolução -->
         {% if returns_alert_data and returns_alert_data.enabled %}
-        <section class="container-mobile mt-4">
-            <div class="surface p-4">
-                <div class="flex items-start justify-between gap-3">
+        <section class="container-mobile mt-3">
+            <a href="/mobile/returns" class="block w-full text-left rounded-xl p-3 flex items-center justify-between transition-colors shadow-sm" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style="background: rgba(255, 255, 255, 0.4);">
+                        <i data-lucide="package-minus" class="w-5 h-5" style="color: var(--color-warning-text);"></i>
+                    </div>
                     <div>
-                        <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-warning);">Devoluções</p>
-                        <h2 class="text-section mt-1" style="color: var(--color-text);">
-                            {{ returns_alert_data.actual_percent|fmt_br_2 }}% no período
-                        </h2>
-                        <p class="text-caption-lg mt-1">
-                            Meta: {{ returns_alert_data.target_percent|fmt_br_2 }}%
-                            {% if returns_alert_data.is_above_target %}
-                            • acima da meta
-                            {% else %}
-                            • dentro da meta
-                            {% endif %}
+                         <p class="text-[10px] font-bold uppercase tracking-wide" style="color: var(--color-warning-text);">Devoluções</p>
+                         <p class="text-body font-bold leading-tight" style="color: var(--color-warning-text);">{{ returns_alert_data.actual_percent|fmt_br_2 }}%</p>
+                         <p class="text-[10px] font-medium" style="color: rgba(0,0,0,0.6);">(Meta: {{ returns_alert_data.target_percent|fmt_br_2 }}%)</p>
+                    </div>
+                </div>
+                <i data-lucide="chevron-right" class="w-5 h-5 shrink-0" style="color: var(--color-warning-text);"></i>
+            </a>
+        </section>
+        {% endif %}
+
+        <!-- 4. Módulos Operacionais Principais (Grid de Ações) -->
+        {% if modules and modules|length > 0 %}
+        <section class="container-mobile mt-5 mb-2">
+            <h3 class="text-[11px] font-bold uppercase tracking-wider mb-3 ml-1" style="color: var(--color-text-muted);">Ações Rápidas</h3>
+            
+            <div class="grid grid-cols-2 gap-3">
+                {% for module in modules %}
+                {% if module.action == "start_separation" %}
+                <button @click="deliverySessionOpen ? window.location.href='/mobile/delivery' : openDeliverySetupModal()" class="interactive surface rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm text-left">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                        <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <span class="text-body font-bold block" style="color: var(--color-text);">{{ module.label }}</span>
+                    </div>
+                </button>
+                {% elif module.action == "open_admin_start_modal" %}
+                <button @click="open_admin_start_modal()" class="interactive surface rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm text-left w-full">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: var(--color-border-light); color: var(--color-text);">
+                        <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <span class="text-body font-bold block" style="color: var(--color-text);">{{ module.label }}</span>
+                    </div>
+                </button>
+                {% elif module.action == "manage_routes" %}
+                <a href="/mobile/admin/routes" class="interactive surface rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm text-left w-full">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: var(--color-border-light); color: var(--color-text);">
+                        <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <span class="text-body font-bold block" style="color: var(--color-text);">{{ module.label }}</span>
+                    </div>
+                </a>
+                {% else %}
+                <a href="{{ module.href }}" class="interactive surface rounded-xl p-3 flex flex-col items-start gap-2 shadow-sm text-left w-full">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: var(--color-border-light); color: var(--color-text);">
+                        <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <span class="text-body font-bold block truncate w-full" style="color: var(--color-text);">{{ module.label }}</span>
+                    </div>
+                </a>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- 5. Módulo Conquistas (Acesso secundário) -->
+        <section class="container-mobile mt-4 mb-2">
+            <a href="/mobile/achievements" class="surface rounded-xl p-3 flex items-center justify-between shadow-sm interactive border" style="border-color: var(--color-border-light);">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
+                        <i data-lucide="award" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-body font-bold" style="color: var(--color-text);">Conquistas & XP</p>
+                        <p class="text-caption font-medium" style="color: var(--color-text-muted);">
+                            <span x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</span> XP Totais
                         </p>
                     </div>
-                    <a href="/mobile/returns" class="touch-target-icon flex items-center justify-center rounded-lg text-white flex-shrink-0" style="background: var(--color-warning);">
-                        <i data-lucide="package" class="w-5 h-5"></i>
-                    </a>
                 </div>
+                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
+            </a>
+        </section>
+
+        <!-- 6. Secundários (Eventos / Bônus horário) -->
+        {% if time_bonuses %}
+        <section class="container-mobile mt-4">
+            <h3 class="text-[11px] font-bold uppercase tracking-wider mb-2 ml-1" style="color: var(--color-text-muted);">Oportunidades</h3>
+            <div class="space-y-2">
+                {% for bonus in time_bonuses %}
+                <div class="surface p-3 rounded-xl flex items-center gap-3 border shadow-sm" style="border-color: var(--color-border-light);">
+                    <i data-lucide="clock" class="w-5 h-5 flex-shrink-0" style="color: var(--color-primary);"></i>
+                    <div class="flex-1 min-w-0">
+                        <h4 class="text-body font-bold truncate" style="color: var(--color-text);">{{ bonus.name or 'Bônus por Horário' }}</h4>
+                        <p class="text-caption font-medium text-gray-500">Até às {{ bonus.stop_time }}</p>
+                    </div>
+                    <span class="text-body font-bold text-green-600">+{{ bonus.bonus_percent }}% XP</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        {% if upcoming_events %}
+        <section class="container-mobile mt-4">
+            <h3 class="text-[11px] font-bold uppercase tracking-wider mb-2 ml-1" style="color: var(--color-text-muted);">Eventos</h3>
+            <div class="flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 no-scrollbar">
+                {% for event in upcoming_events %}
+                <div class="flex-shrink-0 w-60 surface p-3 rounded-xl border shadow-sm" style="border-color: var(--color-border-light);">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded flex items-center justify-center text-xl overflow-hidden bg-gray-100">
+                            {% if event.image_url %}<img src="{{ event.image_url }}" class="w-full h-full object-cover">{% else %}{{ event.emoji or '🎉' }}{% endif %}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-body font-bold truncate leading-tight" style="color: var(--color-text);">{{ event.name }}</h4>
+                            <p class="text-caption text-gray-500">{{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </section>
         {% endif %}
 
     </div>
-
-    <!-- 3. Módulos (ação principal) -->
-    {% if modules and modules|length > 0 %}
-    <section id="modules" class="container-mobile mt-4" x-show="initialized">
-        <h2 class="text-section mb-2" style="color: var(--color-text);">Módulos</h2>
-        <div class="space-y-2">
-            {% for module in modules %}
-            {% if module.action == "start_separation" %}
-            <a href="/mobile/delivery" class="interactive block w-full surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
-                    <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate">{{ module.description }}</p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
-            </a>
-            {% elif module.action == "open_admin_start_modal" %}
-            <button @click="open_admin_start_modal()" class="interactive w-full surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate">{{ module.description }}</p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
-            </button>
-            {% elif module.action == "manage_routes" %}
-            <a href="/mobile/admin/routes" class="interactive block surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex-shrink-0"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate">{{ module.description }}</p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
-            </a>
-            {% else %}
-            <a href="{{ module.href }}" class="interactive block surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex-shrink-0"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate">{{ module.description }}</p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
-            </a>
-            {% endif %}
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    <!-- 4. Bônus / eventos (secundário — sem bloco duplicado de Conquistas no corpo) -->
-
-    <!-- 4a. Time Bonuses (Bônus por Horário) -->
-    {% if time_bonuses %}
-    <section class="container-mobile mt-4">
-        <h2 class="text-section mb-2" style="color: var(--color-text);">Bônus por horário</h2>
-        <div class="space-y-2">
-            {% for bonus in time_bonuses %}
-            <div class="surface p-4 flex items-center gap-3">
-                <div class="icon-wrap flex-shrink-0"><i data-lucide="timer" class="w-5 h-5"></i></div>
-                <div class="flex-1 min-w-0">
-                    <h3 class="text-body font-semibold truncate" style="color: var(--color-text);">{{ bonus.name or 'Bônus por Horário' }}</h3>
-                    <p class="text-caption-lg">Até às <strong>{{ bonus.stop_time }}</strong></p>
-                </div>
-                <span class="text-body font-semibold flex-shrink-0" style="color: var(--color-success);">+{{ bonus.bonus_percent }}%</span>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    {% if upcoming_events %}
-    <section class="container-mobile mt-4">
-        <h2 class="text-section mb-2" style="color: var(--color-text);">Próximos eventos</h2>
-        <div class="flex overflow-x-auto gap-3 pb-3 -mx-4 px-4 no-scrollbar">
-            {% for event in upcoming_events %}
-            <div class="flex-shrink-0 w-64 surface p-4">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden" style="background: var(--color-border-light);">
-                        {% if event.image_url %}<img src="{{ event.image_url }}" class="w-full h-full object-cover">{% else %}{{ event.emoji or '🎉' }}{% endif %}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <h3 class="text-body font-semibold truncate" style="color: var(--color-text);">{{ event.name }}</h3>
-                        <p class="text-caption">{{ event.date.split('-')[2] }}/{{ event.date.split('-')[1] }}</p>
-                    </div>
-                </div>
-                <div class="flex items-center justify-between pt-2 border-t" style="border-color: var(--color-border-light);">
-                    <span class="text-caption-lg font-medium" style="color: var(--color-success);">+{{ event.bonus_xp }} XP</span>
-                    {% if event.multiplier and event.multiplier > 1 %}<span class="text-caption font-semibold">{{ event.multiplier }}x</span>{% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% endif %}
 
     <!-- Modals -->
 

@@ -1,135 +1,171 @@
-<!DOCTYPE html>
-<html lang="pt-BR" class="gv-tv-root h-full">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
-    <title>Gestão Avista • Painel</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
-    {# TailAdmin Free — CSS compilado (Tailwind v4); apenas camada visual #}
-    <link rel="stylesheet" href="/static/styles.css">
-    <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
-    <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
-    <link rel="stylesheet" href="/static/css/system-tokens.css">
-    <link rel="stylesheet" href="/static/css/system-layout.css">
-    <link rel="stylesheet" href="/static/css/system-components.css">
-    <link rel="stylesheet" href="/static/css/system-utilities.css">
-    <link rel="stylesheet" href="/static/css/pages/dashboard-informativo.css">
-    <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
-    {# Mesmo domínio: evita Tracking Prevention (Edge/Safari) bloquear storage em script de terceiros #}
-    <script src="/static/vendor/apexcharts/apexcharts-3.45.2.min.js"></script>
-</head>
-<body class="gv-page ta-dash-body dashboard-app text-slate-700 font-outfit antialiased" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
-    {% include "_sidebar.html" %}
-    <button @click="sidebarOpen = true" class="gv-menu-btn fixed top-3 left-3 z-[60] flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors" :class="sidebarOpen ? 'hidden' : ''" type="button" title="Menu">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-        <span class="text-xs font-medium hidden sm:inline">Menu</span>
-    </button>
+{% extends "base_gestao_avista.html" %}
 
-    <div class="ta-dashboard-layout flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100 dark:bg-gray-900">
-        <header class="sys-page-header ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
-            <div class="ta-dash-header__inner flex flex-col gap-0.5 pl-12 sm:pl-14">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Painel</p>
-                <h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Gestão Avista</h1>
-                <p class="text-xs text-gray-500 dark:text-gray-400"><span class="font-semibold text-gray-600 dark:text-gray-300">{{ current_cost_center or 'Todos' }}</span> · referência {{ current_date or '' }}</p>
+{% block title %}Gestão Avista · Painel informativo{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Painel informativo</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Painel informativo</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Devoluções, comunicados, RH e acompanhamento do dia</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/dashboard-informativo.css">
+<link rel="stylesheet" href="/static/css/pages/dashboard-informativo-ga.css">
+<script src="/static/vendor/apexcharts/apexcharts-3.45.2.min.js"></script>
+{% endblock %}
+
+{% block content %}
+{% set inf = informativo or {} %}
+{% set _cc = current_cost_center or 'Todos' %}
+{% set _d = current_date or '' %}
+{% set tt = inf.get('tonnage_today') or {} %}
+{% set cmp = inf.get('devolucao_compare') or {} %}
+{% set pp = tt.get('progress_pct') or 0 %}
+{% set dhoje = inf.get('devolucao_hoje_pct', 0) %}
+{% set prev_p = cmp.get('prev_pct_rotas', 0)|float %}
+{% set curr_p = cmp.get('curr_pct_rotas', 0)|float %}
+{% set dhoje_f = dhoje|default(0)|float %}
+{% set bulletins = inf.get('bulletins') or [] %}
+{% set featured_bulletins = bulletins[:5] %}
+{% set b_sp = inf.get('birthdays_souza_pinto') %}
+{% set b_ex = inf.get('birthdays_exemplar') %}
+{% if b_sp is none and b_ex is none %}
+    {% set legacy = inf.get('birthdays_month') or [] %}
+    {% set b_sp = [] %}
+    {% set b_ex = legacy %}
+{% endif %}
+{% set b_all = ((b_sp or []) + (b_ex or []))|sort(attribute='day') %}
+
+{% macro gv_dois_nomes(n) -%}
+{%- set t = (n|string)|trim -%}
+{%- if t -%}
+{%- set partes = t.split() -%}
+{%- if partes|length >= 2 -%}{{ partes[0] }} {{ partes[1] }}{%- elif partes|length == 1 -%}{{ partes[0] }}{%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro gv_birthday_rows(items, list_id) -%}
+<ul id="{{ list_id }}" class="gv-bday-list gv-bday-list--rh">
+    {%- for b in (items or []) -%}
+    <li class="gv-bday-row{% if b.is_today %} gv-bday-today{% endif %}">
+        {%- if b.is_today -%}
+        <span class="gv-bday-balloons" aria-hidden="true">
+            <span class="gv-bday-balloon gv-bday-balloon--a"></span>
+            <span class="gv-bday-balloon gv-bday-balloon--b"></span>
+        </span>
+        {%- endif -%}
+        <span class="gv-bday-name gv-fit-oneline">{{ gv_dois_nomes(b.name) }}</span>
+        {%- if b.is_today %}<span class="gv-bday-badge-inline">Hoje</span>{% endif -%}
+        <span class="gv-bday-date">{{ b.day }}/{{ current_date[5:7] if current_date else '' }}</span>
+    </li>
+    {%- else -%}
+    <li class="gv-bday-empty">Nenhum neste mês.</li>
+    {%- endfor -%}
+</ul>
+{%- endmacro %}
+
+<div
+    id="informativo-root"
+    class="dashboard-informativo-ga ga-employee-theme employees-shell employees-page employees-page--premium flex min-h-0 flex-1 flex-col gap-3 overflow-hidden md:gap-4"
+    data-date="{{ _d }}"
+    data-cc="{{ _cc|e }}"
+>
+
+    <!-- KPIs (pele employees-kpi) -->
+    <div class="sys-kpi-shell sys-region-kpis w-full max-w-full shrink-0">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Indicadores do dia">
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300">Devolução mês passado</span>
+                            <p id="hdr-prev-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if prev_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{{ cmp.get('prev_pct_rotas', 0) }}</span>%</p>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                </div>
             </div>
-        </header>
-
-    {% set inf = informativo or {} %}
-    {% set _cc = current_cost_center or 'Todos' %}
-    {% set _d = current_date or '' %}
-    {% set tt = inf.get('tonnage_today') or {} %}
-    {% set cmp = inf.get('devolucao_compare') or {} %}
-    {% set pp = tt.get('progress_pct') or 0 %}
-    {% set dhoje = inf.get('devolucao_hoje_pct', 0) %}
-    {% set prev_p = cmp.get('prev_pct_rotas', 0)|float %}
-    {% set curr_p = cmp.get('curr_pct_rotas', 0)|float %}
-    {% set dhoje_f = dhoje|default(0)|float %}
-    {% set bulletins = inf.get('bulletins') or [] %}
-    {% set featured_bulletins = bulletins[:5] %}
-    {% set b_sp = inf.get('birthdays_souza_pinto') %}
-    {% set b_ex = inf.get('birthdays_exemplar') %}
-    {% if b_sp is none and b_ex is none %}
-        {% set legacy = inf.get('birthdays_month') or [] %}
-        {% set b_sp = [] %}
-        {% set b_ex = legacy %}
-    {% endif %}
-    {% set b_all = ((b_sp or []) + (b_ex or []))|sort(attribute='day') %}
-
-    {% macro gv_dois_nomes(n) -%}
-    {%- set t = (n|string)|trim -%}
-    {%- if t -%}
-    {%- set partes = t.split() -%}
-    {%- if partes|length >= 2 -%}{{ partes[0] }} {{ partes[1] }}{%- elif partes|length == 1 -%}{{ partes[0] }}{%- endif -%}
-    {%- endif -%}
-    {%- endmacro %}
-
-    {% macro gv_birthday_rows(items, list_id) -%}
-    <ul id="{{ list_id }}" class="gv-bday-list">
-        {%- for b in (items or []) -%}
-        <li class="gv-bday-row{% if b.is_today %} gv-bday-today{% endif %}">
-            <span class="gv-bday-cake" aria-hidden="true">🎂</span>
-            <span class="gv-bday-name gv-fit-oneline">{{ gv_dois_nomes(b.name) }}</span>
-            {%- if b.is_today %}<span class="gv-bday-badge-inline">Hoje</span>{% endif -%}
-            <span class="gv-bday-date">{{ b.day }}/{{ current_date[5:7] if current_date else '' }}</span>
-        </li>
-        {%- else -%}
-        <li class="gv-bday-empty">Nenhum neste mês.</li>
-        {%- endfor -%}
-    </ul>
-    {%- endmacro %}
-
-    <main class="gv-shell flex min-h-0 min-w-0 flex-1 flex-col" id="informativo-root" data-date="{{ _d }}" data-cc="{{ _cc|e }}">
-        <div class="gv-panel-stack">
-        <div class="sys-main-inner flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2">
-        <div class="sys-kpi-shell sys-region-kpis w-full shrink-0">
-            <div class="sys-kpi-grid" aria-label="Indicadores do dia">
-                <div class="sys-kpi-card">
-                    <div class="sys-kpi-cell-inner leading-tight">
-                        <div class="sys-kpi-label gv-kpi-label-long">Devolução mês passado</div>
-                        <p id="hdr-prev-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if prev_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{{ cmp.get('prev_pct_rotas', 0) }}</span>%</p>
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(249, 115, 22, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300">Devolução mês atual</span>
+                            <p id="hdr-curr-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if curr_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{{ cmp.get('curr_pct_rotas', 0) }}</span>%</p>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
                     </div>
                 </div>
-                <div class="sys-kpi-card">
-                    <div class="sys-kpi-cell-inner leading-tight">
-                        <div class="sys-kpi-label gv-kpi-label-long">Devolução mês atual</div>
-                        <p id="hdr-curr-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{{ cmp.get('curr_pct_rotas', 0) }}</span>%</p>
+            </div>
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.68);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Diferença</span>
+                            <p id="hdr-delta" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}">
+                                {% if curr_p > prev_p %}▲ +{{ '%.1f'|format(curr_p - prev_p)|replace('.', ',') }}%{% elif curr_p < prev_p %}▼ −{{ '%.1f'|format(prev_p - curr_p)|replace('.', ',') }}%{% else %}= 0%{% endif %}
+                            </p>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3m6-3v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h7l5 5v7z"></path>
+                        </svg>
                     </div>
                 </div>
-                <div class="sys-kpi-card">
-                    <div class="sys-kpi-cell-inner leading-tight">
-                        <div class="sys-kpi-label">Diferença</div>
-                        <p id="hdr-delta" class="gv-kpi-value-line font-black text-kpi mt-1 {% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}">
-                            {% if curr_p > prev_p %}▲ +{{ '%.1f'|format(curr_p - prev_p)|replace('.', ',') }}%{% elif curr_p < prev_p %}▼ −{{ '%.1f'|format(prev_p - curr_p)|replace('.', ',') }}%{% else %}= 0%{% endif %}
-                        </p>
+            </div>
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(234, 88, 12, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300">Devolução hoje</span>
+                            <p id="hdr-dev-hoje-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if dhoje_f <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-dev-hoje" class="gv-header__pct">{{ dhoje }}</span>%</p>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                     </div>
                 </div>
-                <div class="sys-kpi-card">
-                    <div class="sys-kpi-cell-inner leading-tight">
-                        <div class="sys-kpi-label gv-kpi-label-long">Devolução hoje</div>
-                        <p id="hdr-dev-hoje-line" class="gv-kpi-value-line font-black text-kpi mt-1 {% if dhoje_f <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-dev-hoje" class="gv-header__pct">{{ dhoje }}</span>%</p>
-                    </div>
-                </div>
-                <div class="sys-kpi-card">
-                    <div class="sys-kpi-cell-inner">
-                        <div class="gv-kpi-bar-stack mx-auto w-full max-w-[13rem]">
-                            <span class="sys-kpi-label gv-ring-label">Rota concluída</span>
-                            <span id="tonnage-pct-text" class="gv-kpi-bar-pct">{{ '%.0f'|format(pp) }}%</span>
-                            <div class="gv-kpi-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (pp if pp <= 100 else 100)|int }}" aria-labelledby="tonnage-pct-text">
-                                <div id="tonnage-bar-fill" class="gv-kpi-bar-fill" style="width: {{ pp if pp <= 100 else 100 }}%;"></div>
-                            </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="gv-kpi-bar-stack mx-auto w-full max-w-[13rem]">
+                        <span class="sys-kpi-label gv-ring-label">Rota concluída</span>
+                        <span id="tonnage-pct-text" class="gv-kpi-bar-pct">{{ '%.0f'|format(pp) }}%</span>
+                        <div class="gv-kpi-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (pp if pp <= 100 else 100)|int }}" aria-labelledby="tonnage-pct-text">
+                            <div id="tonnage-bar-fill" class="gv-kpi-bar-fill" style="width: {{ pp if pp <= 100 else 100 }}%;"></div>
                         </div>
                     </div>
                 </div>
-                <div class="sys-kpi-card">
-                    <div class="sys-kpi-cell-inner leading-tight">
-                        <div id="info-clock" class="gv-info-clock font-black text-kpi font-mono">--:--:--</div>
-                        <div id="info-date" class="sys-kpi-label mt-1 tracking-wider">{{ _d }}</div>
+            </div>
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(99, 102, 241, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <div id="info-clock" class="gv-info-clock font-black text-kpi font-mono">--:--:--</div>
+                            <div id="info-date" class="sys-kpi-label mt-1 tracking-wider">{{ _d }}</div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
-        <div class="gv-body">
+    <!-- Painel principal: sem card externo (cada coluna já tem sys-card; evita moldura dupla e “come” área útil) -->
+    <div class="informativo-main-grid employees-table-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div class="gv-panel-stack gv-panel-stack-inner informativo-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div class="gv-body">
             <div class="gv-col gv-col-dev">
                 <div class="gv-dev-cards">
                     <article class="sys-card sys-card--surface">
@@ -304,7 +340,11 @@
                         return {
                             chart: {
                                 type: 'line',
-                                height: Math.max(280, (el && el.clientHeight) ? el.clientHeight : 320),
+                                height: (function() {
+                                    var ch = el && el.clientHeight;
+                                    if (ch && ch >= 120) return ch;
+                                    return 240;
+                                })(),
                                 fontFamily: 'inherit',
                                 toolbar: { show: false },
                                 zoom: { enabled: false },
@@ -417,7 +457,7 @@
                     }
                     function applyDevolucaoChartHeightOnce() {
                         var h = el.clientHeight;
-                        if (h >= 160 && chart) {
+                        if (h >= 120 && chart) {
                             try {
                                 chart.updateOptions({ chart: { height: h } }, false, false);
                             } catch (e2) { /* ignore */ }
@@ -444,237 +484,258 @@
             </div>
 
             <div class="gv-col gv-col-right">
-                <article class="sys-card sys-card--surface">
-                    <div class="gv-card-head gv-card-head--bday">
+                <article class="sys-card sys-card--surface gv-rh-sidecard flex h-full min-h-0 flex-col">
+                    <div class="gv-card-head gv-card-head--bday shrink-0">
                         <div class="gv-bday-title-row">
-                            <span class="gv-bday-cake" aria-hidden="true">🎂</span>
-                            <h2 class="gv-card-title !mb-0">Aniversariantes</h2>
+                            <h2 class="gv-card-title !mb-0">Aniversariantes e férias</h2>
                         </div>
-                        <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 12v10H4a2 2 0 0 1-2-2V12"/><path d="M22 7H2v5a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7Z"/><path d="M12 7V3a2 2 0 0 1 4 0v4"/><path d="M12 7V3a2 2 0 0 0-4 0v4"/></svg></span>
+                        <span class="gv-card-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
                     </div>
-                    {{ gv_birthday_rows(b_all, 'card-birthdays-all') }}
-                    <h2 class="gv-card-title gv-ferias-block">Férias</h2>
-                    <div class="flex flex-col gv-ferias-stack">
-                        <div>
-                            <ul id="card-vac-active" class="space-y-0 text-slate-600 m-0 p-0 list-none">
+                    <div class="gv-rh-card-body flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden">
+                        <section class="gv-rh-block gv-rh-block--bday flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                            <p class="gv-rh-block-kicker">Mês de referência</p>
+                            {{ gv_birthday_rows(b_all, 'card-birthdays-all') }}
+                        </section>
+                        <div class="gv-rh-divider" role="presentation"></div>
+                        <section class="gv-rh-block gv-rh-block--ferias shrink-0">
+                            <h3 class="gv-rh-block-title">Férias</h3>
+                            <p class="gv-rh-sublabel">Em gozo</p>
+                            <ul id="card-vac-active" class="gv-rh-list space-y-0 text-slate-600 m-0 p-0 list-none">
                                 {% for v in (inf.get('vacation_active') or []) %}
-                                <li class="gv-ferias-li py-1 border-b border-slate-50">{{ gv_dois_nomes(v.name) }} — até {{ v.until }} ({{ v.days_left }})</li>
+                                <li class="gv-ferias-li py-2 border-b border-slate-100 dark:border-slate-700/80">{{ gv_dois_nomes(v.name) }} <span class="gv-rh-li-meta">até {{ v.until }} ({{ v.days_left }})</span></li>
                                 {% else %}
-                                <li class="text-slate-400 gv-ferias-li py-1">—</li>
+                                <li class="text-slate-400 gv-ferias-li py-2">Ninguém em férias no período.</li>
                                 {% endfor %}
                             </ul>
-                        </div>
-                        <div>
-                            <p class="mb-1 mt-1 gv-ferias-programadas-label">Programadas</p>
-                            <ul id="card-vac-up" class="space-y-0 text-slate-600 m-0 p-0 list-none">
+                            <p class="gv-rh-sublabel gv-rh-sublabel--spaced">Programadas</p>
+                            <ul id="card-vac-up" class="gv-rh-list space-y-0 text-slate-600 m-0 p-0 list-none">
                                 {% for v in (inf.get('vacation_upcoming') or []) %}
-                                <li class="gv-ferias-li py-1 border-b border-slate-50">{{ gv_dois_nomes(v.name) }} — {{ v.start }}</li>
+                                <li class="gv-ferias-li py-2 border-b border-slate-100 dark:border-slate-700/80">{{ gv_dois_nomes(v.name) }} <span class="gv-rh-li-meta">início {{ v.start }}</span></li>
                                 {% else %}
-                                <li class="text-slate-400 gv-ferias-li py-1">—</li>
+                                <li class="text-slate-400 gv-ferias-li py-2">Nenhuma programada.</li>
                                 {% endfor %}
                             </ul>
-                        </div>
+                        </section>
                     </div>
                 </article>
             </div>
+            </div>
         </div>
-        </div>
-        </div>
-    </main>
     </div>
+</div>
 
-    <script>
-    (function() {
-        function tickClock() {
-            var el = document.getElementById('info-clock');
-            var dEl = document.getElementById('info-date');
-            if (!el) return;
-            var now = new Date();
-            var br = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(now);
-            var h = '', m = '', s = '';
-            br.forEach(function(p) { if (p.type === 'hour') h = p.value; if (p.type === 'minute') m = p.value; if (p.type === 'second') s = p.value; });
-            el.textContent = h + ':' + m + ':' + s;
-            if (dEl && !dEl.dataset.fixed) {
-                dEl.textContent = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(now);
-            }
+<script>
+(function() {
+    function tickClock() {
+        var el = document.getElementById('info-clock');
+        var dEl = document.getElementById('info-date');
+        if (!el) return;
+        var now = new Date();
+        var br = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(now);
+        var h = '', m = '', s = '';
+        br.forEach(function(p) { if (p.type === 'hour') h = p.value; if (p.type === 'minute') m = p.value; if (p.type === 'second') s = p.value; });
+        el.textContent = h + ':' + m + ':' + s;
+        if (dEl && !dEl.dataset.fixed) {
+            dEl.textContent = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric' }).format(now);
         }
-        tickClock();
-        setInterval(tickClock, 1000);
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
 
-        function gvFitOneLineText(el) {
-            if (!el || el.nodeType !== 1) return;
-            /* Lista de aniversariantes: tamanho fixo (padrão único); sem encolher fonte */
-            if (el.closest('.gv-bday-list')) {
-                el.style.removeProperty('font-size');
-                return;
+    function gvFitOneLineText(el) {
+        if (!el || el.nodeType !== 1) return;
+        if (el.closest('.gv-bday-list')) {
+            el.style.removeProperty('font-size');
+            return;
+        }
+        var minFs = parseFloat(el.getAttribute('data-fit-min'), 10);
+        var maxFs = parseFloat(el.getAttribute('data-fit-max'), 10);
+        if (isNaN(minFs)) minFs = 7;
+        if (isNaN(maxFs)) maxFs = 11;
+        var container = el.closest('[data-fit-container]') || el.closest('.gv-bday-row') || el.parentElement;
+        if (!container) return;
+        el.style.whiteSpace = 'nowrap';
+        el.style.display = el.closest('.gv-name-cell') ? 'inline-block' : 'block';
+        var avail;
+        if (container.classList.contains('gv-bday-row')) {
+            var rowW = container.clientWidth;
+            var other = 0;
+            for (var i = 0; i < container.children.length; i++) {
+                var ch = container.children[i];
+                if (ch === el || (ch.classList && ch.classList.contains('gv-bday-confetti'))) continue;
+                other += ch.offsetWidth;
             }
-            var minFs = parseFloat(el.getAttribute('data-fit-min'), 10);
-            var maxFs = parseFloat(el.getAttribute('data-fit-max'), 10);
-            if (isNaN(minFs)) minFs = 7;
-            if (isNaN(maxFs)) maxFs = 11;
-            var container = el.closest('[data-fit-container]') || el.closest('.gv-bday-row') || el.parentElement;
-            if (!container) return;
-            el.style.whiteSpace = 'nowrap';
-            el.style.display = el.closest('.gv-name-cell') ? 'inline-block' : 'block';
-            var avail;
-            if (container.classList.contains('gv-bday-row')) {
-                var rowW = container.clientWidth;
-                var other = 0;
-                for (var i = 0; i < container.children.length; i++) {
-                    if (container.children[i] !== el) other += container.children[i].offsetWidth;
-                }
-                avail = Math.max(28, rowW - other - 8);
-            } else {
-                var cs = window.getComputedStyle(container);
-                var padL = parseFloat(cs.paddingLeft) || 0;
-                var padR = parseFloat(cs.paddingRight) || 0;
-                avail = container.clientWidth - padL - padR;
-            }
-            var fs = maxFs;
-            var step = 0.25;
+            avail = Math.max(28, rowW - other - 8);
+        } else {
+            var cs = window.getComputedStyle(container);
+            var padL = parseFloat(cs.paddingLeft) || 0;
+            var padR = parseFloat(cs.paddingRight) || 0;
+            avail = container.clientWidth - padL - padR;
+        }
+        var fs = maxFs;
+        var step = 0.25;
+        el.style.fontSize = fs + 'px';
+        var guard = 100;
+        while (fs > minFs && el.scrollWidth > avail + 0.5 && guard-- > 0) {
+            fs -= step;
             el.style.fontSize = fs + 'px';
-            var guard = 100;
-            while (fs > minFs && el.scrollWidth > avail + 0.5 && guard-- > 0) {
-                fs -= step;
-                el.style.fontSize = fs + 'px';
-            }
         }
-        function gvFitAll() {
-            document.querySelectorAll('.gv-fit-oneline').forEach(function(el) {
-                gvFitOneLineText(el);
-            });
-        }
-        function gvScheduleFit() {
-            requestAnimationFrame(function() {
-                requestAnimationFrame(function() {
-                    gvFitAll();
-                });
-            });
-        }
-        gvScheduleFit();
-        window.addEventListener('resize', function() {
-            clearTimeout(window._gvFitDebounce);
-            window._gvFitDebounce = setTimeout(gvScheduleFit, 120);
+    }
+    function gvFitAll() {
+        document.querySelectorAll('.gv-fit-oneline').forEach(function(el) {
+            gvFitOneLineText(el);
         });
-        var gvBodyEl = document.querySelector('.gv-body');
-        if (gvBodyEl && typeof ResizeObserver !== 'undefined') {
-            var _ro = new ResizeObserver(function() { gvScheduleFit(); });
-            _ro.observe(gvBodyEl);
-        }
+    }
+    function gvScheduleFit() {
+        requestAnimationFrame(function() {
+            requestAnimationFrame(function() {
+                gvFitAll();
+            });
+        });
+    }
+    gvScheduleFit();
+    window.addEventListener('resize', function() {
+        clearTimeout(window._gvFitDebounce);
+        window._gvFitDebounce = setTimeout(gvScheduleFit, 120);
+    });
+    var gvBodyEl = document.querySelector('.gv-body');
+    if (gvBodyEl && typeof ResizeObserver !== 'undefined') {
+        var _ro = new ResizeObserver(function() { gvScheduleFit(); });
+        _ro.observe(gvBodyEl);
+    }
 
-        function devolucaoPctLineClass(v) {
-            v = Number(v) || 0;
-            return v <= 2 ? 'gv-stat-good' : 'gv-stat-attn';
+    (function initBirthdayCelebration() {
+        var row = document.querySelector('.gv-bday-row.gv-bday-today');
+        if (!row) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var colors = ['#f472b6', '#34d399', '#60a5fa', '#fbbf24', '#a78bfa', '#fb7185'];
+        var n = 12;
+        var i;
+        var first = row.firstChild;
+        for (i = 0; i < n; i++) {
+            var pc = document.createElement('span');
+            pc.className = 'gv-bday-confetti';
+            pc.setAttribute('aria-hidden', 'true');
+            pc.style.background = colors[i % colors.length];
+            pc.style.left = (6 + Math.random() * 88) + '%';
+            pc.style.animationDelay = (Math.random() * 2.6) + 's';
+            pc.style.animationDuration = (2.2 + Math.random() * 1.4) + 's';
+            row.insertBefore(pc, first);
         }
-        function devolucaoHojeLineClass(v) {
-            v = Number(v) || 0;
-            return v <= 2 ? 'gv-stat-good' : 'gv-stat-attn';
-        }
-        function fmtDeltaLine(prev, curr) {
-            var p = Number(prev) || 0;
-            var c = Number(curr) || 0;
-            if (c > p) {
-                var a = Math.round((c - p) * 10) / 10;
-                return { cls: 'gv-delta-worse', text: '▲ +' + String(a).replace('.', ',') + '%' };
-            }
-            if (c < p) {
-                var q = Math.round((p - c) * 10) / 10;
-                return { cls: 'gv-delta-better', text: '▼ \u2212' + String(q).replace('.', ',') + '%' };
-            }
-            return { cls: 'gv-delta-same', text: '= 0%' };
-        }
-
-        var root = document.getElementById('informativo-root');
-        function refreshInformativo() {
-            if (!root) return;
-            var d = root.dataset.date || '';
-            var cc = encodeURIComponent(root.dataset.cc || 'Todos');
-            fetch('/api/dashboard/informativo-data?date=' + encodeURIComponent(d) + '&cost_center=' + cc, { credentials: 'same-origin' })
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    if (!data || !data.informativo) return;
-                    var ton = (data.informativo || {}).tonnage_today || {};
-                    var cmp = (data.informativo || {}).devolucao_compare || {};
-                    var elPct = document.getElementById('tonnage-pct-text');
-                    var barFill = document.getElementById('tonnage-bar-fill');
-                    var barTrack = barFill && barFill.parentElement;
-                    var pct = Math.min(100, Math.max(0, ton.progress_pct || 0));
-                    if (elPct) elPct.textContent = Math.round(pct) + '%';
-                    if (barFill) barFill.style.width = pct + '%';
-                    if (barTrack && barTrack.setAttribute) {
-                        barTrack.setAttribute('aria-valuenow', String(Math.round(pct)));
-                    }
-                    var prevV = cmp.prev_pct_rotas;
-                    var currV = cmp.curr_pct_rotas;
-                    var hPrev = document.getElementById('hdr-prev-pct');
-                    var hCurr = document.getElementById('hdr-curr-pct');
-                    if (hPrev) hPrev.textContent = prevV;
-                    if (hCurr) hCurr.textContent = currV;
-                    var linePrev = document.getElementById('hdr-prev-line');
-                    var lineCurr = document.getElementById('hdr-curr-line');
-                    if (linePrev) linePrev.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + devolucaoPctLineClass(prevV);
-                    if (lineCurr) lineCurr.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + devolucaoPctLineClass(currV);
-                    var hd = document.getElementById('hdr-delta');
-                    if (hd) {
-                        var dl = fmtDeltaLine(prevV, currV);
-                        hd.textContent = dl.text;
-                        hd.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + dl.cls;
-                    }
-                    var hj = document.getElementById('hdr-dev-hoje');
-                    var hjl = document.getElementById('hdr-dev-hoje-line');
-                    var dh = data.informativo.devolucao_hoje_pct;
-                    if (hj != null && dh != null) hj.textContent = dh;
-                    if (hjl != null && dh != null) hjl.className = 'gv-kpi-value-line font-black text-kpi mt-1 ' + devolucaoHojeLineClass(dh);
-                    if (data.informativo.devolucao_mensal_kpi && typeof window._gvRebuildDevolucaoKpi === 'function') {
-                        window._gvRebuildDevolucaoKpi(data.informativo.devolucao_mensal_kpi);
-                    }
-                    gvScheduleFit();
-                })
-                .catch(function() {});
-        }
-        setInterval(refreshInformativo, 60000);
-
-        (function initBulletinCarousel() {
-            var carouselRoot = document.getElementById('bulletin-carousel-root');
-            if (!carouselRoot) return;
-            var panes = carouselRoot.querySelectorAll('[data-bulletin-pane]');
-            var dots = carouselRoot.querySelectorAll('[data-bulletin-dot]');
-            var n = panes.length;
-            if (n <= 1) return;
-            var intervalMs = parseInt(carouselRoot.getAttribute('data-interval-ms') || '8000', 10);
-            if (intervalMs < 4000) intervalMs = 8000;
-            var idx = 0;
-            var timer = null;
-            function show(i) {
-                idx = (i + n) % n;
-                var j;
-                for (j = 0; j < n; j++) {
-                    if (j === idx) panes[j].removeAttribute('hidden');
-                    else panes[j].setAttribute('hidden', '');
-                }
-                for (j = 0; j < dots.length; j++) {
-                    dots[j].setAttribute('aria-current', j === idx ? 'true' : 'false');
-                }
-            }
-            function next() { show(idx + 1); }
-            function arm() {
-                if (timer) clearInterval(timer);
-                timer = setInterval(next, intervalMs);
-            }
-            var d;
-            for (d = 0; d < dots.length; d++) {
-                (function(j) {
-                    dots[j].addEventListener('click', function() {
-                        show(j);
-                        arm();
-                    });
-                })(d);
-            }
-            carouselRoot.addEventListener('mouseenter', function() { if (timer) clearInterval(timer); });
-            carouselRoot.addEventListener('mouseleave', function() { arm(); });
-            arm();
-        })();
     })();
-    </script>
-</body>
-</html>
+
+    function devolucaoPctLineClass(v) {
+        v = Number(v) || 0;
+        return v <= 2 ? 'gv-stat-good' : 'gv-stat-attn';
+    }
+    function devolucaoHojeLineClass(v) {
+        v = Number(v) || 0;
+        return v <= 2 ? 'gv-stat-good' : 'gv-stat-attn';
+    }
+    function fmtDeltaLine(prev, curr) {
+        var p = Number(prev) || 0;
+        var c = Number(curr) || 0;
+        if (c > p) {
+            var a = Math.round((c - p) * 10) / 10;
+            return { cls: 'gv-delta-worse', text: '▲ +' + String(a).replace('.', ',') + '%' };
+        }
+        if (c < p) {
+            var q = Math.round((p - c) * 10) / 10;
+            return { cls: 'gv-delta-better', text: '▼ \u2212' + String(q).replace('.', ',') + '%' };
+        }
+        return { cls: 'gv-delta-same', text: '= 0%' };
+    }
+
+    var root = document.getElementById('informativo-root');
+    function refreshInformativo() {
+        if (!root) return;
+        var d = root.dataset.date || '';
+        var cc = encodeURIComponent(root.dataset.cc || 'Todos');
+        fetch('/api/dashboard/informativo-data?date=' + encodeURIComponent(d) + '&cost_center=' + cc, { credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data || !data.informativo) return;
+                var ton = (data.informativo || {}).tonnage_today || {};
+                var cmp = (data.informativo || {}).devolucao_compare || {};
+                var elPct = document.getElementById('tonnage-pct-text');
+                var barFill = document.getElementById('tonnage-bar-fill');
+                var barTrack = barFill && barFill.parentElement;
+                var pct = Math.min(100, Math.max(0, ton.progress_pct || 0));
+                if (elPct) elPct.textContent = Math.round(pct) + '%';
+                if (barFill) barFill.style.width = pct + '%';
+                if (barTrack && barTrack.setAttribute) {
+                    barTrack.setAttribute('aria-valuenow', String(Math.round(pct)));
+                }
+                var prevV = cmp.prev_pct_rotas;
+                var currV = cmp.curr_pct_rotas;
+                var hPrev = document.getElementById('hdr-prev-pct');
+                var hCurr = document.getElementById('hdr-curr-pct');
+                if (hPrev) hPrev.textContent = prevV;
+                if (hCurr) hCurr.textContent = currV;
+                var linePrev = document.getElementById('hdr-prev-line');
+                var lineCurr = document.getElementById('hdr-curr-line');
+                if (linePrev) linePrev.className = 'gv-kpi-value-line employees-kpi__value font-black text-kpi mt-1 ' + devolucaoPctLineClass(prevV);
+                if (lineCurr) lineCurr.className = 'gv-kpi-value-line employees-kpi__value font-black text-kpi mt-1 ' + devolucaoPctLineClass(currV);
+                var hd = document.getElementById('hdr-delta');
+                if (hd) {
+                    var dl = fmtDeltaLine(prevV, currV);
+                    hd.textContent = dl.text;
+                    hd.className = 'gv-kpi-value-line employees-kpi__value font-black text-kpi mt-1 ' + dl.cls;
+                }
+                var hj = document.getElementById('hdr-dev-hoje');
+                var hjl = document.getElementById('hdr-dev-hoje-line');
+                var dh = data.informativo.devolucao_hoje_pct;
+                if (hj != null && dh != null) hj.textContent = dh;
+                if (hjl != null && dh != null) hjl.className = 'gv-kpi-value-line employees-kpi__value font-black text-kpi mt-1 ' + devolucaoHojeLineClass(dh);
+                if (data.informativo.devolucao_mensal_kpi && typeof window._gvRebuildDevolucaoKpi === 'function') {
+                    window._gvRebuildDevolucaoKpi(data.informativo.devolucao_mensal_kpi);
+                }
+                gvScheduleFit();
+            })
+            .catch(function() {});
+    }
+    setInterval(refreshInformativo, 60000);
+
+    (function initBulletinCarousel() {
+        var carouselRoot = document.getElementById('bulletin-carousel-root');
+        if (!carouselRoot) return;
+        var panes = carouselRoot.querySelectorAll('[data-bulletin-pane]');
+        var dots = carouselRoot.querySelectorAll('[data-bulletin-dot]');
+        var n = panes.length;
+        if (n <= 1) return;
+        var intervalMs = parseInt(carouselRoot.getAttribute('data-interval-ms') || '8000', 10);
+        if (intervalMs < 4000) intervalMs = 8000;
+        var idx = 0;
+        var timer = null;
+        function show(i) {
+            idx = (i + n) % n;
+            var j;
+            for (j = 0; j < n; j++) {
+                if (j === idx) panes[j].removeAttribute('hidden');
+                else panes[j].setAttribute('hidden', '');
+            }
+            for (j = 0; j < dots.length; j++) {
+                dots[j].setAttribute('aria-current', j === idx ? 'true' : 'false');
+            }
+        }
+        function next() { show(idx + 1); }
+        function arm() {
+            if (timer) clearInterval(timer);
+            timer = setInterval(next, intervalMs);
+        }
+        var d;
+        for (d = 0; d < dots.length; d++) {
+            (function(j) {
+                dots[j].addEventListener('click', function() {
+                    show(j);
+                    arm();
+                });
+            })(d);
+        }
+        carouselRoot.addEventListener('mouseenter', function() { if (timer) clearInterval(timer); });
+        carouselRoot.addEventListener('mouseleave', function() { arm(); });
+        arm();
+    })();
+})();
+</script>
+{% endblock %}

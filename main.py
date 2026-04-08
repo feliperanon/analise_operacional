@@ -27529,52 +27529,10 @@ async def smart_flow_load(request: Request, shift: str = "Manhã", date: Optiona
 
 # --- Módulo Líder: Checklists em dia, Rotas, Tarefas ---
 
-@app.get("/lider/checklists", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
-async def lider_checklists_page(
-    request: Request,
-    date: Optional[str] = None,
-    shift: str = "Manhã",
-    session: Session = Depends(get_session),
-):
-    """Página: quem não fez checklist de veículo no dia/turno."""
-    user = require_login(request)
-    if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
-
-    shift_norm = normalize_shift(shift)
-    shift_display = shift_display_label(shift_norm)
-
-    # Quem deveria fazer: mobile_access_checklist e ativo no turno
-    all_expected = session.exec(
-        select(models.Employee)
-        .where(models.Employee.status != "fired")
-        .where(models.Employee.mobile_access_checklist == True)
-    ).all()
-    employees = [e for e in all_expected if normalize_shift(getattr(e, "work_shift", "")) == shift_norm]
-
-    # Quem fez checklist na data/turno
-    done_ids = set()
-    checklist_rows = session.exec(
-        select(models.TranspalletChecklist)
-        .where(models.TranspalletChecklist.date == date)
-    ).all()
-    for row in checklist_rows:
-        if normalize_shift(getattr(row, "shift", "")) != shift_norm:
-            continue
-        if row.employee_id:
-            done_ids.add(row.employee_id)
-
-    missing = [e for e in employees if e.id not in done_ids]
-    return templates.TemplateResponse("lider_checklists.html", {
-        "request": request,
-        "user": user,
-        "current_date": date,
-        "current_shift": shift_display,
-        "missing_veiculos": missing,
-        "missing_paleteira": missing,
-        "total_expected": len(employees),
-        "total_done": len(done_ids),
-    })
+@app.get("/lider/checklists", response_class=RedirectResponse, dependencies=[Depends(require_leader)])
+async def lider_checklists_page_redirect():
+    """URL legada: mesma área de checklists sob /admin/routine/checklists (require_leader)."""
+    return RedirectResponse(url="/admin/routine/checklists", status_code=302)
 
 
 @app.get("/lider/rotas", response_class=HTMLResponse, dependencies=[Depends(require_leader)])

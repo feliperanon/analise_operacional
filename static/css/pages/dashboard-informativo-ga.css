@@ -1,0 +1,337 @@
+/**
+ * Painel informativo em base_gestao_avista.html — quadro fixo para TV (sem scroll, sem operador).
+ */
+html.ga-html-scroll:has(#informativo-root.dashboard-informativo-ga) {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+html.ga-html-scroll:has(#informativo-root.dashboard-informativo-ga) body.gv-page.page-scrollable {
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Menu lateral só por teclado/URL em modo mural; evita convite a interação na TV */
+body.dashboard-app:has(#informativo-root.dashboard-informativo-ga) .gv-menu-btn {
+  display: none !important;
+}
+
+body.dashboard-app main.gv-shell.ga-main-scroll:has(#informativo-root.dashboard-informativo-ga) {
+  overflow: hidden !important;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+body.dashboard-app main.gv-shell:has(#informativo-root.dashboard-informativo-ga) .gv-panel-stack.ga-panel-stack {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0.35rem;
+}
+
+body.dashboard-app main.gv-shell:has(#informativo-root.dashboard-informativo-ga) .sys-main-inner.ta-main-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding-bottom: 0.35rem !important;
+}
+
+body.dashboard-app #informativo-root.dashboard-informativo-ga {
+  overflow: hidden !important;
+  min-height: 0;
+}
+
+/* Grade principal: só organiza as 3 colunas — sem segundo “card” por trás */
+.dashboard-informativo-ga .informativo-main-grid {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* Padding só aqui (substitui o do .gv-panel-stack em dashboard-informativo.css, sem empilhar) */
+body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel-inner.gv-panel-stack {
+  padding: 0.45rem 0.6rem 0.4rem !important;
+  gap: 0.45rem !important;
+}
+
+@media (min-width: 768px) {
+  body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel-inner.gv-panel-stack {
+    padding: 0.5rem 0.85rem 0.45rem !important;
+    gap: 0.55rem !important;
+  }
+}
+
+.dashboard-informativo-ga .gv-body {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dashboard-informativo-ga .gv-col-dev {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dashboard-informativo-ga .gv-col-mid,
+.dashboard-informativo-ga .gv-col-right {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dashboard-informativo-ga .gv-panel-stack-inner {
+  gap: var(--sys-gap-md, 1rem);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dashboard-informativo-ga .gv-panel-stack-inner > .gv-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
+/* Rankings: encaixam na coluna sem empurrar a página (excesso corta, sem barra de rolagem) */
+.dashboard-informativo-ga .gv-dev-cards {
+  min-height: 0 !important;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.dashboard-informativo-ga .gv-dev-cards .sys-card.sys-card--surface {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+.dashboard-informativo-ga .gv-dev-cards .gv-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Gráfico: encolhe com o painel (sem altura mínima que force scroll na página) */
+.dashboard-informativo-ga .gv-card--devolucao-kpi .gv-chart-devolucao {
+  min-height: 0 !important;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Coluna RH: card aniversariantes + férias */
+.dashboard-informativo-ga .gv-rh-sidecard {
+  padding-bottom: 0.65rem;
+}
+
+.dashboard-informativo-ga .gv-rh-card-body {
+  padding: 0 0.75rem 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .dashboard-informativo-ga .gv-rh-card-body {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 0.65rem;
+  }
+}
+
+.dashboard-informativo-ga .gv-rh-block-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sys-text-faint, #94a3b8);
+}
+
+.dashboard-informativo-ga .gv-rh-block-title {
+  margin: 0 0 0.5rem;
+  font-size: var(--gv-card-body-fs, 0.8125rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sys-text-primary, #0f172a);
+}
+
+.dashboard-informativo-ga .gv-rh-sublabel {
+  margin: 0 0 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted, #64748b);
+}
+
+.dashboard-informativo-ga .gv-rh-sublabel--spaced {
+  margin-top: 0.65rem;
+}
+
+.dashboard-informativo-ga .gv-rh-divider {
+  height: 1px;
+  margin: 0.55rem 0 0.65rem;
+  background: linear-gradient(90deg, transparent, rgb(15 23 42 / 0.12), transparent);
+  flex-shrink: 0;
+}
+
+.dashboard-informativo-ga .gv-rh-li-meta {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--sys-text-muted, #64748b);
+  letter-spacing: 0.01em;
+}
+
+@media (min-width: 480px) {
+  .dashboard-informativo-ga .gv-ferias-li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.25rem 0.75rem;
+  }
+
+  .dashboard-informativo-ga .gv-rh-li-meta {
+    display: inline;
+    margin-top: 0;
+    margin-left: auto;
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
+.dashboard-informativo-ga .gv-bday-list--rh {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
+  padding-right: 0;
+}
+
+.dashboard-informativo-ga .gv-bday-list--rh .gv-bday-row {
+  gap: 0.4rem;
+}
+
+/* Balões + destaque no aniversariante do dia */
+.dashboard-informativo-ga .gv-bday-balloons {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  height: 1.15rem;
+  padding-bottom: 1px;
+}
+
+.dashboard-informativo-ga .gv-bday-balloon {
+  display: block;
+  width: 11px;
+  height: 14px;
+  border-radius: 50% 50% 50% 50% / 58% 58% 42% 42%;
+  position: relative;
+  transform-origin: 50% 100%;
+  animation: gv-rh-balloon-float 2.6s ease-in-out infinite;
+  box-shadow: 0 1px 0 rgb(15 23 42 / 0.08);
+}
+
+.dashboard-informativo-ga .gv-bday-balloon--a {
+  background: linear-gradient(145deg, #fb7185, #db2777);
+  animation-delay: 0s;
+}
+
+.dashboard-informativo-ga .gv-bday-balloon--b {
+  width: 9px;
+  height: 12px;
+  background: linear-gradient(145deg, #60a5fa, #2563eb);
+  animation-delay: 0.35s;
+}
+
+.dashboard-informativo-ga .gv-bday-balloon::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 5px solid rgb(15 23 42 / 0.35);
+}
+
+.dashboard-informativo-ga .gv-body .sys-card .gv-bday-row.gv-bday-today {
+  position: relative;
+  z-index: 0;
+  overflow: visible;
+  margin: 0.28rem 0;
+  padding: 0.45rem 0.55rem !important;
+  border: 1px solid rgb(34 197 94 / 0.4);
+  border-radius: 10px;
+  background: linear-gradient(120deg, rgb(34 197 94 / 0.16), rgb(59 130 246 / 0.1));
+  animation: gv-rh-bday-pulse 3.2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgb(34 197 94 / 0.22);
+}
+
+.dashboard-informativo-ga .gv-bday-confetti {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  pointer-events: none;
+  opacity: 0;
+  animation: gv-rh-confetti 2.8s ease-in-out infinite;
+}
+
+@keyframes gv-rh-balloon-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+
+  50% {
+    transform: translateY(-5px) rotate(3deg);
+  }
+}
+
+@keyframes gv-rh-bday-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(34 197 94 / 0.18);
+  }
+
+  50% {
+    box-shadow: 0 0 14px 2px rgb(34 197 94 / 0.22);
+  }
+}
+
+@keyframes gv-rh-confetti {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) rotate(0deg) scale(0.6);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.15;
+    transform: translate(-50%, 32px) rotate(260deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-informativo-ga .gv-bday-balloon,
+  .dashboard-informativo-ga .gv-body .sys-card .gv-bday-row.gv-bday-today,
+  .dashboard-informativo-ga .gv-bday-confetti {
+    animation: none !important;
+  }
+
+  .dashboard-informativo-ga .gv-body .sys-card .gv-bday-row.gv-bday-today {
+    box-shadow: none;
+  }
+}

@@ -1,0 +1,415 @@
+/**
+ * Separação / Entregas (templates/routes.html) — mesma matriz visual de employees.html.
+ * Escopo: .ga-employee-theme.employees-page.separacao-page (employees.css fornece tokens e hero/KPI/modais).
+ */
+
+.ga-employee-theme.employees-page.separacao-page dialog.separacao-modal::backdrop {
+  background: rgb(15 23 42 / 0.4);
+  backdrop-filter: blur(6px);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page dialog.separacao-modal::backdrop {
+  background: rgb(0 0 0 / 0.55);
+}
+
+.ga-employee-theme.employees-page.separacao-page dialog.separacao-modal {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: calc(100vw - 2rem);
+  margin: auto;
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-bulk-bar {
+  border-color: var(--sys-border);
+  background: var(--sys-bg-subtle);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-filter-input,
+.ga-employee-theme.employees-page.separacao-page .delivery-mini-input,
+.ga-employee-theme.employees-page.separacao-page .delivery-mini-select {
+  border-radius: var(--sys-radius-md);
+  border: 1px solid var(--sys-border-strong);
+  background: var(--sys-surface);
+  color: var(--sys-text-primary);
+  outline: none;
+  font-size: var(--sys-text-xs, 0.75rem);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-filter-input:focus,
+.ga-employee-theme.employees-page.separacao-page .delivery-mini-input:focus,
+.ga-employee-theme.employees-page.separacao-page .delivery-mini-select:focus {
+  box-shadow: var(--emp-focus-ring, 0 0 0 3px rgb(59 130 246 / 0.22));
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-btn-primary {
+  border-radius: var(--sys-radius-md);
+  background: var(--sys-btn-primary-bg);
+  color: #fff;
+  transition: background 0.15s ease;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-btn-primary:hover {
+  background: var(--sys-btn-primary-bg-hover);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-btn-ghost {
+  border-radius: var(--sys-radius-md);
+  color: var(--sys-text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-btn-ghost:hover {
+  background: var(--sys-bg-subtle);
+  color: var(--sys-text-primary);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-kpi {
+  border-radius: var(--sys-radius-sm);
+  padding: 0.2rem 0.5rem;
+  font-weight: 600;
+  font-size: var(--sys-text-xs, 0.75rem);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-kpi-pend {
+  border: 1px solid rgb(245 158 11 / 0.35);
+  background: rgb(254 243 199 / 0.45);
+  color: rgb(180 83 9);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-kpi-pend {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border-color: rgb(245 158 11 / 0.25);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-kpi-open {
+  border: 1px solid rgb(99 102 241 / 0.35);
+  background: rgb(224 231 255 / 0.5);
+  color: rgb(67 56 202);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-kpi-open {
+  background: rgba(99, 102, 241, 0.14);
+  color: #818cf8;
+  border-color: rgb(99 102 241 / 0.25);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-kpi-done {
+  border: 1px solid rgb(16 185 129 / 0.35);
+  background: rgb(209 250 229 / 0.55);
+  color: rgb(5 122 85);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-kpi-done {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border-color: rgb(16 185 129 / 0.25);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-kpi-return {
+  border: 1px solid rgb(249 115 22 / 0.35);
+  background: rgb(255 237 213 / 0.55);
+  color: rgb(194 65 12);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-kpi-return {
+  background: rgba(249, 115, 22, 0.14);
+  color: #fb923c;
+  border-color: rgb(249 115 22 / 0.25);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-badge {
+  border-radius: var(--sys-radius-sm);
+  padding: 0.125rem 0.375rem;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-badge-pend {
+  background: rgb(254 243 199 / 0.7);
+  color: rgb(180 83 9);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-badge-open {
+  background: rgb(224 231 255 / 0.7);
+  color: rgb(67 56 202);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-badge-done {
+  background: rgb(209 250 229 / 0.7);
+  color: rgb(5 122 85);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-badge-return {
+  background: rgb(255 237 213 / 0.7);
+  color: rgb(194 65 12);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-badge-pend {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-badge-open {
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-badge-done {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-badge-return {
+  background: rgba(249, 115, 22, 0.12);
+  color: #fb923c;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-route-summary::-webkit-details-marker,
+.ga-employee-theme.employees-page.separacao-page details.summary-hide-marker::-webkit-details-marker,
+.ga-employee-theme.employees-page.separacao-page details summary::-webkit-details-marker {
+  display: none;
+}
+
+.ga-employee-theme.employees-page.separacao-page details.delivery-group {
+  border: 1px solid var(--sys-border);
+  background: var(--sys-surface);
+  border-radius: var(--sys-radius-lg);
+}
+
+.ga-employee-theme.employees-page.separacao-page details.delivery-group[open] {
+  border-color: rgb(99 102 241 / 0.35);
+  box-shadow: 0 0 0 1px rgb(99 102 241 / 0.08);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-route-summary {
+  border-radius: var(--sys-radius-lg) var(--sys-radius-lg) 0 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-row {
+  transition: background 0.12s ease;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-row:hover {
+  filter: brightness(0.97);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row:hover {
+  background: rgba(51, 65, 85, 0.22) !important;
+  filter: none;
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-action {
+  display: inline-block;
+  white-space: nowrap;
+  border-radius: var(--sys-radius-sm);
+  border: 1px solid transparent;
+  padding: 0.25rem 0.5rem;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+  transition: all 0.12s ease;
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-start {
+  background: var(--sys-btn-primary-bg);
+  border-color: rgb(99 102 241 / 0.45);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-start:not(:disabled):hover {
+  background: var(--sys-btn-primary-bg-hover);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-finish {
+  background: #059669;
+  border-color: rgb(16 185 129 / 0.45);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-finish:not(:disabled):hover {
+  background: #10b981;
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-return {
+  background: #ea580c;
+  border-color: rgb(251 146 60 / 0.45);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-return:not(:disabled):hover {
+  background: #f97316;
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-reopen {
+  background: #0f766e;
+  border-color: rgb(20 184 166 / 0.45);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-reopen:not(:disabled):hover {
+  background: #0d9488;
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-move {
+  background: #7c3aed;
+  border-color: rgb(139 92 246 / 0.45);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-move:hover {
+  background: #8b5cf6;
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-modal {
+  border-radius: var(--sys-radius-md);
+  padding: 0.625rem 0.75rem;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.12s ease;
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-modal-secondary {
+  border: 1px solid var(--sys-border-strong);
+  background: var(--sys-bg-subtle);
+  color: var(--sys-text-body);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-modal-secondary:hover {
+  background: var(--sys-surface);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-modal-primary {
+  border: 1px solid rgb(139 92 246 / 0.45);
+  background: #7c3aed;
+  color: #fff;
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-modal-primary:hover {
+  background: #8b5cf6;
+}
+
+.ga-employee-theme.employees-page.separacao-page .modal-input,
+.ga-employee-theme.employees-page.separacao-page .separacao-modal .sys-input {
+  width: 100%;
+  border-radius: var(--sys-radius-md);
+  border: 1px solid var(--sys-border-strong);
+  background: var(--sys-surface);
+  padding: 0.625rem 0.75rem;
+  color: var(--sys-text-primary);
+  outline: none;
+}
+
+.ga-employee-theme.employees-page.separacao-page .modal-input:focus {
+  box-shadow: var(--emp-focus-ring, 0 0 0 3px rgb(59 130 246 / 0.22));
+}
+
+.ga-employee-theme.employees-page.separacao-page #delivery-search-result:not(:empty) {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgb(99 102 241 / 0.25);
+  background: rgb(238 242 255 / 0.8);
+  padding: 0.2rem 0.5rem;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgb(67 56 202);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page #delivery-search-result:not(:empty) {
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-delivery-table {
+  border-collapse: collapse;
+  font-size: var(--sys-text-xs, 0.75rem);
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-delivery-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-delivery-table thead tr {
+  border-bottom: 1px solid var(--sys-border);
+  background: var(--sys-surface);
+  font-weight: 600;
+  color: var(--sys-text-muted);
+  backdrop-filter: blur(8px);
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-delivery-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-empty-state {
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.ga-employee-theme.employees-page.separacao-page .custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--sys-bg-subtle);
+}
+
+.ga-employee-theme.employees-page.separacao-page .custom-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: rgb(148 163 184 / 0.6);
+}
+
+.ga-employee-theme.employees-page.separacao-page .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139 / 0.85);
+}
+
+/* Status de linha — contraste em fundo claro */
+.ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--iniciada {
+  background: rgb(238 242 255 / 0.65);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--reaberta {
+  background: rgb(245 243 255 / 0.7);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--entregue {
+  background: rgb(209 250 229 / 0.45);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--devolucao {
+  background: rgb(255 237 213 / 0.55);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--pendente {
+  background: rgb(254 252 232 / 0.9);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--default {
+  background: var(--sys-bg-subtle);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--iniciada {
+  background: rgba(49, 46, 129, 0.2);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--reaberta {
+  background: rgba(91, 33, 182, 0.18);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--entregue {
+  background: rgba(6, 78, 59, 0.2);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--devolucao {
+  background: rgba(154, 52, 18, 0.2);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--pendente {
+  background: rgba(120, 53, 15, 0.18);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--default {
+  background: rgba(15, 23, 42, 0.35);
+}

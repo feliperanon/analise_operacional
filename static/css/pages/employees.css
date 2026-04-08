@@ -219,8 +219,13 @@
   transform: translateY(-1px);
 }
 
+.ga-employee-theme.employees-page .employees-hero__import-wrap {
+  position: relative;
+  z-index: 30;
+}
+
 .ga-employee-theme.employees-page .employees-hero__import-menu {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--emp-border-strong);
   background: var(--emp-surface);
   box-shadow: var(--emp-shadow-float);
@@ -323,6 +328,17 @@
   background: var(--emp-surface);
 }
 
+/* Padding alinhado ao painel da tabela (px-5 / sm:px-6) */
+.ga-employee-theme.employees-page .employees-filter-bar-card.employees-filter-bar-card--toolbar {
+  padding: 0.65rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .ga-employee-theme.employees-page .employees-filter-bar-card.employees-filter-bar-card--toolbar {
+    padding: 0.65rem 1.5rem;
+  }
+}
+
 .ga-employee-theme.employees-page .employees-filter-bar__label {
   flex-shrink: 0;
   font-size: var(--sys-text-xs);
@@ -332,39 +348,196 @@
   color: var(--emp-text-muted);
 }
 
+/* Barra de filtros: uma linha, blocos alinhados; rolagem só no eixo interno */
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip {
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__inner {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 1.5rem;
+  align-self: center;
+  background: var(--emp-border);
+  opacity: 0.9;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__primary {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__secondary {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__label--compact {
+  letter-spacing: 0.1em;
+}
+
+@media (max-width: 520px) {
+  .ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__label--compact {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__divider {
+    display: none;
+  }
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__search {
+  flex: 1 1 5rem;
+  min-width: 5.5rem;
+  max-width: min(280px, 42vw);
+  width: auto;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__roles {
+  width: auto;
+  min-width: 9.25rem;
+  max-width: 11rem;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-role-filter-trigger {
+  min-height: var(--emp-toolbar-h);
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__link-sub-text {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__link-sub-text {
+    display: inline;
+  }
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-view-toggle .view-toggle-btn {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  gap: 0;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-counter--toolbar {
+  min-width: 0;
+  max-width: min(240px, 52vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ga-employee-theme.employees-page .employees-filter-counter {
   display: inline-flex;
   align-items: center;
   min-height: var(--emp-toolbar-h);
-  padding: 0 0.85rem;
-  border: 1px solid var(--emp-border);
-  border-radius: var(--sys-radius-full);
+  padding: 0 0.65rem;
+  border: 1px solid var(--emp-border-strong);
+  border-radius: var(--emp-radius);
   background: var(--emp-surface-subtle);
-  font-size: var(--sys-text-xs);
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--emp-text-caption);
+  line-height: 1.2;
+  color: var(--emp-text-muted);
   white-space: nowrap;
 }
 
-.ga-employee-theme.employees-page .employees-filter-bar__link-sub {
-  display: inline-flex;
+/* Toolbar: botão fantasma, link e contador com o mesmo vocabulário visual */
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__btn {
+  height: var(--emp-toolbar-h);
   min-height: var(--emp-toolbar-h);
-  align-items: center;
-  gap: 0.4rem;
-  border-radius: var(--emp-radius);
-  border: 1px solid rgb(216 180 254);
-  background: rgb(250 245 255);
-  padding: 0 0.85rem;
-  font-size: var(--sys-text-xs);
-  font-weight: 700;
-  color: rgb(88 28 135);
-  text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  padding: 0 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
-.ga-employee-theme.employees-page .employees-filter-bar__link-sub:hover {
-  background: rgb(243 232 255);
-  border-color: rgb(192 132 252);
+.ga-employee-theme.employees-page .employees-filter-bar__link-sub--toolbar {
+  display: inline-flex;
+  min-height: var(--emp-toolbar-h);
+  height: var(--emp-toolbar-h);
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: var(--emp-radius);
+  border: 1px solid var(--emp-border-strong);
+  background: var(--emp-surface);
+  padding: 0 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--emp-text-body);
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar__link-sub--toolbar:hover {
+  background: var(--emp-surface-subtle);
+  border-color: var(--emp-text-muted);
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar__link-sub--toolbar svg {
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar__link-sub--toolbar:hover svg {
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-view-toggle {
+  border-color: var(--emp-border-strong);
+  background: var(--emp-surface-subtle);
+  box-shadow: none;
 }
 
 .ga-employee-theme.employees-page .employees-role-filter-trigger__caret {
@@ -558,6 +731,61 @@
   font-size: var(--sys-text-sm);
 }
 
+/* Tabela compacta: prioriza Colaborador + Ações; demais colunas encolhem; cargo em uma linha (ellipsis) */
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__th--col-name,
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__td--col-name {
+  width: 28%;
+  min-width: 10rem;
+}
+
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__th--col-reg,
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__td--col-reg {
+  width: 7.5%;
+  min-width: 4.25rem;
+}
+
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__th--col-role,
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__td--col-role {
+  width: 15%;
+}
+
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__role-ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__th--col-center,
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__td--col-center {
+  width: 11%;
+  min-width: 5.5rem;
+}
+
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__th--col-schedule,
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__td--col-schedule {
+  width: 9%;
+  min-width: 5.5rem;
+}
+
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__th--col-status,
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__td--col-status {
+  width: 7%;
+  min-width: 4.5rem;
+}
+
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__th--col-actions,
+.ga-employee-theme.employees-page .employees-data-table.employees-data-table--compact .employees-data-table__td--col-actions {
+  width: auto;
+  min-width: 16rem;
+  white-space: nowrap;
+}
+
 .ga-employee-theme.employees-page .employees-data-table__head {
   background: var(--emp-surface-subtle);
   color: var(--emp-text-caption);
@@ -614,13 +842,6 @@
 .ga-employee-theme.employees-page .employees-data-table__row:hover {
   background: linear-gradient(90deg, rgb(248 250 252 / 0.95) 0%, rgb(239 246 255 / 0.35) 100%);
   box-shadow: inset 0 -1px 0 rgb(191 219 254 / 0.5);
-}
-
-.ga-employee-theme.employees-page .employees-data-table__avatar {
-  border: 1px solid var(--emp-border);
-  background: linear-gradient(145deg, rgb(241 245 249), rgb(226 232 240));
-  color: var(--emp-text-caption);
-  font-size: var(--sys-text-xs);
 }
 
 .ga-employee-theme.employees-page .employees-data-table__name-link {
@@ -692,6 +913,56 @@
   border-color: var(--sys-alert-border);
   background: var(--sys-alert-bg);
   color: var(--sys-alert-fg);
+}
+
+/* ----- KPIs: faixa em uma linha (flex; scroll horizontal se a tela for estreita) ----- */
+.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.2rem;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row > .sys-kpi-card.employees-kpi {
+  flex: 1 1 0;
+  min-width: 6.25rem;
+  max-width: none;
+  min-height: 5.1rem;
+  padding: 0.55rem 0.6rem;
+}
+
+.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row > .sys-kpi-card.employees-kpi::before {
+  left: 0.6rem;
+}
+
+.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row .employees-kpi__head svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row .employees-kpi .sys-kpi-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+}
+
+.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row .employees-kpi__value {
+  font-size: 1.15rem;
+}
+
+.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row .employees-kpi__denom {
+  font-size: 0.75rem;
+}
+
+.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row .employees-kpi__meta {
+  margin-top: 0.35rem;
+  gap: 0.3rem;
+  font-size: 0.58rem;
+  min-height: 0;
 }
 
 /* ----- KPIs: sys-kpi-card + employees-kpi ----- */
@@ -968,8 +1239,12 @@
 }
 
 /* ----- Ações por linha (faixa coesa) ----- */
-.ga-employee-theme.employees-page .employees-action-strip {
-  max-width: 22rem;
+.ga-employee-theme.employees-page .employees-data-table .employees-action-strip {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+  max-width: none;
+  width: max-content;
 }
 
 .ga-employee-theme.employees-page .employee-action-btn {
@@ -1062,6 +1337,22 @@
   background: var(--sys-critical-bg);
 }
 
+.ga-employee-theme.employees-page .employees-data-table .employee-action-btn {
+  height: 2.125rem;
+  width: 2.125rem;
+  flex-shrink: 0;
+}
+
+.ga-employee-theme.employees-page .employees-data-table .employee-action-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ga-employee-theme.employees-page .employees-data-table .employee-actions-cell form.inline {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
 /* ----- Tabela em cards (mobile) ----- */
 @media (max-width: 767px) {
   .ga-employee-theme.employees-page #employeesTable {
@@ -1121,16 +1412,6 @@
     display: none;
   }
 
-  .ga-employee-theme.employees-page #employeesTable tr.employee-row .employee-primary-content {
-    gap: 0.9rem;
-  }
-
-  .ga-employee-theme.employees-page #employeesTable tr.employee-row .employee-avatar {
-    height: 2.75rem;
-    width: 2.75rem;
-    font-size: 0.85rem;
-  }
-
   .ga-employee-theme.employees-page #employeesTable tr.employee-row .employee-name {
     display: block;
     font-size: 1rem;
@@ -1154,6 +1435,12 @@
   .ga-employee-theme.employees-page #employeesTable tr.employee-row .employee-action-btn {
     height: 2.55rem;
     width: 2.55rem;
+  }
+
+  .ga-employee-theme.employees-page #employeesTable tr.employee-row .employees-data-table__role-ellipsis {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
   }
 }
 
@@ -1365,12 +1652,6 @@ html.dark .ga-employee-theme.employees-page .employees-table-panel__aside {
   color: rgb(148 163 184);
 }
 
-html.dark .ga-employee-theme.employees-page .employees-data-table__avatar {
-  border-color: rgb(75 85 99);
-  background: linear-gradient(145deg, rgb(55 65 81), rgb(31 41 55));
-  color: rgb(203 213 225);
-}
-
 html.dark .ga-employee-theme.employees-page .employees-pill--cyan {
   border-color: rgb(6 182 212 / 0.35);
   background: rgb(22 78 99 / 0.45);
@@ -1461,10 +1742,24 @@ html.dark .ga-employee-theme.employees-page .employees-filter-bar-card {
   border-color: rgb(55 65 81);
 }
 
-html.dark .ga-employee-theme.employees-page .employees-filter-bar__link-sub {
-  border-color: rgb(126 34 206 / 0.35);
-  background: rgb(88 28 135 / 0.25);
-  color: rgb(233 213 255);
+html.dark .ga-employee-theme.employees-page .employees-filter-bar__link-sub--toolbar {
+  border-color: rgb(75 85 99);
+  background: rgb(31 41 55);
+  color: rgb(226 232 240);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-filter-bar__link-sub--toolbar:hover {
+  border-color: rgb(100 116 139);
+  background: rgb(55 65 81);
+  color: rgb(248 250 252);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-filter-bar__link-sub--toolbar svg {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-filter-bar__link-sub--toolbar:hover svg {
+  color: rgb(248 250 252);
 }
 
 html.dark .ga-employee-theme.employees-page .employees-role-filter-row:hover {
@@ -1519,8 +1814,8 @@ html.dark .ga-employee-theme.employees-page #roleFilterSearch {
 
 html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   border-color: rgb(75 85 99) !important;
-  background: rgb(31 41 55) !important;
-  color: rgb(209 213 219) !important;
+  background: rgb(31 41 55 / 0.65) !important;
+  color: rgb(148 163 184) !important;
 }
 
 @media (max-width: 767px) {
@@ -1678,6 +1973,24 @@ html.dark .ga-employee-theme.employees-page .emp-toggle-track {
 .ga-employee-theme.employees-page .emp-modal-icon-ring--lg {
   width: 3rem;
   height: 3rem;
+}
+
+/* Novo Colaborador: .sys-card usa flex; grid + minmax(0,1fr) evita área rolável com altura errada (topo do form “cortado”). */
+.ga-employee-theme.employees-page .employees-add-modal-card.sys-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.ga-employee-theme.employees-page .employees-add-modal-card.sys-card > form {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ga-employee-theme.employees-page #addModalScroll {
+  min-height: 0;
+  overflow-anchor: none;
 }
 
 /* ----- Visão agrupada (JS: createGroupedView / populateGroupedView) ----- */

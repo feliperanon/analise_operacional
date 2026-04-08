@@ -1,221 +1,389 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Separação · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Processos / Separação</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Separação e entregas</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Importação, rotas por motorista e acompanhamento de paradas</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/separacao.css">
+{% endblock %}
 
 {% block content %}
-<div class="delivery-operations min-h-screen bg-slate-950/50 p-4 lg:p-6">
-    <div class="mx-auto max-w-full space-y-5">
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium separacao-page space-y-5 pt-2 md:pt-3">
 
-        <!-- Header -->
-        <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <h1 class="text-2xl font-bold tracking-tight text-white">Entregas</h1>
-                <p class="mt-0.5 text-xs text-slate-500">Planejamento diário e gestão por rota</p>
-            </div>
+    {% if delivery_feedback %}
+    <div class="sys-alert {% if delivery_feedback_level == 'error' %}sys-alert--danger{% else %}sys-alert--success{% endif %} flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            {% if delivery_feedback_level == 'error' %}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            {% else %}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            {% endif %}
+        </svg>
+        <span class="min-w-0 flex-1 text-sm">{{ delivery_feedback }}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
 
-            <div class="flex flex-wrap items-center gap-2">
-                <input
-                    type="date"
-                    id="route-date-from"
-                    value="{{ selected_date_from }}"
-                    onchange="applyFilters()"
-                    class="delivery-filter-input"
-                >
-                <span class="text-xs text-slate-600">até</span>
-                <input
-                    type="date"
-                    id="route-date-to"
-                    value="{{ selected_date_to }}"
-                    onchange="applyFilters()"
-                    class="delivery-filter-input"
-                >
-                <select
-                    id="route-shift"
-                    onchange="applyFilters()"
-                    class="delivery-filter-input [&>option]:bg-slate-800"
-                >
-                    <option value="Manhã" {% if selected_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
-                    <option value="Tarde" {% if selected_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
-                    <option value="Noite" {% if selected_shift == 'Noite' %}selected{% endif %}>Noite</option>
-                </select>
-            </div>
-        </header>
-
-        <!-- Importação -->
-        <section class="rounded-xl border border-slate-700/80 bg-slate-800/40 p-4">
-            <form
-                id="form-import-entregas"
-                action="/separacao/import-entregas"
-                method="post"
-                enctype="multipart/form-data"
-                class="flex flex-wrap items-end gap-3"
-                onsubmit="return confirmImportDeliveries(this)"
-                data-today-br="{{ today_br }}"
-            >
-                <input type="hidden" name="date" id="import-date-value" value="{{ selected_date_from }}">
-                <input type="hidden" name="input_date" value="{{ suggested_input_date }}">
-                <input type="hidden" name="shift" value="{{ selected_shift }}">
-
-                <div class="flex items-center gap-2">
-                    <input
-                        id="delivery-file-input"
-                        type="file"
-                        name="file"
-                        accept=".xls,.xlsx,.csv"
-                        class="hidden"
-                        onchange="handleDeliveryFileSelect(this)"
-                    >
-                    <label
-                        for="delivery-file-input"
-                        class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 transition-colors hover:bg-slate-700"
-                    >
-                        <i data-lucide="upload" class="h-3.5 w-3.5"></i>
-                        Escolher arquivo
-                    </label>
-                    <span id="delivery-file-name" class="max-w-[220px] truncate text-[11px] text-slate-500">Nenhum selecionado</span>
-                </div>
-
-                <div id="import-auth-password-wrap" class="flex items-center gap-2 {% if not import_requires_password %}hidden{% endif %}">
-                    <input
-                        type="password"
-                        name="import_auth_password"
-                        id="import-auth-password"
-                        autocomplete="off"
-                        placeholder="Senha (data ≠ hoje)"
-                        class="w-40 rounded-lg border border-slate-600 bg-slate-900 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:ring-1 focus:ring-amber-500/50"
-                    >
-                </div>
-
-                <button type="submit" class="delivery-btn-primary px-3 py-1.5 text-xs font-semibold">
-                    Importar
-                </button>
-            </form>
-
-            <p class="mt-2 text-[10px] text-slate-500">
-                D-1: importe pedidos de ontem. Validação de cliente, motorista e caminhão.
-            </p>
-
-            {% if delivery_import %}
-            <div class="mt-3 rounded-lg border px-3 py-2 text-xs {% if delivery_import.ok %}border-emerald-500/30 bg-emerald-500/5 text-emerald-300{% else %}border-amber-500/30 bg-amber-500/5 text-amber-300{% endif %}">
+    {% if delivery_import %}
+    <div class="sys-alert {% if delivery_import.ok %}sys-alert--success{% else %}sys-alert--danger{% endif %} flex flex-col gap-2" role="status">
+        <div class="flex items-start gap-3">
+            <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div class="min-w-0 flex-1 text-sm">
                 <p>
                     {{ delivery_import.message }}
                     {% if delivery_import.ok %}
                     <span class="font-semibold">({{ delivery_import.created }} linhas)</span>
                     {% endif %}
                 </p>
-
                 {% if delivery_import.issues %}
-                <p class="mt-1.5 text-[10px] font-semibold text-red-300/90">Pendências</p>
-                <ul class="custom-scrollbar mt-0.5 max-h-24 space-y-0.5 overflow-y-auto text-[11px] text-red-200/90">
+                <p class="mt-2 text-xs font-semibold">Pendências</p>
+                <ul class="custom-scrollbar mt-1 max-h-24 space-y-0.5 overflow-y-auto text-xs">
                     {% for issue in delivery_import.issues %}
                     <li>L{{ issue.row }}: {{ issue.reason }}</li>
                     {% endfor %}
                 </ul>
                 {% endif %}
-
                 {% if delivery_import.warnings %}
-                <p class="mt-1.5 text-[10px] font-semibold text-amber-300/90">Alertas</p>
-                <ul class="custom-scrollbar mt-0.5 max-h-20 space-y-0.5 overflow-y-auto text-[11px] text-amber-100/90">
+                <p class="mt-2 text-xs font-semibold">Alertas</p>
+                <ul class="custom-scrollbar mt-1 max-h-20 space-y-0.5 overflow-y-auto text-xs">
                     {% for warn in delivery_import.warnings %}
                     <li>{{ warn.route }}: {{ warn.reason }}</li>
                     {% endfor %}
                 </ul>
                 {% endif %}
             </div>
-            {% endif %}
-        </section>
+            <button type="button" onclick="this.closest('.sys-alert').remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+    {% endif %}
 
-        <!-- Centro principal -->
-        <section class="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-800/60 shadow-lg">
-            <!-- Topo -->
-            <div class="border-b border-slate-700/60 bg-slate-800/80 px-4 py-4">
-                {% if delivery_feedback %}
-                <div class="rounded-lg px-3 py-2.5 text-xs mb-4 {% if delivery_feedback_level == 'error' %}border border-red-500/30 bg-red-500/5 text-red-300{% else %}border border-emerald-500/30 bg-emerald-500/5 text-emerald-300{% endif %}">
-                    {{ delivery_feedback }}
+    <!-- Hero (matriz employees.html) -->
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <i data-lucide="truck" class="h-6 w-6 text-white" aria-hidden="true"></i>
                 </div>
-                {% endif %}
-                <div class="flex flex-col gap-4">
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div class="flex items-center gap-3">
-                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sky-500/40 bg-sky-500/20">
-                                <i data-lucide="truck" class="h-5 w-5 text-sky-400"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold tracking-tight text-white">Rotina de Entregas</h2>
-                                <p class="mt-0.5 text-[11px] text-slate-500">
-                                    Centro de operação • {{ delivery_summary.total_stops }} paradas • {{ "{:,.0f}".format(delivery_summary.total_weight).replace(",", ".") }} Kg
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-2">
-                            <form
-                                action="/separacao/delivery/planning-date/bulk"
-                                method="post"
-                                class="flex items-center gap-1.5"
-                                onsubmit="return confirm('Mover TODAS as rotas do dia {{ selected_date_from[8:10] }}/{{ selected_date_from[5:7] }}?');"
-                            >
-                                <input type="hidden" name="current_date" value="{{ selected_date_from }}">
-                                <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                <input type="date" name="planning_date" value="{{ selected_date_from }}" class="delivery-mini-input">
-                                <button type="submit" class="delivery-btn-ghost px-2.5 py-1.5 text-[11px] font-medium">Todas → data</button>
-                            </form>
-
-                            {% if delivery_summary.pending > 0 or delivery_summary.opened_routines > 0 %}
-                            <form action="/separacao/delivery/finish-all-routes" method="post" class="inline" onsubmit="return confirm('Finalizar TODAS as rotas?');">
-                                <input type="hidden" name="date_from" value="{{ selected_date_from }}">
-                                <input type="hidden" name="date_to" value="{{ selected_date_to }}">
-                                <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                <button type="submit" class="rounded-lg bg-emerald-600/90 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-500">
-                                    Finalizar todas
-                                </button>
-                            </form>
-                            {% endif %}
-
-                            {% if delivery_summary.delivered > 0 or delivery_summary.returned > 0 %}
-                            <form action="/separacao/delivery/reopen-all-routes" method="post" class="inline" onsubmit="return confirm('Reabrir TODAS?');">
-                                <input type="hidden" name="date_from" value="{{ selected_date_from }}">
-                                <input type="hidden" name="date_to" value="{{ selected_date_to }}">
-                                <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                <button type="submit" class="delivery-btn-ghost px-2.5 py-1.5 text-[11px] font-medium text-teal-400 hover:bg-teal-500/20">
-                                    Reabrir todas
-                                </button>
-                            </form>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-3">
-                        <div class="relative min-w-[260px] flex-1 max-w-md">
-                            <i data-lucide="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"></i>
-                            <input
-                                type="text"
-                                id="delivery-global-search"
-                                placeholder="Buscar cliente, código, pedido, motorista..."
-                                oninput="filterDeliveryRows(this.value)"
-                                class="w-full rounded-lg border border-slate-700 bg-slate-900 py-2 pl-10 pr-3 text-sm text-white outline-none placeholder:text-slate-500 focus:ring-1 focus:ring-sky-500/50"
-                            >
-                        </div>
-                        <span id="delivery-search-result" class="shrink-0 text-[11px] text-slate-400"></span>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
-                        <span class="delivery-kpi delivery-kpi-pend">{{ delivery_summary.pending }} pend.</span>
-                        <span class="delivery-kpi delivery-kpi-open">{{ delivery_summary.opened_routines }} abertas</span>
-                        <span class="delivery-kpi delivery-kpi-done">{{ delivery_summary.delivered }} entregues</span>
-                        <span class="delivery-kpi delivery-kpi-return">{{ delivery_summary.returned }} dev. ({{ "%.1f"|format(delivery_summary.return_percentage)|replace(".", ",") }}%)</span>
-                        {% if delivery_summary.returned_weight > 0 %}
-                        <span class="font-mono text-orange-400/90">
-                            {{ "{:,.1f}".format(delivery_summary.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg dev.
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        Painel operacional
+                    </span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Rotina de entregas</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Planejamento por período e turno, importação de pedidos e acompanhamento de paradas por motorista.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+                            {{ delivery_summary.total_stops }} paradas
                         </span>
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ "{:,.0f}".format(delivery_summary.total_weight).replace(",", ".") }} Kg planejados
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            Turno {{ selected_shift }}
+                            {% if selected_date_from != selected_date_to %}
+                            • {{ selected_date_from[8:10] }}/{{ selected_date_from[5:7] }} – {{ selected_date_to[8:10] }}/{{ selected_date_to[5:7] }}
+                            {% else %}
+                            • {{ selected_date_fmt }}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-lg xl:flex-shrink-0 xl:justify-end">
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                        </span>
+                        <span class="employees-cta__label">Importar entregas</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div x-show="open" x-cloak @click.away="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 max-h-[min(70vh,28rem)] overflow-y-auto py-3 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,24rem)]">
+                        <p class="employees-hero__import-menu-title px-4 pb-2 pt-0">Arquivo de entregas</p>
+                        <p class="employees-text-muted px-4 pb-3 text-xs leading-relaxed">D-1: importe pedidos de ontem. Validação de cliente, motorista e caminhão.</p>
+                        <form
+                            id="form-import-entregas"
+                            action="/separacao/import-entregas"
+                            method="post"
+                            enctype="multipart/form-data"
+                            class="space-y-3 px-4 pb-1"
+                            onsubmit="return confirmImportDeliveries(this)"
+                            data-today-br="{{ today_br }}"
+                        >
+                            <input type="hidden" name="date" id="import-date-value" value="{{ selected_date_from }}">
+                            <input type="hidden" name="input_date" value="{{ suggested_input_date }}">
+                            <input type="hidden" name="shift" value="{{ selected_shift }}">
+
+                            <div class="flex flex-col gap-2">
+                                <input
+                                    id="delivery-file-input"
+                                    type="file"
+                                    name="file"
+                                    accept=".xls,.xlsx,.csv"
+                                    class="hidden"
+                                    onchange="handleDeliveryFileSelect(this)"
+                                >
+                                <label
+                                    for="delivery-file-input"
+                                    class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                >
+                                    <i data-lucide="upload" class="h-3.5 w-3.5"></i>
+                                    Escolher arquivo
+                                </label>
+                                <span id="delivery-file-name" class="truncate text-[11px] employees-text-muted">Nenhum selecionado</span>
+                            </div>
+
+                            <div id="import-auth-password-wrap" class="flex flex-col gap-1 {% if not import_requires_password %}hidden{% endif %}">
+                                <label class="employees-text-caption text-[11px] font-medium">Senha (obrigatória se data ≠ hoje)</label>
+                                <input
+                                    type="password"
+                                    name="import_auth_password"
+                                    id="import-auth-password"
+                                    autocomplete="off"
+                                    placeholder="Senha de autorização"
+                                    class="sys-input w-full text-sm"
+                                >
+                            </div>
+
+                            <button type="submit" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center">
+                                <span class="employees-cta__label">Enviar importação</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIs (grid employees) -->
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo da operação">
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Operação</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span class="employees-kpi__value tabular-nums">{{ delivery_summary.total_stops }}</span>
+                                <span class="employees-kpi__denom text-sm">paradas</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted tabular-nums">{{ "{:,.0f}".format(delivery_summary.total_weight).replace(",", ".") }} Kg</span>
+                        {% if delivery_groups %}
+                        <span class="rounded-full bg-slate-500/10 px-2 py-1 font-medium text-slate-700 dark:bg-slate-500/20 dark:text-slate-300">{{ delivery_groups|length }} rotas</span>
                         {% endif %}
                     </div>
                 </div>
             </div>
 
-            <!-- Barra única de seleção -->
-            <div id="bulk-actions-bar" class="hidden border-b border-slate-700/60 bg-slate-900/70 px-4 py-2.5 backdrop-blur">
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Pendentes</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ delivery_summary.pending }}</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted">Aguardando início na rota</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(99, 102, 241, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-indigo-600 dark:text-indigo-300">Em campo</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span class="employees-kpi__value tabular-nums">{{ delivery_summary.opened_routines }}</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted">Rotinas abertas ou em andamento</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Entregues</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span class="employees-kpi__value employees-kpi__value--state tabular-nums text-emerald-700 dark:text-emerald-300">{{ delivery_summary.delivered }}</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted">Concluídas com sucesso</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Devoluções</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ delivery_summary.returned }}</span>
+                                <span class="employees-kpi__denom text-sm">({{ "%.1f"|format(delivery_summary.return_percentage)|replace(".", ",") }}%)</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        {% if delivery_summary.returned_weight > 0 %}
+                        <span class="tabular-nums font-medium text-orange-700 dark:text-orange-300">{{ "{:,.1f}".format(delivery_summary.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg dev.</span>
+                        {% else %}
+                        <span class="employees-text-muted">Sem peso devolvido registrado</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barra de filtros (employees-filter-bar) -->
+    <div id="separacao-filter-anchor" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner flex-wrap">
+                <div class="employees-filter-bar__primary flex-wrap gap-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Período</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="date" id="route-date-from" value="{{ selected_date_from }}" onchange="applyFilters()" class="delivery-filter-input" title="Data inicial">
+                            <span class="employees-text-caption text-xs">até</span>
+                            <input type="date" id="route-date-to" value="{{ selected_date_to }}" onchange="applyFilters()" class="delivery-filter-input" title="Data final">
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Turno</span>
+                        <select id="route-shift" onchange="applyFilters()" class="delivery-filter-input min-w-[7.5rem] [&>option]:bg-white dark:[&>option]:bg-slate-800">
+                            <option value="Manhã" {% if selected_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
+                            <option value="Tarde" {% if selected_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
+                            <option value="Noite" {% if selected_shift == 'Noite' %}selected{% endif %}>Noite</option>
+                        </select>
+                    </div>
+                    <div class="min-w-[200px] flex-1 basis-[220px]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na operação</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search mt-1">
+                            <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input type="text" id="delivery-global-search" placeholder="Cliente, código, pedido, motorista…" oninput="filterDeliveryRows(this.value)" class="ops-toolbar-search__input">
+                        </div>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider hidden lg:block" aria-hidden="true"></div>
+                <div class="employees-filter-bar__secondary flex-wrap items-center gap-2">
+                    <span id="delivery-search-result" class="employees-text-caption text-xs"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Painel principal -->
+    <div id="delivery-operations-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Centro de operação</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Rotas e paradas</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Expanda cada motorista para ver paradas, status e ações. A tabela usa cabeçalho fixo ao rolar.</p>
+            </div>
+            <div class="employees-table-panel__aside flex max-w-full flex-col gap-2 text-xs leading-relaxed lg:max-w-md lg:pt-1 lg:text-right">
+                <div class="flex flex-wrap items-center justify-end gap-2 lg:justify-end">
+                    <form
+                        action="/separacao/delivery/planning-date/bulk"
+                        method="post"
+                        class="flex flex-wrap items-center gap-1.5"
+                        onsubmit="return confirm('Mover TODAS as rotas do dia {{ selected_date_from[8:10] }}/{{ selected_date_from[5:7] }}?');"
+                    >
+                        <input type="hidden" name="current_date" value="{{ selected_date_from }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <input type="date" name="planning_date" value="{{ selected_date_from }}" class="delivery-mini-input">
+                        <button type="submit" class="sys-btn sys-btn--secondary px-2.5 py-1.5 text-[11px] font-semibold">Todas → data</button>
+                    </form>
+                    {% if delivery_summary.pending > 0 or delivery_summary.opened_routines > 0 %}
+                    <form action="/separacao/delivery/finish-all-routes" method="post" class="inline" onsubmit="return confirm('Finalizar TODAS as rotas?');">
+                        <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                        <input type="hidden" name="date_to" value="{{ selected_date_to }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <button type="submit" class="sys-btn sys-btn--primary bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold">
+                            Finalizar todas
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if delivery_summary.delivered > 0 or delivery_summary.returned > 0 %}
+                    <form action="/separacao/delivery/reopen-all-routes" method="post" class="inline" onsubmit="return confirm('Reabrir TODAS?');">
+                        <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                        <input type="hidden" name="date_to" value="{{ selected_date_to }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <button type="submit" class="sys-btn sys-btn--secondary px-2.5 py-1.5 text-[11px] font-semibold text-teal-700 dark:text-teal-300">
+                            Reabrir todas
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                <span class="employees-text-caption hidden sm:inline">Use a busca acima para localizar clientes ou motoristas em lote.</span>
+            </div>
+        </div>
+
+            <div id="bulk-actions-bar" class="hidden separacao-bulk-bar border-b px-4 py-2.5">
                 <!-- Modo: rotas -->
                 <div id="bulk-driver-panel" class="hidden flex flex-wrap items-center gap-2">
-                    <span id="bulk-driver-count" class="text-xs font-semibold text-sky-300">0 rota(s) selecionada(s)</span>
+                    <span id="bulk-driver-count" class="text-xs font-semibold text-sky-700 dark:text-sky-300">0 rota(s) selecionada(s)</span>
 
                     <form
                         id="bulk-move-routes-form"
@@ -244,14 +412,14 @@
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                         <input type="hidden" name="action" value="finalize_routes">
                         <input type="hidden" name="employee_ids" id="bulk-employee-ids-finalize" value="">
-                        <button type="submit" class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/20">
+                        <button type="submit" class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
                             Finalizar
                         </button>
                     </form>
 
                     <details class="relative">
-                        <summary class="delivery-btn-ghost cursor-pointer list-none rounded px-2 py-1 text-[11px] font-medium text-slate-400 hover:text-white">Mais</summary>
-                        <div class="absolute left-0 top-full z-20 mt-1 min-w-[170px] rounded-lg border border-slate-700 bg-slate-900 py-1 shadow-xl">
+                        <summary class="delivery-btn-ghost cursor-pointer list-none rounded px-2 py-1 text-[11px] font-medium">Mais</summary>
+                        <div class="absolute left-0 top-full z-20 mt-1 min-w-[170px] rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-600 dark:bg-slate-900">
                             <form
                                 id="bulk-clear-devolucoes-form"
                                 action="/separacao/delivery/bulk-action"
@@ -264,7 +432,7 @@
                                 <input type="hidden" name="shift" value="{{ selected_shift }}">
                                 <input type="hidden" name="action" value="clear_devolucoes">
                                 <input type="hidden" name="employee_ids" id="bulk-employee-ids-clear" value="">
-                                <button type="submit" class="w-full px-3 py-2 text-left text-[11px] text-orange-300 hover:bg-orange-500/20">
+                                <button type="submit" class="w-full px-3 py-2 text-left text-[11px] text-orange-700 hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-500/20">
                                     Limpar devoluções
                                 </button>
                             </form>
@@ -281,24 +449,24 @@
                                 <input type="hidden" name="shift" value="{{ selected_shift }}">
                                 <input type="hidden" name="action" value="delete_routes">
                                 <input type="hidden" name="employee_ids" id="bulk-employee-ids-delete" value="">
-                                <button type="submit" class="w-full px-3 py-2 text-left text-[11px] text-red-400 hover:bg-red-500/20">
+                                <button type="submit" class="w-full px-3 py-2 text-left text-[11px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/20">
                                     Apagar rotas
                                 </button>
                             </form>
                         </div>
                     </details>
 
-                    <button type="button" onclick="selectAllBulkDrivers()" class="delivery-btn-ghost px-2 py-1 text-[11px] text-slate-400 hover:text-white">
+                    <button type="button" onclick="selectAllBulkDrivers()" class="delivery-btn-ghost px-2 py-1 text-[11px]">
                         Marcar todas
                     </button>
-                    <button type="button" onclick="clearBulkDriverSelection()" class="delivery-btn-ghost px-2 py-1 text-[11px] text-slate-400 hover:text-white">
+                    <button type="button" onclick="clearBulkDriverSelection()" class="delivery-btn-ghost px-2 py-1 text-[11px]">
                         Desmarcar
                     </button>
                 </div>
 
                 <!-- Modo: paradas -->
                 <div id="bulk-stop-panel" class="hidden flex flex-wrap items-center gap-2">
-                    <span class="text-xs font-semibold text-violet-200">
+                    <span class="text-xs font-semibold text-violet-700 dark:text-violet-200">
                         <span id="bulk-stops-count">0</span> selecionado(s)
                     </span>
 
@@ -322,32 +490,32 @@
                         </button>
                     </form>
 
-                    <button type="button" onclick="clearBulkStopSelection()" class="delivery-btn-ghost px-2 py-1 text-[11px] text-slate-400 hover:text-white">
+                    <button type="button" onclick="clearBulkStopSelection()" class="delivery-btn-ghost px-2 py-1 text-[11px]">
                         Desmarcar
                     </button>
                 </div>
             </div>
 
-            <div class="p-4">
+            <div class="p-4 sm:p-5 md:px-6">
                 {% if delivery_groups %}
                 <div class="space-y-5">
                     {% for group in delivery_groups %}
                         {% if group.group_date and (loop.first or not loop.previtem or group.group_date != loop.previtem.group_date) %}
                         <div class="flex items-center gap-2 py-1">
-                            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">
+                            <span class="employees-text-section-label">
                                 {{ group.group_date[8:10] }}/{{ group.group_date[5:7] }}/{{ group.group_date[0:4] }}
                             </span>
-                            <div class="h-px flex-1 bg-slate-700"></div>
+                            <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
                         </div>
                         {% endif %}
 
-                        <details class="delivery-group overflow-hidden rounded-lg border border-slate-700/80 bg-slate-900/20 group" data-group-date="{{ group.group_date | default('') }}">
-                            <summary class="delivery-route-summary flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-slate-800/40">
+                        <details class="delivery-group group overflow-hidden" data-group-date="{{ group.group_date | default('') }}">
+                            <summary class="delivery-route-summary flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <div class="min-w-0 flex items-center gap-2">
                                     <label class="flex shrink-0 cursor-pointer" onclick="event.stopPropagation()" title="Selecionar rota">
                                         <input
                                             type="checkbox"
-                                            class="bulk-driver-checkbox rounded border-slate-500 bg-slate-800 text-sky-500 focus:ring-sky-500/50"
+                                            class="bulk-driver-checkbox rounded border-slate-400 text-sky-600 focus:ring-sky-500/50 dark:border-slate-500 dark:bg-slate-800"
                                             data-employee-id="{{ group.employee_id }}"
                                             data-driver-name="{{ group.driver_name }}"
                                             data-vehicle-plate="{{ group.vehicle_plate }}"
@@ -357,23 +525,23 @@
                                     </label>
 
                                     {% set _gdate = group.group_date or selected_date_from %}
-                                    <span class="shrink-0 rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+                                    <span class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                                         {{ _gdate[8:10] }}/{{ _gdate[5:7] }}
                                     </span>
 
-                                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-sky-500/30 bg-gradient-to-br from-sky-500/50 to-indigo-500/50 text-[10px] font-bold text-white">
+                                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-sky-400/40 bg-gradient-to-br from-sky-500 to-indigo-600 text-[10px] font-bold text-white shadow-sm">
                                         {{ group.driver_name[:2].upper() }}
                                     </div>
 
                                     <div class="min-w-0">
-                                        <p class="truncate text-sm font-semibold text-white">{{ group.driver_name }}</p>
-                                        <p class="text-[10px] text-slate-500">
+                                        <p class="employees-data-table__name-link truncate text-sm font-semibold employees-text-strong">{{ group.driver_name }}</p>
+                                        <p class="text-[10px] employees-text-muted">
                                             {{ group.vehicle_plate }}{% if group.helper_names %} • {{ group.helper_names|join(", ") }}{% endif %}
                                         </p>
                                     </div>
 
                                     {% if group.has_plate_conflict %}
-                                    <span class="rounded bg-amber-900/30 px-1 py-0.5 text-[9px] font-bold text-amber-300">Conflito</span>
+                                    <span class="rounded bg-amber-100 px-1 py-0.5 text-[9px] font-bold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">Conflito</span>
                                     {% endif %}
                                 </div>
 
@@ -382,16 +550,16 @@
                                     {% if group.opened_routines %}<span class="delivery-badge delivery-badge-open">{{ group.opened_routines }} ab.</span>{% endif %}
                                     {% if group.delivered %}<span class="delivery-badge delivery-badge-done">{{ group.delivered }} ent.</span>{% endif %}
                                     {% if group.returned %}<span class="delivery-badge delivery-badge-return">{{ group.returned }} dev.</span>{% endif %}
-                                    <span class="font-mono text-xs font-semibold text-emerald-400">
+                                    <span class="font-mono text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                                         {{ "{:,.1f}".format(group.total_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg
                                     </span>
-                                    <i data-lucide="chevron-down" class="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180"></i>
+                                    <i data-lucide="chevron-down" class="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180 dark:text-slate-500"></i>
                                 </div>
                             </summary>
 
                             <!-- Ações rápidas -->
-                            <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-700/60 px-3 py-2">
-                                <span class="text-[11px] text-slate-500">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 dark:border-slate-700/60">
+                                <span class="text-[11px] employees-text-muted">
                                     {{ group.rows|length }} paradas • R$ {{ "{:,.0f}".format(group.total_value).replace(",", ".") }}
                                     {% if group.returned_weight > 0 %}
                                     • {{ "{:,.1f}".format(group.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg dev.
@@ -402,7 +570,7 @@
                                     <button
                                         type="button"
                                         onclick="openAddManualStopModal({{ group.employee_id }}, '{{ group.vehicle_plate }}', '{{ group.group_date | default(selected_date_from) }}', '{{ selected_shift }}')"
-                                        class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-indigo-400 hover:bg-indigo-500/20"
+                                        class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
                                     >
                                         <i data-lucide="user-plus" class="mr-0.5 inline h-3 w-3"></i>
                                         Incluir cliente
@@ -413,7 +581,7 @@
                                         <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                         <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
-                                        <button type="submit" class="rounded border border-emerald-500/30 px-2 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-500/20">
+                                        <button type="submit" class="sys-btn sys-btn--secondary border-emerald-200 px-2 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/20">
                                             Finalizar rota
                                         </button>
                                     </form>
@@ -424,7 +592,7 @@
                                         <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                         <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
-                                        <button type="submit" class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-teal-400 hover:bg-teal-500/20">
+                                        <button type="submit" class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-teal-700 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-500/20">
                                             Reabrir rota
                                         </button>
                                     </form>
@@ -433,12 +601,12 @@
                             </div>
 
                             <!-- Ajustes administrativos -->
-                            <details class="border-t border-slate-700/60">
-                                <summary class="cursor-pointer bg-slate-900/20 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-500 hover:bg-slate-900/40">
+                            <details class="border-t border-slate-200 dark:border-slate-700/60">
+                                <summary class="cursor-pointer bg-slate-50 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-500 hover:bg-slate-100 dark:bg-slate-900/20 dark:text-slate-400 dark:hover:bg-slate-900/40">
                                     Ajustar rota • Reatribuir, mover, iniciar web
                                 </summary>
 
-                                <div class="space-y-2.5 border-t border-slate-700/50 bg-slate-900/30 px-3 py-2.5">
+                                <div class="space-y-2.5 border-t border-slate-200 bg-slate-50/80 px-3 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/30">
                                     <form action="/separacao/delivery/reassign-group" method="post" class="flex flex-wrap items-end gap-2">
                                         <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
                                         <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
@@ -446,7 +614,7 @@
                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
 
                                         <div class="min-w-[160px]">
-                                            <label class="mb-0.5 block text-[10px] text-slate-500">Motorista</label>
+                                            <label class="employees-text-caption mb-0.5 block text-[10px] font-medium">Motorista</label>
                                             <select name="new_employee_id" class="delivery-mini-select w-full">
                                                 {% for emp in delivery_employees %}
                                                 <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
@@ -455,7 +623,7 @@
                                         </div>
 
                                         <div class="min-w-[110px]">
-                                            <label class="mb-0.5 block text-[10px] text-slate-500">Caminhão</label>
+                                            <label class="employees-text-caption mb-0.5 block text-[10px] font-medium">Caminhão</label>
                                             <select name="new_vehicle_plate" class="delivery-mini-select w-full">
                                                 {% for veh in delivery_vehicles %}
                                                 <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }}</option>
@@ -464,15 +632,15 @@
                                         </div>
 
                                         <div class="min-w-[180px] flex-1">
-                                            <label class="mb-0.5 block text-[10px] text-slate-500">Ajudantes</label>
+                                            <label class="employees-text-caption mb-0.5 block text-[10px] font-medium">Ajudantes</label>
                                             <div class="delivery-helper-picker" data-driver-id="{{ group.employee_id }}">
                                                 <div class="relative">
                                                     <input
                                                         type="text"
-                                                        class="delivery-helper-search w-full rounded border border-slate-600 bg-slate-950 px-2 py-1.5 text-[11px] outline-none"
+                                                        class="delivery-helper-search sys-input w-full px-2 py-1.5 text-[11px]"
                                                         placeholder="Buscar..."
                                                     >
-                                                    <div class="delivery-helper-suggestions absolute z-20 mt-1 hidden max-h-40 w-full overflow-y-auto rounded border border-slate-700 bg-slate-900 shadow-xl"></div>
+                                                    <div class="delivery-helper-suggestions absolute z-20 mt-1 hidden max-h-40 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"></div>
                                                 </div>
                                                 <div class="delivery-helper-hidden">
                                                     {% for helper_id in group.helper_ids %}
@@ -484,17 +652,17 @@
                                         </div>
 
                                         <div class="flex gap-1.5">
-                                            <button type="reset" class="rounded border border-slate-600 bg-slate-800 px-2.5 py-1 text-[11px] text-slate-400 hover:text-slate-200">
+                                            <button type="reset" class="sys-btn sys-btn--secondary px-2.5 py-1 text-[11px]">
                                                 Limpar
                                             </button>
-                                            <button type="submit" class="rounded bg-sky-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-sky-500">
+                                            <button type="submit" class="sys-btn sys-btn--primary px-3 py-1 text-[11px]">
                                                 Aplicar
                                             </button>
                                         </div>
                                     </form>
 
                                     {% set _route_date = (group.rows[0].planning_date if group.rows else none) or group.group_date or selected_date_from %}
-                                    <div class="flex flex-wrap items-end gap-2 border-t border-slate-700/50 pt-2">
+                                    <div class="flex flex-wrap items-end gap-2 border-t border-slate-200 pt-2 dark:border-slate-700/50">
                                         <form
                                             action="/separacao/delivery/planning-date/group"
                                             method="post"
@@ -513,7 +681,7 @@
                                     </div>
 
                                     {% if not group.session_started %}
-                                    <div class="border-t border-slate-700/50 pt-2">
+                                    <div class="border-t border-slate-200 pt-2 dark:border-slate-700/50">
                                         <form action="/separacao/delivery/session/start" method="post" class="flex flex-wrap items-end gap-2">
                                             <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
                                             <input type="hidden" name="vehicle_plate" value="{{ group.vehicle_plate }}">
@@ -525,7 +693,7 @@
                                                 name="plate"
                                                 value="{{ group.vehicle_plate }}"
                                                 placeholder="Placa"
-                                                class="w-24 rounded border border-slate-600 bg-slate-950 px-2 py-1.5 font-mono text-[11px] uppercase"
+                                                class="sys-input w-24 px-2 py-1.5 font-mono text-[11px] uppercase"
                                                 oninput="this.value=this.value.toUpperCase()"
                                             >
                                             <input
@@ -536,9 +704,9 @@
                                                 min="0"
                                                 required
                                                 placeholder="KM saída"
-                                                class="w-28 rounded border border-slate-600 bg-slate-950 px-2 py-1.5 font-mono text-[11px]"
+                                                class="sys-input w-28 px-2 py-1.5 font-mono text-[11px]"
                                             >
-                                            <button type="submit" class="rounded bg-sky-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-sky-500">
+                                            <button type="submit" class="sys-btn sys-btn--primary px-2.5 py-1.5 text-[11px]">
                                                 Iniciar rota web
                                             </button>
                                         </form>
@@ -548,43 +716,43 @@
                             </details>
 
                             <!-- Tabela -->
-                            <div class="overflow-x-auto border-t border-slate-700/60">
-                                <table class="w-full text-xs" id="delivery-table-{{ loop.index }}-{{ group.employee_id }}">
-                                    <thead class="bg-slate-900/60">
+                            <div class="sys-table-wrap sys-table-wrap--x-scroll border-t border-slate-200 dark:border-slate-700/60">
+                                <table class="separacao-delivery-table w-full min-w-[920px] text-left" id="delivery-table-{{ loop.index }}-{{ group.employee_id }}">
+                                    <thead class="employees-data-table__head">
                                         <tr>
-                                            <th class="w-8 px-1.5 py-1.5">
+                                            <th class="w-8 px-1.5 py-2">
                                                 <label class="flex cursor-pointer items-center" onclick="event.stopPropagation()">
-                                                    <input type="checkbox" class="bulk-stop-select-all rounded border-slate-500 bg-slate-800 text-violet-500 focus:ring-violet-500/50">
+                                                    <input type="checkbox" class="bulk-stop-select-all rounded border-slate-400 text-violet-600 focus:ring-violet-500/50 dark:border-slate-500 dark:bg-slate-800">
                                                     <span class="sr-only">Marcar todos</span>
                                                 </label>
                                             </th>
-                                            <th class="px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-500">Cliente</th>
-                                            <th class="px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-500">Endereço</th>
-                                            <th class="w-20 px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-500">Peso</th>
-                                            <th class="w-24 px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-500">Valor</th>
-                                            <th class="px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-500">Status</th>
-                                            <th class="w-24 px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-500">Inserido</th>
-                                            <th class="min-w-[200px] px-2 py-1.5 text-left text-[10px] font-medium uppercase tracking-wide text-slate-500">Ações</th>
+                                            <th class="px-2 py-2">Cliente</th>
+                                            <th class="px-2 py-2">Endereço</th>
+                                            <th class="w-20 px-2 py-2">Peso</th>
+                                            <th class="w-24 px-2 py-2">Valor</th>
+                                            <th class="px-2 py-2">Status</th>
+                                            <th class="w-24 px-2 py-2">Inserido</th>
+                                            <th class="min-w-[200px] px-2 py-2">Ações</th>
                                         </tr>
                                     </thead>
 
                                     <tbody>
                                         {% for row in group.rows %}
                                         <tr
-                                            class="delivery-row border-t border-slate-800 align-top
-                                            {% if row.status_raw == 'iniciada' %}bg-indigo-900/10
-                                            {% elif row.status_raw == 'reaberta' %}bg-violet-900/10
-                                            {% elif row.status_raw == 'entregue' %}bg-emerald-900/10
-                                            {% elif row.status_raw == 'devolucao' %}bg-orange-900/10
-                                            {% elif row.status_raw == 'pendente' %}bg-amber-900/10
-                                            {% else %}bg-slate-900/10{% endif %}"
+                                            class="delivery-row separacao-delivery-table__row border-t border-slate-200 align-top dark:border-slate-800
+                                            {% if row.status_raw == 'iniciada' %}separacao-row--iniciada
+                                            {% elif row.status_raw == 'reaberta' %}separacao-row--reaberta
+                                            {% elif row.status_raw == 'entregue' %}separacao-row--entregue
+                                            {% elif row.status_raw == 'devolucao' %}separacao-row--devolucao
+                                            {% elif row.status_raw == 'pendente' %}separacao-row--pendente
+                                            {% else %}separacao-row--default{% endif %}"
                                             data-search="{{ (row.client_name ~ ' ' ~ row.client_code ~ ' ' ~ row.order_number ~ ' ' ~ row.weight ~ ' ' ~ row.value ~ ' ' ~ row.address ~ ' ' ~ row.city ~ ' ' ~ row.bairro ~ ' ' ~ (row.inserted_at or '') ~ ' ' ~ (group.driver_name or '') ~ ' ' ~ (group.helper_names|join(' ') if group.helper_names else ''))|lower }}"
                                         >
                                             <td class="px-2 py-1.5 align-top">
                                                 <label class="flex cursor-pointer items-center" onclick="event.stopPropagation()" title="Selecionar para mover para outro dia">
                                                     <input
                                                         type="checkbox"
-                                                        class="bulk-stop-checkbox rounded border-slate-500 bg-slate-800 text-violet-500 focus:ring-violet-500/50"
+                                                        class="bulk-stop-checkbox rounded border-slate-400 text-violet-600 focus:ring-violet-500/50 dark:border-slate-500 dark:bg-slate-800"
                                                         data-route-id="{{ row.id }}"
                                                         data-date="{{ group.group_date or row.planning_date or selected_date_from }}"
                                                         data-shift="{{ selected_shift }}"
@@ -594,26 +762,26 @@
                                                 </label>
                                             </td>
 
-                                            <td class="px-2 py-1.5 text-slate-200">
-                                                <div class="font-bold">{{ row.client_name }}</div>
+                                            <td class="employees-data-table__cell px-2 py-1.5 employees-text-body">
+                                                <div class="font-bold employees-text-strong">{{ row.client_name }}</div>
                                                 {% if row.client_secondary %}
-                                                <div class="text-[10px] text-slate-400">Fantasia: {{ row.client_secondary }}</div>
+                                                <div class="text-[10px] employees-text-muted">Fantasia: {{ row.client_secondary }}</div>
                                                 {% endif %}
-                                                <div class="text-slate-500">Cod {{ row.client_code }} • Pedido {{ row.order_number }}</div>
+                                                <div class="employees-text-muted">Cod {{ row.client_code }} • Pedido {{ row.order_number }}</div>
                                             </td>
 
-                                            <td class="px-2 py-1.5 text-slate-300">
-                                                <a href="{{ row.maps_url }}" target="_blank" class="text-sky-300 underline-offset-2 hover:text-sky-200 hover:underline">
+                                            <td class="employees-data-table__cell px-2 py-1.5 employees-text-body">
+                                                <a href="{{ row.maps_url }}" target="_blank" class="text-sky-700 underline-offset-2 hover:text-sky-600 hover:underline dark:text-sky-300 dark:hover:text-sky-200">
                                                     {{ row.address }}
                                                 </a>
-                                                <div class="text-slate-500">{{ row.bairro }} - {{ row.city }}/{{ row.state }} - {{ row.cep }}</div>
+                                                <div class="employees-text-muted">{{ row.bairro }} - {{ row.city }}/{{ row.state }} - {{ row.cep }}</div>
                                             </td>
 
-                                            <td class="px-2 py-1.5 font-mono font-bold text-slate-200">
+                                            <td class="px-2 py-1.5 font-mono font-bold employees-text-strong">
                                                 {{ "{:,.2f}".format(row.weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg
                                             </td>
 
-                                            <td class="px-2 py-1.5 font-mono font-bold text-slate-200">
+                                            <td class="px-2 py-1.5 font-mono font-bold employees-text-strong">
                                                 R$ {{ "{:,.2f}".format(row.value).replace(",", "X").replace(".", ",").replace("X", ".") }}
                                             </td>
 
@@ -701,7 +869,7 @@
                                                 {% endif %}
                                             </td>
 
-                                            <td class="whitespace-nowrap px-2 py-1.5 font-mono text-[11px] text-slate-400" title="Dia e horário em que o cliente foi inserido na rota">
+                                            <td class="employees-data-table__cell--muted whitespace-nowrap px-2 py-1.5 font-mono text-[11px]" title="Dia e horário em que o cliente foi inserido na rota">
                                                 {% if row.inserted_at %}{{ row.inserted_at }}{% else %}—{% endif %}
                                             </td>
 
@@ -783,7 +951,7 @@
                                                             <input type="hidden" name="date_from" value="{{ selected_date_from }}">
                                                             <input type="hidden" name="date_to" value="{{ selected_date_to }}">
                                                             {% endif %}
-                                                            <button type="submit" class="text-[10px] text-slate-500 transition-colors hover:text-red-400">
+                                                            <button type="submit" class="text-[10px] employees-text-muted transition-colors hover:text-red-600 dark:hover:text-red-400">
                                                                 Excluir
                                                             </button>
                                                         </form>
@@ -799,8 +967,8 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="py-10 text-center text-slate-500">
-                    <p class="mb-3">
+                <div class="separacao-empty-state py-12 text-center">
+                    <p class="mb-3 text-sm employees-text-body">
                         Nenhuma entrega importada
                         {% if selected_date_from != selected_date_to %}
                         para o período {{ selected_date_from[8:10] }}/{{ selected_date_from[5:7] }}/{{ selected_date_from[0:4] }} - {{ selected_date_to[8:10] }}/{{ selected_date_to[5:7] }}/{{ selected_date_to[0:4] }}.
@@ -810,7 +978,7 @@
                     </p>
                     <a
                         href="/separacao?date_from={{ suggest_week_ago }}&date_to={{ selected_date_to }}&shift={{ selected_shift | urlencode }}"
-                        class="inline-flex items-center gap-2 font-medium text-emerald-400 hover:text-emerald-300"
+                        class="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
                     >
                         <i data-lucide="calendar" class="h-4 w-4"></i>
                         Ver última semana
@@ -818,23 +986,28 @@
                 </div>
                 {% endif %}
             </div>
-        </section>
     </div>
-</div>
 
-<!-- Modal devolução -->
-<dialog id="returnModal" class="glass-panel mx-auto mt-20 w-full max-w-lg overflow-hidden rounded-2xl p-0 shadow-2xl backdrop:bg-black/80">
-    <div class="bg-slate-800 p-6">
-        <h3 class="mb-4 text-lg font-bold text-white">Registrar Devolução</h3>
+<!-- Modal devolução (pele employees / sys-card) -->
+<dialog id="returnModal" class="separacao-modal">
+    <div class="sys-card sys-card--surface sys-card--comfort relative w-[min(100vw-2rem,28rem)] overflow-hidden shadow-xl">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <h3 class="sys-section-heading pr-8 text-lg">Registrar Devolução</h3>
+            <button type="button" onclick="document.getElementById('returnModal').close()" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
 
-        <form action="/separacao/delivery/status" method="post" class="space-y-4">
+        <form action="/separacao/delivery/status" method="post" class="space-y-4 px-6 py-5">
             <input type="hidden" name="route_id" id="return-route-id">
             <input type="hidden" name="date" id="return-date">
             <input type="hidden" name="shift" id="return-shift">
             <input type="hidden" name="action" value="devolucao">
 
             <div>
-                <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Categoria</label>
+                <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Categoria</label>
                 <select name="return_category" id="return-category" required onchange="refreshReturnReasons()" class="modal-input">
                     {% for category in delivery_return_reasons.keys() %}
                     <option value="{{ category }}">{{ category }}</option>
@@ -843,66 +1016,69 @@
             </div>
 
             <div>
-                <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Motivo</label>
+                <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Motivo</label>
                 <select name="return_reason" id="return-reason" required class="modal-input"></select>
             </div>
 
-            <div class="space-y-3 rounded-lg border border-slate-700 bg-slate-900/40 p-3">
-                <label class="flex items-center gap-2 text-sm text-slate-200">
+            <div class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-800/50">
+                <label class="flex items-center gap-2 text-sm employees-text-body">
                     <input
                         type="checkbox"
                         id="return-is-partial"
                         name="return_is_partial"
                         value="1"
                         onchange="togglePartialReturnFields()"
-                        class="rounded border-slate-600 bg-slate-900 text-orange-500 focus:ring-orange-500"
+                        class="rounded border-slate-400 text-orange-600 focus:ring-orange-500 dark:border-slate-500"
                     >
                     Devolução parcial
                 </label>
 
                 <div id="partial-return-fields" class="hidden grid grid-cols-1 gap-3 md:grid-cols-2">
                     <div>
-                        <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Peso devolvido (Kg)</label>
+                        <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Peso devolvido (Kg)</label>
                         <input type="number" step="0.01" min="0" name="return_partial_weight" id="return-partial-weight" class="modal-input text-sm">
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Valor devolvido (R$)</label>
+                        <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Valor devolvido (R$)</label>
                         <input type="number" step="0.01" min="0" name="return_partial_value" id="return-partial-value" class="modal-input text-sm">
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 pt-2">
-                <button type="button" onclick="document.getElementById('returnModal').close()" class="btn-modal btn-modal-secondary">
-                    Cancelar
-                </button>
-                <button type="submit" class="rounded-lg bg-orange-600 py-2.5 font-bold text-white hover:bg-orange-500">
-                    Confirmar Devolução
-                </button>
+            <div class="flex flex-wrap justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('returnModal').close()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn bg-orange-600 px-4 py-2.5 font-semibold text-white hover:bg-orange-500">Confirmar Devolução</button>
             </div>
         </form>
     </div>
 </dialog>
 
 <!-- Modal mover cliente para outra rota -->
-<dialog id="moveModal" class="glass-panel mx-auto mt-20 w-full max-w-xl overflow-hidden rounded-2xl p-0 shadow-2xl backdrop:bg-black/80">
-    <div class="border-b border-slate-700 bg-slate-800 p-6">
-        <h3 class="flex items-center gap-2 text-lg font-bold text-white">
-            <i data-lucide="shuffle" class="h-5 w-5 text-violet-300"></i>
-            Mover Cliente para Outra Entrega
-        </h3>
-        <p class="mt-1 text-xs text-slate-400">Selecione o novo motorista e caminhão. A validação de vínculo é aplicada automaticamente.</p>
-    </div>
+<dialog id="moveModal" class="separacao-modal">
+    <div class="sys-card sys-card--surface sys-card--comfort relative w-[min(100vw-2rem,36rem)] overflow-hidden shadow-xl">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <div class="min-w-0 pr-6">
+                <h3 class="sys-section-heading flex items-center gap-2 text-lg">
+                    <i data-lucide="shuffle" class="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-300"></i>
+                    Mover cliente para outra entrega
+                </h3>
+                <p class="mt-1 text-xs employees-text-muted">Selecione o novo motorista e caminhão. A validação de vínculo é aplicada automaticamente.</p>
+            </div>
+            <button type="button" onclick="document.getElementById('moveModal').close()" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
 
-    <div class="bg-slate-800 p-6">
-        <form action="/separacao/delivery/reassign" method="post" class="space-y-4">
+        <form action="/separacao/delivery/reassign" method="post" class="space-y-4 px-6 py-5">
             <input type="hidden" name="route_id" id="move-route-id">
             <input type="hidden" name="date" id="move-date">
             <input type="hidden" name="shift" id="move-shift">
 
             <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
-                    <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Novo Motorista</label>
+                    <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Novo motorista</label>
                     <select name="new_employee_id" id="move-employee-id" required class="modal-input text-sm">
                         {% for emp in delivery_employees %}
                         <option value="{{ emp.id }}">{{ emp.name|emp_name }}</option>
@@ -911,7 +1087,7 @@
                 </div>
 
                 <div>
-                    <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Novo Caminhão</label>
+                    <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Novo caminhão</label>
                     <select name="new_vehicle_plate" id="move-vehicle-plate" required class="modal-input text-sm">
                         {% for veh in delivery_vehicles %}
                         <option value="{{ veh.placa }}">{{ veh.placa }} - {{ veh.modelo }}</option>
@@ -920,30 +1096,33 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3 pt-2">
-                <button type="button" onclick="document.getElementById('moveModal').close()" class="btn-modal btn-modal-secondary">
-                    Fechar
-                </button>
-                <button type="submit" class="btn-modal btn-modal-primary">
-                    Confirmar Movimento
-                </button>
+            <div class="flex flex-wrap justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('moveModal').close()" class="sys-btn sys-btn--secondary">Fechar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Confirmar movimento</button>
             </div>
         </form>
     </div>
 </dialog>
 
 <!-- Modal incluir cliente manual -->
-<dialog id="addManualStopModal" class="glass-panel mx-auto mt-20 w-full max-w-lg overflow-hidden rounded-2xl p-0 shadow-2xl backdrop:bg-black/80">
-    <div class="border-b border-slate-700 bg-slate-800 p-6">
-        <h3 class="flex items-center gap-2 text-lg font-bold text-white">
-            <i data-lucide="user-plus" class="h-5 w-5 text-indigo-300"></i>
-            Incluir cliente manualmente
-        </h3>
-        <p class="mt-1 text-xs text-slate-400">Pesquise por nome, NB ou endereço e preencha os dados da parada.</p>
-    </div>
+<dialog id="addManualStopModal" class="separacao-modal">
+    <div class="sys-card sys-card--surface sys-card--comfort relative w-[min(100vw-2rem,28rem)] overflow-hidden shadow-xl">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <div class="min-w-0 pr-6">
+                <h3 class="sys-section-heading flex items-center gap-2 text-lg">
+                    <i data-lucide="user-plus" class="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-300"></i>
+                    Incluir cliente manualmente
+                </h3>
+                <p class="mt-1 text-xs employees-text-muted">Pesquise por nome, NB ou endereço e preencha os dados da parada.</p>
+            </div>
+            <button type="button" onclick="document.getElementById('addManualStopModal').close()" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
 
-    <div class="bg-slate-800 p-6">
-        <form id="add-manual-stop-form" action="/separacao/delivery/add-stop" method="post" class="space-y-4">
+        <form id="add-manual-stop-form" action="/separacao/delivery/add-stop" method="post" class="space-y-4 px-6 py-5">
             <input type="hidden" name="employee_id" id="add-stop-employee-id">
             <input type="hidden" name="vehicle_plate" id="add-stop-vehicle-plate">
             <input type="hidden" name="date" id="add-stop-date">
@@ -955,27 +1134,27 @@
             {% endif %}
 
             <div>
-                <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Buscar cliente</label>
+                <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Buscar cliente</label>
                 <div class="relative">
                     <input
                         type="text"
                         id="add-stop-client-search"
                         placeholder="Nome, NB ou endereço... (mín. 2 caracteres)"
-                        class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:ring-1 focus:ring-indigo-500"
+                        class="sys-input w-full px-3 py-2 text-sm"
                         autocomplete="off"
                     >
-                    <div id="add-stop-client-suggestions" class="absolute z-20 mt-1 hidden max-h-56 w-full overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl"></div>
+                    <div id="add-stop-client-suggestions" class="absolute z-20 mt-1 hidden max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-600 dark:bg-slate-900"></div>
                 </div>
 
-                <div id="add-stop-client-selected" class="mt-2 hidden items-start gap-3 rounded-xl border-2 border-emerald-500/50 bg-emerald-900/30 px-4 py-3">
-                    <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-                        <i data-lucide="check" class="h-4 w-4 text-emerald-400"></i>
+                <div id="add-stop-client-selected" class="mt-2 hidden items-start gap-3 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-3 dark:border-emerald-500/50 dark:bg-emerald-900/30">
+                    <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-200 dark:bg-emerald-500/20">
+                        <i data-lucide="check" class="h-4 w-4 text-emerald-700 dark:text-emerald-400"></i>
                     </div>
                     <div class="min-w-0 flex-1">
-                        <p class="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400/90">Cliente selecionado</p>
-                        <p class="font-semibold text-white" id="add-stop-client-name"></p>
-                        <p class="mt-0.5 text-xs text-slate-400" id="add-stop-client-detail"></p>
-                        <button type="button" onclick="clearAddStopClient()" class="mt-2 text-xs font-medium text-rose-400 hover:text-rose-300">
+                        <p class="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400/90">Cliente selecionado</p>
+                        <p class="font-semibold employees-text-strong" id="add-stop-client-name"></p>
+                        <p class="mt-0.5 text-xs employees-text-muted" id="add-stop-client-detail"></p>
+                        <button type="button" onclick="clearAddStopClient()" class="mt-2 text-xs font-medium text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300">
                             Remover e buscar outro
                         </button>
                     </div>
@@ -984,62 +1163,61 @@
 
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Peso (Kg) *</label>
+                    <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Peso (Kg) *</label>
                     <input type="number" name="tonnage" id="add-stop-tonnage" step="0.01" min="0" required placeholder="0" class="modal-input text-sm font-mono">
                 </div>
                 <div>
-                    <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Valor (R$)</label>
+                    <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Valor (R$)</label>
                     <input type="number" name="valor_financeiro" id="add-stop-valor" step="0.01" min="0" placeholder="0" class="modal-input text-sm font-mono">
                 </div>
             </div>
 
             <div>
-                <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Pedido (opcional)</label>
+                <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Pedido (opcional)</label>
                 <input type="text" name="delivery_order_number" id="add-stop-pedido" placeholder="Ex.: 123" class="modal-input text-sm">
             </div>
 
-            <div class="grid grid-cols-2 gap-3 pt-2">
-                <button type="button" onclick="document.getElementById('addManualStopModal').close()" class="btn-modal btn-modal-secondary">
-                    Cancelar
-                </button>
-                <button type="submit" id="add-stop-submit" disabled class="rounded-lg bg-indigo-600 py-2.5 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50 hover:bg-indigo-500">
-                    Adicionar à rota
-                </button>
+            <div class="flex flex-wrap justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('addManualStopModal').close()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" id="add-stop-submit" disabled class="sys-btn sys-btn--primary disabled:cursor-not-allowed disabled:opacity-50">Adicionar à rota</button>
             </div>
         </form>
     </div>
 </dialog>
 
 <!-- Modal mover parada para outra data -->
-<dialog id="moveDateModal" class="glass-panel mx-auto mt-20 w-full max-w-md overflow-hidden rounded-2xl p-0 shadow-2xl backdrop:bg-black/80">
-    <div class="border-b border-slate-700 bg-slate-800 p-6">
-        <h3 class="flex items-center gap-2 text-lg font-bold text-white">
-            <i data-lucide="calendar" class="h-5 w-5 text-violet-300"></i>
-            Mover parada para outro dia
-        </h3>
-        <p class="mt-1 text-xs text-slate-400">
-            A parada <span id="move-date-client-name" class="font-semibold text-slate-200"></span> será movida para a data escolhida.
-        </p>
-    </div>
+<dialog id="moveDateModal" class="separacao-modal">
+    <div class="sys-card sys-card--surface sys-card--comfort relative w-[min(100vw-2rem,24rem)] overflow-hidden shadow-xl">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <div class="min-w-0 pr-6">
+                <h3 class="sys-section-heading flex items-center gap-2 text-lg">
+                    <i data-lucide="calendar" class="h-5 w-5 shrink-0 text-violet-600 dark:text-violet-300"></i>
+                    Mover parada para outro dia
+                </h3>
+                <p class="mt-1 text-xs employees-text-muted">
+                    A parada <span id="move-date-client-name" class="font-semibold employees-text-strong"></span> será movida para a data escolhida.
+                </p>
+            </div>
+            <button type="button" onclick="document.getElementById('moveDateModal').close()" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
 
-    <div class="bg-slate-800 p-6">
-        <form action="/separacao/delivery/planning-date" method="post" class="space-y-4">
+        <form action="/separacao/delivery/planning-date" method="post" class="space-y-4 px-6 py-5">
             <input type="hidden" name="route_id" id="move-date-route-id">
             <input type="hidden" name="date" id="move-date-current">
             <input type="hidden" name="shift" id="move-date-shift">
 
             <div>
-                <label class="mb-1 block text-xs font-bold uppercase text-slate-400">Nova data</label>
+                <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Nova data</label>
                 <input type="date" name="planning_date" id="move-date-planning" required class="modal-input font-mono">
             </div>
 
-            <div class="grid grid-cols-2 gap-3 pt-2">
-                <button type="button" onclick="document.getElementById('moveDateModal').close()" class="btn-modal btn-modal-secondary">
-                    Cancelar
-                </button>
-                <button type="submit" class="btn-modal btn-modal-primary">
-                    Mover
-                </button>
+            <div class="flex flex-wrap justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('moveDateModal').close()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Mover</button>
             </div>
         </form>
     </div>
@@ -1635,253 +1813,5 @@
     });
 </script>
 
-<style>
-    .delivery-filter-input {
-        border-radius: 0.5rem;
-        border: 1px solid rgb(51 65 85 / 1);
-        background: rgb(30 41 59 / 0.8);
-        padding: 0.375rem 0.625rem;
-        font-size: 0.75rem;
-        color: white;
-        outline: none;
-    }
-
-    .delivery-filter-input:focus {
-        box-shadow: 0 0 0 1px rgb(14 165 233 / 0.35);
-    }
-
-    .delivery-mini-input,
-    .delivery-mini-select {
-        border-radius: 0.375rem;
-        border: 1px solid rgb(71 85 105 / 1);
-        background: rgb(15 23 42 / 0.9);
-        padding: 0.375rem 0.5rem;
-        font-size: 11px;
-        color: rgb(226 232 240 / 1);
-        outline: none;
-    }
-
-    .delivery-btn-primary {
-        border-radius: 0.5rem;
-        background: #4f46e5;
-        color: #fff;
-        transition: 0.12s ease;
-    }
-
-    .delivery-btn-primary:hover {
-        background: #6366f1;
-    }
-
-    .delivery-btn-ghost {
-        border-radius: 0.375rem;
-        color: #94a3b8;
-        transition: 0.12s ease;
-    }
-
-    .delivery-btn-ghost:hover {
-        background: rgba(71, 85, 105, 0.35);
-        color: #e2e8f0;
-    }
-
-    .delivery-kpi {
-        border-radius: 0.25rem;
-        padding: 0.2rem 0.5rem;
-        font-weight: 600;
-    }
-
-    .delivery-kpi-pend {
-        background: rgba(245, 158, 11, 0.14);
-        color: #fbbf24;
-    }
-
-    .delivery-kpi-open {
-        background: rgba(99, 102, 241, 0.14);
-        color: #818cf8;
-    }
-
-    .delivery-kpi-done {
-        background: rgba(16, 185, 129, 0.14);
-        color: #34d399;
-    }
-
-    .delivery-kpi-return {
-        background: rgba(249, 115, 22, 0.14);
-        color: #fb923c;
-    }
-
-    .delivery-badge {
-        border-radius: 0.25rem;
-        padding: 0.125rem 0.375rem;
-        font-size: 10px;
-        line-height: 1.1;
-    }
-
-    .delivery-badge-pend {
-        background: rgba(245, 158, 11, 0.12);
-        color: #fbbf24;
-    }
-
-    .delivery-badge-open {
-        background: rgba(99, 102, 241, 0.12);
-        color: #818cf8;
-    }
-
-    .delivery-badge-done {
-        background: rgba(16, 185, 129, 0.12);
-        color: #34d399;
-    }
-
-    .delivery-badge-return {
-        background: rgba(249, 115, 22, 0.12);
-        color: #fb923c;
-    }
-
-    .delivery-route-summary::-webkit-details-marker,
-    details summary::-webkit-details-marker {
-        display: none;
-    }
-
-    details.delivery-group[open] {
-        border-color: rgba(99, 102, 241, 0.35);
-        box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.08);
-    }
-
-    .delivery-row {
-        transition: background 0.12s ease;
-    }
-
-    .delivery-row:hover {
-        background: rgba(51, 65, 85, 0.22) !important;
-    }
-
-    .btn-action {
-        display: inline-block;
-        white-space: nowrap;
-        border-radius: 0.35rem;
-        border: 1px solid transparent;
-        padding: 0.25rem 0.5rem;
-        font-size: 10px;
-        font-weight: 600;
-        line-height: 1;
-        color: #fff;
-        transition: all 0.12s ease;
-    }
-
-    .btn-start {
-        background: #4f46e5;
-        border-color: rgba(99, 102, 241, 0.45);
-    }
-
-    .btn-start:not(:disabled):hover {
-        background: #6366f1;
-    }
-
-    .btn-finish {
-        background: #059669;
-        border-color: rgba(16, 185, 129, 0.45);
-    }
-
-    .btn-finish:not(:disabled):hover {
-        background: #10b981;
-    }
-
-    .btn-return {
-        background: #ea580c;
-        border-color: rgba(251, 146, 60, 0.45);
-    }
-
-    .btn-return:not(:disabled):hover {
-        background: #f97316;
-    }
-
-    .btn-reopen {
-        background: #0f766e;
-        border-color: rgba(20, 184, 166, 0.45);
-    }
-
-    .btn-reopen:not(:disabled):hover {
-        background: #0d9488;
-    }
-
-    .btn-move {
-        background: #7c3aed;
-        border-color: rgba(139, 92, 246, 0.45);
-    }
-
-    .btn-move:hover {
-        background: #8b5cf6;
-    }
-
-    .btn-modal {
-        border-radius: 0.5rem;
-        padding: 0.625rem 0.75rem;
-        font-size: 12px;
-        font-weight: 600;
-        transition: all 0.12s ease;
-    }
-
-    .btn-modal-secondary {
-        border: 1px solid #475569;
-        background: rgba(15, 23, 42, 0.5);
-        color: #cbd5e1;
-    }
-
-    .btn-modal-secondary:hover {
-        background: rgba(51, 65, 85, 0.7);
-    }
-
-    .btn-modal-primary {
-        border: 1px solid #8b5cf6;
-        background: #7c3aed;
-        color: #fff;
-    }
-
-    .btn-modal-primary:hover {
-        background: #8b5cf6;
-    }
-
-    .modal-input {
-        width: 100%;
-        border-radius: 0.5rem;
-        border: 1px solid rgb(51 65 85 / 1);
-        background: rgb(15 23 42 / 1);
-        padding: 0.625rem 0.75rem;
-        color: white;
-        outline: none;
-    }
-
-    .modal-input:focus {
-        box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.35);
-    }
-
-    #delivery-search-result:not(:empty) {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 9999px;
-        border: 1px solid rgba(99, 102, 241, 0.25);
-        background: rgba(99, 102, 241, 0.12);
-        padding: 0.2rem 0.5rem;
-        font-size: 10px;
-        font-weight: 600;
-        color: #a5b4fc;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar {
-        width: 5px;
-        height: 5px;
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: rgba(30, 41, 59, 0.4);
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        border-radius: 3px;
-        background: rgba(71, 85, 105, 0.7);
-    }
-
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(100, 116, 139, 0.9);
-    }
-</style>
+</div>
 {% endblock %}
