@@ -4487,6 +4487,14 @@ async def mobile_index(request: Request):
     return RedirectResponse(url="/mobile/login", status_code=303)
 
 
+def _normalize_mobile_matricula(raw: Optional[str]) -> str:
+    """Evita 'matrícula não encontrada' por NBSP, zero-width ou espaços duplos no copiar/colar."""
+    s = str(raw or "")
+    s = s.replace("\u00a0", " ").replace("\u200b", "").replace("\ufeff", "")
+    s = " ".join(s.split())
+    return s.strip()
+
+
 @app.get("/mobile/login", response_class=HTMLResponse)
 async def mobile_login_page(request: Request, error: Optional[str] = None):
     user = get_current_user(request)
@@ -4508,13 +4516,19 @@ async def mobile_auth(
     registration_id: str = Form(...),
     session: Session = Depends(get_session),
 ):
-    reg = str(registration_id or "").strip()
+    reg = _normalize_mobile_matricula(registration_id)
     if not reg:
         return RedirectResponse(url="/mobile/login?error=missing_registration", status_code=303)
 
     employee = session.exec(
         select(models.Employee).where(models.Employee.registration_id == reg)
     ).first()
+    if not employee:
+        employee = session.exec(
+            select(models.Employee).where(
+                func.lower(func.trim(models.Employee.registration_id)) == reg.lower()
+            )
+        ).first()
     if not employee:
         return RedirectResponse(url="/mobile/login?error=invalid_registration", status_code=303)
 
