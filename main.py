@@ -912,6 +912,7 @@ async def api_debug_db_info(session: Session = Depends(get_session)):
         (models.Devolucao, "Devolucao"),
         (models.Event, "Event"),
         (models.Employee, "Employee"),
+        (models.User, "User"),
     ]:
         try:
             n = session.exec(select(func.count()).select_from(model)).one()
@@ -922,7 +923,7 @@ async def api_debug_db_info(session: Session = Depends(get_session)):
         "database_source": db_source,
         "url_obfuscated": url_obfuscated,
         "counts": counts,
-        "hint": "Se Route/Devolucao/Event estao 0, o app pode estar usando outro banco (ex: SQLite local) ou os dados foram apagados (ex: reset_delivery_data.py).",
+        "hint": "Se User=0 ou poucos usuarios, login web (/login) falha com Credenciais invalidas — configure DATABASE_URL do Render ou copie o .env do PC antigo. SQLite local nao replica usuarios da producao.",
     })
 
 
