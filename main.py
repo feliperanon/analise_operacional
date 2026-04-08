@@ -4160,13 +4160,21 @@ async def login_submit(
     session: Session = Depends(get_session),
 ):
     email_norm = (email or "").strip().lower()
-    if not email_norm or not password:
+    # Espaço/quebra no fim da senha ao colar do gerador costuma causar "credenciais inválidas" com banco correto.
+    password_try = (password or "").strip()
+    if not email_norm or not password_try:
         return RedirectResponse(url="/login?error=Preencha+e-mail+e+senha", status_code=303)
 
     user = session.exec(
         select(models.User).where(models.User.username == email_norm)
     ).first()
-    if not user or not user.password_hash or not verify_password(password, user.password_hash):
+    if not user:
+        user = session.exec(
+            select(models.User).where(
+                func.lower(func.trim(models.User.username)) == email_norm
+            )
+        ).first()
+    if not user or not user.password_hash or not verify_password(password_try, user.password_hash):
         return RedirectResponse(url="/login?error=Credenciais+inv%C3%A1lidas", status_code=303)
     if not user.is_active:
         return RedirectResponse(url="/login?error=Usu%C3%A1rio+inativo", status_code=303)
