@@ -191,8 +191,8 @@
                                 <thead>
                                     <tr>
                                         <th class="py-1 px-0.5">Colaborador</th>
-                                        <th class="py-1 px-0.5">Valor (R$)</th>
-                                        <th class="py-1 px-0.5">%</th>
+                                        <th class="py-1 px-0.5 text-right">% ajustado</th>
+                                        <th class="py-1 px-0.5 text-right">Valor ajustado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ranking-body">
@@ -201,8 +201,8 @@
                                         <td class="gv-name-cell py-1 px-0.5" data-fit-container>
                                             <span class="gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(r.name) }}</span>
                                         </td>
-                                        <td class="py-1 px-0.5 tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
-                                        <td class="py-1 px-0.5 align-middle {{ 'gv-pct-attn' if (r.pct|float) > 2 else 'gv-pct-good' }}">{{ r.pct }}%</td>
+                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle {{ 'gv-pct-attn' if (r.pct_ajustado|default(0)|float) > 2 else 'gv-pct-good' }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</td>
+                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                     </tr>
                                     {% else %}
                                     <tr><td colspan="3" class="gv-table-empty text-center">Sem devoluções no mês.</td></tr>
@@ -221,8 +221,8 @@
                                 <thead>
                                     <tr>
                                         <th class="py-1 px-0.5">Colaborador</th>
-                                        <th class="py-1 px-0.5">Valor (R$)</th>
-                                        <th class="py-1 px-0.5">%</th>
+                                        <th class="py-1 px-0.5 text-right">% ajustado</th>
+                                        <th class="py-1 px-0.5 text-right">Valor ajustado</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -231,8 +231,8 @@
                                         <td class="gv-name-cell py-1 px-0.5" data-fit-container>
                                             <span class="gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(r.name) }}</span>
                                         </td>
-                                        <td class="py-1 px-0.5 tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
-                                        <td class="py-1 px-0.5 align-middle {{ 'gv-pct-attn' if (r.pct|float) > 2 else 'gv-pct-good' }}">{{ r.pct }}%</td>
+                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle {{ 'gv-pct-attn' if (r.pct_ajustado|default(0)|float) > 2 else 'gv-pct-good' }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</td>
+                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                     </tr>
                                     {% else %}
                                     <tr><td colspan="3" class="gv-table-empty text-center">Sem devoluções no mês.</td></tr>
@@ -299,7 +299,7 @@
                 <script type="application/json" id="devolucao-kpi-json">{{ (inf.get('devolucao_mensal_kpi') or {}) | tojson }}</script>
                 <script>
                 (function() {
-                    function buildKpiChartOptions(k) {
+                    function buildKpiChartOptions(k, chartPixelHeight) {
                         function fmtBRL(n) {
                             if (n == null || isNaN(n)) return '—';
                             return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -371,14 +371,19 @@
                             if (pctStored[idx] != null) return Number(Number(pctStored[idx]).toFixed(2));
                             return null;
                         };
+                        var resolvedH = chartPixelHeight;
+                        if (resolvedH == null || resolvedH < 120) {
+                            resolvedH = el && el.getBoundingClientRect
+                                ? Math.floor(el.getBoundingClientRect().height)
+                                : 0;
+                        }
+                        if (resolvedH < 120) {
+                            resolvedH = el && el.clientHeight >= 120 ? el.clientHeight : 240;
+                        }
                         return {
                             chart: {
                                 type: 'area',
-                                height: (function() {
-                                    var ch = el && el.clientHeight;
-                                    if (ch && ch >= 120) return ch;
-                                    return 240;
-                                })(),
+                                height: Math.max(120, Math.floor(resolvedH)),
                                 fontFamily: 'inherit',
                                 toolbar: { show: false },
                                 zoom: { enabled: false },
@@ -427,7 +432,7 @@
                                 axisBorder: { show: true, color: '#cbd5e1' },
                                 axisTicks: { show: true, color: '#cbd5e1' },
                                 labels: {
-                                    style: { fontSize: '11px', fontWeight: 700, colors: '#475569' },
+                                    style: { fontSize: '13px', fontWeight: 700, colors: '#475569' },
                                     offsetY: 2,
                                     hideOverlappingLabels: true,
                                 },
@@ -443,7 +448,7 @@
                                 decimalsInFloat: 0,
                                 title: {
                                     text: 'Valor (R$)',
-                                    style: { fontSize: '11px', fontWeight: 700, color: '#64748b' },
+                                    style: { fontSize: '12px', fontWeight: 700, color: '#64748b' },
                                 },
                                 labels: {
                                     formatter: function(val) {
@@ -457,7 +462,7 @@
                                         }
                                         return v.toLocaleString('pt-BR');
                                     },
-                                    style: { fontSize: '11px', fontWeight: 600, colors: '#334155' },
+                                    style: { fontSize: '13px', fontWeight: 600, colors: '#334155' },
                                     offsetX: -4,
                                 },
                             },
@@ -512,35 +517,47 @@
                     var kpi = {};
                     try { kpi = JSON.parse(sj.textContent || '{}'); } catch (e1) { return; }
                     if (!kpi.labels || !kpi.labels.length) return;
-                    var chart = new ApexCharts(el, buildKpiChartOptions(kpi));
-                    function syncDevolucaoChartSize() {
+                    function measureDevolucaoChartHost() {
+                        if (!el || !el.getBoundingClientRect) return 0;
+                        return Math.floor(el.getBoundingClientRect().height);
+                    }
+                    var chart = new ApexCharts(el, buildKpiChartOptions(kpi, measureDevolucaoChartHost()));
+                    function applyDevolucaoChartHeight() {
+                        if (!chart) return;
+                        var h = measureDevolucaoChartHost();
+                        if (h < 120) h = el.clientHeight;
+                        if (h < 120) return;
+                        try {
+                            chart.updateOptions({ chart: { height: h } }, true, false);
+                        } catch (e2) { /* ignore */ }
                         requestAnimationFrame(function() {
                             if (chart && typeof chart.resize === 'function') chart.resize();
                         });
                     }
-                    function applyDevolucaoChartHeightOnce() {
-                        var h = el.clientHeight;
-                        if (h >= 120 && chart) {
-                            try {
-                                chart.updateOptions({ chart: { height: h } }, false, false);
-                            } catch (e2) { /* ignore */ }
-                        }
-                        syncDevolucaoChartSize();
+                    function scheduleDevolucaoChartHeight() {
+                        requestAnimationFrame(function() {
+                            requestAnimationFrame(applyDevolucaoChartHeight);
+                        });
                     }
                     chart.render().then(function() {
-                        applyDevolucaoChartHeightOnce();
-                        setTimeout(applyDevolucaoChartHeightOnce, 100);
-                    }).catch(syncDevolucaoChartSize);
-                    window.addEventListener('resize', syncDevolucaoChartSize);
+                        scheduleDevolucaoChartHeight();
+                        setTimeout(applyDevolucaoChartHeight, 50);
+                        setTimeout(applyDevolucaoChartHeight, 200);
+                    }).catch(scheduleDevolucaoChartHeight);
+                    window.addEventListener('resize', applyDevolucaoChartHeight);
                     if (typeof ResizeObserver !== 'undefined') {
-                        var ro = new ResizeObserver(syncDevolucaoChartSize);
+                        var ro = new ResizeObserver(function() {
+                            applyDevolucaoChartHeight();
+                        });
                         ro.observe(el);
                     }
                     window._gvDevolucaoKpiChart = chart;
                     window._gvRebuildDevolucaoKpi = function(k) {
                         if (!chart || !k || !k.labels) return;
-                        chart.updateOptions(buildKpiChartOptions(k), true, true);
-                        applyDevolucaoChartHeightOnce();
+                        var h = measureDevolucaoChartHost();
+                        if (h < 120) h = el.clientHeight;
+                        chart.updateOptions(buildKpiChartOptions(k, h >= 120 ? h : null), true, true);
+                        applyDevolucaoChartHeight();
                     };
                 })();
                 </script>

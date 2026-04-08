@@ -40,6 +40,7 @@ from documentos_routes import init_documentos_router, ensure_doc_setores_seed
 from escalas_routes import init_escalas_router, mobile_escala_router
 from devolucoes_service import sync_route_to_devolucao
 from devolucoes_consolidado import (
+    consolidado_avaliar_resumo,
     returns_mobile_bundle_for_user,
     top_clients_ajudante,
     top_clients_motorista,
@@ -2738,36 +2739,62 @@ def _build_informativo_extras(
     if motorista_ids_scope:
         devs_curr_q = devs_curr_q.where(models.Devolucao.motorista_id.in_(motorista_ids_scope))
     devs_curr = session.exec(devs_curr_q).all()
-    by_motor: Dict[int, Dict[str, Any]] = defaultdict(lambda: {"valor": 0.0, "count": 0})
-    by_helper: Dict[int, Dict[str, Any]] = defaultdict(lambda: {"valor": 0.0, "count": 0})
+    helper_ids_scoped: set[int] = set()
     for d in devs_curr:
-        mid = d.motorista_id
-        by_motor[mid]["valor"] += float(d.valor or 0)
-        by_motor[mid]["count"] += 1
         hid = getattr(d, "ajudante_id", None)
         if hid:
-            by_helper[hid]["valor"] += float(d.valor or 0)
-            by_helper[hid]["count"] += 1
-    total_val_mes = sum(v["valor"] for v in by_motor.values()) or 0.0
-    denom = total_val_mes if total_val_mes > 0 else 1.0
+            try:
+                helper_ids_scoped.add(int(hid))
+            except (TypeError, ValueError):
+                pass
+
+    try:
+        resumo_mes = consolidado_avaliar_resumo(session, month_start_str, month_end_str)
+    except Exception:
+        resumo_mes = {"data": [], "data_ajudantes": []}
+
+    rows_m = list(resumo_mes.get("data") or [])
+    rows_h = list(resumo_mes.get("data_ajudantes") or [])
+
+    scope_set = {int(x) for x in motorista_ids_scope} if motorista_ids_scope else None
+
     devolucao_ranking = []
-    for mid, v in by_motor.items():
-        emp = emp_by_id.get(mid)
+    for row in rows_m:
+        if int(row.get("devolucoes_total") or 0) <= 0:
+            continue
+        mid = row.get("motorista_id")
+        if scope_set is not None:
+            try:
+                if int(mid) not in scope_set:
+                    continue
+            except (TypeError, ValueError):
+                continue
         devolucao_ranking.append({
-            "name": emp.name if emp else f"Colaborador #{mid}",
-            "valor": round(v["valor"], 2),
-            "count": int(v["count"]),
-            "pct": round(100.0 * v["valor"] / denom, 1),
+            "name": (row.get("motorista_name") or "").strip() or (f"Motorista #{mid}" if mid else "—"),
+            "pct_ajustado": float(row.get("pct_ajustado") or 0),
+            "valor_ajustado": float(row.get("valor_ajustado") or 0),
+            "pct_original": float(row.get("pct_original") or 0),
+            "valor_original": float(row.get("valor_original") or 0),
         })
     devolucao_ranking.sort(key=lambda x: (x.get("name") or "").casefold())
+
     devolucao_ranking_helper = []
-    for hid, v in by_helper.items():
-        emp = emp_by_id.get(hid)
+    for row in rows_h:
+        if int(row.get("devolucoes_total") or 0) <= 0:
+            continue
+        hid = row.get("ajudante_id")
+        if scope_set is not None:
+            try:
+                if int(hid) not in helper_ids_scoped:
+                    continue
+            except (TypeError, ValueError):
+                continue
         devolucao_ranking_helper.append({
-            "name": emp.name if emp else f"Colaborador #{hid}",
-            "valor": round(v["valor"], 2),
-            "count": int(v["count"]),
-            "pct": round(100.0 * v["valor"] / denom, 1),
+            "name": (row.get("ajudante_name") or "").strip() or (f"Ajudante #{hid}" if hid else "—"),
+            "pct_ajustado": float(row.get("pct_ajustado") or 0),
+            "valor_ajustado": float(row.get("valor_ajustado") or 0),
+            "pct_original": float(row.get("pct_original") or 0),
+            "valor_original": float(row.get("valor_original") or 0),
         })
     devolucao_ranking_helper.sort(key=lambda x: (x.get("name") or "").casefold())
 
