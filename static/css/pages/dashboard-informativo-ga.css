@@ -54,6 +54,71 @@ body.dashboard-app #informativo-root.dashboard-informativo-ga {
   border-radius: 0;
 }
 
+/* KPIs do informativo: texto e ícones centralizados, mesmo padrão em todos os cards */
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row > .sys-kpi-card.employees-kpi {
+  text-align: center;
+}
+
+/* Faixa de destaque no topo do card alinhada ao conteúdo centralizado */
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row > .sys-kpi-card.employees-kpi::before {
+  left: 50%;
+  right: auto;
+  width: min(78%, 9.5rem);
+  transform: translateX(-50%);
+}
+
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .employees-kpi .sys-kpi-cell-inner.employees-kpi__inner {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .employees-kpi__head {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  text-align: center;
+}
+
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .employees-kpi__head .min-w-0 {
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .employees-kpi__head svg {
+  order: -1;
+}
+
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .sys-kpi-label,
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .employees-kpi__value,
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .gv-kpi-value-line {
+  text-align: center;
+  justify-content: center;
+}
+
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .gv-kpi-bar-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 13rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .gv-kpi-bar-track {
+  width: 100%;
+}
+
+#informativo-root.dashboard-informativo-ga .informativo-kpi-row .gv-info-clock {
+  text-align: center;
+  width: 100%;
+}
+
 /* Padding só aqui (substitui o do .gv-panel-stack em dashboard-informativo.css, sem empilhar) */
 body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel-inner.gv-panel-stack {
   padding: 0.45rem 0.6rem 0.4rem !important;
