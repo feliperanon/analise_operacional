@@ -225,6 +225,56 @@ html.dark #tv-exceptions-panel.tv-exc-panel--unified .tv-exc-unified-title {
   color: rgb(100 116 139);
 }
 
+/* Alto índice devolução: sem cards, 2 linhas máx. por item (motorista curto + cliente) */
+#tv-exceptions-panel.tv-exc-panel--unified .tv-alto-indice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+#tv-exceptions-panel.tv-exc-panel--unified .tv-alto-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.02rem;
+  padding: 0.1rem 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+  min-height: 0;
+  line-height: 1.12;
+  overflow: hidden;
+}
+
+#tv-exceptions-panel.tv-exc-panel--unified .tv-alto-driver {
+  font-size: clamp(0.48rem, 0.4rem + 0.18vw, 0.58rem);
+  font-weight: 600;
+  color: rgb(100 116 139);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+html.dark #tv-exceptions-panel.tv-exc-panel--unified .tv-alto-driver {
+  color: rgb(148 163 184);
+}
+
+#tv-exceptions-panel.tv-exc-panel--unified .tv-alto-client {
+  font-size: clamp(0.5rem, 0.42rem + 0.22vw, 0.62rem);
+  font-weight: 700;
+  color: rgb(15 23 42);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+html.dark #tv-exceptions-panel.tv-exc-panel--unified .tv-alto-client {
+  color: rgb(241 245 249);
+}
+
 #tv-exceptions-panel .tv-exc-sidebar-card h3.sys-section-heading {
   font-size: clamp(0.65rem, 0.48rem + 0.38vw, 0.8rem);
   line-height: 1.2;
@@ -792,6 +842,7 @@ html.dark .tv-balloon-title-line strong {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.35rem 0.5rem;
   padding: 0.4rem 0.5rem;
   border-radius: var(--sys-radius-sm, 0.375rem);
