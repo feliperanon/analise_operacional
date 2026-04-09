@@ -14960,13 +14960,17 @@ async def import_entregas_separacao(
             return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
         imported_route_codes = list({row["route_code"] for row in parsed_rows if row["route_code"] and row["route_code"] != "-"})
+        employee_ids_in_import = list({row["employee_id"] for row in parsed_rows})
         rows_deleted_prior = 0
-        if imported_route_codes:
+        if imported_route_codes and employee_ids_in_import:
+            # Só remove entregas do(s) motorista(s) deste arquivo — mesmo Nº ROTA em outro motorista não pode apagar o outro.
             existing = session.exec(
                 select(models.Route)
                 .where(models.Route.date == date)
+                .where(models.Route.shift == shift)
                 .where(models.Route.type == "delivery")
                 .where(models.Route.delivery_route_code.in_(imported_route_codes))
+                .where(models.Route.employee_id.in_(employee_ids_in_import))
             ).all()
             rows_deleted_prior = len(existing)
             existing_route_ids = [row.id for row in existing if row.id]
