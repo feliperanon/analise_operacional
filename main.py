@@ -4584,6 +4584,37 @@ def _employee_by_matricula(session: Session, reg: str) -> Optional[models.Employ
     return None
 
 
+def _resolve_delivery_helper_names(session: Session, helper_refs: List[Any]) -> List[str]:
+    """Converte referências de ajudante salvas na sessão em nomes legíveis para a UI mobile."""
+    resolved_names: List[str] = []
+    seen_names = set()
+
+    for helper_ref in helper_refs or []:
+        clean = str(helper_ref or "").strip()
+        if not clean:
+            continue
+
+        employee = _employee_by_matricula(session, clean)
+        if not employee and clean.isdigit():
+            employee = session.get(models.Employee, int(clean))
+
+        display_name = (
+            str(getattr(employee, "name", "") or "").strip()
+            if employee
+            else clean
+        )
+        if not display_name:
+            continue
+
+        key = display_name.casefold()
+        if key in seen_names:
+            continue
+        seen_names.add(key)
+        resolved_names.append(display_name)
+
+    return resolved_names
+
+
 @app.get("/mobile/login", response_class=HTMLResponse)
 async def mobile_login_page(request: Request, error: Optional[str] = None):
     user = get_current_user(request)
@@ -5198,7 +5229,14 @@ def _build_mobile_dashboard_delivery_summary(session: Session, employee: Any) ->
         .where(models.DeliverySession.status == "open")
         .order_by(desc(models.DeliverySession.id))
     ).first()
-    helper_names = _parse_session_helpers(session_today.helpers_json) if session_today and getattr(session_today, "helpers_json", None) else []
+    helper_names = (
+        _resolve_delivery_helper_names(
+            session,
+            _parse_session_helpers(session_today.helpers_json),
+        )
+        if session_today and getattr(session_today, "helpers_json", None)
+        else []
+    )
     if not helper_names:
         helper_ids: List[int] = []
         for route in routes_today:
@@ -5731,6 +5769,8 @@ def _render_mobile_dashboard_template(
             "returns_alert": json.dumps(returns_alert, ensure_ascii=False),
             "returns_alert_data": returns_alert if show_returns_kpi else None,
             "delivery_summary": delivery_summary,
+            "checklist_summary": checklist_summary,
+            "gatehouse_summary": gatehouse_summary,
             "delivery_helper_names": json.dumps(delivery_summary.get("helper_names") or [], ensure_ascii=False),
             "show_delivery_overview": show_delivery_overview,
             "show_delivery_kpis": show_delivery_overview,
@@ -7655,7 +7695,14 @@ async def api_mobile_delivery_my_routes(
         if session_open and is_helper_view:
             drv = session.get(models.Employee, session_open.employee_id)
             driver_name = (drv.name or "") if drv else ""
-        helper_names = _parse_session_helpers(session_open.helpers_json) if session_open and getattr(session_open, "helpers_json", None) else []
+        helper_names = (
+            _resolve_delivery_helper_names(
+                session,
+                _parse_session_helpers(session_open.helpers_json),
+            )
+            if session_open and getattr(session_open, "helpers_json", None)
+            else []
+        )
         if not helper_names:
             today_helper_ids: List[int] = []
             for route in routes:

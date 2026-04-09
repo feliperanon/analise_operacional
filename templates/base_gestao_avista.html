@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="h-full ga-html-scroll">
+<html lang="pt-BR" class="h-full ga-html-scroll{% block html_class_extra %}{% endblock %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
@@ -34,7 +34,7 @@
     })();
     </script>
 </head>
-<body class="gv-page ta-dash-body dashboard-app text-slate-700 font-outfit antialiased page-scrollable" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false, checklists: false } }">
+<body class="gv-page ta-dash-body dashboard-app text-slate-700 font-outfit antialiased page-scrollable{% block body_class_extra %}{% endblock %}" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false, checklists: false } }">
     {% include "_sidebar.html" %}
     <button type="button" @click="sidebarOpen = true" class="gv-menu-btn fixed top-3 left-3 z-[60] flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors print-hidden" :class="sidebarOpen ? 'hidden' : ''" title="Menu">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -62,6 +62,8 @@
             </div>
         </main>
     </div>
+    {# Fora do layout (evita overflow:hidden do shell cortar fixed e cliques no TV / modais) #}
+    {% block layout_portal %}{% endblock %}
     {% block body_scripts %}{% endblock %}
 </body>
 </html>

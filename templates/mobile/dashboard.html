@@ -6,10 +6,387 @@
     .dashboard-hero-safe {
         padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
     }
+    .dashboard-panel {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.94) 100%);
+        border: 1px solid rgba(71, 85, 105, 0.45);
+        border-radius: 1.375rem;
+        box-shadow: 0 8px 20px rgba(2, 6, 23, 0.18);
+    }
+    .dashboard-panel::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 42%);
+    }
+    .dashboard-panel > * {
+        position: relative;
+        z-index: 1;
+    }
+    .dashboard-hero-card,
+    .dashboard-mission-card {
+        border-color: rgba(59, 130, 246, 0.22);
+    }
+    .dashboard-hero-section + .dashboard-hero-section {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(71, 85, 105, 0.24);
+    }
+    .dashboard-hero-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+    .dashboard-hero-status {
+        margin-top: 0.75rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .dashboard-avatar-level {
+        position: absolute;
+        right: -0.2rem;
+        bottom: -0.2rem;
+        min-width: 1.6rem;
+        height: 1.6rem;
+        padding: 0 0.4rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.68rem;
+        line-height: 1.05;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: #fff;
+        background: var(--color-primary);
+        border: 2px solid var(--color-surface-solid);
+        box-shadow: 0 4px 10px rgba(2, 6, 23, 0.28);
+        white-space: nowrap;
+    }
+    .dashboard-section-kicker {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+    }
+    .dashboard-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        line-height: 1;
+        border: 1px solid transparent;
+    }
+    .dashboard-status-pill--neutral {
+        background: rgba(51, 65, 85, 0.55);
+        color: #cbd5e1;
+        border-color: rgba(100, 116, 139, 0.4);
+    }
+    .dashboard-status-pill--success {
+        background: rgba(16, 185, 129, 0.15);
+        color: #6ee7b7;
+        border-color: rgba(52, 211, 153, 0.28);
+    }
+    .dashboard-status-pill--warning {
+        background: rgba(245, 158, 11, 0.16);
+        color: #fbbf24;
+        border-color: rgba(251, 191, 36, 0.3);
+    }
+    .dashboard-status-pill--danger {
+        background: rgba(244, 63, 94, 0.16);
+        color: #fda4af;
+        border-color: rgba(251, 113, 133, 0.28);
+    }
+    .dashboard-status-pill--active {
+        background: rgba(59, 130, 246, 0.16);
+        color: #93c5fd;
+        border-color: rgba(96, 165, 250, 0.28);
+    }
+    .dashboard-top-action {
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 0.95rem;
+        border: 1px solid rgba(71, 85, 105, 0.42);
+        background: rgba(15, 23, 42, 0.72);
+        color: var(--color-text-body);
+    }
+    .dashboard-top-action--danger {
+        background: rgba(127, 29, 29, 0.16);
+        border-color: rgba(248, 113, 113, 0.22);
+        color: #fca5a5;
+    }
+    .dashboard-info-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.6rem 0.8rem;
+        border-radius: 0.95rem;
+        background: rgba(2, 6, 23, 0.18);
+        border: 1px solid rgba(71, 85, 105, 0.32);
+        color: var(--color-text-body);
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+    .dashboard-info-chip--stacked {
+        align-items: flex-start;
+    }
+    .dashboard-helper-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+    }
+    .dashboard-helper-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        color: var(--color-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .dashboard-helper-name {
+        display: block;
+        color: var(--color-text-body);
+        line-height: 1.3;
+        white-space: normal;
+        word-break: break-word;
+    }
+    .dashboard-stats-strip {
+        margin-top: 1rem;
+        background: rgba(2, 6, 23, 0.18);
+        border: 1px solid rgba(71, 85, 105, 0.28);
+        border-radius: 1.05rem;
+        overflow: hidden;
+    }
+    .dashboard-stats-grid {
+        display: grid;
+    }
+    .dashboard-stats-grid--3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .dashboard-stats-grid--2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .dashboard-stat-cell {
+        padding: 0.85rem 0.7rem;
+        text-align: center;
+    }
+    .dashboard-stat-cell + .dashboard-stat-cell {
+        border-left: 1px solid rgba(71, 85, 105, 0.2);
+    }
+    .dashboard-stat-cell--wide {
+        grid-column: 1 / -1;
+        border-left: 0;
+        border-top: 1px solid rgba(71, 85, 105, 0.2);
+    }
+    .dashboard-cta {
+        min-height: 3.5rem;
+        border-radius: 1.05rem;
+        font-size: 0.95rem;
+        font-weight: 700;
+        transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .dashboard-cta:active {
+        transform: scale(0.985);
+    }
+    .dashboard-cta-primary {
+        background: var(--color-primary);
+        color: white;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+    }
+    .dashboard-module-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+    .dashboard-module-tile,
+    .dashboard-module-row {
+        background: rgba(2, 6, 23, 0.24);
+        border: 1px solid rgba(71, 85, 105, 0.3);
+        border-radius: 1.15rem;
+    }
+    .dashboard-module-tile {
+        min-height: 8.25rem;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        text-align: left;
+    }
+    .dashboard-module-row {
+        padding: 0.95rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+    .dashboard-module-icon {
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 0.95rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .dashboard-module-icon--primary {
+        background: rgba(59, 130, 246, 0.16);
+        color: #93c5fd;
+    }
+    .dashboard-module-icon--tool {
+        background: rgba(245, 158, 11, 0.16);
+        color: #fbbf24;
+    }
+    .dashboard-module-icon--default {
+        background: rgba(51, 65, 85, 0.72);
+        color: #cbd5e1;
+    }
+    .dashboard-module-brief {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        line-height: 1.35;
+    }
+    @media (max-width: 360px) {
+        .dashboard-module-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+        .dashboard-stats-grid--3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
 </style>
 {% endblock %}
 
+{% macro render_dashboard_module(module, appearance='row') %}
+    {% set tone = module.tone or 'default' %}
+    {% if tone == 'primary' %}
+        {% set icon_class = 'dashboard-module-icon dashboard-module-icon--primary' %}
+    {% elif tone == 'tool' %}
+        {% set icon_class = 'dashboard-module-icon dashboard-module-icon--tool' %}
+    {% else %}
+        {% set icon_class = 'dashboard-module-icon dashboard-module-icon--default' %}
+    {% endif %}
+    {% if appearance == 'tile' %}
+        {% if module.action == "open_admin_start_modal" %}
+        <button @click="open_admin_start_modal()" class="interactive dashboard-module-tile">
+            <div class="flex items-center justify-between gap-3">
+                <div class="{{ icon_class }}"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <i data-lucide="arrow-up-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+            </div>
+            <div>
+                <p class="text-body-lg font-semibold" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="dashboard-module-brief text-caption-lg mt-2">{{ module.description }}</p>
+            </div>
+        </button>
+        {% elif module.action == "manage_routes" %}
+        <a href="/mobile/admin/routes" class="interactive block dashboard-module-tile">
+            <div class="flex items-center justify-between gap-3">
+                <div class="{{ icon_class }}"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <i data-lucide="arrow-up-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+            </div>
+            <div>
+                <p class="text-body-lg font-semibold" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="dashboard-module-brief text-caption-lg mt-2">{{ module.description }}</p>
+            </div>
+        </a>
+        {% elif module.action == "start_separation" %}
+        <a href="/mobile/delivery" class="interactive block dashboard-module-tile">
+            <div class="flex items-center justify-between gap-3">
+                <div class="{{ icon_class }}"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <i data-lucide="arrow-up-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+            </div>
+            <div>
+                <p class="text-body-lg font-semibold" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="dashboard-module-brief text-caption-lg mt-2">{{ module.description }}</p>
+            </div>
+        </a>
+        {% else %}
+        <a href="{{ module.href }}" class="interactive block dashboard-module-tile">
+            <div class="flex items-center justify-between gap-3">
+                <div class="{{ icon_class }}"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+                <i data-lucide="arrow-up-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+            </div>
+            <div>
+                <p class="text-body-lg font-semibold" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="dashboard-module-brief text-caption-lg mt-2">{{ module.description }}</p>
+            </div>
+        </a>
+        {% endif %}
+    {% else %}
+        {% if module.action == "open_admin_start_modal" %}
+        <button @click="open_admin_start_modal()" class="interactive w-full dashboard-module-row text-left">
+            <div class="{{ icon_class }}"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+            <div class="flex-1 min-w-0">
+                <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="dashboard-module-brief text-caption-lg mt-1">{{ module.description }}</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+        </button>
+        {% elif module.action == "manage_routes" %}
+        <a href="/mobile/admin/routes" class="interactive w-full dashboard-module-row text-left">
+            <div class="{{ icon_class }}"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+            <div class="flex-1 min-w-0">
+                <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="dashboard-module-brief text-caption-lg mt-1">{{ module.description }}</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+        </a>
+        {% elif module.action == "start_separation" %}
+        <a href="/mobile/delivery" class="interactive w-full dashboard-module-row text-left">
+            <div class="{{ icon_class }}"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+            <div class="flex-1 min-w-0">
+                <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="dashboard-module-brief text-caption-lg mt-1">{{ module.description }}</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+        </a>
+        {% else %}
+        <a href="{{ module.href }}" class="interactive w-full dashboard-module-row text-left">
+            <div class="{{ icon_class }}"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
+            <div class="flex-1 min-w-0">
+                <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
+                <p class="dashboard-module-brief text-caption-lg mt-1">{{ module.description }}</p>
+            </div>
+            <i data-lucide="chevron-right" class="w-4 h-4 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+        </a>
+        {% endif %}
+    {% endif %}
+{% endmacro %}
+
 {% block content %}
+{% set hub_profile = hub_profile or {} %}
+{% set hub_stats = hub_profile.stats or [] %}
+{% set hub_primary_action = hub_profile.primary_action or None %}
+{% set hub_primary_key = (hub_profile.primary_module_key or '')|lower %}
+{% set hub_icon_style = hub_profile.icon_style or 'background: rgba(59,130,246,0.16); color: #93c5fd; border: 1px solid rgba(96,165,250,0.16);' %}
+{% set delivery_total = delivery_summary.total_today if delivery_summary and delivery_summary.enabled else 0 %}
+{% set delivery_open = delivery_summary.open_today if delivery_summary and delivery_summary.enabled else 0 %}
+{% set delivery_completed = delivery_summary.completed_today if delivery_summary and delivery_summary.enabled else 0 %}
+{% set delivery_plate = delivery_summary.assigned_plate if delivery_summary and delivery_summary.enabled else "" %}
+{% set checklist_enabled = checklist_summary.enabled if checklist_summary else False %}
+{% set gatehouse_enabled = gatehouse_summary.enabled if gatehouse_summary else False %}
+{% set ns = namespace(primary=[], secondary=[], checklist=None, returns=None, gatehouse=None) %}
+{% for module in modules or [] %}
+    {% set key = (module.key or '')|lower %}
+    {% if key == 'checklist' and ns.checklist is none %}{% set ns.checklist = module %}{% endif %}
+    {% if key == 'returns' and ns.returns is none %}{% set ns.returns = module %}{% endif %}
+    {% if key == 'gatehouse' and ns.gatehouse is none %}{% set ns.gatehouse = module %}{% endif %}
+    {% if key == hub_primary_key %}
+    {% elif key in ['delivery_start', 'active_route', 'manage_routes', 'checklist', 'returns'] %}
+        {% set ns.primary = ns.primary + [module] %}
+    {% else %}
+        {% set ns.secondary = ns.secondary + [module] %}
+    {% endif %}
+{% endfor %}
 <!-- Offline Banner -->
 <div id="offline-banner" class="offline-banner text-center py-2 text-body font-medium z-50 text-white" style="background: var(--color-danger);">
     <i data-lucide="wifi-off" class="w-4 h-4 inline-block mr-1"></i>
@@ -31,203 +408,185 @@
 
 <div x-data="dashboardController()" class="flex flex-col min-w-0 w-full overflow-x-hidden" x-ref="mainContainer" x-cloak @open-delivery-setup-modal="openDeliverySetupModal()">
     
-    <!-- Module Notice -->
-    {% if module_notice %}
-    <div class="container-mobile mt-4">
-        <div class="surface p-4" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
-            <div class="flex items-center gap-2">
-                <i data-lucide="alert-triangle" class="w-5 h-5" style="color: var(--color-danger);"></i>
-                <span class="text-body-lg font-medium" style="color: var(--color-danger);">{{ module_notice }}</span>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
     <!-- Loading Skeleton (formato dos cards) -->
     <template x-if="!initialized">
-        <div class="container-mobile mt-8">
-            <div class="skeleton skeleton-card mb-4"></div>
+        <div class="container-mobile mt-6 space-y-4">
+            <div class="skeleton h-28 rounded-[24px]"></div>
+            <div class="skeleton h-64 rounded-[28px]"></div>
             <div class="grid grid-cols-2 gap-3">
-                <div class="skeleton h-24 rounded-xl"></div>
-                <div class="skeleton h-24 rounded-xl"></div>
+                <div class="skeleton h-32 rounded-[22px]"></div>
+                <div class="skeleton h-32 rounded-[22px]"></div>
             </div>
-            <div class="skeleton skeleton-card mt-4"></div>
+            <div class="skeleton h-40 rounded-[24px]"></div>
         </div>
     </template>
 
     <!-- Main Content -->
     <div x-show="initialized">
         
-        <!-- 1. Identidade + XP — barra operacional (sem hero gradiente) -->
-        <section class="py-3 pb-4 dashboard-hero-safe mobile-header-op">
+        <!-- 1. Barra operacional superior -->
+        <section class="dashboard-hero-safe">
             <div class="container-mobile">
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="relative flex-shrink-0">
-                            <div class="w-11 h-11 rounded-lg overflow-hidden border" style="background: var(--color-primary); border-color: var(--color-border);">
-                                <img src="{{ static_path('badges/' + gamification.level.badge_image) }}"
-                                    onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
-                                    class="w-full h-full object-cover" alt="">
+                <div class="dashboard-panel dashboard-hero-card p-4">
+                    <div class="dashboard-hero-section">
+                        <div class="dashboard-hero-header">
+                            <div class="flex items-center gap-3 flex-1 min-w-0">
+                                <div class="relative flex-shrink-0">
+                                    <div class="w-12 h-12 rounded-2xl overflow-hidden border" style="background: var(--color-primary); border-color: rgba(96, 165, 250, 0.3);">
+                                        <img src="{{ static_path('badges/' + gamification.level.badge_image) }}"
+                                            onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
+                                            class="w-full h-full object-cover" alt="">
+                                    </div>
+                                    <span class="dashboard-avatar-level">{{ gamification.level.level }}</span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <h1 class="text-title truncate">{{ employee.name|emp_name }}</h1>
+                                    <p class="text-caption mt-1">
+                                        {{ gamification.level.name }} • <span x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</span> XP
+                                    </p>
+                                    <div class="dashboard-hero-status">
+                                        <span :class="appStatusPillClasses" x-text="appStatusLabel">Online</span>
+                                        <span class="dashboard-status-pill dashboard-status-pill--warning" x-show="syncQueueCount > 0" x-text="syncQueueCount + ' na fila'"></span>
+                                        <span class="dashboard-status-pill dashboard-status-pill--success" x-show="dailyXp > 0">+<span x-text="dailyXp"></span> XP hoje</span>
+                                    </div>
+                                </div>
                             </div>
-                            <span class="absolute -bottom-0.5 -right-0.5 min-w-[1rem] h-4 px-0.5 rounded flex items-center justify-center text-[9px] font-semibold text-white border" style="background: var(--color-primary); border-color: var(--color-surface-solid);">{{ gamification.level.level }}</span>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <button type="button" @click="openHelpModal()" class="dashboard-top-action touch-target-icon interactive inline-flex items-center justify-center" title="Ajuda" aria-label="Ajuda">
+                                    <i data-lucide="life-buoy" class="w-4.5 h-4.5"></i>
+                                </button>
+                                <a href="/mobile/achievements" class="dashboard-top-action touch-target-icon interactive inline-flex items-center justify-center" title="Conquistas" aria-label="Conquistas">
+                                    <i data-lucide="award" class="w-4.5 h-4.5"></i>
+                                </a>
+                                <a href="/mobile/logout" class="dashboard-top-action dashboard-top-action--danger touch-target-icon interactive inline-flex items-center justify-center" title="Sair" aria-label="Sair">
+                                    <i data-lucide="log-out" class="w-4.5 h-4.5"></i>
+                                </a>
+                            </div>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <h1 class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ employee.name|emp_name }}</h1>
-                                {% if streak_days and streak_days > 0 %}
-                                <span class="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold shrink-0" style="background: var(--color-warning-bg); color: var(--color-warning);" title="{{ streak_days }} dias seguidos">
-                                    <i data-lucide="flame" class="w-3 h-3"></i>{{ streak_days }}
-                                </span>
+                    </div>
+
+                    <div class="dashboard-hero-section">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <p class="dashboard-section-kicker">Missão do dia</p>
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                                    {% if show_delivery_overview %}
+                                    <h2 class="text-title-lg" style="color: var(--color-text);">Rota e operação do dia</h2>
+                                    <span class="dashboard-status-pill dashboard-status-pill--neutral" :class="heroStatusPillClasses" x-text="heroStatusLabel">
+                                        {% if delivery_total > 0 and delivery_open == 0 and delivery_completed > 0 %}Operação concluída{% elif delivery_total > 0 %}Pronto para iniciar{% else %}Painel pronto{% endif %}
+                                    </span>
+                                    {% else %}
+                                    <h2 class="text-title-lg" style="color: var(--color-text);">{{ hub_profile.title or 'Painel do dia' }}</h2>
+                                    <span class="dashboard-status-pill {% if checklist_enabled and checklist_summary.total_today == 0 %}dashboard-status-pill--warning{% elif gatehouse_enabled and gatehouse_summary.total_pending > 0 %}dashboard-status-pill--active{% else %}dashboard-status-pill--neutral{% endif %}">
+                                        {% if checklist_enabled and checklist_summary.total_today == 0 %}Checklist pendente{% elif gatehouse_enabled and gatehouse_summary.total_pending > 0 %}Pendência operacional{% else %}Pronto para uso{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                {% if show_delivery_overview %}
+                                <p class="text-body-lg mt-3" x-text="heroStatusMessage">
+                                    {% if delivery_total > 0 %}{{ delivery_open }} rota(s) em aberto hoje.{% else %}Nenhuma rota lançada por enquanto. O painel segue pronto para a próxima operação.{% endif %}
+                                </p>
+                                {% else %}
+                                <p class="text-body-lg mt-3">{{ hub_profile.description or module_hub_message }}</p>
                                 {% endif %}
                             </div>
-                            <p class="text-caption mt-0.5 truncate" style="color: var(--color-text-muted);">{{ gamification.level.name }}</p>
+                            <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="{{ hub_icon_style }}">
+                                <i data-lucide="{{ hub_profile.icon or 'layout-grid' }}" class="w-5.5 h-5.5"></i>
+                            </div>
+                        </div>
+
+                        {% if show_delivery_overview %}
+                        <div class="dashboard-stats-strip">
+                            <div class="dashboard-stats-grid dashboard-stats-grid--3">
+                            <div class="dashboard-stat-cell">
+                                <p class="text-caption">Paradas</p>
+                                <p class="text-title mt-1"><span x-text="totalDeliveryStops">{{ delivery_total }}</span></p>
+                            </div>
+                            <div class="dashboard-stat-cell">
+                                <p class="text-caption">Em aberto</p>
+                                <p class="text-title mt-1" style="color: #fbbf24;" x-text="openDeliveryStops">{{ delivery_open }}</p>
+                            </div>
+                            <div class="dashboard-stat-cell">
+                                <p class="text-caption">Concluídas</p>
+                                <p class="text-title mt-1" style="color: #6ee7b7;" x-text="completedDeliveryStops">{{ delivery_completed }}</p>
+                            </div>
+                            </div>
+                        </div>
+                        {% elif hub_stats %}
+                        <div class="dashboard-stats-strip">
+                            <div class="dashboard-stats-grid dashboard-stats-grid--2">
+                            {% for stat in hub_stats %}
+                            <div class="dashboard-stat-cell {% if hub_stats|length == 1 or (hub_stats|length % 2 == 1 and loop.last) %}dashboard-stat-cell--wide{% endif %}">
+                                <p class="text-caption">{{ stat.label }}</p>
+                                <p class="text-title mt-1" style="{{ stat.value_style }}">{{ stat.value }}</p>
+                                <p class="text-caption-lg mt-1">{{ stat.hint }}</p>
+                            </div>
+                            {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="mt-4 flex flex-wrap gap-2.5">
+                            {% if show_delivery_overview %}
+                            <span class="dashboard-info-chip" x-show="assignedPlate || '{{ delivery_plate }}'">
+                                <i data-lucide="truck" class="w-4 h-4"></i>
+                                <span>Placa <strong x-text="assignedPlate || '{{ delivery_plate or '—' }}'">{{ delivery_plate or '—' }}</strong></span>
+                            </span>
+                            <span class="dashboard-info-chip dashboard-info-chip--stacked" x-show="helperNames.length > 0">
+                                <i data-lucide="users" class="w-4 h-4"></i>
+                                <span class="dashboard-helper-list">
+                                    <span class="dashboard-helper-label">Ajudantes</span>
+                                    <template x-for="(helperName, idx) in helperNames" :key="`helper-${idx}-${helperName}`">
+                                        <span class="dashboard-helper-name" x-text="helperName"></span>
+                                    </template>
+                                </span>
+                            </span>
+                            {% endif %}
+                            <span class="dashboard-info-chip" x-show="syncQueueCount > 0 || !isOnlineApp">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                <span x-text="syncStatusLabel"></span>
+                            </span>
+                        </div>
+
+                        <div class="mt-4">
+                            {% if show_delivery_overview %}
+                            <button type="button" @click="handleHeroAction()" class="dashboard-cta dashboard-cta-primary interactive w-full inline-flex items-center justify-center gap-2">
+                                <i data-lucide="truck" class="w-5 h-5"></i>
+                                <span x-text="missionCtaLabel">
+                                    {% if delivery_total > 0 and delivery_open == 0 and delivery_completed > 0 %}Revisar operação{% elif delivery_total > 0 %}Iniciar entregas{% else %}Abrir módulo de entregas{% endif %}
+                                </span>
+                            </button>
+                            {% elif hub_primary_action and hub_primary_action.href %}
+                            <a href="{{ hub_primary_action.href }}" class="dashboard-cta dashboard-cta-primary interactive w-full inline-flex items-center justify-center gap-2">
+                                <i data-lucide="{{ hub_primary_action.icon or 'arrow-right' }}" class="w-5 h-5"></i>
+                                <span>{{ hub_primary_action.label }}</span>
+                            </a>
+                            {% endif %}
                         </div>
                     </div>
-                    <div class="flex items-center gap-1.5 flex-shrink-0">
-                        <a href="/mobile/achievements" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" title="Conquistas">
-                            <i data-lucide="award" class="w-5 h-5"></i>
-                        </a>
-                        <a href="/mobile/logout" class="touch-target-icon flex items-center justify-center rounded-lg interactive" style="background: var(--color-danger-bg); color: var(--color-danger); border: 1px solid rgba(239,68,68,0.25);" title="Sair">
-                            <i data-lucide="log-out" class="w-5 h-5"></i>
-                        </a>
-                    </div>
-                </div>
-                <div class="mt-3">
-                    <div class="flex items-center justify-between text-caption mb-1" style="color: var(--color-text-secondary);">
-                        <span>XP <strong style="color: var(--color-text);" x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</strong>
-                            <button type="button" @click="openHelpModal()" class="inline-flex items-center justify-center w-5 h-5 rounded ml-0.5 icon-wrap interactive" aria-label="Dicas"><i data-lucide="lightbulb" class="w-3 h-3"></i></button>
-                        </span>
-                        {% if gamification.next_level %}
-                        <span class="truncate max-w-[50%] text-right">Próx.: {{ gamification.next_level.name }}</span>
-                        {% else %}
-                        <span class="font-medium" style="color: var(--color-warning);">Nível máx.</span>
-                        {% endif %}
-                    </div>
-                    <div class="h-1.5 w-full rounded-full overflow-hidden" style="background: var(--color-border);">
-                        <div class="h-full transition-all duration-500 ease-out rounded-full" style="background: var(--color-primary);" :style="`width: ${xpProgressPercent}%`"></div>
-                    </div>
-                    <p class="text-caption mt-1 text-center font-medium" style="color: var(--color-text-secondary);" x-show="dailyXp > 0">
-                        +<span x-text="dailyXp"></span> XP hoje
-                    </p>
                 </div>
             </div>
         </section>
-
-        {% if employee.mobile_access_separation and delivery_summary and delivery_summary.enabled %}
-        <section class="container-mobile mt-4">
-            <div class="surface p-4">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-primary);">Entregas de Hoje</p>
-                        <h2 class="text-section mt-1" style="color: var(--color-text);">
-                            {% if delivery_summary.total_today > 0 %}
-                            {{ delivery_summary.total_today }} parada(s) lançada(s)
-                            {% else %}
-                            Nenhuma rota lançada hoje
-                            {% endif %}
-                        </h2>
-                        {% if delivery_summary.assigned_plate %}
-                        <p class="text-caption-lg mt-1">Placa planejada: <strong>{{ delivery_summary.assigned_plate }}</strong></p>
-                        {% endif %}
-                    </div>
-                    <a href="/mobile/delivery" class="touch-target-icon flex items-center justify-center rounded-lg text-white flex-shrink-0" style="background: var(--color-primary);">
-                        <i data-lucide="truck" class="w-5 h-5"></i>
-                    </a>
-                </div>
-                <div class="grid grid-cols-3 gap-3 mt-4">
-                    <div class="rounded-xl p-3 text-center" style="background: var(--color-border-light);">
-                        <p class="text-caption">Total</p>
-                        <p class="text-title mt-1" style="color: var(--color-text);">{{ delivery_summary.total_today }}</p>
-                    </div>
-                    <div class="rounded-xl p-3 text-center" style="background: rgba(245,158,11,0.12);">
-                        <p class="text-caption">Em aberto</p>
-                        <p class="text-title mt-1" style="color: #f59e0b;">{{ delivery_summary.open_today }}</p>
-                    </div>
-                    <div class="rounded-xl p-3 text-center" style="background: rgba(16,185,129,0.12);">
-                        <p class="text-caption">Concluídas</p>
-                        <p class="text-title mt-1" style="color: #10b981;">{{ delivery_summary.completed_today }}</p>
-                    </div>
-                </div>
-                <a href="/mobile/delivery" class="interactive block w-full surface mt-3 p-3 text-center font-semibold" style="color: var(--color-text); border: 1px solid var(--color-border);">
-                    <span x-text="deliverySessionOpen ? 'Continuar rota' : 'Abrir rota do dia'"></span>
-                </a>
-            </div>
-        </section>
-        {% endif %}
-
-        {% if returns_alert_data and returns_alert_data.enabled %}
-        <section class="container-mobile mt-4">
-            <div class="surface p-4">
-                <div class="flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-warning);">Devoluções</p>
-                        <h2 class="text-section mt-1" style="color: var(--color-text);">
-                            {{ returns_alert_data.actual_percent|fmt_br_2 }}% no período
-                        </h2>
-                        <p class="text-caption-lg mt-1">
-                            Meta: {{ returns_alert_data.target_percent|fmt_br_2 }}%
-                            {% if returns_alert_data.is_above_target %}
-                            • acima da meta
-                            {% else %}
-                            • dentro da meta
-                            {% endif %}
-                        </p>
-                    </div>
-                    <a href="/mobile/returns" class="touch-target-icon flex items-center justify-center rounded-lg text-white flex-shrink-0" style="background: var(--color-warning);">
-                        <i data-lucide="package" class="w-5 h-5"></i>
-                    </a>
-                </div>
-            </div>
-        </section>
-        {% endif %}
 
     </div>
 
-    <!-- 3. Módulos (ação principal) -->
-    {% if modules and modules|length > 0 %}
+    {% if ns.primary %}
     <section id="modules" class="container-mobile mt-4" x-show="initialized">
-        <h2 class="text-section mb-2" style="color: var(--color-text);">Módulos</h2>
+        <h2 class="text-section mb-3">Módulos principais</h2>
+        <div class="dashboard-module-grid">
+            {% for module in ns.primary %}
+            {{ render_dashboard_module(module, 'tile') }}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if ns.secondary %}
+    <section class="container-mobile mt-4" x-show="initialized">
+        <h2 class="text-section mb-3">Outros acessos</h2>
         <div class="space-y-2">
-            {% for module in modules %}
-            {% if module.action == "start_separation" %}
-            <a href="/mobile/delivery" class="interactive block w-full surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
-                    <i data-lucide="{{ module.icon }}" class="w-5 h-5"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate">{{ module.description }}</p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5 flex-shrink-0" style="color: var(--color-text-muted);"></i>
-            </a>
-            {% elif module.action == "open_admin_start_modal" %}
-            <button @click="open_admin_start_modal()" class="interactive w-full surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex-shrink-0" style="background: var(--color-primary); color: white;"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate">{{ module.description }}</p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
-            </button>
-            {% elif module.action == "manage_routes" %}
-            <a href="/mobile/admin/routes" class="interactive block surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex-shrink-0"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate">{{ module.description }}</p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
-            </a>
-            {% else %}
-            <a href="{{ module.href }}" class="interactive block surface p-4 text-left flex items-center gap-3">
-                <div class="icon-wrap flex-shrink-0"><i data-lucide="{{ module.icon }}" class="w-5 h-5"></i></div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-body-lg font-semibold truncate" style="color: var(--color-text);">{{ module.label }}</p>
-                    <p class="text-caption-lg truncate">{{ module.description }}</p>
-                </div>
-                <i data-lucide="chevron-right" class="w-5 h-5" style="color: var(--color-text-muted);"></i>
-            </a>
-            {% endif %}
+            {% for module in ns.secondary %}
+            {{ render_dashboard_module(module, 'row') }}
             {% endfor %}
         </div>
     </section>
@@ -728,6 +1087,16 @@
             selectedDeliveryDay: '',
             deliverySessionOpen: false,
             assignedPlate: '',
+            helperNames: {{ delivery_helper_names | safe }},
+            hubProfileKey: {{ (hub_profile.key if hub_profile and hub_profile.key else '')|tojson }},
+            todayRouteSummary: {
+                total: Number({{ delivery_total }}) || 0,
+                open: Number({{ delivery_open }}) || 0,
+                completed: Number({{ delivery_completed }}) || 0,
+            },
+            isOnlineApp: navigator.onLine,
+            syncQueueCount: 0,
+            syncInProgress: false,
             showDeliverySetupModal: false,
             showDeliveryEndModal: false,
             deliveryEndKm: '',
@@ -743,6 +1112,93 @@
             dateFilterTo: '',
             showDateFilter: false,
 
+            get totalDeliveryStops() {
+                return Number(this.todayRouteSummary?.total) || 0;
+            },
+            get openDeliveryStops() {
+                return Number(this.todayRouteSummary?.open) || 0;
+            },
+            get completedDeliveryStops() {
+                return Number(this.todayRouteSummary?.completed) || 0;
+            },
+            get inProgressDeliveryRoute() {
+                return (this.activeRoutes || []).find(route => {
+                    const status = String(route?.status || '').toLowerCase().trim();
+                    return status === 'iniciada' || status === 'reaberta';
+                }) || null;
+            },
+            get heroStatusPillClasses() {
+                if (!this.totalDeliveryStops) return 'dashboard-status-pill dashboard-status-pill--neutral';
+                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'dashboard-status-pill dashboard-status-pill--success';
+                if (this.inProgressDeliveryRoute || this.deliverySessionOpen) return 'dashboard-status-pill dashboard-status-pill--active';
+                return 'dashboard-status-pill dashboard-status-pill--warning';
+            },
+            get heroStatusLabel() {
+                if (this.hubProfileKey === 'delivery_helper' && !this.totalDeliveryStops) return 'Aguardando vínculo';
+                if (!this.totalDeliveryStops) return 'Painel pronto';
+                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Operação concluída';
+                if (this.inProgressDeliveryRoute) return this.hubProfileKey === 'delivery_helper' ? 'Em apoio' : 'Em rota';
+                if (this.deliverySessionOpen) return 'Sessão aberta';
+                return 'Pronto para iniciar';
+            },
+            get heroStatusMessage() {
+                if (!this.totalDeliveryStops) {
+                    if (this.hubProfileKey === 'delivery_helper') {
+                        return 'Aguarde a vinculação do motorista ou abra o acompanhamento quando a rota estiver liberada.';
+                    }
+                    return 'Nenhuma rota lançada por enquanto. O painel segue pronto para a próxima operação.';
+                }
+                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) {
+                    return this.hubProfileKey === 'delivery_helper'
+                        ? `${this.completedDeliveryStops} parada(s) concluída(s) com o seu apoio hoje.`
+                        : `${this.completedDeliveryStops} rota(s) concluída(s) hoje.`;
+                }
+                if (this.inProgressDeliveryRoute?.client_name) {
+                    return this.hubProfileKey === 'delivery_helper'
+                        ? `Acompanhando a parada atual em ${this.inProgressDeliveryRoute.client_name}.`
+                        : `Entrega em andamento para ${this.inProgressDeliveryRoute.client_name}.`;
+                }
+                if (this.completedDeliveryStops > 0) {
+                    return this.hubProfileKey === 'delivery_helper'
+                        ? `${this.completedDeliveryStops} parada(s) concluída(s) e ${this.openDeliveryStops} em aberto no apoio de hoje.`
+                        : `${this.completedDeliveryStops} rota(s) concluída(s) e ${this.openDeliveryStops} em aberto hoje.`;
+                }
+                return this.hubProfileKey === 'delivery_helper'
+                    ? `${this.openDeliveryStops} parada(s) aguardando apoio hoje.`
+                    : `${this.openDeliveryStops} rota(s) em aberto hoje.`;
+            },
+            get missionCtaLabel() {
+                if (this.hubProfileKey === 'delivery_helper') {
+                    if (!this.totalDeliveryStops) return 'Abrir acompanhamento';
+                    if (this.inProgressDeliveryRoute || this.deliverySessionOpen) return 'Acompanhar rota';
+                    if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Rever entregas';
+                    return 'Abrir rota ativa';
+                }
+                if (!this.totalDeliveryStops) return 'Abrir módulo de entregas';
+                if (this.inProgressDeliveryRoute || this.deliverySessionOpen) return 'Continuar operação';
+                if (this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) return 'Revisar operação';
+                return 'Iniciar entregas';
+            },
+            get appStatusLabel() {
+                if (!this.isOnlineApp) return 'Offline';
+                if (this.syncInProgress) return 'Sincronizando';
+                if (this.syncQueueCount > 0) return 'Pendências';
+                return 'Online';
+            },
+            get appStatusPillClasses() {
+                if (!this.isOnlineApp) return 'dashboard-status-pill dashboard-status-pill--danger';
+                if (this.syncInProgress) return 'dashboard-status-pill dashboard-status-pill--warning';
+                if (this.syncQueueCount > 0) return 'dashboard-status-pill dashboard-status-pill--warning';
+                return 'dashboard-status-pill dashboard-status-pill--success';
+            },
+            get syncStatusLabel() {
+                if (!this.isOnlineApp) {
+                    return this.syncQueueCount > 0 ? `${this.syncQueueCount} item(ns) aguardando sincronização` : 'Modo offline ativo';
+                }
+                if (this.syncInProgress) return 'Sincronizando dados locais';
+                if (this.syncQueueCount > 0) return `${this.syncQueueCount} item(ns) pendente(s)`;
+                return 'Sincronização em dia';
+            },
             get currentMonthLabel() {
                 const d = new Date();
                 const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -836,10 +1292,14 @@
 
                 // Setup offline detection
                 this.setupOfflineDetection();
+                this.setupSyncEvents();
 
                 // Setup pull to refresh
                 this.setupPullToRefresh();
                 this.helperOptions = (this.employees || []).filter(e => e.id !== {{ employee.id }});
+                this.helperNames = Array.isArray(this.helperNames)
+                    ? this.helperNames.filter(name => String(name || '').trim()).slice(0, 3)
+                    : [];
 
                 // Preset: mês atual
                 const now = new Date();
@@ -862,6 +1322,7 @@
             setupOfflineDetection() {
                 const banner = document.getElementById('offline-banner');
                 const updateStatus = () => {
+                    this.isOnlineApp = navigator.onLine;
                     if (!navigator.onLine) {
                         banner.classList.add('show');
                     } else {
@@ -871,6 +1332,43 @@
                 window.addEventListener('online', updateStatus);
                 window.addEventListener('offline', updateStatus);
                 updateStatus();
+            },
+
+            async refreshSyncState() {
+                try {
+                    this.syncQueueCount = typeof window.nlCountQueue === 'function'
+                        ? await window.nlCountQueue()
+                        : 0;
+                } catch (_) {
+                    this.syncQueueCount = 0;
+                }
+            },
+
+            setupSyncEvents() {
+                this.refreshSyncState();
+                setInterval(() => {
+                    this.refreshSyncState();
+                }, 5000);
+                window.addEventListener('online', async () => {
+                    this.isOnlineApp = true;
+                    await this.refreshSyncState();
+                });
+                window.addEventListener('offline', () => {
+                    this.isOnlineApp = false;
+                });
+                window.addEventListener('nl:sync-start', async (e) => {
+                    this.syncInProgress = true;
+                    this.syncQueueCount = Number(e?.detail?.count) || this.syncQueueCount || 0;
+                });
+                window.addEventListener('nl:sync-done', async () => {
+                    this.syncInProgress = false;
+                    this.isOnlineApp = true;
+                    await this.refreshSyncState();
+                });
+                window.addEventListener('nl:sync-error', async () => {
+                    this.syncInProgress = false;
+                    await this.refreshSyncState();
+                });
             },
 
             // Pull to refresh premium
@@ -1009,6 +1507,22 @@
             // Navigation
             openEvaluationModal() {
                 this.showEvaluation = true;
+            },
+
+            handleHeroAction() {
+                if (this.inProgressDeliveryRoute || this.deliverySessionOpen) {
+                    window.location.href = '/mobile/delivery';
+                    return;
+                }
+                if (this.totalDeliveryStops > 0 && this.openDeliveryStops === 0 && this.completedDeliveryStops > 0) {
+                    window.location.href = '/mobile/delivery';
+                    return;
+                }
+                if (this.totalDeliveryStops > 0) {
+                    this.openDeliverySetupModal();
+                    return;
+                }
+                window.location.href = '/mobile/delivery';
             },
 
             openDeliverySetupModal() {
@@ -1170,6 +1684,16 @@
                         }
                         this.deliverySessionOpen = !!data.session_open;
                         this.assignedPlate = data.assigned_plate || '';
+                        this.helperNames = Array.isArray(data.helper_names)
+                            ? data.helper_names.filter(name => String(name || '').trim()).slice(0, 3)
+                            : [];
+                        if (data.today_summary) {
+                            this.todayRouteSummary = {
+                                total: Number(data?.today_summary?.total) || 0,
+                                open: Number(data?.today_summary?.open) || 0,
+                                completed: Number(data?.today_summary?.completed) || 0,
+                            };
+                        }
                         this.mobileReturnReasons = data.return_reasons || [];
                         if (this.mobileReturnReasons.length && !this.mobileReturn.reason) {
                             this.mobileReturn.reason = this.mobileReturnReasons[0];

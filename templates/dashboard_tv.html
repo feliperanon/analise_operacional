@@ -1,151 +1,214 @@
-<!DOCTYPE html>
-<html lang="pt-BR" class="tv-mural">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
-    <title>Central de Comando • Painel Operacional</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
-    <link rel="stylesheet" href="/static/styles.css">
-    <link rel="stylesheet" href="/static/vendor/tailadmin/style.css">
-    <link rel="stylesheet" href="/static/css/dashboard-tailadmin.css">
-    <link rel="stylesheet" href="/static/css/system-tokens.css">
-    <link rel="stylesheet" href="/static/css/system-layout.css">
-    <link rel="stylesheet" href="/static/css/system-components.css">
-    <link rel="stylesheet" href="/static/css/system-utilities.css">
-    <link rel="stylesheet" href="/static/css/pages/dashboard-tv.css">
-    {# Mesma origem que a página: evita avisos de Tracking Prevention (storage) do Edge em CDNs #}
-    <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
-    
-</head>
-<body class="dashboard-app bg-gray-950 text-white font-outfit antialiased" x-data="{ sidebarOpen: false, openMenus: { lider: false, gerente: false, processos: false, padronizacao: false, rotinas: false, oficina: false, cadastros: false, pessoas: false, bi: false, sistema: false } }">
-    {% include "_sidebar.html" %}
-    <button @click="sidebarOpen = true" class="gv-menu-btn tv-menu-on-dark fixed top-3 left-3 z-[60] flex items-center gap-2 rounded-lg px-3 py-2.5 transition-colors" :class="sidebarOpen ? 'hidden' : ''" title="Abrir menu e navegar" type="button">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-        </svg>
-        <span class="text-sm font-medium hidden sm:inline">Menu</span>
-    </button>
+{% extends "base_gestao_avista.html" %}
 
-    <div class="panel-root relative" id="tv-root">
-        {# Duração pt-BR: &lt;60 min → "45 min"; ≥60 → "1h 05min" | Peso kg com vírgula decimal #}
-        {% macro tv_duracao_br(minutos) -%}
-        {%- set m = (minutos|default(0))|int -%}
-        {%- if m >= 60 -%}
-        {{ (m // 60) }}h {{ '%02d'|format(m % 60) }}min
-        {%- else -%}
-        {{ m }} min
-        {%- endif -%}
-        {%- endmacro %}
-        {% macro tv_kg_br(kg) -%}
-        {%- if kg is none -%}—{%- else -%}{{ '{0:.1f}'.format(kg|float)|replace('.', ',') }} kg{%- endif -%}
-        {%- endmacro %}
-        <div class="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-            <div class="absolute top-0 left-0 w-[35%] h-[40%] bg-blue-600/6 rounded-full blur-[90px]"></div>
-            <div class="absolute bottom-0 right-0 w-[35%] h-[40%] bg-purple-600/6 rounded-full blur-[90px]"></div>
-        </div>
+{% block html_class_extra %} tv-page-static{% endblock %}
+{% block body_class_extra %} tv-page-static{% endblock %}
 
-        <!-- A. TOPO EXECUTIVO -->
-        <header class="zone-topo sys-region-header sys-page-header tv-mural-header relative z-10 flex items-center justify-between px-4 sm:px-6 border-b border-slate-600/80 bg-slate-900/98 backdrop-blur shrink-0">
-            <div class="flex items-center gap-3 min-w-0">
-                <h1 class="text-base sm:text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 tracking-tight">CENTRAL DE COMANDO</h1>
-                <span class="text-slate-500 text-label font-semibold uppercase tracking-wider hidden sm:inline">NEXUS • TEMPO REAL</span>
-            </div>
-            <div></div>
-        </header>
+{% block title %}Painel TV · Gestão Avista{% endblock %}
 
-        <!-- B. FAIXA DE KPIs -->
-        <section class="zone-kpis sys-region-kpis relative z-10 flex items-stretch bg-slate-800/60 border-b border-slate-700/70 px-3 sm:px-5 shrink-0 kpi-wrap" id="tv-kpi-context" data-date="{{ current_date }}" data-cost-center="{{ current_cost_center|e }}">
-            {% set _s = dashboard.cost_centers_summary or {} %}
-            {% set _v = _s.values()|list %}
-            {% set _cc = _s.get(current_cost_center) or (_v[0] if _v else none) %}
-            {% set _hc = (_cc.headcount|default(0)) if _cc else (dashboard.kpi.headcount|default(0)) %}
-            {% set _tg = (_cc.target|default(0)) if _cc else (dashboard.kpi.target_headcount|default(1)) %}
-            {% set _away = (_cc.away|default(0)) if _cc else 0 %}
-            {% set _pct = (_hc / _tg * 100) if _tg and _tg > 0 else 0 %}
-            {% set _dev = dashboard.devolucao_dia or {} %}
-            {% set _dev_mes = dashboard.devolucao_mes or {} %}
-            {% set _dev_n = _dev.count|default(0) %}
-            {% set _alerts_n = (dashboard.alerts.clients_over_20min or [])|length %}
-            {% set _ns = namespace(open_total=0) %}
-            {% for op in (dashboard.live_separation or []) %}
-                {% set _o = op.total_deliveries|default(op.routes|length) - op.completed_deliveries|default(0) %}
-                {% set _ns.open_total = _ns.open_total + _o %}
-            {% endfor %}
-            {% set _open_total = _ns.open_total %}
-            {% set _tsa = dashboard.tv_shift_alerts or {} %}
-            {% set _atencao_kpi = _tsa.atencao|default(0) %}
-            {% set _critico_kpi = _tsa.critico|default(0) %}
-            {% set _n_paradas = dashboard.kpi.rotas_paradas|default(0) if dashboard.kpi else 0 %}
-            {% set _n_ativas_real = dashboard.kpi.rotas_ativas|default(0) if dashboard.kpi else 0 %}
-            {% set _n_rotas_concl = dashboard.kpi.rotas_concluidas|default(0) if dashboard.kpi else 0 %}
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 200px;">
-                <div class="leading-tight">
-                    <div class="text-label text-slate-500 uppercase font-semibold">Devolução mês</div>
-                    {% set _dm_pct = _dev_mes.pct|default(0)|float %}
-                    {% set _dm_pct_br = ('%.1f'|format(_dm_pct))|replace('.', ',') %}
-                    {% set _dm_val = "{:,.2f}".format(_dev_mes.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') %}
-                    <div class="font-black text-kpi {{ 'text-red-400' if (_dm_pct > 2 or (_dev_mes.total_valor|default(0)) > 0) else 'text-emerald-400' }}" id="tv-kpi-devolucao-mes-combo">{{ _dm_pct_br }}% = R$ {{ _dm_val }}</div>
-                </div>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 95px;">
-                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Abertas</span>
-                <span id="tv-kpi-abertas" class="font-black text-kpi text-white">{{ _open_total }}</span>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 180px;">
-                <div class="leading-tight">
-                    <div class="text-label text-slate-500 uppercase font-semibold">Devolução hoje</div>
-                    {% set _dd_pct = _dev.pct|default(0)|float %}
-                    {% set _dd_pct_br = ('%.1f'|format(_dd_pct))|replace('.', ',') %}
-                    {% set _dd_val = "{:,.2f}".format(_dev.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') %}
-                    <div id="tv-kpi-devolucao-ctx" class="font-black text-kpi {{ 'text-amber-400' if _dev_n > 0 else 'text-slate-500' }}">{% if _dev_n > 0 %}{{ _dd_pct_br }}% = R$ {{ _dd_val }}{% endif %}</div>
-                </div>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 85px;">
-                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Alertas</span>
-                <span id="tv-kpi-alertas" class="font-black text-kpi {{ 'text-amber-400' if _alerts_n > 0 else 'text-slate-500' }}">{{ _alerts_n }}</span>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 95px;">
-                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Rotas paradas</span>
-                <span id="tv-kpi-rotas-paradas" class="font-black text-kpi text-slate-400">{{ _n_paradas }}</span>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 95px;">
-                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Rotas ativas</span>
-                <span id="tv-kpi-rotas-ativas" class="font-black text-kpi text-cyan-300">{{ _n_ativas_real }}</span>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 100px;">
-                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Concluídas</span>
-                <span id="tv-kpi-rotas-concluidas" class="font-black text-kpi text-emerald-400">{{ _n_rotas_concl }}</span>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 75px;">
-                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Atenção</span>
-                <span id="tv-kpi-atencao" class="font-black text-kpi text-amber-400">{{ _atencao_kpi }}</span>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center gap-1 px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 70px;">
-                <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Críticas</span>
-                <span id="tv-kpi-criticas" class="font-black text-kpi text-red-400">{{ _critico_kpi }}</span>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 120px;">
-                <div class="leading-tight">
-                    <div id="dash-time" class="font-black text-white text-kpi font-mono">--:--:--</div>
-                    <div id="dash-date" class="text-label text-slate-400 uppercase tracking-wider">Carregando...</div>
-                </div>
-            </div>
-            <div class="kpi-cell tv-kpi-cell sys-kpi-card flex items-center px-2 sm:px-4 py-2 min-w-0 flex-shrink-0" style="min-width: 170px;">
-                <div class="leading-tight space-y-1">
-                    <div class="flex items-center gap-2">
-                        <span id="dash-shift-name" class="text-card-title font-bold text-blue-400">Turno</span>
-                        <div class="w-10 sm:w-14 h-1.5 sm:h-2 bg-slate-700 rounded-full overflow-hidden">
-                            <div id="dash-shift-bar" class="h-full rounded-full transition-all duration-500" style="width:0%;background:rgb(59 130 246)"></div>
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/dashboard-tv.css">
+{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Painel / TV ao vivo</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Painel TV</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Operação logística em tempo real</p>
+{% endblock %}
+
+{% block content %}
+
+<div id="tv-root" class="ga-employee-theme employees-shell employees-page employees-page--premium tv-dashboard-page tv-dashboard-page--static flex min-h-0 flex-1 flex-col gap-2 pt-1 md:gap-2 md:pt-2">
+
+    {% macro tv_duracao_br(minutos) -%}
+    {%- set m = (minutos|default(0))|int -%}
+    {%- if m >= 60 -%}
+    {{ (m // 60) }}h {{ '%02d'|format(m % 60) }}min
+    {%- else -%}
+    {{ m }} min
+    {%- endif -%}
+    {%- endmacro %}
+    {% macro tv_kg_br(kg) -%}
+    {%- if kg is none -%}—{%- else -%}{{ '{0:.1f}'.format(kg|float)|replace('.', ',') }} kg{%- endif -%}
+    {%- endmacro %}
+
+    {% set _dev = dashboard.devolucao_dia or {} %}
+    {% set _dev_mes = dashboard.devolucao_mes or {} %}
+    {% set _dev_n = _dev.count|default(0) %}
+    {% set _alerts_n = (dashboard.alerts.clients_over_20min or [])|length %}
+    {% set _ns = namespace(open_total=0) %}
+    {% for op in (dashboard.live_separation or []) %}
+        {% set _o = op.total_deliveries|default(op.routes|length) - op.completed_deliveries|default(0) %}
+        {% set _ns.open_total = _ns.open_total + _o %}
+    {% endfor %}
+    {% set _open_total = _ns.open_total %}
+    {% set _tsa = dashboard.tv_shift_alerts or {} %}
+    {% set _atencao_kpi = _tsa.atencao|default(0) %}
+    {% set _critico_kpi = _tsa.critico|default(0) %}
+    {% set _n_paradas = dashboard.kpi.rotas_paradas|default(0) if dashboard.kpi else 0 %}
+    {% set _n_ativas_real = dashboard.kpi.rotas_ativas|default(0) if dashboard.kpi else 0 %}
+    {% set _n_rotas_concl = dashboard.kpi.rotas_concluidas|default(0) if dashboard.kpi else 0 %}
+    {% set _dm_pct = _dev_mes.pct|default(0)|float %}
+    {% set _dm_pct_br = ('%.1f'|format(_dm_pct))|replace('.', ',') %}
+    {% set _dm_val = "{:,.2f}".format(_dev_mes.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') %}
+    {% set _dd_pct = _dev.pct|default(0)|float %}
+    {% set _dd_pct_br = ('%.1f'|format(_dd_pct))|replace('.', ',') %}
+    {% set _dd_val = "{:,.2f}".format(_dev.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') %}
+    {% set parados_list = dashboard.alerts.clients_over_20min or [] %}
+    {% set kpi = dashboard.kpi or {} %}
+    {% set concluidas_dia = kpi.completed_routes_count|default(0) %}
+    {% set _ns2 = namespace(open=0) %}
+    {% for op in (dashboard.live_separation or []) %}
+        {% set _ns2.open = _ns2.open + (op.total_deliveries|default(0) - op.completed_deliveries|default(0)) %}
+    {% endfor %}
+    {% set pct_dia = (concluidas_dia / (concluidas_dia + _ns2.open) * 100) if (concluidas_dia + _ns2.open) > 0 else 0 %}
+
+    <!-- KPIs (grade); data-date / cost_center para polling da API -->
+    <section id="tv-kpi-context" class="tv-kpi-section shrink-0 w-full" data-date="{{ current_date }}" data-cost-center="{{ current_cost_center|e }}" aria-label="Indicadores do painel TV">
+        <div class="sys-kpi-shell tv-kpi-shell-no-card w-full min-w-0 overflow-hidden px-0 py-1 sm:py-1.5">
+            <div class="sys-kpi-grid employees-kpi-row tv-kpi-row tv-kpi-mega-grid">
+
+                <div id="tv-kpi-devolucao-mes-card" class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: {% if _dm_pct <= 2 %}rgba(52, 211, 153, 0.72){% else %}rgba(239, 68, 68, 0.65){% endif %};">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span id="tv-kpi-devolucao-mes-label" class="sys-kpi-label tv-kpi-dev-mes-label {% if _dm_pct <= 2 %}tv-kpi-dev-mes--ok{% else %}tv-kpi-dev-mes--high{% endif %}">Devolução mês</span>
+                                <div id="tv-kpi-devolucao-mes-combo" class="employees-kpi__value tv-kpi-dev-mes-combo mt-1 tabular-nums {% if _dm_pct <= 2 %}tv-kpi-dev-mes--ok{% else %}tv-kpi-dev-mes--high{% endif %}">{{ _dm_pct_br }}% · R$ {{ _dm_val }}</div>
+                            </div>
                         </div>
                     </div>
-                    <div id="tv-status-badge" class="inline-flex px-2.5 py-1 rounded-md border font-bold text-label uppercase tracking-wider status-normal">Operação normal</div>
                 </div>
-            </div>
-        </section>
 
-        <!-- C. PAINEL CENTRAL: grid de motoristas + sidebar com cards -->
-        <section class="zone-central sys-region-content relative z-10 min-h-0">
-            <div class="zone-central-grid flex flex-col min-h-0">
+                <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(34, 211, 238, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="sys-kpi-label text-cyan-600 dark:text-cyan-300">Ativas</span>
+                                <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                    <span id="tv-kpi-rotas-ativas" class="employees-kpi__value tabular-nums text-cyan-700 dark:text-cyan-200">{{ _n_ativas_real }}</span>
+                                </div>
+                            </div>
+                            <svg class="h-4 w-4 shrink-0 text-cyan-500 transition group-hover:scale-110 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Paradas</span>
+                                <div class="mt-1"><span id="tv-kpi-rotas-paradas" class="employees-kpi__value tabular-nums">{{ _n_paradas }}</span></div>
+                            </div>
+                            <svg class="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Concluídas</span>
+                                <div class="mt-1"><span id="tv-kpi-rotas-concluidas" class="employees-kpi__value tabular-nums text-emerald-700 dark:text-emerald-200">{{ _n_rotas_concl }}</span></div>
+                            </div>
+                            <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Abertas</span>
+                                <div class="mt-1"><span id="tv-kpi-abertas" class="employees-kpi__value tabular-nums">{{ _open_total }}</span></div>
+                            </div>
+                            <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Atenção</span>
+                                <div class="mt-1"><span id="tv-kpi-atencao" class="employees-kpi__value tabular-nums text-amber-700 dark:text-amber-200">{{ _atencao_kpi }}</span></div>
+                            </div>
+                            <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="sys-kpi-label text-red-600 dark:text-red-300">Críticas</span>
+                                <div class="mt-1"><span id="tv-kpi-criticas" class="employees-kpi__value tabular-nums text-red-700 dark:text-red-200">{{ _critico_kpi }}</span></div>
+                            </div>
+                            <svg class="h-4 w-4 shrink-0 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="sys-kpi-label text-orange-600 dark:text-orange-300" title="Clientes com entrega aberta há mais de 20 minutos">Parados +20</span>
+                                <div class="mt-1"><span id="tv-kpi-alertas" class="employees-kpi__value tabular-nums {% if _alerts_n > 0 %}text-orange-600 dark:text-orange-300{% else %}text-slate-500{% endif %}">{{ _alerts_n }}</span></div>
+                            </div>
+                            <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                            <div class="min-w-0">
+                                <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Devolução hoje</span>
+                                <div id="tv-kpi-devolucao-ctx" class="tv-kpi-devolucao-ctx employees-kpi__value mt-1 tabular-nums {% if _dev_n > 0 %}text-amber-700 dark:text-amber-200{% else %}text-slate-500 dark:text-slate-400{% endif %}">{{ _dd_pct_br }}% · R$ {{ _dd_val }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tv-hero-panel sys-kpi-card employees-kpi tv-kpi-lead flex min-h-0 min-w-0 flex-col justify-center gap-0.5 border border-gray-200 bg-white px-3 py-2.5 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:px-3.5 sm:py-3">
+                    <span class="employees-text-section-label">Hora local</span>
+                    <span id="dash-time" class="font-mono text-lg font-bold leading-tight tracking-tight text-slate-900 dark:text-white sm:text-xl">--:--:--</span>
+                    <span id="dash-date" class="text-[11px] font-medium leading-tight text-slate-500 dark:text-slate-400 sm:text-xs">Carregando…</span>
+                </div>
+
+                <div class="tv-hero-panel sys-kpi-card employees-kpi tv-kpi-lead tv-kpi-day-progress flex min-h-0 min-w-0 flex-col justify-center gap-1.5 border border-gray-200 bg-white px-3 py-2.5 shadow-sm dark:border-gray-700 dark:bg-gray-900 sm:px-3.5 sm:py-3">
+                    <span class="employees-text-section-label">Andamento do dia</span>
+                    <div class="flex min-w-0 items-baseline justify-between gap-2">
+                        <span id="tv-kpi-day-pct" class="font-mono text-lg font-bold tabular-nums leading-tight text-blue-600 dark:text-blue-400 sm:text-xl">{{ "%.0f"|format(pct_dia) }}%</span>
+                        <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">concluído</span>
+                    </div>
+                    <div class="tv-kpi-day-progress-track h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ pct_dia|round(0)|int }}" aria-label="Progresso das entregas do dia">
+                        <div id="tv-kpi-day-fill-bar" class="h-full max-w-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-[width] duration-700 ease-out" style="width: {{ pct_dia }}%;"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Painel principal: motoristas / rotas (sem card externo — ganha altura) -->
+    <div class="tv-live-panel tv-live-panel--bare flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden gap-1 sm:gap-1.5">
+        <div class="tv-live-panel__head employees-table-panel__head flex flex-col px-0 py-0">
+            <p class="employees-table-panel__kicker">Operação ao vivo</p>
+        </div>
+        <div class="tv-live-panel__body tv-live-split flex min-h-0 flex-1 flex-col gap-2 px-0 lg:flex-row lg:items-stretch lg:gap-3">
             {% set _nl = (dashboard.live_separation or [])|length %}
             {% set ns_grid_slow = namespace(v=false) %}
             {% for op in (dashboard.live_separation or []) %}
@@ -155,23 +218,30 @@
                     {% endif %}
                 {% endfor %}
             {% endfor %}
-            {% set _gcols = 3 %}{% if _nl <= 1 %}{% set _gcols = 1 %}{% elif _nl <= 2 %}{% set _gcols = 2 %}{% elif _nl <= 6 %}{% set _gcols = 3 %}{% elif _nl <= 12 %}{% set _gcols = 4 %}{% else %}{% set _gcols = 5 %}{% endif %}
+            {% set _gcols = 3 %}{% if _nl <= 0 %}{% set _gcols = 1 %}{% elif _nl == 1 %}{% set _gcols = 1 %}{% elif _nl == 2 %}{% set _gcols = 2 %}{% elif _nl <= 4 %}{% set _gcols = 2 %}{% elif _nl <= 9 %}{% set _gcols = 3 %}{% elif _nl <= 16 %}{% set _gcols = 4 %}{% elif _nl <= 25 %}{% set _gcols = 5 %}{% else %}{% set _gcols = 6 %}{% endif %}
             {% set _grows = ((_nl + _gcols - 1) // _gcols) if _gcols and _nl else 1 %}
+            <div class="tv-live-split__main flex min-h-0 min-w-0 flex-1 flex-col">
             <div id="tv-live-separation" class="driver-grid flex-1 min-h-0{% if ns_grid_slow.v %} tv-grid--alert{% endif %}" style="grid-template-columns: repeat({{ _gcols }}, minmax(0, 1fr)); grid-template-rows: repeat({{ _grows }}, minmax(0, 1fr));">
                 {% for op in (dashboard.live_separation or []) %}
                 {% set ns_in = namespace(c=0) %}
                 {% for r in op.routes %}
                 {% if ((r.delivery_status or '')|lower) == 'iniciada' %}{% set ns_in.c = ns_in.c + 1 %}{% endif %}
                 {% endfor %}
+                {% set ns_act = namespace(route=none, mins=-1) %}
+                {% for r in op.routes %}
+                {% if ((r.delivery_status or '')|lower) == 'iniciada' %}
+                {% set _am = (r.open_elapsed_minutes|default(0))|int %}
+                {% if _am > ns_act.mins %}{% set ns_act.route = r %}{% set ns_act.mins = _am %}{% endif %}
+                {% endif %}
+                {% endfor %}
                 {% set total = op.total_deliveries|default(op.routes|length) %}
                 {% set completed = op.completed_deliveries|default(0) %}
-                {% set open_count = total - completed %}
                 {% set pct_d = (completed / total * 100) if total and total > 0 else 0 %}
                 {% set rs = op.route_state|default('in_progress') %}
                 {% if rs == 'closed' %}{% set tvm = 'tv-balloon-driver--encerrada' %}{% set tvc = 'Encerramento' %}{% set tvs = 'Encerrada' %}
                 {% elif rs == 'not_started' %}{% set tvm = 'tv-balloon-driver--aguardando' %}{% set tvc = 'Aguardando' %}{% set tvs = 'Rota parada' %}
                 {% elif rs == 'route_started' %}{% set tvm = 'tv-balloon-driver--inicio' %}{% set tvc = 'Em rota' %}{% set tvs = 'Início' %}
-                {% elif rs == 'all_delivered' %}{% set tvm = 'tv-balloon-driver--retorno' %}{% set tvc = 'Retorno' %}{% set tvs = 'Retornando' %}
+                {% elif rs == 'all_delivered' %}{% set tvm = 'tv-balloon-driver--retorno' %}{% set tvc = 'Retornando' %}{% set tvs = 'Retornando' %}
                 {% else %}{% set card_status = op.route_alert_level|default('ok') %}
                     {% if card_status == 'critico' %}{% set tvm = 'tv-balloon-driver--critico' %}{% set tvc = 'Crítico' %}{% set tvs = op.route_alert_label|default('Crítico') %}
                     {% elif card_status == 'atencao' %}{% set tvm = 'tv-balloon-driver--atencao' %}{% set tvc = 'Atenção' %}{% set tvs = op.route_alert_label|default('Atenção') %}
@@ -179,16 +249,17 @@
                     {% endif %}
                 {% endif %}
                 {% set dense = ' tv-balloon-driver--dense' if _nl > 6 else '' %}
+                {% set xdense = ' tv-balloon-driver--xdense' if _nl > 9 else '' %}
                 <div class="driver-cell">
-                    <article class="tv-balloon-driver {{ tvm }}{{ dense }}">
+                    <article class="tv-balloon-driver {{ tvm }}{{ dense }}{{ xdense }}">
                         <div class="tv-balloon-frame" aria-hidden="true"></div>
-                        <div class="tv-balloon-hero">
+                        <header class="tv-balloon-hero">
                             {% if tvc == tvs %}
                             <p class="tv-balloon-hero-line">{{ tvs }}</p>
                             {% else %}
                             <p class="tv-balloon-hero-line"><span class="tv-hero-sub">{{ tvc }}</span><span class="tv-hero-sep">·</span><span>{{ tvs }}</span></p>
                             {% endif %}
-                        </div>
+                        </header>
                         <div class="tv-balloon-body">
                             <p class="tv-balloon-title-line"><strong>{{ op.employee_name }}</strong><span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">{% for h in op.helper_names or [] %}{% set w = h.split() %}<span class="tv-ajud-line">{% if w|length > 1 %}{{ w[0] }} {{ w[1] }}{% else %}{{ w[0] }}{% endif %}</span>{% else %}<span class="tv-ajud-line">—</span>{% endfor %}</span></span><span class="tv-meta-placa">Placa: {{ op.plate or '—' }} · Peso: {% if op.total_kg is defined and op.total_kg is not none %}{{ tv_kg_br(op.total_kg) }}{% else %}—{% endif %}</span></span></p>
                         <div class="tv-balloon-progress-row">
@@ -198,6 +269,16 @@
                         <div class="tv-balloon-bar">
                             <div style="width: {{ pct_d }}%"></div>
                         </div>
+                        {% if ns_act.route is not none %}
+                        <div class="tv-balloon-activity-strip{% if ns_act.mins > 20 %} tv-balloon-activity-strip--alert{% endif %}">
+                            <span class="tv-balloon-activity-k">Em entrega</span>
+                            <span class="tv-balloon-activity-client truncate min-w-0">{{ ns_act.route.client }}</span>
+                            <span class="tv-balloon-activity-times font-mono tabular-nums shrink-0">{{ ns_act.route.start_time }} · <span class="dur tv-open-elapsed whitespace-nowrap" data-start="{{ ns_act.route.start_time|e }}">—</span></span>
+                        </div>
+                        {% if ns_in.c > 1 %}
+                        <p class="tv-balloon-activity-queue">+{{ ns_in.c - 1 }} {% if ns_in.c == 2 %}outra{% else %}outras{% endif %} em aberto</p>
+                        {% endif %}
+                        {% endif %}
                         <div class="tv-balloon-meta-slot">
                         {% if rs not in ('closed', 'not_started', 'all_delivered') and op.projected_finish_at %}
                         <div class="tv-balloon-eta flex items-center justify-between gap-2">
@@ -218,7 +299,7 @@
                                 {% if _oem > 20 and count_open < 4 %}
                                 <div class="tv-balloon-list-row open-item tv-balloon-list-row--slow">
                                     <span class="tv-open-client font-semibold truncate flex-1 min-w-0">{{ r.client }}</span>
-                                    <span class="text-slate-500 font-mono shrink-0 text-[10px]">{{ r.start_time }}</span>
+                                    <span class="tv-open-start font-mono shrink-0">{{ r.start_time }}</span>
                                     <span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="{{ r.start_time|e }}">—</span>
                                 </div>
                                 {% set count_open = count_open + 1 %}
@@ -230,8 +311,8 @@
                                 {% set _oem = (r.open_elapsed_minutes|default(0))|int %}
                                 {% if _oem <= 20 and count_open < 4 %}
                                 <div class="tv-balloon-list-row open-item">
-                                    <span class="tv-open-client font-semibold truncate flex-1 min-w-0 text-slate-100">{{ r.client }}</span>
-                                    <span class="text-slate-500 font-mono shrink-0 text-[10px]">{{ r.start_time }}</span>
+                                    <span class="tv-open-client font-semibold truncate flex-1 min-w-0 text-slate-700 dark:text-slate-200">{{ r.client }}</span>
+                                    <span class="tv-open-start font-mono shrink-0">{{ r.start_time }}</span>
                                     <span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="{{ r.start_time|e }}">—</span>
                                 </div>
                                 {% set count_open = count_open + 1 %}
@@ -249,7 +330,7 @@
                                 {% endif %}
                             </div>
                             {% if ns_in.c > 4 %}
-                            <p class="text-[10px] font-semibold shrink-0 mt-0.5" style="color: color-mix(in srgb, var(--tv-accent) 65%, #64748b);">+{{ ns_in.c - 4 }} mais</p>
+                            <p class="tv-balloon-more-hint mt-0.5 shrink-0 text-[10px] font-semibold">+{{ ns_in.c - 4 }} mais</p>
                             {% endif %}
                         </div>
                         {% endif %}
@@ -258,561 +339,560 @@
                 </div>
                 {% endfor %}
                 {% if not dashboard.live_separation or (dashboard.live_separation|length == 0) %}
-                <div class="col-span-full flex items-center justify-center text-slate-500 text-card-title py-8">Nenhuma rota ativa no momento.</div>
+                <div class="col-span-full flex items-center justify-center py-10 text-sm font-medium text-slate-500">Nenhuma rota ativa no momento.</div>
                 {% endif %}
             </div>
             </div>
-            <!-- Sidebar: cards em coluna (sem scroll, texto que se ajusta) -->
-            <div class="zone-sidebar">
-                <!-- Card: Devoluções do dia (compacto: Cliente · Motorista) -->
-                <div class="zone-card sys-card tv-zone-balloon">
-                    <div class="zone-card-header">
-                        <h2 class="text-xs font-bold uppercase tracking-wider truncate">Devoluções do dia</h2>
-                        <span id="tv-devolucoes-count" class="text-base font-black text-red-400 tabular-nums shrink-0">{{ (dashboard.devolucao_dia or {}).count|default(0) }}</span>
-                    </div>
-                    <div id="tv-devolucoes-body" class="zone-card-body">
-                        {% if (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
-                        {% for item in (dashboard.devolucao_dia.items_list or []) %}
-                        <div class="zone-card-row bg-red-500/10 border border-red-500/30 flex items-center gap-2">
-                            <span class="font-medium text-white flex-1 min-w-0 truncate" title="{{ item.client_name }}">{{ item.client_name }}</span>
-                            <span class="text-slate-400 shrink-0 max-w-[45%] truncate" title="{{ item.driver_name }}">· {{ item.driver_name }}</span>
-                        </div>
-                        {% endfor %}
-                        {% else %}
-                        <p class="zone-card-empty text-emerald-400/90 flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
-                            Nenhuma devolução
-                        </p>
-                        {% endif %}
-                    </div>
-                </div>
-                <!-- Card: Alto índice (compacto: Cliente · Motorista, sem quantidade) -->
-                <div class="zone-card sys-card tv-zone-balloon tv-zone-balloon--amber">
-                    <div class="zone-card-header">
-                        <h2 class="text-xs font-bold uppercase tracking-wider truncate">Alto índice devolução</h2>
-                    </div>
-                    <div id="tv-alto-indice-body" class="zone-card-body">
-                        {% for row in (dashboard.clientes_alto_indice_devolucao or []) %}
-                        <div class="zone-card-row bg-amber-500/10 border border-amber-500/30">
-                            <div class="flex flex-col min-w-0">
-                                <span class="text-slate-300 text-[11px] truncate" title="{{ row.driver_name }}">{{ row.driver_name }}</span>
-                                <span class="font-medium text-white truncate" title="{{ row.client_name }}">{{ row.client_name }}</span>
+
+            <aside id="tv-exceptions-panel" class="tv-exc-panel--unified tv-exceptions-static tv-exceptions-static--sidebar flex min-h-0 w-full shrink-0 flex-col" aria-label="Exceções do dia">
+                <div class="sys-card sys-card--surface tv-exc-unified-card tv-exc-sidebar-card flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0 shadow-sm">
+                    <div class="tv-exc-unified-stack flex min-h-0 flex-1 flex-col divide-y divide-gray-100 overflow-hidden dark:divide-gray-800">
+                        <section class="tv-exc-unified-section flex min-h-0 min-w-0 flex-1 basis-0 flex-col" aria-label="Devoluções hoje">
+                            <div class="tv-exc-unified-head flex items-baseline justify-between gap-1.5 px-2 py-1">
+                                <h3 class="tv-exc-unified-title">Devoluções hoje</h3>
+                                <span id="tv-devolucoes-count" class="tv-exc-unified-kpi tabular-nums text-red-600 dark:text-red-400{% if _dev_n == 0 %} hidden{% endif %}">{% if _dev_n > 0 %}{{ _dev_n }}{% endif %}</span>
                             </div>
-                        </div>
-                        {% else %}
-                        <p class="zone-card-empty text-slate-500 text-xs">Nenhum no período.</p>
-                        {% endfor %}
+                            <div id="tv-devolucoes-body" class="tv-exc-body tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-2 pb-1 pt-0">
+                                {% if _dev_n > 0 %}
+                                {% for item in (_dev.items_list or []) %}
+                                <div class="tv-exc-row tv-exc-unified-row flex items-center gap-1 rounded border border-red-100/90 bg-red-50/90 px-1.5 py-0.5 dark:border-red-900/50 dark:bg-red-950/35">
+                                    <span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white" title="{{ item.client_name }}">{{ item.client_name }}</span>
+                                    <span class="max-w-[42%] shrink-0 truncate text-slate-600 dark:text-slate-400" title="{{ item.driver_name }}">{{ item.driver_name }}</span>
+                                </div>
+                                {% endfor %}
+                                {% endif %}
+                            </div>
+                        </section>
+                        <section class="tv-exc-unified-section flex min-h-0 min-w-0 flex-1 basis-0 flex-col" aria-label="Parados mais de 20 minutos">
+                            <div class="tv-exc-unified-head flex items-baseline justify-between gap-1.5 px-2 py-1">
+                                <h3 class="tv-exc-unified-title">Parados +20 min</h3>
+                                <span id="tv-parados-count" class="tv-exc-unified-kpi tabular-nums text-orange-600 dark:text-orange-400{% if _alerts_n == 0 %} hidden{% endif %}">{% if _alerts_n > 0 %}{{ _alerts_n }}{% endif %}</span>
+                            </div>
+                            <div id="tv-parados-body" class="tv-exc-body tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-2 pb-1 pt-0">
+                                {% if parados_list|length > 0 %}
+                                {% for a in parados_list[:5] %}
+                                <div class="tv-exc-row tv-exc-unified-row flex items-center justify-between gap-1 rounded border border-orange-100/90 bg-orange-50/90 px-1.5 py-0.5 dark:border-orange-900/50 dark:bg-orange-950/30">
+                                    <span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">{{ a.client_name }}</span>
+                                    <span class="shrink-0 font-semibold tabular-nums text-orange-700 dark:text-orange-300">{{ tv_duracao_br(a.minutes) }}</span>
+                                </div>
+                                {% endfor %}
+                                {% if parados_list|length > 5 %}
+                                <p class="tv-exc-unified-more">+{{ parados_list|length - 5 }} mais</p>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </section>
+                        <section class="tv-exc-unified-section flex min-h-0 min-w-0 flex-1 basis-0 flex-col" aria-label="Alto índice de devolução">
+                            <div class="tv-exc-unified-head px-2 py-1">
+                                <h3 class="tv-exc-unified-title">Alto índice devolução</h3>
+                            </div>
+                            <div id="tv-alto-indice-body" class="tv-exc-body tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-2 pb-1 pt-0">
+                                {% for row in (dashboard.clientes_alto_indice_devolucao or []) %}
+                                <div class="tv-exc-row tv-exc-unified-row flex flex-col gap-0 rounded border border-amber-100/90 bg-amber-50/90 px-1.5 py-0.5 dark:border-amber-900/50 dark:bg-amber-950/30">
+                                    <span class="truncate text-slate-600 dark:text-slate-400">{{ row.driver_name }}</span>
+                                    <span class="truncate font-semibold text-slate-900 dark:text-white">{{ row.client_name }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </section>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- E. Resumo do dia (só progresso; números detalhados já estão na faixa de KPIs) -->
-        {% set kpi = dashboard.kpi or {} %}
-        {% set concluidas_dia = kpi.completed_routes_count|default(0) %}
-        {% set _ns2 = namespace(open=0) %}
-        {% for op in (dashboard.live_separation or []) %}
-            {% set _ns2.open = _ns2.open + (op.total_deliveries|default(0) - op.completed_deliveries|default(0)) %}
-        {% endfor %}
-        {% set pct_dia = (concluidas_dia / (concluidas_dia + _ns2.open) * 100) if (concluidas_dia + _ns2.open) > 0 else 0 %}
-        <footer class="zone-dia tv-dia-balloon relative z-10 flex items-center gap-4 px-3 sm:px-5 py-2 shrink-0">
-            <span class="text-label text-slate-500 uppercase font-semibold shrink-0">Dia</span>
-            <span id="tv-dia-pct" class="text-kpi-big font-black text-blue-300 shrink-0">{{ "%.0f"|format(pct_dia) }}%</span>
-            <span class="text-card-meta text-slate-500 shrink-0">concluído</span>
-            <div class="flex-1 min-w-[120px] h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                <div id="tv-dia-bar" class="h-full rounded-full transition-all duration-500" style="width: {{ pct_dia }}%; background: linear-gradient(to right, rgb(59, 130, 246), rgb(34, 211, 238));"></div>
-            </div>
-        </footer>
+            </aside>
+        </div>
     </div>
 
-    <script src="/static/vendor/lucide/lucide-0.563.0.min.js"></script>
-    <script>
-    (function() {
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+</div>
 
-        /** Manhã 07:00–17:00 | Tarde 17:01–19:00 | Noite 19:01–06:59 */
-        function getCurrentShift(h, m) {
-            var c = h * 60 + m;
-            if (c >= 19 * 60 + 1 || c < 7 * 60) return { name: 'Noite', color: 'purple' };
-            if (c >= 17 * 60 + 1) return { name: 'Tarde', color: 'orange' };
-            return { name: 'Manhã', color: 'blue' };
-        }
-        function getShiftProgress(h, m) {
-            var c = h * 60 + m;
-            if (c >= 19 * 60 + 1 || c < 7 * 60) {
-                var el = c >= 19 * 60 + 1 ? c - (19 * 60 + 1) : (1440 - (19 * 60 + 1)) + c;
-                return Math.min(100, Math.max(0, (el / 719) * 100));
-            }
-            if (c >= 17 * 60 + 1) return Math.min(100, Math.max(0, ((c - (17 * 60 + 1)) / 120) * 100));
-            return Math.min(100, Math.max(0, ((c - 7 * 60) / 600) * 100));
-        }
-        function updateClock() {
-            var now = new Date(), h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-            var timeEl = document.getElementById('dash-time');
-            if (timeEl) timeEl.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
-            var days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
-            var dateEl = document.getElementById('dash-date');
-            if (dateEl) dateEl.textContent = days[now.getDay()] + ', ' + String(now.getDate()).padStart(2,'0') + '/' + String(now.getMonth()+1).padStart(2,'0') + '/' + now.getFullYear();
-            var shift = getCurrentShift(h, m);
-            var shiftNameEl = document.getElementById('dash-shift-name');
-            if (shiftNameEl) shiftNameEl.textContent = 'Turno ' + (shift.name || '');
-            var shiftBarEl = document.getElementById('dash-shift-bar');
-            if (shiftBarEl) {
-                shiftBarEl.style.width = getShiftProgress(h, m) + '%';
-                shiftBarEl.style.backgroundColor = shift.color === 'blue' ? 'rgb(59 130 246)' : (shift.color === 'orange' ? 'rgb(249 115 22)' : 'rgb(168 85 247)');
-            }
-        }
-        function setLastUpdate() { /* Dados atualizados; relógio único no topo */ }
-        function setOperationStatus(alertsCount, devCount) {
-            var badge = document.getElementById('tv-status-badge');
-            if (!badge) return;
-            badge.className = 'px-2.5 py-1 rounded-md border font-bold text-label uppercase tracking-wider ';
-            if (alertsCount >= 2 || devCount >= 3) { badge.classList.add('status-critico'); badge.textContent = 'Crítico'; }
-            else if (alertsCount > 0 || devCount > 0) { badge.classList.add('status-atencao'); badge.textContent = 'Atenção'; }
-            else { badge.classList.add('status-normal'); badge.textContent = 'Operação normal'; }
-        }
-        /** Duração pt-BR: &lt;60 → "45 min"; ≥60 → "1h 05min" (alinhado ao macro Jinja) */
-        function formatDuracaoBr(m) {
-            m = parseInt(m, 10) || 0;
-            if (m >= 60) return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'min';
-            return m + ' min';
-        }
-        function formatKgBr(val) {
-            if (val == null || val === '') return '—';
-            var n = Number(val);
-            if (isNaN(n)) return '—';
-            return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' kg';
-        }
-        function getTvRefDateYmd() {
-            var card = document.getElementById('tv-kpi-context');
-            var d = card ? card.getAttribute('data-date') : '';
-            return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : '';
-        }
-        function parseDayTime(hmStr, ymdStr) {
-            if (!hmStr || typeof hmStr !== 'string') return null;
-            var parts = hmStr.trim().split(':');
-            if (parts.length < 2) return null;
-            var h = parseInt(parts[0], 10), mi = parseInt(parts[1], 10);
-            if (isNaN(h) || isNaN(mi)) return null;
-            var y, mo, day;
-            if (ymdStr) {
-                var segs = ymdStr.split('-');
-                y = parseInt(segs[0], 10); mo = parseInt(segs[1], 10) - 1; day = parseInt(segs[2], 10);
-            } else {
-                var now = new Date();
-                y = now.getFullYear(); mo = now.getMonth(); day = now.getDate();
-            }
-            return new Date(y, mo, day, h, mi, 0, 0);
-        }
-        function elapsedMinutesFromStart(hmStr) {
-            var t = parseDayTime(hmStr, getTvRefDateYmd());
-            if (!t) return null;
-            var diff = Math.floor((Date.now() - t.getTime()) / 60000);
-            return diff < 0 ? 0 : diff;
-        }
-        function formatMoneyBr(v) {
-            var n = Number(v || 0);
-            if (!isFinite(n)) n = 0;
-            return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-        function formatPctBr(v) {
-            var n = Number(v);
-            if (!isFinite(n)) n = 0;
-            return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-        }
-        function updateTvOpenElapsed() {
-            document.querySelectorAll('.tv-open-elapsed[data-start]').forEach(function(el) {
-                var s = el.getAttribute('data-start');
-                var mins = elapsedMinutesFromStart(s);
-                el.textContent = mins === null ? '—' : formatDuracaoBr(mins);
-                var item = el.closest('.open-item');
-                var clientEl = item ? item.querySelector('.tv-open-client') : null;
-                if (item && clientEl) {
-                    if (mins !== null && mins > 20) {
-                        item.classList.add('tv-balloon-list-row--slow');
-                        clientEl.classList.remove('text-slate-100', 'text-white', 'text-amber-300', 'font-semibold');
-                    } else {
-                        item.classList.remove('tv-balloon-list-row--slow');
-                        clientEl.classList.remove('text-amber-300', 'font-semibold', 'text-white');
-                        clientEl.classList.add('text-slate-100');
-                    }
-                }
-            });
-            refreshSlowCardElevation();
-        }
-        function refreshSlowCardElevation() {
-            var grid = document.getElementById('tv-live-separation');
-            if (!grid) return;
-            var any = grid.querySelector('.tv-balloon-list-row--slow, .tv-balloon-idle-pill--slow');
-            grid.classList.toggle('tv-grid--alert', !!any);
-        }
-        window.formatDuracaoBr = formatDuracaoBr;
+{% endblock %}
 
-        function shouldShowAbertasFoot(routeState, nIniciada) {
-            var st = routeState || '';
-            if (nIniciada > 0) return true;
-            if (st !== 'closed' && st !== 'all_delivered') return true;
-            return false;
-        }
+{% block layout_portal %}
+{# Filho direto de body: acima de header/sidebar; centro expandido / canto inferior direito minimizado #}
+<div x-data="balloonAlerts()"
+     x-init="initBalloon()"
+     x-show="hasAlerts"
+     class="tv-alert-balloon-root fixed transition-all duration-500 ease-in-out"
+     :class="isMinimized ? 'tv-alert-balloon-root--min' : 'tv-alert-balloon-root--open'"
+     style="display: none;">
+    <div class="tv-alert-balloon-inner rounded-xl shadow-2xl" @click.stop="isMinimized && maximize()">
+        <div class="balloon-uiverse-card"
+             :class="isMinimized ? 'balloon-uiverse-card--min' : ''">
+            <div class="balloon-uiverse-frame" aria-hidden="true"></div>
+            <button type="button" x-show="!isMinimized" @click.prevent.stop="minimize()" class="balloon-uiverse-close" title="Minimizar" aria-label="Minimizar alerta">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+            <div class="balloon-uiverse-min-only">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 text-amber-600" aria-hidden="true">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
+                    <path d="M12 9v4"/><path d="M12 17h.01"/>
+                </svg>
+                <span class="text-[11px] font-black uppercase tracking-wide text-amber-800"><span x-text="alertsCount"></span> alerta(s)</span>
+            </div>
+            <div class="balloon-uiverse-hero balloon-uiverse-hero--attention">
+                <div class="balloon-uiverse-hero-glow" aria-hidden="true"></div>
+                <p class="balloon-uiverse-attention-label">ATENÇÃO</p>
+            </div>
+            <div class="balloon-uiverse-body">
+                <p><span x-text="alertsCount" class="alerts-count"></span> cliente(s) parado(s) há mais de 20 minutos!</p>
+                <div class="balloon-uiverse-list custom-scrollbar">
+                    <template x-for="a in topAlerts" :key="a.client_name">
+                        <div class="balloon-uiverse-list-row">
+                            <span x-text="a.client_name"></span>
+                            <span class="dur" x-text="durBr(a.minutes)"></span>
+                        </div>
+                    </template>
+                </div>
+                <button type="button" @click.stop="minimize()" class="balloon-uiverse-btn">Entendi (lembrar em 5 min)</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-        function escTv(s) {
-            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-        }
-        function driverBalloonTheme(op) {
-            var state = op.route_state || 'in_progress';
-            if (state === 'closed') return { mod: 'tv-balloon-driver--encerrada', categoria: 'Encerramento', statusHero: 'Encerrada' };
-            if (state === 'not_started') return { mod: 'tv-balloon-driver--aguardando', categoria: 'Aguardando', statusHero: 'Rota parada' };
-            if (state === 'route_started') return { mod: 'tv-balloon-driver--inicio', categoria: 'Em rota', statusHero: 'Início' };
-            if (state === 'all_delivered') return { mod: 'tv-balloon-driver--retorno', categoria: 'Retorno', statusHero: 'Retornando' };
-            var al = op.route_alert_level || 'ok';
-            if (al === 'critico') return { mod: 'tv-balloon-driver--critico', categoria: 'Crítico', statusHero: String(op.route_alert_label || 'Crítico') };
-            if (al === 'atencao') return { mod: 'tv-balloon-driver--atencao', categoria: 'Atenção', statusHero: String(op.route_alert_label || 'Atenção') };
-            return { mod: 'tv-balloon-driver--normal', categoria: 'Em rota', statusHero: String(op.route_alert_label || 'Normal') };
-        }
-        function tvHeroLineHtml(th) {
-            var c = String(th.categoria || ''), s = String(th.statusHero || '');
-            if (c === s) return '<p class="tv-balloon-hero-line">' + escTv(s) + '</p>';
-            return '<p class="tv-balloon-hero-line"><span class="tv-hero-sub">' + escTv(c) + '</span><span class="tv-hero-sep">·</span><span>' + escTv(s) + '</span></p>';
-        }
-        function formatHelpersHtml(names) {
-            if (!names || !names.length) return '<span class="tv-ajud-line">' + escTv('—') + '</span>';
-            return names.map(function(h) {
-                var w = String(h || '').trim().split(/\s+/).filter(Boolean);
-                var line = w.length > 1 ? (w[0] + ' ' + w[1]) : (w[0] || '—');
-                return '<span class="tv-ajud-line">' + escTv(line) + '</span>';
-            }).join('');
-        }
-        function openRouteMinutesForSort(r) {
-            var live = elapsedMinutesFromStart(r.start_time);
-            if (live !== null) return live;
-            if (typeof r.open_elapsed_minutes === 'number') return r.open_elapsed_minutes;
-            return 0;
-        }
-        function sortOpenRoutesForDisplay(routes) {
-            var open = (routes || []).filter(function(r) { return String(r.delivery_status || '').toLowerCase() === 'iniciada'; });
-            open.sort(function(a, b) {
-                var ma = openRouteMinutesForSort(a), mb = openRouteMinutesForSort(b);
-                var wa = ma > 20 ? 1 : 0, wb = mb > 20 ? 1 : 0;
-                if (wa !== wb) return wb - wa;
-                return mb - ma;
-            });
-            return open;
-        }
-        function computeLiveGridDims(n) {
-            var cols = 3;
-            if (n <= 0) return { cols: 3, rows: 1 };
-            if (n <= 1) cols = 1;
-            else if (n <= 2) cols = 2;
-            else if (n <= 6) cols = 3;
-            else if (n <= 12) cols = 4;
-            else cols = 5;
-            return { cols: cols, rows: Math.ceil(n / cols) };
-        }
-        function bestWorstDrivers(live) {
-            var active = (live || []).filter(function(op) {
-                var st = op.route_state || '';
-                return st === 'in_progress' || st === 'route_started';
-            });
-            if (active.length === 0) return { best: null, worst: null };
-            var sorted = active.slice().sort(function(a, b) {
-                var pctA = (a.total_deliveries && a.total_deliveries > 0) ? (a.completed_deliveries || 0) / a.total_deliveries * 100 : 0;
-                var pctB = (b.total_deliveries && b.total_deliveries > 0) ? (b.completed_deliveries || 0) / b.total_deliveries * 100 : 0;
-                return pctB - pctA;
-            });
-            return { best: sorted[0], worst: sorted[sorted.length - 1] };
-        }
-        var tvDataFetchInFlight = false;
-        function fetchTvData() {
-            if (tvDataFetchInFlight) return;
-            var card = document.getElementById('tv-kpi-context');
-            var date = card ? card.getAttribute('data-date') || '' : '';
-            var cc = card ? card.getAttribute('data-cost-center') || '' : '';
-            var url = '/api/dashboard/tv-data?date=' + encodeURIComponent(date);
-            if (cc) url += '&cost_center=' + encodeURIComponent(cc);
-            tvDataFetchInFlight = true;
-            /* Retries com backoff: hot-reload do uvicorn e falhas de rede (ex.: ERR_CONNECTION_RESET) derrubam a conexão; 3×600ms não cobre o restart. */
-            var tvDataRetryDelaysMs = [400, 900, 1800, 3200, 5000, 8000];
-            function attemptFetch(attemptIndex) {
-            fetch(url, { credentials: 'same-origin' }).then(function(r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            }).then(function(data) {
-                var d = data.dashboard || {}, kpi = d.kpi || {}, alerts = d.alerts || {}, dev = d.devolucao_dia || {}, devMes = d.devolucao_mes || {}, summary = d.cost_centers_summary || {};
-                var ccKey = data.cost_center || 'Exemplar', ccData = summary[ccKey] || (Object.values(summary)[0]) || {};
-                
-                window.dispatchEvent(new CustomEvent('tv-data-updated', { detail: { alerts: alerts.clients_over_20min || [] } }));
-                
-                setLastUpdate();
-                var hc = ccData.headcount != null ? ccData.headcount : kpi.headcount, tg = ccData.target != null ? ccData.target : kpi.target_headcount, away = ccData.away != null ? ccData.away : 0;
-                var pct = tg > 0 && hc != null ? Math.round(hc/tg*100) : 0;
-                var alertsCount = (alerts.clients_over_20min || []).length, devCount = dev.count != null ? dev.count : 0;
-                setOperationStatus(alertsCount, devCount);
+{% block body_scripts %}
+<script>
+(function() {
 
-                var live = d.live_separation || [];
-                var openTotal = 0;
-                live.forEach(function(op) { openTotal += (op.total_deliveries || 0) - (op.completed_deliveries || 0); });
-                var tsa = d.tv_shift_alerts || {};
-                var bw = bestWorstDrivers(live);
-
-                var set = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-                set('tv-kpi-abertas', openTotal);
-                var devCtx = document.getElementById('tv-kpi-devolucao-ctx');
-                if (devCtx) {
-                    if (devCount) {
-                        devCtx.textContent = formatPctBr(dev.pct) + '% = ' + formatMoneyBr(dev.total_valor || 0);
-                        devCtx.className = 'font-black text-kpi text-amber-400';
-                    } else {
-                        devCtx.textContent = '';
-                        devCtx.className = 'font-black text-kpi text-slate-500';
-                    }
-                }
-                var dmPct = devMes.pct != null ? Number(devMes.pct) : 0;
-                var dmVal = Number(devMes.total_valor || 0);
-                var dmCombo = document.getElementById('tv-kpi-devolucao-mes-combo');
-                if (dmCombo) {
-                    dmCombo.textContent = formatPctBr(dmPct) + '% = ' + formatMoneyBr(dmVal);
-                    dmCombo.className = 'font-black text-kpi ' + ((dmPct > 2 || dmVal > 0) ? 'text-red-400' : 'text-emerald-400');
-                }
-                set('tv-kpi-alertas', alertsCount);
-                set('tv-kpi-rotas-paradas', kpi.rotas_paradas != null ? kpi.rotas_paradas : (live.filter(function(o) { return (o.route_state || '') === 'not_started'; }).length));
-                set('tv-kpi-rotas-ativas', kpi.rotas_ativas != null ? kpi.rotas_ativas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'in_progress' || s === 'route_started'; }).length));
-                set('tv-kpi-rotas-concluidas', kpi.rotas_concluidas != null ? kpi.rotas_concluidas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'closed' || s === 'all_delivered'; }).length));
-                set('tv-kpi-atencao', tsa.atencao != null ? tsa.atencao : 0);
-                set('tv-kpi-criticas', tsa.critico != null ? tsa.critico : 0);
-
-                set('tv-devolucoes-count', devCount);
-
-                var altoIndice = d.clientes_alto_indice_devolucao || [];
-                var altoIndiceBody = document.getElementById('tv-alto-indice-body');
-                if (altoIndiceBody) {
-                    if (altoIndice.length === 0) {
-                        altoIndiceBody.innerHTML = '<p class="zone-card-empty text-slate-500 text-xs">Nenhum no período.</p>';
-                    } else {
-                        var altoHtml = '';
-                        altoIndice.forEach(function(row) {
-                            altoHtml += '<div class="zone-card-row bg-amber-500/10 border border-amber-500/30"><div class="flex flex-col min-w-0"><span class="text-slate-300 text-[11px] truncate">' + (row.driver_name || '').replace(/</g,'&lt;') + '</span><span class="font-medium text-white truncate">' + (row.client_name || '').replace(/</g,'&lt;') + '</span></div></div>';
-                        });
-                        altoIndiceBody.innerHTML = altoHtml;
-                    }
-                }
-
-                var devBody = document.getElementById('tv-devolucoes-body');
-                if (devBody) {
-                    if (devCount === 0) {
-                        devBody.innerHTML = '<p class="zone-card-empty text-emerald-400/90 flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>Nenhuma devolução</p>';
-                    } else {
-                        var devItems = dev.items_list || [];
-                        var devHtml = '';
-                        (devItems || []).forEach(function(item) {
-                            devHtml += '<div class="zone-card-row bg-red-500/10 border border-red-500/30 flex items-center gap-2"><span class="font-medium text-white flex-1 min-w-0 truncate">' + (item.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-slate-400 shrink-0 max-w-[45%] truncate">· ' + (item.driver_name || '').replace(/</g,'&lt;') + '</span></div>';
-                        });
-                        devBody.innerHTML = devHtml;
-                    }
-                }
-
-                var concluidasDia = kpi.completed_routes_count != null ? kpi.completed_routes_count : 0;
-                var pctDia = (concluidasDia + openTotal) > 0 ? Math.round(concluidasDia / (concluidasDia + openTotal) * 100) : 0;
-                set('tv-dia-pct', pctDia + '%');
-                var diaBar = document.getElementById('tv-dia-bar');
-                if (diaBar) {
-                    diaBar.style.width = pctDia + '%';
-                    diaBar.style.background = 'linear-gradient(to right, rgb(59, 130, 246), rgb(34, 211, 238))';
-                }
-
-                live = live || [];
-                var container = document.getElementById('tv-live-separation');
-                var nLive = live.length;
-                var gridDims = computeLiveGridDims(nLive);
-                if (container) {
-                    if (nLive > 0) {
-                        container.style.gridTemplateColumns = 'repeat(' + gridDims.cols + ', minmax(0, 1fr))';
-                        container.style.gridTemplateRows = 'repeat(' + gridDims.rows + ', minmax(0, 1fr))';
-                    }
-                    if (nLive === 0) {
-                        container.innerHTML = '<div class="col-span-full flex items-center justify-center text-slate-500 text-card-title py-8" style="grid-column: 1 / -1;">Nenhuma rota programada para o dia.</div>';
-                    } else {
-                    container.innerHTML = live.map(function(op) {
-                        var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0;
-                        var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
-                        var stR = op.route_state || '';
-                        var th = driverBalloonTheme(op);
-                        var denseCls = nLive > 6 ? ' tv-balloon-driver--dense' : '';
-                        var pesoStr = formatKgBr(op.total_kg);
-                        var helpersInner = formatHelpersHtml(op.helper_names || []);
-                        var openRoutes = sortOpenRoutesForDisplay(op.routes || []);
-                        var showFoot = shouldShowAbertasFoot(stR, openRoutes.length);
-                        var openHtml = '';
-                        var more = '';
-                        if (showFoot) {
-                            openHtml = openRoutes.slice(0, 4).map(function(r) {
-                                var stAttr = String(r.start_time || '').replace(/\\/g, '\\\\').replace(/"/g, '&quot;');
-                                var liveM = elapsedMinutesFromStart(r.start_time);
-                                var oem = (typeof r.open_elapsed_minutes === 'number') ? r.open_elapsed_minutes : null;
-                                var eff = liveM !== null ? liveM : (oem !== null ? oem : 0);
-                                var rowSlow = eff > 20 ? ' tv-balloon-list-row--slow' : '';
-                                var txtCls = eff > 20 ? '' : 'text-slate-100';
-                                return '<div class="tv-balloon-list-row open-item' + rowSlow + '"><span class="tv-open-client font-semibold truncate flex-1 min-w-0 ' + txtCls + '">' + escTv(r.client) + '</span><span class="text-slate-500 font-mono shrink-0 text-[10px]">' + escTv(r.start_time) + '</span><span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="' + stAttr + '">—</span></div>';
-                            }).join('');
-                            if (openRoutes.length === 0) {
-                                var minsIdle = Number(op.minutes_without_open_client || 0);
-                                var idleSlow = minsIdle > 20 ? ' tv-balloon-idle-pill--slow' : '';
-                                var idleAttr = minsIdle > 0 ? ' data-idle-mins="' + minsIdle + '"' : '';
-                                openHtml = '<div class="tv-balloon-idle-pill' + idleSlow + '"' + idleAttr + '><span>Nenhuma em aberto</span>' + (minsIdle > 0 ? '<span class="mono tv-idle-mins-display">' + formatDuracaoBr(minsIdle) + '</span>' : '') + '</div>';
-                            }
-                            more = openRoutes.length > 4 ? '<p class="text-[10px] font-semibold shrink-0 mt-0.5" style="color: color-mix(in srgb, var(--tv-accent) 65%, #64748b);">+' + (openRoutes.length - 4) + ' mais</p>' : '';
-                        }
-                        var projectionInner = '';
-                        if (['closed', 'not_started', 'all_delivered'].indexOf(stR) === -1 && op.projected_finish_at) {
-                            var avgMin = Math.round(Number(op.avg_minutes_per_delivery || 0));
-                            var crewSize = Number(op.crew_size || 1);
-                            projectionInner = '<div class="tv-balloon-eta flex items-center justify-between gap-2"><span class="truncate">Média ' + avgMin + ' min/cliente · Equipe ' + crewSize + '</span><span class="shrink-0 font-semibold">ETA ' + escTv(op.projected_finish_at) + '</span></div>';
-                        }
-                        var metaSlotHtml = '<div class="tv-balloon-meta-slot">' + projectionInner + '</div>';
-                        var footBlock = showFoot ? ('<div class="tv-balloon-foot-wrapper"><p class="tv-balloon-foot-label">Abertas agora</p><div class="tv-balloon-list open-list">' + openHtml + '</div>' + more + '</div>') : '';
-                        return '<div class="driver-cell"><article class="tv-balloon-driver ' + th.mod + denseCls + '">' +
-                            '<div class="tv-balloon-frame" aria-hidden="true"></div>' +
-                            '<div class="tv-balloon-hero">' + tvHeroLineHtml(th) + '</div>' +
-                            '<div class="tv-balloon-body">' +
-                            '<p class="tv-balloon-title-line"><strong>' + escTv(op.employee_name) + '</strong><span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">' + helpersInner + '</span></span><span class="tv-meta-placa">Placa: ' + escTv(op.plate || '—') + ' · Peso: ' + escTv(pesoStr) + '</span></span></p>' +
-                            '<div class="tv-balloon-progress-row"><span class="tv-entregas">' + completed + '/' + total + ' entregas</span><span class="tv-pct">' + pctR + '%</span></div>' +
-                            '<div class="tv-balloon-bar"><div style="width:' + pctR + '%"></div></div>' +
-                            metaSlotHtml + footBlock + '</div></article></div>';
-                    }).join('');
-                    }
-                    updateTvOpenElapsed();
-                }
-                tvDataFetchInFlight = false;
-            }).catch(function() {
-                if (attemptIndex < tvDataRetryDelaysMs.length) {
-                    setTimeout(function() { attemptFetch(attemptIndex + 1); }, tvDataRetryDelaysMs[attemptIndex]);
-                } else {
-                    tvDataFetchInFlight = false;
-                    setLastUpdate();
-                }
-            });
-            }
-            attemptFetch(0);
-        }
-        updateClock();
-        setLastUpdate();
-        setInterval(updateClock, 1000);
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', updateTvOpenElapsed);
+    function updateClock() {
+        var now = new Date(), h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+        var timeEl = document.getElementById('dash-time');
+        if (timeEl) timeEl.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        var days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
+        var dateEl = document.getElementById('dash-date');
+        if (dateEl) dateEl.textContent = days[now.getDay()] + ', ' + String(now.getDate()).padStart(2,'0') + '/' + String(now.getMonth()+1).padStart(2,'0') + '/' + now.getFullYear();
+    }
+    function setLastUpdate() {}
+    function formatDuracaoBr(m) {
+        m = parseInt(m, 10) || 0;
+        if (m >= 60) return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'min';
+        return m + ' min';
+    }
+    function formatKgBr(val) {
+        if (val == null || val === '') return '—';
+        var n = Number(val);
+        if (isNaN(n)) return '—';
+        return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' kg';
+    }
+    function getTvRefDateYmd() {
+        var card = document.getElementById('tv-kpi-context');
+        var d = card ? card.getAttribute('data-date') : '';
+        return (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) ? d : '';
+    }
+    function parseDayTime(hmStr, ymdStr) {
+        if (!hmStr || typeof hmStr !== 'string') return null;
+        var parts = hmStr.trim().split(':');
+        if (parts.length < 2) return null;
+        var h = parseInt(parts[0], 10), mi = parseInt(parts[1], 10);
+        if (isNaN(h) || isNaN(mi)) return null;
+        var y, mo, day;
+        if (ymdStr) {
+            var segs = ymdStr.split('-');
+            y = parseInt(segs[0], 10); mo = parseInt(segs[1], 10) - 1; day = parseInt(segs[2], 10);
         } else {
-            updateTvOpenElapsed();
+            var now = new Date();
+            y = now.getFullYear(); mo = now.getMonth(); day = now.getDate();
         }
-        setInterval(updateTvOpenElapsed, 5000);
-        fetchTvData();
-        setInterval(fetchTvData, 60000);
-    })();
-    </script>
-
-    <div x-data="balloonAlerts()" 
-         x-init="initBalloon()"
-         x-show="hasAlerts"
-         class="fixed z-50 transition-all duration-700 ease-in-out shadow-2xl"
-         :class="isMinimized ? 'bottom-4 right-4 cursor-pointer hover:scale-105' : 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2'"
-         @click="if(isMinimized) maximize()"
-         style="display: none;">
-         
-         <div :class="!isMinimized ? 'animate-bounce-slow' : ''">
-             <div class="balloon-uiverse-card"
-                  :class="isMinimized ? 'balloon-uiverse-card--min' : ''">
-
-                 <div class="balloon-uiverse-frame" aria-hidden="true"></div>
-
-                 <button type="button" x-show="!isMinimized" @click.stop="minimize()" class="balloon-uiverse-close" title="Minimizar">
-                     <i data-lucide="x" class="w-5 h-5"></i>
-                 </button>
-
-                 <div class="balloon-uiverse-min-only">
-                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 animate-pulse" aria-hidden="true">
-                         <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
-                         <path d="M12 9v4"/><path d="M12 17h.01"/>
-                     </svg>
-                     <span class="text-xs font-black uppercase tracking-wider"><span x-text="alertsCount"></span> alerta(s)</span>
-                 </div>
-
-                 <div class="balloon-uiverse-hero">
-                     <p class="balloon-uiverse-bottom-text">atenção</p>
-                     <div class="balloon-uiverse-content">
-                         <div class="balloon-uiverse-logo">
-                             <svg class="logo1 bu-logo-main" xmlns="http://www.w3.org/2000/svg" width="33" height="33" viewBox="0 0 24 24" aria-hidden="true">
-                                 <defs><clipPath id="bu-al-clip-l"><rect x="0" y="0" width="12" height="24"/></clipPath></defs>
-                                 <path clip-path="url(#bu-al-clip-l)" d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
-                             </svg>
-                             <svg class="logo2 bu-logo-main" xmlns="http://www.w3.org/2000/svg" width="33" height="33" viewBox="0 0 24 24" aria-hidden="true">
-                                 <defs><clipPath id="bu-al-clip-r"><rect x="12" y="0" width="12" height="24"/></clipPath></defs>
-                                 <path clip-path="url(#bu-al-clip-r)" d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/>
-                             </svg>
-                             <div class="trail" aria-hidden="true"></div>
-                         </div>
-                         <p class="balloon-uiverse-logo-bottom-text">parados +20 min</p>
-                     </div>
-                 </div>
-
-                 <div class="balloon-uiverse-body">
-                     <p><span x-text="alertsCount" class="alerts-count"></span> cliente(s) parado(s) há mais de 20 minutos!</p>
-                     <div class="balloon-uiverse-list custom-scrollbar">
-                         <template x-for="a in topAlerts" :key="a.client_name">
-                             <div class="balloon-uiverse-list-row">
-                                 <span x-text="a.client_name"></span>
-                                 <span class="dur" x-text="durBr(a.minutes)"></span>
-                             </div>
-                         </template>
-                     </div>
-                     <button type="button" @click.stop="minimize()" class="balloon-uiverse-btn">
-                         Entendi (lembrar em 5 min)
-                     </button>
-                 </div>
-             </div>
-         </div>
-    </div>
-
-    <script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('balloonAlerts', () => ({
-            hasAlerts: false,
-            isMinimized: false,
-            alertsCount: 0,
-            topAlerts: [],
-            snoozeTimer: null,
-
-            durBr(m) {
-                return typeof window.formatDuracaoBr === 'function' ? window.formatDuracaoBr(m) : (String(m) + ' min');
-            },
-            initBalloon() {
-                window.addEventListener('tv-data-updated', (e) => {
-                    const alerts = e.detail.alerts || [];
-                    if (alerts.length > 0) {
-                        this.hasAlerts = true;
-                        this.alertsCount = alerts.length;
-                        this.topAlerts = alerts.slice(0, 5);
-                        setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
-                    } else {
-                        this.hasAlerts = false;
-                        this.alertsCount = 0;
-                        this.topAlerts = [];
-                        if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
-                        this.isMinimized = false;
-                    }
-                });
-            },
-            minimize() {
-                this.isMinimized = true;
-                if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
-                this.snoozeTimer = setTimeout(() => {
-                    if (this.hasAlerts) {
-                        this.isMinimized = false;
-                    }
-                }, 5 * 60 * 1000); // 5 minutes snooze
-            },
-            maximize() {
-                this.isMinimized = false;
-                if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
+        return new Date(y, mo, day, h, mi, 0, 0);
+    }
+    function elapsedMinutesFromStart(hmStr) {
+        var t = parseDayTime(hmStr, getTvRefDateYmd());
+        if (!t) return null;
+        var diff = Math.floor((Date.now() - t.getTime()) / 60000);
+        return diff < 0 ? 0 : diff;
+    }
+    function formatMoneyBr(v) {
+        var n = Number(v || 0);
+        if (!isFinite(n)) n = 0;
+        return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function formatPctBr(v) {
+        var n = Number(v);
+        if (!isFinite(n)) n = 0;
+        return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    }
+    function updateTvOpenElapsed() {
+        document.querySelectorAll('.tv-open-elapsed[data-start]').forEach(function(el) {
+            var s = el.getAttribute('data-start');
+            var mins = elapsedMinutesFromStart(s);
+            el.textContent = mins === null ? '—' : formatDuracaoBr(mins);
+            var strip = el.closest('.tv-balloon-activity-strip');
+            if (strip) {
+                if (mins !== null && mins > 20) strip.classList.add('tv-balloon-activity-strip--alert');
+                else strip.classList.remove('tv-balloon-activity-strip--alert');
             }
-        }));
-    });
-    </script>
-</body>
-</html>
+            var item = el.closest('.open-item');
+            var clientEl = item ? item.querySelector('.tv-open-client') : null;
+            if (item && clientEl) {
+                if (mins !== null && mins > 20) {
+                    item.classList.add('tv-balloon-list-row--slow');
+                    clientEl.classList.remove('text-slate-700', 'text-slate-200', 'dark:text-slate-200', 'text-amber-800', 'font-semibold');
+                } else {
+                    item.classList.remove('tv-balloon-list-row--slow');
+                    clientEl.classList.remove('text-amber-800', 'font-semibold', 'text-white');
+                    clientEl.classList.add('text-slate-700', 'dark:text-slate-200');
+                }
+            }
+        });
+        refreshSlowCardElevation();
+    }
+    function refreshSlowCardElevation() {
+        var grid = document.getElementById('tv-live-separation');
+        if (!grid) return;
+        var any = grid.querySelector('.tv-balloon-list-row--slow, .tv-balloon-idle-pill--slow, .tv-balloon-activity-strip--alert');
+        grid.classList.toggle('tv-grid--alert', !!any);
+    }
+    window.formatDuracaoBr = formatDuracaoBr;
+
+    function shouldShowAbertasFoot(routeState, nIniciada) {
+        var st = routeState || '';
+        if (nIniciada > 0) return true;
+        if (st !== 'closed' && st !== 'all_delivered') return true;
+        return false;
+    }
+
+    function escTv(s) {
+        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    }
+    function renderTvParadosBody(alerts) {
+        var list = alerts || [];
+        if (!list.length) return '';
+        var html = '';
+        var n = Math.min(list.length, 5);
+        for (var i = 0; i < n; i++) {
+            var a = list[i];
+            var name = escTv(String((a && a.client_name) != null ? a.client_name : ''));
+            var mins = a && a.minutes != null ? a.minutes : 0;
+            html += '<div class="tv-exc-row tv-exc-unified-row flex items-center justify-between gap-1 rounded border border-orange-100/90 bg-orange-50/90 px-1.5 py-0.5 dark:border-orange-900/50 dark:bg-orange-950/30"><span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">' + name + '</span><span class="shrink-0 font-semibold tabular-nums text-orange-700 dark:text-orange-300">' + escTv(formatDuracaoBr(mins)) + '</span></div>';
+        }
+        if (list.length > 5) {
+            html += '<p class="tv-exc-unified-more">+' + (list.length - 5) + ' mais</p>';
+        }
+        return html;
+    }
+    function driverBalloonTheme(op) {
+        var state = op.route_state || 'in_progress';
+        if (state === 'closed') return { mod: 'tv-balloon-driver--encerrada', categoria: 'Encerramento', statusHero: 'Encerrada' };
+        if (state === 'not_started') return { mod: 'tv-balloon-driver--aguardando', categoria: 'Aguardando', statusHero: 'Rota parada' };
+        if (state === 'route_started') return { mod: 'tv-balloon-driver--inicio', categoria: 'Em rota', statusHero: 'Início' };
+        if (state === 'all_delivered') return { mod: 'tv-balloon-driver--retorno', categoria: 'Retornando', statusHero: 'Retornando' };
+        var al = op.route_alert_level || 'ok';
+        if (al === 'critico') return { mod: 'tv-balloon-driver--critico', categoria: 'Crítico', statusHero: String(op.route_alert_label || 'Crítico') };
+        if (al === 'atencao') return { mod: 'tv-balloon-driver--atencao', categoria: 'Atenção', statusHero: String(op.route_alert_label || 'Atenção') };
+        return { mod: 'tv-balloon-driver--normal', categoria: 'Em rota', statusHero: String(op.route_alert_label || 'Normal') };
+    }
+    function tvHeroLineHtml(th) {
+        var c = String(th.categoria || ''), s = String(th.statusHero || '');
+        if (c === s) return '<p class="tv-balloon-hero-line">' + escTv(s) + '</p>';
+        return '<p class="tv-balloon-hero-line"><span class="tv-hero-sub">' + escTv(c) + '</span><span class="tv-hero-sep">·</span><span>' + escTv(s) + '</span></p>';
+    }
+    function formatHelpersHtml(names) {
+        if (!names || !names.length) return '<span class="tv-ajud-line">' + escTv('—') + '</span>';
+        return names.map(function(h) {
+            var w = String(h || '').trim().split(/\s+/).filter(Boolean);
+            var line = w.length > 1 ? (w[0] + ' ' + w[1]) : (w[0] || '—');
+            return '<span class="tv-ajud-line">' + escTv(line) + '</span>';
+        }).join('');
+    }
+    function openRouteMinutesForSort(r) {
+        var live = elapsedMinutesFromStart(r.start_time);
+        if (live !== null) return live;
+        if (typeof r.open_elapsed_minutes === 'number') return r.open_elapsed_minutes;
+        return 0;
+    }
+    function sortOpenRoutesForDisplay(routes) {
+        var open = (routes || []).filter(function(r) { return String(r.delivery_status || '').toLowerCase() === 'iniciada'; });
+        open.sort(function(a, b) {
+            var ma = openRouteMinutesForSort(a), mb = openRouteMinutesForSort(b);
+            var wa = ma > 20 ? 1 : 0, wb = mb > 20 ? 1 : 0;
+            if (wa !== wb) return wb - wa;
+            return mb - ma;
+        });
+        return open;
+    }
+    function computeLiveGridDims(n) {
+        if (n <= 0) return { cols: 1, rows: 1 };
+        var cols = 3;
+        if (n === 1) cols = 1;
+        else if (n === 2) cols = 2;
+        else if (n <= 4) cols = 2;
+        else if (n <= 9) cols = 3;
+        else if (n <= 16) cols = 4;
+        else if (n <= 25) cols = 5;
+        else cols = 6;
+        return { cols: cols, rows: Math.ceil(n / cols) };
+    }
+
+    var tvDataFetchInFlight = false;
+    function fetchTvData() {
+        if (tvDataFetchInFlight) return;
+        var card = document.getElementById('tv-kpi-context');
+        var date = card ? card.getAttribute('data-date') || '' : '';
+        var cc = card ? card.getAttribute('data-cost-center') || '' : '';
+        var url = '/api/dashboard/tv-data?date=' + encodeURIComponent(date);
+        if (cc) url += '&cost_center=' + encodeURIComponent(cc);
+        tvDataFetchInFlight = true;
+        var tvDataRetryDelaysMs = [400, 900, 1800, 3200, 5000, 8000];
+        function attemptFetch(attemptIndex) {
+        fetch(url, { credentials: 'same-origin' }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }).then(function(data) {
+            var d = data.dashboard || {}, kpi = d.kpi || {}, alerts = d.alerts || {}, dev = d.devolucao_dia || {}, devMes = d.devolucao_mes || {};
+
+            window.dispatchEvent(new CustomEvent('tv-data-updated', { detail: { alerts: alerts.clients_over_20min || [] } }));
+
+            setLastUpdate();
+            var alertsCount = (alerts.clients_over_20min || []).length, devCount = dev.count != null ? dev.count : 0;
+
+            var live = d.live_separation || [];
+            var openTotal = 0;
+            live.forEach(function(op) { openTotal += (op.total_deliveries || 0) - (op.completed_deliveries || 0); });
+            var tsa = d.tv_shift_alerts || {};
+
+            var set = function(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+            set('tv-kpi-abertas', openTotal);
+            var devCtx = document.getElementById('tv-kpi-devolucao-ctx');
+            if (devCtx) {
+                var devCtxBase = 'tv-kpi-devolucao-ctx employees-kpi__value mt-1 tabular-nums ';
+                if (devCount) {
+                    devCtx.textContent = formatPctBr(dev.pct) + '% · ' + formatMoneyBr(dev.total_valor || 0);
+                    devCtx.className = devCtxBase + 'text-amber-700 dark:text-amber-200';
+                } else {
+                    devCtx.textContent = formatPctBr(dev.pct != null ? dev.pct : 0) + '% · ' + formatMoneyBr(0);
+                    devCtx.className = devCtxBase + 'text-slate-500 dark:text-slate-400';
+                }
+            }
+            var dmPct = devMes.pct != null ? Number(devMes.pct) : 0;
+            var dmVal = Number(devMes.total_valor || 0);
+            var dmCombo = document.getElementById('tv-kpi-devolucao-mes-combo');
+            var dmLbl = document.getElementById('tv-kpi-devolucao-mes-label');
+            var dmCard = document.getElementById('tv-kpi-devolucao-mes-card');
+            var dmOk = dmPct <= 2;
+            if (dmCombo) {
+                dmCombo.textContent = formatPctBr(dmPct) + '% · ' + formatMoneyBr(dmVal);
+                dmCombo.className = 'employees-kpi__value tv-kpi-dev-mes-combo mt-1 tabular-nums ' + (dmOk ? 'tv-kpi-dev-mes--ok' : 'tv-kpi-dev-mes--high');
+            }
+            if (dmLbl) {
+                dmLbl.className = 'sys-kpi-label tv-kpi-dev-mes-label ' + (dmOk ? 'tv-kpi-dev-mes--ok' : 'tv-kpi-dev-mes--high');
+            }
+            if (dmCard) {
+                dmCard.style.setProperty('--employees-kpi-accent', dmOk ? 'rgba(52, 211, 153, 0.72)' : 'rgba(239, 68, 68, 0.65)');
+            }
+            set('tv-kpi-alertas', alertsCount);
+            var alertEl = document.getElementById('tv-kpi-alertas');
+            if (alertEl) {
+                alertEl.className = 'employees-kpi__value tabular-nums ' + (alertsCount > 0 ? 'text-orange-600 dark:text-orange-300' : 'text-slate-500');
+            }
+            var paradosCountEl = document.getElementById('tv-parados-count');
+            if (paradosCountEl) {
+                if (alertsCount === 0) {
+                    paradosCountEl.textContent = '';
+                    paradosCountEl.classList.add('hidden');
+                } else {
+                    paradosCountEl.textContent = String(alertsCount);
+                    paradosCountEl.classList.remove('hidden');
+                }
+            }
+            var paradosBody = document.getElementById('tv-parados-body');
+            if (paradosBody) paradosBody.innerHTML = renderTvParadosBody(alerts.clients_over_20min || []);
+
+            set('tv-kpi-rotas-paradas', kpi.rotas_paradas != null ? kpi.rotas_paradas : (live.filter(function(o) { return (o.route_state || '') === 'not_started'; }).length));
+            set('tv-kpi-rotas-ativas', kpi.rotas_ativas != null ? kpi.rotas_ativas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'in_progress' || s === 'route_started'; }).length));
+            set('tv-kpi-rotas-concluidas', kpi.rotas_concluidas != null ? kpi.rotas_concluidas : (live.filter(function(o) { var s = o.route_state || ''; return s === 'closed' || s === 'all_delivered'; }).length));
+            set('tv-kpi-atencao', tsa.atencao != null ? tsa.atencao : 0);
+            set('tv-kpi-criticas', tsa.critico != null ? tsa.critico : 0);
+
+            var devCountEl = document.getElementById('tv-devolucoes-count');
+            if (devCountEl) {
+                if (devCount === 0) {
+                    devCountEl.textContent = '';
+                    devCountEl.classList.add('hidden');
+                } else {
+                    devCountEl.textContent = String(devCount);
+                    devCountEl.classList.remove('hidden');
+                }
+            }
+
+            var altoIndice = d.clientes_alto_indice_devolucao || [];
+            var altoIndiceBody = document.getElementById('tv-alto-indice-body');
+            if (altoIndiceBody) {
+                if (altoIndice.length === 0) {
+                    altoIndiceBody.innerHTML = '';
+                } else {
+                    var altoHtml = '';
+                    altoIndice.forEach(function(row) {
+                        altoHtml += '<div class="tv-exc-row tv-exc-unified-row flex flex-col gap-0 rounded border border-amber-100/90 bg-amber-50/90 px-1.5 py-0.5 dark:border-amber-900/50 dark:bg-amber-950/30"><span class="truncate text-slate-600 dark:text-slate-400">' + escTv(row.driver_name || '') + '</span><span class="truncate font-semibold text-slate-900 dark:text-white">' + escTv(row.client_name || '') + '</span></div>';
+                    });
+                    altoIndiceBody.innerHTML = altoHtml;
+                }
+            }
+
+            var devBody = document.getElementById('tv-devolucoes-body');
+            if (devBody) {
+                if (devCount === 0) {
+                    devBody.innerHTML = '';
+                } else {
+                    var devItems = dev.items_list || [];
+                    var devHtml = '';
+                    (devItems || []).forEach(function(item) {
+                        devHtml += '<div class="tv-exc-row tv-exc-unified-row flex items-center gap-1 rounded border border-red-100/90 bg-red-50/90 px-1.5 py-0.5 dark:border-red-900/50 dark:bg-red-950/35"><span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">' + escTv(item.client_name || '') + '</span><span class="max-w-[42%] shrink-0 truncate text-slate-600 dark:text-slate-400">' + escTv(item.driver_name || '') + '</span></div>';
+                    });
+                    devBody.innerHTML = devHtml;
+                }
+            }
+
+            var concluidasDia = kpi.completed_routes_count != null ? kpi.completed_routes_count : 0;
+            var pctDia = (concluidasDia + openTotal) > 0 ? Math.round(concluidasDia / (concluidasDia + openTotal) * 100) : 0;
+            set('tv-kpi-day-pct', pctDia + '%');
+            var kpiDayBar = document.getElementById('tv-kpi-day-fill-bar');
+            if (kpiDayBar) kpiDayBar.style.width = pctDia + '%';
+            var kpiDayTrack = document.querySelector('.tv-kpi-day-progress-track');
+            if (kpiDayTrack) kpiDayTrack.setAttribute('aria-valuenow', String(pctDia));
+
+            live = live || [];
+            var container = document.getElementById('tv-live-separation');
+            var nLive = live.length;
+            var gridDims = computeLiveGridDims(nLive);
+            if (container) {
+                if (nLive > 0) {
+                    container.style.gridTemplateColumns = 'repeat(' + gridDims.cols + ', minmax(0, 1fr))';
+                    container.style.gridTemplateRows = 'repeat(' + gridDims.rows + ', minmax(0, 1fr))';
+                }
+                if (nLive === 0) {
+                    container.innerHTML = '<div class="col-span-full flex items-center justify-center py-10 text-sm font-medium text-slate-500" style="grid-column: 1 / -1;">Nenhuma rota programada para o dia.</div>';
+                } else {
+                container.innerHTML = live.map(function(op) {
+                    var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0;
+                    var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
+                    var stR = op.route_state || '';
+                    var th = driverBalloonTheme(op);
+                    var denseCls = (nLive > 6 ? ' tv-balloon-driver--dense' : '') + (nLive > 9 ? ' tv-balloon-driver--xdense' : '');
+                    var pesoStr = formatKgBr(op.total_kg);
+                    var helpersInner = formatHelpersHtml(op.helper_names || []);
+                    var openRoutes = sortOpenRoutesForDisplay(op.routes || []);
+                    var showFoot = shouldShowAbertasFoot(stR, openRoutes.length);
+                    var openHtml = '';
+                    var more = '';
+                    if (showFoot) {
+                        openHtml = openRoutes.slice(0, 4).map(function(r) {
+                            var stAttr = String(r.start_time || '').replace(/\\/g, '\\\\').replace(/"/g, '&quot;');
+                            var liveM = elapsedMinutesFromStart(r.start_time);
+                            var oem = (typeof r.open_elapsed_minutes === 'number') ? r.open_elapsed_minutes : null;
+                            var eff = liveM !== null ? liveM : (oem !== null ? oem : 0);
+                            var rowSlow = eff > 20 ? ' tv-balloon-list-row--slow' : '';
+                            var txtCls = eff > 20 ? '' : 'text-slate-700 dark:text-slate-200';
+                            return '<div class="tv-balloon-list-row open-item' + rowSlow + '"><span class="tv-open-client font-semibold truncate flex-1 min-w-0 ' + txtCls + '">' + escTv(r.client) + '</span><span class="tv-open-start font-mono shrink-0">' + escTv(r.start_time) + '</span><span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="' + stAttr + '">—</span></div>';
+                        }).join('');
+                        if (openRoutes.length === 0) {
+                            var minsIdle = Number(op.minutes_without_open_client || 0);
+                            var idleSlow = minsIdle > 20 ? ' tv-balloon-idle-pill--slow' : '';
+                            var idleAttr = minsIdle > 0 ? ' data-idle-mins="' + minsIdle + '"' : '';
+                            openHtml = '<div class="tv-balloon-idle-pill' + idleSlow + '"' + idleAttr + '><span>Nenhuma em aberto</span>' + (minsIdle > 0 ? '<span class="mono tv-idle-mins-display">' + formatDuracaoBr(minsIdle) + '</span>' : '') + '</div>';
+                        }
+                        more = openRoutes.length > 4 ? '<p class="tv-balloon-more-hint mt-0.5 shrink-0 text-[10px] font-semibold">+' + (openRoutes.length - 4) + ' mais</p>' : '';
+                    }
+                    var projectionInner = '';
+                    if (['closed', 'not_started', 'all_delivered'].indexOf(stR) === -1 && op.projected_finish_at) {
+                        var avgMin = Math.round(Number(op.avg_minutes_per_delivery || 0));
+                        var crewSize = Number(op.crew_size || 1);
+                        projectionInner = '<div class="tv-balloon-eta flex items-center justify-between gap-2"><span class="truncate">Média ' + avgMin + ' min/cliente · Equipe ' + crewSize + '</span><span class="shrink-0 font-semibold">ETA ' + escTv(op.projected_finish_at) + '</span></div>';
+                    }
+                    var metaSlotHtml = '<div class="tv-balloon-meta-slot">' + projectionInner + '</div>';
+                    var activityStripHtml = '';
+                    if (openRoutes.length > 0) {
+                        var pr = openRoutes[0];
+                        var stAttrPr = String(pr.start_time || '').replace(/\\/g, '\\\\').replace(/"/g, '&quot;');
+                        var liveMPr = elapsedMinutesFromStart(pr.start_time);
+                        var oemPr = (typeof pr.open_elapsed_minutes === 'number') ? pr.open_elapsed_minutes : null;
+                        var effPr = liveMPr !== null ? liveMPr : (oemPr !== null ? oemPr : 0);
+                        var alertStrip = effPr > 20 ? ' tv-balloon-activity-strip--alert' : '';
+                        activityStripHtml = '<div class="tv-balloon-activity-strip' + alertStrip + '">' +
+                            '<span class="tv-balloon-activity-k">Em entrega</span>' +
+                            '<span class="tv-balloon-activity-client truncate min-w-0">' + escTv(pr.client) + '</span>' +
+                            '<span class="tv-balloon-activity-times font-mono tabular-nums shrink-0">' + escTv(pr.start_time) + ' · <span class="dur tv-open-elapsed whitespace-nowrap" data-start="' + stAttrPr + '">—</span></span>' +
+                            '</div>';
+                        if (openRoutes.length > 1) {
+                            activityStripHtml += '<p class="tv-balloon-activity-queue">+' + (openRoutes.length - 1) + ' ' + (openRoutes.length === 2 ? 'outra' : 'outras') + ' em aberto</p>';
+                        }
+                    }
+                    var footBlock = showFoot ? ('<div class="tv-balloon-foot-wrapper"><p class="tv-balloon-foot-label">Abertas agora</p><div class="tv-balloon-list open-list">' + openHtml + '</div>' + more + '</div>') : '';
+                    return '<div class="driver-cell"><article class="tv-balloon-driver ' + th.mod + denseCls + '">' +
+                        '<div class="tv-balloon-frame" aria-hidden="true"></div>' +
+                        '<header class="tv-balloon-hero">' + tvHeroLineHtml(th) + '</header>' +
+                        '<div class="tv-balloon-body">' +
+                        '<p class="tv-balloon-title-line"><strong>' + escTv(op.employee_name) + '</strong><span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">' + helpersInner + '</span></span><span class="tv-meta-placa">Placa: ' + escTv(op.plate || '—') + ' · Peso: ' + escTv(pesoStr) + '</span></span></p>' +
+                        '<div class="tv-balloon-progress-row"><span class="tv-entregas">' + completed + '/' + total + ' entregas</span><span class="tv-pct">' + pctR + '%</span></div>' +
+                        '<div class="tv-balloon-bar"><div style="width:' + pctR + '%"></div></div>' +
+                        activityStripHtml + metaSlotHtml + footBlock + '</div></article></div>';
+                }).join('');
+                }
+                updateTvOpenElapsed();
+            }
+            tvDataFetchInFlight = false;
+        }).catch(function() {
+            if (attemptIndex < tvDataRetryDelaysMs.length) {
+                setTimeout(function() { attemptFetch(attemptIndex + 1); }, tvDataRetryDelaysMs[attemptIndex]);
+            } else {
+                tvDataFetchInFlight = false;
+                setLastUpdate();
+            }
+        });
+        }
+        attemptFetch(0);
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    updateClock();
+    setInterval(updateClock, 1000);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateTvOpenElapsed);
+    } else {
+        updateTvOpenElapsed();
+    }
+    setInterval(updateTvOpenElapsed, 5000);
+    fetchTvData();
+    setInterval(fetchTvData, 60000);
+})();
+</script>
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('balloonAlerts', () => ({
+        hasAlerts: false,
+        isMinimized: false,
+        alertsCount: 0,
+        topAlerts: [],
+        snoozeTimer: null,
+        durBr(m) {
+            return typeof window.formatDuracaoBr === 'function' ? window.formatDuracaoBr(m) : (String(m) + ' min');
+        },
+        initBalloon() {
+            window.addEventListener('tv-data-updated', (e) => {
+                const alerts = e.detail.alerts || [];
+                if (alerts.length > 0) {
+                    this.hasAlerts = true;
+                    this.alertsCount = alerts.length;
+                    this.topAlerts = alerts.slice(0, 5);
+                    setTimeout(() => { if (typeof lucide !== 'undefined') lucide.createIcons(); }, 50);
+                } else {
+                    this.hasAlerts = false;
+                    this.alertsCount = 0;
+                    this.topAlerts = [];
+                    if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
+                    this.isMinimized = false;
+                }
+            });
+        },
+        minimize() {
+            this.isMinimized = true;
+            if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
+            this.snoozeTimer = setTimeout(() => {
+                if (this.hasAlerts) this.isMinimized = false;
+            }, 5 * 60 * 1000);
+        },
+        maximize() {
+            this.isMinimized = false;
+            if (this.snoozeTimer) clearTimeout(this.snoozeTimer);
+        }
+    }));
+});
+</script>
+{% endblock %}
