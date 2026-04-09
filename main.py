@@ -14947,6 +14947,12 @@ async def import_entregas_separacao(
                 .where(models.Route.type == "delivery")
                 .where(models.Route.delivery_route_code.in_(imported_route_codes))
             ).all()
+            existing_route_ids = [row.id for row in existing if row.id]
+            if existing_route_ids:
+                # Evita violação de FK: routeinsertlog.route_id -> route.id
+                session.execute(
+                    delete(models.RouteInsertLog).where(models.RouteInsertLog.route_id.in_(existing_route_ids))
+                )
             for old_row in existing:
                 session.delete(old_row)
             session.flush()
@@ -15015,6 +15021,8 @@ async def import_entregas_separacao(
                 f" {import_result['pre_registered_clients']} cliente(s) foram pré-cadastrados automaticamente."
             )
     except Exception as exc:
+        # Limpa a transação para permitir novas queries no mesmo request.
+        session.rollback()
         import_result["message"] = f"Erro ao importar planilha: {str(exc)}"
         logger.exception(f"âÅ' Falha na importação de entregas: {exc}")
         import_result["issues"].append({
