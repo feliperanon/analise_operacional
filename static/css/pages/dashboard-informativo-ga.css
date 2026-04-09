@@ -16,11 +16,6 @@ html.ga-html-scroll:has(#informativo-root.dashboard-informativo-ga) body.gv-page
   overflow: hidden;
 }
 
-/* Menu lateral só por teclado/URL em modo mural; evita convite a interação na TV */
-body.dashboard-app:has(#informativo-root.dashboard-informativo-ga) .gv-menu-btn {
-  display: none !important;
-}
-
 body.dashboard-app main.gv-shell.ga-main-scroll:has(#informativo-root.dashboard-informativo-ga) {
   overflow: hidden !important;
   flex: 1 1 auto;
