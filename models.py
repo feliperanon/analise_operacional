@@ -385,6 +385,24 @@ class RouteInsertLog(SQLModel, table=True):
     created_by: Optional[str] = Field(default=None, index=True)  # Usuário que inseriu (se disponível)
 
 
+class RouteImportBatchLog(SQLModel, table=True):
+    """Um registro por envio/importação de planilha de entregas (auditoria de lotes)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    occurred_at: datetime = Field(default_factory=datetime.now, index=True)
+    created_by: Optional[str] = Field(default=None, index=True)
+    route_date: str = Field(index=True)
+    shift: str = Field(default="Manhã", index=True)
+    source: str = Field(default="import_entregas", index=True)
+    filename: Optional[str] = Field(default=None, max_length=512)
+    stops_imported: int = Field(default=0)
+    route_codes_in_file: int = Field(default=0)
+    rows_replaced_before: int = Field(default=0)
+    issues_count: int = Field(default=0)
+    warnings_count: int = Field(default=0)
+    pre_registered_clients: int = Field(default=0)
+    partial: bool = Field(default=False)
+
+
 class DeliverySession(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     date: str = Field(index=True)  # YYYY-MM-DD

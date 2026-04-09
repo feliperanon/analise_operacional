@@ -1,0 +1,112 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Separação · Logs de importação de entregas{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Processos / Separação / Logs de importação</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Logs de envio — planilha de entregas</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Cada linha é um envio (lote) concluído: data alvo, turno, arquivo, paradas e substituições.</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+{% endblock %}
+
+{% block content %}
+<div class="ga-employee-theme employees-shell employees-page space-y-4 pb-10 pt-2 md:pt-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <a href="/separacao" class="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">← Voltar à Separação</a>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Registros a partir do deploy com esta funcionalidade; importações antigas não aparecem aqui.</p>
+    </div>
+
+    <div class="sys-card sys-card--surface sys-card--comfort p-4 sm:p-5">
+        <form method="get" action="/separacao/logs-import" class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Data rota (de)</label>
+                <input type="date" name="date_from" value="{{ date_from }}" class="sys-input text-sm" title="Filtra pela data planejada da rota">
+            </div>
+            <div>
+                <label class="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Data rota (até)</label>
+                <input type="date" name="date_to" value="{{ date_to }}" class="sys-input text-sm">
+            </div>
+            <input type="hidden" name="page" value="1">
+            <button type="submit" class="sys-btn sys-btn--primary text-sm">Filtrar</button>
+            <a href="/separacao/logs-import" class="sys-btn sys-btn--secondary text-sm">Limpar</a>
+        </form>
+    </div>
+
+    <div class="sys-card sys-card--surface overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[880px] text-left text-sm">
+                <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/80">
+                    <tr>
+                        <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-200">Quando (SP)</th>
+                        <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-200">Usuário</th>
+                        <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-200">Data rota</th>
+                        <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-200">Turno</th>
+                        <th class="px-3 py-3 font-semibold text-gray-700 dark:text-gray-200">Arquivo</th>
+                        <th class="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Paradas</th>
+                        <th class="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Cód. rota</th>
+                        <th class="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Substituídas</th>
+                        <th class="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Pend.</th>
+                        <th class="px-3 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">Alertas</th>
+                        <th class="px-3 py-3 text-center font-semibold text-gray-700 dark:text-gray-200">Tipo</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                    {% for row in log_rows %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                        <td class="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-gray-800 dark:text-gray-200">{{ row.occurred_at_fmt }}</td>
+                        <td class="max-w-[10rem] truncate px-3 py-2.5 text-gray-700 dark:text-gray-300" title="{{ row.created_by }}">{{ row.created_by }}</td>
+                        <td class="whitespace-nowrap px-3 py-2.5 text-gray-800 dark:text-gray-200">{{ row.route_date_br }}</td>
+                        <td class="px-3 py-2.5 text-gray-700 dark:text-gray-300">{{ row.shift }}</td>
+                        <td class="max-w-[14rem] truncate px-3 py-2.5 text-gray-600 dark:text-gray-400" title="{{ row.filename }}">{{ row.filename }}</td>
+                        <td class="px-3 py-2.5 text-right tabular-nums font-medium text-gray-900 dark:text-white">{{ row.stops_imported }}</td>
+                        <td class="px-3 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400">{{ row.route_codes_in_file }}</td>
+                        <td class="px-3 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400">{{ row.rows_replaced_before }}</td>
+                        <td class="px-3 py-2.5 text-right tabular-nums">
+                            {% if row.issues_count > 0 %}
+                            <span class="font-semibold text-amber-600 dark:text-amber-400">{{ row.issues_count }}</span>
+                            {% else %}
+                            <span class="text-gray-500">0</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-3 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400">{{ row.warnings_count }}</td>
+                        <td class="px-3 py-2.5 text-center">
+                            {% if row.partial %}
+                            <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">Parcial</span>
+                            {% else %}
+                            <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="px-4 py-12 text-center text-gray-500 dark:text-gray-400">Nenhum envio registrado ainda. Após a próxima importação bem-sucedida, os lotes aparecem aqui.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if log_rows and (has_prev or has_next) %}
+        <div class="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+            <span class="text-xs text-gray-500 dark:text-gray-400">Página {{ page }} · até {{ per_page }} por página</span>
+            <div class="flex gap-2">
+                {% if has_prev %}
+                <a class="sys-btn sys-btn--secondary text-xs" href="/separacao/logs-import?page={{ page - 1 }}{% if date_from %}&amp;date_from={{ date_from | urlencode }}{% endif %}{% if date_to %}&amp;date_to={{ date_to | urlencode }}{% endif %}">Anterior</a>
+                {% endif %}
+                {% if has_next %}
+                <a class="sys-btn sys-btn--secondary text-xs" href="/separacao/logs-import?page={{ page + 1 }}{% if date_from %}&amp;date_from={{ date_from | urlencode }}{% endif %}{% if date_to %}&amp;date_to={{ date_to | urlencode }}{% endif %}">Próxima</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

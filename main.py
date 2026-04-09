@@ -14960,6 +14960,7 @@ async def import_entregas_separacao(
             return await separacao_page(request=request, date=date, shift=shift, session=session, delivery_import=import_result)
 
         imported_route_codes = list({row["route_code"] for row in parsed_rows if row["route_code"] and row["route_code"] != "-"})
+        rows_deleted_prior = 0
         if imported_route_codes:
             existing = session.exec(
                 select(models.Route)
@@ -14967,6 +14968,7 @@ async def import_entregas_separacao(
                 .where(models.Route.type == "delivery")
                 .where(models.Route.delivery_route_code.in_(imported_route_codes))
             ).all()
+            rows_deleted_prior = len(existing)
             existing_route_ids = [row.id for row in existing if row.id]
             if existing_route_ids:
                 # Evita violação de FK: routeinsertlog.route_id -> route.id
@@ -15023,6 +15025,24 @@ async def import_entregas_separacao(
                     created_by=_username,
                 )
                 session.add(log_entry)
+        _fn = (file.filename or "").strip()
+        session.add(
+            models.RouteImportBatchLog(
+                occurred_at=_now,
+                created_by=_username,
+                route_date=date,
+                shift=shift,
+                source="import_entregas",
+                filename=_fn[:512] if _fn else None,
+                stops_imported=len(parsed_rows),
+                route_codes_in_file=len(imported_route_codes),
+                rows_replaced_before=rows_deleted_prior,
+                issues_count=len(import_result["issues"]),
+                warnings_count=len(import_result["warnings"]),
+                pre_registered_clients=int(import_result.get("pre_registered_clients") or 0),
+                partial=bool(import_result["issues"]),
+            )
+        )
         session.commit()
         import_result["ok"] = True
         import_result["created"] = len(parsed_rows)
@@ -15056,6 +15076,81 @@ async def import_entregas_separacao(
 @app.get("/separacao/import-entregas", response_class=RedirectResponse)
 async def import_entregas_separacao_get():
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
+
+
+def _fmt_dt_br_sp(dt: Optional[datetime]) -> str:
+    if not dt:
+        return "—"
+    sp = ZoneInfo("America/Sao_Paulo")
+    try:
+        if getattr(dt, "tzinfo", None) is None:
+            d = dt.replace(tzinfo=sp)
+        else:
+            d = dt.astimezone(sp)
+        return d.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return str(dt)[:16]
+
+
+@app.get("/separacao/logs-import", response_class=HTMLResponse)
+async def separacao_import_logs_page(
+    request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    page: int = 1,
+    session: Session = Depends(get_session),
+):
+    """Histórico de envios (importações) da planilha de entregas."""
+    require_login(request)
+    per_page = 40
+    page = max(1, int(page or 1))
+    offset = (page - 1) * per_page
+
+    stmt = select(models.RouteImportBatchLog).order_by(desc(models.RouteImportBatchLog.occurred_at))
+    if date_from and str(date_from).strip():
+        stmt = stmt.where(models.RouteImportBatchLog.route_date >= date_from.strip())
+    if date_to and str(date_to).strip():
+        stmt = stmt.where(models.RouteImportBatchLog.route_date <= date_to.strip())
+
+    fetch_limit = per_page + 1
+    batch_rows = session.exec(stmt.offset(offset).limit(fetch_limit)).all()
+    has_next = len(batch_rows) > per_page
+    batch_rows = batch_rows[:per_page]
+    has_prev = page > 1
+
+    log_rows = []
+    for b in batch_rows:
+        log_rows.append({
+            "id": b.id,
+            "occurred_at_fmt": _fmt_dt_br_sp(b.occurred_at),
+            "created_by": (b.created_by or "").strip() or "—",
+            "route_date": b.route_date,
+            "route_date_br": _fmt_br_date(b.route_date) if b.route_date else "—",
+            "shift": b.shift or "—",
+            "filename": (b.filename or "").strip() or "—",
+            "stops_imported": b.stops_imported,
+            "route_codes_in_file": b.route_codes_in_file,
+            "rows_replaced_before": b.rows_replaced_before,
+            "issues_count": b.issues_count,
+            "warnings_count": b.warnings_count,
+            "pre_registered_clients": b.pre_registered_clients,
+            "partial": b.partial,
+            "source": b.source or "import_entregas",
+        })
+
+    return templates.TemplateResponse(
+        "separacao_import_logs.html",
+        {
+            "request": request,
+            "log_rows": log_rows,
+            "date_from": date_from or "",
+            "date_to": date_to or "",
+            "page": page,
+            "has_next": has_next,
+            "has_prev": has_prev,
+            "per_page": per_page,
+        },
+    )
 
 
 @app.get("/api/separacao/delivery/sync-token", response_class=JSONResponse)
@@ -28829,6 +28924,12 @@ async def api_gm_kpis(
 
 
 # --- Rotas para LÍDERES executarem as ordens ---
+
+
+@app.get("/lider/minhas-ordens", response_class=RedirectResponse)
+async def lider_minhas_ordens_removed():
+    """Página descontinuada: redireciona para o fluxo inteligente."""
+    return RedirectResponse(url="/smart-flow", status_code=301)
 
 
 @app.post("/api/lider/ordens/{execution_id}/iniciar", response_class=JSONResponse)
