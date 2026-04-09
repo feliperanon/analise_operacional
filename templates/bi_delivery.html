@@ -83,8 +83,9 @@
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
       {{ kpi_card("Paradas Entregues", kpis.delivered_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
-      {{ kpi_card("Taxa Devolucao", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrencias (controle operacional)",
-      "undo-2", "warning" if kpis.return_rate_qtd >= 7 else "success") }}
+      {{ kpi_card("Devolução % (rotas)", (kpis.return_rate_rotas|fmt_br_1) ~ "%",
+      kpis.rotas_devolucao_count ~ " / " ~ kpis.rotas_concluidas_count ~ " rotas concluídas (Central) · sobre planejado " ~ (kpis.return_rate_qtd|fmt_br_1) ~ "%",
+      "undo-2", "danger" if kpis.return_rate_rotas >= 4 else "warning" if kpis.return_rate_rotas >= 2 else "success") }}
       {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%",
       "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
       {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Excel até fechamento; sistema após", "wallet", "danger" if

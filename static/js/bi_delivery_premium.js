@@ -32,8 +32,13 @@
   const kpiDefs = {
     "Paradas Planejadas": ["Volume previsto de paradas no período.", "Σ rotas planejadas", ">=95% realização"],
     "Paradas Entregues": ["Paradas concluídas no período.", "Σ concluídas ÷ Σ planejadas", "SLA >= 90%"],
-    "Taxa Devolução": ["Incidência de devoluções na operação.", "(devoluções ÷ planejadas) x 100", "< 7%"],
-    "Taxa Devolucao": ["Incidência de devoluções na operação.", "(devoluções ÷ planejadas) x 100", "< 7%"],
+    "Taxa Devolução": ["Legado: taxa sobre paradas planejadas.", "(devoluções ÷ planejadas) x 100", "Ver também % rotas"],
+    "Taxa Devolucao": ["Legado: taxa sobre paradas planejadas.", "(devoluções ÷ planejadas) x 100", "Ver também % rotas"],
+    "Devolução % (rotas)": [
+      "Indicador operacional oficial (Central, TV, informativo).",
+      "(rotas devolução ÷ rotas concluídas: entregue + devolução) × 100; exclui encerramento tardio automático como devolução",
+      "Meta operacional ≤ 2%",
+    ],
     "Valor Devolvido": ["Impacto financeiro das devoluções.", "Σ valor devolvido", "Tendência de queda"],
     "Devolução % Valor": ["Percentual financeiro devolvido sobre o valor planejado.", "(valor devolvido ÷ valor planejado) x 100", "< 2%"],
     "% Acima de R$300": ["Risco financeiro por ticket alto.", "(devoluções>=300 ÷ total) x 100", "< 35%"],
@@ -90,7 +95,7 @@
   function sparklineSeries(title) {
     const trend = window.__biChartData?.trend || { valor: [], qtd: [] };
     if (title === "Valor Devolvido") return trend.valor || [];
-    if (title === "Taxa Devolução" || title === "Taxa Devolucao") return trend.qtd || [];
+    if (title === "Taxa Devolução" || title === "Taxa Devolucao" || title === "Devolução % (rotas)") return trend.qtd || [];
     if (title === "Devolução % Valor") return trend.valor || [];
     return trend.valor || trend.qtd || [];
   }
@@ -130,7 +135,8 @@
     createSparkline(series);
 
     const alerts = [];
-    if ((title === "Taxa Devolução" || title === "Taxa Devolucao") && toNum(value) >= 10) alerts.push("Taxa de devolução acima do limite recomendado.");
+    if ((title === "Taxa Devolução" || title === "Taxa Devolucao") && toNum(value) >= 10) alerts.push("Taxa sobre planejadas acima do limite recomendado (indicador auxiliar).");
+    if (title === "Devolução % (rotas)" && toNum(value) >= 2) alerts.push("Percentual operacional acima da meta de 2% (rotas concluídas).");
     if (title === "Devolução % Valor" && toNum(value) >= 2) alerts.push("Percentual de devolução em valor acima da meta de 2%.");
     if (title === "Tempo Médio" && toNum(value) >= 120) alerts.push("Tempo médio acima da janela executiva.");
     if (!alerts.length) alerts.push("Sem alertas críticos para este indicador.");

@@ -100,7 +100,9 @@
 
     <section class="bi-kpi-grid">
       {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
-      {{ kpi_card("Taxa Devolução", (kpis.return_rate_qtd|fmt_br_1) ~ "%", kpis.total_devolucoes ~ " ocorrências", "undo-2", "success" if kpis.return_rate_qtd < 2 else "warning") }}
+      {{ kpi_card("Devolução % (rotas)", (kpis.return_rate_rotas|fmt_br_1) ~ "%",
+      kpis.rotas_devolucao_count ~ " / " ~ kpis.rotas_concluidas_count ~ " rotas concluídas · planejado " ~ (kpis.return_rate_qtd|fmt_br_1) ~ "%",
+      "undo-2", "danger" if kpis.return_rate_rotas >= 4 else "warning" if kpis.return_rate_rotas >= 2 else "success") }}
       {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%", "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
       {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Excel até fechamento; sistema após", "wallet", "neutral") }}
       {{ kpi_card("Tempo Médio", kpis.avg_duration_m|fmt_br_duracao, "Rotas finalizadas", "timer", "success") }}

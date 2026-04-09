@@ -53,6 +53,11 @@ from client_import_utils import normalize_address, normalize_phone_br, normalize
 from route_duration import route_duration_minutes, iniciada_elapsed_wall_minutes
 from utils.delivery_projection import compute_delivery_projection
 from utils.mobile_hub import build_mobile_hub_profile
+from devolucao_kpi_canonical import (
+    counts_devolucao_rotas_concluidas,
+    normalized_delivery_status,
+    pct_devolucao_sobre_rotas_concluidas,
+)
 
 
 def operational_shift_br(dt: datetime) -> str:
@@ -2844,13 +2849,8 @@ def _build_informativo_extras(
     routes_prev = session.exec(routes_prev_q).all()
     routes_curr_m = session.exec(routes_curr_q).all()
 
-    def _mes_pct_route(rs: List[Any]) -> float:
-        done = [r for r in rs if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
-        ret = [r for r in done if (r.delivery_status or "").lower() == "devolucao"]
-        return round((len(ret) / len(done) * 100), 1) if done else 0.0
-
-    pct_prev = _mes_pct_route(routes_prev)
-    pct_curr = _mes_pct_route(routes_curr_m)
+    pct_prev = pct_devolucao_sobre_rotas_concluidas(routes_prev)
+    pct_curr = pct_devolucao_sobre_rotas_concluidas(routes_curr_m)
     delta_pp = round(float(pct_prev) - float(pct_curr), 1)
 
     dd_board = dashboard_payload.get("devolucao_dia") or {}
@@ -2865,9 +2865,7 @@ def _build_informativo_extras(
         if motorista_ids_scope:
             q_today = q_today.where(models.Route.employee_id.in_(motorista_ids_scope))
         routes_hoje = session.exec(q_today).all()
-        done_h = [r for r in routes_hoje if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
-        ret_h = [r for r in done_h if (r.delivery_status or "").lower() == "devolucao"]
-        devolucao_hoje_pct = round((len(ret_h) / len(done_h) * 100), 1) if done_h else 0.0
+        devolucao_hoje_pct = pct_devolucao_sobre_rotas_concluidas(routes_hoje)
 
     bulletins = []
     try:
@@ -3300,9 +3298,9 @@ async def dashboard_entry(
     selected_headcount = sum(1 for e in employees if (e.status or "").lower() not in {"away", "vacation", "sick", "day_off"})
     selected_target = selected_headcount
 
-    # Devolução no dia (para painel TV e alertas)
-    routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
-    routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+    # Devolução no dia (para painel TV e alertas) — critério canônico (% rotas concluídas)
+    routes_devolucao = [r for r in routes if normalized_delivery_status(r) == "devolucao"]
+    n_dev_dia, n_done_dia = counts_devolucao_rotas_concluidas(routes)
     devolucao_items = []
     for r in routes_devolucao:
         c = client_by_id.get(r.client_id)
@@ -3330,11 +3328,11 @@ async def dashboard_entry(
         })
 
     devolucao_dia = {
-        "count": len(routes_devolucao),
+        "count": n_dev_dia,
         "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
         "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
-        "total_entregas": len(routes_entregue_ou_devolucao),
-        "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
+        "total_entregas": n_done_dia,
+        "pct": pct_devolucao_sobre_rotas_concluidas(routes),
         "items_list": devolucao_items,
     }
     month_start = selected_date.replace(day=1)
@@ -3351,16 +3349,15 @@ async def dashboard_entry(
         .where(models.Route.date <= month_end_str)
         .where(models.Route.employee_id.in_(employee_ids))
     ).all()
-    month_done = [r for r in routes_month if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
-    month_returns = [r for r in month_done if (r.delivery_status or "").lower() == "devolucao"]
+    _, n_done_mes = counts_devolucao_rotas_concluidas(routes_month)
     mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(
         session, month_start_str, month_end_str, employee_id_list if employee_id_list else None
     )
     devolucao_mes = {
         "count": mes_cnt_reg,
-        "total_entregas": len(month_done),
+        "total_entregas": n_done_mes,
         "total_valor": round(mes_valor_reg, 2),
-        "pct": round((len(month_returns) / len(month_done) * 100), 1) if month_done else 0,
+        "pct": pct_devolucao_sobre_rotas_concluidas(routes_month),
     }
 
     clientes_alto_indice = []
@@ -3663,8 +3660,8 @@ async def api_dashboard_tv_data(
     )
     _tsa_api = tv_shift_alert_counts(live_separation, now_br)
 
-    routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
-    routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+    routes_devolucao = [r for r in routes if normalized_delivery_status(r) == "devolucao"]
+    n_dev_dia_tv, n_done_dia_tv = counts_devolucao_rotas_concluidas(routes)
     devolucao_items = []
     for r in routes_devolucao:
         c = client_by_id.get(r.client_id)
@@ -3692,11 +3689,11 @@ async def api_dashboard_tv_data(
         })
 
     devolucao_dia = {
-        "count": len(routes_devolucao),
+        "count": n_dev_dia_tv,
         "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
         "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
-        "total_entregas": len(routes_entregue_ou_devolucao),
-        "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
+        "total_entregas": n_done_dia_tv,
+        "pct": pct_devolucao_sobre_rotas_concluidas(routes),
         "items_list": devolucao_items,
     }
 
@@ -3714,16 +3711,15 @@ async def api_dashboard_tv_data(
         .where(models.Route.date <= month_end_str)
         .where(models.Route.employee_id.in_(employee_ids))
     ).all()
-    month_done = [r for r in routes_month if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
-    month_returns = [r for r in month_done if (r.delivery_status or "").lower() == "devolucao"]
+    _, n_done_mes_tv = counts_devolucao_rotas_concluidas(routes_month)
     mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(
         session, month_start_str, month_end_str, employee_ids if employee_ids else None
     )
     devolucao_mes = {
         "count": mes_cnt_reg,
-        "total_entregas": len(month_done),
+        "total_entregas": n_done_mes_tv,
         "total_valor": round(mes_valor_reg, 2),
-        "pct": round((len(month_returns) / len(month_done) * 100), 1) if month_done else 0,
+        "pct": pct_devolucao_sobre_rotas_concluidas(routes_month),
     }
 
     alerts_over_20min = []
@@ -30608,8 +30604,8 @@ async def api_list_admin_routes(
             for b in live_separation
         )
         
-        routes_devolucao = [r for r in all_routes_today if (r.delivery_status or "").lower() == "devolucao"]
-        routes_entregue_ou_devolucao = [r for r in all_routes_today if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
+        routes_devolucao = [r for r in all_routes_today if normalized_delivery_status(r) == "devolucao"]
+        n_dev_adm, _n_done_adm = counts_devolucao_rotas_concluidas(all_routes_today)
         devolucao_items = []
         for r in routes_devolucao:
             c = client_by_id.get(r.client_id)
@@ -30620,8 +30616,8 @@ async def api_list_admin_routes(
                 "driver_name": emp.name if emp else f"Motorista #{r.employee_id}",
             })
         devolucao_dia = {
-            "count": len(routes_devolucao),
-            "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
+            "count": n_dev_adm,
+            "pct": pct_devolucao_sobre_rotas_concluidas(all_routes_today),
             "items_list": devolucao_items,
         }
         

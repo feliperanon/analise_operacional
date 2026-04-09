@@ -21,6 +21,7 @@ from typing import List
 import models
 from database import get_session
 from route_duration import route_duration_minutes, route_duration_minutes_mobile_only
+from devolucao_kpi_canonical import counts_devolucao_rotas_concluidas, pct_devolucao_sobre_rotas_concluidas
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -910,6 +911,23 @@ def _build_bi_delivery_dataset(
         q = q.where(func.lower(models.Route.delivery_status) == st)
     routes = session.exec(q.order_by(models.Route.date, models.Route.created_at)).all()
 
+    # % devolução operacional oficial (rotas concluídas): ignora filtro de status — mesmo critério Central / informativo
+    q_rotas_kpi = (
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= date_i.strftime("%Y-%m-%d"))
+        .where(models.Route.date <= date_f.strftime("%Y-%m-%d"))
+    )
+    if shift and shift != "Todos":
+        q_rotas_kpi = q_rotas_kpi.where(models.Route.shift == shift)
+    if driver_id:
+        q_rotas_kpi = q_rotas_kpi.where(models.Route.employee_id == driver_id)
+    if pl and pl != "TODOS":
+        q_rotas_kpi = q_rotas_kpi.where(models.Route.delivery_vehicle_plate == pl)
+    routes_for_kpi_rotas = session.exec(q_rotas_kpi.order_by(models.Route.date, models.Route.created_at)).all()
+    rotas_devolucao_count, rotas_concluidas_count = counts_devolucao_rotas_concluidas(routes_for_kpi_rotas)
+    return_rate_rotas = pct_devolucao_sobre_rotas_concluidas(routes_for_kpi_rotas)
+
     manual = []
     if (st in ("todos", "devolucao")) and pl == "TODOS":
         qm = (
@@ -1570,6 +1588,9 @@ def _build_bi_delivery_dataset(
         "realized_value": round(realized_value, 2),
         "returned_value": round(returned_value, 2),
         "return_rate_qtd": round(returned_stops / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
+        "return_rate_rotas": return_rate_rotas,
+        "rotas_devolucao_count": rotas_devolucao_count,
+        "rotas_concluidas_count": rotas_concluidas_count,
         "return_rate_kg": round(returned_kg / max(1, planned_kg) * 100.0, 2) if planned_kg else 0.0,
         "return_rate_value": round(global_return_rate_value, 2),
         "sla_start": round(started_stops / max(1, planned_stops) * 100.0, 2) if planned_stops else 0.0,
@@ -3103,7 +3124,12 @@ async def bi_delivery_export(
         period_to = _fmt_br_data(dataset["filters"]["date_to"])
         c.drawString(30, y, f"Periodo: {period_from} ate {period_to}")
         y -= 14
-        c.drawString(30, y, f"Planejadas: {dataset['kpis']['planned_stops']} | Realizadas: {dataset['kpis']['realized_stops']} | Devolucao: {_fmt_br_1(dataset['kpis']['return_rate_qtd'])}%")
+        c.drawString(
+            30,
+            y,
+            f"Planejadas: {dataset['kpis']['planned_stops']} | Realizadas: {dataset['kpis']['realized_stops']} | "
+            f"Devolucao rotas: {_fmt_br_1(dataset['kpis']['return_rate_rotas'])}% | Sobre planejado: {_fmt_br_1(dataset['kpis']['return_rate_qtd'])}%",
+        )
         y -= 20
         c.setFont("Helvetica", 8)
         for r in rows[:180]:
@@ -3486,10 +3512,7 @@ def _build_bi_devolucoes_dataset(
         else:
             rq_base = rq_base.where(models.Route.client_id.in_(client_ids_dev))
     routes_delivery_period = session.exec(rq_base).all()
-    _done_status = {"entregue", "devolucao"}
-    month_done = [r for r in routes_delivery_period if (r.delivery_status or "").strip().lower() in _done_status]
-    month_returns = [r for r in month_done if (r.delivery_status or "").strip().lower() == "devolucao"]
-    pct_devolucao_valor = round((len(month_returns) / len(month_done) * 100.0), 1) if month_done else 0.0
+    pct_devolucao_valor = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
     # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
     valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
