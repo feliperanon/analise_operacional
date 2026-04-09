@@ -3118,7 +3118,7 @@ async def dashboard_entry(
         live_buckets[emp_id] = {"employee_name": emp.name, "photo_url": emp.photo_url, "routes": []}
     for r in routes:
         st = (r.delivery_status or "").lower()
-        if st not in {"iniciada", "entregue", "devolucao"}:
+        if st not in {"pendente", "iniciada", "entregue", "devolucao"}:
             continue
         bucket = live_buckets.get(r.employee_id)
         if not bucket:
@@ -3126,9 +3126,10 @@ async def dashboard_entry(
         d_m = route_duration_minutes(r) or 0
         client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
         oe = iniciada_elapsed_wall_minutes(r, selected_date, now_br)
+        start_display = (r.delivery_started_at or r.start_time or "--:--") if st == "iniciada" else "--:--"
         rd = {
             "client": client_name,
-            "start_time": r.delivery_started_at or r.start_time or "--:--",
+            "start_time": start_display,
             "duration_mins": d_m,
             "tonnage": float(r.tonnage or 0.0),
             "delivery_status": st,
@@ -3522,7 +3523,7 @@ async def api_dashboard_tv_data(
         live_buckets[emp_id] = {"employee_name": emp.name, "photo_url": getattr(emp, "photo_url", None), "routes": []}
     for r in routes:
         st = (r.delivery_status or "").lower()
-        if st not in {"iniciada", "entregue", "devolucao"}:
+        if st not in {"pendente", "iniciada", "entregue", "devolucao"}:
             continue
         bucket = live_buckets.get(r.employee_id)
         if not bucket:
@@ -3530,9 +3531,10 @@ async def api_dashboard_tv_data(
         d_m = route_duration_minutes(r) or 0
         client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
         oe = iniciada_elapsed_wall_minutes(r, selected_date, now_br)
+        start_display = (r.delivery_started_at or r.start_time or "--:--") if st == "iniciada" else "--:--"
         rd = {
             "client": client_name,
-            "start_time": r.delivery_started_at or r.start_time or "--:--",
+            "start_time": start_display,
             "duration_mins": d_m,
             "tonnage": float(r.tonnage or 0.0),
             "delivery_status": st,
