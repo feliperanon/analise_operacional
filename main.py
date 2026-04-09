@@ -14118,7 +14118,8 @@ async def separacao_page(
         current_emp_id = user.get("id")
         is_mobile_user = True
     
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    # Render/servidor em UTC: "hoje" operacional é São Paulo (import + período padrão).
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     if date_from and date_to:
         date_from_str = date_from
         date_to_str = date_to
@@ -28828,110 +28829,6 @@ async def api_gm_kpis(
 
 
 # --- Rotas para LÍDERES executarem as ordens ---
-
-@app.get("/lider/minhas-ordens", response_class=HTMLResponse)
-async def lider_minhas_ordens_page(request: Request, session: Session = Depends(get_session)):
-    """Página do líder para ver e executar suas ordens de serviço."""
-    user = require_leader(request)
-    user_id = user.get("id") if isinstance(user, dict) else None
-    
-    if not user_id:
-        return HTMLResponse("Usuário não identificado", status_code=403)
-    
-    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    
-    # Gerar execuções do dia para todas as tarefas ativas
-    active_tasks = session.exec(
-        select(models.OperationalTask)
-        .where(models.OperationalTask.status == "active")
-    ).all()
-    
-    for task in active_tasks:
-        if user_id in (task.recipient_user_ids or []):
-            generate_executions_for_task(session, task, today)
-    
-    # Buscar execuções do líder para hoje
-    executions_today = session.exec(
-        select(models.OperationalTaskExecution)
-        .where(models.OperationalTaskExecution.user_id == user_id)
-        .where(models.OperationalTaskExecution.scheduled_date == today)
-        .order_by(models.OperationalTaskExecution.id)
-    ).all()
-    
-    # Enriquecer com dados da tarefa
-    tasks_today = []
-    for ex in executions_today:
-        task = session.get(models.OperationalTask, ex.task_id)
-        if task:
-            tasks_today.append({
-                "execution": ex,
-                "task": task,
-            })
-    
-    # Buscar histórico recente (últimos 7 dias)
-    week_ago = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)).strftime("%Y-%m-%d")
-    history = session.exec(
-        select(models.OperationalTaskExecution)
-        .where(models.OperationalTaskExecution.user_id == user_id)
-        .where(models.OperationalTaskExecution.scheduled_date >= week_ago)
-        .where(models.OperationalTaskExecution.scheduled_date < today)
-        .order_by(desc(models.OperationalTaskExecution.scheduled_date))
-    ).all()
-    
-    history_enriched = []
-    for ex in history:
-        task = session.get(models.OperationalTask, ex.task_id)
-        if task:
-            history_enriched.append({
-                "execution": ex,
-                "task": task,
-            })
-    
-    return templates.TemplateResponse("lider_minhas_ordens.html", {
-        "request": request,
-        "user": user,
-        "tasks_today": tasks_today,
-        "history": history_enriched,
-        "today": today,
-    })
-
-
-@app.get("/api/lider/minhas-ordens", response_class=JSONResponse)
-async def api_lider_minhas_ordens(request: Request, session: Session = Depends(get_session)):
-    """API: listar ordens do líder para hoje."""
-    user = require_leader(request)
-    user_id = user.get("id") if isinstance(user, dict) else None
-    
-    if not user_id:
-        return []
-    
-    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    
-    executions = session.exec(
-        select(models.OperationalTaskExecution)
-        .where(models.OperationalTaskExecution.user_id == user_id)
-        .where(models.OperationalTaskExecution.scheduled_date == today)
-    ).all()
-    
-    out = []
-    for ex in executions:
-        task = session.get(models.OperationalTask, ex.task_id)
-        if task:
-            out.append({
-                "execution_id": ex.id,
-                "task_id": task.id,
-                "title": task.title,
-                "description": task.description,
-                "category": task.category,
-                "priority": task.priority,
-                "scheduled_time": task.scheduled_time,
-                "requires_photo": task.requires_photo,
-                "requires_note": task.requires_note,
-                "status": ex.status,
-                "started_at": ex.started_at.isoformat() if ex.started_at else None,
-                "completed_at": ex.completed_at.isoformat() if ex.completed_at else None,
-            })
-    return out
 
 
 @app.post("/api/lider/ordens/{execution_id}/iniciar", response_class=JSONResponse)

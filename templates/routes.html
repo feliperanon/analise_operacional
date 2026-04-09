@@ -1248,6 +1248,8 @@
             .trim();
     }
 
+    const separacaoTodayBr = {{ today_br|tojson }};
+
     function applyFilters() {
         const dateFromEl = document.getElementById('route-date-from');
         const dateToEl = document.getElementById('route-date-to');
@@ -1255,7 +1257,8 @@
         const dateFrom = dateFromEl ? dateFromEl.value : '';
         const dateTo = dateToEl ? dateToEl.value : '';
         const shift = shiftEl ? shiftEl.value : 'Manhã';
-        const df = dateFrom || new Date().toISOString().slice(0, 10);
+        // Não usar toISOString() (UTC): à noite no BR vira “dia errado” no Render.
+        const df = dateFrom || separacaoTodayBr || new Date().toISOString().slice(0, 10);
         const dt = dateTo || df;
         const url = `/separacao?date_from=${encodeURIComponent(df)}&date_to=${encodeURIComponent(dt)}&shift=${encodeURIComponent(shift)}`;
         window.location.replace(url);
