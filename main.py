@@ -446,6 +446,23 @@ def shift_display_label(normalized: str) -> str:
     return normalized.strip().title() if normalized else "Outro"
 
 
+def delivery_route_matches_leader_shift(
+    route: Any,
+    shift_norm: str,
+    employee_by_id: Dict[int, Any],
+) -> bool:
+    """Rota de entrega no painel do líder: bate pelo shift da rota ou, se vazio, pelo work_shift do motorista."""
+    rs = normalize_shift(getattr(route, "shift", None))
+    if rs == shift_norm:
+        return True
+    eid = getattr(route, "employee_id", None)
+    if not rs and eid:
+        emp = employee_by_id.get(int(eid))
+        if emp and normalize_shift(getattr(emp, "work_shift", None)) == shift_norm:
+            return True
+    return False
+
+
 def normalize_cost_center(value: Optional[str]) -> str:
     """Normaliza centro de custo para comparação consistente."""
     if not value:
@@ -27653,7 +27670,12 @@ async def lider_rotas_page(
         .where(models.Route.date == date)
         .where(models.Route.type == "delivery")
     ).all()
-    routes = [r for r in routes_day if normalize_shift(getattr(r, "shift", "")) == shift_norm]
+    emp_lookup_for_shift = {e.id: e for e in delivery_people if e.id is not None}
+    routes = [
+        r
+        for r in routes_day
+        if delivery_route_matches_leader_shift(r, shift_norm, emp_lookup_for_shift)
+    ]
 
     with_route_driver_ids = {r.employee_id for r in routes if r.employee_id}
     missing_route_drivers = [e for e in expected_drivers if e.id not in with_route_driver_ids]
@@ -27664,9 +27686,22 @@ async def lider_rotas_page(
         emp_tonnage[r.employee_id] = emp_tonnage.get(r.employee_id, 0) + (r.tonnage or 0)
     total_tonnage = sum(emp_tonnage.values())
 
+    # Tabela de velocidade: esperados do turno + quem tem rota no dia (evita sumir se work_shift/flags divergirem)
+    velocity_driver_ids = set(expected_driver_ids) | {k for k in emp_tonnage if k is not None}
+    velocity_employees: List[Any] = []
+    seen_vel = set()
+    for e in expected_drivers:
+        velocity_employees.append(e)
+        seen_vel.add(e.id)
+    for eid in sorted(velocity_driver_ids - seen_vel):
+        emp = emp_lookup_for_shift.get(eid)
+        if emp:
+            velocity_employees.append(emp)
+            seen_vel.add(eid)
+
     hours_shift = 8.0
     driver_velocity = []
-    for e in expected_drivers:
+    for e in velocity_employees:
         kg = emp_tonnage.get(e.id, 0)
         kgh = kg / hours_shift if hours_shift else 0
         driver_velocity.append({"employee": e, "tonnage": kg, "kgh": round(kgh, 1)})
