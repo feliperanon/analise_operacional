@@ -261,14 +261,16 @@
                             {% endif %}
                         </header>
                         <div class="tv-balloon-body">
-                            <p class="tv-balloon-title-line"><strong>{{ op.employee_name }}</strong><span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">{% for h in op.helper_names or [] %}{% set w = h.split() %}<span class="tv-ajud-line">{% if w|length > 1 %}{{ w[0] }} {{ w[1] }}{% else %}{{ w[0] }}{% endif %}</span>{% else %}<span class="tv-ajud-line">—</span>{% endfor %}</span></span><span class="tv-meta-placa">Placa: {{ op.plate or '—' }} · Peso: {% if op.total_kg is defined and op.total_kg is not none %}{{ tv_kg_br(op.total_kg) }}{% else %}—{% endif %}</span></span></p>
-                        <div class="tv-balloon-progress-row">
-                            <span class="tv-entregas">{{ completed }}/{{ total }} entregas</span>
-                            <span class="tv-pct">{{ "%.0f"|format(pct_d) }}%</span>
-                        </div>
-                        <div class="tv-balloon-bar">
-                            <div style="width: {{ pct_d }}%"></div>
-                        </div>
+                            <p class="tv-balloon-title-line">
+                                <span class="tv-title-head">
+                                    <strong>{{ op.employee_name }}</strong>
+                                    <span class="tv-progress-inline">
+                                        <span class="tv-entregas">{{ completed }}/{{ total }}</span>
+                                        <span class="tv-pct">{{ "%.0f"|format(pct_d) }}%</span>
+                                    </span>
+                                </span>
+                                <span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">{% for h in op.helper_names or [] %}{% set w = h.split() %}<span class="tv-ajud-line">{% if w|length > 1 %}{{ w[0] }} {{ w[1] }}{% else %}{{ w[0] }}{% endif %}</span>{% else %}<span class="tv-ajud-line">—</span>{% endfor %}</span></span><span class="tv-meta-placa">Placa: {{ op.plate or '—' }} · Peso: {% if op.total_kg is defined and op.total_kg is not none %}{{ tv_kg_br(op.total_kg) }}{% else %}—{% endif %}</span></span>
+                            </p>
                         {% if ns_act.route is not none %}
                         <div class="tv-balloon-activity-strip{% if ns_act.mins > 20 %} tv-balloon-activity-strip--alert{% endif %}">
                             <span class="tv-balloon-activity-k">Em entrega</span>
@@ -855,9 +857,7 @@
                         '<div class="tv-balloon-frame" aria-hidden="true"></div>' +
                         '<header class="tv-balloon-hero">' + tvHeroLineHtml(th) + '</header>' +
                         '<div class="tv-balloon-body">' +
-                        '<p class="tv-balloon-title-line"><strong>' + escTv(op.employee_name) + '</strong><span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">' + helpersInner + '</span></span><span class="tv-meta-placa">Placa: ' + escTv(op.plate || '—') + ' · Peso: ' + escTv(pesoStr) + '</span></span></p>' +
-                        '<div class="tv-balloon-progress-row"><span class="tv-entregas">' + completed + '/' + total + ' entregas</span><span class="tv-pct">' + pctR + '%</span></div>' +
-                        '<div class="tv-balloon-bar"><div style="width:' + pctR + '%"></div></div>' +
+                        '<p class="tv-balloon-title-line"><span class="tv-title-head"><strong>' + escTv(op.employee_name) + '</strong><span class="tv-progress-inline"><span class="tv-entregas">' + completed + '/' + total + '</span><span class="tv-pct">' + pctR + '%</span></span></span><span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">' + helpersInner + '</span></span><span class="tv-meta-placa">Placa: ' + escTv(op.plate || '—') + ' · Peso: ' + escTv(pesoStr) + '</span></span></p>' +
                         activityStripHtml + metaSlotHtml + footBlock + '</div></article></div>';
                 }).join('');
                 }

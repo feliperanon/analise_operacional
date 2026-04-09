@@ -449,12 +449,12 @@ html.dark .tv-dashboard-page .tv-live-panel--bare .tv-live-panel__body {
     font-size: clamp(0.5rem, 0.26rem + 3.4cqi, 0.74rem);
   }
 
-  .tv-balloon-progress-row .tv-entregas {
-    font-size: clamp(0.55rem, 0.3rem + 3.6cqi, 0.74rem);
+  .tv-progress-inline .tv-entregas {
+    font-size: clamp(0.44rem, 0.24rem + 2.8cqi, 0.62rem);
   }
 
-  .tv-balloon-progress-row .tv-pct {
-    font-size: clamp(0.62rem, 0.34rem + 4.2cqi, 0.88rem);
+  .tv-progress-inline .tv-pct {
+    font-size: clamp(0.48rem, 0.26rem + 3cqi, 0.68rem);
   }
 
   .tv-balloon-list-row {
@@ -505,16 +505,12 @@ html.dark .tv-dashboard-page .tv-live-panel--bare .tv-live-panel__body {
     min-height: 0.85rem;
   }
 
-  .tv-balloon-progress-row .tv-entregas {
-    font-size: clamp(0.5rem, 0.2rem + 2.6cqh, 0.7rem);
+  .tv-progress-inline .tv-entregas {
+    font-size: clamp(0.44rem, 0.2rem + 2.2cqh, 0.6rem);
   }
 
-  .tv-balloon-progress-row .tv-pct {
-    font-size: clamp(0.56rem, 0.22rem + 3cqh, 0.8rem);
-  }
-
-  .tv-balloon-bar {
-    height: 5px;
+  .tv-progress-inline .tv-pct {
+    font-size: clamp(0.48rem, 0.22rem + 2.4cqh, 0.66rem);
   }
 
   .tv-balloon-foot-label {
@@ -533,10 +529,6 @@ html.dark .tv-dashboard-page .tv-live-panel--bare .tv-live-panel__body {
 
 .tv-balloon-driver--xdense .tv-balloon-meta-slot {
   min-height: 1rem;
-}
-
-.tv-balloon-driver--xdense .tv-balloon-bar {
-  height: 5px;
 }
 
 .tv-balloon-driver--xdense .tv-balloon-foot-label {
@@ -667,17 +659,17 @@ html.dark .tv-balloon-hero {
 .tv-balloon-body {
   position: relative;
   z-index: 2;
-  padding: 0.5rem 0.65rem 0.55rem;
+  padding: 0.4rem 0.52rem 0.45rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.26rem;
   flex: 1;
   min-height: 0;
 }
 
 .tv-balloon-meta-slot {
   flex-shrink: 0;
-  min-height: 1.5rem;
+  min-height: 1.05rem;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -685,7 +677,7 @@ html.dark .tv-balloon-hero {
 
 .tv-balloon-foot-wrapper {
   flex: 1 1 0;
-  min-height: 2.75rem;
+  min-height: 2.35rem;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -700,20 +692,29 @@ html.dark .tv-balloon-hero {
 
 .tv-balloon-title-line {
   margin: 0;
-  font-size: clamp(0.58rem, 0.42rem + 0.9vw, 0.9rem);
+  font-size: clamp(0.52rem, 0.38rem + 0.72vw, 0.8rem);
   font-weight: 700;
   color: var(--tv-body-text);
-  line-height: 1.35;
+  line-height: 1.24;
   overflow-wrap: anywhere;
   word-break: break-word;
   hyphens: auto;
   min-width: 0;
 }
 
+.tv-title-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
 .tv-balloon-title-line strong {
   color: var(--sys-text-primary, #0f172a);
   font-weight: 800;
-  font-size: 1.05em;
+  font-size: 1em;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 html.dark .tv-balloon-title-line strong {
@@ -724,11 +725,11 @@ html.dark .tv-balloon-title-line strong {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 1px;
   font-weight: 500;
   color: var(--sys-text-muted, #64748b);
-  font-size: clamp(0.52rem, 0.38rem + 0.65vw, 0.74rem);
-  margin-top: 3px;
+  font-size: clamp(0.48rem, 0.34rem + 0.5vw, 0.66rem);
+  margin-top: 1px;
   max-width: 100%;
   overflow-wrap: anywhere;
 }
@@ -761,45 +762,29 @@ html.dark .tv-balloon-title-line strong {
   width: 100%;
 }
 
-.tv-balloon-progress-row {
-  display: flex;
+.tv-progress-inline {
+  flex: 0 0 auto;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 0.28rem;
+  padding: 0.06rem 0.32rem;
+  border-radius: 999px;
+  border: 1px solid var(--tv-accent-border);
+  background: var(--tv-accent-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.tv-balloon-progress-row .tv-entregas {
-  font-size: clamp(0.58rem, 0.42rem + 0.55vw, 0.8rem);
-  font-weight: 700;
+.tv-progress-inline .tv-entregas {
+  font-size: clamp(0.46rem, 0.34rem + 0.38vw, 0.62rem);
+  font-weight: 800;
   color: var(--sys-text-body, #475569);
 }
 
-.tv-balloon-progress-row .tv-pct {
-  font-size: clamp(0.68rem, 0.48rem + 0.75vw, 0.95rem);
+.tv-progress-inline .tv-pct {
+  font-size: clamp(0.5rem, 0.36rem + 0.45vw, 0.68rem);
   font-weight: 900;
-  font-variant-numeric: tabular-nums;
   color: var(--tv-accent-bright);
-}
-
-.tv-balloon-bar {
-  width: 100%;
-  height: 7px;
-  background: rgb(241 245 249);
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--sys-border, #e2e8f0);
-}
-
-html.dark .tv-balloon-bar {
-  background: rgb(30 41 59);
-}
-
-.tv-balloon-bar > div {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--tv-accent), var(--tv-accent-bright));
-  transition: width 0.5s ease;
 }
 
 .tv-balloon-activity-strip {
