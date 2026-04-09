@@ -292,34 +292,44 @@
                         <div class="tv-balloon-foot-wrapper">
                             <p class="tv-balloon-foot-label">Abertas agora</p>
                             <div class="tv-balloon-list open-list">
-                                {% set count_open = 0 %}
+                                {% set ns_open = namespace(count=0) %}
                                 {% for r in op.routes %}
                                 {% if ((r.delivery_status or '')|lower) == 'iniciada' %}
                                 {% set _oem = (r.open_elapsed_minutes|default(0))|int %}
-                                {% if _oem > 20 and count_open < 4 %}
+                                {% if _oem > 20 and ns_open.count < 4 %}
                                 <div class="tv-balloon-list-row open-item tv-balloon-list-row--slow">
                                     <span class="tv-open-client font-semibold truncate flex-1 min-w-0">{{ r.client }}</span>
                                     <span class="tv-open-start font-mono shrink-0">{{ r.start_time }}</span>
                                     <span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="{{ r.start_time|e }}">—</span>
                                 </div>
-                                {% set count_open = count_open + 1 %}
+                                {% set ns_open.count = ns_open.count + 1 %}
                                 {% endif %}
                                 {% endif %}
                                 {% endfor %}
                                 {% for r in op.routes %}
                                 {% if ((r.delivery_status or '')|lower) == 'iniciada' %}
                                 {% set _oem = (r.open_elapsed_minutes|default(0))|int %}
-                                {% if _oem <= 20 and count_open < 4 %}
+                                {% if _oem <= 20 and ns_open.count < 4 %}
                                 <div class="tv-balloon-list-row open-item">
                                     <span class="tv-open-client font-semibold truncate flex-1 min-w-0 text-slate-700 dark:text-slate-200">{{ r.client }}</span>
                                     <span class="tv-open-start font-mono shrink-0">{{ r.start_time }}</span>
                                     <span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="{{ r.start_time|e }}">—</span>
                                 </div>
-                                {% set count_open = count_open + 1 %}
+                                {% set ns_open.count = ns_open.count + 1 %}
                                 {% endif %}
                                 {% endif %}
                                 {% endfor %}
-                                {% if count_open == 0 %}
+                                {% for r in op.routes %}
+                                {% if ((r.delivery_status or '')|lower) == 'pendente' and ns_open.count < 4 %}
+                                <div class="tv-balloon-list-row open-item">
+                                    <span class="tv-open-client font-semibold truncate flex-1 min-w-0 text-slate-700 dark:text-slate-200">{{ r.client }}</span>
+                                    <span class="tv-open-start font-mono shrink-0">--:--</span>
+                                    <span class="dur font-mono whitespace-nowrap">Pendente</span>
+                                </div>
+                                {% set ns_open.count = ns_open.count + 1 %}
+                                {% endif %}
+                                {% endfor %}
+                                {% if ns_open.count == 0 %}
                                 {% set mins_idle = op.minutes_without_open_client|default(0)|int %}
                                 <div class="tv-balloon-idle-pill{% if mins_idle > 20 %} tv-balloon-idle-pill--slow{% endif %}"{% if mins_idle > 0 %} data-idle-mins="{{ mins_idle }}"{% endif %}>
                                     <span>Nenhuma em aberto</span>
@@ -329,8 +339,15 @@
                                 </div>
                                 {% endif %}
                             </div>
-                            {% if ns_in.c > 4 %}
-                            <p class="tv-balloon-more-hint mt-0.5 shrink-0 text-[10px] font-semibold">+{{ ns_in.c - 4 }} mais</p>
+                            {% set ns_pending = namespace(count=0) %}
+                            {% for r in op.routes %}
+                                {% if ((r.delivery_status or '')|lower) == 'pendente' %}
+                                    {% set ns_pending.count = ns_pending.count + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {% set _hidden_total = (ns_in.c + ns_pending.count) - 4 %}
+                            {% if _hidden_total > 0 %}
+                            <p class="tv-balloon-more-hint mt-0.5 shrink-0 text-[10px] font-semibold">+{{ _hidden_total }} mais</p>
                             {% endif %}
                         </div>
                         {% endif %}
@@ -608,6 +625,13 @@
         });
         return open;
     }
+    function sortPendingRoutesForDisplay(routes) {
+        var pending = (routes || []).filter(function(r) { return String(r.delivery_status || '').toLowerCase() === 'pendente'; });
+        pending.sort(function(a, b) {
+            return String(a.client || '').localeCompare(String(b.client || ''), 'pt-BR');
+        });
+        return pending;
+    }
     function computeLiveGridDims(n) {
         if (n <= 0) return { cols: 1, rows: 1 };
         var cols = 3;
@@ -769,11 +793,13 @@
                     var pesoStr = formatKgBr(op.total_kg);
                     var helpersInner = formatHelpersHtml(op.helper_names || []);
                     var openRoutes = sortOpenRoutesForDisplay(op.routes || []);
+                    var pendingRoutes = sortPendingRoutesForDisplay(op.routes || []);
                     var showFoot = shouldShowAbertasFoot(stR, openRoutes.length);
                     var openHtml = '';
                     var more = '';
                     if (showFoot) {
-                        openHtml = openRoutes.slice(0, 4).map(function(r) {
+                        var slots = 4;
+                        openHtml = openRoutes.slice(0, slots).map(function(r) {
                             var stAttr = String(r.start_time || '').replace(/\\/g, '\\\\').replace(/"/g, '&quot;');
                             var liveM = elapsedMinutesFromStart(r.start_time);
                             var oem = (typeof r.open_elapsed_minutes === 'number') ? r.open_elapsed_minutes : null;
@@ -782,13 +808,23 @@
                             var txtCls = eff > 20 ? '' : 'text-slate-700 dark:text-slate-200';
                             return '<div class="tv-balloon-list-row open-item' + rowSlow + '"><span class="tv-open-client font-semibold truncate flex-1 min-w-0 ' + txtCls + '">' + escTv(r.client) + '</span><span class="tv-open-start font-mono shrink-0">' + escTv(r.start_time) + '</span><span class="dur font-mono tv-open-elapsed whitespace-nowrap" data-start="' + stAttr + '">—</span></div>';
                         }).join('');
-                        if (openRoutes.length === 0) {
+                        var usedSlots = Math.min(openRoutes.length, slots);
+                        var remaining = Math.max(0, slots - usedSlots);
+                        if (remaining > 0) {
+                            openHtml += pendingRoutes.slice(0, remaining).map(function(r) {
+                                return '<div class="tv-balloon-list-row open-item"><span class="tv-open-client font-semibold truncate flex-1 min-w-0 text-slate-700 dark:text-slate-200">' + escTv(r.client) + '</span><span class="tv-open-start font-mono shrink-0">--:--</span><span class="dur font-mono whitespace-nowrap">Pendente</span></div>';
+                            }).join('');
+                        }
+                        if (openRoutes.length === 0 && pendingRoutes.length === 0) {
                             var minsIdle = Number(op.minutes_without_open_client || 0);
                             var idleSlow = minsIdle > 20 ? ' tv-balloon-idle-pill--slow' : '';
                             var idleAttr = minsIdle > 0 ? ' data-idle-mins="' + minsIdle + '"' : '';
                             openHtml = '<div class="tv-balloon-idle-pill' + idleSlow + '"' + idleAttr + '><span>Nenhuma em aberto</span>' + (minsIdle > 0 ? '<span class="mono tv-idle-mins-display">' + formatDuracaoBr(minsIdle) + '</span>' : '') + '</div>';
                         }
-                        more = openRoutes.length > 4 ? '<p class="tv-balloon-more-hint mt-0.5 shrink-0 text-[10px] font-semibold">+' + (openRoutes.length - 4) + ' mais</p>' : '';
+                        var hiddenOpen = Math.max(0, openRoutes.length - slots);
+                        var hiddenPending = Math.max(0, pendingRoutes.length - remaining);
+                        var hiddenTotal = hiddenOpen + hiddenPending;
+                        more = hiddenTotal > 0 ? '<p class="tv-balloon-more-hint mt-0.5 shrink-0 text-[10px] font-semibold">+' + hiddenTotal + ' mais</p>' : '';
                     }
                     var projectionInner = '';
                     if (['closed', 'not_started', 'all_delivered'].indexOf(stR) === -1 && op.projected_finish_at) {
