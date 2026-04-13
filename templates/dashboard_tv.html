@@ -90,7 +90,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         .zone-topo { flex: 0 0 8vh; min-height: 64px; max-height: 88px; }
         .zone-kpis { flex: 0 0 10vh; min-height: 72px; max-height: 100px; }
         .zone-central { flex: 1 1 52vh; min-height: 0; display: flex; flex-direction: column; }
-        .zone-risco { flex: 0 0 12vh; min-height: 88px; max-height: 130px; }
+        .zone-risco { flex: 0 0 13vh; min-height: 96px; max-height: 148px; }
         .zone-dia { flex: 0 0 10vh; min-height: 72px; max-height: 95px; }
 
         .panel-root .text-clock { font-size: clamp(1.75rem, 4vw, 2.75rem); }
@@ -133,6 +133,47 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(30,41,59,0.5); }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+
+        /* TV — exceções em duas colunas; devolução: cliente (1ª linha) + motorista (2ª linha) */
+        .tv-risco-split { flex: 1 1 0; min-height: 0; min-width: 0; }
+        .tv-exc-unified-section { min-width: 0; }
+        .tv-exc-unified-title {
+            font-size: clamp(0.625rem, 1vw, 0.6875rem);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: rgba(148, 163, 184, 0.95);
+            margin: 0;
+            line-height: 1.2;
+        }
+        .tv-exc-unified-kpi { font-size: clamp(0.75rem, 1.2vw, 0.875rem); line-height: 1; }
+        .tv-dev-entry {
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+            padding: 0.3rem 0.45rem;
+            border-radius: 0.25rem;
+            border: 1px solid rgba(248, 113, 113, 0.4);
+            background: rgba(239, 68, 68, 0.1);
+            min-width: 0;
+        }
+        .tv-dev-client {
+            font-weight: 600;
+            color: #fff;
+            font-size: clamp(0.65rem, 0.95vw, 0.78rem);
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .tv-dev-driver {
+            font-size: clamp(0.55rem, 0.8vw, 0.65rem);
+            line-height: 1.25;
+            color: rgba(203, 213, 225, 0.92);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-white" x-data="{ sidebarOpen: false }">
@@ -320,30 +361,62 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             <div class="flex items-center gap-2 mb-1">
                 <h2 class="text-label font-bold text-slate-400 uppercase tracking-wider">Alertas e exceções</h2>
             </div>
-            <div id="tv-risco-body" class="min-h-[60px] max-h-[90px] rounded-xl border border-slate-700/60 bg-slate-900/50 p-2 overflow-hidden flex flex-col gap-1">
-                {% if (dashboard.alerts.clients_over_20min or [])|length > 0 or (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
-                {% if (dashboard.alerts.clients_over_20min or [])|length > 0 %}
-                <p class="text-label text-amber-400 font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p>
-                <ul id="alerts-over-20min-list" class="space-y-0.5 overflow-hidden shrink min-h-0">
-                    {% for a in (dashboard.alerts.clients_over_20min or [])[:5] %}
-                    <li class="flex items-center justify-between gap-2 text-card-meta py-0.5 px-2 rounded bg-amber-500/10 border border-amber-500/30 shrink-0">
-                        <span class="font-semibold text-white truncate">{{ a.client_name }}</span>
-                        <span class="text-amber-300 font-bold shrink-0">{{ a.minutes }} min</span>
-                        <span class="text-slate-500 truncate max-w-[120px]">{{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-                {% if (dashboard.devolucao_dia or {}).count|default(0) > 0 %}
-                <p class="text-label text-red-400 font-semibold uppercase tracking-wider shrink-0">Devoluções no dia</p>
-                <p class="text-card-meta text-slate-300 shrink-0">{{ (dashboard.devolucao_dia or {}).count|default(0) }} devolução(ões) · {{ ((dashboard.devolucao_dia or {}).total_kg|default(0))|round(1) }} kg</p>
-                {% endif %}
-                {% else %}
+            <div id="tv-risco-body" class="min-h-[72px] max-h-[118px] rounded-xl border border-slate-700/60 bg-slate-900/50 p-2 overflow-hidden flex flex-col gap-0">
+                {% set _alerts_tv = dashboard.alerts.clients_over_20min or [] %}
+                {% set _dev_tv = dashboard.devolucao_dia or {} %}
+                {% set _dev_n_tv = _dev_tv.count|default(0) %}
+                {% if _alerts_tv|length == 0 and _dev_n_tv == 0 %}
                 <p id="tv-risco-empty" class="text-card-meta font-semibold text-emerald-400/90 flex items-center gap-2 shrink-0">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                     Operação sem alertas críticos · Nenhuma devolução no momento
                 </p>
                 <ul id="alerts-over-20min-list" class="hidden"></ul>
+                {% else %}
+                <div class="tv-risco-split flex flex-row gap-2 min-h-0 flex-1">
+                    <section class="tv-exc-unified-section flex min-h-0 min-w-0 flex-1 basis-0 flex-col" aria-label="Paradas prolongadas">
+                        <div class="tv-exc-unified-head flex items-baseline justify-between gap-1.5 px-1 py-0.5 shrink-0">
+                            <h3 class="tv-exc-unified-title text-amber-400/95">&gt;20 min na parada</h3>
+                            <span id="tv-alertas-parada-count" class="tv-exc-unified-kpi tabular-nums text-amber-400">{{ _alerts_tv|length }}</span>
+                        </div>
+                        <div id="tv-alertas-parada-body" class="tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-1 pb-0.5 pt-0">
+                            {% if _alerts_tv|length > 0 %}
+                            <ul id="alerts-over-20min-list" class="space-y-0.5 overflow-hidden m-0 p-0 list-none min-h-0">
+                                {% for a in _alerts_tv[:5] %}
+                                <li class="tv-alert-parada-entry text-card-meta py-0.5 px-2 rounded bg-amber-500/10 border border-amber-500/30 shrink-0 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <span class="font-semibold text-white truncate min-w-0 flex-1">{{ a.client_name }}</span>
+                                        <span class="text-amber-300 font-bold shrink-0">{{ a.minutes }} min</span>
+                                    </div>
+                                    <div class="text-slate-500 truncate text-[0.625rem] mt-0.5">{{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="text-card-meta text-slate-500 py-0.5 m-0">Nenhuma parada &gt;20 min</p>
+                            <ul id="alerts-over-20min-list" class="hidden"></ul>
+                            {% endif %}
+                        </div>
+                    </section>
+                    <section class="tv-exc-unified-section flex min-h-0 min-w-0 flex-1 basis-0 flex-col" aria-label="Devoluções hoje">
+                        <div class="tv-exc-unified-head flex items-baseline justify-between gap-1.5 px-1 py-0.5 shrink-0">
+                            <h3 class="tv-exc-unified-title text-red-400/95">Devoluções hoje</h3>
+                            <span id="tv-devolucoes-count" class="tv-exc-unified-kpi tabular-nums text-red-400">{{ _dev_n_tv }}</span>
+                        </div>
+                        <p id="tv-devolucoes-meta" class="text-card-meta text-slate-500 px-1 shrink-0 leading-tight {% if _dev_n_tv == 0 %}hidden{% endif %}">{{ _dev_n_tv }} ocorrência(s){% if _dev_tv.total_kg is defined %} · {{ (_dev_tv.total_kg|default(0))|round(1) }} kg{% endif %}</p>
+                        <div id="tv-devolucoes-body" class="tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-1 pb-0.5 pt-0">
+                            {% if _dev_n_tv > 0 %}
+                                {% for it in (_dev_tv.items_list or [])[:6] %}
+                                <div class="tv-dev-entry" title="{{ it.client_name }} · {{ it.driver_name }}">
+                                    <span class="tv-dev-client">{{ it.client_name }}</span>
+                                    <span class="tv-dev-driver">{{ it.driver_name }}</span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-card-meta text-slate-500 py-0.5 m-0">Nenhuma devolução hoje</p>
+                            {% endif %}
+                        </div>
+                    </section>
+                </div>
                 {% endif %}
             </div>
         </section>
@@ -517,19 +590,50 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                 var riscoBody = document.getElementById('tv-risco-body');
                 if (riscoBody) {
                     var list = alerts.clients_over_20min || [];
+                    function escHtml(s) {
+                        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+                    function escAttr(s) {
+                        return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                    }
+                    var riscoShell = 'min-h-[72px] max-h-[118px] rounded-xl border border-slate-700/60 bg-slate-900/50 p-2 overflow-hidden flex flex-col gap-0';
                     if (list.length === 0 && devCount === 0) {
-                        riscoBody.innerHTML = '<p id="tv-risco-empty" class="text-card-meta font-semibold text-emerald-400/90 flex items-center gap-2 shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Operação sem alertas críticos · Nenhuma devolução no momento</p>';
+                        riscoBody.className = riscoShell;
+                        riscoBody.innerHTML = '<p id="tv-risco-empty" class="text-card-meta font-semibold text-emerald-400/90 flex items-center gap-2 shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Operação sem alertas críticos · Nenhuma devolução no momento</p><ul id="alerts-over-20min-list" class="hidden"></ul>';
                     } else {
-                        var html = '';
+                        var alertBlock = '';
                         if (list.length > 0) {
-                            html += '<p class="text-label text-amber-400 font-semibold uppercase tracking-wider shrink-0">Clientes &gt;20 min na parada</p><ul id="alerts-over-20min-list" class="space-y-0.5 overflow-hidden">' +
+                            alertBlock = '<ul id="alerts-over-20min-list" class="space-y-0.5 overflow-hidden m-0 p-0 list-none min-h-0">' +
                                 list.slice(0, 5).map(function(a) {
-                                    return '<li class="flex items-center justify-between gap-2 text-card-meta py-0.5 px-2 rounded bg-amber-500/10 border border-amber-500/30 shrink-0"><span class="font-semibold text-white truncate">' + (a.client_name || '').replace(/</g,'&lt;') + '</span><span class="text-amber-300 font-bold shrink-0">' + (a.minutes || 0) + ' min</span><span class="text-slate-500 truncate max-w-[120px]">' + (a.driver_name || '').replace(/</g,'&lt;') + (a.plate ? ' · ' + a.plate : '') + '</span></li>';
+                                    var cn = escHtml(a.client_name), dn = escHtml(a.driver_name), pl = a.plate ? ' · ' + escHtml(a.plate) : '';
+                                    return '<li class="tv-alert-parada-entry text-card-meta py-0.5 px-2 rounded bg-amber-500/10 border border-amber-500/30 shrink-0 min-w-0"><div class="flex items-center justify-between gap-2"><span class="font-semibold text-white truncate min-w-0 flex-1">' + cn + '</span><span class="text-amber-300 font-bold shrink-0">' + (a.minutes || 0) + ' min</span></div><div class="text-slate-500 truncate text-[0.625rem] mt-0.5">' + dn + pl + '</div></li>';
                                 }).join('') + '</ul>';
+                        } else {
+                            alertBlock = '<p class="text-card-meta text-slate-500 py-0.5 m-0">Nenhuma parada &gt;20 min</p><ul id="alerts-over-20min-list" class="hidden"></ul>';
                         }
+                        var devItems = dev.items_list || [];
+                        var devBlock = '';
                         if (devCount > 0) {
-                            html += '<p class="text-label text-red-400 font-semibold uppercase tracking-wider shrink-0">Devoluções no dia</p><p class="text-card-meta text-slate-300 shrink-0">' + devCount + ' devolução(ões) · ' + (dev.total_kg != null ? Number(dev.total_kg).toFixed(1) : '0') + ' kg</p>';
+                            devBlock = devItems.slice(0, 6).map(function(it) {
+                                var cn = escHtml(it.client_name), dn = escHtml(it.driver_name);
+                                return '<div class="tv-dev-entry" title="' + escAttr(it.client_name) + ' · ' + escAttr(it.driver_name) + '"><span class="tv-dev-client">' + cn + '</span><span class="tv-dev-driver">' + dn + '</span></div>';
+                            }).join('');
+                        } else {
+                            devBlock = '<p class="text-card-meta text-slate-500 py-0.5 m-0">Nenhuma devolução hoje</p>';
                         }
+                        var kgStr = dev.total_kg != null ? Number(dev.total_kg).toFixed(1) : '0';
+                        var metaClass = devCount > 0 ? 'text-card-meta text-slate-500 px-1 shrink-0 leading-tight' : 'text-card-meta text-slate-500 px-1 shrink-0 leading-tight hidden';
+                        var html = '<div class="tv-risco-split flex flex-row gap-2 min-h-0 flex-1">' +
+                            '<section class="tv-exc-unified-section flex min-h-0 min-w-0 flex-1 basis-0 flex-col" aria-label="Paradas prolongadas">' +
+                            '<div class="tv-exc-unified-head flex items-baseline justify-between gap-1.5 px-1 py-0.5 shrink-0"><h3 class="tv-exc-unified-title text-amber-400/95">&gt;20 min na parada</h3>' +
+                            '<span id="tv-alertas-parada-count" class="tv-exc-unified-kpi tabular-nums text-amber-400">' + list.length + '</span></div>' +
+                            '<div id="tv-alertas-parada-body" class="tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-1 pb-0.5 pt-0">' + alertBlock + '</div></section>' +
+                            '<section class="tv-exc-unified-section flex min-h-0 min-w-0 flex-1 basis-0 flex-col" aria-label="Devoluções hoje">' +
+                            '<div class="tv-exc-unified-head flex items-baseline justify-between gap-1.5 px-1 py-0.5 shrink-0"><h3 class="tv-exc-unified-title text-red-400/95">Devoluções hoje</h3>' +
+                            '<span id="tv-devolucoes-count" class="tv-exc-unified-kpi tabular-nums text-red-400">' + devCount + '</span></div>' +
+                            '<p id="tv-devolucoes-meta" class="' + metaClass + '">' + devCount + ' ocorrência(s) · ' + kgStr + ' kg</p>' +
+                            '<div id="tv-devolucoes-body" class="tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-1 pb-0.5 pt-0">' + devBlock + '</div></section></div>';
+                        riscoBody.className = riscoShell;
                         riscoBody.innerHTML = html;
                     }
                 }
