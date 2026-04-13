@@ -2468,7 +2468,11 @@ async def api_dashboard_tv_data(
     """Payload JSON do dashboard para painel TV (atualização parcial a cada 1 min)."""
     user = get_current_user(request)
     if not user:
-        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+        return JSONResponse(
+            {"error": "Não autorizado"},
+            status_code=401,
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     selected_date = now_br.date()
     if date_ref:
@@ -2484,12 +2488,16 @@ async def api_dashboard_tv_data(
     employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cc)]
     employee_ids = list({e.id for e in employees if e.id is not None})
     employee_by_id = {e.id: e for e in employees if e.id is not None}
+    _no_store = {"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"}
     if not employee_ids:
-        return JSONResponse({
-            "date": selected_date_str,
-            "cost_center": selected_cc or "Todos",
-            "dashboard": {"kpi": {}, "alerts": {"clients_over_20min": []}, "live_separation": [], "devolucao_dia": {}, "cost_centers_summary": {}},
-        })
+        return JSONResponse(
+            {
+                "date": selected_date_str,
+                "cost_center": selected_cc or "Todos",
+                "dashboard": {"kpi": {}, "alerts": {"clients_over_20min": []}, "live_separation": [], "devolucao_dia": {}, "cost_centers_summary": {}},
+            },
+            headers=_no_store,
+        )
     routes = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
@@ -2653,7 +2661,7 @@ async def api_dashboard_tv_data(
             "cost_centers_summary": cost_centers_summary,
         },
     }
-    return JSONResponse(payload)
+    return JSONResponse(payload, headers=_no_store)
 
 
 @app.get("/api/dashboard/alerts-over-20min", response_class=JSONResponse)

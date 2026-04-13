@@ -284,9 +284,10 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                     </div>
                 </div>
                 <div class="flex items-center gap-2 sm:gap-4">
-                    <div class="text-right">
+                    <div class="text-right min-w-0">
                         <p class="text-label text-slate-500 uppercase tracking-wider">Atualizado</p>
                         <p id="tv-last-update" class="text-card-meta font-bold text-slate-300">--:--</p>
+                        <p id="tv-fetch-error" class="hidden text-[10px] text-red-400 font-semibold leading-tight mt-0.5 max-w-[14rem] ml-auto">Sem sessão: abra <a href="/login" class="underline">/login</a> neste navegador e volte à TV.</p>
                     </div>
                     <div id="tv-status-badge" class="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 font-bold text-label sm:text-sm uppercase tracking-wider status-normal">Operação normal</div>
                 </div>
@@ -645,7 +646,17 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             var cc = card ? card.getAttribute('data-cost-center') || '' : '';
             var url = '/api/dashboard/tv-data?date=' + encodeURIComponent(date);
             if (cc) url += '&cost_center=' + encodeURIComponent(cc);
-            fetch(url, { credentials: 'same-origin' }).then(function(r) { return r.json(); }).then(function(data) {
+            fetch(url, { credentials: 'same-origin', cache: 'no-store' }).then(function(r) {
+                return r.json().then(function(body) { return { ok: r.ok, body: body }; });
+            }).then(function(res) {
+                var errEl = document.getElementById('tv-fetch-error');
+                if (!res.ok || !res.body || !res.body.dashboard) {
+                    if (errEl) errEl.classList.remove('hidden');
+                    setLastUpdate();
+                    return;
+                }
+                if (errEl) errEl.classList.add('hidden');
+                var data = res.body;
                 var d = data.dashboard || {}, kpi = d.kpi || {}, alerts = d.alerts || {}, dev = d.devolucao_dia || {}, summary = d.cost_centers_summary || {};
                 var ccKey = data.cost_center || 'Exemplar', ccData = summary[ccKey] || (Object.values(summary)[0]) || {};
                 setLastUpdate();
@@ -759,43 +770,51 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                     return pctA - pctB;
                 });
                 var container = document.getElementById('tv-live-separation');
-                if (container && live.length > 0) {
-                    container.innerHTML = live.map(function(op) {
-                        var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed;
-                        var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
-                        var status = driverCardStatus(openCount, total, pctR);
-                        var statusClass = status === 'critico' ? 'driver-card--critico' : (status === 'atencao' ? 'driver-card--atencao' : 'driver-card--ok');
-                        var statusLabel = status === 'critico' ? 'Crítico' : (status === 'atencao' ? 'Atenção' : 'Normal');
-                        var statusBg = status === 'critico' ? 'bg-red-500/20 text-red-300' : (status === 'atencao' ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400');
-                        var barClass = 'bar-pct bar-pct--' + status;
-                        var helperSpans = (op.helper_names && op.helper_names.length)
-                            ? op.helper_names.map(function(h) {
-                                return '<span class="tv-ajud-line">' + String(tvAbbrevName(h)).replace(/</g, '&lt;') + '</span>';
-                            }).join('')
-                            : '<span class="tv-ajud-line">—</span>';
-                        var pesoStr = (op.total_kg != null && op.total_kg !== '') ? (Number(op.total_kg).toFixed(1) + ' kg') : '—';
-                        var openRoutes = (op.routes || []).filter(function(r) { return (r.delivery_status || '') === 'iniciada'; });
-                        var openHtml = openRoutes.slice(0, 4).map(function(r) {
-                            return '<div class="open-item flex justify-between items-center text-card-meta bg-slate-900/60 rounded px-1.5 py-0.5"><span class="text-white font-medium truncate flex-1 mr-1">' + (r.client || '').replace(/</g,'&lt;') + '</span><span class="text-slate-500 font-mono shrink-0">' + (r.start_time || '') + '</span></div>';
+                if (container) {
+                    if (live.length > 0) {
+                        container.innerHTML = live.map(function(op) {
+                            var total = op.total_deliveries || (op.routes && op.routes.length) || 0, completed = op.completed_deliveries || 0, openCount = total - completed;
+                            var pctR = total > 0 ? Math.round(completed / total * 100) : 0;
+                            var status = driverCardStatus(openCount, total, pctR);
+                            var statusClass = status === 'critico' ? 'driver-card--critico' : (status === 'atencao' ? 'driver-card--atencao' : 'driver-card--ok');
+                            var statusLabel = status === 'critico' ? 'Crítico' : (status === 'atencao' ? 'Atenção' : 'Normal');
+                            var statusBg = status === 'critico' ? 'bg-red-500/20 text-red-300' : (status === 'atencao' ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400');
+                            var barClass = 'bar-pct bar-pct--' + status;
+                            var helperSpans = (op.helper_names && op.helper_names.length)
+                                ? op.helper_names.map(function(h) {
+                                    return '<span class="tv-ajud-line">' + String(tvAbbrevName(h)).replace(/</g, '&lt;') + '</span>';
+                                }).join('')
+                                : '<span class="tv-ajud-line">—</span>';
+                            var pesoStr = (op.total_kg != null && op.total_kg !== '') ? (Number(op.total_kg).toFixed(1) + ' kg') : '—';
+                            var openRoutes = (op.routes || []).filter(function(r) { return (r.delivery_status || '') === 'iniciada'; });
+                            var openHtml = openRoutes.slice(0, 4).map(function(r) {
+                                return '<div class="open-item flex justify-between items-center text-card-meta bg-slate-900/60 rounded px-1.5 py-0.5"><span class="text-white font-medium truncate flex-1 mr-1">' + (r.client || '').replace(/</g,'&lt;') + '</span><span class="text-slate-500 font-mono shrink-0">' + (r.start_time || '') + '</span></div>';
+                            }).join('');
+                            if (openRoutes.length === 0) openHtml = '<p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>';
+                            var more = openRoutes.length > 4 ? '<p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+' + (openRoutes.length - 4) + ' mais</p>' : '';
+                            return '<div class="driver-cell"><article class="driver-card ' + statusClass + ' border">' +
+                                '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 tv-card-meta-sub min-w-0">' +
+                                '<span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">' + helperSpans + '</span></span>' +
+                                '<span class="tv-meta-sep">·</span><span class="min-w-0 truncate">Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</span></p></div></div>' +
+                                '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black text-blue-300">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
+                                '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full rounded-full transition-all ' + barClass + '" style="width:' + pctR + '%"></div></div>' +
+                                '<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div></article></div>';
                         }).join('');
-                        if (openRoutes.length === 0) openHtml = '<p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>';
-                        var more = openRoutes.length > 4 ? '<p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+' + (openRoutes.length - 4) + ' mais</p>' : '';
-                        return '<div class="driver-cell"><article class="driver-card ' + statusClass + ' border">' +
-                            '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 tv-card-meta-sub min-w-0">' +
-                            '<span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">' + helperSpans + '</span></span>' +
-                            '<span class="tv-meta-sep">·</span><span class="min-w-0 truncate">Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</span></p></div></div>' +
-                            '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black text-blue-300">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
-                            '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full rounded-full transition-all ' + barClass + '" style="width:' + pctR + '%"></div></div>' +
-                            '<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div></article></div>';
-                    }).join('');
+                    } else {
+                        container.innerHTML = '<div class="col-span-full flex items-center justify-center text-slate-500 text-card-title py-8">Nenhuma rota ativa no momento.</div>';
+                    }
                 }
-            }).catch(function() { setLastUpdate(); });
+            }).catch(function() {
+                var errEl = document.getElementById('tv-fetch-error');
+                if (errEl) errEl.classList.remove('hidden');
+                setLastUpdate();
+            });
         }
         updateClock();
         setLastUpdate();
         setInterval(updateClock, 1000);
         fetchTvData();
-        setInterval(fetchTvData, 60000);
+        setInterval(fetchTvData, 25000);
     })();
     </script>
 </body>

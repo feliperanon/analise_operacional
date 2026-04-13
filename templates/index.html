@@ -608,10 +608,12 @@
         function escAttr(s) {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         }
-        fetch(url, { credentials: 'same-origin' })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                var dash = (data && data.dashboard) ? data.dashboard : {};
+        fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+            .then(function(r) { return r.json().then(function(body) { return { ok: r.ok, body: body }; }); })
+            .then(function(res) {
+                if (!res.ok || !res.body || !res.body.dashboard) return;
+                var data = res.body;
+                var dash = data.dashboard || {};
                 var alerts = dash.alerts || {};
                 var items = alerts.clients_over_20min || [];
                 var list = document.getElementById('alerts-over-20min-list');
