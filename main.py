@@ -2366,19 +2366,27 @@ async def dashboard_entry(
     # Devolução no dia (para painel TV e alertas)
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
-    devolucao_items_list: List[Dict[str, str]] = []
+    _dev_clients_by_driver: Dict[str, List[str]] = {}
+    _dev_driver_order: List[str] = []
     for r in routes_devolucao:
         c_name = (client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else None) or f"Cliente #{r.client_id}"
         emp = employee_by_id.get(r.employee_id)
         d_name = emp.name if emp else f"Motorista #{r.employee_id}"
-        devolucao_items_list.append({"client_name": c_name, "driver_name": d_name})
+        if d_name not in _dev_clients_by_driver:
+            _dev_driver_order.append(d_name)
+            _dev_clients_by_driver[d_name] = []
+        _dev_clients_by_driver[d_name].append(c_name)
+    items_by_driver = [
+        {"driver_name": dn, "clients": _dev_clients_by_driver[dn]}
+        for dn in _dev_driver_order
+    ]
     devolucao_dia = {
         "count": len(routes_devolucao),
         "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
         "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
         "total_entregas": len(routes_entregue_ou_devolucao),
         "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
-        "items_list": devolucao_items_list,
+        "items_by_driver": items_by_driver,
     }
 
     dashboard_payload = {
@@ -2538,19 +2546,24 @@ async def api_dashboard_tv_data(
 
     routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
-    devolucao_items_list_api: List[Dict[str, str]] = []
+    _dev_cd_api: Dict[str, List[str]] = {}
+    _dev_ord_api: List[str] = []
     for r in routes_devolucao:
         c_name = (client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else None) or f"Cliente #{r.client_id}"
         emp = employee_by_id.get(r.employee_id)
         d_name = emp.name if emp else f"Motorista #{r.employee_id}"
-        devolucao_items_list_api.append({"client_name": c_name, "driver_name": d_name})
+        if d_name not in _dev_cd_api:
+            _dev_ord_api.append(d_name)
+            _dev_cd_api[d_name] = []
+        _dev_cd_api[d_name].append(c_name)
+    items_by_driver_api = [{"driver_name": dn, "clients": _dev_cd_api[dn]} for dn in _dev_ord_api]
     devolucao_dia = {
         "count": len(routes_devolucao),
         "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
         "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
         "total_entregas": len(routes_entregue_ou_devolucao),
         "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
-        "items_list": devolucao_items_list_api,
+        "items_by_driver": items_by_driver_api,
     }
 
     alerts_over_20min = []

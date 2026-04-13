@@ -134,7 +134,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(30,41,59,0.5); }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
 
-        /* TV — exceções em duas colunas; devolução: cliente (1ª linha) + motorista (2ª linha) */
+        /* TV — exceções em duas colunas; devolução: motorista 1× + lista de clientes */
         .tv-risco-split { flex: 1 1 0; min-height: 0; min-width: 0; }
         .tv-exc-unified-section { min-width: 0; }
         .tv-exc-unified-title {
@@ -147,29 +147,39 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             line-height: 1.2;
         }
         .tv-exc-unified-kpi { font-size: clamp(0.75rem, 1.2vw, 0.875rem); line-height: 1; }
-        .tv-dev-entry {
+        .tv-dev-group {
             display: flex;
             flex-direction: column;
-            gap: 0.125rem;
+            gap: 0.2rem;
             padding: 0.3rem 0.45rem;
             border-radius: 0.25rem;
             border: 1px solid rgba(248, 113, 113, 0.4);
             background: rgba(239, 68, 68, 0.1);
             min-width: 0;
         }
-        .tv-dev-client {
-            font-weight: 600;
-            color: #fff;
-            font-size: clamp(0.65rem, 0.95vw, 0.78rem);
-            line-height: 1.25;
+        .tv-dev-group-driver {
+            font-weight: 700;
+            color: rgba(254, 202, 202, 0.98);
+            font-size: clamp(0.58rem, 0.82vw, 0.68rem);
+            line-height: 1.2;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            padding-bottom: 0.15rem;
+            margin-bottom: 0.05rem;
+            border-bottom: 1px solid rgba(248, 113, 113, 0.25);
         }
-        .tv-dev-driver {
-            font-size: clamp(0.55rem, 0.8vw, 0.65rem);
+        .tv-dev-group-clients {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+            min-width: 0;
+        }
+        .tv-dev-group-client {
+            font-weight: 600;
+            color: #fff;
+            font-size: clamp(0.62rem, 0.9vw, 0.75rem);
             line-height: 1.25;
-            color: rgba(203, 213, 225, 0.92);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -405,10 +415,14 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         <p id="tv-devolucoes-meta" class="text-card-meta text-slate-500 px-1 shrink-0 leading-tight {% if _dev_n_tv == 0 %}hidden{% endif %}">{{ _dev_n_tv }} ocorrência(s){% if _dev_tv.total_kg is defined %} · {{ (_dev_tv.total_kg|default(0))|round(1) }} kg{% endif %}</p>
                         <div id="tv-devolucoes-body" class="tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-1 pb-0.5 pt-0">
                             {% if _dev_n_tv > 0 %}
-                                {% for it in (_dev_tv.items_list or [])[:6] %}
-                                <div class="tv-dev-entry" title="{{ it.client_name }} · {{ it.driver_name }}">
-                                    <span class="tv-dev-client">{{ it.client_name }}</span>
-                                    <span class="tv-dev-driver">{{ it.driver_name }}</span>
+                                {% for grp in (_dev_tv.items_by_driver or [])[:6] %}
+                                <div class="tv-dev-group" title="{{ grp.driver_name }} — {{ grp.clients|join(', ') }}">
+                                    <span class="tv-dev-group-driver">{{ grp.driver_name }}</span>
+                                    <div class="tv-dev-group-clients">
+                                        {% for cn in grp.clients %}
+                                        <span class="tv-dev-group-client">{{ cn }}</span>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                                 {% endfor %}
                             {% else %}
@@ -611,12 +625,16 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         } else {
                             alertBlock = '<p class="text-card-meta text-slate-500 py-0.5 m-0">Nenhuma parada &gt;20 min</p><ul id="alerts-over-20min-list" class="hidden"></ul>';
                         }
-                        var devItems = dev.items_list || [];
+                        var devGroups = dev.items_by_driver || [];
                         var devBlock = '';
                         if (devCount > 0) {
-                            devBlock = devItems.slice(0, 6).map(function(it) {
-                                var cn = escHtml(it.client_name), dn = escHtml(it.driver_name);
-                                return '<div class="tv-dev-entry" title="' + escAttr(it.client_name) + ' · ' + escAttr(it.driver_name) + '"><span class="tv-dev-client">' + cn + '</span><span class="tv-dev-driver">' + dn + '</span></div>';
+                            devBlock = devGroups.slice(0, 6).map(function(grp) {
+                                var dn = escHtml(grp.driver_name);
+                                var cls = (grp.clients || []).map(function(c) {
+                                    return '<span class="tv-dev-group-client">' + escHtml(c) + '</span>';
+                                }).join('');
+                                var tip = escAttr(grp.driver_name) + ' — ' + escAttr((grp.clients || []).join(', '));
+                                return '<div class="tv-dev-group" title="' + tip + '"><span class="tv-dev-group-driver">' + dn + '</span><div class="tv-dev-group-clients">' + cls + '</div></div>';
                             }).join('');
                         } else {
                             devBlock = '<p class="text-card-meta text-slate-500 py-0.5 m-0">Nenhuma devolução hoje</p>';
