@@ -896,7 +896,28 @@ def _emp_name_upper(val):
     """Padroniza nome de colaborador em MAIÚSCULAS para exibição."""
     return (val or "").strip().upper()
 
+
+def tv_abbrev_name(val: Optional[str]) -> str:
+    """TV/cartões: primeiro nome + inicial do primeiro apelido (ex. Felipe Rodrigues → Felipe R.)."""
+    s = (val or "").strip()
+    if not s:
+        return "—"
+    parts = s.split()
+    if len(parts) == 1:
+        return parts[0]
+    particles = frozenset({"da", "de", "do", "dos", "das", "e"})
+    sig = [p for p in parts if p.lower() not in particles]
+    if len(sig) < 2:
+        sig = parts
+    if len(sig) == 1:
+        return sig[0]
+    first, second = sig[0], sig[1]
+    ini = second[0].upper() if second else ""
+    return f"{first} {ini}." if ini else first
+
+
 templates.env.filters["emp_name"] = _emp_name_upper
+templates.env.filters["tv_abbrev_name"] = tv_abbrev_name
 
 # --- Auth Helpers (Local + Google) ---
 PASSWORD_ITERATIONS = 120_000

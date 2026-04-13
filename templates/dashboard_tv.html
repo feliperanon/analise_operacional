@@ -73,6 +73,7 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
     <title>Central de Comando • Painel Operacional</title>
     <link rel="icon" type="image/png" href="/static/logo-souza-pinto.png">
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/css/tv-balloon-hero.css">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
@@ -184,6 +185,35 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
+        .tv-card-meta-sub {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0 0.15rem;
+            min-width: 0;
+        }
+        .tv-meta-ajud {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0.35rem;
+            min-width: 0;
+            max-width: 100%;
+        }
+        .tv-meta-k { flex-shrink: 0; }
+        .tv-ajud-lines {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 0.2rem 0.65rem;
+            min-width: 0;
+        }
+        .tv-ajud-line {
+            font-weight: 600;
+            color: rgba(226, 232, 240, 0.95);
+            line-height: 1.2;
+        }
+        .tv-meta-sep { color: rgba(100, 116, 139, 0.9); padding: 0 0.2rem; flex-shrink: 0; }
     </style>
 </head>
 <body class="bg-slate-900 text-white" x-data="{ sidebarOpen: false }">
@@ -319,7 +349,14 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                             <div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">{{ (op.employee_name or "?")[0] }}</div>
                             <div class="min-w-0 flex-1">
                                 <p class="font-bold text-white text-card-title truncate leading-tight">{{ op.employee_name }}</p>
-                                <p class="text-card-meta text-slate-500 truncate">Ajud.: {{ (op.helper_names|join(', '))[:18] if op.helper_names else '—' }}{% if op.helper_names and (op.helper_names|join(', '))|length > 18 %}…{% endif %} · Placa: {{ op.plate or '—' }} · Peso: {{ (op.total_kg|round(1)) ~ ' kg' if op.total_kg is defined and op.total_kg is not none else '—' }}</p>
+                                <p class="text-card-meta text-slate-500 tv-card-meta-sub min-w-0">
+                                    <span class="tv-meta-ajud">
+                                        <span class="tv-meta-k">Ajud.</span>
+                                        <span class="tv-ajud-lines">{% if op.helper_names %}{% for h in op.helper_names %}<span class="tv-ajud-line">{{ h|tv_abbrev_name }}</span>{% endfor %}{% else %}<span class="tv-ajud-line">—</span>{% endif %}</span>
+                                    </span>
+                                    <span class="tv-meta-sep">·</span>
+                                    <span class="min-w-0 truncate">Placa: {{ op.plate or '—' }} · Peso: {{ (op.total_kg|round(1)) ~ ' kg' if op.total_kg is defined and op.total_kg is not none else '—' }}</span>
+                                </p>
                             </div>
                         </div>
                         <div class="card-core flex items-center justify-between gap-2">
@@ -535,6 +572,18 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             if (openCount >= 3 || (total > 0 && pct < 50)) return 'atencao';
             return 'ok';
         }
+        function tvAbbrevName(s) {
+            s = String(s || '').trim();
+            if (!s) return '—';
+            var parts = s.split(/\s+/).filter(Boolean);
+            if (parts.length === 1) return parts[0];
+            var particles = { da: 1, de: 1, do: 1, dos: 1, das: 1, e: 1 };
+            var sig = parts.filter(function(p) { return !particles[p.toLowerCase()]; });
+            if (sig.length < 2) sig = parts;
+            if (sig.length === 1) return sig[0];
+            var ini = (sig[1].charAt(0) || '').toUpperCase();
+            return ini ? (sig[0] + ' ' + ini + '.') : sig[0];
+        }
         function countByStatus(live) {
             var atencao = 0, critico = 0;
             (live || []).forEach(function(op) {
@@ -685,8 +734,11 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         var statusLabel = status === 'critico' ? 'Crítico' : (status === 'atencao' ? 'Atenção' : 'Normal');
                         var statusBg = status === 'critico' ? 'bg-red-500/20 text-red-300' : (status === 'atencao' ? 'bg-amber-500/25 text-amber-300' : 'bg-slate-600/50 text-slate-400');
                         var barClass = 'bar-pct bar-pct--' + status;
-                        var helpers = (op.helper_names || []).join(', ');
-                        if (helpers.length > 18) helpers = helpers.substring(0, 16) + '…';
+                        var helperSpans = (op.helper_names && op.helper_names.length)
+                            ? op.helper_names.map(function(h) {
+                                return '<span class="tv-ajud-line">' + String(tvAbbrevName(h)).replace(/</g, '&lt;') + '</span>';
+                            }).join('')
+                            : '<span class="tv-ajud-line">—</span>';
                         var pesoStr = (op.total_kg != null && op.total_kg !== '') ? (Number(op.total_kg).toFixed(1) + ' kg') : '—';
                         var openRoutes = (op.routes || []).filter(function(r) { return (r.delivery_status || '') === 'iniciada'; });
                         var openHtml = openRoutes.slice(0, 4).map(function(r) {
@@ -695,7 +747,9 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         if (openRoutes.length === 0) openHtml = '<p class="text-card-meta text-slate-500 py-0.5">Nenhuma em aberto</p>';
                         var more = openRoutes.length > 4 ? '<p class="text-card-meta text-slate-500 shrink-0 mt-0.5">+' + (openRoutes.length - 4) + ' mais</p>' : '';
                         return '<div class="driver-cell"><article class="driver-card ' + statusClass + ' border">' +
-                            '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 truncate">Ajud.: ' + (helpers || '—').replace(/</g,'&lt;') + ' · Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</p></div></div>' +
+                            '<div class="card-head flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-slate-700 flex items-center justify-center shrink-0 text-slate-300 font-bold text-card-meta">' + (op.employee_name || '?').charAt(0) + '</div><div class="min-w-0 flex-1"><p class="font-bold text-white text-card-title truncate leading-tight">' + (op.employee_name || '').replace(/</g,'&lt;') + '</p><p class="text-card-meta text-slate-500 tv-card-meta-sub min-w-0">' +
+                            '<span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">' + helperSpans + '</span></span>' +
+                            '<span class="tv-meta-sep">·</span><span class="min-w-0 truncate">Placa: ' + (op.plate || '—').replace(/</g,'&lt;') + ' · Peso: ' + pesoStr.replace(/</g,'&lt;') + '</span></p></div></div>' +
                             '<div class="card-core flex items-center justify-between gap-2"><span class="text-card-meta font-bold text-slate-300">' + completed + '/' + total + ' entregas</span><span class="text-card-title font-black text-blue-300">' + pctR + '%</span><span class="text-card-meta font-semibold px-1.5 py-0.5 rounded ' + statusBg + '">' + statusLabel + '</span></div>' +
                             '<div class="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0 mb-1"><div class="h-full rounded-full transition-all ' + barClass + '" style="width:' + pctR + '%"></div></div>' +
                             '<div class="card-foot"><p class="text-card-meta text-slate-500 uppercase font-semibold shrink-0 mb-0.5">Abertas agora</p><div class="open-list">' + openHtml + '</div>' + more + '</div></article></div>';
