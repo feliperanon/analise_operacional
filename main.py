@@ -2094,6 +2094,17 @@ async def root_entry(request: Request):
     return RedirectResponse(url="/dashboard", status_code=303)
 
 
+def _is_operational_route_devolucao(route: Any) -> bool:
+    """
+    Devolução válida para lista e totais do dia na Central (não é artefato de sistema).
+    Alinhado ao BI Entregas: status devolução com motivo ENCERRAMENTO TARDIO AUTOMATICO não conta.
+    """
+    if (getattr(route, "delivery_status", None) or "").strip().lower() != "devolucao":
+        return False
+    reason = (getattr(route, "delivery_return_reason", None) or "").strip().upper()
+    return reason != "ENCERRAMENTO TARDIO AUTOMATICO"
+
+
 def _infer_shift_name(now_br: datetime) -> str:
     hhmm = now_br.hour * 60 + now_br.minute
     # 05:00 - 13:20
@@ -2385,7 +2396,7 @@ async def dashboard_entry(
     selected_target = selected_headcount
 
     # Devolução no dia (para painel TV e alertas)
-    routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
+    routes_devolucao = [r for r in routes if _is_operational_route_devolucao(r)]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
     _dev_clients_by_driver: Dict[str, List[str]] = {}
     _dev_driver_order: List[str] = []
@@ -2565,7 +2576,7 @@ async def api_dashboard_tv_data(
     live_separation = list(live_buckets.values())
     live_separation.sort(key=lambda x: len(x["routes"]), reverse=True)
 
-    routes_devolucao = [r for r in routes if (r.delivery_status or "").lower() == "devolucao"]
+    routes_devolucao = [r for r in routes if _is_operational_route_devolucao(r)]
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
     _dev_cd_api: Dict[str, List[str]] = {}
     _dev_ord_api: List[str] = []
