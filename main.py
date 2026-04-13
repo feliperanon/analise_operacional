@@ -2094,15 +2094,37 @@ async def root_entry(request: Request):
     return RedirectResponse(url="/dashboard", status_code=303)
 
 
+def _normalize_reason_for_match(val: Optional[str]) -> str:
+    """Maiúsculas + sem acentos, para comparar motivos gravados com grafia variada."""
+    s = (val or "").strip().upper()
+    if not s:
+        return ""
+    nfkd = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def _is_encerramento_tardio_automatico_reason(reason_raw: Optional[str]) -> bool:
+    """True se o motivo for o encerramento automático (excluir da lista operacional)."""
+    r = _normalize_reason_for_match(reason_raw)
+    if not r:
+        return False
+    # Texto canônico e variações comuns no banco / mobile
+    if r == "ENCERRAMENTO TARDIO AUTOMATICO":
+        return True
+    if "ENCERRAMENTO" in r and "TARDIO" in r and "AUTOMATICO" in r:
+        return True
+    return False
+
+
 def _is_operational_route_devolucao(route: Any) -> bool:
     """
     Devolução válida para lista e totais do dia na Central (não é artefato de sistema).
-    Alinhado ao BI Entregas: status devolução com motivo ENCERRAMENTO TARDIO AUTOMATICO não conta.
+    Motivo de encerramento tardio automático (sistema) não conta — comparação tolera acentos e ordem parcial.
     """
     if (getattr(route, "delivery_status", None) or "").strip().lower() != "devolucao":
         return False
-    reason = (getattr(route, "delivery_return_reason", None) or "").strip().upper()
-    return reason != "ENCERRAMENTO TARDIO AUTOMATICO"
+    reason = getattr(route, "delivery_return_reason", None)
+    return not _is_encerramento_tardio_automatico_reason(reason)
 
 
 def _infer_shift_name(now_br: datetime) -> str:
