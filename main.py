@@ -2422,10 +2422,12 @@ async def dashboard_entry(
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
     _dev_clients_by_driver: Dict[str, List[str]] = {}
     _dev_driver_order: List[str] = []
+    items_list_dia: List[Dict[str, str]] = []
     for r in routes_devolucao:
         c_name = (client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else None) or f"Cliente #{r.client_id}"
         emp = employee_by_id.get(r.employee_id)
         d_name = emp.name if emp else f"Motorista #{r.employee_id}"
+        items_list_dia.append({"client_name": c_name, "driver_name": d_name})
         if d_name not in _dev_clients_by_driver:
             _dev_driver_order.append(d_name)
             _dev_clients_by_driver[d_name] = []
@@ -2441,6 +2443,7 @@ async def dashboard_entry(
         "total_entregas": len(routes_entregue_ou_devolucao),
         "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
         "items_by_driver": items_by_driver,
+        "items_list": items_list_dia,
     }
 
     dashboard_payload = {
@@ -2610,10 +2613,12 @@ async def api_dashboard_tv_data(
     routes_entregue_ou_devolucao = [r for r in routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")]
     _dev_cd_api: Dict[str, List[str]] = {}
     _dev_ord_api: List[str] = []
+    items_list_api: List[Dict[str, str]] = []
     for r in routes_devolucao:
         c_name = (client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else None) or f"Cliente #{r.client_id}"
         emp = employee_by_id.get(r.employee_id)
         d_name = emp.name if emp else f"Motorista #{r.employee_id}"
+        items_list_api.append({"client_name": c_name, "driver_name": d_name})
         if d_name not in _dev_cd_api:
             _dev_ord_api.append(d_name)
             _dev_cd_api[d_name] = []
@@ -2626,6 +2631,7 @@ async def api_dashboard_tv_data(
         "total_entregas": len(routes_entregue_ou_devolucao),
         "pct": round((len(routes_devolucao) / len(routes_entregue_ou_devolucao) * 100), 1) if routes_entregue_ou_devolucao else 0,
         "items_by_driver": items_by_driver_api,
+        "items_list": items_list_api,
     }
 
     alerts_over_20min = []
