@@ -1,6 +1,6 @@
 # Force Reload for TZDATA and Models - v2
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -2461,7 +2461,7 @@ async def dashboard_entry(
 @app.get("/api/dashboard/tv-data", response_class=JSONResponse)
 async def api_dashboard_tv_data(
     request: Request,
-    date_ref: Optional[str] = None,
+    date_ref: Optional[str] = Query(None, alias="date"),
     cost_center: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
@@ -2659,7 +2659,7 @@ async def api_dashboard_tv_data(
 @app.get("/api/dashboard/alerts-over-20min", response_class=JSONResponse)
 async def api_dashboard_alerts_over_20min(
     request: Request,
-    date_ref: Optional[str] = None,
+    date_ref: Optional[str] = Query(None, alias="date"),
     cost_center: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
