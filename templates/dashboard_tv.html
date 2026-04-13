@@ -148,57 +148,45 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             line-height: 1.2;
         }
         .tv-exc-unified-kpi { font-size: clamp(0.75rem, 1.2vw, 0.875rem); line-height: 1; }
-        .tv-dev-group {
+        /* Devoluções: mesmo padrão do card “Alto índice” — cliente 1ª linha, motorista 2ª (legível) */
+        #tv-devolucoes-body .tv-alto-entry,
+        #tv-devolucoes-body .tv-devolucao-entry {
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
-            padding: 0.4rem 0.5rem;
-            border-radius: 0.3rem;
-            border: 1px solid rgba(248, 113, 113, 0.45);
-            background: rgba(239, 68, 68, 0.12);
-            min-width: 0;
-        }
-        .tv-dev-group-driver {
-            font-weight: 700;
-            color: rgba(254, 202, 202, 0.98);
-            font-size: clamp(0.72rem, 1.15vw, 0.9rem);
-            line-height: 1.3;
-            white-space: normal;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
-            word-break: break-word;
-            padding-bottom: 0.2rem;
-            margin-bottom: 0.05rem;
-            border-bottom: 1px solid rgba(248, 113, 113, 0.3);
-        }
-        .tv-dev-group-clients {
-            display: flex;
-            flex-direction: column;
+            align-items: stretch;
             gap: 0.2rem;
             min-width: 0;
+            padding: 0.4rem 0.5rem;
+            border-radius: 0.35rem;
+            border: 1px solid rgba(248, 113, 113, 0.45);
+            background: rgba(239, 68, 68, 0.12);
         }
-        .tv-dev-group-client {
-            font-weight: 600;
+        #tv-devolucoes-body .tv-alto-client,
+        #tv-devolucoes-body .tv-devolucao-client {
+            display: block;
+            font-weight: 700;
             color: #fff;
-            font-size: clamp(0.75rem, 1.2vw, 0.92rem);
-            line-height: 1.35;
-            white-space: normal;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
+            font-size: clamp(0.72rem, 1.15vw, 0.92rem);
+            line-height: 1.3;
+            word-break: break-word;
+        }
+        #tv-devolucoes-body .tv-alto-driver,
+        #tv-devolucoes-body .tv-devolucao-driver {
+            display: block;
+            font-weight: 600;
+            font-size: clamp(0.62rem, 1vw, 0.8rem);
+            line-height: 1.25;
+            color: rgba(203, 213, 225, 0.98);
             word-break: break-word;
         }
 
-        /* Skins antigas / sidebar clara: linha cliente|motorista → empilhar e permitir quebra */
+        /* Skins com linha antiga cliente|motorista: forçar coluna */
         #tv-devolucoes-body .tv-exc-unified-row,
         #tv-devolucoes-body .tv-exc-row {
             flex-direction: column !important;
             align-items: stretch !important;
             gap: 0.25rem !important;
-            padding: 0.35rem 0.45rem !important;
+            padding: 0.4rem 0.5rem !important;
         }
         #tv-devolucoes-body .tv-exc-unified-row > span,
         #tv-devolucoes-body .tv-exc-row > span {
@@ -208,16 +196,18 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
             overflow: visible !important;
             text-overflow: unset !important;
             line-height: 1.35 !important;
-            font-size: clamp(0.75rem, 1.1vw, 0.9rem) !important;
-        }
-        #tv-devolucoes-body .tv-exc-unified-row > span:last-child,
-        #tv-devolucoes-body .tv-exc-row > span:last-child {
-            order: -1;
-            font-weight: 700 !important;
+            font-size: clamp(0.72rem, 1.1vw, 0.88rem) !important;
         }
         #tv-devolucoes-body .tv-exc-unified-row > span:first-child,
         #tv-devolucoes-body .tv-exc-row > span:first-child {
+            font-weight: 700 !important;
+            order: 0 !important;
+        }
+        #tv-devolucoes-body .tv-exc-unified-row > span:last-child,
+        #tv-devolucoes-body .tv-exc-row > span:last-child {
             font-weight: 600 !important;
+            order: 0 !important;
+            color: rgba(203, 213, 225, 0.95) !important;
         }
 
         .tv-card-meta-sub {
@@ -487,15 +477,17 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         <p id="tv-devolucoes-meta" class="text-card-meta text-slate-500 px-1 shrink-0 leading-tight {% if _dev_n_tv == 0 %}hidden{% endif %}">{{ _dev_n_tv }} ocorrência(s){% if _dev_tv.total_kg is defined %} · {{ (_dev_tv.total_kg|default(0))|round(1) }} kg{% endif %}</p>
                         <div id="tv-devolucoes-body" class="tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden custom-scrollbar px-1 pb-0.5 pt-0">
                             {% if _dev_n_tv > 0 %}
-                                {% for grp in (_dev_tv.items_by_driver or [])[:6] %}
-                                <div class="tv-dev-group" title="{{ grp.driver_name }} — {{ grp.clients|join(', ') }}">
-                                    <span class="tv-dev-group-driver">{{ grp.driver_name }}</span>
-                                    <div class="tv-dev-group-clients">
-                                        {% for cn in grp.clients %}
-                                        <span class="tv-dev-group-client" title="{{ cn }}">{{ cn }}</span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
+                                {% set ns_dev = namespace(i=0) %}
+                                {% for grp in (_dev_tv.items_by_driver or []) %}
+                                    {% for cn in (grp.clients or []) %}
+                                        {% if ns_dev.i < 12 %}
+                                        <div class="tv-devolucao-entry tv-alto-entry" title="{{ cn }} · {{ grp.driver_name }}">
+                                            <span class="tv-devolucao-client tv-alto-client">{{ cn }}</span>
+                                            <span class="tv-devolucao-driver tv-alto-driver">{{ grp.driver_name|tv_abbrev_name }}</span>
+                                        </div>
+                                        {% endif %}
+                                        {% set ns_dev.i = ns_dev.i + 1 %}
+                                    {% endfor %}
                                 {% endfor %}
                             {% else %}
                                 <p class="text-card-meta text-slate-500 py-0.5 m-0">Nenhuma devolução hoje</p>
@@ -722,13 +714,18 @@ E. Visão do dia (10vh): % dia, concluídas, abertas, devoluções, alertas, bar
                         var devGroups = dev.items_by_driver || [];
                         var devBlock = '';
                         if (devCount > 0) {
-                            devBlock = devGroups.slice(0, 6).map(function(grp) {
-                                var dn = escHtml(grp.driver_name);
-                                var cls = (grp.clients || []).map(function(c) {
-                                    return '<span class="tv-dev-group-client" title="' + escAttr(c) + '">' + escHtml(c) + '</span>';
-                                }).join('');
-                                var tip = escAttr(grp.driver_name) + ' — ' + escAttr((grp.clients || []).join(', '));
-                                return '<div class="tv-dev-group" title="' + tip + '"><span class="tv-dev-group-driver">' + dn + '</span><div class="tv-dev-group-clients">' + cls + '</div></div>';
+                            var rows = [];
+                            devGroups.forEach(function(grp) {
+                                (grp.clients || []).forEach(function(c) {
+                                    rows.push({ client: c, driver: grp.driver_name });
+                                });
+                            });
+                            devBlock = rows.slice(0, 12).map(function(row) {
+                                var cn = escHtml(row.client), dnAb = String(tvAbbrevName(row.driver));
+                                var tip = escAttr(row.client) + ' · ' + escAttr(row.driver);
+                                return '<div class="tv-devolucao-entry tv-alto-entry" title="' + tip + '">' +
+                                    '<span class="tv-devolucao-client tv-alto-client">' + cn + '</span>' +
+                                    '<span class="tv-devolucao-driver tv-alto-driver">' + escHtml(dnAb) + '</span></div>';
                             }).join('');
                         } else {
                             devBlock = '<p class="text-card-meta text-slate-500 py-0.5 m-0">Nenhuma devolução hoje</p>';
