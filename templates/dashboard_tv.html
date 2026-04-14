@@ -277,7 +277,7 @@
                                         <span class="tv-pct">{{ "%.0f"|format(pct_d) }}%</span>
                                     </span>
                                 </span>
-                                <span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">{% for h in op.helper_names or [] %}{% set w = h.split() %}<span class="tv-ajud-line">{% if w|length > 1 %}{{ w[0] }} {{ w[1] }}{% else %}{{ w[0] }}{% endif %}</span>{% else %}<span class="tv-ajud-line">—</span>{% endfor %}</span></span><span class="tv-meta-placa">Placa: {{ op.plate or '—' }} · Peso: {% if op.total_kg is defined and op.total_kg is not none %}{{ tv_kg_br(op.total_kg) }}{% else %}—{% endif %}</span></span>
+                                <span class="tv-balloon-meta"><span class="tv-meta-ajud"><span class="tv-meta-k">Ajud.</span><span class="tv-ajud-lines">{% for h in op.helper_names or [] %}<span class="tv-ajud-line">{{ h|tv_abbrev_name }}</span>{% else %}<span class="tv-ajud-line">—</span>{% endfor %}</span></span><span class="tv-meta-placa">Placa: {{ op.plate or '—' }} · Peso: {% if op.total_kg is defined and op.total_kg is not none %}{{ tv_kg_br(op.total_kg) }}{% else %}—{% endif %}</span></span>
                             </p>
                         {% if ns_act.route is not none %}
                         <div class="tv-balloon-activity-strip{% if ns_act.mins > 20 %} tv-balloon-activity-strip--alert{% endif %}">
@@ -572,12 +572,22 @@
     function escTv(s) {
         return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     }
-    function driverNameShort(full) {
+    function tvAbbrevName(full) {
         var s = String(full || '').trim();
         if (!s) return '—';
-        var w = s.split(/\s+/).filter(Boolean);
-        if (w.length >= 2) return w[0] + ' ' + String(w[1].charAt(0) || '').toUpperCase() + '.';
-        return w[0];
+        var parts = s.split(/\s+/).filter(Boolean);
+        if (parts.length <= 1) return parts[0] || '—';
+        var particles = { da: true, de: true, do: true, dos: true, das: true, e: true };
+        var sig = parts.filter(function(part) {
+            return !particles[String(part || '').toLowerCase()];
+        });
+        if (sig.length < 2) sig = parts;
+        if (sig.length <= 1) return sig[0] || '—';
+        var initial = String(sig[1].charAt(0) || '').toUpperCase();
+        return initial ? (sig[0] + ' ' + initial + '.') : sig[0];
+    }
+    function driverNameShort(full) {
+        return tvAbbrevName(full);
     }
     function renderTvParadosBody(alerts) {
         var list = alerts || [];
@@ -618,9 +628,7 @@
     function formatHelpersHtml(names) {
         if (!names || !names.length) return '<span class="tv-ajud-line">' + escTv('—') + '</span>';
         return names.map(function(h) {
-            var w = String(h || '').trim().split(/\s+/).filter(Boolean);
-            var line = w.length > 1 ? (w[0] + ' ' + w[1]) : (w[0] || '—');
-            return '<span class="tv-ajud-line">' + escTv(line) + '</span>';
+            return '<span class="tv-ajud-line">' + escTv(tvAbbrevName(h)) + '</span>';
         }).join('');
     }
     function openRouteMinutesForSort(r) {

@@ -836,11 +836,11 @@ html.dark .tv-balloon-title-line strong {
 }
 
 .tv-meta-ajud {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 4px 8px;
-  align-items: start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
+  min-width: 0;
 }
 
 .tv-meta-k {
@@ -852,10 +852,22 @@ html.dark .tv-balloon-title-line strong {
 }
 
 .tv-ajud-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  display: block;
+  flex: 1 1 auto;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tv-ajud-line {
+  display: inline;
+}
+
+.tv-ajud-line + .tv-ajud-line::before {
+  content: " · ";
+  color: var(--sys-text-muted, #64748b);
 }
 
 .tv-meta-placa {
