@@ -1314,6 +1314,40 @@ def init_devolucoes_router(
             )
         return JSONResponse({"ok": True, "data": out})
 
+    @router.put("/api/devolucoes/{devolucao_id}", response_class=JSONResponse)
+    async def api_devolucoes_update(
+        request: Request,
+        devolucao_id: int,
+        payload: DevolucaoManualPayload,
+        session: Session = Depends(get_session),
+    ):
+        require_login(request)
+        try:
+            dev = session.get(models.Devolucao, devolucao_id)
+            if not dev:
+                return JSONResponse({"ok": False, "error": "Devolução não encontrada"}, status_code=404)
+            dt = datetime.strptime(payload.data_romaneio, "%Y-%m-%d")
+            dev.data_romaneio = payload.data_romaneio
+            dev.data_entrega = payload.data_entrega
+            dev.client_id = payload.client_id
+            dev.vendedor_id = payload.vendedor_id
+            dev.motorista_id = payload.motorista_id
+            dev.ajudante_id = payload.ajudante_id
+            dev.valor = payload.valor
+            dev.motivo_id = payload.motivo_id
+            dev.observacao = payload.observacao
+            dev.responsabilidade_id = payload.responsabilidade_id
+            dev.dia = compute_dia(dt)
+            dev.semana = compute_semana(dt)
+            dev.acima_300 = compute_acima_300(payload.valor)
+            dev.cluster = compute_cluster(payload.valor)
+            session.add(dev)
+            session.commit()
+            return JSONResponse({"ok": True, "id": dev.id})
+        except Exception as e:
+            logger.exception(f"Erro ao atualizar devolucao {devolucao_id}: {e}")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
     # --- Página Avaliar e Validar Devoluções ---
     @router.get("/devolucoes/avaliar", response_class=HTMLResponse)
     async def devolucoes_avaliar_page(
