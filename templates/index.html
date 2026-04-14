@@ -145,8 +145,13 @@
             </div>
         </div>
 
+        {% set _dash_dev = dashboard.devolucao_dia or {} %}
+        {% set _dash_dev_n = _dash_dev.count|default(0) %}
+
+        <!-- Alertas + devoluções (mesmo critério da TV: items_by_driver) -->
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
         <!-- Alertas tempo real: clientes há mais de 20 min na parada -->
-        <div id="alerts-over-20min-card" class="bg-amber-950/40 backdrop-blur rounded-2xl border border-amber-500/40 overflow-hidden"
+        <div id="alerts-over-20min-card" class="bg-amber-950/40 backdrop-blur rounded-2xl border border-amber-500/40 overflow-hidden min-h-0"
             data-date="{{ current_date }}"
             data-cost-center="{{ current_cost_center|e }}">
             <div class="p-4 border-b border-amber-500/30 flex items-center justify-between gap-4 flex-wrap">
@@ -170,8 +175,8 @@
                     {% for a in dashboard.alerts.clients_over_20min %}
                     <li class="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-slate-900/60 border border-amber-500/20">
                         <div class="min-w-0 flex-1">
-                            <p class="text-sm font-semibold text-white truncate">{{ a.client_name }}</p>
-                            <p class="text-xs text-slate-400">Motorista: {{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</p>
+                            <p class="text-sm font-semibold text-white break-words whitespace-normal leading-snug" title="{{ a.client_name }}">{{ a.client_name }}</p>
+                            <p class="text-xs text-slate-400 mt-1 break-words leading-snug">Motorista: {{ a.driver_name }}{% if a.plate %} · {{ a.plate }}{% endif %}</p>
                         </div>
                         <div class="flex-shrink-0 text-right">
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/25 text-amber-200 font-bold text-sm">{{ a.minutes }} min</span>
@@ -186,6 +191,49 @@
                 <ul id="alerts-over-20min-list" class="space-y-2 max-h-52 overflow-y-auto custom-scrollbar hidden"></ul>
                 {% endif %}
             </div>
+        </div>
+
+        <!-- Devoluções hoje (operacionais — agrupadas por motorista, igual /dashboard/tv) -->
+        <div id="dash-devolucoes-dia-card" class="bg-red-950/35 backdrop-blur rounded-2xl border border-red-500/35 overflow-hidden flex flex-col min-h-0 min-w-0"
+            data-date="{{ current_date }}"
+            data-cost-center="{{ current_cost_center|e }}">
+            <div class="p-4 border-b border-red-500/25 flex items-center justify-between gap-4 flex-wrap shrink-0">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="undo-2" class="w-5 h-5 text-red-400"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold uppercase tracking-wider text-red-300/90">Hoje</p>
+                        <p class="text-sm font-semibold text-white">Devoluções operacionais</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <span id="dash-devolucoes-dia-count" class="px-3 py-1 rounded-full text-sm font-bold bg-red-500/20 text-red-200 tabular-nums">{{ _dash_dev_n }}</span>
+                    <a href="/dashboard/tv?cost_center={{ current_cost_center|urlencode }}&date={{ current_date }}" target="_blank" rel="noopener" class="text-[10px] text-slate-400 hover:text-red-300 uppercase tracking-wider whitespace-nowrap">Painel TV</a>
+                </div>
+            </div>
+            <div class="p-4 flex-1 min-h-0 flex flex-col">
+                <p id="dash-devolucoes-dia-meta" class="text-xs text-slate-500 mb-2 {% if _dash_dev_n == 0 %}hidden{% endif %}">
+                    {{ _dash_dev_n }} ocorrência(s){% if _dash_dev.total_kg is defined %} · {{ (_dash_dev.total_kg|default(0))|round(1) }} kg{% endif %}
+                </p>
+                <div id="dash-devolucoes-dia-body" class="space-y-2 max-h-64 xl:max-h-80 overflow-y-auto custom-scrollbar pr-1 min-h-0">
+                    {% if _dash_dev_n > 0 %}
+                        {% for grp in (_dash_dev.items_by_driver or [])[:12] %}
+                        <div class="dash-dev-group rounded-xl border border-red-500/25 bg-slate-900/50 p-3" title="{{ grp.driver_name }} — {{ grp.clients|join(', ') }}">
+                            <p class="text-sm font-bold text-red-200 leading-snug break-words border-b border-red-500/20 pb-2 mb-2">{{ grp.driver_name }}</p>
+                            <ul class="space-y-1.5 m-0 p-0 list-none">
+                                {% for cn in grp.clients %}
+                                <li class="text-sm text-white font-medium leading-snug break-words pl-0" title="{{ cn }}">{{ cn }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-sm text-slate-500 py-2 text-center dash-devolucoes-dia-empty-msg">Nenhuma devolução operacional registrada hoje neste centro.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
         </div>
 
         <!-- 2. DASHBOARD CARDS -->
@@ -524,21 +572,32 @@
         // Dashboard usa Empresa/Centro de Custo - indicador de turno mantido no relogio
     }
 
-    // Alertas clientes >20 min: polling em tempo real
-    function fetchAlertsOver20Min() {
+    // Alertas + devoluções: mesma API da TV (mantém critério e agrupamento alinhados)
+    function fetchDashboardPulse() {
         var card = document.getElementById('alerts-over-20min-card');
         if (!card) return;
         var date = card.getAttribute('data-date');
         var costCenter = card.getAttribute('data-cost-center') || '';
-        var url = '/api/dashboard/alerts-over-20min?date=' + encodeURIComponent(date);
+        var url = '/api/dashboard/tv-data?date=' + encodeURIComponent(date);
         if (costCenter) url += '&cost_center=' + encodeURIComponent(costCenter);
-        fetch(url, { credentials: 'same-origin' })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
+        function escHtml(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        function escAttr(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+        fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+            .then(function(r) { return r.json().then(function(body) { return { ok: r.ok, body: body }; }); })
+            .then(function(res) {
+                if (!res.ok || !res.body || !res.body.dashboard) return;
+                var data = res.body;
+                var dash = data.dashboard || {};
+                var alerts = dash.alerts || {};
+                var items = alerts.clients_over_20min || [];
                 var list = document.getElementById('alerts-over-20min-list');
                 var empty = document.getElementById('alerts-over-20min-empty');
                 var countEl = document.getElementById('alerts-over-20min-count');
-                var items = (data && data.items) ? data.items : [];
+                var refDate = (data && data.date) ? data.date : date;
                 if (countEl) countEl.textContent = items.length;
                 if (empty) {
                     empty.classList.toggle('hidden', items.length > 0);
@@ -548,15 +607,46 @@
                     list.classList.toggle('hidden', items.length === 0);
                     list.style.display = items.length > 0 ? 'block' : 'none';
                     list.innerHTML = items.map(function(a) {
-                        var plate = a.plate ? ' · ' + a.plate : '';
-                        var verUrl = '/separacao?date=' + encodeURIComponent(data.date || date) + '&shift=Manhã';
+                        var plate = a.plate ? ' · ' + escHtml(a.plate) : '';
+                        var verUrl = '/separacao?date=' + encodeURIComponent(refDate) + '&shift=Manhã';
                         return '<li class="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl bg-slate-900/60 border border-amber-500/20">' +
-                            '<div class="min-w-0 flex-1"><p class="text-sm font-semibold text-white truncate">' + (a.client_name || '').replace(/</g, '&lt;') + '</p>' +
-                            '<p class="text-xs text-slate-400">Motorista: ' + (a.driver_name || '').replace(/</g, '&lt;') + plate + '</p></div>' +
+                            '<div class="min-w-0 flex-1"><p class="text-sm font-semibold text-white break-words whitespace-normal leading-snug" title="' + escAttr(a.client_name) + '">' + escHtml(a.client_name) + '</p>' +
+                            '<p class="text-xs text-slate-400 mt-1 break-words leading-snug">Motorista: ' + escHtml(a.driver_name) + plate + '</p></div>' +
                             '<div class="flex-shrink-0 text-right"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/25 text-amber-200 font-bold text-sm">' + (a.minutes || 0) + ' min</span>' +
-                            '<p class="text-[10px] text-slate-500 mt-0.5">desde ' + (a.started_at || '') + '</p></div>' +
+                            '<p class="text-[10px] text-slate-500 mt-0.5">desde ' + escHtml(a.started_at) + '</p></div>' +
                             '<a href="' + verUrl + '" class="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-amber-600 text-slate-200 hover:text-white text-xs font-medium transition-colors" title="Ver separação">Ver</a></li>';
                     }).join('');
+                }
+
+                var dev = dash.devolucao_dia || {};
+                var devCount = dev.count != null ? dev.count : 0;
+                var countDev = document.getElementById('dash-devolucoes-dia-count');
+                var metaDev = document.getElementById('dash-devolucoes-dia-meta');
+                var bodyDev = document.getElementById('dash-devolucoes-dia-body');
+                if (countDev) countDev.textContent = devCount;
+                if (metaDev) {
+                    metaDev.classList.toggle('hidden', devCount === 0);
+                    if (devCount > 0) {
+                        var kg = dev.total_kg != null ? Number(dev.total_kg).toFixed(1) : '0';
+                        metaDev.textContent = devCount + ' ocorrência(s) · ' + kg + ' kg';
+                    }
+                }
+                if (bodyDev) {
+                    if (devCount === 0) {
+                        bodyDev.innerHTML = '<p class="text-sm text-slate-500 py-2 text-center dash-devolucoes-dia-empty-msg">Nenhuma devolução operacional registrada hoje neste centro.</p>';
+                    } else {
+                        var groups = dev.items_by_driver || [];
+                        bodyDev.innerHTML = groups.slice(0, 12).map(function(grp) {
+                            var dn = escHtml(grp.driver_name);
+                            var tip = escAttr(grp.driver_name) + ' — ' + escAttr((grp.clients || []).join(', '));
+                            var lis = (grp.clients || []).map(function(c) {
+                                return '<li class="text-sm text-white font-medium leading-snug break-words pl-0" title="' + escAttr(c) + '">' + escHtml(c) + '</li>';
+                            }).join('');
+                            return '<div class="dash-dev-group rounded-xl border border-red-500/25 bg-slate-900/50 p-3" title="' + tip + '">' +
+                                '<p class="text-sm font-bold text-red-200 leading-snug break-words border-b border-red-500/20 pb-2 mb-2">' + dn + '</p>' +
+                                '<ul class="space-y-1.5 m-0 p-0 list-none">' + lis + '</ul></div>';
+                        }).join('');
+                    }
                 }
             })
             .catch(function() {});
@@ -566,8 +656,8 @@
     document.addEventListener('DOMContentLoaded', function() {
         updateDashboardClock();
         setInterval(updateDashboardClock, 1000);
-        fetchAlertsOver20Min();
-        setInterval(fetchAlertsOver20Min, 30000);
+        fetchDashboardPulse();
+        setInterval(fetchDashboardPulse, 30000);
     });
 
     // Auto-refresh every 30 seconds for live Pulse

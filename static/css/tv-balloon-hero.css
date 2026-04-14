@@ -1,0 +1,9 @@
+/**
+ * Cabeçalho de balão TV: exibe só o valor final (ex.: "Encerrada"),
+ * ocultando o prefixo (.tv-hero-sub) e o separador (.tv-hero-sep).
+ * Para manter "Categoria · Valor", use class tv-balloon-hero--with-category no <header>.
+ */
+.tv-balloon-hero:not(.tv-balloon-hero--with-category) .tv-hero-sub,
+.tv-balloon-hero:not(.tv-balloon-hero--with-category) .tv-hero-sep {
+  display: none !important;
+}
