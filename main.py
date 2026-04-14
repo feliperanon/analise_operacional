@@ -1245,6 +1245,27 @@ def _emp_name_upper(val):
 
 templates.env.filters["emp_name"] = _emp_name_upper
 
+
+def tv_abbrev_name(val: Optional[str]) -> str:
+    """TV/cartões: primeiro nome + inicial útil do sobrenome."""
+    s = (val or "").strip()
+    if not s:
+        return "—"
+    parts = s.split()
+    if len(parts) == 1:
+        return parts[0]
+    particles = frozenset({"da", "de", "do", "dos", "das", "e"})
+    sig = [p for p in parts if p.lower() not in particles]
+    if len(sig) < 2:
+        sig = parts
+    if len(sig) == 1:
+        return sig[0]
+    ini = sig[1][0].upper() if sig[1] else ""
+    return f"{sig[0]} {ini}." if ini else sig[0]
+
+
+templates.env.filters["tv_abbrev_name"] = tv_abbrev_name
+
 # --- Auth Helpers (Local + Google) ---
 PASSWORD_ITERATIONS = 120_000
 
@@ -2635,6 +2656,34 @@ def _format_br_money_form(val: Any) -> str:
     return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _normalize_reason_for_match(val: Optional[str]) -> str:
+    """Maiúsculas + sem acentos para comparação tolerante de motivo."""
+    s = (val or "").strip().upper()
+    if not s:
+        return ""
+    nfkd = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def _is_encerramento_tardio_automatico_reason(reason_raw: Optional[str]) -> bool:
+    """Exclui devolução sistêmica do painel operacional."""
+    r = _normalize_reason_for_match(reason_raw)
+    if not r:
+        return False
+    if r == "ENCERRAMENTO TARDIO AUTOMATICO":
+        return True
+    return "ENCERRAMENTO" in r and "TARDIO" in r and "AUTOMATICO" in r
+
+
+def _is_operational_route_devolucao(route: Any) -> bool:
+    """Conta apenas devoluções operacionais reais no painel TV."""
+    if normalized_delivery_status(route) != "devolucao":
+        return False
+    return not _is_encerramento_tardio_automatico_reason(
+        getattr(route, "delivery_return_reason", None)
+    )
+
+
 def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]:
     """Dados para o gráfico de índice de devolução mensal (meta 2% com base na receita informada)."""
     try:
@@ -3299,13 +3348,16 @@ async def dashboard_entry(
     selected_target = selected_headcount
 
     # Devolução no dia (para painel TV e alertas) — critério canônico (% rotas concluídas)
-    routes_devolucao = [r for r in routes if normalized_delivery_status(r) == "devolucao"]
+    routes_devolucao = [r for r in routes if _is_operational_route_devolucao(r)]
     n_dev_dia, n_done_dia = counts_devolucao_rotas_concluidas(routes)
     devolucao_items = []
+    dev_clients_by_driver: Dict[str, List[str]] = {}
+    dev_driver_order: List[str] = []
     for r in routes_devolucao:
         c = client_by_id.get(r.client_id)
         emp = employee_by_id.get(r.employee_id)
         c_name = c.name if c else f"Cliente #{r.client_id}"
+        driver_name = emp.name if emp else f"Motorista #{r.employee_id}"
         fancy = getattr(c, "fancy_name", "") if c else ""
         address = getattr(c, "address", "") if c else ""
         neighborhood = getattr(c, "neighborhood", "") if c else ""
@@ -3324,8 +3376,16 @@ async def dashboard_entry(
             "kg": kg,
             "valor": valor,
             "date": getattr(r, "date", selected_date_str),
-            "driver_name": emp.name if emp else f"Motorista #{r.employee_id}"
+            "driver_name": driver_name,
         })
+        if driver_name not in dev_clients_by_driver:
+            dev_driver_order.append(driver_name)
+            dev_clients_by_driver[driver_name] = []
+        dev_clients_by_driver[driver_name].append(c_name)
+    items_by_driver = [
+        {"driver_name": driver_name, "clients": dev_clients_by_driver[driver_name]}
+        for driver_name in dev_driver_order
+    ]
 
     devolucao_dia = {
         "count": n_dev_dia,
@@ -3333,6 +3393,7 @@ async def dashboard_entry(
         "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
         "total_entregas": n_done_dia,
         "pct": pct_devolucao_sobre_rotas_concluidas(routes),
+        "items_by_driver": items_by_driver,
         "items_list": devolucao_items,
     }
     month_start = selected_date.replace(day=1)
@@ -3475,7 +3536,11 @@ async def api_dashboard_tv_data(
     """Payload JSON do dashboard para painel TV (atualização parcial a cada 1 min)."""
     user = get_current_user(request)
     if not user:
-        return JSONResponse({"error": "Não autorizado"}, status_code=401)
+        return JSONResponse(
+            {"error": "Não autorizado"},
+            status_code=401,
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     selected_date = now_br.date()
     if date_ref:
@@ -3491,21 +3556,25 @@ async def api_dashboard_tv_data(
     employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cc)]
     employee_ids = list({e.id for e in employees if e.id is not None})
     employee_by_id = {e.id: e for e in employees if e.id is not None}
+    no_store_headers = {"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"}
     if not employee_ids:
-        return JSONResponse({
-            "date": selected_date_str,
-            "cost_center": selected_cc or "Todos",
-            "dashboard": {
-                "kpi": {"rotas_paradas": 0, "rotas_ativas": 0, "rotas_concluidas": 0},
-                "alerts": {"clients_over_20min": []},
-                "live_separation": [],
-                "devolucao_dia": {},
-                "devolucao_mes": {},
-                "cost_centers_summary": {},
-                "tv_shift_alerts": {"atencao": 0, "critico": 0},
-                "operational_shift": operational_shift_br(datetime.now(ZoneInfo("America/Sao_Paulo"))),
+        return JSONResponse(
+            {
+                "date": selected_date_str,
+                "cost_center": selected_cc or "Todos",
+                "dashboard": {
+                    "kpi": {"rotas_paradas": 0, "rotas_ativas": 0, "rotas_concluidas": 0},
+                    "alerts": {"clients_over_20min": []},
+                    "live_separation": [],
+                    "devolucao_dia": {},
+                    "devolucao_mes": {},
+                    "cost_centers_summary": {},
+                    "tv_shift_alerts": {"atencao": 0, "critico": 0},
+                    "operational_shift": operational_shift_br(datetime.now(ZoneInfo("America/Sao_Paulo"))),
+                },
             },
-        })
+            headers=no_store_headers,
+        )
     routes = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
@@ -3660,13 +3729,16 @@ async def api_dashboard_tv_data(
     )
     _tsa_api = tv_shift_alert_counts(live_separation, now_br)
 
-    routes_devolucao = [r for r in routes if normalized_delivery_status(r) == "devolucao"]
+    routes_devolucao = [r for r in routes if _is_operational_route_devolucao(r)]
     n_dev_dia_tv, n_done_dia_tv = counts_devolucao_rotas_concluidas(routes)
     devolucao_items = []
+    dev_clients_by_driver_api: Dict[str, List[str]] = {}
+    dev_driver_order_api: List[str] = []
     for r in routes_devolucao:
         c = client_by_id.get(r.client_id)
         emp = employee_by_id.get(r.employee_id)
         c_name = c.name if c else f"Cliente #{r.client_id}"
+        driver_name = emp.name if emp else f"Motorista #{r.employee_id}"
         fancy = getattr(c, "fancy_name", "") if c else ""
         address = getattr(c, "address", "") if c else ""
         neighborhood = getattr(c, "neighborhood", "") if c else ""
@@ -3685,8 +3757,16 @@ async def api_dashboard_tv_data(
             "kg": kg,
             "valor": valor,
             "date": getattr(r, "date", selected_date_str),
-            "driver_name": emp.name if emp else f"Motorista #{r.employee_id}"
+            "driver_name": driver_name,
         })
+        if driver_name not in dev_clients_by_driver_api:
+            dev_driver_order_api.append(driver_name)
+            dev_clients_by_driver_api[driver_name] = []
+        dev_clients_by_driver_api[driver_name].append(c_name)
+    items_by_driver_api = [
+        {"driver_name": driver_name, "clients": dev_clients_by_driver_api[driver_name]}
+        for driver_name in dev_driver_order_api
+    ]
 
     devolucao_dia = {
         "count": n_dev_dia_tv,
@@ -3694,6 +3774,7 @@ async def api_dashboard_tv_data(
         "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
         "total_entregas": n_done_dia_tv,
         "pct": pct_devolucao_sobre_rotas_concluidas(routes),
+        "items_by_driver": items_by_driver_api,
         "items_list": devolucao_items,
     }
 
@@ -3822,7 +3903,7 @@ async def api_dashboard_tv_data(
             "operational_shift": _tsa_api["operational_shift"],
         },
     }
-    return JSONResponse(payload)
+    return JSONResponse(payload, headers=no_store_headers)
 
 
 @app.get("/api/dashboard/informativo-data", response_class=JSONResponse)
@@ -4110,7 +4191,7 @@ async def admin_informativo_delete(
 @app.get("/api/dashboard/alerts-over-20min", response_class=JSONResponse)
 async def api_dashboard_alerts_over_20min(
     request: Request,
-    date_ref: Optional[str] = None,
+    date_ref: Optional[str] = Query(None, alias="date"),
     cost_center: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
