@@ -372,12 +372,14 @@
                                 <h3 class="tv-exc-unified-title">Devoluções hoje</h3>
                                 <span id="tv-devolucoes-count" class="tv-exc-unified-kpi tabular-nums text-red-600 dark:text-red-400{% if _dev_n == 0 %} hidden{% endif %}">{% if _dev_n > 0 %}{{ _dev_n }}{% endif %}</span>
                             </div>
-                            <div id="tv-devolucoes-body" class="tv-exc-body tv-exc-unified-body min-h-0 flex-1 space-y-0.5 overflow-hidden px-2 pb-1 pt-0">
+                            <div id="tv-devolucoes-body" class="tv-devolucoes-minimal-body tv-exc-body tv-exc-unified-body min-h-0 flex-1 space-y-0 overflow-hidden px-2 pb-1 pt-0">
                                 {% if _dev_n > 0 %}
-                                {% for item in (_dev.items_list or []) %}
-                                <div class="tv-exc-row tv-exc-unified-row flex items-center gap-1 rounded border border-red-100/90 bg-red-50/90 px-1.5 py-0.5 dark:border-red-900/50 dark:bg-red-950/35">
-                                    <span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white" title="{{ item.client_name }}">{{ item.client_name }}</span>
-                                    <span class="max-w-[42%] shrink-0 truncate text-slate-600 dark:text-slate-400" title="{{ item.driver_name }}">{{ item.driver_name }}</span>
+                                {% for grp in (_dev.items_by_driver or []) %}
+                                <div class="tv-parado-entry tv-devolucao-entry" title="{{ ((grp.clients | join(', ')) ~ ' · ' ~ grp.driver_name)|e }}">
+                                    {% for cn in grp.clients %}
+                                    <span class="tv-parado-client" title="{{ cn|e }}">{{ cn }}</span>
+                                    {% endfor %}
+                                    <span class="tv-devolucao-driver tabular-nums" title="{{ grp.driver_name|e }}">{{ grp.driver_name }}</span>
                                 </div>
                                 {% endfor %}
                                 {% endif %}
@@ -609,6 +611,43 @@
         }
         return html;
     }
+    function groupDevolucoesByDriver(dev) {
+        var groups = dev && dev.items_by_driver;
+        if (groups && groups.length) return groups;
+        var items = (dev && dev.items_list) || [];
+        var map = {};
+        var order = [];
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var d = String((item && item.driver_name) != null ? item.driver_name : '').trim() || '—';
+            if (!map[d]) {
+                map[d] = { driver_name: d, clients: [] };
+                order.push(map[d]);
+            }
+            var cn = String((item && item.client_name) != null ? item.client_name : '');
+            map[d].clients.push(cn);
+        }
+        return order;
+    }
+    function renderTvDevolucoesBody(dev) {
+        var grouped = groupDevolucoesByDriver(dev);
+        if (!grouped.length) return '';
+        var html = '';
+        for (var g = 0; g < grouped.length; g++) {
+            var grp = grouped[g];
+            var clients = grp.clients || [];
+            var driverRaw = String(grp.driver_name != null ? grp.driver_name : '');
+            var titleRaw = clients.join(', ') + ' · ' + driverRaw;
+            html += '<div class="tv-parado-entry tv-devolucao-entry" title="' + escTv(titleRaw) + '">';
+            for (var c = 0; c < clients.length; c++) {
+                var cn = clients[c];
+                html += '<span class="tv-parado-client" title="' + escTv(cn) + '">' + escTv(cn) + '</span>';
+            }
+            html += '<span class="tv-devolucao-driver tabular-nums" title="' + escTv(driverRaw) + '">' + escTv(driverRaw) + '</span>';
+            html += '</div>';
+        }
+        return html;
+    }
     function driverBalloonTheme(op) {
         var state = op.route_state || 'in_progress';
         if (state === 'closed') return { mod: 'tv-balloon-driver--encerrada', categoria: 'Encerramento', statusHero: 'Encerrada' };
@@ -771,12 +810,7 @@
                 if (devCount === 0) {
                     devBody.innerHTML = '';
                 } else {
-                    var devItems = dev.items_list || [];
-                    var devHtml = '';
-                    (devItems || []).forEach(function(item) {
-                        devHtml += '<div class="tv-exc-row tv-exc-unified-row flex items-center gap-1 rounded border border-red-100/90 bg-red-50/90 px-1.5 py-0.5 dark:border-red-900/50 dark:bg-red-950/35"><span class="min-w-0 flex-1 truncate font-medium text-slate-900 dark:text-white">' + escTv(item.client_name || '') + '</span><span class="max-w-[42%] shrink-0 truncate text-slate-600 dark:text-slate-400">' + escTv(item.driver_name || '') + '</span></div>';
-                    });
-                    devBody.innerHTML = devHtml;
+                    devBody.innerHTML = renderTvDevolucoesBody(dev);
                 }
             }
 

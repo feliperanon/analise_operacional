@@ -326,6 +326,28 @@ html.dark #tv-exceptions-panel.tv-exc-panel--unified .tv-parado-client {
   color: rgb(241 245 249);
 }
 
+/* Devoluções hoje: mesmo bloco minimalista que parados (sem card); cliente(s) + motorista uma vez */
+#tv-exceptions-panel.tv-exc-panel--unified .tv-devolucoes-minimal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+#tv-exceptions-panel.tv-exc-panel--unified .tv-devolucao-driver {
+  font-size: clamp(0.48rem, 0.4rem + 0.18vw, 0.58rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgb(185 28 28);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+html.dark #tv-exceptions-panel.tv-exc-panel--unified .tv-devolucao-driver {
+  color: rgb(248 113 113);
+}
+
 #tv-exceptions-panel .tv-exc-sidebar-card h3.sys-section-heading {
   font-size: clamp(0.65rem, 0.48rem + 0.38vw, 0.8rem);
   line-height: 1.2;

@@ -2,9 +2,9 @@
  * Painel TV Gestão Avista — HTML da lista "Devoluções hoje".
  * Uso no fetchTvData (substitua o bloco que monta devBody):
  *
- *   devBody.innerHTML = window.tvDevolucoesHtmlFromPayload(dev, escTv, driverNameShort);
+ *   devBody.innerHTML = window.tvDevolucoesHtmlFromPayload(dev, escTv);
  *
- * escTv / driverNameShort = mesmas funções já definidas no seu script inline.
+ * escTv = mesma função já definida no script inline (escape HTML).
  */
 (function (global) {
   function flattenFromItemsByDriver(itemsByDriver) {
@@ -17,22 +17,40 @@
     return rows;
   }
 
-  global.tvDevolucoesHtmlFromPayload = function (dev, escTv, shortDriver) {
+  function groupDevolucoesByDriver(dev) {
+    var groups = dev && dev.items_by_driver;
+    if (groups && groups.length) return groups;
+    var items = (dev.items_list && dev.items_list.length) ? dev.items_list : flattenFromItemsByDriver(dev.items_by_driver);
+    var map = {};
+    var order = [];
+    items.forEach(function (item) {
+      var d = String(item.driver_name != null ? item.driver_name : "").trim() || "—";
+      if (!map[d]) {
+        map[d] = { driver_name: d, clients: [] };
+        order.push(map[d]);
+      }
+      map[d].clients.push(item.client_name || "");
+    });
+    return order;
+  }
+
+  global.tvDevolucoesHtmlFromPayload = function (dev, escTv) {
     var esc = typeof escTv === "function" ? escTv : function (s) { return String(s == null ? "" : s); };
-    var shortD = typeof shortDriver === "function" ? shortDriver : function (s) { return String(s || ""); };
     var devCount = dev && dev.count != null ? dev.count : 0;
     if (!devCount) return "";
 
-    var items = (dev.items_list && dev.items_list.length) ? dev.items_list : flattenFromItemsByDriver(dev.items_by_driver);
+    var grouped = groupDevolucoesByDriver(dev);
     var html = "";
-    items.forEach(function (item) {
-      var cn = item.client_name || "";
-      var dn = item.driver_name || "";
-      var title = esc(cn + " · " + dn);
+    grouped.forEach(function (grp) {
+      var clients = grp.clients || [];
+      var driverRaw = grp.driver_name || "";
+      var titleRaw = clients.join(", ") + " · " + driverRaw;
+      html += '<div class="tv-parado-entry tv-devolucao-entry" title="' + esc(titleRaw) + '">';
+      clients.forEach(function (cn) {
+        html += '<span class="tv-parado-client" title="' + esc(cn) + '">' + esc(cn) + "</span>";
+      });
       html +=
-        '<div class="tv-alto-entry tv-devolucao-stack-entry" title="' + title + '">' +
-        '<span class="tv-alto-client">' + esc(cn) + "</span>" +
-        '<span class="tv-alto-driver">' + esc(shortD(dn)) + "</span>" +
+        '<span class="tv-devolucao-driver tabular-nums" title="' + esc(driverRaw) + '">' + esc(driverRaw) + "</span>" +
         "</div>";
     });
     return html;
