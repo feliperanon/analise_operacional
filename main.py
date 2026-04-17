@@ -15774,6 +15774,15 @@ async def api_separacao_delivery_whatsapp_send(
         )
         return JSONResponse(content=jsonable_encoder({"success": True, **result}))
     except ValueError as exc:
+        logger.warning(
+            "api_separacao_delivery_whatsapp_send 400: %s | route_date=%s shift=%s employee_id=%s vehicle_plate=%s client_ids=%s",
+            exc,
+            getattr(payload, "route_date", None),
+            getattr(payload, "shift", None),
+            getattr(payload, "employee_id", None),
+            getattr(payload, "vehicle_plate", None),
+            getattr(payload, "client_ids", None),
+        )
         return JSONResponse({"success": False, "error": str(exc)}, status_code=400)
     except Exception as exc:
         logger.exception("api_separacao_delivery_whatsapp_send: %s", exc)
@@ -15801,6 +15810,14 @@ async def api_separacao_delivery_whatsapp_retry_failed(
         )
         return JSONResponse(content=jsonable_encoder({"success": True, **result}))
     except ValueError as exc:
+        logger.warning(
+            "api_separacao_delivery_whatsapp_retry_failed 400: %s | route_date=%s shift=%s employee_id=%s vehicle_plate=%s",
+            exc,
+            getattr(payload, "route_date", None),
+            getattr(payload, "shift", None),
+            getattr(payload, "employee_id", None),
+            getattr(payload, "vehicle_plate", None),
+        )
         return JSONResponse({"success": False, "error": str(exc)}, status_code=400)
     except Exception as exc:
         logger.exception("api_separacao_delivery_whatsapp_retry_failed: %s", exc)

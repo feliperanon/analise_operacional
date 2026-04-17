@@ -530,6 +530,7 @@
                             class="delivery-group group overflow-hidden"
                             data-group-date="{{ group.group_date | default('') }}"
                             data-route-date="{{ group.group_date or selected_date_from }}"
+                            data-shift="{{ selected_shift }}"
                             data-route-shift="{{ selected_shift }}"
                             data-employee-id="{{ group.employee_id }}"
                             data-vehicle-plate="{{ group.vehicle_plate }}"
@@ -1442,11 +1443,18 @@
         const host = source && source.closest ? source.closest('[data-route-date]') : null;
         const base = host || source;
         if (!base || !base.dataset) return null;
+        const ds = base.dataset;
+        // data-shift -> shift; data-route-shift -> routeShift (ex.: <details class="delivery-group">)
+        const shiftFromDom = String(ds.shift || ds.routeShift || '').trim();
+        const shiftPage = (typeof deliverySyncShift !== 'undefined' && deliverySyncShift)
+            ? String(deliverySyncShift).trim()
+            : '';
+        const shift = shiftFromDom || shiftPage || 'Manhã';
         return {
-            route_date: base.dataset.routeDate,
-            shift: base.dataset.shift,
-            employee_id: parseInt(base.dataset.employeeId || '0', 10),
-            vehicle_plate: base.dataset.vehiclePlate || ''
+            route_date: String(ds.routeDate || '').trim(),
+            shift,
+            employee_id: parseInt(ds.employeeId || '0', 10),
+            vehicle_plate: String(ds.vehiclePlate || '').trim()
         };
     }
 
