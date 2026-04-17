@@ -1033,7 +1033,7 @@ async def db_readiness_gate(request: Request, call_next):
         accept_root = (request.headers.get("accept") or "").lower()
         json_only_root = "application/json" in accept_root and "text/html" not in accept_root
         if not json_only_root:
-        body = """<!DOCTYPE html>
+            body = """<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
@@ -1057,7 +1057,7 @@ async def db_readiness_gate(request: Request, call_next):
   </div>
 </body>
 </html>"""
-        return HTMLResponse(status_code=200, content=body)
+            return HTMLResponse(status_code=200, content=body)
     if _db_readiness_gate_prefers_html(request):
         body = """<!DOCTYPE html>
 <html lang="pt-BR">
