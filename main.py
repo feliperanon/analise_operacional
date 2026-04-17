@@ -1027,6 +1027,37 @@ async def db_readiness_gate(request: Request, call_next):
         return _db_startup_failed_response(request)
     if getattr(request.app.state, "db_ready", True) is not False:
         return await call_next(request)
+    # Raiz: 200 em vez de 503 — evita ruído no DevTools e nos logs do Render para GET /.
+    # Não exigir "text/html" no Accept: health checks / proxies às vezes enviam */* ou cabeçalho mínimo.
+    if request.method == "GET" and (request.url.path or "") == "/":
+        accept_root = (request.headers.get("accept") or "").lower()
+        json_only_root = "application/json" in accept_root and "text/html" not in accept_root
+        if not json_only_root:
+        body = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="3; url=/">
+  <title>A iniciar…</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+      background: #0f172a; color: #e2e8f0; padding: 1.5rem; text-align: center; }
+    .box { max-width: 22rem; }
+    h1 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: #f8fafc; }
+    p { margin: 0; font-size: 0.9rem; line-height: 1.5; color: #94a3b8; }
+    .hint { margin-top: 1rem; font-size: 0.75rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Serviço a iniciar</h1>
+    <p>A base de dados e as migrações estão a ficar prontas. Quando terminar, esta página passa a redirecionar para o painel.</p>
+    <p class="hint">Atualização automática a cada 3 segundos. Pode usar F5.</p>
+  </div>
+</body>
+</html>"""
+        return HTMLResponse(status_code=200, content=body)
     if _db_readiness_gate_prefers_html(request):
         body = """<!DOCTYPE html>
 <html lang="pt-BR">
