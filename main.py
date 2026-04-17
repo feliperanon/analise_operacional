@@ -848,6 +848,7 @@ async def lifespan(app: FastAPI):
             logger.exception("Falha na validação de ambiente antes do DB")
             app.state.db_startup_failed = True
         else:
+            timeout_s = 120.0
             try:
                 raw = (os.environ.get("STARTUP_DB_TIMEOUT") or "120").strip()
                 timeout_s = float(raw or "120")
@@ -855,6 +856,9 @@ async def lifespan(app: FastAPI):
                     timeout_s = 15.0
                 if timeout_s > 600.0:
                     timeout_s = 600.0
+            except (TypeError, ValueError):
+                timeout_s = 120.0
+            try:
                 await asyncio.wait_for(
                     asyncio.to_thread(_lifespan_blocking_db_work),
                     timeout=timeout_s,
