@@ -67,6 +67,29 @@ def test_get_whatsapp_provider_twilio(monkeypatch: pytest.MonkeyPatch):
     assert isinstance(p, TwilioWhatsAppProvider)
 
 
+def test_twilio_content_sid_fixed_template_omits_content_variables():
+    provider = TwilioWhatsAppProvider(
+        account_sid="ACxxxxxxxx",
+        auth_token="secret",
+        whatsapp_from="whatsapp:+14155238886",
+        content_sid="HXb5b62575e6e4ff6129ad7c8efe1f983e",
+        content_message_var="",
+    )
+    mock_resp = MagicMock()
+    mock_resp.status_code = 201
+    mock_resp.text = ""
+    mock_resp.json.return_value = {"sid": "SMx", "status": "queued"}
+    with patch("services.whatsapp_provider.httpx.Client") as client_cls:
+        instance = MagicMock()
+        client_cls.return_value.__enter__.return_value = instance
+        instance.post.return_value = mock_resp
+        provider.send_message(phone_number="+5511987654321", message="ignored for fixed tpl")
+    data = instance.post.call_args[1]["data"]
+    assert "Body" not in data
+    assert "ContentVariables" not in data
+    assert data["ContentSid"] == "HXb5b62575e6e4ff6129ad7c8efe1f983e"
+
+
 def test_twilio_content_sid_uses_content_variables_not_body():
     provider = TwilioWhatsAppProvider(
         account_sid="ACxxxxxxxx",

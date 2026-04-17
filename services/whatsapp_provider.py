@@ -17,10 +17,12 @@ Variaveis para twilio:
 
   Opcional — Content API (template aprovado na Twilio), como no curl com ContentSid:
   TWILIO_WHATSAPP_CONTENT_SID — ex.: HXb5b62575e6e4ff6129ad7c8efe1f983e
-  Com ContentSid, nao enviamos Body; enviamos ContentVariables (JSON).
-  TWILIO_WHATSAPP_CONTENT_MESSAGE_VAR — chave onde entra o texto do aviso (padrao 1).
+  Com ContentSid, nao enviamos Body (mensagem business-initiated).
+  TWILIO_WHATSAPP_CONTENT_MESSAGE_VAR — vazio ou ausente = template fixo sem placeholder
+    (nao envia ContentVariables). Se definido (ex.: 1), envia ContentVariables JSON com
+    essa chave e o texto do aviso; ex.: {"1":"..."}.
   TWILIO_WHATSAPP_CONTENT_VARIABLES_EXTRA — JSON com outras chaves fixas, ex.: {"2":"3pm"}
- Resultado: {"1":"<texto do sistema>", "2":"3pm"} se MESSAGE_VAR=1 e EXTRA tiver "2".
+    (so entra no JSON quando MESSAGE_VAR esta definido).
 
 Variaveis para meta_cloud (definir no .env ou painel):
   WHATSAPP_PROVIDER_MODE=meta_cloud
@@ -40,6 +42,7 @@ Aliases aceitos: META_WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID
 from __future__ import annotations
 
 import json
+import logging
 import os
 import secrets
 from dataclasses import dataclass
@@ -48,6 +51,8 @@ from typing import Any, Dict, List, Optional
 from zoneinfo import ZoneInfo
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -393,9 +398,11 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
             self.whatsapp_from = raw_from
         self.timeout_seconds = timeout_seconds
         self.content_sid = (content_sid or os.getenv("TWILIO_WHATSAPP_CONTENT_SID") or "").strip()
-        self.content_message_var = (
-            (content_message_var or os.getenv("TWILIO_WHATSAPP_CONTENT_MESSAGE_VAR") or "1").strip() or "1"
-        )
+        if content_message_var is not None:
+            raw_msg_var = str(content_message_var).strip()
+        else:
+            raw_msg_var = (os.getenv("TWILIO_WHATSAPP_CONTENT_MESSAGE_VAR") or "").strip()
+        self.content_message_var: Optional[str] = raw_msg_var or None
         self._content_variables_extra: Dict[str, Any] = {}
         if content_variables_extra is not None:
             self._content_variables_extra = dict(content_variables_extra)
@@ -409,9 +416,14 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
                 except json.JSONDecodeError:
                     self._content_variables_extra = {}
 
-    def _build_content_variables(self, message: str) -> str:
-        merged: Dict[str, Any] = dict(self._content_variables_extra)
-        merged[self.content_message_var] = message
+    def _maybe_build_content_variables(self, message: str) -> Optional[str]:
+        """So monta ContentVariables se houver placeholder (MESSAGE_VAR). Sem isso, omitir o campo."""
+        if not self.content_message_var:
+            return None
+        merged: Dict[str, str] = {}
+        for k, v in self._content_variables_extra.items():
+            merged[str(k)] = "" if v is None else str(v)
+        merged[str(self.content_message_var)] = message or ""
         return json.dumps(merged, ensure_ascii=False)
 
     def _build_message_form(self, *, to_uri: str, message: str) -> Dict[str, str]:
@@ -420,7 +432,9 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
             form["From"] = self.whatsapp_from
         if self.content_sid:
             form["ContentSid"] = self.content_sid
-            form["ContentVariables"] = self._build_content_variables(message or "")
+            cv = self._maybe_build_content_variables(message or "")
+            if cv is not None:
+                form["ContentVariables"] = cv
         else:
             form["Body"] = (message or "")[:1600]
         return form
@@ -444,6 +458,11 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
         form = self._build_message_form(to_uri=to_uri, message=message or "")
         request_payload["twilio_form"] = {k: v for k, v in form.items()}
         request_payload["twilio_url"] = self._messages_url()
+        if self.content_sid:
+            request_payload["twilio_send_mode"] = "content_template"
+            request_payload["twilio_template_has_content_variables"] = "ContentVariables" in form
+        else:
+            request_payload["twilio_send_mode"] = "body"
 
         now = datetime.now(ZoneInfo("America/Sao_Paulo")).isoformat()
 
@@ -475,6 +494,21 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
                 error_message=detail,
             )
 
+        log_payload: Dict[str, Any] = {
+            "provider": self.provider_name,
+            "twilio_send_mode": request_payload.get("twilio_send_mode"),
+            "to": form.get("To"),
+            "from": form.get("From"),
+            "content_sid": form.get("ContentSid"),
+            "has_body": "Body" in form,
+            "has_content_variables": "ContentVariables" in form,
+        }
+        if form.get("ContentVariables"):
+            cv = form["ContentVariables"]
+            log_payload["content_variables_len"] = len(cv)
+            log_payload["content_variables_preview"] = cv if len(cv) <= 400 else cv[:400] + "..."
+        logger.info("twilio_whatsapp_send_request %s", log_payload)
+
         try:
             with httpx.Client(timeout=self.timeout_seconds) as client:
                 response = client.post(
@@ -488,7 +522,13 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
                 success=False,
                 provider_name=self.provider_name,
                 request_payload=request_payload,
-                response_payload={"ok": False, "timestamp": now, "error": err, "exception": str(exc)},
+                response_payload={
+                    "ok": False,
+                    "timestamp": now,
+                    "error": err,
+                    "exception": str(exc),
+                    "twilio_error_category": "network",
+                },
                 error_message=err,
             )
 
@@ -501,7 +541,13 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
                 success=False,
                 provider_name=self.provider_name,
                 request_payload=request_payload,
-                response_payload={"ok": False, "timestamp": now, "raw_status": response.status_code, "raw_body": text},
+                response_payload={
+                    "ok": False,
+                    "timestamp": now,
+                    "raw_status": response.status_code,
+                    "raw_body": text,
+                    "twilio_error_category": "invalid_response",
+                },
                 error_message=err,
             )
 
@@ -512,6 +558,12 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
             payload = dict(data)
             payload["ok"] = False
             payload["timestamp"] = now
+            payload["twilio_http_status"] = response.status_code
+            if code is not None:
+                payload["twilio_error_code"] = code
+            if data.get("more_info"):
+                payload["twilio_more_info"] = data.get("more_info")
+            payload["twilio_error_category"] = "provider_rejected"
             return WhatsAppSendResult(
                 success=False,
                 provider_name=self.provider_name,
@@ -524,6 +576,7 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
         ok_payload = dict(data)
         ok_payload["ok"] = True
         ok_payload["timestamp"] = now
+        ok_payload["twilio_http_status"] = response.status_code
         return WhatsAppSendResult(
             success=True,
             provider_name=self.provider_name,
