@@ -2889,6 +2889,23 @@ def _informative_carousel_interval_ms(session: Session) -> int:
     return 8000
 
 
+def _dashboard_data_source_caption() -> str:
+    """Texto curto para o /dashboard: de onde vêm os dados (evita confusão SQLite vazio vs Postgres)."""
+    src = (os.environ.get("ACTIVE_DATABASE_SOURCE") or "").strip().lower()
+    if src in ("local", "local_forced"):
+        return (
+            "Fonte dos dados: SQLite local (arquivo database.db nesta pasta). "
+            "Se o arquivo estiver vazio ou sem as mesmas tabelas do servidor, o painel aparece zerado. "
+            "Para apontar ao PostgreSQL do .env, defina FORCE_LOCAL_DB=false antes de subir o app."
+        )
+    if src == "render":
+        return (
+            "Fonte dos dados: PostgreSQL no Render (DATABASE_URL do .env ou do painel do serviço). "
+            "Se o painel estiver vazio, confira data do filtro, centro de custo e se o banco do Render está ativo."
+        )
+    return ""
+
+
 def _build_informativo_extras(
     session: Session,
     selected_date: date,
@@ -3679,6 +3696,7 @@ async def dashboard_entry(
             "current_cost_center": selected_cost_center or "Todos",
             "cost_center_options": cost_center_options,
             "current_date": selected_date_str,
+            "data_source_caption": _dashboard_data_source_caption() if not is_tv else "",
         },
     )
 

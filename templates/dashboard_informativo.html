@@ -12,6 +12,9 @@
 
 {% block header_subtitle %}
 <p class="text-xs text-gray-500 dark:text-gray-400">Devoluções, comunicados, RH e acompanhamento do dia</p>
+{% if data_source_caption %}
+<p class="mt-1 max-w-3xl text-xs leading-snug text-amber-700 dark:text-amber-300/90" role="status">{{ data_source_caption }}</p>
+{% endif %}
 {% endblock %}
 
 {% block head_extra %}
