@@ -787,7 +787,19 @@ def _lifespan_blocking_db_work() -> None:
 
 
 def _path_bypasses_db_readiness(path: str) -> bool:
+    """Recursos sem DB: health, assets estáticos, ícones (browser pede em paralelo ao HTML)."""
     if path == "/healthz" or path.startswith("/static/"):
+        return True
+    if path in (
+        "/favicon.ico",
+        "/favicon-16x16.png",
+        "/favicon-32x32.png",
+        "/apple-touch-icon.png",
+        "/apple-touch-icon-precomposed.png",
+        "/site.webmanifest",
+        "/manifest.webmanifest",
+        "/robots.txt",
+    ):
         return True
     if path in ("/docs", "/redoc", "/openapi.json"):
         return True
