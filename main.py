@@ -796,11 +796,8 @@ def _path_bypasses_db_readiness(path: str) -> bool:
     return False
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Render faz scan de porta antes do timeout: o Uvicorn só escuta TCP após o startup do lifespan
-    # terminar (yield). Migrações pesadas iam estourar o scan — liberamos a porta cedo e terminamos
-    # o trabalho em background (middleware 503 até app.state.db_ready).
+def _validate_render_env_sync() -> None:
+    """Roda em thread no startup em background (nada de sync pesado antes do yield do lifespan)."""
     validate_render_environment(
         logger,
         render_platform_active(os.environ.get("RENDER")),
@@ -810,10 +807,17 @@ async def lifespan(app: FastAPI):
         APP_BASE_URL,
         ADMIN_PASS,
     )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Render faz scan de porta antes do timeout: o Uvicorn só escuta TCP após o startup do lifespan
+    # terminar (yield). Qualquer trabalho síncrono antes do yield atrasa o bind — mantenha só o mínimo.
     app.state.db_ready = False
     app.state.delivery_autoclose_task = None
 
     async def _background_startup() -> None:
+        await asyncio.to_thread(_validate_render_env_sync)
         try:
             await asyncio.to_thread(_lifespan_blocking_db_work)
         except Exception:
@@ -831,9 +835,8 @@ async def lifespan(app: FastAPI):
         app.state.db_ready = True
 
     startup_task = asyncio.create_task(_background_startup())
-    logger.info(
-        "Startup: migrações/DB em background — liberando porta TCP (Render scan / health)."
-    )
+    # print + flush: aparece nos logs do Render mesmo se logging buffer/atrasar
+    print("analise-operacional: yield lifespan (porta TCP pode abrir)", flush=True)
 
     try:
         yield
