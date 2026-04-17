@@ -2,10 +2,11 @@
 from contextlib import asynccontextmanager
 import asyncio
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status, UploadFile, File, BackgroundTasks, Query
+from fastapi.encoders import jsonable_encoder
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Tuple
 import json
 import csv
 import io
@@ -48,8 +49,28 @@ from devolucoes_consolidado import (
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
 from routers.admin_geocoding import init_admin_geocoding_router
+from services.delivery_whatsapp_service import (
+    WHATSAPP_ROUTE_STATUS_ENVIADO,
+    WHATSAPP_ROUTE_STATUS_ENVIADO_PARCIAL,
+    WHATSAPP_ROUTE_STATUS_FALHA,
+    WHATSAPP_ROUTE_STATUS_PENDENTE,
+    _resolve_client_phone,
+    build_delivery_whatsapp_page_overview,
+    list_delivery_whatsapp_history,
+    mark_delivery_group_whatsapp_ready,
+    prepare_delivery_whatsapp_snapshot,
+    remark_delivery_whatsapp_clients,
+    send_delivery_whatsapp_notifications,
+)
 from services.geocoding_service import geocoding_service
 from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
+from client_vendedor import (
+    apply_vendedor_to_client,
+    list_vendedores,
+    parse_vendedor_id_form,
+    resolve_vendedor_id_for_select,
+    vendedor_card_for_client,
+)
 from route_duration import route_duration_minutes, iniciada_elapsed_wall_minutes
 from utils.delivery_projection import compute_delivery_projection
 from utils.mobile_hub import build_mobile_hub_profile
@@ -701,19 +722,8 @@ def sync_sectors_on_startup():
         print(f"Erro no sync de startup: {e}")
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    delivery_autoclose_task = None
-    # Configuração de ambiente não fatal: só logs; não usar raise aqui.
-    validate_render_environment(
-        logger,
-        render_platform_active(os.environ.get("RENDER")),
-        SECRET_KEY,
-        DEFAULT_SECRET_KEY_PLACEHOLDER,
-        IMPORT_AUTH_PASSWORD,
-        APP_BASE_URL,
-        ADMIN_PASS,
-    )
+def _lifespan_blocking_db_work() -> None:
+    """Migrações e seeds síncronos; roda em thread para não bloquear o event loop."""
     create_db_and_tables()
     try:
         ensure_vehicle_schema()
@@ -721,6 +731,7 @@ async def lifespan(app: FastAPI):
         ensure_client_schema()
         ensure_client_group_schema()
         ensure_route_schema()
+        ensure_delivery_whatsapp_schema()
         ensure_route_delivery_columns_widen()
         ensure_devolucao_route_id()
         # Employee schema compatibility must run before auth/bootstrap queries
@@ -732,6 +743,9 @@ async def lifespan(app: FastAPI):
         ensure_column(engine, "employee", "seller_code", "VARCHAR(64)")
         ensure_column(engine, "employee", "phone", "VARCHAR(20)")
         ensure_column(engine, "deliverysession", "reopen_reason", "VARCHAR(512)")
+        ensure_column(engine, "deliverysession", "driver_last_lat", "REAL")
+        ensure_column(engine, "deliverysession", "driver_last_lon", "REAL")
+        ensure_column(engine, "deliverysession", "driver_last_location_at", "TIMESTAMP")
     except Exception as e:
         logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
     try:
@@ -770,29 +784,88 @@ async def lifespan(app: FastAPI):
         sync_sectors_on_startup()
     except Exception as e:
         logger.error(f"Erro ao iniciar sync: {e}")
-    try:
-        # Execução imediata no startup + loop contínuo (inclui virada de dia após 00:00).
-        closed_now = _auto_close_stale_delivery_sessions()
-        if closed_now > 0:
-            logger.info(f"[DeliveryAutoClose] Startup fechou sessões antigas: {closed_now}")
-        delivery_autoclose_task = asyncio.create_task(_auto_close_stale_delivery_sessions_loop())
-    except Exception as e:
-        logger.error(f"[DeliveryAutoClose] Erro ao iniciar loop: {e}")
+
+
+def _path_bypasses_db_readiness(path: str) -> bool:
+    if path == "/healthz" or path.startswith("/static/"):
+        return True
+    if path in ("/docs", "/redoc", "/openapi.json"):
+        return True
+    if path.startswith("/docs/") or path.startswith("/redoc/"):
+        return True
+    return False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Render faz scan de porta antes do timeout: o Uvicorn só escuta TCP após o startup do lifespan
+    # terminar (yield). Migrações pesadas iam estourar o scan — liberamos a porta cedo e terminamos
+    # o trabalho em background (middleware 503 até app.state.db_ready).
+    validate_render_environment(
+        logger,
+        render_platform_active(os.environ.get("RENDER")),
+        SECRET_KEY,
+        DEFAULT_SECRET_KEY_PLACEHOLDER,
+        IMPORT_AUTH_PASSWORD,
+        APP_BASE_URL,
+        ADMIN_PASS,
+    )
+    app.state.db_ready = False
+    app.state.delivery_autoclose_task = None
+
+    async def _background_startup() -> None:
+        try:
+            await asyncio.to_thread(_lifespan_blocking_db_work)
+        except Exception:
+            logger.exception("Falha no startup em background (migrações/DB)")
+            return
+        try:
+            closed_now = _auto_close_stale_delivery_sessions()
+            if closed_now > 0:
+                logger.info(f"[DeliveryAutoClose] Startup fechou sessões antigas: {closed_now}")
+            app.state.delivery_autoclose_task = asyncio.create_task(
+                _auto_close_stale_delivery_sessions_loop()
+            )
+        except Exception as e:
+            logger.error(f"[DeliveryAutoClose] Erro ao iniciar loop: {e}")
+        app.state.db_ready = True
+
+    startup_task = asyncio.create_task(_background_startup())
 
     try:
         yield
     finally:
-        if delivery_autoclose_task:
-            delivery_autoclose_task.cancel()
+        t = getattr(app.state, "delivery_autoclose_task", None)
+        if t:
+            t.cancel()
             try:
-                await delivery_autoclose_task
+                await t
             except asyncio.CancelledError:
                 pass
+        if not startup_task.done():
+            try:
+                await startup_task
+            except asyncio.CancelledError:
+                pass
+        else:
+            try:
+                exc = startup_task.exception()
+            except asyncio.CancelledError:
+                exc = None
+            if exc is not None:
+                logger.debug("Startup background task ended with error (already logged)")
 
 app = FastAPI(title="Análise Operacional", version="2.0.0", lifespan=lifespan)
 
 app.include_router(bi_delivery_router)
 app.include_router(bi_motorista_router)
+
+
+@app.get("/healthz", include_in_schema=False)
+async def healthz_probe():
+    """Liveness leve (Render / balanceadores); não depende do DB."""
+    return {"status": "ok"}
+
 
 # Respect X-Forwarded-* when the app is published behind a trusted HTTPS proxy.
 PROXY_HEADERS_ENABLED = (
@@ -817,6 +890,20 @@ app.add_middleware(
     same_site="lax",    # Best for normal top-level navigation
     max_age=86400 * 30  # 30 Days persistence
 )
+
+
+@app.middleware("http")
+async def db_readiness_gate(request: Request, call_next):
+    if getattr(request.app.state, "db_ready", True) is not False:
+        return await call_next(request)
+    if _path_bypasses_db_readiness(request.url.path):
+        return await call_next(request)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Serviço inicializando; tente novamente em instantes."},
+        headers={"Retry-After": "2"},
+    )
+
 
 # --- Middleware: Anti-Cache (Force Fresh Data) ---
 @app.middleware("http")
@@ -1307,8 +1394,8 @@ def is_google_enabled() -> bool:
 
 PAGE_OPTIONS = [
     {"key": "lider", "label": "Líder", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/lider", "/api/lider"]},
-    {"key": "gerente", "label": "Gerente", "path": "/gm/ordens-servico", "prefixes": ["/gm", "/api/gm"]},
-    {"key": "processos", "label": "Processos", "path": "/separacao", "prefixes": ["/separacao", "/escala", "/devolucoes", "/portaria", "/operational/history"]},
+    {"key": "gerente", "label": "Gerente", "path": "/gm/ordens-servico/kpis", "prefixes": ["/gm", "/api/gm"]},
+    {"key": "processos", "label": "Processos", "path": "/separacao", "prefixes": ["/separacao", "/escala", "/devolucoes", "/portaria"]},
     {"key": "padronizacao", "label": "Processos e Padronização", "path": "/documentos", "prefixes": ["/documentos", "/api/documentos"]},
     {"key": "rotinas", "label": "Rotinas & Checklists", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "oficina", "label": "Oficina", "path": "/vehicles", "prefixes": ["/vehicles", "/admin/equipment/tickets"]},
@@ -2578,10 +2665,74 @@ def require_roles(request: Request, allowed_roles: set):
 def require_leader(request: Request):
     return require_roles(request, {"leader", "admin"})
 
+
+from deps.ordens_auth import init_ordens_auth, require_gerente
+
+init_ordens_auth(require_login, require_leader)
+
+from routers.gm_ordens_servico import router as gm_ordens_servico_router
+
+app.include_router(gm_ordens_servico_router)
+
+
 def require_admin(request: Request):
     return require_roles(request, {"admin"})
 
-def require_gm(request: Request, session: Session = Depends(get_session)):
+def get_delivery_whatsapp_operator_context(
+    request: Request,
+    session: Session,
+    *,
+    raise_forbidden: bool = True,
+) -> Optional[Dict[str, Any]]:
+    """Valida operador desktop autorizado para disparo manual de WhatsApp."""
+    user = require_login(request)
+    if not (isinstance(user, dict) and user.get("type") == "user"):
+        if raise_forbidden:
+            raise HTTPException(status_code=403, detail="Apenas operadores desktop autorizados podem enviar WhatsApp.")
+        return None
+
+    role = str(user.get("role") or "").strip().lower()
+    raw_allowed_pages = request.session.get("allowed_pages")
+    if isinstance(raw_allowed_pages, list):
+        allowed_pages = [str(key) for key in raw_allowed_pages if str(key) in PAGE_KEYS]
+    else:
+        allowed_pages = parse_allowed_pages(raw_allowed_pages)
+
+    linked_user = session.get(models.User, int(user.get("id"))) if user.get("id") else None
+    linked_employee = session.get(models.Employee, linked_user.employee_id) if linked_user and linked_user.employee_id else None
+    employee_role_norm = _normalized_employee_role(linked_employee)
+    employee_role_allowed = any(
+        token in employee_role_norm
+        for token in ("OPERADOR", "LIDER", "GERENTE", "SUPERVIS", "COORDEN", "ADMIN")
+    )
+
+    can_manage = bool(
+        role == "admin"
+        or "processos" in allowed_pages
+        or "lider" in allowed_pages
+        or "gerente" in allowed_pages
+        or employee_role_allowed
+    )
+    if not can_manage:
+        if raise_forbidden:
+            raise HTTPException(status_code=403, detail="Perfil sem permissao para notificacao manual via WhatsApp.")
+        return None
+
+    operator_label = format_user_label(user)
+    if linked_employee and getattr(linked_employee, "name", None):
+        operator_label = linked_employee.name
+
+    return {
+        "user": user,
+        "role": role,
+        "allowed_pages": allowed_pages,
+        "linked_user": linked_user,
+        "linked_employee": linked_employee,
+        "operator_label": operator_label,
+        "operator_user_id": int(linked_user.id) if linked_user and linked_user.id else (int(user.get("id")) if user.get("id") else None),
+    }
+
+def require_game_master(request: Request, session: Session = Depends(get_session)):
     """
     Dependency to ensure the user is logged in AND is a Game Master (Admin).
     """
@@ -5609,7 +5760,6 @@ def _render_mobile_dashboard_template(
     error: Optional[str] = None,
     *,
     template_name: str = "mobile/dashboard.html",
-    hide_mobile_nav_trigger: bool = False,
 ):
     user = get_current_user(request)
     if not isinstance(user, dict) or user.get("type") != "employee":
@@ -5869,14 +6019,15 @@ def _render_mobile_dashboard_template(
             "gatehouse_summary": gatehouse_summary,
             "delivery_helper_names": json.dumps(delivery_summary.get("helper_names") or [], ensure_ascii=False),
             "show_delivery_overview": show_delivery_overview,
-            "show_delivery_kpis": show_delivery_overview,
+            "has_delivery_driver_access": has_delivery_driver_access,
+            "is_helper_only": is_helper_only,
+            "show_delivery_kpis": show_delivery_overview and has_delivery_driver_access,
             "show_returns_kpi": show_returns_kpi,
             "launcher_modules": launcher_modules,
             "hub_profile": hub_profile,
             "hub_nav_items": hub_nav_items,
             "module_hub_message": module_hub_message,
             "hub_explicit_access": access_flags["explicit_mode"],
-            "hide_mobile_nav_trigger": hide_mobile_nav_trigger,
         },
     )
 
@@ -5894,7 +6045,6 @@ async def mobile_dashboard(
         module=module,
         error=error,
         template_name="mobile/dashboard.html",
-        hide_mobile_nav_trigger=True,
     )
 
 
@@ -6185,6 +6335,8 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
         month_end = now_sp_delivery.strftime("%Y-%m-%d")
         returns_metrics_delivery = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), date_from=month_start, date_to=month_end)
         returns_alert = _build_returns_alert_payload(returns_metrics_delivery, target_percent=2.0, period_label="Mês atual")
+        _delivery_flags = _build_mobile_hub_access_flags(employee)
+        has_delivery_driver_access = bool(_delivery_flags.get("delivery_driver"))
         return templates.TemplateResponse(
             "mobile/delivery.html",
             {
@@ -6192,6 +6344,7 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
                 "employee": employee,
                 "employees_json": employees_json,
                 "returns_alert_json": json.dumps(returns_alert, ensure_ascii=False),
+                "has_delivery_driver_access": has_delivery_driver_access,
             },
         )
     except Exception as e:
@@ -7147,11 +7300,26 @@ class MobileDeliverySessionUpdatePayload(BaseModel):
     km_departure: Optional[float] = None
 
 
+class MobileDeliveryLocationPayload(BaseModel):
+    latitude: float
+    longitude: float
+    vehicle_plate: str = ""
+
+
 class MobileDeliverySessionReopenPayload(BaseModel):
     reason: str
 
 
 DELIVERY_INICIO_MAX_METROS = 300.0
+
+
+def _driver_whatsapp_client_phone_ok(client: Optional[models.Client]) -> bool:
+    """Motorista pode abrir wa.me salvo bloqueio LGPD explícito (inativo operacional não bloqueia)."""
+    if not client:
+        return False
+    if bool(getattr(client, "lgpd_nao_contatar", False)) or bool(getattr(client, "lgpd_restricao_dados", False)):
+        return False
+    return True
 
 
 def _haversine_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -7199,6 +7367,23 @@ class MobileDeliveryAuthRequestCreate(BaseModel):
 class AdminDeliveryAuthResolvePayload(BaseModel):
     status: str
     obs: Optional[str] = None
+
+
+class DeliveryWhatsAppRoutePayload(BaseModel):
+    route_date: str
+    shift: str = "Manhã"
+    employee_id: int
+    vehicle_plate: str
+
+
+class DeliveryWhatsAppRemarkPayload(DeliveryWhatsAppRoutePayload):
+    client_ids: List[int] = []
+
+
+class DeliveryWhatsAppClientContactPayload(DeliveryWhatsAppRoutePayload):
+    client_id: int
+    phone: str
+
 
 def ensure_column(engine, table_name, column_name, column_type_sql):
     """Adds a column to a table if it doesn't exist (SQLite specific)."""
@@ -7378,6 +7563,27 @@ def ensure_route_schema():
         logger.error(f"ensure_route_schema: {e}")
 
 
+def ensure_delivery_whatsapp_schema():
+    """Cria tabelas e colunas do fluxo de notificacao manual via WhatsApp."""
+    try:
+        models.DeliveryWhatsAppBatch.__table__.create(bind=engine, checkfirst=True)
+        models.DeliveryWhatsAppItem.__table__.create(bind=engine, checkfirst=True)
+
+        ensure_column(engine, "route", "delivery_whatsapp_status", "VARCHAR(32)")
+        ensure_column(engine, "route", "delivery_whatsapp_ready_at", "TIMESTAMP")
+        ensure_column(engine, "route", "delivery_whatsapp_last_sent_at", "TIMESTAMP")
+        ensure_column(engine, "route", "delivery_whatsapp_last_sent_by", "VARCHAR(255)")
+        ensure_column(engine, "route", "delivery_whatsapp_summary_json", "TEXT")
+
+        with engine.connect() as conn:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_route_delivery_whatsapp_status ON route (delivery_whatsapp_status)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_route_delivery_whatsapp_ready_at ON route (delivery_whatsapp_ready_at)"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_route_delivery_whatsapp_last_sent_at ON route (delivery_whatsapp_last_sent_at)"))
+            conn.commit()
+    except Exception as e:
+        logger.error(f"ensure_delivery_whatsapp_schema: {e}")
+
+
 def ensure_route_delivery_columns_widen():
     """Corrige colunas route.* criadas como VARCHAR(5) para HH:MM quando o app grava datetime ISO ou status longos."""
     try:
@@ -7539,6 +7745,33 @@ async def mobile_route_update(
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+def _mobile_my_routes_seller_fields(
+    session: Session,
+    client: Optional[models.Client],
+    cache: Dict[int, Tuple[str, str, Optional[str]]],
+) -> Tuple[str, str, Optional[str]]:
+    """Alinha vendedor ao card de /clients/:id (vendedor_id ou setor/código legado)."""
+    if not client:
+        return "", "", None
+    cid = client.id
+    if cid in cache:
+        return cache[cid]
+    card = vendedor_card_for_client(session, client)
+    if not card:
+        cache[cid] = ("", "", None)
+        return cache[cid]
+    seller_name = (card.get("name") or "").strip()
+    seller_code = (card.get("seller_code") or "").strip()
+    seller_phone_wa = None
+    emp_v = session.get(models.Employee, int(card["id"]))
+    if emp_v:
+        sp_e164, _ = normalize_phone_br(getattr(emp_v, "phone", None))
+        if sp_e164:
+            seller_phone_wa = "".join(ch for ch in sp_e164 if ch.isdigit()) or None
+    cache[cid] = (seller_name, seller_code, seller_phone_wa)
+    return cache[cid]
+
+
 @app.get("/api/mobile/delivery/my-routes", response_class=JSONResponse)
 async def api_mobile_delivery_my_routes(
     request: Request,
@@ -7693,6 +7926,7 @@ async def api_mobile_delivery_my_routes(
         client_ids = list({r.client_id for r in routes})
         clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
         client_map = {c.id: c for c in clients}
+        seller_fields_cache: Dict[int, Tuple[str, str, Optional[str]]] = {}
         today_routes_for_summary = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
@@ -7721,6 +7955,11 @@ async def api_mobile_delivery_my_routes(
             c = client_map.get(r.client_id)
             client_name = (getattr(c, "razao_social", None) or getattr(c, "name", None) or "Cliente") if c else "Cliente"
             client_secondary = (getattr(c, "nome_fantasia", None) or getattr(c, "name", None) or "") if c else ""
+            _, phone_normalized, _ = _resolve_client_phone(c)
+            client_phone_wa = None
+            if phone_normalized and c and _driver_whatsapp_client_phone_ok(c):
+                client_phone_wa = "".join(ch for ch in phone_normalized if ch.isdigit()) or None
+            seller_name, seller_code, seller_phone_wa = _mobile_my_routes_seller_fields(session, c, seller_fields_cache)
             item = {
                 "id": r.id,
                 "date": r.date,
@@ -7742,6 +7981,10 @@ async def api_mobile_delivery_my_routes(
                 "vehicle_plate": r.delivery_vehicle_plate or "",
                 "order_number": r.delivery_order_number or "",
                 "client_code": r.delivery_client_code or "",
+                "client_phone_wa": client_phone_wa,
+                "seller_name": seller_name,
+                "seller_code": seller_code,
+                "seller_phone_wa": seller_phone_wa,
                 # Coordenadas para ordenação por proximidade
                 "latitude": getattr(c, "latitude", None) if c else None,
                 "longitude": getattr(c, "longitude", None) if c else None,
@@ -7885,13 +8128,31 @@ async def api_mobile_delivery_my_routes(
                 .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta", "entregue", "devolucao"]))
                 .order_by(models.Route.id)
             ).all()
+            fb_client_ids = list({r.client_id for r in routes_today})
+            fb_clients = session.exec(select(models.Client).where(models.Client.id.in_(fb_client_ids))).all() if fb_client_ids else []
+            fb_client_map = {c.id: c for c in fb_clients}
+            fb_seller_cache: Dict[int, Tuple[str, str, Optional[str]]] = {}
             payload = []
             for r in routes_today:
+                c_fb = fb_client_map.get(r.client_id)
+                client_name_fb = (
+                    (getattr(c_fb, "razao_social", None) or getattr(c_fb, "name", None) or "Cliente")
+                    if c_fb
+                    else "Cliente"
+                )
+                client_secondary_fb = (getattr(c_fb, "nome_fantasia", None) or getattr(c_fb, "name", None) or "") if c_fb else ""
+                _, phone_norm_fb, _ = _resolve_client_phone(c_fb)
+                client_phone_wa_fb = None
+                if phone_norm_fb and c_fb and _driver_whatsapp_client_phone_ok(c_fb):
+                    client_phone_wa_fb = "".join(ch for ch in phone_norm_fb if ch.isdigit()) or None
+                seller_name_fb, seller_code_fb, seller_phone_wa_fb = _mobile_my_routes_seller_fields(
+                    session, c_fb, fb_seller_cache
+                )
                 payload.append({
                     "id": r.id,
                     "date": r.date,
-                    "client_name": "Cliente",
-                    "client_secondary": "",
+                    "client_name": str(client_name_fb),
+                    "client_secondary": str(client_secondary_fb or ""),
                     "address": r.delivery_address or "",
                     "city": r.delivery_city or "",
                     "bairro": r.delivery_neighborhood or "",
@@ -7908,10 +8169,14 @@ async def api_mobile_delivery_my_routes(
                     "vehicle_plate": r.delivery_vehicle_plate or "",
                     "order_number": r.delivery_order_number or "",
                     "client_code": r.delivery_client_code or "",
-                    "latitude": None,
-                    "longitude": None,
-                    "tem_coordenadas": False,
-                    "endereco_completo": "",
+                    "client_phone_wa": client_phone_wa_fb,
+                    "seller_name": seller_name_fb,
+                    "seller_code": seller_code_fb,
+                    "seller_phone_wa": seller_phone_wa_fb,
+                    "latitude": getattr(c_fb, "latitude", None) if c_fb else None,
+                    "longitude": getattr(c_fb, "longitude", None) if c_fb else None,
+                    "tem_coordenadas": bool(c_fb and c_fb.has_valid_coordinates()) if c_fb else False,
+                    "endereco_completo": c_fb.get_full_address() if c_fb else "",
                 })
             assigned_plates = sorted({r.delivery_vehicle_plate for r in routes_today if r.delivery_vehicle_plate})
             day_cards = [{
@@ -8017,6 +8282,16 @@ async def api_mobile_delivery_session_start(
     )
     session.add(new_session)
     session.commit()
+    try:
+        mark_delivery_group_whatsapp_ready(
+            session,
+            route_date=today_str,
+            shift=str(routes[0].shift or "Manhã"),
+            employee_id=int(user_id),
+            vehicle_plate=payload.plate.strip().upper(),
+        )
+    except Exception as whatsapp_error:
+        logger.warning("api_mobile_delivery_session_start whatsapp ready error: %s", whatsapp_error)
     return JSONResponse({"success": True})
 
 
@@ -8240,6 +8515,47 @@ async def api_mobile_delivery_session_update(
     return JSONResponse({"success": True})
 
 
+@app.post("/api/mobile/delivery/location", response_class=JSONResponse)
+async def api_mobile_delivery_location(
+    request: Request,
+    payload: MobileDeliveryLocationPayload,
+    session: Session = Depends(get_session),
+):
+    """Recebe ping de GPS do motorista durante sessão aberta (evita 404 no app)."""
+    user_id = request.session.get("user_id")
+    if not user_id:
+        return JSONResponse({"success": False, "error": "Não autorizado"}, status_code=401)
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return JSONResponse({"success": False, "error": "Sessão inválida"}, status_code=401)
+    lat, lon = float(payload.latitude), float(payload.longitude)
+    if abs(lat) > 90.0 or abs(lon) > 180.0 or math.isnan(lat) or math.isnan(lon):
+        return JSONResponse({"success": False, "error": "Coordenadas inválidas."}, status_code=400)
+    plate_norm = _norm_plate(payload.vehicle_plate)
+    if len(plate_norm) < 7:
+        return JSONResponse({"success": False, "error": "Placa inválida."}, status_code=400)
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    now_sp = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    ds = session.exec(
+        select(models.DeliverySession)
+        .where(models.DeliverySession.employee_id == user_id)
+        .where(models.DeliverySession.date == today_str)
+        .where(models.DeliverySession.status == "open")
+        .order_by(desc(models.DeliverySession.id))
+    ).first()
+    if not ds:
+        return JSONResponse({"success": False, "error": "Sem sessão aberta."}, status_code=400)
+    if _norm_plate(ds.vehicle_plate) != plate_norm:
+        return JSONResponse({"success": False, "error": "Placa não confere com a sessão."}, status_code=400)
+    ds.driver_last_lat = lat
+    ds.driver_last_lon = lon
+    ds.driver_last_location_at = now_sp
+    session.add(ds)
+    session.commit()
+    return JSONResponse({"success": True}, headers={"Cache-Control": "no-store"})
+
+
 @app.post("/api/mobile/delivery/route/{route_id}/action", response_class=JSONResponse)
 async def api_mobile_delivery_route_action(
     request: Request,
@@ -8336,6 +8652,16 @@ async def api_mobile_delivery_route_action(
                 route.driver_lat_start = payload.latitude
                 route.driver_lon_start = payload.longitude
             _append_delivery_event(route, "iniciar", now, iniciar_note)
+            try:
+                mark_delivery_group_whatsapp_ready(
+                    session,
+                    route_date=route.date,
+                    shift=route.shift or "Manhã",
+                    employee_id=int(route.employee_id or 0),
+                    vehicle_plate=route.delivery_vehicle_plate or ds.vehicle_plate or "",
+                )
+            except Exception as whatsapp_error:
+                logger.warning("api_mobile_delivery_route_action whatsapp ready error: %s", whatsapp_error)
 
         elif action == "finalizar":
             if (route.delivery_status or "").lower() != "iniciada":
@@ -9452,116 +9778,7 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
         raise
 
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    
-    # 1. Checklists do Dia (Mantido)
-    checklists = session.exec(
-        select(models.TranspalletChecklist)
-        .where(models.TranspalletChecklist.employee_id == employee_id)
-        .where(models.TranspalletChecklist.date == today)
-        .order_by(models.TranspalletChecklist.submitted_at.desc())
-    ).all()
-    
-    # helper for PT-BR date
-    def fmt_br(dt_obj):
-        if not dt_obj: return "-"
-        if isinstance(dt_obj, str): return dt_obj # fallback
-        return dt_obj.strftime("%d/%m/%Y %H:%M")
 
-    checklists_view = []
-    for c in checklists:
-        checklists_view.append({
-            "equipment_code": c.equipment_code,
-            "submitted_at_fmt": c.submitted_at.strftime("%H:%M") if c.submitted_at else "-",
-            "status_class": "bg-red-500/10 text-red-400" if (c.critical_flag or c.nonconforming_keys) else "bg-emerald-500/10 text-emerald-400",
-            "status_label": "Falha" if c.critical_flag else ("Atenção" if c.nonconforming_keys else "OK"),
-            "original": c
-        })
-
-    # 4. Alertas de Dias Pendentes (Missing Days)
-    # Regra: Work Days - Absences - Done Days
-    missing_days = []
-    
-    # Janela de análise: Últimos 14 dias até ontem
-    analysis_end = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=1)).date()
-    analysis_start = analysis_end - timedelta(days=13) # 14 dias total
-    
-    # Buscar Checklists feitos no período (extrair valores: Row/tuple usa r[0], escalar usa r)
-    rows_raw = session.exec(
-        select(models.TranspalletChecklist.date)
-        .where(models.TranspalletChecklist.employee_id == employee_id)
-        .where(models.TranspalletChecklist.date >= analysis_start.strftime("%Y-%m-%d"))
-        .where(models.TranspalletChecklist.date <= analysis_end.strftime("%Y-%m-%d"))
-    ).all()
-    done_dates = set()
-    for r in rows_raw:
-        val = r[0] if hasattr(r, "__getitem__") and not isinstance(r, str) else r
-        if val is not None:
-            done_dates.add(str(val))
-    
-    # Buscar Ausências (EmployeeRoutine != present)
-    absences = session.exec(
-        select(models.EmployeeRoutine)
-        .where(models.EmployeeRoutine.employee_id == employee_id)
-        .where(models.EmployeeRoutine.date >= analysis_start.strftime("%Y-%m-%d"))
-        .where(models.EmployeeRoutine.date <= analysis_end.strftime("%Y-%m-%d"))
-        .where(models.EmployeeRoutine.routine != "present")
-    ).all()
-    absence_map = {a.date: a.routine for a in absences} # data str -> motivo
-
-    # Parse Work Days
-    import json
-    work_days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-    try:
-        if employee.work_days:
-            work_days_list = json.loads(employee.work_days)
-    except: pass
-    
-    current_d = analysis_start
-    while current_d <= analysis_end:
-        d_str = current_d.strftime("%Y-%m-%d")
-        week_day_name = current_d.strftime("%A") # English names matches default list
-        
-        # Se for dia de trabalho...
-        if week_day_name in work_days_list:
-            # E não tiver ausência registrada...
-            if d_str not in absence_map:
-                # E não tiver checklist feito...
-                if d_str not in done_dates:
-                    # ENTÃO é pendente
-                    missing_days.append({
-                        "date": current_d.strftime("%d/%m"),
-                        "full_date": d_str,
-                        "weekday": week_day_name
-                    })
-        
-        current_d += timedelta(days=1)
-    
-    # Ordenar decrescente (mais recente primeiro)
-    missing_days.sort(key=lambda x: x["full_date"], reverse=True)
-
-    # Weekday Translation
-    weekday_map = {
-        "Monday": "Segunda-feira",
-        "Tuesday": "Terça-feira",
-        "Wednesday": "Quarta-feira",
-        "Thursday": "Quinta-feira",
-        "Friday": "Sexta-feira",
-        "Saturday": "Sábado",
-        "Sunday": "Domingo"
-    }
-
-    # Format missing days
-    missing_days_view = []
-    for idx, day in enumerate(missing_days):
-        # day has {date: "dd/mm", full_date: "YYYY-MM-DD", weekday: "Monday"}
-        pt_weekday = weekday_map.get(day["weekday"], day["weekday"])
-        missing_days_view.append({
-            "date_fmt": day["date"],
-            "full_date": day["full_date"],
-            "weekday_pt": pt_weekday
-        })
-    
-    # 5. Lista de caminhões liberados para o colaborador no dia
     allowed_plates = _get_delivery_allowed_plates(session, int(employee_id), today)
     equipment_list = []
     try:
@@ -9623,6 +9840,9 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             return None
     equipment_last_km = {eq["code"]: _km_serialize(eq.get("last_km")) for eq in equipment_list if eq.get("last_km") is not None}
 
+    _checklist_flags = _build_mobile_hub_access_flags(employee)
+    has_delivery_driver_access = bool(_checklist_flags.get("delivery_driver"))
+
     return templates.TemplateResponse(
         "mobile/routine_checklist.html",
         {
@@ -9632,8 +9852,7 @@ async def mobile_checklist_page(request: Request, session: Session = Depends(get
             "employee": employee,
             "items": CHECKLIST_ITEMS,
             "today": today,
-            "checklists": checklists_view,
-            "missing_days": missing_days_view
+            "has_delivery_driver_access": has_delivery_driver_access,
         }
     )
 
@@ -11707,7 +11926,7 @@ async def add_client(
     request: Request,
     name: str = Form(...),
     nb: Optional[str] = Form(None),
-    setor: Optional[str] = Form(None),
+    vendedor_id: Optional[str] = Form(None),
     me: Optional[str] = Form(None),
     sa: Optional[str] = Form(None),
     visita: Optional[str] = Form(None),
@@ -11732,7 +11951,7 @@ async def add_client(
             new_client = models.Client(
                 name=name.strip(),
                 nb=_opt_form(nb),
-                setor=_opt_form(setor),
+                setor=None,
                 me=_opt_form(me),
                 sa=_opt_form(sa),
                 visita=_opt_form(visita),
@@ -11742,7 +11961,7 @@ async def add_client(
                 bairro=_opt_form(bairro),
                 endereco=endereco_val,
                 endereco_normalizado=endereco_norm_val,
-                fone=fone_val,
+                fone=fone_e164_val or fone_val,
                 fone_e164=fone_e164_val,
                 segmento=_opt_form(segmento),
                 status_cliente=_opt_form(status_cliente),
@@ -11751,6 +11970,9 @@ async def add_client(
             session.add(new_client)
             session.commit()
             session.refresh(new_client)
+            apply_vendedor_to_client(session, new_client, parse_vendedor_id_form(vendedor_id))
+            session.add(new_client)
+            session.commit()
             # Tenta geocodificar em background (não bloqueia criação)
             _try_geocode_client(new_client, session)
     except Exception as e:
@@ -11792,31 +12014,6 @@ def _precadastro_bucket(created_at: Optional[datetime]) -> Optional[str]:
         else:
             today = date.today()
         d = created_at.date() if hasattr(created_at, "date") else created_at
-        days = (today - d).days
-        if days < 0:
-            days = 0
-        if days <= 31:
-            return "1m"
-        if days <= 90:
-            return "3m"
-        if days <= 180:
-            return "6m"
-        if days <= 270:
-            return "9m"
-        if days <= 365:
-            return "1y"
-        return "1y_plus"
-    except Exception:
-        return None
-
-
-def _last_movement_bucket(last_date_str: Optional[str]) -> Optional[str]:
-    """Retorna '1m', '3m', '6m', '9m', '1y', '1y_plus' conforme dias desde a última movimentação."""
-    if not last_date_str or not last_date_str.strip():
-        return None
-    try:
-        d = datetime.strptime(last_date_str.strip()[:10], "%Y-%m-%d").date()
-        today = date.today()
         days = (today - d).days
         if days < 0:
             days = 0
@@ -11977,24 +12174,7 @@ async def clients_page(
     last_movement_by_client_final = {x[0].id: x[1] for x in client_list_with_meta}
     precadastro_bucket_by_client = {x[0].id: x[2] for x in client_list_with_meta}
 
-    # Gráfico movimentação: por faixa (1 mês, 3 meses, ..., +1 ano, sem movimentação) na lista exibida
-    mov_buckets_labels = {"1m": "1 mês", "3m": "3 meses", "6m": "6 meses", "9m": "9 meses", "1y": "1 ano", "1y_plus": "+1 ano"}
-    mov_bucket_counts = {k: 0 for k in mov_buckets_labels}
-    sem_mov_count = 0
-    for c in clients_sorted:
-        last_mov = last_movement_by_client.get(c.id)
-        if not last_mov:
-            sem_mov_count += 1
-        else:
-            b = _last_movement_bucket(last_mov)
-            if b and b in mov_bucket_counts:
-                mov_bucket_counts[b] += 1
-    total_for_chart = len(clients_sorted)
-    chart_movimentacao = {
-        "total": total_for_chart,
-        "buckets": [{"bucket": k, "label": mov_buckets_labels[k], "count": mov_bucket_counts[k]} for k in mov_buckets_labels],
-        "sem_movimentacao": sem_mov_count,
-    }
+    sem_mov_count = sum(1 for c in clients_sorted if not last_movement_by_client.get(c.id))
     # Data do cadastro para exibição: pre-cadastro já feito → 01/03/2026; com created_at → created_at; senão → 01/01/2025
     data_cadastro_by_client: Dict[int, str] = {}
     for c in clients_sorted:
@@ -12010,53 +12190,41 @@ async def clients_page(
         else:
             data_cadastro_by_client[c.id] = "2025-01-01"
 
-    # Estatísticas pre-cadastro por faixa (1m, 3m, 6m, 9m, 1y, 1y_plus) na base total de clientes
     precadastro_buckets_labels = {"1m": "1 mês", "3m": "3 meses", "6m": "6 meses", "9m": "9 meses", "1y": "1 ano", "1y_plus": "+1 ano"}
-    bucket_counts = {k: 0 for k in precadastro_buckets_labels}
-    for c in all_clients:
-        if not _is_precadastro(c):
-            continue
-        b = _precadastro_bucket(getattr(c, "created_at", None))
-        if b and b in bucket_counts:
-            bucket_counts[b] += 1
-    chart_precadastro = [{"bucket": k, "label": precadastro_buckets_labels[k], "count": bucket_counts[k]} for k in precadastro_buckets_labels]
-
-    mov_clients_by_bucket: Dict[str, List[int]] = {k: [] for k in mov_buckets_labels}
-    sem_mov_client_ids: List[int] = []
-    for c in clients_sorted:
-        lm = last_movement_by_client.get(c.id)
-        if not lm:
-            sem_mov_client_ids.append(c.id)
-        else:
-            bk = _last_movement_bucket(lm)
-            if bk in mov_clients_by_bucket:
-                mov_clients_by_bucket[bk].append(c.id)
-    mov_drill_slices = []
-    for k in mov_buckets_labels:
-        mov_drill_slices.append(
-            {"key": k, "label": mov_buckets_labels[k], "count": mov_bucket_counts[k], "ids": mov_clients_by_bucket[k]}
-        )
-    mov_drill_slices.append(
-        {"key": "sem_mov", "label": "Sem movimentação", "count": sem_mov_count, "ids": sem_mov_client_ids}
-    )
-
-    precad_filtered_by_bucket: Dict[str, List[int]] = {k: [] for k in precadastro_buckets_labels}
-    for c in clients_sorted:
-        if not _is_precadastro(c):
-            continue
-        bk = _precadastro_bucket(getattr(c, "created_at", None))
-        if bk in precad_filtered_by_bucket:
-            precad_filtered_by_bucket[bk].append(c.id)
-    precad_drill_slices = [
-        {"key": k, "label": precadastro_buckets_labels[k], "count": len(precad_filtered_by_bucket[k]), "ids": precad_filtered_by_bucket[k]}
-        for k in precadastro_buckets_labels
-    ]
-
-    id_to_name = {c.id: ((c.name or c.nome_fantasia or c.razao_social or c.nb or str(c.id)) or "-")[:100] for c in clients_sorted}
     try:
         client_groups_list = list(session.exec(select(models.ClientGroup).order_by(models.ClientGroup.name)).all())
     except Exception:
         client_groups_list = []
+
+    try:
+        vendedores_list = list_vendedores(session)
+    except Exception:
+        logger.exception("clients_page vendedores list")
+        vendedores_list = []
+
+    vendedor_by_id: Dict[int, models.Employee] = {}
+    try:
+        vid_set = {getattr(c, "vendedor_id", None) for c in clients_sorted}
+        vid_set.discard(None)
+        if vid_set:
+            for e in session.exec(select(models.Employee).where(models.Employee.id.in_(list(vid_set)))).all():
+                vendedor_by_id[e.id] = e
+    except Exception:
+        pass
+
+    clients_stats = {
+        "total_all": len(all_clients),
+        "total_filtered": len(clients_sorted),
+        "active_total": sum(1 for c in all_clients if _is_ativo(c)),
+        "precadastro_total": sum(1 for c in all_clients if _is_precadastro(c)),
+        "validation_total": sum(1 for c in all_clients if (c.status_operacional or "").upper() == "EM_VALIDACAO"),
+        "closed_total": sum(1 for c in all_clients if _is_fechou(c)),
+        "inactive_total": sum(1 for c in all_clients if _is_inativo(c)),
+        "sem_mov_total": sem_mov_count,
+        "segment_count": len(segmentos_opts),
+        "municipality_count": len({(c.municipio or "").strip() for c in clients_sorted if (c.municipio or "").strip()}),
+        "group_count": len(client_groups_list),
+    }
 
     return templates.TemplateResponse("clients.html", {
         "request": request,
@@ -12075,15 +12243,10 @@ async def clients_page(
         "data_cadastro_by_client": data_cadastro_by_client,
         "precadastro_bucket_by_client": precadastro_bucket_by_client,
         "precadastro_buckets_labels": precadastro_buckets_labels,
-        "chart_movimentacao": chart_movimentacao,
-        "chart_precadastro": chart_precadastro,
-        "mov_drill_json": json.dumps({"total": total_for_chart, "slices": mov_drill_slices}, ensure_ascii=False),
-        "precad_drill_json": json.dumps(
-            {"total": sum(s["count"] for s in precad_drill_slices), "slices": precad_drill_slices},
-            ensure_ascii=False,
-        ),
-        "client_names_json": json.dumps(id_to_name, ensure_ascii=False),
         "client_groups": client_groups_list,
+        "clients_stats": clients_stats,
+        "vendedores_list": vendedores_list,
+        "vendedor_by_id": vendedor_by_id,
     })
 
 
@@ -12146,6 +12309,8 @@ async def client_details(request: Request, client_id: int, session: Session = De
     client = session.get(models.Client, client_id)
     if not client:
         return RedirectResponse(url="/clients")
+    client_phone_e164, client_phone_display = normalize_phone_br(getattr(client, "fone_e164", None) or getattr(client, "fone", None))
+    client_alt_phone_e164, client_alt_phone_display = normalize_phone_br(getattr(client, "fone_alternativo", None))
         
     # Fetch all routes for this client
     routes = session.exec(
@@ -12231,46 +12396,45 @@ async def client_details(request: Request, client_id: int, session: Session = De
         
         # Duration (por ciclos de entrega quando há reabertura)
         dur_str = None
-        prod = 0.0
+        prod_kg_h = 0.0
         dur_min = route_duration_minutes(r)
         if dur_min is not None and dur_min > 0:
             diff = float(dur_min) * 60
             total_duration_secs += diff
             count_duration += 1
-            dur_str = f"{int(dur_min // 60)}h {int(dur_min % 60)}m"
+            dur_str = fmt_br_duracao(max(1, int(round(float(dur_min)))))
             hours = dur_min / 60.0
-            prod = round(t / hours, 2)
-                
-        # History Row
+            # t em kg (coerente com mobile/delivery); produtividade kg/h
+            prod_kg_h = round(t / hours, 2) if hours > 0 else 0.0
+
+        # History Row (peso em kg; produtividade kg/h)
         history.append({
             "date_fmt": r_date.strftime("%d/%m/%Y"),
             "shift": r.shift,
             "employee_name": emp_map.get(r.employee_id, "Desconhecido"),
-            "tonnage_fmt": f"{t:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+            "tonnage_kg_fmt": fmt_br_2(t),
             "duration_fmt": dur_str,
-            "productivity": prod,
-            "productivity_fmt": f"{prod:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            "productivity": prod_kg_h,
+            "productivity_fmt": fmt_br_2(prod_kg_h),
         })
         
-    # Aggregates
-    avg_duration_str = "-"
-    avg_prod_val = 0.0
+    # Aggregates (duração em padrão BR; produtividade média em kg/h)
+    avg_duration_str = "—"
+    avg_prod_kg_h = 0.0
     if count_duration > 0:
         avg_sec = total_duration_secs / count_duration
-        avg_duration_str = f"{int(avg_sec//3600)}h {int((avg_sec%3600)//60)}m"
-        # Rough average productivity
-        # Total Tonnage / Total Hours (Weighted Average)
-        total_hours = total_duration_secs / 3600
+        avg_duration_str = fmt_br_duracao(max(1, int(round(avg_sec / 60.0))))
+        total_hours = total_duration_secs / 3600.0
         if total_hours > 0:
-            avg_prod_val = total_tonnage / total_hours
+            avg_prod_kg_h = round(total_tonnage / total_hours, 2)
             
     # Top Employee
-    top_emp_name = "-"
+    top_emp_name = None
     top_emp_count = 0
     if emp_counter:
-        best_id = max(emp_counter, key=lambda k: emp_counter[k]['tonnage']) # Ranking by Tonnage
-        top_emp_name = emp_map.get(best_id, "-")
-        top_emp_count = emp_counter[best_id]['count']
+        best_id = max(emp_counter, key=lambda k: emp_counter[k]["tonnage"])
+        top_emp_name = emp_map.get(best_id)
+        top_emp_count = emp_counter[best_id]["count"]
         
     # Last Op
     last_op_date = "-"
@@ -12283,9 +12447,7 @@ async def client_details(request: Request, client_id: int, session: Session = De
             last_op_days_ago = (today - l_date).days
         except:
             pass
-            
-    def fmt(n): return f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    
+
     try:
         audit_logs = list(session.exec(
             select(models.ClientAuditLog)
@@ -12343,9 +12505,6 @@ async def client_details(request: Request, client_id: int, session: Session = De
                 parts = str(s)[:10].split("-")
                 return f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else s
 
-            def _fmt_br(val: float) -> str:
-                return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
             devolucoes_list.append({
                 "id": d.id,
                 "data_romaneio": d.data_romaneio,
@@ -12353,7 +12512,7 @@ async def client_details(request: Request, client_id: int, session: Session = De
                 "data_entrega": d.data_entrega,
                 "data_entrega_fmt": _fmt_date(d.data_entrega),
                 "valor": float(d.valor or 0),
-                "valor_fmt": _fmt_br(float(d.valor or 0)),
+                "valor_fmt": fmt_br_2(float(d.valor or 0)),
                 "motivo": motivos.get(d.motivo_id, "-"),
                 "responsabilidade": resps.get(d.responsabilidade_id, "-"),
                 "motorista": emp_map.get(d.motorista_id, "-") if d.motorista_id else "-",
@@ -12394,6 +12553,14 @@ async def client_details(request: Request, client_id: int, session: Session = De
         pct_dev_vol = 0.0
 
     endereco_display = normalize_address(client.endereco or "") if client.endereco else ""
+    try:
+        vendedores_list_cd = list_vendedores(session)
+    except Exception:
+        logger.exception("client_details vendedores list")
+        vendedores_list_cd = []
+    vendedor_select_id = resolve_vendedor_id_for_select(client, session)
+    client_vendedor_card = vendedor_card_for_client(session, client)
+
     return templates.TemplateResponse("client_details.html", {
         "request": request,
         "user": user,
@@ -12401,47 +12568,47 @@ async def client_details(request: Request, client_id: int, session: Session = De
         "endereco_display": endereco_display or client.endereco,
         "audit_logs": audit_logs,
         "stats": {
-            "total_tonnage_fmt": fmt(total_tonnage),
+            "total_tonnage_fmt": fmt_br_2(total_tonnage),
             "avg_duration_fmt": avg_duration_str,
             "last_op_date": last_op_date,
             "last_op_days_ago": last_op_days_ago,
             "top_employee": top_emp_name,
             "top_employee_count": top_emp_count,
             "total_routes": len(routes),
-            "avg_tonnage_per_route_fmt": fmt(total_tonnage / len(routes)) if routes else "0,00",
-            "avg_productivity_fmt": fmt(avg_prod_val)
+            "avg_tonnage_per_route_fmt": fmt_br_2(total_tonnage / len(routes)) if routes else fmt_br_2(0),
+            "avg_productivity_fmt": fmt_br_2(avg_prod_kg_h),
         },
         "periods": {
-            "today_fmt": fmt(stats_today),
-            "week_fmt": fmt(stats_week),
-            "month_fmt": fmt(stats_month),
-            "year_fmt": fmt(stats_year),
+            "today_fmt": fmt_br_2(stats_today),
+            "week_fmt": fmt_br_2(stats_week),
+            "month_fmt": fmt_br_2(stats_month),
+            "year_fmt": fmt_br_2(stats_year),
         },
         "periods_valor": {
-            "today_fmt": f"R$ {fmt(valor_today)}",
-            "week_fmt": f"R$ {fmt(valor_week)}",
-            "month_fmt": f"R$ {fmt(valor_month)}",
-            "year_fmt": f"R$ {fmt(valor_year)}",
+            "today_fmt": f"R$ {fmt_br_2(valor_today)}",
+            "week_fmt": f"R$ {fmt_br_2(valor_week)}",
+            "month_fmt": f"R$ {fmt_br_2(valor_month)}",
+            "year_fmt": f"R$ {fmt_br_2(valor_year)}",
         },
         "periods_devolucao_vol": {
-            "today_fmt": fmt(dev_vol_today),
-            "week_fmt": fmt(dev_vol_week),
-            "month_fmt": fmt(dev_vol_month),
-            "year_fmt": fmt(dev_vol_year),
+            "today_fmt": fmt_br_2(dev_vol_today),
+            "week_fmt": fmt_br_2(dev_vol_week),
+            "month_fmt": fmt_br_2(dev_vol_month),
+            "year_fmt": fmt_br_2(dev_vol_year),
         },
         "periods_valor_devolucao": {
-            "today_fmt": f"R$ {fmt(valor_dev_today)}",
-            "week_fmt": f"R$ {fmt(valor_dev_week)}",
-            "month_fmt": f"R$ {fmt(valor_dev_month)}",
-            "year_fmt": f"R$ {fmt(max(valor_dev_year, chart_dev_valor_ano))}",
+            "today_fmt": f"R$ {fmt_br_2(valor_dev_today)}",
+            "week_fmt": f"R$ {fmt_br_2(valor_dev_week)}",
+            "month_fmt": f"R$ {fmt_br_2(valor_dev_month)}",
+            "year_fmt": f"R$ {fmt_br_2(max(valor_dev_year, chart_dev_valor_ano))}",
         },
         "chart_devolucao": {
             "pct_volume": pct_dev_vol,
             "pct_valor": pct_dev_valor,
-            "valor_dev_ano_fmt": fmt(chart_dev_valor_ano),
-            "ton_dev_ano_fmt": fmt(chart_dev_ton_ano),
-            "valor_base_ano_fmt": fmt(denom_v),
-            "ton_base_ano_fmt": fmt(denom_t),
+            "valor_dev_ano_fmt": fmt_br_2(chart_dev_valor_ano),
+            "ton_dev_ano_fmt": fmt_br_2(chart_dev_ton_ano),
+            "valor_base_ano_fmt": fmt_br_2(denom_v),
+            "ton_base_ano_fmt": fmt_br_2(denom_t),
         },
         "devolucoes_list": devolucoes_list,
         "history": history,
@@ -12453,6 +12620,14 @@ async def client_details(request: Request, client_id: int, session: Session = De
                 models.Client.id != client_id,
             ).order_by(models.Client.name)
         ).all()) if getattr(client, "client_group_id", None) else [],
+        "client_phone_input": client_phone_e164 or (client.fone or ""),
+        "client_phone_display": client_phone_display or (client.fone or ""),
+        "client_phone_api_ready": bool(client_phone_e164),
+        "client_alt_phone_input": client_alt_phone_e164 or (client.fone_alternativo or ""),
+        "client_alt_phone_display": client_alt_phone_display or (client.fone_alternativo or ""),
+        "vendedores_list": vendedores_list_cd,
+        "vendedor_select_id": vendedor_select_id,
+        "client_vendedor_card": client_vendedor_card,
     })
 
 @app.post("/clients/{client_id}/group", response_class=RedirectResponse)
@@ -12496,7 +12671,7 @@ async def update_client(
     client_id: int,
     name: str = Form(...),
     nb: Optional[str] = Form(None),
-    setor: Optional[str] = Form(None),
+    vendedor_id: Optional[str] = Form(None),
     me: Optional[str] = Form(None),
     sa: Optional[str] = Form(None),
     visita: Optional[str] = Form(None),
@@ -12530,16 +12705,18 @@ async def update_client(
         old_name, old_nb, old_setor, old_razao, old_status_op = (
             client.name, client.nb, client.setor, client.razao_social, client.status_operacional
         )
+        old_vendedor_id = getattr(client, "vendedor_id", None)
         # Captura endereço antigo para verificar se mudou
         old_address_key = (client.endereco or "", client.logradouro or "", client.numero or "", client.municipio or "")
         fone_val = _opt_form(fone)
         fone_e164_val, _ = normalize_phone_br(fone_val)
+        fone_alt_val = _opt_form(fone_alternativo)
+        fone_alt_e164_val, _ = normalize_phone_br(fone_alt_val)
         endereco_val = _opt_form(endereco)
         endereco_clean = normalize_address(endereco_val) if endereco_val else None
         endereco_norm_val = endereco_clean.upper().replace(" ", "") if endereco_clean and len(endereco_clean) >= 10 else None
         client.name = name.strip()
         client.nb = _opt_form(nb)
-        client.setor = _opt_form(setor)
         client.me = _opt_form(me)
         client.sa = _opt_form(sa)
         client.visita = _opt_form(visita)
@@ -12549,7 +12726,7 @@ async def update_client(
         client.bairro = _opt_form(bairro)
         client.endereco = endereco_clean or endereco_val
         client.endereco_normalizado = endereco_norm_val
-        client.fone = fone_val
+        client.fone = fone_e164_val or fone_val
         client.fone_e164 = fone_e164_val
         client.segmento = _opt_form(segmento)
         client.status_cliente = _opt_form(status_cliente)
@@ -12559,7 +12736,7 @@ async def update_client(
         client.complemento = _opt_form(complemento)
         client.referencia = _opt_form(referencia)
         client.observacoes_acesso = _opt_form(observacoes_acesso)
-        client.fone_alternativo = _opt_form(fone_alternativo)
+        client.fone_alternativo = fone_alt_e164_val or fone_alt_val
         client.observacoes_contato = _opt_form(observacoes_contato)
         client.janela_dias_semana = _opt_form(janela_dias_semana)
         client.janela_horario_inicio = _opt_form(janela_horario_inicio)
@@ -12567,17 +12744,20 @@ async def update_client(
         client.prioridade_logistica = _opt_form(prioridade_logistica)
         client.lgpd_nao_contatar = (lgpd_nao_contatar or "").strip().lower() in ("on", "1", "true", "sim", "sim")
         client.lgpd_restricao_dados = (lgpd_restricao_dados or "").strip().lower() in ("on", "1", "true", "sim", "sim")
+        apply_vendedor_to_client(session, client, parse_vendedor_id_form(vendedor_id))
         client.updated_at = datetime.now()
         username = request.session.get("username", "sistema")
         new_name = name.strip()
         new_nb = _opt_form(nb)
-        new_setor = _opt_form(setor)
+        new_setor = client.setor
+        new_vid = getattr(client, "vendedor_id", None)
         new_razao = _opt_form(razao_social)
         new_status_op = _opt_form(status_operacional) or "ATIVO"
         audit_fields = [
             ("name", old_name, new_name),
             ("nb", old_nb, new_nb),
             ("setor", old_setor, new_setor),
+            ("vendedor_id", str(old_vendedor_id) if old_vendedor_id else None, str(new_vid) if new_vid else None),
             ("razao_social", old_razao, new_razao),
             ("status_operacional", old_status_op, new_status_op),
         ]
@@ -14687,6 +14867,74 @@ async def separacao_page(
         (delivery_summary["returned_value"] / delivery_summary["total_value"]) * 100.0, 2
     ) if delivery_summary["total_value"] else 0.0
 
+    delivery_whatsapp_operator = get_delivery_whatsapp_operator_context(
+        request,
+        session,
+        raise_forbidden=False,
+    )
+    delivery_whatsapp_summary = {
+        "pending_routes": 0,
+        "sent_today": 0,
+        "failed_today": 0,
+    }
+    today_br = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    for group in delivery_groups:
+        try:
+            group["whatsapp"] = build_delivery_whatsapp_page_overview(
+                session,
+                route_date=group.get("group_date") or selected_date_from,
+                shift=selected_shift,
+                employee_id=int(group.get("employee_id") or 0),
+                vehicle_plate=group.get("vehicle_plate") or "",
+                auto_mark_ready=True,
+            )
+        except Exception as whatsapp_error:
+            logger.warning(
+                "delivery whatsapp overview error group=%s/%s/%s: %s",
+                group.get("group_date"),
+                group.get("employee_id"),
+                group.get("vehicle_plate"),
+                whatsapp_error,
+            )
+            group["whatsapp"] = {
+                "route_group_key": "",
+                "status": "nao_disponivel",
+                "status_label": "Nao disponivel",
+                "summary": {
+                    "total_clients": 0,
+                    "eligible": 0,
+                    "sendable": 0,
+                    "sent": 0,
+                    "failed": 0,
+                    "no_contact": 0,
+                    "invalid_phone": 0,
+                    "blocked": 0,
+                    "already_sent": 0,
+                    "ignored": 0,
+                    "pending_retry": 0,
+                },
+                "ready_at_fmt": "",
+                "ready_at_iso": "",
+                "last_sent_at_fmt": "",
+                "last_sent_at_iso": "",
+                "last_sent_by": "",
+                "can_send": False,
+                "can_retry_failed": False,
+            }
+
+        whatsapp_group = group["whatsapp"]
+        if (
+            whatsapp_group.get("status") == WHATSAPP_ROUTE_STATUS_PENDENTE
+            and int((whatsapp_group.get("summary") or {}).get("sendable") or 0) > 0
+        ):
+            delivery_whatsapp_summary["pending_routes"] += 1
+        if int((whatsapp_group.get("summary") or {}).get("failed") or 0) > 0:
+            delivery_whatsapp_summary["failed_today"] += int((whatsapp_group.get("summary") or {}).get("failed") or 0)
+        if whatsapp_group.get("status") in {WHATSAPP_ROUTE_STATUS_ENVIADO, WHATSAPP_ROUTE_STATUS_ENVIADO_PARCIAL}:
+            sent_iso = str(whatsapp_group.get("last_sent_at_iso") or "")
+            if sent_iso.startswith(today_br):
+                delivery_whatsapp_summary["sent_today"] += 1
+
     delivery_feedback = request.query_params.get("delivery_feedback")
     delivery_feedback_level = request.query_params.get("delivery_feedback_level", "info")
     delivery_employees = sorted(
@@ -14698,7 +14946,6 @@ async def separacao_page(
         key=lambda x: x.placa
     )
 
-    today_br = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     import_requires_password = date_from_str != today_br
 
     response = templates.TemplateResponse("routes.html", {
@@ -14727,6 +14974,9 @@ async def separacao_page(
         "delivery_return_reasons": DELIVERY_RETURN_REASONS,
         "delivery_employees": delivery_employees,
         "delivery_vehicles": delivery_vehicles,
+        "delivery_whatsapp_operator": delivery_whatsapp_operator,
+        "delivery_whatsapp_can_manage": bool(delivery_whatsapp_operator),
+        "delivery_whatsapp_summary": delivery_whatsapp_summary,
     })
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -15256,6 +15506,188 @@ async def separacao_delivery_sync_token(
     return JSONResponse({"success": True, "token": token})
 
 
+@app.get("/api/separacao/delivery/whatsapp/prepare", response_class=JSONResponse)
+async def api_separacao_delivery_whatsapp_prepare(
+    request: Request,
+    route_date: str,
+    employee_id: int,
+    vehicle_plate: str,
+    shift: str = "Manhã",
+    session: Session = Depends(get_session),
+):
+    operator_ctx = get_delivery_whatsapp_operator_context(request, session, raise_forbidden=True)
+    try:
+        snapshot = prepare_delivery_whatsapp_snapshot(
+            session,
+            route_date=route_date,
+            shift=shift,
+            employee_id=employee_id,
+            vehicle_plate=vehicle_plate,
+            auto_mark_ready=True,
+        )
+        snapshot["operator_label"] = operator_ctx["operator_label"]
+        return JSONResponse(content=jsonable_encoder({"success": True, "snapshot": snapshot}))
+    except ValueError as exc:
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=400)
+    except Exception as exc:
+        logger.exception("api_separacao_delivery_whatsapp_prepare: %s", exc)
+        return JSONResponse({"success": False, "error": "Falha ao preparar a notificacao da rota."}, status_code=500)
+
+
+@app.post("/api/separacao/delivery/whatsapp/send", response_class=JSONResponse)
+async def api_separacao_delivery_whatsapp_send(
+    request: Request,
+    payload: DeliveryWhatsAppRoutePayload,
+    session: Session = Depends(get_session),
+):
+    operator_ctx = get_delivery_whatsapp_operator_context(request, session, raise_forbidden=True)
+    try:
+        result = send_delivery_whatsapp_notifications(
+            session,
+            route_date=payload.route_date,
+            shift=payload.shift,
+            employee_id=payload.employee_id,
+            vehicle_plate=payload.vehicle_plate,
+            operator_label=operator_ctx["operator_label"],
+            operator_user_id=operator_ctx["operator_user_id"],
+            retry_failed=False,
+        )
+        return JSONResponse(content=jsonable_encoder({"success": True, **result}))
+    except ValueError as exc:
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=400)
+    except Exception as exc:
+        logger.exception("api_separacao_delivery_whatsapp_send: %s", exc)
+        session.rollback()
+        return JSONResponse({"success": False, "error": "Falha ao enviar notificacoes de WhatsApp."}, status_code=500)
+
+
+@app.post("/api/separacao/delivery/whatsapp/retry-failed", response_class=JSONResponse)
+async def api_separacao_delivery_whatsapp_retry_failed(
+    request: Request,
+    payload: DeliveryWhatsAppRoutePayload,
+    session: Session = Depends(get_session),
+):
+    operator_ctx = get_delivery_whatsapp_operator_context(request, session, raise_forbidden=True)
+    try:
+        result = send_delivery_whatsapp_notifications(
+            session,
+            route_date=payload.route_date,
+            shift=payload.shift,
+            employee_id=payload.employee_id,
+            vehicle_plate=payload.vehicle_plate,
+            operator_label=operator_ctx["operator_label"],
+            operator_user_id=operator_ctx["operator_user_id"],
+            retry_failed=True,
+        )
+        return JSONResponse(content=jsonable_encoder({"success": True, **result}))
+    except ValueError as exc:
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=400)
+    except Exception as exc:
+        logger.exception("api_separacao_delivery_whatsapp_retry_failed: %s", exc)
+        session.rollback()
+        return JSONResponse({"success": False, "error": "Falha ao reenviar notificacoes com erro."}, status_code=500)
+
+
+@app.post("/api/separacao/delivery/whatsapp/remark", response_class=JSONResponse)
+async def api_separacao_delivery_whatsapp_remark(
+    request: Request,
+    payload: DeliveryWhatsAppRemarkPayload,
+    session: Session = Depends(get_session),
+):
+    get_delivery_whatsapp_operator_context(request, session, raise_forbidden=True)
+    try:
+        snapshot = remark_delivery_whatsapp_clients(
+            session,
+            route_date=payload.route_date,
+            shift=payload.shift,
+            employee_id=payload.employee_id,
+            vehicle_plate=payload.vehicle_plate,
+            client_ids=payload.client_ids or [],
+        )
+        return JSONResponse(content=jsonable_encoder({"success": True, "snapshot": snapshot}))
+    except ValueError as exc:
+        return JSONResponse({"success": False, "error": str(exc)}, status_code=400)
+    except Exception as exc:
+        logger.exception("api_separacao_delivery_whatsapp_remark: %s", exc)
+        session.rollback()
+        return JSONResponse({"success": False, "error": "Falha ao remarcar clientes para envio."}, status_code=500)
+
+
+@app.post("/api/separacao/delivery/whatsapp/client-contact", response_class=JSONResponse)
+async def api_separacao_delivery_whatsapp_client_contact(
+    request: Request,
+    payload: DeliveryWhatsAppClientContactPayload,
+    session: Session = Depends(get_session),
+):
+    get_delivery_whatsapp_operator_context(request, session, raise_forbidden=True)
+    client = session.get(models.Client, payload.client_id)
+    if not client:
+        return JSONResponse({"success": False, "error": "Cliente nao encontrado."}, status_code=404)
+
+    phone_raw = (payload.phone or "").strip()
+    if not phone_raw:
+        return JSONResponse({"success": False, "error": "Informe um telefone valido."}, status_code=400)
+
+    phone_e164, _ = normalize_phone_br(phone_raw)
+    if not phone_e164:
+        return JSONResponse({"success": False, "error": "Telefone invalido. Use DDD + numero."}, status_code=400)
+
+    try:
+        client.fone = phone_e164
+        client.fone_e164 = phone_e164
+        try:
+            client.updated_at = datetime.now()
+        except Exception:
+            pass
+        session.add(client)
+        session.commit()
+
+        snapshot = prepare_delivery_whatsapp_snapshot(
+            session,
+            route_date=payload.route_date,
+            shift=payload.shift,
+            employee_id=payload.employee_id,
+            vehicle_plate=payload.vehicle_plate,
+        )
+        return JSONResponse(content=jsonable_encoder({"success": True, "snapshot": snapshot}))
+    except Exception as exc:
+        logger.exception("api_separacao_delivery_whatsapp_client_contact: %s", exc)
+        session.rollback()
+        return JSONResponse({"success": False, "error": "Falha ao atualizar contato do cliente."}, status_code=500)
+
+
+@app.get("/api/separacao/delivery/whatsapp/history", response_class=JSONResponse)
+async def api_separacao_delivery_whatsapp_history(
+    request: Request,
+    route_date: Optional[str] = None,
+    shift: Optional[str] = None,
+    employee_id: Optional[int] = None,
+    vehicle_plate: Optional[str] = None,
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 100,
+    session: Session = Depends(get_session),
+):
+    get_delivery_whatsapp_operator_context(request, session, raise_forbidden=True)
+    try:
+        data = list_delivery_whatsapp_history(
+            session,
+            route_date=route_date,
+            shift=shift,
+            employee_id=employee_id,
+            vehicle_plate=vehicle_plate,
+            status=status,
+            date_from=date_from,
+            date_to=date_to,
+            limit=limit,
+        )
+        return JSONResponse(content=jsonable_encoder({"success": True, **data}))
+    except Exception as exc:
+        logger.exception("api_separacao_delivery_whatsapp_history: %s", exc)
+        return JSONResponse({"success": False, "error": "Falha ao consultar historico de WhatsApp."}, status_code=500)
+
+
 @app.post("/separacao/delivery/status", response_class=RedirectResponse)
 async def update_delivery_status(
     request: Request,
@@ -15319,6 +15751,16 @@ async def update_delivery_status(
         if not route.start_time or route.start_time == "00:00":
             route.start_time = "00:00"
         _append_delivery_event(route, "iniciar", now)
+        try:
+            mark_delivery_group_whatsapp_ready(
+                session,
+                route_date=route.date,
+                shift=route.shift or shift,
+                employee_id=int(route.employee_id or 0),
+                vehicle_plate=route.delivery_vehicle_plate or "",
+            )
+        except Exception as whatsapp_error:
+            logger.warning("update_delivery_status whatsapp ready error: %s", whatsapp_error)
         feedback = "Entrega iniciada."
     elif action_norm == "cancelar":
         feedback_encoded = urlencode({
@@ -15592,6 +16034,10 @@ async def update_delivery_planning_date_group(
 ):
     """Move apenas as rotas de um motorista (e caminhão) para outra data."""
     require_login(request)
+    current_date = (current_date or "").strip()
+    planning_date = (planning_date or "").strip()
+    source_vehicle_plate = (source_vehicle_plate or "").strip()
+
     try:
         datetime.strptime(planning_date, "%Y-%m-%d")
     except Exception:
@@ -15613,6 +16059,16 @@ async def update_delivery_planning_date_group(
     rows = list(session.exec(q).all())
     if source_vehicle_plate and (plate_norm := _norm_plate(source_vehicle_plate)):
         rows = [r for r in rows if _norm_plate(r.delivery_vehicle_plate) == plate_norm]
+
+    if not rows:
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Nenhuma parada encontrada para esta rota. Atualize a tela e tente novamente.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(
+            url=f"/separacao?date={current_date}&shift={shift}&{feedback_encoded}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     for row in rows:
         row.date = planning_date
@@ -16001,6 +16457,7 @@ async def delivery_remove_stop(
     session.exec(delete(models.Devolucao).where(models.Devolucao.route_id == route_id))
     session.exec(delete(models.DeliveryAuthRequest).where(models.DeliveryAuthRequest.route_id == route_id))
     session.exec(delete(models.RouteInsertLog).where(models.RouteInsertLog.route_id == route_id))
+    session.exec(delete(models.DeliveryWhatsAppItem).where(models.DeliveryWhatsAppItem.route_id == route_id))
     session.delete(route)
     session.commit()
 
@@ -16090,6 +16547,16 @@ async def separacao_delivery_session_start(
     )
     session.add(new_session)
     session.commit()
+    try:
+        mark_delivery_group_whatsapp_ready(
+            session,
+            route_date=date,
+            shift=shift,
+            employee_id=employee_id,
+            vehicle_plate=plate_clean,
+        )
+    except Exception as whatsapp_error:
+        logger.warning("separacao_delivery_session_start whatsapp ready error: %s", whatsapp_error)
 
     driver_name = emp_map.get(employee_id)
     driver_label = driver_name.name if driver_name else f"Motorista #{employee_id}"
@@ -16983,16 +17450,17 @@ async def api_strategy_data(request: Request, date: Optional[str] = None, shift:
                     except:
                         pass
                     
-        # Chart Data
+        # Chart Data — só dias com entrega mensurável (evita fins de semana/feriados sem rota no eixo X)
         prod_chart_labels = []
-        prod_chart_data = [] 
-        
+        prod_chart_data = []
         for d in sorted(daily_stats.keys()):
             stats = daily_stats[d]
-            t = stats['tonnage']
-            sec = stats['duration_seconds']
-            hours = sec / 3600
-            kgh = (t / hours) if hours > 0 else 0.0
+            t = stats["tonnage"]
+            sec = stats["duration_seconds"]
+            if sec <= 0 or t <= 0:
+                continue
+            hours = sec / 3600.0
+            kgh = t / hours
             prod_chart_labels.append(d.strftime("%d/%m"))
             prod_chart_data.append(round(kgh, 1))
 
@@ -18611,8 +19079,8 @@ def format_kg_br(value: Optional[float], decimals: int = 1) -> str:
         return "—"
 
 
-def format_km_br(value: Optional[float], decimals: int = 1) -> str:
-    """Formata KM (padrão BR): 155.784,0"""
+def format_km_br(value: Optional[float], decimals: int = 0) -> str:
+    """Formata KM (padrão BR, inteiro): 155.784 — sem sufixo decimal ,0"""
     if value is None or (isinstance(value, float) and math.isnan(value)):
         return "—"
     try:
@@ -25592,17 +26060,14 @@ async def add_employee(
 
     role_val = (role or "").strip().upper()
     name_val = (name or "").strip().upper()
-    phone_clean = "".join(c for c in (phone or "") if c.isdigit()) if phone else None
-    if phone_clean and len(phone_clean) >= 10:
-        phone_clean = phone_clean[:11]  # DDD (2) + 8 ou 9 dígitos
-    else:
-        phone_clean = phone_clean if (phone_clean and len(phone_clean) >= 10) else None
+    phone_e164, _ = normalize_phone_br(phone)
+    phone_store = phone_e164[3:] if (phone_e164 and len(phone_e164) >= 13) else None
 
     new_employee = models.Employee(
         name=name_val,
         registration_id=registration_id,
         seller_code=seller_code.strip() if seller_code else None,
-        phone=phone_clean,
+        phone=phone_store,
         role=role_val,
         work_shift=work_shift,
         cost_center=cost_center,
@@ -26048,9 +26513,13 @@ async def employee_detail(
             "date": sub_as_old.substitution_date.strftime("%d/%m/%Y")
         }
 
+    emp_phone_e164, _emp_phone_disp = normalize_phone_br(getattr(employee, "phone", None))
+    employee_phone_input = emp_phone_e164 or ""
+
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
         "emp": employee, 
+        "employee_phone_input": employee_phone_input,
         "events": events, 
         "user": user,
         "stats": stats,
@@ -26596,8 +27065,8 @@ async def update_employee(
         emp.name = (name or "").strip().upper()
         emp.registration_id = registration_id
         emp.seller_code = seller_code.strip() if seller_code else None
-        phone_clean = "".join(c for c in (phone or "") if c.isdigit()) if phone else None
-        emp.phone = phone_clean[:11] if (phone_clean and len(phone_clean) >= 10) else None
+        phone_e164, _ = normalize_phone_br(phone)
+        emp.phone = phone_e164[3:] if (phone_e164 and len(phone_e164) >= 13) else None
         emp.role = (role or "").strip().upper()
         emp.work_shift = work_shift
         emp.cost_center = cost_center
@@ -27813,128 +28282,6 @@ async def lider_checklists_page_redirect():
     return RedirectResponse(url="/admin/routine/checklists", status_code=302)
 
 
-@app.get("/lider/rotas", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
-async def lider_rotas_page(
-    request: Request,
-    date: Optional[str] = None,
-    shift: str = "Manhã",
-    session: Session = Depends(get_session),
-):
-    """Página: avaliação de motoristas e ajudantes (rotas/sessões) por dia/turno."""
-    user = require_login(request)
-    if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
-
-    shift_norm = normalize_shift(shift)
-    shift_display = shift_display_label(shift_norm)
-
-    # Motoristas esperados no app
-    delivery_people = session.exec(
-        select(models.Employee)
-        .where(models.Employee.status != "fired")
-    ).all()
-    all_drivers = [e for e in delivery_people if _has_mobile_delivery_driver_access(e)]
-    expected_drivers = [e for e in all_drivers if normalize_shift(getattr(e, "work_shift", "")) == shift_norm]
-    expected_driver_ids = {e.id for e in expected_drivers}
-
-    # Ajudantes esperados no app
-    all_helpers = [e for e in delivery_people if _has_mobile_delivery_helper_access(e)]
-    expected_helpers = [e for e in all_helpers if normalize_shift(getattr(e, "work_shift", "")) == shift_norm]
-
-    # Rotas do dia/turno (somente entrega)
-    routes_day = session.exec(
-        select(models.Route)
-        .where(models.Route.date == date)
-        .where(models.Route.type == "delivery")
-    ).all()
-    emp_lookup_for_shift = {e.id: e for e in delivery_people if e.id is not None}
-    routes = [
-        r
-        for r in routes_day
-        if delivery_route_matches_leader_shift(r, shift_norm, emp_lookup_for_shift)
-    ]
-
-    with_route_driver_ids = {r.employee_id for r in routes if r.employee_id}
-    missing_route_drivers = [e for e in expected_drivers if e.id not in with_route_driver_ids]
-
-    # Velocidade: kg/h por motorista (8h de referência)
-    emp_tonnage = {}
-    for r in routes:
-        emp_tonnage[r.employee_id] = emp_tonnage.get(r.employee_id, 0) + (r.tonnage or 0)
-    total_tonnage = sum(emp_tonnage.values())
-
-    # Tabela de velocidade: esperados do turno + quem tem rota no dia (evita sumir se work_shift/flags divergirem)
-    velocity_driver_ids = set(expected_driver_ids) | {k for k in emp_tonnage if k is not None}
-    velocity_employees: List[Any] = []
-    seen_vel = set()
-    for e in expected_drivers:
-        velocity_employees.append(e)
-        seen_vel.add(e.id)
-    for eid in sorted(velocity_driver_ids - seen_vel):
-        emp = emp_lookup_for_shift.get(eid)
-        if emp:
-            velocity_employees.append(emp)
-            seen_vel.add(eid)
-
-    hours_shift = 8.0
-    driver_velocity = []
-    for e in velocity_employees:
-        kg = emp_tonnage.get(e.id, 0)
-        kgh = kg / hours_shift if hours_shift else 0
-        driver_velocity.append({"employee": e, "tonnage": kg, "kgh": round(kgh, 1)})
-    driver_velocity.sort(key=lambda x: -x["tonnage"])
-
-    # Sessoes do dia (origem de verdade para ajudantes logados com motorista)
-    sessions = session.exec(
-        select(models.DeliverySession).where(models.DeliverySession.date == date)
-    ).all()
-
-    helper_counts = {}
-    for ds in sessions:
-        if ds.employee_id not in expected_driver_ids:
-            continue
-        helper_names = _parse_session_helpers(ds.helpers_json)
-        for helper_name in helper_names:
-            key = helper_name.strip().lower()
-            if not key:
-                continue
-            helper_counts[key] = helper_counts.get(key, 0) + 1
-
-    helper_activity = []
-    missing_helpers = []
-    for h in expected_helpers:
-        key = (h.name or "").strip().lower()
-        sessions_count = helper_counts.get(key, 0)
-        item = {
-            "employee": h,
-            "sessions_count": sessions_count,
-            "is_active": sessions_count > 0,
-        }
-        helper_activity.append(item)
-        if sessions_count == 0:
-            missing_helpers.append(h)
-    helper_activity.sort(key=lambda x: x["sessions_count"], reverse=True)
-
-    return templates.TemplateResponse("lider_rotas.html", {
-        "request": request,
-        "user": user,
-        "current_date": date,
-        "current_shift": shift_display,
-        "missing_route": missing_route_drivers,
-        "missing_route_drivers": missing_route_drivers,
-        "driver_velocity": driver_velocity,
-        "velocity_list": driver_velocity,
-        "helper_activity": helper_activity,
-        "missing_helpers": missing_helpers,
-        "total_tonnage": total_tonnage,
-        "total_with_route": len(with_route_driver_ids),
-        "total_expected": len(expected_drivers),
-        "total_expected_drivers": len(expected_drivers),
-        "total_expected_helpers": len(expected_helpers),
-        "total_helpers_active": sum(1 for x in helper_activity if x["is_active"]),
-    })
-
-
 @app.get("/lider/rotas/relatorio", response_class=HTMLResponse, dependencies=[Depends(require_leader)])
 async def lider_rotas_relatorio_page(
     request: Request,
@@ -28475,722 +28822,12 @@ async def api_lider_alertas(request: Request, session: Session = Depends(get_ses
     return alertas
 
 
-# --- GM: Ordens de Serviço Operacionais ---
-
-def require_gm(request: Request):
-    """Verifica se o usuário é GM (admin) para acessar ordens de serviço."""
-    user = require_login(request)
-    role = user.get("role", "").lower() if isinstance(user, dict) else ""
-    if role not in ("admin", "gm"):
-        raise HTTPException(status_code=403, detail="Acesso restrito ao Gerente")
-    return user
-
-
-@app.get("/gm/ordens-servico", response_class=HTMLResponse)
-async def gm_ordens_servico_page(request: Request, session: Session = Depends(get_session)):
-    """Página principal: criar e gerenciar ordens de serviço."""
-    user = require_gm(request)
-    
-    # Buscar tarefas ativas
-    tasks = session.exec(
-        select(models.OperationalTask)
-        .where(models.OperationalTask.status.in_(["active", "paused"]))
-        .order_by(desc(models.OperationalTask.created_at))
-    ).all()
-    
-    # Buscar líderes (usuários com role leader)
-    leaders = session.exec(
-        select(models.User)
-        .where(models.User.role == "leader")
-        .where(models.User.is_active == True)
-    ).all()
-    
-    # Buscar execuções do dia para mostrar status
-    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    executions_today = session.exec(
-        select(models.OperationalTaskExecution)
-        .where(models.OperationalTaskExecution.scheduled_date == today)
-    ).all()
-    
-    # Mapear execuções por task_id e user_id
-    exec_map = {}
-    for ex in executions_today:
-        key = (ex.task_id, ex.user_id)
-        exec_map[key] = ex
-    
-    return templates.TemplateResponse("gm_ordens_servico.html", {
-        "request": request,
-        "user": user,
-        "tasks": tasks,
-        "leaders": leaders,
-        "executions_today": exec_map,
-        "today": today,
-    })
-
-
-@app.post("/api/gm/ordens-servico", response_class=JSONResponse)
-async def api_gm_create_ordem(request: Request, session: Session = Depends(get_session)):
-    """Criar nova ordem de serviço."""
-    user = require_gm(request)
-    try:
-        body = await request.json()
-        title = (body.get("title") or "").strip()
-        if not title:
-            return JSONResponse({"error": "Título é obrigatório"}, status_code=400)
-        
-        description = (body.get("description") or "").strip() or None
-        category = (body.get("category") or "geral").strip().lower()
-        priority = (body.get("priority") or "medium").strip().lower()
-        if priority not in ("low", "medium", "high"):
-            priority = "medium"
-        
-        recurrence_type = (body.get("recurrence_type") or "once").strip().lower()
-        if recurrence_type not in ("once", "daily", "weekly", "monthly"):
-            recurrence_type = "once"
-        
-        recurrence_days = body.get("recurrence_days") or []
-        if isinstance(recurrence_days, list):
-            recurrence_days = [int(x) for x in recurrence_days if str(x).isdigit()]
-        else:
-            recurrence_days = []
-        
-        recurrence_day_of_month = None
-        if body.get("recurrence_day_of_month"):
-            try:
-                recurrence_day_of_month = int(body["recurrence_day_of_month"])
-                if recurrence_day_of_month < 1 or recurrence_day_of_month > 31:
-                    recurrence_day_of_month = None
-            except:
-                pass
-        
-        scheduled_time = (body.get("scheduled_time") or "").strip() or None
-        estimated_duration = body.get("estimated_duration_minutes")
-        if estimated_duration:
-            try:
-                estimated_duration = int(estimated_duration)
-            except:
-                estimated_duration = None
-        
-        recipient_user_ids = body.get("recipient_user_ids") or []
-        if isinstance(recipient_user_ids, list):
-            recipient_user_ids = [int(x) for x in recipient_user_ids if x]
-        else:
-            recipient_user_ids = []
-        
-        requires_photo = bool(body.get("requires_photo"))
-        requires_note = bool(body.get("requires_note"))
-        
-        valid_from = None
-        if body.get("valid_from"):
-            try:
-                valid_from = datetime.fromisoformat(body["valid_from"].replace("Z", "+00:00"))
-            except:
-                pass
-        
-        valid_until = None
-        if body.get("valid_until"):
-            try:
-                valid_until = datetime.fromisoformat(body["valid_until"].replace("Z", "+00:00"))
-            except:
-                pass
-        
-        username = (user.get("username") or user.get("name") or "GM") if isinstance(user, dict) else "GM"
-        
-        task = models.OperationalTask(
-            title=title,
-            description=description,
-            category=category,
-            priority=priority,
-            recurrence_type=recurrence_type,
-            recurrence_days=recurrence_days,
-            recurrence_day_of_month=recurrence_day_of_month,
-            scheduled_time=scheduled_time,
-            estimated_duration_minutes=estimated_duration,
-            recipient_user_ids=recipient_user_ids,
-            requires_photo=requires_photo,
-            requires_note=requires_note,
-            valid_from=valid_from,
-            valid_until=valid_until,
-            created_by=username,
-        )
-        session.add(task)
-        session.commit()
-        session.refresh(task)
-        
-        # Gerar execuções para hoje se aplicável
-        generate_executions_for_task(session, task)
-        
-        return {"success": True, "task_id": task.id}
-    except Exception as e:
-        logger.exception("Erro ao criar ordem de serviço")
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-def generate_executions_for_task(session: Session, task: models.OperationalTask, target_date: str = None):
-    """Gera execuções para uma tarefa em uma data específica."""
-    if target_date is None:
-        target_date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    
-    target_dt = datetime.strptime(target_date, "%Y-%m-%d")
-    weekday = target_dt.weekday()  # 0=segunda, 6=domingo
-    day_of_month = target_dt.day
-    
-    # Verificar se a tarefa deve ser executada nesta data
-    should_execute = False
-    
-    if task.recurrence_type == "once":
-        # Tarefa única - executar se foi criada hoje ou se valid_from é hoje
-        if task.valid_from:
-            should_execute = task.valid_from.strftime("%Y-%m-%d") == target_date
-        else:
-            should_execute = task.created_at.strftime("%Y-%m-%d") == target_date
-    elif task.recurrence_type == "daily":
-        should_execute = True
-    elif task.recurrence_type == "weekly":
-        should_execute = weekday in (task.recurrence_days or [])
-    elif task.recurrence_type == "monthly":
-        should_execute = day_of_month == task.recurrence_day_of_month
-    
-    if not should_execute:
-        return
-    
-    # Verificar validade
-    if task.valid_from and target_dt < task.valid_from.replace(tzinfo=None):
-        return
-    if task.valid_until and target_dt > task.valid_until.replace(tzinfo=None):
-        return
-    
-    # Criar execução para cada líder responsável
-    for user_id in (task.recipient_user_ids or []):
-        # Verificar se já existe execução para este líder nesta data
-        existing = session.exec(
-            select(models.OperationalTaskExecution)
-            .where(models.OperationalTaskExecution.task_id == task.id)
-            .where(models.OperationalTaskExecution.user_id == user_id)
-            .where(models.OperationalTaskExecution.scheduled_date == target_date)
-        ).first()
-        
-        if not existing:
-            execution = models.OperationalTaskExecution(
-                task_id=task.id,
-                scheduled_date=target_date,
-                user_id=user_id,
-                status="pending",
-            )
-            session.add(execution)
-    
-    session.commit()
-
-
-@app.get("/api/gm/ordens-servico", response_class=JSONResponse)
-async def api_gm_list_ordens(request: Request, session: Session = Depends(get_session)):
-    """Listar ordens de serviço."""
-    require_gm(request)
-    tasks = session.exec(
-        select(models.OperationalTask)
-        .where(models.OperationalTask.status.in_(["active", "paused"]))
-        .order_by(desc(models.OperationalTask.created_at))
-    ).all()
-    
-    out = []
-    for t in tasks:
-        out.append({
-            "id": t.id,
-            "title": t.title,
-            "description": t.description,
-            "category": t.category,
-            "priority": t.priority,
-            "recurrence_type": t.recurrence_type,
-            "scheduled_time": t.scheduled_time,
-            "status": t.status,
-            "recipient_user_ids": t.recipient_user_ids or [],
-            "created_by": t.created_by,
-            "created_at": t.created_at.isoformat() if t.created_at else None,
-        })
-    return out
-
-
-@app.put("/api/gm/ordens-servico/{task_id}", response_class=JSONResponse)
-async def api_gm_update_ordem(task_id: int, request: Request, session: Session = Depends(get_session)):
-    """Atualizar ordem de serviço."""
-    require_gm(request)
-    task = session.get(models.OperationalTask, task_id)
-    if not task:
-        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
-    
-    try:
-        body = await request.json()
-        
-        if "title" in body:
-            task.title = (body["title"] or "").strip() or task.title
-        if "description" in body:
-            task.description = (body["description"] or "").strip() or None
-        if "category" in body:
-            task.category = (body["category"] or "geral").strip().lower()
-        if "priority" in body:
-            priority = (body["priority"] or "medium").strip().lower()
-            task.priority = priority if priority in ("low", "medium", "high") else task.priority
-        if "status" in body:
-            status = (body["status"] or "active").strip().lower()
-            task.status = status if status in ("active", "paused", "archived") else task.status
-        if "recipient_user_ids" in body:
-            recipient_user_ids = body["recipient_user_ids"] or []
-            if isinstance(recipient_user_ids, list):
-                task.recipient_user_ids = [int(x) for x in recipient_user_ids if x]
-        if "scheduled_time" in body:
-            task.scheduled_time = (body["scheduled_time"] or "").strip() or None
-        if "requires_photo" in body:
-            task.requires_photo = bool(body["requires_photo"])
-        if "requires_note" in body:
-            task.requires_note = bool(body["requires_note"])
-        
-        task.updated_at = datetime.now()
-        session.add(task)
-        session.commit()
-        
-        return {"success": True}
-    except Exception as e:
-        logger.exception("Erro ao atualizar ordem de serviço")
-        return JSONResponse({"error": str(e)}, status_code=500)
-
-
-@app.delete("/api/gm/ordens-servico/{task_id}", response_class=JSONResponse)
-async def api_gm_delete_ordem(task_id: int, request: Request, session: Session = Depends(get_session)):
-    """Arquivar ordem de serviço."""
-    require_gm(request)
-    task = session.get(models.OperationalTask, task_id)
-    if not task:
-        return JSONResponse({"error": "Tarefa não encontrada"}, status_code=404)
-    
-    task.status = "archived"
-    task.updated_at = datetime.now()
-    session.add(task)
-    session.commit()
-    
-    return {"success": True}
-
-
-@app.get("/gm/ordens-servico/historico", response_class=HTMLResponse)
-async def gm_ordens_historico_page(request: Request, session: Session = Depends(get_session)):
-    """Página de histórico de execuções."""
-    user = require_gm(request)
-    
-    # Buscar todas as execuções dos últimos 30 dias
-    start_date = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
-    
-    executions = session.exec(
-        select(models.OperationalTaskExecution)
-        .where(models.OperationalTaskExecution.scheduled_date >= start_date)
-        .order_by(desc(models.OperationalTaskExecution.scheduled_date))
-    ).all()
-    
-    # Enriquecer com dados da tarefa e líder
-    enriched = []
-    for ex in executions:
-        task = session.get(models.OperationalTask, ex.task_id)
-        leader = session.get(models.User, ex.user_id)
-        enriched.append({
-            "execution": ex,
-            "task": task,
-            "leader": leader,
-        })
-    
-    return templates.TemplateResponse("gm_ordens_historico.html", {
-        "request": request,
-        "user": user,
-        "executions": enriched,
-    })
-
-
-@app.get("/api/gm/ordens-servico/historico", response_class=JSONResponse)
-async def api_gm_historico(
-    request: Request,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    user_id: Optional[int] = None,
-    status: Optional[str] = None,
-    session: Session = Depends(get_session)
-):
-    """API para buscar histórico de execuções com filtros."""
-    require_gm(request)
-    
-    query = select(models.OperationalTaskExecution)
-    
-    if start_date:
-        query = query.where(models.OperationalTaskExecution.scheduled_date >= start_date)
-    if end_date:
-        query = query.where(models.OperationalTaskExecution.scheduled_date <= end_date)
-    if user_id:
-        query = query.where(models.OperationalTaskExecution.user_id == user_id)
-    if status:
-        query = query.where(models.OperationalTaskExecution.status == status)
-    
-    query = query.order_by(desc(models.OperationalTaskExecution.scheduled_date))
-    executions = session.exec(query).all()
-    
-    out = []
-    for ex in executions:
-        task = session.get(models.OperationalTask, ex.task_id)
-        leader = session.get(models.User, ex.user_id)
-        out.append({
-            "id": ex.id,
-            "task_id": ex.task_id,
-            "task_title": task.title if task else "—",
-            "scheduled_date": ex.scheduled_date,
-            "user_id": ex.user_id,
-            "leader_name": leader.username if leader else "—",
-            "status": ex.status,
-            "started_at": ex.started_at.isoformat() if ex.started_at else None,
-            "completed_at": ex.completed_at.isoformat() if ex.completed_at else None,
-            "note": ex.note,
-            "postponed_to": ex.postponed_to,
-            "postpone_reason": ex.postpone_reason,
-            "not_done_reason": ex.not_done_reason,
-        })
-    return out
-
-
-@app.get("/gm/ordens-servico/kpis", response_class=HTMLResponse)
-async def gm_ordens_kpis_page(request: Request, session: Session = Depends(get_session)):
-    """Página de KPIs dos líderes."""
-    user = require_gm(request)
-    
-    # Buscar líderes
-    leaders = session.exec(
-        select(models.User)
-        .where(models.User.role == "leader")
-        .where(models.User.is_active == True)
-    ).all()
-    
-    # Calcular KPIs para cada líder (últimos 30 dias)
-    start_date = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
-    
-    kpis = []
-    for leader in leaders:
-        executions = session.exec(
-            select(models.OperationalTaskExecution)
-            .where(models.OperationalTaskExecution.user_id == leader.id)
-            .where(models.OperationalTaskExecution.scheduled_date >= start_date)
-        ).all()
-        
-        total = len(executions)
-        completed = len([e for e in executions if e.status == "completed"])
-        in_progress = len([e for e in executions if e.status == "in_progress"])
-        pending = len([e for e in executions if e.status == "pending"])
-        postponed = len([e for e in executions if e.status == "postponed"])
-        not_done = len([e for e in executions if e.status == "not_done"])
-        justified = len([e for e in executions if e.status == "justified"])
-        
-        # Calcular taxa de conclusão
-        completion_rate = (completed / total * 100) if total > 0 else 0
-        
-        # Calcular taxa de pontualidade (completadas no dia programado)
-        on_time = 0
-        for ex in executions:
-            if ex.status == "completed" and ex.completed_at:
-                completed_date = ex.completed_at.strftime("%Y-%m-%d")
-                if completed_date == ex.scheduled_date:
-                    on_time += 1
-        punctuality_rate = (on_time / completed * 100) if completed > 0 else 0
-        
-        # Taxa de adiamento
-        postpone_rate = (postponed / total * 100) if total > 0 else 0
-        
-        # Taxa de não execução
-        not_done_rate = (not_done / total * 100) if total > 0 else 0
-        
-        # Score geral (fórmula ponderada)
-        score = (
-            completion_rate * 0.40 +
-            punctuality_rate * 0.30 +
-            (100 - postpone_rate) * 0.15 +
-            (100 - not_done_rate) * 0.15
-        )
-        
-        kpis.append({
-            "leader": leader,
-            "total": total,
-            "completed": completed,
-            "pending": pending,
-            "in_progress": in_progress,
-            "postponed": postponed,
-            "not_done": not_done,
-            "justified": justified,
-            "completion_rate": round(completion_rate, 1),
-            "punctuality_rate": round(punctuality_rate, 1),
-            "postpone_rate": round(postpone_rate, 1),
-            "not_done_rate": round(not_done_rate, 1),
-            "score": round(score, 1),
-        })
-    
-    # Ordenar por score descendente
-    kpis.sort(key=lambda x: x["score"], reverse=True)
-    
-    return templates.TemplateResponse("gm_ordens_kpis.html", {
-        "request": request,
-        "user": user,
-        "kpis": kpis,
-    })
-
-
-@app.get("/api/gm/ordens-servico/kpis", response_class=JSONResponse)
-async def api_gm_kpis(
-    request: Request,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    session: Session = Depends(get_session)
-):
-    """API para buscar KPIs com filtro de período."""
-    require_gm(request)
-    
-    if not start_date:
-        start_date = (datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=30)).strftime("%Y-%m-%d")
-    if not end_date:
-        end_date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    
-    leaders = session.exec(
-        select(models.User)
-        .where(models.User.role == "leader")
-        .where(models.User.is_active == True)
-    ).all()
-    
-    kpis = []
-    for leader in leaders:
-        executions = session.exec(
-            select(models.OperationalTaskExecution)
-            .where(models.OperationalTaskExecution.user_id == leader.id)
-            .where(models.OperationalTaskExecution.scheduled_date >= start_date)
-            .where(models.OperationalTaskExecution.scheduled_date <= end_date)
-        ).all()
-        
-        total = len(executions)
-        completed = len([e for e in executions if e.status == "completed"])
-        postponed = len([e for e in executions if e.status == "postponed"])
-        not_done = len([e for e in executions if e.status == "not_done"])
-        
-        completion_rate = (completed / total * 100) if total > 0 else 0
-        
-        on_time = 0
-        for ex in executions:
-            if ex.status == "completed" and ex.completed_at:
-                completed_date = ex.completed_at.strftime("%Y-%m-%d")
-                if completed_date == ex.scheduled_date:
-                    on_time += 1
-        punctuality_rate = (on_time / completed * 100) if completed > 0 else 0
-        
-        postpone_rate = (postponed / total * 100) if total > 0 else 0
-        not_done_rate = (not_done / total * 100) if total > 0 else 0
-        
-        score = (
-            completion_rate * 0.40 +
-            punctuality_rate * 0.30 +
-            (100 - postpone_rate) * 0.15 +
-            (100 - not_done_rate) * 0.15
-        )
-        
-        kpis.append({
-            "user_id": leader.id,
-            "username": leader.username,
-            "total": total,
-            "completed": completed,
-            "completion_rate": round(completion_rate, 1),
-            "punctuality_rate": round(punctuality_rate, 1),
-            "postpone_rate": round(postpone_rate, 1),
-            "not_done_rate": round(not_done_rate, 1),
-            "score": round(score, 1),
-        })
-    
-    kpis.sort(key=lambda x: x["score"], reverse=True)
-    return kpis
-
-
-# --- Rotas para LÍDERES executarem as ordens ---
-
-
-@app.get("/lider/minhas-ordens", response_class=RedirectResponse)
-async def lider_minhas_ordens_removed():
-    """Página descontinuada: redireciona para o fluxo inteligente."""
-    return RedirectResponse(url="/smart-flow", status_code=301)
-
-
-@app.post("/api/lider/ordens/{execution_id}/iniciar", response_class=JSONResponse)
-async def api_lider_iniciar_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
-    """Líder inicia execução da ordem."""
-    user = require_leader(request)
-    user_id = user.get("id") if isinstance(user, dict) else None
-    
-    execution = session.get(models.OperationalTaskExecution, execution_id)
-    if not execution:
-        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
-    if execution.user_id != user_id:
-        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
-    if execution.status not in ("pending",):
-        return JSONResponse({"error": f"Status atual ({execution.status}) não permite iniciar"}, status_code=400)
-    
-    execution.status = "in_progress"
-    execution.started_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    execution.updated_at = datetime.now()
-    session.add(execution)
-    session.commit()
-    
-    return {"success": True, "status": execution.status}
-
-
-@app.post("/api/lider/ordens/{execution_id}/concluir", response_class=JSONResponse)
-async def api_lider_concluir_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
-    """Líder conclui execução da ordem."""
-    user = require_leader(request)
-    user_id = user.get("id") if isinstance(user, dict) else None
-    
-    execution = session.get(models.OperationalTaskExecution, execution_id)
-    if not execution:
-        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
-    if execution.user_id != user_id:
-        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
-    if execution.status not in ("pending", "in_progress"):
-        return JSONResponse({"error": f"Status atual ({execution.status}) não permite concluir"}, status_code=400)
-    
-    try:
-        body = await request.json()
-    except:
-        body = {}
-    
-    task = session.get(models.OperationalTask, execution.task_id)
-    
-    note = (body.get("note") or "").strip() or None
-    photo_urls = body.get("photo_urls") or []
-    
-    # Validar requisitos
-    if task and task.requires_note and not note:
-        return JSONResponse({"error": "Observação é obrigatória para esta tarefa"}, status_code=400)
-    if task and task.requires_photo and not photo_urls:
-        return JSONResponse({"error": "Foto é obrigatória para esta tarefa"}, status_code=400)
-    
-    execution.status = "completed"
-    execution.completed_at = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    execution.note = note
-    execution.photo_urls = photo_urls if isinstance(photo_urls, list) else []
-    execution.updated_at = datetime.now()
-    
-    if not execution.started_at:
-        execution.started_at = execution.completed_at
-    
-    session.add(execution)
-    session.commit()
-    
-    return {"success": True, "status": execution.status}
-
-
-@app.post("/api/lider/ordens/{execution_id}/adiar", response_class=JSONResponse)
-async def api_lider_adiar_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
-    """Líder adia execução da ordem."""
-    user = require_leader(request)
-    user_id = user.get("id") if isinstance(user, dict) else None
-    
-    execution = session.get(models.OperationalTaskExecution, execution_id)
-    if not execution:
-        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
-    if execution.user_id != user_id:
-        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
-    if execution.status not in ("pending", "in_progress"):
-        return JSONResponse({"error": f"Status atual ({execution.status}) não permite adiar"}, status_code=400)
-    
-    try:
-        body = await request.json()
-    except:
-        body = {}
-    
-    postponed_to = (body.get("postponed_to") or "").strip()
-    postpone_reason = (body.get("reason") or "").strip()
-    
-    if not postponed_to:
-        return JSONResponse({"error": "Nova data é obrigatória"}, status_code=400)
-    if not postpone_reason:
-        return JSONResponse({"error": "Motivo do adiamento é obrigatório"}, status_code=400)
-    
-    execution.status = "postponed"
-    execution.postponed_to = postponed_to
-    execution.postpone_reason = postpone_reason
-    execution.updated_at = datetime.now()
-    session.add(execution)
-    session.commit()
-    
-    return {"success": True, "status": execution.status}
-
-
-@app.post("/api/lider/ordens/{execution_id}/nao-fazer", response_class=JSONResponse)
-async def api_lider_nao_fazer_ordem(execution_id: int, request: Request, session: Session = Depends(get_session)):
-    """Líder marca ordem como não realizada."""
-    user = require_leader(request)
-    user_id = user.get("id") if isinstance(user, dict) else None
-    
-    execution = session.get(models.OperationalTaskExecution, execution_id)
-    if not execution:
-        return JSONResponse({"error": "Execução não encontrada"}, status_code=404)
-    if execution.user_id != user_id:
-        return JSONResponse({"error": "Esta ordem não é sua"}, status_code=403)
-    if execution.status not in ("pending", "in_progress"):
-        return JSONResponse({"error": f"Status atual ({execution.status}) não permite esta ação"}, status_code=400)
-    
-    try:
-        body = await request.json()
-    except:
-        body = {}
-    
-    reason = (body.get("reason") or "").strip()
-    
-    if not reason:
-        return JSONResponse({"error": "Motivo é obrigatório"}, status_code=400)
-    
-    execution.status = "not_done"
-    execution.not_done_reason = reason
-    execution.updated_at = datetime.now()
-    session.add(execution)
-    session.commit()
-    
-    return {"success": True, "status": execution.status}
-
-
-# Job para gerar execuções diárias (pode ser chamado por cron ou no startup)
-@app.post("/api/gm/ordens-servico/gerar-execucoes", response_class=JSONResponse)
-async def api_gm_gerar_execucoes(request: Request, session: Session = Depends(get_session)):
-    """Gera execuções para o dia atual para todas as tarefas ativas."""
-    require_gm(request)
-    
-    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    
-    active_tasks = session.exec(
-        select(models.OperationalTask)
-        .where(models.OperationalTask.status == "active")
-    ).all()
-    
-    generated = 0
-    for task in active_tasks:
-        before_count = session.exec(
-            select(models.OperationalTaskExecution)
-            .where(models.OperationalTaskExecution.task_id == task.id)
-            .where(models.OperationalTaskExecution.scheduled_date == today)
-        ).all()
-        
-        generate_executions_for_task(session, task, today)
-        
-        after_count = session.exec(
-            select(models.OperationalTaskExecution)
-            .where(models.OperationalTaskExecution.task_id == task.id)
-            .where(models.OperationalTaskExecution.scheduled_date == today)
-        ).all()
-        
-        generated += len(after_count) - len(before_count)
-    
-    return {"success": True, "generated": generated, "date": today}
-
-
 # --- Performance Operacional (Planejado vs Realizado) ---
 
 @app.get("/gm/performance-operacional", response_class=HTMLResponse)
 async def gm_performance_operacional_page(request: Request, session: Session = Depends(get_session)):
     """Página de KPIs da Gerência: Planejado vs Realizado."""
-    user = require_gm(request)
+    user = require_gerente(request)
     return templates.TemplateResponse("gm_performance_operacional.html", {
         "request": request,
         "user": user,
@@ -29203,7 +28840,7 @@ async def api_gm_performance_data(
     session: Session = Depends(get_session)
 ):
     """API que retorna os dados consolidados de planejado vs realizado."""
-    require_gm(request)
+    require_gerente(request)
     if not date:
         date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
 
@@ -29305,7 +28942,7 @@ async def api_gm_performance_data(
 @app.get("/gm/mapa-realtime", response_class=HTMLResponse)
 async def gm_mapa_realtime_page(request: Request, session: Session = Depends(get_session)):
     """Página de monitoramento geográfico da frota em tempo real."""
-    user = require_gm(request)
+    user = require_gerente(request)
     return templates.TemplateResponse("gm_mapa_realtime.html", {
         "request": request,
         "user": user,
@@ -29313,39 +28950,104 @@ async def gm_mapa_realtime_page(request: Request, session: Session = Depends(get
 
 @app.get("/api/gm/locations-realtime", response_class=JSONResponse)
 async def api_gm_locations_realtime(request: Request, session: Session = Depends(get_session)):
-    """Retorna a última posição conhecida de todos os motoristas ativos hoje."""
-    require_gm(request)
-    today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
-    
-    # Pegar as últimas localizações de cada motorista/placa
-    stmt = text("""
-        SELECT vl.*, e.name as driver_name 
-        FROM vehiclelocation vl
-        JOIN employee e ON vl.employee_id = e.id
-        WHERE vl.id IN (
-            SELECT MAX(id) 
-            FROM vehiclelocation 
-            WHERE timestamp >= :today
-            GROUP BY employee_id
+    """Última posição por motorista: pings recentes + fallback da rota (GPS ao iniciar parada)."""
+    require_gerente(request)
+    try:
+        tz = ZoneInfo("America/Sao_Paulo")
+        now_sp = datetime.now(tz)
+        today_str = now_sp.strftime("%Y-%m-%d")
+        cutoff = (now_sp - timedelta(hours=72)).replace(tzinfo=None)
+
+        stmt = (
+            select(models.VehicleLocation)
+            .where(models.VehicleLocation.timestamp >= cutoff)
+            .order_by(models.VehicleLocation.employee_id, desc(models.VehicleLocation.id))
         )
-    """)
-    results = session.execute(stmt, {"today": today}).all()
-    
-    out = []
-    for r in results:
-        out.append({
-            "driver_name": r.driver_name,
-            "plate": r.plate,
-            "lat": r.latitude,
-            "lng": r.longitude,
-            "timestamp": r.timestamp.isoformat() if r.timestamp else None
-        })
-    return out
+        rows = list(session.exec(stmt).all())
+        latest_by_emp: Dict[int, models.VehicleLocation] = {}
+        for loc in rows:
+            if loc.employee_id not in latest_by_emp:
+                latest_by_emp[loc.employee_id] = loc
+
+        out_map: Dict[int, Dict[str, Any]] = {}
+        for eid, loc in latest_by_emp.items():
+            out_map[eid] = {
+                "employee_id": eid,
+                "driver_name": "",
+                "plate": (loc.plate or "").strip().upper() or "—",
+                "lat": loc.latitude,
+                "lng": loc.longitude,
+                "timestamp": loc.timestamp.isoformat() if loc.timestamp else None,
+                "position_source": "ping",
+            }
+
+        # Rotas com parada em andamento hoje: o app já grava driver_lat_start ao tocar "Iniciar" (sem depender do ping).
+        route_rows = list(
+            session.exec(
+                select(models.Route)
+                .where(models.Route.type == "delivery")
+                .where(models.Route.date == today_str)
+                .where(models.Route.delivery_status.in_(["iniciada", "reaberta"]))
+                .order_by(desc(models.Route.id))
+            ).all()
+        )
+        route_by_emp: Dict[int, models.Route] = {}
+        for r in route_rows:
+            if r.employee_id not in route_by_emp:
+                route_by_emp[r.employee_id] = r
+
+        for eid, route in route_by_emp.items():
+            if eid in out_map:
+                continue
+            lat = route.driver_lat_start
+            lng = route.driver_lon_start
+            if lat is None or lng is None:
+                continue
+            plate = (route.delivery_vehicle_plate or "").strip().upper()
+            if len(plate.replace(" ", "").replace("-", "")) < 7:
+                ds = session.exec(
+                    select(models.DeliverySession)
+                    .where(models.DeliverySession.employee_id == eid)
+                    .where(models.DeliverySession.date == today_str)
+                    .where(models.DeliverySession.status == "open")
+                ).first()
+                if ds and (ds.vehicle_plate or "").strip():
+                    plate = (ds.vehicle_plate or "").strip().upper()
+            if not plate:
+                plate = "—"
+            out_map[eid] = {
+                "employee_id": eid,
+                "driver_name": "",
+                "plate": plate,
+                "lat": float(lat),
+                "lng": float(lng),
+                "timestamp": None,
+                "position_source": "parada",
+            }
+
+        if not out_map:
+            return []
+
+        emp_ids = list(out_map.keys())
+        employees = session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all()
+        name_by_id = {e.id: (e.name or "").strip() for e in employees if e.id is not None}
+        for eid in out_map:
+            out_map[eid]["driver_name"] = name_by_id.get(eid, "")
+
+        return list(out_map.values())
+    except Exception as e:
+        logger.exception("api_gm_locations_realtime: %s", e)
+        return []
 
 @app.post("/api/mobile/location", response_class=JSONResponse)
 async def api_mobile_post_location(request: Request, session: Session = Depends(get_session)):
     """Recebe a localização de um motorista vinda do App mobile."""
     try:
+        user_id = request.session.get("user_id")
+        if not user_id:
+            return JSONResponse({"error": "Não autorizado"}, status_code=401)
+        user_id = int(user_id)
+
         body = await request.json()
         employee_id = body.get("employee_id")
         plate = body.get("plate")
@@ -29354,12 +29056,16 @@ async def api_mobile_post_location(request: Request, session: Session = Depends(
         
         if not all([employee_id, plate, lat, lng]):
             return JSONResponse({"error": "Dados incompletos"}, status_code=400)
+        if int(employee_id) != user_id:
+            return JSONResponse({"error": "Não autorizado"}, status_code=403)
             
+        ts_sp = datetime.now(ZoneInfo("America/Sao_Paulo")).replace(tzinfo=None)
         loc = models.VehicleLocation(
-            employee_id=employee_id,
-            plate=plate,
+            employee_id=int(employee_id),
+            plate=str(plate).strip().upper(),
             latitude=float(lat),
-            longitude=float(lng)
+            longitude=float(lng),
+            timestamp=ts_sp,
         )
         session.add(loc)
         session.commit()
@@ -29368,90 +29074,6 @@ async def api_mobile_post_location(request: Request, session: Session = Depends(
         logger.error(f"Erro ao salvar localização: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
 
-
-# --- Operational History Routes ---
-
-@app.get("/operational/history", response_class=HTMLResponse)
-async def operational_history_page(request: Request, session: Session = Depends(get_session)):
-    """Render the Operational History Page"""
-    try:
-        user = require_login(request)
-        can_view_checklist_links = (
-            isinstance(user, dict)
-            and user.get("type") == "user"
-            and (user.get("role") or "").lower() in {"admin", "leader"}
-        )
-
-        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
-        start_date = now_br - timedelta(days=30)
-        events = session.exec(
-            select(models.Event)
-            .where(
-                or_(
-                    models.Event.reference_type == "checklist",
-                    models.Event.type == "checklist"
-                ),
-                models.Event.timestamp >= start_date
-            )
-            .order_by(desc(models.Event.timestamp))
-        ).all()
-
-        employee_ids = {evt.employee_id for evt in events if evt.employee_id}
-        employee_map = {}
-        if employee_ids:
-            employees = session.exec(
-                select(models.Employee).where(models.Employee.id.in_(employee_ids))
-            ).all()
-            employee_map = {emp.id: emp.name for emp in employees if emp}
-
-        checklist_refs = {
-            evt.reference_id
-            for evt in events
-            if evt.reference_type == "checklist" and evt.reference_id
-        }
-        existing_checklists = set()
-        if checklist_refs:
-            existing_checklists = set(
-                session.exec(
-                    select(models.TranspalletChecklist.id).where(
-                        models.TranspalletChecklist.id.in_(checklist_refs)
-                    )
-                ).all()
-            )
-
-        processed_events = []
-        for evt in events:
-            employee_name = employee_map.get(evt.employee_id) if evt.employee_id else None
-            reference_exists = bool(
-                evt.reference_type == "checklist"
-                and evt.reference_id
-                and evt.reference_id in existing_checklists
-            )
-            processed_events.append({
-                "id": evt.id,
-                "timestamp": evt.timestamp,
-                "text": evt.text,
-                "reference_type": evt.reference_type,
-                "reference_id": evt.reference_id,
-                "sector": evt.sector,
-                "employee_name": employee_name,
-                "reference_exists": reference_exists
-            })
-        events = processed_events
-
-        return templates.TemplateResponse(
-            "operational_history.html",
-            {
-                "request": request,
-                "events": events,
-                "can_view_checklist_links": can_view_checklist_links
-            }
-        )
-    except Exception as e:
-        logger.exception("Error rendering operational history")
-        return HTMLResponse(content=f"Error: {e}", status_code=500)
-
-from gamification_engine import calculate_daily_xp # Import for recalculation
 
 @app.get("/api/operational/routes")
 async def api_operational_routes(
@@ -30996,7 +30618,7 @@ async def admin_substitutions_page(
         user = require_admin(request)
     except Exception:
         try:
-            user = require_gm(request, session)
+            user = require_game_master(request, session)
         except Exception:
             return RedirectResponse(url="/login", status_code=303)
 
@@ -31049,7 +30671,7 @@ async def admin_substitutions_export(
         require_admin(request)
     except Exception:
         try:
-            require_gm(request, session)
+            require_game_master(request, session)
         except Exception:
             return RedirectResponse(url="/login", status_code=303)
 
@@ -31106,7 +30728,7 @@ async def admin_substitutions_edit(
         user = require_admin(request)
     except Exception:
         try:
-            user = require_gm(request, session)
+            user = require_game_master(request, session)
         except Exception:
             return RedirectResponse(url="/login", status_code=303)
 
@@ -31412,7 +31034,7 @@ async def admin_turnover_analysis_page(
         user = require_admin(request)
     except Exception:
         try:
-            user = require_gm(request, session)
+            user = require_game_master(request, session)
         except Exception:
             return RedirectResponse(url="/login", status_code=303)
 
@@ -31469,7 +31091,7 @@ async def admin_turnover_ai_report(request: Request, session: Session = Depends(
         user = require_admin(request)
     except Exception:
         try:
-            user = require_gm(request, session)
+            user = require_game_master(request, session)
         except Exception:
             return JSONResponse({"error": "Acesso negado"}, status_code=403)
 
@@ -31566,7 +31188,7 @@ async def admin_turnover_update_dates(request: Request, session: Session = Depen
         user = require_admin(request)
     except Exception:
         try:
-            user = require_gm(request, session)
+            user = require_game_master(request, session)
         except Exception:
             return JSONResponse({"error": "Acesso negado"}, status_code=403)
 
@@ -31620,7 +31242,7 @@ async def admin_turnover_fix_dates(request: Request, session: Session = Depends(
         user = require_admin(request)
     except Exception:
         try:
-            user = require_gm(request, session)
+            user = require_game_master(request, session)
         except Exception:
             return JSONResponse({"error": "Acesso negado"}, status_code=403)
 
