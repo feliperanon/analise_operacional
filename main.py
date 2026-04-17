@@ -836,24 +836,52 @@ async def lifespan(app: FastAPI):
     # Render faz scan de porta antes do timeout: o Uvicorn só escuta TCP após o startup do lifespan
     # terminar (yield). Qualquer trabalho síncrono antes do yield atrasa o bind — mantenha só o mínimo.
     app.state.db_ready = False
+    app.state.db_startup_failed = False
     app.state.delivery_autoclose_task = None
 
     async def _background_startup() -> None:
-        await asyncio.to_thread(_validate_render_env_sync)
+        """Nunca deixa db_ready=False para sempre: exceção/timeout libera tráfego com db_startup_failed."""
+        db_work_ok = False
         try:
-            await asyncio.to_thread(_lifespan_blocking_db_work)
+            await asyncio.to_thread(_validate_render_env_sync)
         except Exception:
-            logger.exception("Falha no startup em background (migrações/DB)")
-            return
-        try:
-            closed_now = _auto_close_stale_delivery_sessions()
-            if closed_now > 0:
-                logger.info(f"[DeliveryAutoClose] Startup fechou sessões antigas: {closed_now}")
-            app.state.delivery_autoclose_task = asyncio.create_task(
-                _auto_close_stale_delivery_sessions_loop()
-            )
-        except Exception as e:
-            logger.error(f"[DeliveryAutoClose] Erro ao iniciar loop: {e}")
+            logger.exception("Falha na validação de ambiente antes do DB")
+            app.state.db_startup_failed = True
+        else:
+            try:
+                raw = (os.environ.get("STARTUP_DB_TIMEOUT") or "120").strip()
+                timeout_s = float(raw or "120")
+                if timeout_s < 15.0:
+                    timeout_s = 15.0
+                if timeout_s > 600.0:
+                    timeout_s = 600.0
+                await asyncio.wait_for(
+                    asyncio.to_thread(_lifespan_blocking_db_work),
+                    timeout=timeout_s,
+                )
+                db_work_ok = True
+            except asyncio.TimeoutError:
+                logger.error(
+                    "Timeout (%ss) no arranque da base (migrações/create_all). "
+                    "Verifique DATABASE_URL, SSL e se o Postgres aceita ligações externas.",
+                    int(timeout_s),
+                )
+                app.state.db_startup_failed = True
+            except Exception:
+                logger.exception("Falha no startup em background (migrações/DB)")
+                app.state.db_startup_failed = True
+
+        if db_work_ok:
+            try:
+                closed_now = _auto_close_stale_delivery_sessions()
+                if closed_now > 0:
+                    logger.info(f"[DeliveryAutoClose] Startup fechou sessões antigas: {closed_now}")
+                app.state.delivery_autoclose_task = asyncio.create_task(
+                    _auto_close_stale_delivery_sessions_loop()
+                )
+            except Exception as e:
+                logger.error(f"[DeliveryAutoClose] Erro ao iniciar loop: {e}")
+
         app.state.db_ready = True
 
     startup_task = asyncio.create_task(_background_startup())
@@ -938,11 +966,50 @@ def _db_readiness_gate_prefers_html(request: Request) -> bool:
     return "text/html" in accept
 
 
+def _db_startup_failed_response(request: Request) -> JSONResponse | HTMLResponse:
+    """Após timeout ou exceção no startup: mensagem explícita (não o texto genérico de 'inicializando')."""
+    payload = {
+        "detail": (
+            "Não foi possível preparar a base de dados. No Render, confira DATABASE_URL, "
+            "se o Postgres permite conexões externas e os logs do serviço. "
+            "Variável opcional: STARTUP_DB_TIMEOUT (segundos, padrão 120)."
+        )
+    }
+    if _db_readiness_gate_prefers_html(request):
+        body = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Erro na base de dados</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+      background: #1c1917; color: #e7e5e4; padding: 1.5rem; text-align: center; }
+    .box { max-width: 26rem; }
+    h1 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: #fecaca; }
+    p { margin: 0; font-size: 0.9rem; line-height: 1.55; color: #a8a29e; }
+    code { font-size: 0.78rem; color: #d6d3d1; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Falha ao ligar à base de dados</h1>
+    <p>O arranque (migrações ou <code>create_all</code>) falhou ou excedeu o tempo limite. Isto não é “aguarde mais um pouco”: é preciso corrigir a configuração.</p>
+    <p style="margin-top:1rem">No painel Render: <strong>DATABASE_URL</strong>, região do Postgres, SSL e firewall. Depois veja os <strong>logs</strong> do Web Service.</p>
+  </div>
+</body>
+</html>"""
+        return HTMLResponse(status_code=503, content=body)
+    return JSONResponse(status_code=503, content=payload)
+
+
 @app.middleware("http")
 async def db_readiness_gate(request: Request, call_next):
-    if getattr(request.app.state, "db_ready", True) is not False:
-        return await call_next(request)
     if _path_bypasses_db_readiness(request.url.path):
+        return await call_next(request)
+    if getattr(request.app.state, "db_startup_failed", False):
+        return _db_startup_failed_response(request)
+    if getattr(request.app.state, "db_ready", True) is not False:
         return await call_next(request)
     if _db_readiness_gate_prefers_html(request):
         body = """<!DOCTYPE html>
