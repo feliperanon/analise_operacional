@@ -593,6 +593,87 @@ def prepare_delivery_whatsapp_snapshot(
     return build_delivery_whatsapp_snapshot(session, routes)
 
 
+def _resolve_sendable_clients_for_batch(
+    snapshot: Dict[str, Any],
+    *,
+    only_client_ids: Optional[List[int]],
+    allow_repeat: bool,
+    skip_session_ready: bool,
+    retry_failed: bool,
+) -> List[Dict[str, Any]]:
+    """Define quais linhas do snapshot entram no lote (subconjunto, reenvio, rota sem sessão)."""
+    ready = bool(snapshot.get("ready"))
+    clients = list(snapshot.get("clients") or [])
+    id_set: Optional[set] = None
+    if only_client_ids:
+        id_set = {int(x) for x in only_client_ids if int(x) > 0}
+        found_ids = {int(c["client_id"]) for c in clients}
+        missing = id_set - found_ids
+        if missing:
+            raise ValueError("Um ou mais clientes selecionados nao pertencem a esta rota.")
+
+    if retry_failed:
+        out: List[Dict[str, Any]] = []
+        for c in clients:
+            cid = int(c["client_id"])
+            if id_set is not None and cid not in id_set:
+                continue
+            if c.get("status") != WHATSAPP_ITEM_STATUS_FALHA:
+                continue
+            if not c.get("can_retry"):
+                continue
+            if not c.get("phone_normalized"):
+                continue
+            out.append(c)
+        if not out:
+            raise ValueError("Nao existem falhas pendentes para reenvio.")
+        return out
+
+    if skip_session_ready and not ready:
+        if not id_set:
+            raise ValueError("Selecione ao menos um cliente para enviar sem rota iniciada.")
+        out = []
+        for c in clients:
+            cid = int(c["client_id"])
+            if cid not in id_set:
+                continue
+            if c.get("status") == WHATSAPP_ITEM_STATUS_BLOQUEADO:
+                continue
+            if c.get("status") == WHATSAPP_ITEM_STATUS_SEM_CONTATO or not c.get("phone_normalized"):
+                continue
+            if c.get("status") == WHATSAPP_ITEM_STATUS_TELEFONE_INVALIDO:
+                continue
+            if c.get("status") == WHATSAPP_ITEM_STATUS_JA_ENVIADO and not allow_repeat:
+                continue
+            out.append(c)
+        if not out:
+            raise ValueError("Nenhum cliente selecionado elegivel para envio (sem rota iniciada).")
+        return out
+
+    if not ready:
+        return []
+
+    out = []
+    for c in clients:
+        cid = int(c["client_id"])
+        if id_set is not None and cid not in id_set:
+            continue
+        if c.get("sendable"):
+            out.append(c)
+            continue
+        if allow_repeat and c.get("status") == WHATSAPP_ITEM_STATUS_JA_ENVIADO:
+            if not c.get("phone_normalized"):
+                continue
+            out.append(c)
+
+    if not out:
+        if id_set:
+            raise ValueError("Nenhum cliente selecionado elegivel para envio com as opcoes atuais.")
+        raise ValueError("Nao existem clientes elegiveis para envio.")
+
+    return out
+
+
 def send_delivery_whatsapp_notifications(
     session: Session,
     *,
@@ -603,6 +684,9 @@ def send_delivery_whatsapp_notifications(
     operator_label: str,
     operator_user_id: Optional[int] = None,
     retry_failed: bool = False,
+    only_client_ids: Optional[List[int]] = None,
+    allow_repeat: bool = False,
+    skip_session_ready: bool = False,
     provider: Optional[BaseWhatsAppProvider] = None,
 ) -> Dict[str, Any]:
     routes = list_delivery_group_routes(
@@ -632,14 +716,17 @@ def send_delivery_whatsapp_notifications(
         )
 
     snapshot = build_delivery_whatsapp_snapshot(session, routes, retry_failed=retry_failed)
-    if not snapshot.get("ready"):
+    ready = bool(snapshot.get("ready"))
+    if not ready and not skip_session_ready:
         raise ValueError("A rota ainda nao ficou apta para notificacao.")
 
-    sendable_clients = [client for client in snapshot["clients"] if client.get("sendable")]
-    if not sendable_clients:
-        if retry_failed and snapshot["summary"].get("pending_retry", 0) <= 0:
-            raise ValueError("Nao existem falhas pendentes para reenvio.")
-        raise ValueError("Nao existem clientes elegiveis para envio.")
+    sendable_clients = _resolve_sendable_clients_for_batch(
+        snapshot,
+        only_client_ids=only_client_ids,
+        allow_repeat=allow_repeat,
+        skip_session_ready=skip_session_ready,
+        retry_failed=retry_failed,
+    )
 
     latest_batch = session.exec(
         select(models.DeliveryWhatsAppBatch)
@@ -675,6 +762,9 @@ def send_delivery_whatsapp_notifications(
         request_payload_json=_safe_json_dumps(
             {
                 "retry_failed": retry_failed,
+                "allow_repeat": allow_repeat,
+                "skip_session_ready": skip_session_ready,
+                "only_client_ids": only_client_ids,
                 "sendable_client_ids": [int(client["client_id"]) for client in sendable_clients],
             }
         ),

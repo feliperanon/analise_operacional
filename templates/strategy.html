@@ -89,7 +89,7 @@
         <p id="strategy-kpi-hint" class="sr-only">Cartões clicáveis: filtram tabelas ou rolam até ABC e SLA. Clique de novo no mesmo cartão para limpar o recorte.</p>
         <div class="sys-kpi-grid employees-kpi-row" aria-label="Indicadores do dia" aria-describedby="strategy-kpi-hint">
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(99, 102, 241, 0.72);" data-strategy-kpi="prod" role="button" tabindex="0" onclick="strategyApplyKpiFilter('prod')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('prod');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(99, 102, 241, 0.72);" data-strategy-kpi="prod" role="button" tabindex="0" onclick="strategyApplyKpiFilter('prod')" onkeydown="strategyKpiCardKeydown(event, 'prod')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -99,9 +99,14 @@
                                 <span class="employees-kpi__denom text-sm">kg/h</span>
                             </div>
                         </div>
-                        <svg class="h-4 w-4 shrink-0 text-indigo-500 transition group-hover:scale-110 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                        </svg>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-start gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('prod')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <svg class="h-4 w-4 shrink-0 text-indigo-500 transition group-hover:scale-110 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta w-full space-y-1">
                         <div class="flex items-center gap-2">
@@ -118,7 +123,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);" data-strategy-kpi="idle-high" role="button" tabindex="0" onclick="strategyApplyKpiFilter('idle-high')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('idle-high');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);" data-strategy-kpi="idle-high" role="button" tabindex="0" onclick="strategyApplyKpiFilter('idle-high')" onkeydown="strategyKpiCardKeydown(event, 'idle-high')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -127,9 +132,14 @@
                                 <span id="kpi-avg-idle" class="employees-kpi__value tabular-nums skeleton-text">—</span>
                             </div>
                         </div>
-                        <svg class="h-4 w-4 shrink-0 text-red-400 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-start gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('idle-high')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <svg class="h-4 w-4 shrink-0 text-red-400 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">Média motoristas · filtra &gt;2h ociosos</span>
@@ -137,7 +147,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);" data-strategy-kpi="routes" role="button" tabindex="0" onclick="strategyApplyKpiFilter('routes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('routes');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);" data-strategy-kpi="routes" role="button" tabindex="0" onclick="strategyApplyKpiFilter('routes')" onkeydown="strategyKpiCardKeydown(event, 'routes')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -146,9 +156,14 @@
                                 <span id="kpi-routes" class="employees-kpi__value tabular-nums skeleton-text">—</span>
                             </div>
                         </div>
-                        <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                        </svg>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-start gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('routes')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                            </svg>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">Volume: <span id="kpi-vol-day" class="font-mono employees-text-body">0 kg</span></span>
@@ -156,7 +171,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);" data-strategy-kpi="employees" role="button" tabindex="0" onclick="strategyApplyKpiFilter('employees')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('employees');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);" data-strategy-kpi="employees" role="button" tabindex="0" onclick="strategyApplyKpiFilter('employees')" onkeydown="strategyKpiCardKeydown(event, 'employees')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -165,9 +180,14 @@
                                 <span id="kpi-employees" class="employees-kpi__value tabular-nums skeleton-text">—</span>
                             </div>
                         </div>
-                        <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-start gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('employees')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                            </svg>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">Colaboradores com rota no recorte</span>
@@ -175,7 +195,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);" data-strategy-kpi="abc-a" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-a')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('abc-a');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);" data-strategy-kpi="abc-a" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-a')" onkeydown="strategyKpiCardKeydown(event, 'abc-a')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -184,7 +204,12 @@
                                 <span id="kpi-abc-a" class="employees-kpi__value tabular-nums">—</span>
                             </div>
                         </div>
-                        <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">A</span>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-center gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('abc-a')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">A</span>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">Curva ABC · Pareto</span>
@@ -192,7 +217,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);" data-strategy-kpi="abc-b" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-b')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('abc-b');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);" data-strategy-kpi="abc-b" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-b')" onkeydown="strategyKpiCardKeydown(event, 'abc-b')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -201,7 +226,12 @@
                                 <span id="kpi-abc-b" class="employees-kpi__value tabular-nums">—</span>
                             </div>
                         </div>
-                        <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400">B</span>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-center gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('abc-b')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400">B</span>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">Transição e revisão</span>
@@ -209,7 +239,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.72);" data-strategy-kpi="abc-c" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-c')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('abc-c');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.72);" data-strategy-kpi="abc-c" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-c')" onkeydown="strategyKpiCardKeydown(event, 'abc-c')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -218,7 +248,12 @@
                                 <span id="kpi-abc-c" class="employees-kpi__value tabular-nums">—</span>
                             </div>
                         </div>
-                        <span class="text-[10px] font-bold text-slate-500">C</span>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-center gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('abc-c')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <span class="text-[10px] font-bold text-slate-500">C</span>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">Cauda longa</span>
@@ -226,7 +261,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(244, 63, 94, 0.72);" data-strategy-kpi="sla-critical" role="button" tabindex="0" onclick="strategyApplyKpiFilter('sla-critical')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('sla-critical');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(244, 63, 94, 0.72);" data-strategy-kpi="sla-critical" role="button" tabindex="0" onclick="strategyApplyKpiFilter('sla-critical')" onkeydown="strategyKpiCardKeydown(event, 'sla-critical')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -235,9 +270,14 @@
                                 <span id="kpi-sla-critical" class="employees-kpi__value tabular-nums">—</span>
                             </div>
                         </div>
-                        <svg class="h-4 w-4 shrink-0 text-rose-500 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-start gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('sla-critical')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <svg class="h-4 w-4 shrink-0 text-rose-500 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">Clientes &gt;1h no ranking</span>
@@ -245,7 +285,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(34, 197, 94, 0.72);" data-strategy-kpi="elite" role="button" tabindex="0" onclick="strategyApplyKpiFilter('elite')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('elite');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(34, 197, 94, 0.72);" data-strategy-kpi="elite" role="button" tabindex="0" onclick="strategyApplyKpiFilter('elite')" onkeydown="strategyKpiCardKeydown(event, 'elite')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -254,9 +294,14 @@
                                 <span id="kpi-elite" class="employees-kpi__value tabular-nums">—</span>
                             </div>
                         </div>
-                        <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
-                        </svg>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-start gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('elite')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                            </svg>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">&gt;300 kg/h</span>
@@ -264,7 +309,7 @@
                 </div>
             </div>
 
-            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(249, 115, 22, 0.72);" data-strategy-kpi="below-meta" role="button" tabindex="0" onclick="strategyApplyKpiFilter('below-meta')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('below-meta');}">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(249, 115, 22, 0.72);" data-strategy-kpi="below-meta" role="button" tabindex="0" onclick="strategyApplyKpiFilter('below-meta')" onkeydown="strategyKpiCardKeydown(event, 'below-meta')">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
@@ -273,9 +318,14 @@
                                 <span id="kpi-below-meta" class="employees-kpi__value tabular-nums">—</span>
                             </div>
                         </div>
-                        <svg class="h-4 w-4 shrink-0 text-orange-500 transition group-hover:scale-110 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
-                        </svg>
+                        <div class="strategy-kpi-card__actions flex shrink-0 items-start gap-1">
+                            <button type="button" class="strategy-kpi-help-btn" title="Como esse número é feito?" aria-label="Como esse número é feito? Explicação bem simples." onclick="event.stopPropagation(); strategyKpiHelpShow('below-meta')">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </button>
+                            <svg class="h-4 w-4 shrink-0 text-orange-500 transition group-hover:scale-110 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                            </svg>
+                        </div>
                     </div>
                     <div class="employees-kpi__meta">
                         <span class="employees-text-muted text-[11px]">&lt;150 kg/h com movimento</span>
@@ -286,17 +336,9 @@
     </div>
 
     <div id="strategy-panel-priorities" class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0">
-        <div class="employees-table-panel__head flex flex-col gap-3 border-b border-gray-200 px-5 py-5 sm:px-6 dark:border-gray-800 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-            <div class="min-w-0 flex-1">
-                <p class="employees-text-section-label">Decisão do dia</p>
-                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Resumo executivo e prioridades</h3>
-                <p id="strategy-exec-summary" class="strategy-exec-summary mt-3 max-w-3xl" aria-live="polite" aria-atomic="true">
-                    Carregando leitura consolidada…
-                </p>
-            </div>
-            <div class="max-w-sm text-xs leading-relaxed employees-text-caption lg:text-right lg:pt-1">
-                Prioridades classificadas em três severidades. Use os KPIs acima para recortar a operação sem perder o contexto.
-            </div>
+        <div class="employees-table-panel__head flex flex-col gap-2 border-b border-gray-200 px-5 py-5 sm:px-6 dark:border-gray-800">
+            <p class="employees-text-section-label">Decisão do dia</p>
+            <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Resumo executivo e prioridades</h3>
         </div>
         <div class="px-5 py-4 sm:px-6 sm:py-5">
             <p class="employees-text-section-label mb-3">Filas de atenção</p>
@@ -379,20 +421,20 @@
                         <p class="strategy-abc-drill__title">Detalhe do cliente</p>
                         <p id="abc-drill-body" class="strategy-abc-drill__body strategy-abc-drill__body--hint m-0 text-sm employees-text-muted">Clique em uma linha da tabela para ver volume, participação e rotas.</p>
                     </div>
-                    <button type="button" id="abc-load-more" class="sys-btn sys-btn--secondary justify-center shrink-0 hidden">Carregar mais linhas</button>
+                    <button type="button" id="abc-load-more" class="sys-btn sys-btn--secondary justify-center shrink-0 hidden" aria-label="Mostrar mais clientes na curva ABC">Expandir (+10 clientes)</button>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="strategy-panel-drivers" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0 strategy-table-panel strategy-table-panel--tall">
-        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-            <div class="min-w-0 flex-1">
+        <div class="employees-table-panel__head flex flex-col gap-4 border-b px-5 py-5 sm:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-x-8 lg:gap-y-3">
+            <div class="min-w-0">
                 <p class="employees-table-panel__kicker">Motoristas</p>
                 <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Produtividade individual</h3>
                 <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Mesma densidade da lista de colaboradores: ordenação explícita e busca por nome.</p>
             </div>
-            <div class="strategy-productivity-toolbar flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-stretch lg:min-w-[18rem] lg:flex-1 lg:max-w-none">
+            <div class="strategy-productivity-toolbar flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:w-auto lg:max-w-xl lg:justify-self-end">
                 <div class="ops-toolbar-search employees-filter-bar__search min-w-0 flex-1">
                     <label class="sr-only" for="productivity-search">Filtrar por nome do motorista</label>
                     <svg class="h-4 w-4 flex-shrink-0 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -510,6 +552,17 @@
             </table>
         </div>
     </div>
+
+    <dialog id="strategy-kpi-help-dialog" class="strategy-kpi-help-dialog max-h-[90vh] w-[min(100%,26rem)] border-0 bg-transparent p-4" aria-labelledby="strategy-kpi-help-title" aria-describedby="strategy-kpi-help-body">
+        <div class="strategy-kpi-help-dialog__panel rounded-2xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+            <p class="strategy-kpi-help-dialog__kicker m-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Como esse número é feito</p>
+            <h3 id="strategy-kpi-help-title" class="mt-2 text-lg font-semibold text-gray-900 dark:text-white"></h3>
+            <p id="strategy-kpi-help-body" class="mt-3 text-sm leading-relaxed text-gray-600 dark:text-gray-300"></p>
+            <div class="mt-5 flex justify-end">
+                <button type="button" class="sys-btn sys-btn--primary px-4 py-2 text-sm" onclick="strategyKpiHelpClose()">Entendi</button>
+            </div>
+        </div>
+    </dialog>
 
     <details class="sys-card sys-card--surface sys-card--comfort strategy-cost-details group">
         <summary class="flex flex-wrap items-center justify-between gap-2">

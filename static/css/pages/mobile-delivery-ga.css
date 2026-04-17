@@ -112,6 +112,67 @@ html.dark .delivery-modal-overlay.emp-modal-shell {
   background: rgb(0 0 0 / 0.55) !important;
 }
 
+/*
+ * Teleport (body): cartão fica FORA de .delivery-ga-shell.delivery-mobi — sem re-mapeamento de tokens,
+ * html.dark deixava sys-card escuro + dark:text-* ilegível. Forçamos o mesmo “miolo claro” da rota.
+ */
+.delivery-modal-overlay.emp-modal-shell .delivery-modal-card.sys-card.sys-card--surface {
+  --color-text: #0f172a;
+  --color-text-body: #1e293b;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --color-text-inverse: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-solid: #f8fafc;
+  --color-border: rgb(226 232 240);
+  --color-border-light: rgb(241 245 249);
+  --color-primary: #0ea5e9;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --sys-surface: #ffffff;
+  --sys-surface-elevated: #ffffff;
+  --sys-bg-subtle: #f8fafc;
+  --sys-border: rgb(226 232 240);
+  --sys-border-strong: rgb(203 213 225);
+  --sys-text-primary: #0f172a;
+  --sys-text-body: #334155;
+  --sys-text-muted: #64748b;
+  --sys-text-faint: #94a3b8;
+  --sys-shadow-card: var(--sys-shadow-sm), var(--sys-shadow-md);
+  background: #ffffff !important;
+  border: 1px solid rgb(226 232 240) !important;
+  color: #334155 !important;
+  box-shadow: var(--sys-shadow-md, 0 10px 40px rgb(15 23 42 / 0.12));
+}
+
+html.dark .delivery-modal-overlay.emp-modal-shell .delivery-modal-card.sys-card.sys-card--surface {
+  /* Mesma pele clara com html.dark (especificidade acima do sys-card dark global) */
+  background: #ffffff !important;
+  border-color: rgb(226 232 240) !important;
+  color: #334155 !important;
+}
+
+/* Inputs/select herdariam o override global html.dark .sys-input (fundo grafite) — força leitura clara no modal */
+html.dark .delivery-modal-overlay.emp-modal-shell .delivery-modal-card .sys-input,
+html.dark .delivery-modal-overlay.emp-modal-shell .delivery-modal-card .sys-select {
+  border-color: rgb(226 232 240) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: var(--sys-shadow-xs);
+}
+
+html.dark .delivery-modal-overlay.emp-modal-shell .delivery-modal-card .sys-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.delivery-modal-overlay.emp-modal-shell .delivery-modal-card .sys-section-heading {
+  color: var(--sys-text-primary) !important;
+}
+
+.delivery-modal-overlay.emp-modal-shell .delivery-modal-card .employees-text-muted {
+  color: var(--sys-text-muted) !important;
+}
+
 .delivery-ga-shell .delivery-modal-card.sys-modal-surface {
   border: 1px solid var(--sys-border);
   box-shadow: var(--sys-shadow-md, 0 10px 40px rgb(15 23 42 / 0.12));

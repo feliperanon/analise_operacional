@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="/static/css/system-components.css">
 <link rel="stylesheet" href="/static/css/system-utilities.css">
 <link rel="stylesheet" href="/static/css/pages/employees.css">
-<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415i">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260417a">
 {% endblock %}
 
 {% block content %}
@@ -671,7 +671,7 @@
     <div x-show="showDeliveryEndModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="showDeliveryEndModal=false">
         <div @click.stop class="delivery-modal-card sys-modal-surface sys-card sys-card--surface w-full max-w-md rounded-xl p-5 shadow-lg">
             <div class="mb-4">
-                <h3 class="sys-section-heading text-lg font-bold text-slate-900 dark:text-white">Encerrar na empresa</h3>
+                <h3 class="sys-section-heading text-lg font-bold">Encerrar na empresa</h3>
                 <p class="employees-text-muted mt-1 text-sm">KM de chegada obrigatório</p>
             </div>
             <input type="number" step="0.1" min="0" inputmode="decimal" x-model="deliveryEndKm" placeholder="Ex.: 125630,2"
@@ -690,19 +690,18 @@
     <template x-teleport="body">
     <div x-show="showMobileReturnModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="showMobileReturnModal=false">
         <div @click.stop class="delivery-modal-card sys-modal-surface sys-card sys-card--surface w-full max-w-lg space-y-4 rounded-xl p-4 shadow-lg sm:p-5">
-            <h3 class="sys-section-heading text-lg font-bold text-slate-900 dark:text-white">Registrar devolução</h3>
+            <h3 class="sys-section-heading text-lg font-bold">Registrar devolução</h3>
             <div>
-                <label class="text-section block mb-2" style="color: var(--color-text);">Motivo</label>
-                <select x-model="mobileReturn.reason" class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2"
-                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                <label class="sys-section__label sys-section__label--field block mb-2">Motivo</label>
+                <select x-model="mobileReturn.reason" class="sys-select w-full text-body">
                     <template x-for="reason in mobileReturnReasons" :key="reason">
                         <option :value="reason" x-text="reason"></option>
                     </template>
                 </select>
             </div>
             <div x-show="requiresClosedStorePhoto(mobileReturn.reason)" class="space-y-2">
-                <label class="text-section block" style="color: var(--color-text);">
-                    Foto do estabelecimento fechado <span style="color: var(--color-danger);">*</span>
+                <label class="sys-section__label sys-section__label--field block">
+                    Foto do estabelecimento fechado <span class="text-red-600">*</span>
                 </label>
                 <input x-ref="returnPhotoCameraInput" type="file" accept="image/*" capture="environment" class="hidden"
                     @change="onMobileReturnPhotoSelected($event)">
@@ -710,93 +709,86 @@
                     @change="onMobileReturnPhotoSelected($event)">
                 <div class="grid grid-cols-2 gap-2">
                     <button type="button" @click="pickMobileReturnPhoto('camera')"
-                        class="rounded-lg px-3 py-2.5 border-2 text-body font-bold shadow-sm"
-                        style="background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.75); color: #fbbf24;">
-                        📸 Tirar foto
+                        class="sys-btn sys-btn--secondary flex min-h-[48px] items-center justify-center gap-2 border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100">
+                        <i data-lucide="camera" class="h-4 w-4 shrink-0"></i>
+                        Tirar foto
                     </button>
                     <button type="button" @click="pickMobileReturnPhoto('gallery')"
-                        class="rounded-lg px-3 py-2.5 border-2 text-body font-bold shadow-sm"
-                        style="background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.75); color: #93c5fd;">
-                        🖼️ Galeria
+                        class="sys-btn sys-btn--secondary flex min-h-[48px] items-center justify-center gap-2 border-sky-300 bg-sky-50 text-sky-900 hover:bg-sky-100">
+                        <i data-lucide="image" class="h-4 w-4 shrink-0"></i>
+                        Galeria
                     </button>
                 </div>
-                <p class="text-caption" style="color: var(--color-text-muted);" x-show="mobileReturn.photo_name">
+                <p class="text-caption text-slate-600" x-show="mobileReturn.photo_name">
                     Arquivo: <span x-text="mobileReturn.photo_name"></span>
                 </p>
-                <p class="text-caption" style="color: var(--color-warning);" x-show="mobileReturn.photo_uploading">
+                <p class="text-caption font-medium text-amber-700" x-show="mobileReturn.photo_uploading">
                     Enviando foto...
                 </p>
                 <a x-show="mobileReturn.photo_url" :href="mobileReturn.photo_url" target="_blank" rel="noopener"
-                    class="text-caption underline" style="color: var(--color-primary);">
+                    class="text-caption font-semibold text-sky-700 underline">
                     Ver foto enviada
                 </a>
             </div>
-            <label class="flex items-center gap-2 text-body font-semibold cursor-pointer" style="color: var(--color-text);">
-                <input type="checkbox" x-model="mobileReturn.is_partial"> Devolução parcial
+            <label class="flex cursor-pointer items-center gap-2 text-body font-semibold text-slate-800">
+                <input type="checkbox" x-model="mobileReturn.is_partial" class="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500">
+                Devolução parcial
             </label>
             <div class="grid grid-cols-2 gap-3" x-show="mobileReturn.is_partial">
                 <div>
-                    <label class="text-section block mb-1" style="color: var(--color-text);">Peso (Kg)</label>
+                    <label class="sys-section__label sys-section__label--field mb-1 block">Peso (Kg)</label>
                     <input type="number" step="0.01" min="0" inputmode="decimal" x-model="mobileReturn.weight" placeholder="0,00"
-                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body font-mono"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        class="sys-input font-mono text-body">
                 </div>
                 <div>
-                    <label class="text-section block mb-1" style="color: var(--color-text);">Valor (R$)</label>
+                    <label class="sys-section__label sys-section__label--field mb-1 block">Valor (R$)</label>
                     <input type="number" step="0.01" min="0" inputmode="decimal" x-model="mobileReturn.value" placeholder="0,00"
-                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body font-mono"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        class="sys-input font-mono text-body">
                 </div>
             </div>
             <div class="space-y-2">
-                <label class="text-section block" style="color: var(--color-text);">
-                    Avisou o Comercial? <span style="color: var(--color-danger);">*</span>
+                <label class="sys-section__label sys-section__label--field block">
+                    Avisou o Comercial? <span class="text-red-600">*</span>
                 </label>
                 <div class="grid grid-cols-2 gap-2">
-                    <label class="flex items-center gap-2 rounded-lg px-3 py-2.5 border-2 text-body font-semibold cursor-pointer"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                        <input type="radio" value="sim" x-model="mobileReturn.notified_commercial">
+                    <label class="flex min-h-[48px] cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-body font-semibold text-slate-800 hover:bg-slate-100">
+                        <input type="radio" value="sim" name="mobile-return-notified-commercial" x-model="mobileReturn.notified_commercial">
                         Sim
                     </label>
-                    <label class="flex items-center gap-2 rounded-lg px-3 py-2.5 border-2 text-body font-semibold cursor-pointer"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                        <input type="radio" value="nao" x-model="mobileReturn.notified_commercial">
+                    <label class="flex min-h-[48px] cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-body font-semibold text-slate-800 hover:bg-slate-100">
+                        <input type="radio" value="nao" name="mobile-return-notified-commercial" x-model="mobileReturn.notified_commercial">
                         Não
                     </label>
                 </div>
                 <div x-show="mobileReturn.notified_commercial === 'sim'">
-                    <label class="text-section block mb-1" style="color: var(--color-text);">Nome da pessoa do Comercial</label>
+                    <label class="sys-section__label sys-section__label--field mb-1 block">Nome da pessoa do Comercial</label>
                     <input type="text" x-model="mobileReturn.notified_commercial_name" placeholder="Quem foi avisado?"
-                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        class="sys-input text-body">
                 </div>
             </div>
             <div class="space-y-2">
-                <label class="text-section block" style="color: var(--color-text);">
-                    Avisou a Logística? <span style="color: var(--color-danger);">*</span>
+                <label class="sys-section__label sys-section__label--field block">
+                    Avisou a Logística? <span class="text-red-600">*</span>
                 </label>
                 <div class="grid grid-cols-2 gap-2">
-                    <label class="flex items-center gap-2 rounded-lg px-3 py-2.5 border-2 text-body font-semibold cursor-pointer"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                        <input type="radio" value="sim" x-model="mobileReturn.notified_logistics">
+                    <label class="flex min-h-[48px] cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-body font-semibold text-slate-800 hover:bg-slate-100">
+                        <input type="radio" value="sim" name="mobile-return-notified-logistics" x-model="mobileReturn.notified_logistics">
                         Sim
                     </label>
-                    <label class="flex items-center gap-2 rounded-lg px-3 py-2.5 border-2 text-body font-semibold cursor-pointer"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                        <input type="radio" value="nao" x-model="mobileReturn.notified_logistics">
+                    <label class="flex min-h-[48px] cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-body font-semibold text-slate-800 hover:bg-slate-100">
+                        <input type="radio" value="nao" name="mobile-return-notified-logistics" x-model="mobileReturn.notified_logistics">
                         Não
                     </label>
                 </div>
                 <div x-show="mobileReturn.notified_logistics === 'sim'">
-                    <label class="text-section block mb-1" style="color: var(--color-text);">Nome da pessoa da Logística</label>
+                    <label class="sys-section__label sys-section__label--field mb-1 block">Nome da pessoa da Logística</label>
                     <input type="text" x-model="mobileReturn.notified_logistics_name" placeholder="Quem foi avisado?"
-                        class="w-full rounded-lg px-3 py-2.5 border-2 text-body"
-                        style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                        class="sys-input text-body">
                 </div>
             </div>
             <div class="flex gap-3">
-                <button @click="showMobileReturnModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body min-h-[56px]" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-                <button @click="confirmMobileReturn()" :disabled="actionLoading" class="flex-1 py-3 rounded-lg font-semibold text-body text-white min-h-[56px] interactive" style="background: var(--color-warning);">
+                <button type="button" @click="showMobileReturnModal=false" class="sys-btn sys-btn--secondary min-h-[56px] flex-1 justify-center py-3 text-body font-semibold">Cancelar</button>
+                <button type="button" @click="confirmMobileReturn()" :disabled="actionLoading" class="sys-btn min-h-[56px] flex-1 justify-center border-amber-600 bg-amber-600 py-3 text-body font-semibold text-white hover:bg-amber-700 disabled:opacity-50">
                     <span x-text="actionLoading ? 'Aguarde...' : 'Confirmar'"></span>
                 </button>
             </div>
@@ -808,7 +800,7 @@
     <template x-teleport="body">
     <div x-show="showSessionEditModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="showSessionEditModal=false">
         <div @click.stop class="delivery-modal-card sys-modal-surface sys-card sys-card--surface w-full max-w-md rounded-xl p-4 shadow-lg sm:p-5">
-            <h3 class="sys-section-heading mb-2 text-lg font-bold text-slate-900 dark:text-white">Editar rota</h3>
+            <h3 class="sys-section-heading mb-2 text-lg font-bold">Editar rota</h3>
             <p class="employees-text-muted mb-4 text-sm">Altere ajudantes ou KM de saída.</p>
             <div class="space-y-3 mb-4">
                 <div>
@@ -879,7 +871,7 @@
     <template x-teleport="body">
     <div x-show="showDeliveryAuthModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="closeDeliveryAuthModal()">
         <div @click.stop class="delivery-modal-card sys-modal-surface sys-card sys-card--surface w-full max-w-md rounded-xl p-4 shadow-lg sm:p-5">
-            <h3 class="sys-section-heading mb-1 text-lg font-bold text-slate-900 dark:text-white">Fora do raio permitido</h3>
+            <h3 class="sys-section-heading mb-1 text-lg font-bold">Fora do raio permitido</h3>
             <p class="employees-text-muted mb-3 text-sm leading-relaxed">
                 Você está a <strong style="color: var(--color-warning);" x-text="deliveryAuthRoute ? formatarDistancia(deliveryAuthRoute.distancia_metros) : '—'"></strong> do cliente. É necessário estar a até 300 m (ou obter autorização do supervisor).
             </p>
@@ -1805,6 +1797,7 @@
                     photo_uploading: false
                 };
                 this.showMobileReturnModal = true;
+                this.$nextTick(() => lucide.createIcons && lucide.createIcons());
             },
             requiresClosedStorePhoto(reason) {
                 return ((reason || '').toUpperCase().includes('FECHADO'));

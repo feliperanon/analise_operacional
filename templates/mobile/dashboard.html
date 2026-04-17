@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/static/css/system-utilities.css">
 <link rel="stylesheet" href="/static/css/pages/employees.css">
 <link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415r">
-<link rel="stylesheet" href="/static/css/pages/mobile-dashboard-shell.css?v=20260416">
+<link rel="stylesheet" href="/static/css/pages/mobile-dashboard-shell.css?v=20260417">
 
 {% endblock %}
 
@@ -198,6 +198,22 @@
                                         <span class="dashboard-status-pill dashboard-status-pill--success" x-show="dailyXp > 0">+<span x-text="dailyXp"></span> XP hoje</span>
                                     </div>
                                 </div>
+                            </div>
+                            {% set dash_auth_user_id = request.session.get("auth_user_id") %}
+                            {% set dash_user_role = request.session.get("auth_user_role", "") %}
+                            {% set dash_allowed_pages = request.session.get("allowed_pages", []) %}
+                            <div class="flex flex-shrink-0 items-center gap-1.5 self-start pt-0.5" role="toolbar" aria-label="Atalhos da conta">
+                                <a href="/mobile/achievements" class="dashboard-top-action interactive inline-flex items-center justify-center touch-target-icon" title="Conquistas" aria-label="Conquistas">
+                                    <i data-lucide="award" class="w-5 h-5"></i>
+                                </a>
+                                {% if dash_auth_user_id and (dash_user_role == "admin" or "admin_game" in dash_allowed_pages) %}
+                                <a href="/mobile/game" class="dashboard-top-action interactive inline-flex items-center justify-center touch-target-icon" title="Game Master" aria-label="Game Master">
+                                    <i data-lucide="gamepad-2" class="w-5 h-5"></i>
+                                </a>
+                                {% endif %}
+                                <a href="/mobile/logout" class="dashboard-top-action dashboard-top-action--danger interactive inline-flex items-center justify-center touch-target-icon" title="Sair" aria-label="Encerrar sessão">
+                                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                                </a>
                             </div>
                         </div>
                     </div>

@@ -17,7 +17,9 @@
   var abcDataFull = [];
   var strategyKpiFilter = null;
   var abcSearchQuery = '';
-  var abcVisibleCount = 20;
+  /** Linhas iniciais na tabela ABC; cada clique em “Expandir” soma o mesmo passo. */
+  var ABC_TABLE_PAGE = 10;
+  var abcVisibleCount = ABC_TABLE_PAGE;
   var chartJsPromise = null;
   var pdfLibsPromise = null;
   var chartObserver = null;
@@ -26,6 +28,60 @@
   var CHART_CDN = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
   var JSPDF_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
   var AUTOTABLE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js';
+
+  /** Textos didáticos (linguagem bem simples) para o botão “Como é feito?” de cada KPI. */
+  var STRATEGY_KPI_HELPS = {
+    prod: {
+      title: 'Produtividade (kg/h)',
+      body:
+        'Imagina sacos de peso e um relógio. Para cada motorista no dia, o sistema soma quantos quilos ele levou nas rotas e divide pelas horas em que ele estava de fato na rua (horários de início e fim da rota, sem contar o mesmo intervalo duas vezes). Depois faz a média entre os motoristas: esse é o número grande. A faixinha colorida compara essa média com uma meta do dia (o sistema olha a semana e usa um mínimo).',
+    },
+    'idle-high': {
+      title: 'Ociosidade (média em horas)',
+      body:
+        'Pensa no turno da pessoa como uma caixinha de tempo. Do tamanho dessa caixa, tiramos o tempo em que ela estava mesmo trabalhando na rota; o que sobra é “ficou parado”. Somamos esse tempo parado de cada motorista e dividimos por quantos motoristas existem: sai a média em horas. O filtro do cartão destaca quem ficou mais de duas horas parado.',
+    },
+    routes: {
+      title: 'Rotas e volume do dia',
+      body:
+        'Uma rota é um dia de entrega com peso. Contamos quantas existiram na data que você escolheu. O número de rotas e os quilos do dia somam todos os turnos juntos — é o retrato geral do dia.',
+    },
+    employees: {
+      title: 'Equipe ativa',
+      body:
+        'Contamos quantos motoristas diferentes apareceram em alguma rota naquele dia. Se você escolher um turno específico, só entram rotas daquele turno — é como contar convidados só da festa da manhã ou só da festa da noite.',
+    },
+    'abc-a': {
+      title: 'Clientes classe A',
+      body:
+        'Nos últimos 30 dias, pegamos todo mundo que mandou peso nas entregas e ordenamos do maior para o menor. Vamos somando de cima para baixo; enquanto a soma não passar de 80% de todo o peso, o cliente entra na letra A. Esse número é só quantos clientes ficaram nesse grupo “do topo do bolo”.',
+    },
+    'abc-b': {
+      title: 'Clientes classe B',
+      body:
+        'É a mesma fila do peso dos últimos 30 dias. Depois que os A já fecham os primeiros 80% do bolo, continuamos somando até 95%: quem cair nesse pedaço do meio é B. O número mostra quantos clientes são B.',
+    },
+    'abc-c': {
+      title: 'Clientes classe C',
+      body:
+        'Depois que os A e B já cobrem os primeiros 95% do peso, todo o resto vira C. São muitos nomes com pouquinho peso cada um. O número conta quantos clientes são C.',
+    },
+    'sla-critical': {
+      title: 'SLA crítico',
+      body:
+        'Para cada cliente, o sistema olha quanto tempo durou cada rota (começo e fim) e tira uma média em minutos. Depois ordena do mais demorado para o menos e fica só com os dez primeiros dessa lista. O número aqui diz quantos desses dez têm média maior que sessenta minutos — ou seja, bem lentos.',
+    },
+    elite: {
+      title: 'Elite',
+      body:
+        'Contamos quantos motoristas no dia tiveram mais de 300 quilos por hora na conta individual deles — ou seja, entregaram muito peso em poucas horas de rota. É como quem corre muito rápido no pátio.',
+    },
+    'below-meta': {
+      title: 'Abaixo da meta (devagar)',
+      body:
+        'Contamos motoristas que tiveram produtividade maior que zero, mas menor que 150 kg/h. São pessoas que mexeram peso, porém devagar perto do número que usamos como alerta nesta tela.',
+    },
+  };
 
   function $(id) {
     return document.getElementById(id);
@@ -113,6 +169,34 @@
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  function strategyKpiHelpShow(key) {
+    var cfg = STRATEGY_KPI_HELPS[key];
+    if (!cfg) return;
+    var t = $('strategy-kpi-help-title');
+    var b = $('strategy-kpi-help-body');
+    var d = $('strategy-kpi-help-dialog');
+    if (t) t.textContent = cfg.title;
+    if (b) b.textContent = cfg.body;
+    if (d && typeof d.showModal === 'function') {
+      d.showModal();
+    } else {
+      window.alert(cfg.title + '\n\n' + cfg.body);
+    }
+  }
+
+  function strategyKpiHelpClose() {
+    var d = $('strategy-kpi-help-dialog');
+    if (d && d.open) d.close();
+  }
+
+  function strategyKpiCardKeydown(ev, key) {
+    if (ev.target !== ev.currentTarget) return;
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      strategyApplyKpiFilter(key);
+    }
+  }
+
   function strategyClearKpiFilter() {
     strategyKpiFilter = null;
     document.querySelectorAll('.strategy-kpi-card').forEach(function (el) {
@@ -163,43 +247,6 @@
     return rows.filter(function (r) {
       return r.class === cls;
     }).length;
-  }
-
-  function renderExecutiveSummary(kpi, abcRows, shiftLabel) {
-    var el = $('strategy-exec-summary');
-    if (!el) return;
-    var a = countAbcByClass(abcRows, 'A');
-    var b = countAbcByClass(abcRows, 'B');
-    var c = countAbcByClass(abcRows, 'C');
-    var date = $('strategy-date') && $('strategy-date').value;
-    var shiftRaw = shiftLabel || STRATEGY_SHIFT_ALL;
-    var shiftDisplay = shiftRaw === 'Todos' ? 'todos os turnos' : 'turno ' + shiftRaw;
-    var routes = kpi.routes_count != null ? kpi.routes_count : '—';
-    var vol = kpi.total_vol != null ? kpi.total_vol : '—';
-    var emp = kpi.employees_count != null ? kpi.employees_count : '—';
-    var meta = kpi.meta_percent != null ? Math.round(kpi.meta_percent) : '—';
-    el.textContent =
-      'Em ' +
-      (date || '—') +
-      ' · ' +
-      shiftDisplay +
-      ', a operação registrou ' +
-      routes +
-      ' rotas e ' +
-      vol +
-      ' kg com ' +
-      emp +
-      ' colaboradores em rota. Produtividade média de motoristas: ' +
-      (kpi.global_kgh || '—') +
-      ' kg/h (' +
-      meta +
-      '% da meta). Na curva ABC (30 dias): ' +
-      a +
-      ' clientes classe A, ' +
-      b +
-      ' classe B e ' +
-      c +
-      ' classe C — concentre revisões de janela e SLA nos que puxam o Pareto.';
   }
 
   function normalizeAlertIcon(icon) {
@@ -493,8 +540,15 @@
       .join('');
 
     if (moreBtn) {
-      if (rows.length > abcVisibleCount) moreBtn.classList.remove('hidden');
-      else moreBtn.classList.add('hidden');
+      if (rows.length > abcVisibleCount) {
+        moreBtn.classList.remove('hidden');
+        var rest = rows.length - abcVisibleCount;
+        var nextStep = Math.min(ABC_TABLE_PAGE, rest);
+        moreBtn.textContent =
+          'Expandir (+' + nextStep + (nextStep === 1 ? ' cliente)' : ' clientes)');
+      } else {
+        moreBtn.classList.add('hidden');
+      }
     }
 
     var sumEl = $('abc-summary-pareto');
@@ -863,10 +917,9 @@
 
   function renderAll(data) {
     abcDataFull = data.abc_data || [];
-    abcVisibleCount = 20;
+    abcVisibleCount = ABC_TABLE_PAGE;
 
     renderKPIs(data.kpi, abcDataFull, data.sla_ranking, data.productivity || []);
-    renderExecutiveSummary(data.kpi, abcDataFull, data.selected_shift);
     renderPriorities(data.alerts, data.sla_ranking, data.productivity || [], data.kpi);
     renderABC();
     setupAbcTableDelegation();
@@ -1161,12 +1214,12 @@
   function onAbcSearchInput() {
     var inp = $('abc-search');
     abcSearchQuery = inp ? inp.value : '';
-    abcVisibleCount = 20;
+    abcVisibleCount = ABC_TABLE_PAGE;
     renderABC();
   }
 
   function onAbcLoadMore() {
-    abcVisibleCount += 25;
+    abcVisibleCount += ABC_TABLE_PAGE;
     renderABC();
   }
 
@@ -1196,6 +1249,13 @@
       });
     }
 
+    var helpDlg = $('strategy-kpi-help-dialog');
+    if (helpDlg) {
+      helpDlg.addEventListener('click', function (ev) {
+        if (ev.target === helpDlg) strategyKpiHelpClose();
+      });
+    }
+
     loadStrategyData();
   });
 
@@ -1206,4 +1266,7 @@
   window.calcCost = calcCost;
   window.strategyApplyKpiFilter = strategyApplyKpiFilter;
   window.strategyClearKpiFilter = strategyClearKpiFilter;
+  window.strategyKpiHelpShow = strategyKpiHelpShow;
+  window.strategyKpiHelpClose = strategyKpiHelpClose;
+  window.strategyKpiCardKeydown = strategyKpiCardKeydown;
 })();

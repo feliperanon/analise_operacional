@@ -383,14 +383,6 @@
                                     <input type="date" id="route-date-to" value="{{ selected_date_to }}" onchange="applyFilters()" class="delivery-filter-input" title="Data final">
                                 </div>
                             </div>
-                            <div class="flex flex-col gap-1">
-                                <span class="employees-filter-bar__label employees-filter-bar__label--compact">Turno</span>
-                                <select id="route-shift" onchange="applyFilters()" class="delivery-filter-input min-w-[7.5rem] [&>option]:bg-white dark:[&>option]:bg-slate-800">
-                                    <option value="Manhã" {% if selected_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
-                                    <option value="Tarde" {% if selected_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
-                                    <option value="Noite" {% if selected_shift == 'Noite' %}selected{% endif %}>Noite</option>
-                                </select>
-                            </div>
                             <div class="min-w-[200px] flex-1 basis-[220px]">
                                 <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na operação</span>
                                 <div class="ops-toolbar-search employees-filter-bar__search mt-1">
@@ -1335,96 +1327,69 @@
     </div>
 </dialog>
 
-<dialog id="deliveryWhatsappModal" class="separacao-modal">
-    <div class="sys-card sys-card--surface sys-card--comfort relative w-[min(100vw-2rem,62rem)] overflow-hidden shadow-xl">
-        <div class="flex items-start justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-            <div class="min-w-0 pr-3">
-                <p class="employees-text-caption text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">WhatsApp operacional</p>
-                <h3 class="sys-section-heading mt-0.5 text-base" id="delivery-whatsapp-modal-title">Notificação manual da rota</h3>
-                <p class="mt-0.5 text-xs employees-text-muted" id="delivery-whatsapp-modal-subtitle">Carregando dados da rota...</p>
+<dialog id="deliveryWhatsappModal" class="separacao-modal delivery-whatsapp-dialog">
+    <div class="sys-card sys-card--surface relative w-[min(100vw-1rem,56rem)] max-h-[92vh] overflow-hidden shadow-xl delivery-whatsapp-modal-shell--compact">
+        <div class="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-700">
+            <div class="min-w-0 pr-2">
+                <p class="employees-text-caption text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-300">WhatsApp · rota</p>
+                <h3 class="sys-section-heading mt-0 text-sm font-semibold leading-tight" id="delivery-whatsapp-modal-title">Carregando…</h3>
+                <p class="mt-0 text-[11px] leading-snug employees-text-muted" id="delivery-whatsapp-modal-subtitle">—</p>
             </div>
             <button type="button" onclick="document.getElementById('deliveryWhatsappModal').close()" class="emp-modal-close shrink-0" aria-label="Fechar">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
 
-        <div class="space-y-3 px-4 py-3">
-            <div id="delivery-whatsapp-modal-feedback" class="hidden rounded-xl border px-4 py-3 text-sm"></div>
+        <div class="flex max-h-[calc(92vh-3rem)] flex-col gap-2 overflow-hidden px-3 py-2">
+            <div id="delivery-whatsapp-modal-feedback" class="hidden rounded-lg border px-2.5 py-1.5 text-xs"></div>
 
-            <div class="delivery-whatsapp-modal-grid">
-                <div class="delivery-whatsapp-modal-kpis" id="delivery-whatsapp-modal-kpis"></div>
-                <div class="delivery-whatsapp-modal-meta">
-                    <div class="delivery-whatsapp-meta-card">
-                        <span class="delivery-whatsapp-meta-label">Mensagem padrão</span>
-                        <p id="delivery-whatsapp-modal-message" class="delivery-whatsapp-message-preview"></p>
-                    </div>
-                    <div class="delivery-whatsapp-meta-card">
-                        <span class="delivery-whatsapp-meta-label">Auditoria</span>
-                        <dl class="delivery-whatsapp-audit-list">
-                            <div><dt>Operador</dt><dd id="delivery-whatsapp-modal-operator">-</dd></div>
-                            <div><dt>Motorista</dt><dd id="delivery-whatsapp-modal-driver">-</dd></div>
-                            <div><dt>Placa</dt><dd id="delivery-whatsapp-modal-plate">-</dd></div>
-                            <div><dt>Início da rota</dt><dd id="delivery-whatsapp-modal-started-at">-</dd></div>
-                            <div><dt>Último envio</dt><dd id="delivery-whatsapp-modal-last-sent">-</dd></div>
-                        </dl>
-                    </div>
-                </div>
+            <div class="delivery-whatsapp-modal-compact-top shrink-0">
+                <div class="delivery-whatsapp-modal-kpis delivery-whatsapp-modal-kpis--inline" id="delivery-whatsapp-modal-kpis"></div>
+                <p id="delivery-whatsapp-modal-message" class="delivery-whatsapp-message-preview delivery-whatsapp-message-preview--compact" title="Texto enviado ao cliente"></p>
+                <dl class="delivery-whatsapp-audit-inline">
+                    <div><dt>Op.</dt><dd id="delivery-whatsapp-modal-operator">-</dd></div>
+                    <div><dt>Motor.</dt><dd id="delivery-whatsapp-modal-driver">-</dd></div>
+                    <div><dt>Placa</dt><dd id="delivery-whatsapp-modal-plate">-</dd></div>
+                    <div><dt>Início</dt><dd id="delivery-whatsapp-modal-started-at">-</dd></div>
+                    <div><dt>Últ.env.</dt><dd id="delivery-whatsapp-modal-last-sent">-</dd></div>
+                </dl>
             </div>
 
-            <div class="delivery-whatsapp-modal-section">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h4 class="text-sm font-semibold employees-text-strong">Clientes da rota</h4>
-                    <div class="flex flex-wrap items-center justify-end gap-2">
-                        <span class="delivery-whatsapp-inline-note">1 aviso por cliente/rota. Reenvio somente para falhas.</span>
-                        <button
-                            type="button"
-                            id="delivery-whatsapp-remark-btn"
-                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
-                            onclick="remarkDeliveryWhatsappSelected()"
-                            disabled
-                            title="Remarcar clientes selecionados para permitir novo envio"
-                        >
-                            Remarcar para enviar <span id="delivery-whatsapp-remark-count" class="ml-1">0</span>
-                        </button>
-                        <button
-                            type="button"
-                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
-                            onclick="selectAllDeliveryWhatsappClients(true)"
-                            title="Selecionar todos os clientes"
-                        >
-                            Marcar todos
-                        </button>
-                        <button
-                            type="button"
-                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
-                            onclick="selectAllDeliveryWhatsappClients(false)"
-                            title="Limpar seleção"
-                        >
-                            Desmarcar
-                        </button>
+            <div class="delivery-whatsapp-modal-section delivery-whatsapp-modal-section--compact flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div class="flex flex-wrap items-center gap-1.5 border-b border-slate-200/80 pb-1.5 dark:border-slate-700/80">
+                    <span class="text-[11px] font-semibold employees-text-strong">Clientes</span>
+                    <label class="delivery-whatsapp-opt">
+                        <input type="checkbox" id="delivery-whatsapp-opt-repeat" onchange="syncDeliveryWhatsappActions()">
+                        <span>Incluir já notificados (reenvio)</span>
+                    </label>
+                    <label class="delivery-whatsapp-opt delivery-whatsapp-opt--warn">
+                        <input type="checkbox" id="delivery-whatsapp-opt-skip-ready" onchange="syncDeliveryWhatsappActions()">
+                        <span>Sem rota iniciada</span>
+                    </label>
+                    <span class="delivery-whatsapp-inline-note text-[10px]">Vazio = todos elegíveis · Marque destinos e envie só os marcados</span>
+                    <div class="ml-auto flex flex-wrap items-center gap-1">
+                        <button type="button" id="delivery-whatsapp-remark-btn" class="delivery-whatsapp-action delivery-whatsapp-action--ghost delivery-whatsapp-action--xs" onclick="remarkDeliveryWhatsappSelected()" disabled title="Apaga histórico de envio dos selecionados">Limpar hist. <span id="delivery-whatsapp-remark-count">0</span></button>
+                        <button type="button" class="delivery-whatsapp-action delivery-whatsapp-action--ghost delivery-whatsapp-action--xs" onclick="selectAllDeliveryWhatsappClients(true)">Todos</button>
+                        <button type="button" class="delivery-whatsapp-action delivery-whatsapp-action--ghost delivery-whatsapp-action--xs" onclick="selectAllDeliveryWhatsappClients(false)">Nenhum</button>
                     </div>
                 </div>
-                <div class="delivery-whatsapp-modal-list" id="delivery-whatsapp-client-list"></div>
+                <div class="delivery-whatsapp-modal-list delivery-whatsapp-modal-list--compact min-h-0 flex-1 overflow-y-auto" id="delivery-whatsapp-client-list"></div>
             </div>
 
-            <div class="delivery-whatsapp-modal-section">
-                <div class="flex items-center justify-between gap-3">
-                    <h4 class="text-sm font-semibold employees-text-strong">Histórico de lotes</h4>
-                    <button type="button" class="delivery-whatsapp-action delivery-whatsapp-action--ghost" onclick="refreshDeliveryWhatsappModal()">Atualizar status</button>
+            <details class="delivery-whatsapp-history-details shrink-0 text-[11px]">
+                <summary class="cursor-pointer select-none font-medium text-slate-600 dark:text-slate-300">Histórico de lotes</summary>
+                <div class="mt-1 flex max-h-28 overflow-y-auto">
+                    <div class="delivery-whatsapp-modal-history delivery-whatsapp-modal-history--compact w-full" id="delivery-whatsapp-history-list"></div>
                 </div>
-                <div class="delivery-whatsapp-modal-history" id="delivery-whatsapp-history-list"></div>
-            </div>
+                <button type="button" class="delivery-whatsapp-action delivery-whatsapp-action--ghost delivery-whatsapp-action--xs mt-1" onclick="refreshDeliveryWhatsappModal()">Atualizar</button>
+            </details>
 
-            <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
-                <button type="button" onclick="document.getElementById('deliveryWhatsappModal').close()" class="sys-btn sys-btn--secondary">Cancelar</button>
-                <button type="button" id="delivery-whatsapp-modal-send" class="delivery-whatsapp-action delivery-whatsapp-action--primary" onclick="sendDeliveryWhatsappFromModal(false)">
-                    Enviar avisos
-                </button>
-                <button type="button" id="delivery-whatsapp-modal-retry" class="delivery-whatsapp-action delivery-whatsapp-action--secondary" onclick="sendDeliveryWhatsappFromModal(true)">
-                    Reenviar falhas
-                </button>
+            <div class="flex flex-wrap justify-end gap-1.5 border-t border-slate-200 pt-2 dark:border-slate-700">
+                <button type="button" onclick="document.getElementById('deliveryWhatsappModal').close()" class="sys-btn sys-btn--secondary !px-2.5 !py-1 text-xs">Fechar</button>
+                <button type="button" id="delivery-whatsapp-modal-retry" class="delivery-whatsapp-action delivery-whatsapp-action--secondary delivery-whatsapp-action--xs" onclick="sendDeliveryWhatsappFromModal(true)">Reenviar falhas</button>
+                <button type="button" id="delivery-whatsapp-modal-send" class="delivery-whatsapp-action delivery-whatsapp-action--primary delivery-whatsapp-action--xs" onclick="sendDeliveryWhatsappFromModal(false)">Enviar</button>
             </div>
         </div>
     </div>
@@ -1502,10 +1467,14 @@
 
     function setDeliveryWhatsappLoading(isLoading) {
         deliveryWhatsappState.loading = isLoading;
-        const sendBtn = document.getElementById('delivery-whatsapp-modal-send');
-        const retryBtn = document.getElementById('delivery-whatsapp-modal-retry');
-        if (sendBtn) sendBtn.disabled = isLoading;
-        if (retryBtn) retryBtn.disabled = isLoading;
+        if (isLoading) {
+            const sendBtn = document.getElementById('delivery-whatsapp-modal-send');
+            const retryBtn = document.getElementById('delivery-whatsapp-modal-retry');
+            if (sendBtn) sendBtn.disabled = true;
+            if (retryBtn) retryBtn.disabled = true;
+        } else {
+            syncDeliveryWhatsappActions();
+        }
     }
 
     function renderDeliveryWhatsappKpis(summary, statusLabel) {
@@ -1545,7 +1514,7 @@
         if (!list) return;
         if (!clients || !clients.length) {
             list.innerHTML = '<div class="delivery-whatsapp-empty">Nenhum cliente encontrado para esta rota.</div>';
-            syncDeliveryWhatsappRemarkSelection();
+            syncDeliveryWhatsappActions();
             return;
         }
         list.innerHTML = clients.map((client) => `
@@ -1555,7 +1524,7 @@
                         type="checkbox"
                         class="delivery-whatsapp-client-toggle rounded border-slate-400 text-violet-600 focus:ring-violet-500/50 dark:border-slate-500 dark:bg-slate-800"
                         data-client-id="${escapeHtml(String(client.client_id || ''))}"
-                        onchange="syncDeliveryWhatsappRemarkSelection()"
+                        onchange="syncDeliveryWhatsappActions()"
                     >
                     <span class="sr-only">Selecionar ${escapeHtml(client.client_name || 'Cliente')}</span>
                 </label>
@@ -1574,7 +1543,7 @@
                         ${client.last_sent_at ? `<span class="delivery-whatsapp-inline-note">Enviado em ${escapeHtml(client.last_sent_at)}</span>` : ''}
                         <button
                             type="button"
-                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
+                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost delivery-whatsapp-action--xs"
                             data-client-id="${Number(client.client_id || 0)}"
                             data-client-name="${escapeHtml(client.client_name || 'Cliente')}"
                             data-client-phone="${escapeHtml(client.phone_display || client.phone_raw || '')}"
@@ -1586,7 +1555,7 @@
                 </div>
             </div>
         `).join('');
-        syncDeliveryWhatsappRemarkSelection();
+        syncDeliveryWhatsappActions();
     }
 
     function selectAllDeliveryWhatsappClients(checked) {
@@ -1595,7 +1564,7 @@
         list.querySelectorAll('input.delivery-whatsapp-client-toggle').forEach((el) => {
             el.checked = !!checked;
         });
-        syncDeliveryWhatsappRemarkSelection();
+        syncDeliveryWhatsappActions();
     }
 
     function getSelectedDeliveryWhatsappClientIds() {
@@ -1610,12 +1579,39 @@
         return ids;
     }
 
+    function isDeliveryWhatsappAllowRepeat() {
+        const el = document.getElementById('delivery-whatsapp-opt-repeat');
+        return !!(el && el.checked);
+    }
+
+    function isDeliveryWhatsappSkipSessionReady() {
+        const el = document.getElementById('delivery-whatsapp-opt-skip-ready');
+        return !!(el && el.checked);
+    }
+
     function syncDeliveryWhatsappRemarkSelection() {
         const btn = document.getElementById('delivery-whatsapp-remark-btn');
         const countEl = document.getElementById('delivery-whatsapp-remark-count');
         const ids = getSelectedDeliveryWhatsappClientIds();
         if (countEl) countEl.textContent = String(ids.length);
         if (btn) btn.disabled = deliveryWhatsappState.loading || !deliveryWhatsappState.identity || ids.length === 0;
+    }
+
+    function syncDeliveryWhatsappActions() {
+        syncDeliveryWhatsappRemarkSelection();
+        const sendBtn = document.getElementById('delivery-whatsapp-modal-send');
+        const retryBtn = document.getElementById('delivery-whatsapp-modal-retry');
+        const snap = deliveryWhatsappState.snapshot;
+        if (!sendBtn) return;
+        if (!snap) {
+            sendBtn.disabled = true;
+            if (retryBtn) retryBtn.disabled = true;
+            return;
+        }
+        const nSel = getSelectedDeliveryWhatsappClientIds().length;
+        const manualOverride = isDeliveryWhatsappSkipSessionReady() && nSel > 0;
+        sendBtn.disabled = deliveryWhatsappState.loading || (!snap.can_send && !manualOverride);
+        if (retryBtn) retryBtn.disabled = deliveryWhatsappState.loading || !snap.can_retry_failed;
     }
 
     async function remarkDeliveryWhatsappSelected() {
@@ -1643,7 +1639,7 @@
             setDeliveryWhatsappFeedback(error.message || 'Falha ao remarcar clientes.', 'error');
         } finally {
             setDeliveryWhatsappLoading(false);
-            syncDeliveryWhatsappRemarkSelection();
+            syncDeliveryWhatsappActions();
         }
     }
 
@@ -1753,13 +1749,12 @@
         if (plate) plate.textContent = snapshot.vehicle_plate || '-';
         if (startedAt) startedAt.textContent = snapshot.session_started_at || snapshot.ready_at_fmt || '-';
         if (lastSent) lastSent.textContent = snapshot.last_sent_at_fmt || '-';
-        if (sendBtn) sendBtn.disabled = deliveryWhatsappState.loading || !snapshot.can_send;
-        if (retryBtn) retryBtn.disabled = deliveryWhatsappState.loading || !snapshot.can_retry_failed;
 
         renderDeliveryWhatsappKpis(snapshot.summary, snapshot.status_label);
         renderDeliveryWhatsappClients(snapshot.clients || []);
         renderDeliveryWhatsappHistory(snapshot.history || []);
         applyDeliveryWhatsappSnapshotToPage(snapshot);
+        syncDeliveryWhatsappActions();
     }
 
     function applyDeliveryWhatsappSnapshotToPage(snapshot) {
@@ -1836,6 +1831,10 @@
         deliveryWhatsappState.identity = identity;
         const modal = document.getElementById('deliveryWhatsappModal');
         if (modal && !modal.open) modal.showModal();
+        const optRep = document.getElementById('delivery-whatsapp-opt-repeat');
+        const optSkip = document.getElementById('delivery-whatsapp-opt-skip-ready');
+        if (optRep) optRep.checked = false;
+        if (optSkip) optSkip.checked = false;
         setDeliveryWhatsappFeedback('');
         setDeliveryWhatsappLoading(true);
         try {
@@ -1866,6 +1865,17 @@
             ? 'Confirma o reenvio apenas para clientes com falha?'
             : 'Confirma o envio manual dos avisos de WhatsApp desta rota?';
         if (!confirm(confirmText)) return;
+        const selectedIds = getSelectedDeliveryWhatsappClientIds();
+        if (!retryFailed && isDeliveryWhatsappSkipSessionReady() && selectedIds.length === 0) {
+            alert('Marque ao menos um cliente para enviar com a opção "Sem rota iniciada".');
+            return;
+        }
+        if (!retryFailed && isDeliveryWhatsappAllowRepeat()) {
+            if (!confirm('Reenvio inclui clientes que já receberam o aviso. Confirma?')) return;
+        }
+        if (!retryFailed && isDeliveryWhatsappSkipSessionReady()) {
+            if (!confirm('Enviar sem rota/sessão iniciada no mobile. Confirma?')) return;
+        }
 
         setDeliveryWhatsappFeedback('');
         setDeliveryWhatsappLoading(true);
@@ -1873,11 +1883,19 @@
             const endpoint = retryFailed
                 ? '/api/separacao/delivery/whatsapp/retry-failed'
                 : '/api/separacao/delivery/whatsapp/send';
+            const payload = retryFailed
+                ? deliveryWhatsappState.identity
+                : {
+                    ...deliveryWhatsappState.identity,
+                    client_ids: selectedIds.length ? selectedIds : [],
+                    allow_repeat: isDeliveryWhatsappAllowRepeat(),
+                    skip_session_ready: isDeliveryWhatsappSkipSessionReady(),
+                };
             const response = await fetch(endpoint, {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(deliveryWhatsappState.identity)
+                body: JSON.stringify(payload)
             });
             const data = await response.json();
             if (!response.ok || !data.success) {
@@ -1926,10 +1944,9 @@
     function applyFilters() {
         const dateFromEl = document.getElementById('route-date-from');
         const dateToEl = document.getElementById('route-date-to');
-        const shiftEl = document.getElementById('route-shift');
         const dateFrom = dateFromEl ? dateFromEl.value : '';
         const dateTo = dateToEl ? dateToEl.value : '';
-        const shift = shiftEl ? shiftEl.value : 'Manhã';
+        const shift = (typeof deliverySyncShift !== 'undefined' && deliverySyncShift) ? deliverySyncShift : 'Manhã';
         // Não usar toISOString() (UTC): à noite no BR vira “dia errado” no Render.
         const df = dateFrom || separacaoTodayBr || new Date().toISOString().slice(0, 10);
         const dt = dateTo || df;
@@ -2436,8 +2453,7 @@
     }
 
     function getCurrentShiftFilter() {
-        const shiftSelect = document.getElementById('route-shift');
-        return (shiftSelect && shiftSelect.value) ? shiftSelect.value : deliverySyncShift;
+        return (typeof deliverySyncShift !== 'undefined' && deliverySyncShift) ? deliverySyncShift : 'Manhã';
     }
 
     async function checkDeliveryRealtimeSync() {

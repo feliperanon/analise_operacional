@@ -554,7 +554,7 @@ def _load_employee_name_maps(
 
 
 # API Models
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 
 class ManualXPRequest(BaseModel):
@@ -809,6 +809,28 @@ def _validate_render_env_sync() -> None:
     )
 
 
+def _defer_db_readiness_until_after_lifespan_yield() -> bool:
+    """Se True, faz yield antes de db_ready (porta TCP abre cedo no host Render).
+
+    Se o .env local copiou RENDER=true do painel mas APP_BASE_URL aponta para 127.0.0.1,
+    não adiar — espera migrações antes do yield e evita rajada de 503 no --reload.
+    Override explícito: DEFER_DB_READINESS_UNTIL_AFTER_YIELD=false força espera no host remoto.
+    """
+    if not render_platform_active(os.environ.get("RENDER")):
+        return False
+    base = (os.environ.get("APP_BASE_URL") or "").strip().lower()
+    if base.startswith("http://127.") or base.startswith("http://localhost"):
+        return False
+    if (os.environ.get("DEFER_DB_READINESS_UNTIL_AFTER_YIELD") or "").strip().lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    ):
+        return False
+    return True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Render faz scan de porta antes do timeout: o Uvicorn só escuta TCP após o startup do lifespan
@@ -837,6 +859,13 @@ async def lifespan(app: FastAPI):
     startup_task = asyncio.create_task(_background_startup())
     # print + flush: aparece nos logs do Render mesmo se logging buffer/atrasar
     print("analise-operacional: yield lifespan (porta TCP pode abrir)", flush=True)
+    # Sem adiar: espera migrações/DB antes do yield → sem 503 no --reload (sync-token, /separacao).
+    # Adiar só em serviço real no Render (RENDER + APP_BASE_URL público), para o bind TCP cedo.
+    if not _defer_db_readiness_until_after_lifespan_yield():
+        try:
+            await startup_task
+        except Exception:
+            logger.exception("Startup em background falhou antes do yield")
 
     try:
         yield
@@ -7398,6 +7427,14 @@ class DeliveryWhatsAppRoutePayload(BaseModel):
     shift: str = "Manhã"
     employee_id: int
     vehicle_plate: str
+
+
+class DeliveryWhatsAppSendPayload(DeliveryWhatsAppRoutePayload):
+    """POST /send — subconjunto, reenvio a quem já recebeu, envio sem sessão (override operador)."""
+
+    client_ids: List[int] = Field(default_factory=list)
+    allow_repeat: bool = False
+    skip_session_ready: bool = False
 
 
 class DeliveryWhatsAppRemarkPayload(DeliveryWhatsAppRoutePayload):
@@ -14907,7 +14944,7 @@ async def separacao_page(
             group["whatsapp"] = build_delivery_whatsapp_page_overview(
                 session,
                 route_date=group.get("group_date") or selected_date_from,
-                shift=selected_shift,
+                shift=shift,
                 employee_id=int(group.get("employee_id") or 0),
                 vehicle_plate=group.get("vehicle_plate") or "",
                 auto_mark_ready=True,
@@ -15561,11 +15598,12 @@ async def api_separacao_delivery_whatsapp_prepare(
 @app.post("/api/separacao/delivery/whatsapp/send", response_class=JSONResponse)
 async def api_separacao_delivery_whatsapp_send(
     request: Request,
-    payload: DeliveryWhatsAppRoutePayload,
+    payload: DeliveryWhatsAppSendPayload,
     session: Session = Depends(get_session),
 ):
     operator_ctx = get_delivery_whatsapp_operator_context(request, session, raise_forbidden=True)
     try:
+        only_ids = payload.client_ids if payload.client_ids else None
         result = send_delivery_whatsapp_notifications(
             session,
             route_date=payload.route_date,
@@ -15575,6 +15613,9 @@ async def api_separacao_delivery_whatsapp_send(
             operator_label=operator_ctx["operator_label"],
             operator_user_id=operator_ctx["operator_user_id"],
             retry_failed=False,
+            only_client_ids=only_ids,
+            allow_repeat=payload.allow_repeat,
+            skip_session_ready=payload.skip_session_ready,
         )
         return JSONResponse(content=jsonable_encoder({"success": True, **result}))
     except ValueError as exc:

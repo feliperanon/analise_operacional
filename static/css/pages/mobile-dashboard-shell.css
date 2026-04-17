@@ -1,4 +1,4 @@
-﻿/* iPhone: respiro sob notch / Dynamic Island; sem overlap com menu (oculto nesta pagina) */
+﻿/* iPhone: respiro sob notch / Dynamic Island; atalhos (Conquistas / Sair) ficam no hero do dashboard */
     .dashboard-hero-safe {
         padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
     }

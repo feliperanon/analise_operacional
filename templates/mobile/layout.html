@@ -69,6 +69,7 @@
 <body class="mobile-app-body antialiased min-h-screen flex flex-col theme-tech-steel" style="color: var(--color-text-body); font-family: var(--font-sans);">
     <div class="flex flex-col min-h-screen flex-1">
         <main class="mobile-app-main flex-1 pb-safe relative z-0">
+            {% block mobile_nav %}{% endblock %}
             {% block content %}{% endblock %}
         </main>
     </div>

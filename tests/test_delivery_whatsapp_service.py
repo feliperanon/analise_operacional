@@ -349,3 +349,69 @@ def test_remark_clients_clears_sent_history_and_makes_sendable_again():
         client_after = next(row for row in snapshot_after["clients"] if row["client_id"] == seed["client_ok"].id)
         assert client_after["status"] == "elegivel"
         assert client_after["sendable"] is True
+
+
+def test_skip_session_ready_sends_only_selected():
+    """Sem sessão mobile: envio manual só para clientes marcados (operador)."""
+    with _make_session() as session:
+        seed = _seed_group(session)
+        result = send_delivery_whatsapp_notifications(
+            session,
+            route_date=seed["route_date"],
+            shift=seed["shift"],
+            employee_id=seed["driver"].id,
+            vehicle_plate=seed["plate"],
+            operator_label="Operador",
+            operator_user_id=1,
+            only_client_ids=[seed["client_ok"].id],
+            skip_session_ready=True,
+            provider=MockWhatsAppProvider(fail_suffixes=[]),
+        )
+        assert result["batch_status"] == WHATSAPP_ROUTE_STATUS_ENVIADO
+        items = list(session.exec(select(models.DeliveryWhatsAppItem)).all())
+        assert len(items) == 1
+        assert items[0].client_id == seed["client_ok"].id
+
+
+def test_allow_repeat_resends_to_already_sent():
+    with _make_session() as session:
+        seed = _seed_group(session)
+        mark_delivery_group_whatsapp_ready(
+            session,
+            route_date=seed["route_date"],
+            shift=seed["shift"],
+            employee_id=seed["driver"].id,
+            vehicle_plate=seed["plate"],
+        )
+        send_delivery_whatsapp_notifications(
+            session,
+            route_date=seed["route_date"],
+            shift=seed["shift"],
+            employee_id=seed["driver"].id,
+            vehicle_plate=seed["plate"],
+            operator_label="Op",
+            operator_user_id=1,
+            only_client_ids=[seed["client_ok"].id],
+            provider=MockWhatsAppProvider(fail_suffixes=[]),
+        )
+        second = send_delivery_whatsapp_notifications(
+            session,
+            route_date=seed["route_date"],
+            shift=seed["shift"],
+            employee_id=seed["driver"].id,
+            vehicle_plate=seed["plate"],
+            operator_label="Op",
+            operator_user_id=1,
+            only_client_ids=[seed["client_ok"].id],
+            allow_repeat=True,
+            provider=MockWhatsAppProvider(fail_suffixes=[]),
+        )
+        assert second["batch_status"] == WHATSAPP_ROUTE_STATUS_ENVIADO
+        items = list(
+            session.exec(
+                select(models.DeliveryWhatsAppItem).where(
+                    models.DeliveryWhatsAppItem.client_id == seed["client_ok"].id
+                )
+            ).all()
+        )
+        assert len(items) == 2
