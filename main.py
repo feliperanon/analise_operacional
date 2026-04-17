@@ -927,12 +927,53 @@ app.add_middleware(
 )
 
 
+def _db_readiness_gate_prefers_html(request: Request) -> bool:
+    """Navegador em páginas normais: HTML 503 com auto-retry; APIs / fetch JSON continuam com JSON."""
+    if request.method != "GET":
+        return False
+    path = request.url.path or ""
+    if path.startswith("/api/"):
+        return False
+    accept = (request.headers.get("accept") or "").lower()
+    return "text/html" in accept
+
+
 @app.middleware("http")
 async def db_readiness_gate(request: Request, call_next):
     if getattr(request.app.state, "db_ready", True) is not False:
         return await call_next(request)
     if _path_bypasses_db_readiness(request.url.path):
         return await call_next(request)
+    if _db_readiness_gate_prefers_html(request):
+        body = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="4">
+  <title>Inicializando…</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+      background: #0f172a; color: #e2e8f0; padding: 1.5rem; text-align: center; }
+    .box { max-width: 22rem; }
+    h1 { font-size: 1.1rem; font-weight: 600; margin: 0 0 0.75rem; color: #f8fafc; }
+    p { margin: 0; font-size: 0.9rem; line-height: 1.5; color: #94a3b8; }
+    .hint { margin-top: 1rem; font-size: 0.75rem; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Serviço a iniciar</h1>
+    <p>O servidor acabou de acordar (por exemplo após inatividade no alojamento). A base de dados e as migrações estão a ficar prontas.</p>
+    <p class="hint">Esta página atualiza automaticamente em poucos segundos. Pode também atualizar manualmente (F5).</p>
+  </div>
+</body>
+</html>"""
+        return HTMLResponse(
+            status_code=503,
+            content=body,
+            headers={"Retry-After": "4"},
+        )
     return JSONResponse(
         status_code=503,
         content={"detail": "Serviço inicializando; tente novamente em instantes."},
