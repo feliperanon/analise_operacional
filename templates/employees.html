@@ -308,12 +308,14 @@
         <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
             <div class="employees-filter-bar__inner">
             <div class="employees-filter-bar__primary">
+                <div class="employees-filter-bar__primary-scroll">
                 <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
                 <div class="ops-toolbar-search employees-filter-bar__search">
                     <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                     <input type="text" id="searchInput" placeholder="Nome, matrícula ou função" onkeyup="filterTable()" class="ops-toolbar-search__input">
+                </div>
                 </div>
                 <details id="roleFilterMenu" class="employees-role-details employees-filter-bar__roles group relative flex-shrink-0">
                     <summary class="ops-toolbar-control employees-role-filter-trigger flex w-full cursor-pointer list-none items-center justify-between gap-2 px-3.5">

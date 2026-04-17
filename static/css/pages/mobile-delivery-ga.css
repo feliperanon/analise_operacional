@@ -1,0 +1,482 @@
+/**
+ * Rota de entregas (mobile) — ponte visual para a matriz employees.html / Gestão Avista.
+ * Escopo: .delivery-ga-shell.ga-employee-theme.employees-page
+ */
+
+.delivery-ga-shell.ga-employee-theme.employees-page {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  background: rgb(241 245 249);
+  color: var(--sys-text-body, rgb(51 65 85));
+}
+
+/*
+ * _design_tokens.html define --color-text etc. para tema escuro (texto branco).
+ * O miolo desta página é claro; estilos inline usam var(--color-text) nos nomes de clientes.
+ * Re-mapeamos tokens só no escopo da rota para contraste legível.
+ */
+.delivery-ga-shell.delivery-mobi {
+  /* Contraste forte em fundo claro (evita cinzas “lavados”) */
+  --color-text: #0f172a;
+  --color-text-body: #1e293b;
+  --color-text-secondary: #334155;
+  --color-text-muted: #475569;
+  --color-text-inverse: #ffffff;
+  --color-icon: #334155;
+  --color-surface: #ffffff;
+  --color-surface-solid: #f8fafc;
+  --color-border: rgb(226 232 240);
+  --color-border-light: rgb(241 245 249);
+  --card-bg: #ffffff;
+  --color-bg: rgb(241 245 249);
+}
+
+html.dark .delivery-ga-shell.delivery-mobi {
+  --color-text: #f8fafc;
+  --color-text-body: #cbd5e1;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #94a3b8;
+  --color-icon: #94a3b8;
+  --color-surface: #131e2e;
+  --color-surface-solid: #0f172a;
+  --color-border: #1e293b;
+  --color-border-light: #334155;
+  --card-bg: #0f172a;
+  --color-bg: rgb(15 23 42);
+}
+
+.delivery-ga-shell .delivery-ga-topnav {
+  border-bottom: 1px solid var(--sys-border, rgb(226 232 240));
+  background: rgb(255 255 255);
+  box-shadow: 0 1px 0 rgb(15 23 42 / 0.04);
+}
+
+/* Botões guia / atualizar: área de toque ≥ 48px e sem colapso do sys-btn */
+.delivery-ga-shell.delivery-mobi .delivery-topnav-action {
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0;
+  line-height: 0;
+}
+
+@media (min-width: 640px) {
+  .delivery-ga-shell.delivery-mobi .delivery-topnav-action {
+    min-height: 56px;
+    min-width: 56px;
+  }
+}
+
+html.dark .delivery-ga-shell.ga-employee-theme.employees-page {
+  background: rgb(15 23 42);
+  color: var(--sys-text-body);
+}
+
+html.dark .delivery-ga-shell .delivery-ga-topnav {
+  background: rgb(17 24 39);
+  border-color: rgb(55 65 81);
+}
+
+/* Conteúdo principal: ritmo alinhado ao miolo employees */
+.delivery-ga-shell .delivery-ga-main {
+  width: 100%;
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .delivery-ga-shell .delivery-ga-main {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .delivery-ga-shell .delivery-ga-main {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/*
+ * Modais: backdrop alinhado a employees (.emp-modal-shell).
+ * Inclui teleport para body (fora de .delivery-ga-shell).
+ */
+.delivery-modal-overlay.emp-modal-shell {
+  background: rgb(15 23 42 / 0.4) !important;
+  backdrop-filter: blur(6px);
+}
+
+html.dark .delivery-modal-overlay.emp-modal-shell {
+  background: rgb(0 0 0 / 0.55) !important;
+}
+
+.delivery-ga-shell .delivery-modal-card.sys-modal-surface {
+  border: 1px solid var(--sys-border);
+  box-shadow: var(--sys-shadow-md, 0 10px 40px rgb(15 23 42 / 0.12));
+}
+
+/* Rodapé fixo harmoniza com fundo claro */
+.delivery-ga-shell .delivery-footer-bar {
+  background: linear-gradient(to top, rgb(241 245 249) 55%, transparent);
+}
+
+html.dark .delivery-ga-shell .delivery-footer-bar {
+  background: linear-gradient(to top, rgb(15 23 42) 55%, transparent);
+}
+
+/* Lista: cards internos leem como painel GA */
+.delivery-ga-shell .delivery-route-card {
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-lg, 0.75rem);
+  background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+}
+
+html.dark .delivery-ga-shell .delivery-route-card {
+  background: linear-gradient(180deg, rgb(30 41 59) 0%, rgb(15 23 42) 100%);
+  border-color: rgb(55 65 81);
+}
+
+/* ---------- Mobile-first: coluna única, sem “desktop hero”, KPIs legíveis ---------- */
+.delivery-ga-shell.delivery-mobi .delivery-ga-main,
+.delivery-ga-shell.delivery-mobi .delivery-ga-topnav .delivery-ga-main {
+  max-width: min(100%, 28rem);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-mobi-main {
+  width: 100%;
+}
+
+/* KPIs: sem scroll —3 colunas iguais na mesma linha (delivery) */
+.delivery-ga-shell.delivery-mobi.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row.employees-kpi-row--delivery-three {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 0.375rem;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  flex-wrap: unset !important;
+  padding-bottom: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.delivery-ga-shell.delivery-mobi.ga-employee-theme.employees-page
+  .sys-kpi-shell
+  .sys-kpi-grid.employees-kpi-row.employees-kpi-row--delivery-three
+  > .sys-kpi-card.employees-kpi {
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: initial !important;
+  min-height: 3.75rem;
+  padding: 0.45rem 0.4rem !important;
+}
+
+.delivery-ga-shell.delivery-mobi.ga-employee-theme.employees-page
+  .sys-kpi-shell
+  .sys-kpi-grid.employees-kpi-row.employees-kpi-row--delivery-three
+  .employees-kpi__head {
+  gap: 0.25rem;
+}
+
+.delivery-ga-shell.delivery-mobi.ga-employee-theme.employees-page
+  .sys-kpi-shell
+  .sys-kpi-grid.employees-kpi-row.employees-kpi-row--delivery-three
+  .sys-kpi-label {
+  font-size: 0.65rem;
+  line-height: 1.1;
+}
+
+.delivery-ga-shell.delivery-mobi.ga-employee-theme.employees-page
+  .sys-kpi-shell
+  .sys-kpi-grid.employees-kpi-row.employees-kpi-row--delivery-three
+  .employees-kpi__value {
+  font-size: 1rem;
+}
+
+.delivery-ga-shell.delivery-mobi.ga-employee-theme.employees-page
+  .sys-kpi-shell
+  .sys-kpi-grid.employees-kpi-row.employees-kpi-row--delivery-three
+  .employees-kpi__meta {
+  margin-top: 0.125rem;
+  font-size: 0.5625rem;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delivery-ga-shell.delivery-mobi .employees-table-panel__head {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.delivery-ga-shell.delivery-mobi .employees-table-panel__title {
+  color: var(--color-text);
+}
+
+.delivery-ga-shell.delivery-mobi .employees-table-panel__kicker {
+  color: var(--color-text-muted);
+}
+
+.delivery-ga-shell.delivery-mobi .employees-table-panel__lede {
+  color: var(--color-text-body);
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-route-card .text-caption {
+  color: var(--color-text-body);
+}
+
+.delivery-ga-shell.delivery-mobi .touch-target-icon {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+/* Toolbar de filtros (fora de card): busca alinhada ao tema claro/escuro */
+.delivery-ga-shell.delivery-mobi .delivery-toolbar {
+  padding-bottom: 0.25rem;
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-toolbar-search.ops-toolbar-search {
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-solid);
+  color: var(--color-text);
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-toolbar-search .ops-toolbar-search__input {
+  color: var(--color-text);
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-toolbar-search .ops-toolbar-search__input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+/* Toolbar em coluna: legenda acima de cada bloco */
+.delivery-ga-shell.delivery-mobi .delivery-toolbar--stack {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Busca + ordenação na mesma linha (1×1 em telas estreitas) */
+.delivery-ga-shell.delivery-mobi .delivery-toolbar__session--inline.grid-cols-2 > .delivery-toolbar__block {
+  min-width: 0;
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-toolbar__session--inline .delivery-toolbar__sort {
+  min-width: 0;
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-toolbar__legend {
+  display: block;
+  margin: 0 0 0.35rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.delivery-ga-shell.delivery-mobi label.delivery-toolbar__legend {
+  cursor: pointer;
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-toolbar__block .delivery-toolbar-search.ops-toolbar-search {
+  min-height: 2.5rem;
+}
+
+.delivery-ga-shell.delivery-mobi .delivery-session-card {
+  background: var(--card-bg, var(--color-surface));
+}
+
+/* Checklist diário — itens: menos “anel” duplicado, controle tipo segmentado */
+.delivery-ga-shell.delivery-mobi .checklist-item-card {
+  border: 1px solid var(--color-border);
+  border-radius: 0.625rem;
+  background: var(--color-surface, #fff);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.delivery-ga-shell.delivery-mobi .checklist-item-card--ok {
+  border-color: rgb(16 185 129 / 0.42);
+  box-shadow:
+    0 0 0 1px rgb(16 185 129 / 0.1),
+    0 2px 10px rgb(16 185 129 / 0.08);
+  background: linear-gradient(145deg, rgb(16 185 129 / 0.09) 0%, var(--color-surface) 55%);
+}
+
+.delivery-ga-shell.delivery-mobi .checklist-item-card--fail {
+  border-color: rgb(239 68 68 / 0.42);
+  box-shadow:
+    0 0 0 1px rgb(239 68 68 / 0.1),
+    0 2px 10px rgb(239 68 68 / 0.08);
+  background: linear-gradient(145deg, rgb(239 68 68 / 0.1) 0%, var(--color-surface) 55%);
+}
+
+.delivery-ga-shell.delivery-mobi .checklist-item-segment {
+  display: flex;
+  width: 100%;
+  border-radius: 0.5rem;
+  padding: 0.125rem;
+  gap: 0.125rem;
+  background: var(--color-surface-solid);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+/* Linha única: chip compacto à direita do rótulo */
+.delivery-ga-shell.delivery-mobi .checklist-item-segment--inline {
+  width: auto;
+  max-width: 9rem;
+  flex: 0 0 auto;
+  border-radius: 0.4375rem;
+  padding: 0.0625rem;
+  gap: 0.0625rem;
+}
+
+.delivery-ga-shell.delivery-mobi .checklist-item-segment__btn {
+  flex: 1 1 0;
+  min-height: 2rem;
+  min-width: 2.25rem;
+  padding: 0.125rem 0.375rem;
+  border: none;
+  border-radius: 0.3125rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.12s ease,
+    box-shadow 0.15s ease;
+}
+
+.delivery-ga-shell.delivery-mobi .checklist-item-segment--inline .checklist-item-segment__btn {
+  flex: 1 1 0;
+  min-width: 2rem;
+  min-height: 1.875rem;
+  padding: 0.125rem 0.25rem;
+}
+
+@media (min-width: 360px) {
+  .delivery-ga-shell.delivery-mobi .checklist-item-segment--inline .checklist-item-segment__btn {
+    min-height: 2rem;
+    min-width: 2.5rem;
+    padding: 0.1875rem 0.4375rem;
+    font-size: 0.6875rem;
+  }
+}
+
+@media (min-width: 400px) {
+  .delivery-ga-shell.delivery-mobi .checklist-item-segment--inline .checklist-item-segment__btn {
+    font-size: 0.75rem;
+    padding: 0.1875rem 0.5rem;
+  }
+}
+
+.delivery-ga-shell.delivery-mobi .checklist-item-segment__btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+html.dark .delivery-ga-shell.delivery-mobi .checklist-item-card--ok,
+html.dark .delivery-ga-shell.delivery-mobi .checklist-item-card--fail {
+  background: var(--color-surface);
+}
+
+/* Checklist mobile — mesma largura útil que .delivery-ga-main (28rem + safe area) */
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .delivery-content > .container-mobile {
+  max-width: min(100%, 28rem);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-footer-track {
+  width: 100%;
+  max-width: min(100%, 28rem);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn {
+  border-width: 1px;
+  border-style: solid;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.12) inset,
+    0 8px 24px rgb(15 23 42 / 0.12);
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn--ok {
+  border-color: rgb(16 185 129 / 0.45);
+  background: linear-gradient(165deg, rgb(4 120 87) 0%, rgb(5 150 105) 42%, rgb(16 185 129) 100%);
+  color: #fff;
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn--warn {
+  border-color: rgb(245 158 11 / 0.55);
+  background: linear-gradient(165deg, rgb(180 83 9) 0%, rgb(217 119 6) 45%, rgb(251 191 36) 100%);
+  color: #fff;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.15) inset,
+    0 8px 24px rgb(180 83 9 / 0.28);
+}
+
+html.dark .delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn {
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.08) inset,
+    0 10px 28px rgb(0 0 0 / 0.35);
+}
+
+html.dark .delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn--warn {
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.1) inset,
+    0 10px 28px rgb(0 0 0 / 0.4);
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn__icon {
+  border-radius: 0.85rem;
+  background: rgb(255 255 255 / 0.16);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.12) inset;
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn__chevron {
+  opacity: 0.88;
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn:focus-visible.checklist-submit-btn--ok {
+  outline: 2px solid rgb(52 211 153);
+  outline-offset: 3px;
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-submit-btn:focus-visible.checklist-submit-btn--warn {
+  outline: 2px solid rgb(251 191 36);
+  outline-offset: 3px;
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .checklist-item-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .delivery-content .sys-card,
+.delivery-ga-shell.checklist-mobile-page.delivery-mobi .delivery-content .delivery-route-card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}

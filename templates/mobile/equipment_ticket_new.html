@@ -1,90 +1,101 @@
 {% extends "mobile/layout.html" %}
-{% from 'mobile/_components.html' import btn_primary, input %}
 
 {% block title %}Novo Chamado{% endblock %}
 
-{% block content %}
-<div class="min-h-screen pb-safe" style="background: var(--color-bg);">
-    <header class="container-mobile py-4 border-b shrink-0 relative z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
-        <div class="flex items-center gap-3">
-            <a href="/mobile/routine/checklist" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
-            </a>
-            <div class="flex-1">
-                <h1 class="text-title-lg" style="color: var(--color-text);">Abrir Chamado</h1>
-                <p class="text-caption-lg">Registrar falha no equipamento</p>
-            </div>
-        </div>
-    </header>
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415h">
+{% endblock %}
 
-    {% if open_tickets %}
-    <div class="container-mobile mt-4">
-        <div class="surface p-4">
-            <div class="flex items-center gap-2 mb-3">
-                <div class="icon-wrap w-8 h-8 flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
-                    <i data-lucide="alert-circle" class="w-4 h-4"></i>
-                </div>
-                <h2 class="text-section" style="color: var(--color-text);">Chamados Abertos (Últimos 3 dias)</h2>
+{% block content %}
+<div class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium min-h-screen pb-safe delivery-page-layout">
+
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/equipment/tickets" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 shrink-0 items-center justify-center rounded-lg interactive sm:size-11 no-underline" aria-label="Voltar à lista de chamados" title="Voltar">
+                <i data-lucide="arrow-left" class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true"></i>
+            </a>
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Abrir chamado</p>
             </div>
-            <div class="space-y-2 max-h-48 overflow-y-auto">
+            <div class="size-10 shrink-0 sm:size-11" aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <div class="delivery-ga-main delivery-mobi-main space-y-3 pb-4 pt-1">
+        <p class="employees-text-muted m-0 px-0.5 text-center text-xs">Registrar falha no equipamento</p>
+
+        {% if open_tickets %}
+        <div class="sys-card sys-card--surface rounded-xl border p-3 sm:p-4" style="border-color: var(--color-border);">
+            <div class="mb-2 flex items-center gap-2">
+                <span class="inline-flex size-8 items-center justify-center rounded-md" style="background: var(--color-warning-bg); color: var(--color-warning);">
+                    <i data-lucide="alert-circle" class="h-4 w-4" aria-hidden="true"></i>
+                </span>
+                <span class="employees-text-section-label">Abertos (3 dias)</span>
+            </div>
+            <div class="max-h-40 space-y-2 overflow-y-auto">
                 {% for ticket in open_tickets %}
-                <a href="/mobile/equipment/tickets/{{ ticket.id }}" class="block surface p-3 interactive rounded-lg">
-                    <div class="flex items-start justify-between gap-2">
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-caption font-semibold" style="color: var(--color-primary);">#{{ ticket.id }}</span>
-                                <span class="text-body font-semibold" style="color: var(--color-text);">{{ ticket.equipment_code }}</span>
-                            </div>
-                            <p class="text-caption">{{ ticket.employee_name }}</p>
-                            <p class="text-caption" style="color: var(--color-text-muted);">{{ ticket.created_at }}</p>
+                <a href="/mobile/equipment/tickets/{{ ticket.id }}" class="flex items-start justify-between gap-2 rounded-lg border p-2.5 no-underline interactive" style="border-color: var(--color-border); background: var(--color-surface);">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                            <span class="text-xs font-semibold" style="color: var(--color-primary);">#{{ ticket.id }}</span>
+                            <span class="employees-text-strong text-sm font-semibold">{{ ticket.equipment_code }}</span>
                         </div>
-                        <i data-lucide="chevron-right" class="w-4 h-4 flex-shrink-0" style="color: var(--color-text-muted);"></i>
+                        <p class="employees-text-muted m-0 mt-0.5 truncate text-xs">{{ ticket.employee_name }}</p>
+                        <p class="employees-text-muted m-0 text-[11px]">{{ ticket.created_at }}</p>
                     </div>
+                    <i data-lucide="chevron-right" class="mt-0.5 h-4 w-4 shrink-0 opacity-50" aria-hidden="true"></i>
                 </a>
                 {% endfor %}
             </div>
         </div>
-    </div>
-    {% endif %}
+        {% endif %}
 
-    <div class="container-mobile mt-4 pb-6">
-        <form id="ticketForm" class="surface p-4 space-y-4">
+        <form id="ticketForm" class="sys-card sys-card--surface space-y-3 rounded-xl border p-3 sm:p-4" style="border-color: var(--color-border);">
             <div>
-                <label class="text-section block mb-2" style="color: var(--color-text);">Equipamento *</label>
-                <select name="equipment_code" required class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors"
-                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-                    <option value="" disabled selected>Selecione o equipamento</option>
+                <label for="equipment_code" class="sys-section__label sys-section__label--field mb-1.5 block">Equipamento</label>
+                <select id="equipment_code" name="equipment_code" required class="sys-select">
+                    <option value="" disabled selected>Selecione</option>
                     {% if equipment_list %}
                     {% for eq in equipment_list %}
-                    <option value="{{ eq.code }}">{{ eq.code }} - Liberado para entrega</option>
+                    <option value="{{ eq.code }}">{{ eq.code }}</option>
                     {% endfor %}
                     {% else %}
-                    <option value="" disabled>Nenhum caminhão liberado para você hoje</option>
+                    <option value="" disabled>Nenhum caminhão liberado hoje</option>
                     {% endif %}
                 </select>
             </div>
 
             <div>
-                <label class="text-section block mb-2" style="color: var(--color-text);">Descrição do Problema *</label>
-                <textarea name="description" rows="4" required placeholder="Ex: Rodas travando, alavanca com folga..."
-                    class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2 transition-colors resize-none"
-                    style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);"></textarea>
+                <label for="description" class="sys-section__label sys-section__label--field mb-1.5 block">Descrição</label>
+                <textarea id="description" name="description" required rows="4" placeholder="Ex.: Rodas travando, alavanca com folga…" class="sys-input resize-none"></textarea>
             </div>
 
             <div>
-                <label class="text-section block mb-2" style="color: var(--color-text);">Fotos (opcional)</label>
-                <input type="file" name="files" multiple accept="image/*" capture="environment"
-                    class="w-full text-body file:mr-3 file:rounded-lg file:border-0 file:px-4 file:py-2.5 file:text-body file:font-semibold file:text-white transition-colors"
-                    style="color: var(--color-text-secondary);">
-                <p class="text-caption mt-2" style="color: var(--color-text-muted);">Máximo 15MB por imagem. JPG, PNG, WEBP</p>
+                <p class="sys-section__label sys-section__label--field mb-1.5">Fotos <span class="font-normal normal-case opacity-70">(opcional)</span></p>
+                <label class="ticket-file-drop relative flex min-h-[5.25rem] cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-3 py-3 text-center transition-[border-color,background-color] hover:bg-[var(--sys-bg-subtle)]"
+                    style="border-color: var(--sys-border); background: var(--sys-surface);">
+                    <input id="files" type="file" name="files" multiple accept="image/*" capture="environment"
+                        class="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                        aria-label="Anexar fotos do problema (opcional)">
+                    <span class="pointer-events-none inline-flex size-10 items-center justify-center rounded-full" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                        <i data-lucide="image-plus" class="h-5 w-5" aria-hidden="true"></i>
+                    </span>
+                    <span class="pointer-events-none text-sm font-semibold" style="color: var(--sys-text-primary);">Toque para adicionar fotos</span>
+                    <span class="pointer-events-none text-[11px] leading-tight" style="color: var(--sys-text-muted);">Câmera ou galeria · várias imagens</span>
+                </label>
+                <p class="employees-text-muted m-0 mt-1 text-[11px]">Até 15 MB por imagem · JPG, PNG, WEBP</p>
             </div>
 
-            <button type="submit" id="submitBtn" class="w-full py-4 rounded-lg font-semibold text-body-lg text-white transition-opacity flex items-center justify-center gap-2 disabled:opacity-50"
-                style="background: var(--color-primary);">
-                <i data-lucide="plus" class="w-5 h-5"></i>
-                Abrir Chamado
+            <button type="submit" id="submitBtn" class="sys-btn sys-btn--primary mt-1 flex w-full min-h-11 items-center justify-center gap-2 font-semibold disabled:opacity-50">
+                <i data-lucide="plus" class="h-4 w-4 shrink-0" aria-hidden="true"></i>
+                Abrir chamado
             </button>
-            <p id="statusMessage" class="text-center text-caption min-h-[1rem] mt-2" style="color: var(--color-text-muted);"></p>
+            <p id="statusMessage" class="employees-text-muted m-0 min-h-[1rem] text-center text-xs"></p>
         </form>
     </div>
 </div>
@@ -92,31 +103,34 @@
 
 {% block scripts %}
 <script>
-    lucide.createIcons();
-    const form = document.getElementById('ticketForm');
-    const statusMessage = document.getElementById('statusMessage');
-    const submitBtn = document.getElementById('submitBtn');
+    (function () {
+        const form = document.getElementById('ticketForm');
+        const statusMessage = document.getElementById('statusMessage');
+        const submitBtn = document.getElementById('submitBtn');
+        if (!form || !statusMessage || !submitBtn) return;
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (submitBtn.disabled) return;
-        submitBtn.disabled = true;
-        statusMessage.textContent = 'Enviando chamado...';
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            if (submitBtn.disabled) return;
+            submitBtn.disabled = true;
+            statusMessage.textContent = 'Enviando…';
+            statusMessage.style.color = '';
 
-        const formData = new FormData(form);
-        try {
-            const res = await fetch('/api/equipment/tickets', { method: 'POST', body: formData });
-            const result = await res.json();
-            if (!res.ok || !result.success) throw new Error(result.error || 'Erro ao abrir chamado.');
+            const formData = new FormData(form);
+            try {
+                const res = await fetch('/api/equipment/tickets', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (!res.ok || !result.success) throw new Error(result.error || 'Erro ao abrir chamado.');
 
-            statusMessage.textContent = 'Chamado registrado com sucesso!';
-            statusMessage.style.color = 'var(--color-success)';
-            setTimeout(() => { window.location.href = '/mobile/dashboard?success=chamado+criado'; }, 1000);
-        } catch (err) {
-            statusMessage.textContent = err.message || 'Falha ao enviar.';
-            statusMessage.style.color = 'var(--color-danger)';
-            submitBtn.disabled = false;
-        }
-    });
+                statusMessage.textContent = 'Registrado com sucesso.';
+                statusMessage.style.color = 'var(--color-success)';
+                setTimeout(function () { window.location.href = '/mobile/dashboard?success=chamado+criado'; }, 900);
+            } catch (err) {
+                statusMessage.textContent = err.message || 'Falha ao enviar.';
+                statusMessage.style.color = 'var(--color-danger)';
+                submitBtn.disabled = false;
+            }
+        });
+    })();
 </script>
 {% endblock %}

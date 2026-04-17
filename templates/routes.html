@@ -295,110 +295,137 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Barra de filtros (employees-filter-bar) -->
-    <div id="separacao-filter-anchor" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
-        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
-            <div class="employees-filter-bar__inner flex-wrap">
-                <div class="employees-filter-bar__primary flex-wrap gap-3">
-                    <div class="flex flex-col gap-1">
-                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Período</span>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <input type="date" id="route-date-from" value="{{ selected_date_from }}" onchange="applyFilters()" class="delivery-filter-input" title="Data inicial">
-                            <span class="employees-text-caption text-xs">até</span>
-                            <input type="date" id="route-date-to" value="{{ selected_date_to }}" onchange="applyFilters()" class="delivery-filter-input" title="Data final">
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(34, 197, 94, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">WhatsApp por rota</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span class="employees-kpi__value tabular-nums">{{ delivery_whatsapp_summary.pending_routes }}</span>
+                                <span class="employees-kpi__denom text-sm">pendentes</span>
+                            </div>
                         </div>
+                        <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2v-8a2 2 0 012-2h2m10 0V6a4 4 0 10-8 0v2m8 0H7"></path>
+                        </svg>
                     </div>
-                    <div class="flex flex-col gap-1">
-                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Turno</span>
-                        <select id="route-shift" onchange="applyFilters()" class="delivery-filter-input min-w-[7.5rem] [&>option]:bg-white dark:[&>option]:bg-slate-800">
-                            <option value="Manhã" {% if selected_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
-                            <option value="Tarde" {% if selected_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
-                            <option value="Noite" {% if selected_shift == 'Noite' %}selected{% endif %}>Noite</option>
-                        </select>
+                    <div class="employees-kpi__meta delivery-whatsapp-kpi-meta">
+                        <span class="delivery-whatsapp-kpi-chip">
+                            <strong>{{ delivery_whatsapp_summary.sent_today }}</strong> enviadas hoje
+                        </span>
+                        <span class="delivery-whatsapp-kpi-chip delivery-whatsapp-kpi-chip--danger">
+                            <strong>{{ delivery_whatsapp_summary.failed_today }}</strong> falhas hoje
+                        </span>
                     </div>
-                    <div class="min-w-[200px] flex-1 basis-[220px]">
-                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na operação</span>
-                        <div class="ops-toolbar-search employees-filter-bar__search mt-1">
-                            <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                            <input type="text" id="delivery-global-search" placeholder="Cliente, código, pedido, motorista…" oninput="filterDeliveryRows(this.value)" class="ops-toolbar-search__input">
-                        </div>
-                    </div>
-                </div>
-                <div class="employees-filter-bar__divider hidden lg:block" aria-hidden="true"></div>
-                <div class="employees-filter-bar__secondary flex-wrap items-center gap-2">
-                    <span id="delivery-search-result" class="employees-text-caption text-xs"></span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Painel principal -->
+    <!-- Painel principal: título, ações em massa, WhatsApp e filtros no mesmo cartão -->
     <div id="delivery-operations-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
-        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+        <div class="employees-table-panel__head delivery-ops-panel__head flex flex-col gap-3 border-b px-4 py-4 sm:px-5">
+            <div class="delivery-ops-panel__block flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between lg:gap-5">
             <div class="min-w-0 flex-1">
                 <p class="employees-table-panel__kicker">Centro de operação</p>
-                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Rotas e paradas</h3>
-                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Expanda cada motorista para ver paradas, status e ações. A tabela usa cabeçalho fixo ao rolar.</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-base sm:text-lg">Rotas e paradas</h3>
+                <p class="employees-table-panel__lede mt-1 max-w-2xl text-xs sm:text-sm">Expanda cada motorista para ver paradas, status e ações.</p>
             </div>
-            <div class="employees-table-panel__aside flex max-w-full flex-col gap-2 text-xs leading-relaxed lg:max-w-md lg:pt-1 lg:text-right">
-                <div class="flex flex-wrap items-center justify-end gap-2 lg:justify-end">
+            <div class="employees-table-panel__aside delivery-ops-panel__actions flex max-w-full flex-col gap-1.5 text-xs leading-relaxed lg:max-w-lg lg:pt-0.5 lg:text-right">
+                <div class="flex flex-wrap items-center justify-start gap-1.5 lg:justify-end">
                     <form
                         action="/separacao/delivery/planning-date/bulk"
                         method="post"
-                        class="flex flex-wrap items-center gap-1.5"
+                        class="flex flex-wrap items-center gap-1"
                         onsubmit="return confirm('Mover TODAS as rotas do dia {{ selected_date_from[8:10] }}/{{ selected_date_from[5:7] }}?');"
                     >
                         <input type="hidden" name="current_date" value="{{ selected_date_from }}">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                         <input type="date" name="planning_date" value="{{ selected_date_from }}" class="delivery-mini-input">
-                        <button type="submit" class="sys-btn sys-btn--secondary px-2.5 py-1.5 text-[11px] font-semibold">Todas → data</button>
+                        <button type="submit" class="sys-btn sys-btn--secondary px-2 py-1 text-[11px] font-semibold">Todas → data</button>
                     </form>
                     {% if delivery_summary.pending > 0 or delivery_summary.opened_routines > 0 %}
-                    <form action="/separacao/delivery/finish-all-routes" method="post" class="inline" onsubmit="return confirm('Finalizar TODAS as rotas?');">
+                    <form action="/separacao/delivery/finish-all-routes" method="post" class="inline-flex" onsubmit="return confirm('Finalizar TODAS as rotas?');">
                         <input type="hidden" name="date_from" value="{{ selected_date_from }}">
                         <input type="hidden" name="date_to" value="{{ selected_date_to }}">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
-                        <button type="submit" class="sys-btn sys-btn--primary bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-[11px] font-semibold">
+                        <button type="submit" class="sys-btn sys-btn--primary bg-emerald-600 hover:bg-emerald-500 px-2.5 py-1 text-[11px] font-semibold">
                             Finalizar todas
                         </button>
                     </form>
                     {% endif %}
                     {% if delivery_summary.delivered > 0 or delivery_summary.returned > 0 %}
-                    <form action="/separacao/delivery/reopen-all-routes" method="post" class="inline" onsubmit="return confirm('Reabrir TODAS?');">
+                    <form action="/separacao/delivery/reopen-all-routes" method="post" class="inline-flex" onsubmit="return confirm('Reabrir TODAS?');">
                         <input type="hidden" name="date_from" value="{{ selected_date_from }}">
                         <input type="hidden" name="date_to" value="{{ selected_date_to }}">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
-                        <button type="submit" class="sys-btn sys-btn--secondary px-2.5 py-1.5 text-[11px] font-semibold text-teal-700 dark:text-teal-300">
+                        <button type="submit" class="sys-btn sys-btn--secondary px-2 py-1 text-[11px] font-semibold text-teal-700 dark:text-teal-300">
                             Reabrir todas
                         </button>
                     </form>
                     {% endif %}
                 </div>
-                <span class="employees-text-caption hidden sm:inline">Use a busca acima para localizar clientes ou motoristas em lote.</span>
+                <span class="employees-text-caption hidden sm:inline">Use a busca para localizar clientes ou motoristas em lote.</span>
+            </div>
+            </div>
+
+            <div id="separacao-filter-anchor" class="delivery-ops-panel__filters delivery-ops-panel__block">
+                <p class="employees-text-section-label mb-2 text-[10px] tracking-[0.14em] sm:hidden">Filtros da operação</p>
+                <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+                    <div class="employees-filter-bar__inner flex-wrap">
+                        <div class="employees-filter-bar__primary flex-wrap gap-2.5">
+                            <div class="flex flex-col gap-1">
+                                <span class="employees-filter-bar__label employees-filter-bar__label--compact">Período</span>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <input type="date" id="route-date-from" value="{{ selected_date_from }}" onchange="applyFilters()" class="delivery-filter-input" title="Data inicial">
+                                    <span class="employees-text-caption text-xs">até</span>
+                                    <input type="date" id="route-date-to" value="{{ selected_date_to }}" onchange="applyFilters()" class="delivery-filter-input" title="Data final">
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <span class="employees-filter-bar__label employees-filter-bar__label--compact">Turno</span>
+                                <select id="route-shift" onchange="applyFilters()" class="delivery-filter-input min-w-[7.5rem] [&>option]:bg-white dark:[&>option]:bg-slate-800">
+                                    <option value="Manhã" {% if selected_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
+                                    <option value="Tarde" {% if selected_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
+                                    <option value="Noite" {% if selected_shift == 'Noite' %}selected{% endif %}>Noite</option>
+                                </select>
+                            </div>
+                            <div class="min-w-[200px] flex-1 basis-[220px]">
+                                <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na operação</span>
+                                <div class="ops-toolbar-search employees-filter-bar__search mt-1">
+                                    <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                    <input type="text" id="delivery-global-search" placeholder="Cliente, código, pedido, motorista…" oninput="filterDeliveryRows(this.value)" class="ops-toolbar-search__input">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="employees-filter-bar__divider hidden lg:block" aria-hidden="true"></div>
+                        <div class="employees-filter-bar__secondary flex-wrap items-center gap-2">
+                            <span id="delivery-search-result" class="employees-text-caption text-xs"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
             <div id="bulk-actions-bar" class="hidden separacao-bulk-bar border-b px-4 py-2.5">
                 <!-- Modo: rotas -->
-                <div id="bulk-driver-panel" class="hidden flex flex-wrap items-center gap-2">
+                <div id="bulk-driver-panel" class="hidden flex flex-wrap items-center gap-2 lg:gap-2.5">
                     <span id="bulk-driver-count" class="text-xs font-semibold text-sky-700 dark:text-sky-300">0 rota(s) selecionada(s)</span>
 
                     <form
                         id="bulk-move-routes-form"
                         action="/separacao/delivery/planning-date/selected"
                         method="post"
-                        class="inline-flex flex-wrap items-center gap-2"
+                        class="bulk-action-form inline-flex flex-wrap items-center gap-2"
                         onsubmit="return confirm('Mover as rotas selecionadas para a nova data?');"
                     >
                         <input type="hidden" name="selected_groups" id="bulk-selected-groups" value="">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
-                        <input type="date" name="planning_date" id="bulk-planning-date" required class="delivery-mini-input">
-                        <button type="submit" class="rounded-md bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-500">
+                        <input type="date" name="planning_date" id="bulk-planning-date" required class="delivery-mini-input bulk-action-date">
+                        <button type="submit" class="bulk-action-btn rounded-md bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-500">
                             Mover
                         </button>
                     </form>
@@ -407,7 +434,7 @@
                         id="bulk-finalize-routes-form"
                         action="/separacao/delivery/bulk-action"
                         method="post"
-                        class="inline"
+                        class="bulk-action-form inline-flex"
                         onsubmit="return confirm('Finalizar todas as entregas pendentes dos motoristas selecionados?');"
                     >
                         <input type="hidden" name="date_from" value="{{ selected_date_from }}">
@@ -415,60 +442,55 @@
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                         <input type="hidden" name="action" value="finalize_routes">
                         <input type="hidden" name="employee_ids" id="bulk-employee-ids-finalize" value="">
-                        <button type="submit" class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
+                        <button type="submit" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
                             Finalizar
                         </button>
                     </form>
 
-                    <details class="relative">
-                        <summary class="delivery-btn-ghost cursor-pointer list-none rounded px-2 py-1 text-[11px] font-medium">Mais</summary>
-                        <div class="absolute left-0 top-full z-20 mt-1 min-w-[170px] rounded-lg border border-slate-200 bg-white py-1 shadow-xl dark:border-slate-600 dark:bg-slate-900">
-                            <form
-                                id="bulk-clear-devolucoes-form"
-                                action="/separacao/delivery/bulk-action"
-                                method="post"
-                                class="block"
-                                onsubmit="return confirm('Limpar devoluções dos motoristas selecionados?');"
-                            >
-                                <input type="hidden" name="date_from" value="{{ selected_date_from }}">
-                                <input type="hidden" name="date_to" value="{{ selected_date_to }}">
-                                <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                <input type="hidden" name="action" value="clear_devolucoes">
-                                <input type="hidden" name="employee_ids" id="bulk-employee-ids-clear" value="">
-                                <button type="submit" class="w-full px-3 py-2 text-left text-[11px] text-orange-700 hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-500/20">
-                                    Limpar devoluções
-                                </button>
-                            </form>
+                    <form
+                        id="bulk-clear-devolucoes-form"
+                        action="/separacao/delivery/bulk-action"
+                        method="post"
+                        class="bulk-action-form inline-flex"
+                        onsubmit="return confirm('Limpar devoluções dos motoristas selecionados?');"
+                    >
+                        <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                        <input type="hidden" name="date_to" value="{{ selected_date_to }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <input type="hidden" name="action" value="clear_devolucoes">
+                        <input type="hidden" name="employee_ids" id="bulk-employee-ids-clear" value="">
+                        <button type="submit" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-orange-700 hover:bg-orange-50 dark:text-orange-300 dark:hover:bg-orange-500/20">
+                            Limpar devoluções
+                        </button>
+                    </form>
 
-                            <form
-                                id="bulk-delete-routes-form"
-                                action="/separacao/delivery/bulk-action"
-                                method="post"
-                                class="block"
-                                onsubmit="return confirm('Apagar TODAS as rotas dos motoristas selecionados? Esta ação não pode ser desfeita.');"
-                            >
-                                <input type="hidden" name="date_from" value="{{ selected_date_from }}">
-                                <input type="hidden" name="date_to" value="{{ selected_date_to }}">
-                                <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                <input type="hidden" name="action" value="delete_routes">
-                                <input type="hidden" name="employee_ids" id="bulk-employee-ids-delete" value="">
-                                <button type="submit" class="w-full px-3 py-2 text-left text-[11px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/20">
-                                    Apagar rotas
-                                </button>
-                            </form>
-                        </div>
-                    </details>
+                    <form
+                        id="bulk-delete-routes-form"
+                        action="/separacao/delivery/bulk-action"
+                        method="post"
+                        class="bulk-action-form inline-flex"
+                        onsubmit="return confirm('Apagar TODAS as rotas dos motoristas selecionados? Esta ação não pode ser desfeita.');"
+                    >
+                        <input type="hidden" name="date_from" value="{{ selected_date_from }}">
+                        <input type="hidden" name="date_to" value="{{ selected_date_to }}">
+                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                        <input type="hidden" name="action" value="delete_routes">
+                        <input type="hidden" name="employee_ids" id="bulk-employee-ids-delete" value="">
+                        <button type="submit" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/20">
+                            Apagar rotas
+                        </button>
+                    </form>
 
-                    <button type="button" onclick="selectAllBulkDrivers()" class="delivery-btn-ghost px-2 py-1 text-[11px]">
+                    <button type="button" onclick="selectAllBulkDrivers()" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px]">
                         Marcar todas
                     </button>
-                    <button type="button" onclick="clearBulkDriverSelection()" class="delivery-btn-ghost px-2 py-1 text-[11px]">
+                    <button type="button" onclick="clearBulkDriverSelection()" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px]">
                         Desmarcar
                     </button>
                 </div>
 
                 <!-- Modo: paradas -->
-                <div id="bulk-stop-panel" class="hidden flex flex-wrap items-center gap-2">
+                <div id="bulk-stop-panel" class="hidden flex flex-wrap items-center gap-2 lg:gap-2.5">
                     <span class="text-xs font-semibold text-violet-700 dark:text-violet-200">
                         <span id="bulk-stops-count">0</span> selecionado(s)
                     </span>
@@ -477,7 +499,7 @@
                         id="bulk-stops-move-form"
                         action="/separacao/delivery/planning-date/stops"
                         method="post"
-                        class="inline-flex flex-wrap items-center gap-2"
+                        class="bulk-action-form inline-flex flex-wrap items-center gap-2"
                         onsubmit="return syncBulkStopRouteIds() && confirm('Mover os clientes selecionados?');"
                     >
                         <input type="hidden" name="date" value="{{ selected_date_from }}">
@@ -487,13 +509,13 @@
                         <input type="hidden" name="date_to" value="{{ selected_date_to }}">
                         {% endif %}
                         <div id="bulk-stops-route-ids"></div>
-                        <input type="date" name="planning_date" id="bulk-stops-planning-date" required class="delivery-mini-input">
-                        <button type="submit" class="rounded-md bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-500">
+                        <input type="date" name="planning_date" id="bulk-stops-planning-date" required class="delivery-mini-input bulk-action-date">
+                        <button type="submit" class="bulk-action-btn rounded-md bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-500">
                             Mover selecionados
                         </button>
                     </form>
 
-                    <button type="button" onclick="clearBulkStopSelection()" class="delivery-btn-ghost px-2 py-1 text-[11px]">
+                    <button type="button" onclick="clearBulkStopSelection()" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px]">
                         Desmarcar
                     </button>
                 </div>
@@ -512,7 +534,15 @@
                         </div>
                         {% endif %}
 
-                        <details class="delivery-group group overflow-hidden" data-group-date="{{ group.group_date | default('') }}">
+                        <details
+                            class="delivery-group group overflow-hidden"
+                            data-group-date="{{ group.group_date | default('') }}"
+                            data-route-date="{{ group.group_date or selected_date_from }}"
+                            data-route-shift="{{ selected_shift }}"
+                            data-employee-id="{{ group.employee_id }}"
+                            data-vehicle-plate="{{ group.vehicle_plate }}"
+                            data-route-group-key="{{ group.whatsapp.route_group_key }}"
+                        >
                             <summary class="delivery-route-summary flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <div class="min-w-0 flex items-center gap-2">
                                     <label class="flex shrink-0 cursor-pointer" onclick="event.stopPropagation()" title="Selecionar rota">
@@ -557,21 +587,21 @@
                             </summary>
 
                             <!-- Ações rápidas -->
-                            <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-3 py-2 dark:border-slate-700/60">
-                                <span class="text-[11px] employees-text-muted">
+                            <div class="delivery-quick-actions border-t border-slate-200 px-3 py-2 dark:border-slate-700/60">
+                                <span class="delivery-quick-actions__meta text-[11px] employees-text-muted">
                                     {{ group.rows|length }} paradas • R$ {{ "{:,.0f}".format(group.total_value).replace(",", ".") }}
                                     {% if group.returned_weight > 0 %}
                                     • {{ "{:,.1f}".format(group.returned_weight).replace(",", "X").replace(".", ",").replace("X", ".") }} Kg dev.
                                     {% endif %}
                                 </span>
 
-                                <div class="flex flex-wrap gap-1.5">
+                                <div class="delivery-quick-actions__buttons">
                                     <button
                                         type="button"
                                         onclick="openAddManualStopModal({{ group.employee_id }}, '{{ group.vehicle_plate }}', '{{ group.group_date | default(selected_date_from) }}', '{{ selected_shift }}')"
-                                        class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-indigo-700 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-500/20"
+                                        class="sys-btn sys-btn--secondary delivery-quick-btn delivery-quick-btn--ghost"
                                     >
-                                        <i data-lucide="user-plus" class="mr-0.5 inline h-3 w-3"></i>
+                                        <i data-lucide="user-plus" class="h-3.5 w-3.5"></i>
                                         Incluir cliente
                                     </button>
 
@@ -580,7 +610,8 @@
                                         <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                         <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
-                                        <button type="submit" class="sys-btn sys-btn--secondary border-emerald-200 px-2 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/20">
+                                        <button type="submit" class="sys-btn sys-btn--secondary delivery-quick-btn delivery-quick-btn--success">
+                                            <i data-lucide="check-circle-2" class="h-3.5 w-3.5"></i>
                                             Finalizar rota
                                         </button>
                                     </form>
@@ -591,7 +622,8 @@
                                         <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
                                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                                         <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
-                                        <button type="submit" class="delivery-btn-ghost px-2 py-1 text-[11px] font-medium text-teal-700 hover:bg-teal-50 dark:text-teal-400 dark:hover:bg-teal-500/20">
+                                        <button type="submit" class="sys-btn sys-btn--secondary delivery-quick-btn delivery-quick-btn--teal">
+                                            <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>
                                             Reabrir rota
                                         </button>
                                     </form>
@@ -599,118 +631,191 @@
                                 </div>
                             </div>
 
-                            <!-- Ajustes administrativos -->
-                            <details class="border-t border-slate-200 dark:border-slate-700/60">
-                                <summary class="cursor-pointer bg-slate-50 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-500 hover:bg-slate-100 dark:bg-slate-900/20 dark:text-slate-400 dark:hover:bg-slate-900/40">
-                                    Ajustar rota • Reatribuir, mover, iniciar web
+                            <div class="delivery-whatsapp-strip border-t border-slate-200 px-3 py-3 dark:border-slate-700/60">
+                                <div class="delivery-whatsapp-strip__summary">
+                                    <div class="delivery-whatsapp-strip__title">
+                                        <span class="delivery-whatsapp-pill delivery-whatsapp-pill--{{ group.whatsapp.status }}">{{ group.whatsapp.status_label }}</span>
+                                        <strong class="text-sm employees-text-strong">WhatsApp da rota</strong>
+                                        {% if group.whatsapp.ready_at_fmt %}
+                                        <span class="delivery-whatsapp-inline-note">Pronta desde {{ group.whatsapp.ready_at_fmt }}</span>
+                                        {% elif not group.session_started %}
+                                        <span class="delivery-whatsapp-inline-note">Aguardando início da rota</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="delivery-whatsapp-strip__counts">
+                                        <span class="delivery-whatsapp-count"><strong>{{ group.whatsapp.summary.sendable }}</strong> elegíveis</span>
+                                        <span class="delivery-whatsapp-count"><strong>{{ group.whatsapp.summary.no_contact }}</strong> sem contato</span>
+                                        <span class="delivery-whatsapp-count"><strong>{{ group.whatsapp.summary.invalid_phone }}</strong> inválidos</span>
+                                        <span class="delivery-whatsapp-count"><strong>{{ group.whatsapp.summary.sent }}</strong> enviados</span>
+                                        {% if group.whatsapp.summary.failed > 0 %}
+                                        <span class="delivery-whatsapp-count delivery-whatsapp-count--danger"><strong>{{ group.whatsapp.summary.failed }}</strong> falha(s)</span>
+                                        {% endif %}
+                                        {% if group.whatsapp.last_sent_by %}
+                                        <span class="delivery-whatsapp-inline-note">Último operador: {{ group.whatsapp.last_sent_by }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="delivery-whatsapp-strip__actions">
+                                    {% if delivery_whatsapp_can_manage %}
+                                    <button
+                                        type="button"
+                                        class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
+                                        onclick="openDeliveryWhatsappModal(this)"
+                                        data-route-date="{{ group.group_date or selected_date_from }}"
+                                        data-shift="{{ selected_shift }}"
+                                        data-employee-id="{{ group.employee_id }}"
+                                        data-vehicle-plate="{{ group.vehicle_plate }}"
+                                    >
+                                        Detalhes
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="delivery-whatsapp-action delivery-whatsapp-action--primary"
+                                        onclick="sendDeliveryWhatsapp(this, false)"
+                                        data-route-date="{{ group.group_date or selected_date_from }}"
+                                        data-shift="{{ selected_shift }}"
+                                        data-employee-id="{{ group.employee_id }}"
+                                        data-vehicle-plate="{{ group.vehicle_plate }}"
+                                        {% if not group.whatsapp.can_send %}disabled{% endif %}
+                                    >
+                                        Enviar avisos
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="delivery-whatsapp-action delivery-whatsapp-action--secondary"
+                                        onclick="sendDeliveryWhatsapp(this, true)"
+                                        data-route-date="{{ group.group_date or selected_date_from }}"
+                                        data-shift="{{ selected_shift }}"
+                                        data-employee-id="{{ group.employee_id }}"
+                                        data-vehicle-plate="{{ group.vehicle_plate }}"
+                                        {% if not group.whatsapp.can_retry_failed %}disabled{% endif %}
+                                    >
+                                        Reenviar falhas
+                                    </button>
+                                    {% else %}
+                                    <span class="delivery-whatsapp-inline-note">Somente perfis operacionais autorizados podem disparar avisos.</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Ajustes administrativos — faixa única (design system separacao) -->
+                            <details class="delivery-admin-details border-t border-slate-200 dark:border-slate-700/60">
+                                <summary class="delivery-admin-details__summary">
+                                    Ajustar rota · reatribuir · mover data · iniciar web
                                 </summary>
 
-                                <div class="space-y-2.5 border-t border-slate-200 bg-slate-50/80 px-3 py-2.5 dark:border-slate-700/50 dark:bg-slate-900/30">
-                                    <form action="/separacao/delivery/reassign-group" method="post" class="flex flex-wrap items-end gap-2">
-                                        <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
-                                        <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
-                                        <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
-                                        <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                <div class="delivery-admin-details__body">
+                                    <div class="delivery-admin-layout">
+                                        <section class="delivery-admin-segment delivery-admin-segment--reassign" aria-labelledby="reassign-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">
+                                            <h4 class="delivery-admin-segment__title" id="reassign-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Reatribuir equipe</h4>
+                                            <form action="/separacao/delivery/reassign-group" method="post" class="delivery-admin-form delivery-admin-form--reassign">
+                                                <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
+                                                <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
+                                                <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
+                                                {% set _route_date = group.group_date or selected_date_from %}
+                                                <input type="hidden" name="current_date" value="{{ _route_date }}">
+                                                <input type="hidden" name="shift" value="{{ selected_shift }}">
 
-                                        <div class="min-w-[160px]">
-                                            <label class="employees-text-caption mb-0.5 block text-[10px] font-medium">Motorista</label>
-                                            <select name="new_employee_id" class="delivery-mini-select w-full">
-                                                {% for emp in delivery_employees %}
-                                                <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
+                                                {# Uma linha: motorista | caminhão | ajudantes | ações (quebra só em telas estreitas) #}
+                                                <div class="delivery-admin-row delivery-admin-row--team-one-line">
+                                                    <div class="delivery-admin-field delivery-admin-field--driver">
+                                                        <label class="delivery-admin-label" for="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Motorista</label>
+                                                        <select id="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" name="new_employee_id" class="delivery-mini-select delivery-admin-select--driver">
+                                                            {% for emp in delivery_employees %}
+                                                            <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                    <div class="delivery-admin-field delivery-admin-field--vehicle">
+                                                        <label class="delivery-admin-label" for="reassign-veh-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Caminhão</label>
+                                                        <select id="reassign-veh-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" name="new_vehicle_plate" class="delivery-mini-select delivery-admin-select--vehicle">
+                                                            {% for veh in delivery_vehicles %}
+                                                            <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                    <div class="delivery-admin-field delivery-admin-field--helpers-inline">
+                                                        <label class="delivery-admin-label" for="helper-search-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Ajudantes</label>
+                                                        <div class="delivery-helper-picker delivery-admin-helper-picker" data-driver-id="{{ group.employee_id }}">
+                                                            <div class="relative">
+                                                                <input id="helper-search-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" type="text" class="delivery-helper-search delivery-mini-input delivery-admin-helper-search" placeholder="Buscar por nome…" autocomplete="off">
+                                                                <div class="delivery-helper-suggestions absolute z-20 mt-1 hidden max-h-40 w-full min-w-[12rem] overflow-y-auto rounded-lg border border-slate-200 bg-white text-slate-800 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"></div>
+                                                            </div>
+                                                            <div class="delivery-helper-hidden">
+                                                                {% for helper_id in group.helper_ids %}
+                                                                <input type="hidden" name="helper_ids" value="{{ helper_id }}">
+                                                                {% endfor %}
+                                                            </div>
+                                                            <div class="delivery-helper-selected delivery-admin-helper-chips"></div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="delivery-admin-field delivery-admin-field--planning-date">
+                                                        <label class="delivery-admin-label" for="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Nova data</label>
+                                                        <input id="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" type="date" name="planning_date" value="{{ _route_date }}" required class="delivery-mini-input delivery-admin-input--date">
+                                                    </div>
+                                                    <div class="delivery-admin-actions delivery-admin-actions--segment">
+                                                        <button type="reset" class="sys-btn sys-btn--secondary delivery-admin-btn">Limpar</button>
+                                                        <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn">Aplicar</button>
+                                                        <button
+                                                            type="submit"
+                                                            formaction="/separacao/delivery/planning-date/group"
+                                                            formmethod="post"
+                                                            class="sys-btn sys-btn--secondary delivery-admin-btn"
+                                                            onclick="return confirm('Mover rota inteira para a nova data?');"
+                                                        >
+                                                            Mover rota inteira
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </section>
 
-                                        <div class="min-w-[110px]">
-                                            <label class="employees-text-caption mb-0.5 block text-[10px] font-medium">Caminhão</label>
-                                            <select name="new_vehicle_plate" class="delivery-mini-select w-full">
-                                                {% for veh in delivery_vehicles %}
-                                                <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
+                                        {% if not group.session_started %}
+                                        <section class="delivery-admin-segment" aria-labelledby="webstart-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">
+                                            <h4 class="delivery-admin-segment__title" id="webstart-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Iniciar rota (web)</h4>
+                                            <form action="/separacao/delivery/session/start" method="post" class="delivery-admin-form delivery-admin-form--inline">
+                                                <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
+                                                <input type="hidden" name="vehicle_plate" value="{{ group.vehicle_plate }}">
+                                                <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
+                                                <input type="hidden" name="shift" value="{{ selected_shift }}">
 
-                                        <div class="min-w-[180px] flex-1">
-                                            <label class="employees-text-caption mb-0.5 block text-[10px] font-medium">Ajudantes</label>
-                                            <div class="delivery-helper-picker" data-driver-id="{{ group.employee_id }}">
-                                                <div class="relative">
+                                                <div class="delivery-admin-field">
+                                                    <label class="delivery-admin-label" for="web-plate-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Placa</label>
                                                     <input
+                                                        id="web-plate-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}"
                                                         type="text"
-                                                        class="delivery-helper-search sys-input w-full px-2 py-1.5 text-[11px]"
-                                                        placeholder="Buscar..."
+                                                        name="plate"
+                                                        value="{{ group.vehicle_plate }}"
+                                                        maxlength="8"
+                                                        placeholder="ABC1D23"
+                                                        class="delivery-mini-input delivery-admin-input--plate font-mono uppercase"
+                                                        oninput="this.value=this.value.toUpperCase()"
+                                                        autocomplete="off"
                                                     >
-                                                    <div class="delivery-helper-suggestions absolute z-20 mt-1 hidden max-h-40 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"></div>
                                                 </div>
-                                                <div class="delivery-helper-hidden">
-                                                    {% for helper_id in group.helper_ids %}
-                                                    <input type="hidden" name="helper_ids" value="{{ helper_id }}">
-                                                    {% endfor %}
+                                                <div class="delivery-admin-field">
+                                                    <label class="delivery-admin-label" for="web-km-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">KM saída</label>
+                                                    <input
+                                                        id="web-km-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}"
+                                                        type="number"
+                                                        name="km_departure"
+                                                        inputmode="decimal"
+                                                        step="0.1"
+                                                        min="0"
+                                                        required
+                                                        placeholder="0"
+                                                        class="delivery-mini-input delivery-admin-input--km font-mono"
+                                                        title="KM de saída (ex.: 125430,5 no teclado numérico)"
+                                                    >
                                                 </div>
-                                                <div class="delivery-helper-selected mt-1 flex flex-wrap gap-1"></div>
-                                            </div>
-                                        </div>
-
-                                        <div class="flex gap-1.5">
-                                            <button type="reset" class="sys-btn sys-btn--secondary px-2.5 py-1 text-[11px]">
-                                                Limpar
-                                            </button>
-                                            <button type="submit" class="sys-btn sys-btn--primary px-3 py-1 text-[11px]">
-                                                Aplicar
-                                            </button>
-                                        </div>
-                                    </form>
-
-                                    {% set _route_date = (group.rows[0].planning_date if group.rows else none) or group.group_date or selected_date_from %}
-                                    <div class="flex flex-wrap items-end gap-2 border-t border-slate-200 pt-2 dark:border-slate-700/50">
-                                        <form
-                                            action="/separacao/delivery/planning-date/group"
-                                            method="post"
-                                            class="flex flex-wrap items-end gap-2"
-                                            onsubmit="return confirm('Mover rota inteira para a nova data?');"
-                                        >
-                                            <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
-                                            <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
-                                            <input type="hidden" name="current_date" value="{{ _route_date }}">
-                                            <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                            <input type="date" name="planning_date" value="{{ _route_date }}" class="delivery-mini-input">
-                                            <button type="submit" class="rounded bg-violet-600 px-2.5 py-1.5 text-[11px] font-medium text-white hover:bg-violet-500">
-                                                Mover rota inteira
-                                            </button>
-                                        </form>
+                                                <div class="delivery-admin-actions delivery-admin-actions--segment">
+                                                    <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn">Iniciar rota web</button>
+                                                </div>
+                                            </form>
+                                        </section>
+                                        {% endif %}
                                     </div>
-
-                                    {% if not group.session_started %}
-                                    <div class="border-t border-slate-200 pt-2 dark:border-slate-700/50">
-                                        <form action="/separacao/delivery/session/start" method="post" class="flex flex-wrap items-end gap-2">
-                                            <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
-                                            <input type="hidden" name="vehicle_plate" value="{{ group.vehicle_plate }}">
-                                            <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
-                                            <input type="hidden" name="shift" value="{{ selected_shift }}">
-
-                                            <input
-                                                type="text"
-                                                name="plate"
-                                                value="{{ group.vehicle_plate }}"
-                                                placeholder="Placa"
-                                                class="sys-input w-24 px-2 py-1.5 font-mono text-[11px] uppercase"
-                                                oninput="this.value=this.value.toUpperCase()"
-                                            >
-                                            <input
-                                                type="number"
-                                                name="km_departure"
-                                                inputmode="decimal"
-                                                step="0.1"
-                                                min="0"
-                                                required
-                                                placeholder="KM saída"
-                                                class="sys-input w-28 px-2 py-1.5 font-mono text-[11px]"
-                                            >
-                                            <button type="submit" class="sys-btn sys-btn--primary px-2.5 py-1.5 text-[11px]">
-                                                Iniciar rota web
-                                            </button>
-                                        </form>
-                                    </div>
-                                    {% endif %}
                                 </div>
                             </details>
 
@@ -868,8 +973,14 @@
                                                 {% endif %}
                                             </td>
 
-                                            <td class="employees-data-table__cell--muted whitespace-nowrap px-2 py-1.5 font-mono text-[11px]" title="Dia e horário em que o cliente foi inserido na rota">
-                                                {% if row.inserted_at %}{{ row.inserted_at }}{% else %}—{% endif %}
+                                            <td class="employees-data-table__cell--muted px-2 py-1.5 font-mono text-[11px] leading-tight" title="Dia e horário em que o cliente foi inserido na rota">
+                                                {% if row.inserted_at %}
+                                                    {% set _ins = row.inserted_at.split(' ', 1) %}
+                                                    <div class="flex flex-col gap-0.5">
+                                                        <span class="whitespace-nowrap">{{ _ins[0] }}</span>
+                                                        {% if _ins|length > 1 %}<span class="whitespace-nowrap text-[10px] text-slate-500 dark:text-slate-400">{{ _ins[1] }}</span>{% endif %}
+                                                    </div>
+                                                {% else %}—{% endif %}
                                             </td>
 
                                             <td class="px-2 py-1.5">
@@ -922,16 +1033,17 @@
                                                         </button>
                                                     </div>
 
-                                                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                                                    <div class="delivery-stop-inline-actions flex flex-wrap items-center gap-2 pt-1">
                                                         <button
                                                             type="button"
-                                                            class="text-[10px] text-violet-400 transition-colors hover:text-violet-300"
+                                                            class="sys-btn sys-btn--secondary delivery-quick-btn delivery-stop-inline-btn delivery-stop-inline-btn--move"
                                                             data-route-id="{{ row.id }}"
                                                             data-date="{{ group.group_date or row.planning_date or selected_date_from }}"
                                                             data-shift="{{ selected_shift }}"
                                                             data-client-name="{{ row.client_name }}"
                                                             onclick="openMoveDateModalFromBtn(this)"
                                                         >
+                                                            <i data-lucide="calendar-days" class="h-3.5 w-3.5"></i>
                                                             Mover data
                                                         </button>
 
@@ -950,7 +1062,8 @@
                                                             <input type="hidden" name="date_from" value="{{ selected_date_from }}">
                                                             <input type="hidden" name="date_to" value="{{ selected_date_to }}">
                                                             {% endif %}
-                                                            <button type="submit" class="text-[10px] employees-text-muted transition-colors hover:text-red-600 dark:hover:text-red-400">
+                                                            <button type="submit" class="sys-btn sys-btn--secondary delivery-quick-btn delivery-stop-inline-btn delivery-stop-inline-btn--danger">
+                                                                <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
                                                                 Excluir
                                                             </button>
                                                         </form>
@@ -1222,6 +1335,101 @@
     </div>
 </dialog>
 
+<dialog id="deliveryWhatsappModal" class="separacao-modal">
+    <div class="sys-card sys-card--surface sys-card--comfort relative w-[min(100vw-2rem,62rem)] overflow-hidden shadow-xl">
+        <div class="flex items-start justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+            <div class="min-w-0 pr-3">
+                <p class="employees-text-caption text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-300">WhatsApp operacional</p>
+                <h3 class="sys-section-heading mt-0.5 text-base" id="delivery-whatsapp-modal-title">Notificação manual da rota</h3>
+                <p class="mt-0.5 text-xs employees-text-muted" id="delivery-whatsapp-modal-subtitle">Carregando dados da rota...</p>
+            </div>
+            <button type="button" onclick="document.getElementById('deliveryWhatsappModal').close()" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="space-y-3 px-4 py-3">
+            <div id="delivery-whatsapp-modal-feedback" class="hidden rounded-xl border px-4 py-3 text-sm"></div>
+
+            <div class="delivery-whatsapp-modal-grid">
+                <div class="delivery-whatsapp-modal-kpis" id="delivery-whatsapp-modal-kpis"></div>
+                <div class="delivery-whatsapp-modal-meta">
+                    <div class="delivery-whatsapp-meta-card">
+                        <span class="delivery-whatsapp-meta-label">Mensagem padrão</span>
+                        <p id="delivery-whatsapp-modal-message" class="delivery-whatsapp-message-preview"></p>
+                    </div>
+                    <div class="delivery-whatsapp-meta-card">
+                        <span class="delivery-whatsapp-meta-label">Auditoria</span>
+                        <dl class="delivery-whatsapp-audit-list">
+                            <div><dt>Operador</dt><dd id="delivery-whatsapp-modal-operator">-</dd></div>
+                            <div><dt>Motorista</dt><dd id="delivery-whatsapp-modal-driver">-</dd></div>
+                            <div><dt>Placa</dt><dd id="delivery-whatsapp-modal-plate">-</dd></div>
+                            <div><dt>Início da rota</dt><dd id="delivery-whatsapp-modal-started-at">-</dd></div>
+                            <div><dt>Último envio</dt><dd id="delivery-whatsapp-modal-last-sent">-</dd></div>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <div class="delivery-whatsapp-modal-section">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <h4 class="text-sm font-semibold employees-text-strong">Clientes da rota</h4>
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <span class="delivery-whatsapp-inline-note">1 aviso por cliente/rota. Reenvio somente para falhas.</span>
+                        <button
+                            type="button"
+                            id="delivery-whatsapp-remark-btn"
+                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
+                            onclick="remarkDeliveryWhatsappSelected()"
+                            disabled
+                            title="Remarcar clientes selecionados para permitir novo envio"
+                        >
+                            Remarcar para enviar <span id="delivery-whatsapp-remark-count" class="ml-1">0</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
+                            onclick="selectAllDeliveryWhatsappClients(true)"
+                            title="Selecionar todos os clientes"
+                        >
+                            Marcar todos
+                        </button>
+                        <button
+                            type="button"
+                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
+                            onclick="selectAllDeliveryWhatsappClients(false)"
+                            title="Limpar seleção"
+                        >
+                            Desmarcar
+                        </button>
+                    </div>
+                </div>
+                <div class="delivery-whatsapp-modal-list" id="delivery-whatsapp-client-list"></div>
+            </div>
+
+            <div class="delivery-whatsapp-modal-section">
+                <div class="flex items-center justify-between gap-3">
+                    <h4 class="text-sm font-semibold employees-text-strong">Histórico de lotes</h4>
+                    <button type="button" class="delivery-whatsapp-action delivery-whatsapp-action--ghost" onclick="refreshDeliveryWhatsappModal()">Atualizar status</button>
+                </div>
+                <div class="delivery-whatsapp-modal-history" id="delivery-whatsapp-history-list"></div>
+            </div>
+
+            <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
+                <button type="button" onclick="document.getElementById('deliveryWhatsappModal').close()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="button" id="delivery-whatsapp-modal-send" class="delivery-whatsapp-action delivery-whatsapp-action--primary" onclick="sendDeliveryWhatsappFromModal(false)">
+                    Enviar avisos
+                </button>
+                <button type="button" id="delivery-whatsapp-modal-retry" class="delivery-whatsapp-action delivery-whatsapp-action--secondary" onclick="sendDeliveryWhatsappFromModal(true)">
+                    Reenviar falhas
+                </button>
+            </div>
+        </div>
+    </div>
+</dialog>
+
 <script>
     lucide.createIcons();
 
@@ -1248,6 +1456,472 @@
     }
 
     const separacaoTodayBr = {{ today_br|tojson }};
+    const deliveryWhatsappCanManage = {{ delivery_whatsapp_can_manage | tojson }};
+    const deliveryWhatsappOperatorLabel = {{ (delivery_whatsapp_operator.operator_label if delivery_whatsapp_operator else '') | tojson }};
+    const deliveryWhatsappState = {
+        identity: null,
+        snapshot: null,
+        loading: false,
+    };
+
+    function escapeHtml(value) {
+        return (value || '')
+            .toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function getDeliveryWhatsappIdentity(source) {
+        const host = source && source.closest ? source.closest('[data-route-date]') : null;
+        const base = host || source;
+        if (!base || !base.dataset) return null;
+        return {
+            route_date: base.dataset.routeDate,
+            shift: base.dataset.shift,
+            employee_id: parseInt(base.dataset.employeeId || '0', 10),
+            vehicle_plate: base.dataset.vehiclePlate || ''
+        };
+    }
+
+    function setDeliveryWhatsappFeedback(message, level) {
+        const box = document.getElementById('delivery-whatsapp-modal-feedback');
+        if (!box) return;
+        if (!message) {
+            box.className = 'hidden rounded-xl border px-4 py-3 text-sm';
+            box.textContent = '';
+            return;
+        }
+        const palette = level === 'error'
+            ? 'rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200'
+            : 'rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200';
+        box.className = palette;
+        box.textContent = message;
+    }
+
+    function setDeliveryWhatsappLoading(isLoading) {
+        deliveryWhatsappState.loading = isLoading;
+        const sendBtn = document.getElementById('delivery-whatsapp-modal-send');
+        const retryBtn = document.getElementById('delivery-whatsapp-modal-retry');
+        if (sendBtn) sendBtn.disabled = isLoading;
+        if (retryBtn) retryBtn.disabled = isLoading;
+    }
+
+    function renderDeliveryWhatsappKpis(summary, statusLabel) {
+        const target = document.getElementById('delivery-whatsapp-modal-kpis');
+        if (!target) return;
+        const data = summary || {};
+        target.innerHTML = `
+            <div class="delivery-whatsapp-kpi-card">
+                <span class="delivery-whatsapp-kpi-label">Status</span>
+                <strong class="delivery-whatsapp-kpi-value">${escapeHtml(statusLabel || '-')}</strong>
+            </div>
+            <div class="delivery-whatsapp-kpi-card">
+                <span class="delivery-whatsapp-kpi-label">Elegíveis</span>
+                <strong class="delivery-whatsapp-kpi-value">${data.sendable || 0}</strong>
+            </div>
+            <div class="delivery-whatsapp-kpi-card">
+                <span class="delivery-whatsapp-kpi-label">Enviados</span>
+                <strong class="delivery-whatsapp-kpi-value">${data.sent || 0}</strong>
+            </div>
+            <div class="delivery-whatsapp-kpi-card">
+                <span class="delivery-whatsapp-kpi-label">Falhas</span>
+                <strong class="delivery-whatsapp-kpi-value">${data.failed || 0}</strong>
+            </div>
+            <div class="delivery-whatsapp-kpi-card">
+                <span class="delivery-whatsapp-kpi-label">Sem contato</span>
+                <strong class="delivery-whatsapp-kpi-value">${data.no_contact || 0}</strong>
+            </div>
+            <div class="delivery-whatsapp-kpi-card">
+                <span class="delivery-whatsapp-kpi-label">Bloqueados</span>
+                <strong class="delivery-whatsapp-kpi-value">${data.blocked || 0}</strong>
+            </div>
+        `;
+    }
+
+    function renderDeliveryWhatsappClients(clients) {
+        const list = document.getElementById('delivery-whatsapp-client-list');
+        if (!list) return;
+        if (!clients || !clients.length) {
+            list.innerHTML = '<div class="delivery-whatsapp-empty">Nenhum cliente encontrado para esta rota.</div>';
+            syncDeliveryWhatsappRemarkSelection();
+            return;
+        }
+        list.innerHTML = clients.map((client) => `
+            <div class="delivery-whatsapp-client-row">
+                <label class="delivery-whatsapp-client-check" title="Selecionar para remarcar">
+                    <input
+                        type="checkbox"
+                        class="delivery-whatsapp-client-toggle rounded border-slate-400 text-violet-600 focus:ring-violet-500/50 dark:border-slate-500 dark:bg-slate-800"
+                        data-client-id="${escapeHtml(String(client.client_id || ''))}"
+                        onchange="syncDeliveryWhatsappRemarkSelection()"
+                    >
+                    <span class="sr-only">Selecionar ${escapeHtml(client.client_name || 'Cliente')}</span>
+                </label>
+                <div class="delivery-whatsapp-client-main">
+                    <div class="min-w-0">
+                        <div class="delivery-whatsapp-client-name">${escapeHtml(client.client_name || 'Cliente')}</div>
+                        <div class="delivery-whatsapp-client-meta">
+                            <span>${escapeHtml(client.phone_display || 'Sem telefone')}</span>
+                            ${client.order_number ? `<span>Pedido ${escapeHtml(client.order_number)}</span>` : ''}
+                            ${client.route_code ? `<span>Rota ${escapeHtml(client.route_code)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="delivery-whatsapp-client-status">
+                        <span class="delivery-whatsapp-pill delivery-whatsapp-pill--${escapeHtml(client.status || 'nao_disponivel')}">${escapeHtml(client.status_label || '-')}</span>
+                        ${client.failure_reason ? `<span class="delivery-whatsapp-client-error">${escapeHtml(client.failure_reason)}</span>` : ''}
+                        ${client.last_sent_at ? `<span class="delivery-whatsapp-inline-note">Enviado em ${escapeHtml(client.last_sent_at)}</span>` : ''}
+                        <button
+                            type="button"
+                            class="delivery-whatsapp-action delivery-whatsapp-action--ghost"
+                            data-client-id="${Number(client.client_id || 0)}"
+                            data-client-name="${escapeHtml(client.client_name || 'Cliente')}"
+                            data-client-phone="${escapeHtml(client.phone_display || client.phone_raw || '')}"
+                            onclick="editDeliveryWhatsappClientContactFromButton(this)"
+                        >
+                            ${client.phone_display || client.phone_raw ? 'Editar contato' : 'Incluir contato'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        syncDeliveryWhatsappRemarkSelection();
+    }
+
+    function selectAllDeliveryWhatsappClients(checked) {
+        const list = document.getElementById('delivery-whatsapp-client-list');
+        if (!list) return;
+        list.querySelectorAll('input.delivery-whatsapp-client-toggle').forEach((el) => {
+            el.checked = !!checked;
+        });
+        syncDeliveryWhatsappRemarkSelection();
+    }
+
+    function getSelectedDeliveryWhatsappClientIds() {
+        const list = document.getElementById('delivery-whatsapp-client-list');
+        if (!list) return [];
+        const ids = [];
+        list.querySelectorAll('input.delivery-whatsapp-client-toggle:checked').forEach((el) => {
+            const raw = el.getAttribute('data-client-id') || '';
+            const n = parseInt(raw, 10);
+            if (!Number.isNaN(n) && n > 0) ids.push(n);
+        });
+        return ids;
+    }
+
+    function syncDeliveryWhatsappRemarkSelection() {
+        const btn = document.getElementById('delivery-whatsapp-remark-btn');
+        const countEl = document.getElementById('delivery-whatsapp-remark-count');
+        const ids = getSelectedDeliveryWhatsappClientIds();
+        if (countEl) countEl.textContent = String(ids.length);
+        if (btn) btn.disabled = deliveryWhatsappState.loading || !deliveryWhatsappState.identity || ids.length === 0;
+    }
+
+    async function remarkDeliveryWhatsappSelected() {
+        if (!deliveryWhatsappCanManage || !deliveryWhatsappState.identity || deliveryWhatsappState.loading) return;
+        const clientIds = getSelectedDeliveryWhatsappClientIds();
+        if (!clientIds.length) return;
+        if (!confirm(`Remarcar ${clientIds.length} cliente(s) para permitir novo envio?`)) return;
+
+        setDeliveryWhatsappFeedback('');
+        setDeliveryWhatsappLoading(true);
+        try {
+            const response = await fetch('/api/separacao/delivery/whatsapp/remark', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...deliveryWhatsappState.identity, client_ids: clientIds })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Falha ao remarcar clientes.');
+            }
+            renderDeliveryWhatsappSnapshot(data.snapshot);
+            setDeliveryWhatsappFeedback('Clientes remarcados. Agora eles ficam elegíveis para envio manual.', 'success');
+        } catch (error) {
+            setDeliveryWhatsappFeedback(error.message || 'Falha ao remarcar clientes.', 'error');
+        } finally {
+            setDeliveryWhatsappLoading(false);
+            syncDeliveryWhatsappRemarkSelection();
+        }
+    }
+
+    function editDeliveryWhatsappClientContactFromButton(button) {
+        if (!button) return;
+        const clientId = parseInt(button.getAttribute('data-client-id') || '0', 10);
+        const clientName = button.getAttribute('data-client-name') || 'Cliente';
+        const currentPhone = button.getAttribute('data-client-phone') || '';
+        editDeliveryWhatsappClientContact(clientId, clientName, currentPhone);
+    }
+
+    async function editDeliveryWhatsappClientContact(clientId, clientName, currentPhone) {
+        if (!deliveryWhatsappCanManage || !deliveryWhatsappState.identity || deliveryWhatsappState.loading) return;
+        if (!clientId) return;
+
+        const suggested = (currentPhone || '').trim();
+        const nextPhone = prompt(`Telefone do cliente ${clientName || 'Cliente'} (DDD + numero):`, suggested);
+        if (nextPhone === null) return;
+        const phone = (nextPhone || '').trim();
+        if (!phone) {
+            alert('Informe um telefone para salvar no cadastro.');
+            return;
+        }
+
+        setDeliveryWhatsappFeedback('');
+        setDeliveryWhatsappLoading(true);
+        try {
+            const response = await fetch('/api/separacao/delivery/whatsapp/client-contact', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...deliveryWhatsappState.identity,
+                    client_id: clientId,
+                    phone
+                })
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Falha ao atualizar contato.');
+            }
+            renderDeliveryWhatsappSnapshot(data.snapshot);
+            setDeliveryWhatsappFeedback('Contato atualizado no cadastro do cliente.', 'success');
+        } catch (error) {
+            setDeliveryWhatsappFeedback(error.message || 'Falha ao atualizar contato.', 'error');
+        } finally {
+            setDeliveryWhatsappLoading(false);
+        }
+    }
+
+    function renderDeliveryWhatsappHistory(history) {
+        const list = document.getElementById('delivery-whatsapp-history-list');
+        if (!list) return;
+        if (!history || !history.length) {
+            list.innerHTML = '<div class="delivery-whatsapp-empty">Nenhum lote registrado para esta rota.</div>';
+            return;
+        }
+        list.innerHTML = history.map((batch) => `
+            <div class="delivery-whatsapp-history-row">
+                <div>
+                    <div class="delivery-whatsapp-history-title">
+                        <span class="delivery-whatsapp-pill delivery-whatsapp-pill--${escapeHtml(batch.status || 'nao_disponivel')}">${escapeHtml(batch.status_label || '-')}</span>
+                        <strong>Lote #${batch.id}</strong>
+                        ${batch.is_retry ? '<span class="delivery-whatsapp-inline-note">Reenvio</span>' : ''}
+                    </div>
+                    <div class="delivery-whatsapp-history-meta">
+                        <span>${escapeHtml(batch.operator_label || 'Operador não identificado')}</span>
+                        <span>${escapeHtml(batch.created_at || '-')}</span>
+                        ${batch.finished_at ? `<span>Fim ${escapeHtml(batch.finished_at)}</span>` : ''}
+                    </div>
+                </div>
+                <div class="delivery-whatsapp-history-stats">
+                    <span>${batch.sent_count || 0} enviados</span>
+                    <span>${batch.failed_count || 0} falhas</span>
+                    <span>${batch.eligible_count || 0} elegíveis</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function renderDeliveryWhatsappSnapshot(snapshot) {
+        if (!snapshot) return;
+        deliveryWhatsappState.snapshot = snapshot;
+        deliveryWhatsappState.identity = {
+            route_date: snapshot.route_date || '',
+            shift: snapshot.shift || '',
+            employee_id: parseInt(snapshot.employee_id || '0', 10),
+            vehicle_plate: snapshot.vehicle_plate || ''
+        };
+
+        const title = document.getElementById('delivery-whatsapp-modal-title');
+        const subtitle = document.getElementById('delivery-whatsapp-modal-subtitle');
+        const message = document.getElementById('delivery-whatsapp-modal-message');
+        const operator = document.getElementById('delivery-whatsapp-modal-operator');
+        const driver = document.getElementById('delivery-whatsapp-modal-driver');
+        const plate = document.getElementById('delivery-whatsapp-modal-plate');
+        const startedAt = document.getElementById('delivery-whatsapp-modal-started-at');
+        const lastSent = document.getElementById('delivery-whatsapp-modal-last-sent');
+        const sendBtn = document.getElementById('delivery-whatsapp-modal-send');
+        const retryBtn = document.getElementById('delivery-whatsapp-modal-retry');
+
+        if (title) title.textContent = `Rota ${snapshot.driver_name || '-'} - ${snapshot.vehicle_plate || '-'}`;
+        if (subtitle) subtitle.textContent = `Status ${snapshot.status_label || '-'} | ${snapshot.summary?.total_clients || 0} cliente(s) na rota`;
+        if (message) message.textContent = snapshot.preview_message || '';
+        if (operator) operator.textContent = snapshot.operator_label || deliveryWhatsappOperatorLabel || '-';
+        if (driver) driver.textContent = snapshot.driver_name || '-';
+        if (plate) plate.textContent = snapshot.vehicle_plate || '-';
+        if (startedAt) startedAt.textContent = snapshot.session_started_at || snapshot.ready_at_fmt || '-';
+        if (lastSent) lastSent.textContent = snapshot.last_sent_at_fmt || '-';
+        if (sendBtn) sendBtn.disabled = deliveryWhatsappState.loading || !snapshot.can_send;
+        if (retryBtn) retryBtn.disabled = deliveryWhatsappState.loading || !snapshot.can_retry_failed;
+
+        renderDeliveryWhatsappKpis(snapshot.summary, snapshot.status_label);
+        renderDeliveryWhatsappClients(snapshot.clients || []);
+        renderDeliveryWhatsappHistory(snapshot.history || []);
+        applyDeliveryWhatsappSnapshotToPage(snapshot);
+    }
+
+    function applyDeliveryWhatsappSnapshotToPage(snapshot) {
+        const group = Array.from(document.querySelectorAll('.delivery-group')).find((node) => {
+            if ((node.dataset.routeGroupKey || '') && (node.dataset.routeGroupKey || '') === (snapshot.route_group_key || '')) {
+                return true;
+            }
+            return (
+                (node.dataset.routeDate || '') === (snapshot.route_date || '')
+                && String(node.dataset.employeeId || '') === String(snapshot.employee_id || '')
+                && String(node.dataset.vehiclePlate || '') === String(snapshot.vehicle_plate || '')
+            );
+        });
+        if (!group) return;
+
+        group.dataset.routeGroupKey = snapshot.route_group_key || '';
+        const strip = group.querySelector('.delivery-whatsapp-strip');
+        if (!strip) return;
+
+        const pill = strip.querySelector('.delivery-whatsapp-pill');
+        if (pill) {
+            pill.className = `delivery-whatsapp-pill delivery-whatsapp-pill--${snapshot.status || 'nao_disponivel'}`;
+            pill.textContent = snapshot.status_label || '-';
+        }
+
+        const counts = strip.querySelectorAll('.delivery-whatsapp-count strong');
+        if (counts.length >= 4) {
+            counts[0].textContent = snapshot.summary?.sendable || 0;
+            counts[1].textContent = snapshot.summary?.no_contact || 0;
+            counts[2].textContent = snapshot.summary?.invalid_phone || 0;
+            counts[3].textContent = snapshot.summary?.sent || 0;
+        }
+
+        const failedStrong = strip.querySelector('.delivery-whatsapp-count--danger strong');
+        if (failedStrong) {
+            failedStrong.textContent = snapshot.summary?.failed || 0;
+        }
+
+        const buttons = strip.querySelectorAll('button[data-route-date]');
+        buttons.forEach((button) => {
+            button.dataset.routeDate = snapshot.route_date || '';
+            button.dataset.shift = snapshot.shift || '';
+            button.dataset.employeeId = snapshot.employee_id || '';
+            button.dataset.vehiclePlate = snapshot.vehicle_plate || '';
+        });
+        const sendBtn = strip.querySelector('.delivery-whatsapp-action--primary');
+        const retryBtn = strip.querySelector('.delivery-whatsapp-action--secondary');
+        if (sendBtn) sendBtn.disabled = !snapshot.can_send;
+        if (retryBtn) retryBtn.disabled = !snapshot.can_retry_failed;
+    }
+
+    async function fetchDeliveryWhatsappSnapshot(identity) {
+        const query = new URLSearchParams({
+            route_date: identity.route_date,
+            shift: identity.shift,
+            employee_id: String(identity.employee_id),
+            vehicle_plate: identity.vehicle_plate
+        });
+        const response = await fetch(`/api/separacao/delivery/whatsapp/prepare?${query.toString()}`, {
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Falha ao carregar dados de WhatsApp.');
+        }
+        return data.snapshot;
+    }
+
+    async function openDeliveryWhatsappModal(source) {
+        if (!deliveryWhatsappCanManage) return;
+        const identity = getDeliveryWhatsappIdentity(source);
+        if (!identity) return;
+        deliveryWhatsappState.identity = identity;
+        const modal = document.getElementById('deliveryWhatsappModal');
+        if (modal && !modal.open) modal.showModal();
+        setDeliveryWhatsappFeedback('');
+        setDeliveryWhatsappLoading(true);
+        try {
+            const snapshot = await fetchDeliveryWhatsappSnapshot(identity);
+            renderDeliveryWhatsappSnapshot(snapshot);
+        } catch (error) {
+            setDeliveryWhatsappFeedback(error.message || 'Falha ao carregar dados da rota.', 'error');
+        } finally {
+            setDeliveryWhatsappLoading(false);
+        }
+    }
+
+    async function refreshDeliveryWhatsappModal() {
+        if (!deliveryWhatsappState.identity) return;
+        await openDeliveryWhatsappModal({
+            dataset: {
+                routeDate: deliveryWhatsappState.identity.route_date,
+                shift: deliveryWhatsappState.identity.shift,
+                employeeId: deliveryWhatsappState.identity.employee_id,
+                vehiclePlate: deliveryWhatsappState.identity.vehicle_plate
+            }
+        });
+    }
+
+    async function submitDeliveryWhatsappAction(retryFailed) {
+        if (!deliveryWhatsappCanManage || !deliveryWhatsappState.identity || deliveryWhatsappState.loading) return;
+        const confirmText = retryFailed
+            ? 'Confirma o reenvio apenas para clientes com falha?'
+            : 'Confirma o envio manual dos avisos de WhatsApp desta rota?';
+        if (!confirm(confirmText)) return;
+
+        setDeliveryWhatsappFeedback('');
+        setDeliveryWhatsappLoading(true);
+        try {
+            const endpoint = retryFailed
+                ? '/api/separacao/delivery/whatsapp/retry-failed'
+                : '/api/separacao/delivery/whatsapp/send';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(deliveryWhatsappState.identity)
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || 'Falha ao processar o lote de WhatsApp.');
+            }
+            renderDeliveryWhatsappSnapshot(data.snapshot);
+            setDeliveryWhatsappFeedback(
+                retryFailed
+                    ? 'Reenvio concluído. O resumo da rota foi atualizado.'
+                    : 'Avisos enviados. O resumo da rota foi atualizado.',
+                'success'
+            );
+        } catch (error) {
+            setDeliveryWhatsappFeedback(error.message || 'Falha ao processar o lote de WhatsApp.', 'error');
+        } finally {
+            setDeliveryWhatsappLoading(false);
+        }
+    }
+
+    async function sendDeliveryWhatsapp(source, retryFailed) {
+        const identity = getDeliveryWhatsappIdentity(source);
+        if (!identity || !deliveryWhatsappCanManage) return;
+        deliveryWhatsappState.identity = identity;
+        const modal = document.getElementById('deliveryWhatsappModal');
+        if (modal && !modal.open) modal.showModal();
+        if (!deliveryWhatsappState.snapshot || deliveryWhatsappState.snapshot.route_group_key !== (source.closest('.delivery-group')?.dataset.routeGroupKey || '')) {
+            try {
+                setDeliveryWhatsappLoading(true);
+                const snapshot = await fetchDeliveryWhatsappSnapshot(identity);
+                renderDeliveryWhatsappSnapshot(snapshot);
+            } catch (error) {
+                setDeliveryWhatsappFeedback(error.message || 'Falha ao carregar dados da rota.', 'error');
+                setDeliveryWhatsappLoading(false);
+                return;
+            } finally {
+                setDeliveryWhatsappLoading(false);
+            }
+        }
+        await submitDeliveryWhatsappAction(retryFailed);
+    }
+
+    async function sendDeliveryWhatsappFromModal(retryFailed) {
+        await submitDeliveryWhatsappAction(retryFailed);
+    }
 
     function applyFilters() {
         const dateFromEl = document.getElementById('route-date-from');
@@ -1348,9 +2022,9 @@
         let extra = '';
 
         if (st === 'iniciada') {
-            extra = '\n\nATENÇÃO: a entrega desta parada já foi iniciada.';
+            extra = '\n\nATEN\u00e7\u00e3O: a entrega desta parada j\u00e1 foi iniciada.';
         } else if (st === 'entregue' || st === 'devolucao') {
-            extra = '\n\nATENÇÃO: parada já finalizada — o registro e devoluções vinculadas serão removidos.';
+            extra = '\n\nATEN\u00e7\u00e3O: parada j\u00e1 finalizada \u2014 o registro e devolu\u00e7\u00f5es vinculadas ser\u00e3o removidos.';
         }
 
         return confirm(
@@ -1558,11 +2232,20 @@
                     if (!emp) return;
 
                     const tag = document.createElement('span');
-                    tag.className = 'inline-flex items-center gap-2 rounded-md border border-sky-500/30 bg-sky-900/30 px-2.5 py-1.5 text-xs font-medium text-sky-100';
-                    tag.innerHTML = `
-                        <span>${emp.name}</span>
-                        <button type="button" class="delivery-helper-remove inline-flex h-5 w-5 items-center justify-center rounded bg-sky-950/50 text-sky-200 hover:bg-sky-800 hover:text-white" data-id="${emp.id}" title="Remover">x</button>
-                    `;
+                    tag.className = 'delivery-admin-helper-chip';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'delivery-admin-helper-chip__name';
+                    nameSpan.textContent = emp.name || '';
+                    const rm = document.createElement('button');
+                    rm.type = 'button';
+                    rm.className =
+                        'delivery-helper-remove inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border border-sky-600/30 bg-white/80 text-sky-900 hover:bg-sky-100 dark:border-sky-500/30 dark:bg-slate-800 dark:text-sky-100 dark:hover:bg-slate-700';
+                    rm.dataset.id = String(emp.id);
+                    rm.title = 'Remover';
+                    rm.setAttribute('aria-label', 'Remover');
+                    rm.textContent = '×';
+                    tag.appendChild(nameSpan);
+                    tag.appendChild(rm);
                     selectedBox.appendChild(tag);
                 });
             }

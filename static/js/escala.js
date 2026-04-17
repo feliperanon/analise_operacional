@@ -15,8 +15,8 @@
             apiData: {},
             loading: true,
             columns: [
-                { id: 'escalado', label: 'Escalados', headerClass: 'bg-emerald-900/30 border-emerald-500/30' },
-                { id: 'nao_escalado', label: 'Não escalados', headerClass: 'bg-slate-700/50' }
+                { id: 'escalado', label: 'Escalados', headerClass: 'bg-emerald-100/70 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' },
+                { id: 'nao_escalado', label: 'Não escalados', headerClass: 'bg-amber-100/70 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200' }
             ],
             quickChange: { open: false, campo: '', escala: null, ajudantesSelected: [] },
             toast: { show: false, ok: true, message: '' },
@@ -45,7 +45,12 @@
             getFilteredAjudantesDisponiveis() {
                 const motoristas = this.apiData.motoristas_disponiveis || [];
                 const ajudantes = this.apiData.ajudantes_disponiveis || [];
+                return this.filterHelpersAgainstDrivers(ajudantes, motoristas);
+            },
 
+            filterHelpersAgainstDrivers(helpers, drivers) {
+                const motoristas = Array.isArray(drivers) ? drivers : [];
+                const ajudantes = Array.isArray(helpers) ? helpers : [];
                 const motoristaIds = new Set(
                     motoristas
                         .map((m) => Number(m && m.id))
@@ -73,6 +78,24 @@
                 return helperNames.filter((name) => this.normalizePersonName(name) !== driverName);
             },
 
+            abbreviatePersonName(name) {
+                const parts = String(name || '')
+                    .trim()
+                    .split(/\s+/)
+                    .filter(Boolean);
+                if (!parts.length) return '—';
+                if (parts.length === 1) return parts[0];
+                const first = parts[0];
+                const lastInitial = parts[parts.length - 1].charAt(0).toUpperCase();
+                return `${first} ${lastInitial}.`;
+            },
+
+            formatHelperNamesShort(esc) {
+                const helperNames = this.getFilteredHelperNames(esc);
+                if (!helperNames.length) return '—';
+                return helperNames.map((name) => this.abbreviatePersonName(name)).join(', ');
+            },
+
             init() {
                 this.loadData();
             },
@@ -85,14 +108,20 @@
                     const data = await r.json();
                     this.apiData = data;
                     const s = data.summary || {};
+                    const motoristasTodos = data.motoristas_todos || [];
+                    const ajudantesTodosRaw = data.ajudantes_todos || [];
+                    const ajudantesTodos = this.filterHelpersAgainstDrivers(ajudantesTodosRaw, motoristasTodos);
+                    const motoristasDisponiveis = data.motoristas_disponiveis || [];
+                    const ajudantesDisponiveisRaw = data.ajudantes_disponiveis || [];
+                    const ajudantesDisponiveis = this.filterHelpersAgainstDrivers(ajudantesDisponiveisRaw, motoristasDisponiveis);
                     this.summary = {
                         total: s.total ?? 0,
                         completas: s.completas ?? 0,
                         pendentes: s.pendentes ?? 0,
-                        motoristas: s.motoristas ?? (data.motoristas_todos || []).length,
-                        ajudantes: s.ajudantes ?? (data.ajudantes_todos || []).length,
+                        motoristas: s.motoristas ?? motoristasTodos.length,
+                        ajudantes: ajudantesTodos.length,
                         escalados: s.escalados ?? s.completas ?? 0,
-                        sem_escala: s.sem_escala ?? ((data.motoristas_disponiveis || []).length + (data.ajudantes_disponiveis || []).length)
+                        sem_escala: motoristasDisponiveis.length + ajudantesDisponiveis.length
                     };
                     this.escalas = data.escalas || [];
                     if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);

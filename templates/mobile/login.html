@@ -1,197 +1,125 @@
 {% extends "mobile/layout.html" %}
 
+{% block offline_sync_chip %}{% endblock %}
+
 {% block title %}Login Mobile - Portal Operacional{% endblock %}
 
 {% block head_extra %}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415r">
 <style>
-    .mobile-login-page {
+    .mobile-login-clean {
         min-height: 100dvh;
-        background: radial-gradient(900px 420px at 50% -10%, #e8f0fb 0%, #ffffff 60%),
-                    radial-gradient(760px 360px at 50% 120%, #f8f2e2 0%, #ffffff 52%);
-        color: #0f172a;
-        font-family: "Manrope", sans-serif;
-        padding: 24px 0;
+        background: var(--color-bg);
+        color: var(--color-text-body);
     }
-
-    .mobile-login-wrap {
-        width: min(410px, calc(100% - 28px));
-        margin: 0 auto;
+    .mobile-login-clean__inner {
+        width: 100%;
+        max-width: min(22rem, 100%);
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: max(1.25rem, env(safe-area-inset-left, 0px));
+        padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+        padding-top: max(2rem, env(safe-area-inset-top, 0px));
+        padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
     }
-
-    .mobile-brand {
-        text-align: center;
-        margin-bottom: 16px;
-    }
-
-    .mobile-brand-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 6px 12px;
-        border-radius: 999px;
-        border: 1px solid #cfe1f5;
-        background: #edf4fc;
-        color: #0c4274;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 0.08em;
+    .mobile-login-clean__label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
+        color: var(--color-text-muted);
     }
-
-    .mobile-brand-logo {
-        width: min(330px, 100%);
-        margin: 14px auto 10px;
-        display: block;
-        object-fit: contain;
-    }
-
-    .mobile-brand-text {
-        margin: 0;
-        color: #4f5f77;
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .mobile-login-card {
-        background: #fff;
-        border: 1px solid #d4deeb;
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 20px 32px rgba(12, 66, 116, 0.10);
-    }
-
-    .mobile-login-card h1 {
-        margin: 0;
-        font-family: "Sora", sans-serif;
-        font-size: 24px;
-        color: #0f172a;
-    }
-
-    .mobile-login-card p {
-        margin: 8px 0 0;
-        font-size: 14px;
-        color: #586983;
-        line-height: 1.45;
-    }
-
-    .mobile-alert {
-        margin-top: 14px;
-        border-radius: 12px;
-        border: 1px solid #fecdd3;
-        background: #fff1f2;
-        color: #9f1239;
-        padding: 11px 12px;
-        font-size: 14px;
-        font-weight: 600;
-    }
-
-    .mobile-form { margin-top: 18px; }
-
-    .mobile-form label {
-        display: block;
-        margin-bottom: 7px;
-        font-size: 13px;
-        font-weight: 700;
-        color: #334155;
-    }
-
-    .mobile-form input {
+    .mobile-login-clean__field {
         width: 100%;
-        border: 1px solid #cad7e8;
-        border-radius: 12px;
-        background: #fff;
-        color: #0f172a;
-        padding: 13px 14px;
-        font-size: 16px;
-        font-family: "Manrope", sans-serif;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .mobile-form input:focus {
-        outline: none;
-        border-color: #5a9bd8;
-        box-shadow: 0 0 0 4px rgba(12, 66, 116, 0.12);
-    }
-
-    .mobile-login-button {
-        width: 100%;
-        margin-top: 14px;
         border: 0;
-        border-radius: 12px;
-        background: linear-gradient(135deg, #0c4274 0%, #1b5a95 100%);
-        color: #fff;
-        font-size: 16px;
-        font-weight: 800;
-        letter-spacing: 0.01em;
-        padding: 13px 14px;
-        box-shadow: 0 12px 24px rgba(12, 66, 116, 0.22);
+        border-bottom: 1px solid var(--color-border);
+        border-radius: 0;
+        background: transparent;
+        color: var(--color-text);
+        padding: 0.75rem 0;
+        font-size: 1.125rem;
+        font-weight: 500;
+        outline: none;
+        transition: border-color 0.15s ease;
     }
-
-    .mobile-guide-button {
+    .mobile-login-clean__field::placeholder {
+        color: var(--color-text-muted);
+        opacity: 0.85;
+    }
+    .mobile-login-clean__field:focus {
+        border-bottom-color: var(--color-primary);
+    }
+    .mobile-login-clean__btn {
         width: 100%;
-        margin-top: 10px;
-        border: 1px solid #cad7e8;
-        border-radius: 12px;
-        background: #f8fbff;
-        color: #0c4274;
-        font-size: 15px;
-        font-weight: 800;
-        padding: 12px 14px;
+        margin-top: 1.75rem;
+        min-height: 3rem;
+        border: 0;
+        border-radius: 0.75rem;
+        background: var(--color-primary);
+        color: #fff;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s ease, transform 0.12s ease;
     }
-
-    .mobile-login-meta {
-        margin-top: 16px;
+    .mobile-login-clean__btn:active {
+        opacity: 0.92;
+        transform: scale(0.99);
+    }
+    .mobile-login-clean__error {
+        margin-top: 1rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--color-danger);
+        line-height: 1.4;
+    }
+    .mobile-login-clean__foot {
+        margin-top: 2.5rem;
         text-align: center;
-        font-size: 12px;
-        color: #73829a;
-        line-height: 1.45;
+        font-size: 0.6875rem;
+        color: var(--color-text-muted);
+        line-height: 1.5;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="mobile-login-page">
-    <div class="mobile-login-wrap">
-        <div class="mobile-brand">
-            <span class="mobile-brand-badge">Portal Operacional</span>
-            <img src="{{ static_path('logo-souza-pinto-login-v2.png') }}?v=20260310" alt="Souza Pinto" class="mobile-brand-logo">
+<div class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page min-h-screen min-w-0 w-full overflow-x-hidden mobile-login-clean">
+    <div class="mobile-login-clean__inner flex flex-col justify-center" style="min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));">
+        <p class="m-0 text-center text-[11px] font-semibold uppercase tracking-[0.14em]" style="color: var(--color-text-muted);">Portal operacional</p>
+
+        <img src="{{ static_path('logo-souza-pinto-login-v2.png') }}?v=20260310" alt="Souza Pinto" class="mx-auto mt-6 block w-full max-w-[220px] object-contain">
+
+        <h1 class="m-0 mt-8 text-center text-xl font-semibold tracking-tight" style="color: var(--color-text);">Entrar</h1>
+        <p class="m-0 mt-2 text-center text-sm leading-relaxed" style="color: var(--color-text-muted);">Use sua matrícula para acessar o app.</p>
+
+        {% if error %}
+        <p class="mobile-login-clean__error text-center" role="alert">{{ error }}</p>
+        {% endif %}
+
+        <form action="/mobile/auth" method="POST" class="mt-8">
+            <label class="mobile-login-clean__label" for="registration_id">Matrícula</label>
+            <input type="text" id="registration_id" name="registration_id" placeholder="Ex.: 12345" required autofocus autocomplete="off" autocapitalize="none" spellcheck="false" class="mobile-login-clean__field">
+            <button type="submit" class="mobile-login-clean__btn">Continuar</button>
+        </form>
+
+        <div class="mobile-login-clean__foot">
+            <span>Souza Pinto Distribuidora</span>
+            <span class="mx-1 opacity-40" aria-hidden="true">·</span>
+            <span>2026</span>
         </div>
-
-        <section class="mobile-login-card" aria-label="Login mobile">
-            <h1>Entrar</h1>
-            <p>Informe sua matricula para acessar o aplicativo operacional.</p>
-
-            {% if error %}
-            <div class="mobile-alert">{{ error }}</div>
-            {% endif %}
-
-            <form action="/mobile/auth" method="POST" class="mobile-form">
-                <label for="registration_id">Matricula</label>
-                <input type="text" id="registration_id" name="registration_id" placeholder="Digite sua matricula" required autofocus autocomplete="off" autocapitalize="none" spellcheck="false">
-                <button type="submit" class="mobile-login-button">Entrar no app</button>
-                <button type="button" class="mobile-guide-button" onclick="window.openDriverGuide && window.openDriverGuide()">Ver guia do motorista</button>
-            </form>
-
-            <div class="mobile-login-meta">
-                <div>&copy; 2026 Souza Pinto Distribuidora</div>
-                <div>Operacao com controle e rastreabilidade</div>
-            </div>
-        </section>
     </div>
 </div>
 
-{% set guide_context = 'login' %}
-{% set guide_auto_open = true %}
-{% include 'mobile/_driver_guide.html' %}
-
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
         var input = document.getElementById('registration_id');
         if (input) {
             input.focus();

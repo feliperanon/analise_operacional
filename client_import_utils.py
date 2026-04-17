@@ -49,21 +49,21 @@ def normalize_phone_br(raw: Optional[str]) -> Tuple[Optional[str], Optional[str]
     if not raw or not str(raw).strip():
         return None, None
     digits = re.sub(r"\D", "", str(raw).strip())
+    digits = digits.lstrip("0")
+    if digits.startswith("55") and len(digits) > 11:
+        digits = digits[2:]
+    if len(digits) > 11:
+        digits = digits[-11:]
     if len(digits) < 10:
         return None, str(raw).strip()
-    if digits.startswith("55") and len(digits) >= 12:
-        digits = digits[2:]
-    if len(digits) == 11 and digits.startswith("9"):
-        # Celular
+    if len(digits) == 11:
         e164 = "+55" + digits
         amigavel = f"({digits[:2]}) {digits[2:7]}-{digits[7:]}"
     elif len(digits) == 10:
-        # Fixo
         e164 = "+55" + digits
         amigavel = f"({digits[:2]}) {digits[2:6]}-{digits[6:]}"
     else:
-        e164 = "+55" + digits[-10:] if len(digits) >= 10 else None
-        amigavel = str(raw).strip()
+        return None, str(raw).strip()
     return (e164, amigavel) if e164 else (None, amigavel)
 
 

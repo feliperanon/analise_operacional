@@ -1,87 +1,96 @@
 {% extends "mobile/layout.html" %}
-{% from 'mobile/_components.html' import empty_state, badge %}
 
 {% block title %}Meu Histórico{% endblock %}
 
-{% block content %}
-<div class="min-h-screen pb-safe" style="background: var(--color-bg);">
-    <header class="container-mobile py-4 border-b shrink-0 relative z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
-        <div class="flex items-center justify-between">
-            <a href="/mobile/routine/checklist" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
-            </a>
-            <div>
-                <h1 class="text-title-lg" style="color: var(--color-text);">Histórico</h1>
-                <p class="text-caption" style="color: var(--color-text-muted);">Checklists com problemas e chamados abertos</p>
-            </div>
-            <div class="w-10"></div>
-        </div>
-    </header>
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415q">
+{% endblock %}
 
-    <div class="container-mobile py-4">
-        {% if (history_checklists or []) %}
-        <div class="space-y-3">
-            {% for item in history_checklists %}
-            {% if item.type == "checklist" %}
-            <div class="surface p-4">
-                <div class="flex items-start justify-between gap-3 mb-2">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="icon-wrap w-10 h-10 flex-shrink-0" style="background: var(--color-danger-bg); color: var(--color-danger);">
-                            <i data-lucide="clipboard-check" class="w-5 h-5"></i>
-                        </div>
-                        <div class="min-w-0">
-                            <p class="text-body font-semibold truncate" style="color: var(--color-text);">{{ item.equipment_code }}</p>
-                            <p class="text-caption">{{ item.submitted_at_date }} às {{ item.submitted_at_time }}</p>
-                        </div>
-                    </div>
-                    <span class="shrink-0">{{ badge(item.status_label, 'default', 'sm') }}</span>
-                </div>
-                {% if item.original.nonconforming_keys %}
-                <div class="mt-3 p-3 rounded-lg" style="background: var(--color-warning-bg); border: 1px solid var(--color-warning);">
-                    <div class="flex items-center gap-1.5 mb-1.5">
-                        <i data-lucide="alert-triangle" class="w-3.5 h-3.5" style="color: var(--color-warning);"></i>
-                        <span class="text-caption font-semibold" style="color: var(--color-text);">Apontamentos:</span>
-                    </div>
-                    <p class="text-caption line-clamp-2" style="color: var(--color-text-secondary);">{{ item.original.nonconforming_json|default('Detalhes no sistema') }}</p>
-                </div>
-                {% endif %}
-            </div>
-            {% elif item.type == "ticket" %}
-            <a href="/mobile/equipment/tickets/{{ item.ticket_id }}" class="block surface p-4 interactive">
-                <div class="flex items-start justify-between gap-3 mb-2">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="icon-wrap w-10 h-10 flex-shrink-0" style="background: var(--color-warning-bg); color: var(--color-warning);">
-                            <i data-lucide="alert-circle" class="w-5 h-5"></i>
-                        </div>
-                        <div class="min-w-0">
-                            <div class="flex items-center gap-2 mb-0.5">
-                                <p class="text-body font-semibold truncate" style="color: var(--color-text);">{{ item.equipment_code }}</p>
-                                <span class="text-caption font-semibold" style="color: var(--color-primary);">#{{ item.ticket_id }}</span>
-                            </div>
-                            <p class="text-caption">{{ item.submitted_at_date }} às {{ item.submitted_at_time }}</p>
-                        </div>
-                    </div>
-                    <span class="shrink-0">{{ badge(item.status_label, 'default', 'sm') }}</span>
-                </div>
-                {% if item.description %}
-                <div class="mt-2 p-2 rounded-lg" style="background: var(--color-border-light);">
-                    <p class="text-caption line-clamp-2" style="color: var(--color-text-secondary);">{{ item.description }}</p>
-                </div>
-                {% endif %}
+{% block content %}
+<div class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium min-h-screen pb-safe delivery-page-layout">
+
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/routine/checklist" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 shrink-0 items-center justify-center rounded-lg interactive sm:size-11 no-underline" aria-label="Voltar ao checklist" title="Voltar">
+                <i data-lucide="arrow-left" class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true"></i>
             </a>
-            {% endif %}
-            {% endfor %}
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Histórico</p>
+            </div>
+            <div class="size-10 shrink-0 sm:size-11" aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <div class="delivery-ga-main delivery-mobi-main space-y-3 pb-4 pt-1">
+        <p class="employees-text-muted m-0 px-0.5 text-center text-xs">Checklists com apontamentos e chamados abertos</p>
+
+        {% if (history_checklists or []) %}
+        <div class="space-y-2 sm:space-y-3">
+                {% for item in history_checklists %}
+                {% if item.type == "checklist" %}
+                <div class="sys-card sys-card--surface rounded-xl border p-3 sm:p-4" style="border-color: var(--color-border);">
+                    <div class="mb-2 flex items-start justify-between gap-2">
+                        <div class="flex min-w-0 flex-1 items-center gap-2.5">
+                            <div class="flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10" style="background: var(--color-danger-bg); color: var(--color-danger);">
+                                <i data-lucide="clipboard-check" class="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="employees-text-strong m-0 truncate text-sm font-semibold sm:text-base" style="color: var(--color-text);">{{ item.equipment_code }}</p>
+                                <p class="employees-text-muted m-0 mt-0.5 text-[11px] sm:text-xs">{{ item.submitted_at_date }} · {{ item.submitted_at_time }}</p>
+                            </div>
+                        </div>
+                        <span class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[10px] font-semibold sm:text-[11px] {{ item.status_badge_class }}">{{ item.status_label }}</span>
+                    </div>
+                    {% if item.original.nonconforming_keys %}
+                    <div class="mt-2 rounded-lg border p-2.5 sm:p-3" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
+                        <div class="mb-1 flex items-center gap-1.5">
+                            <i data-lucide="alert-triangle" class="h-3.5 w-3.5 shrink-0" style="color: var(--color-warning);" aria-hidden="true"></i>
+                            <span class="text-[11px] font-semibold sm:text-xs" style="color: var(--color-text);">Apontamentos</span>
+                        </div>
+                        <p class="employees-text-body m-0 line-clamp-3 text-xs leading-snug" style="color: var(--color-text-secondary);">{{ item.original.nonconforming_json|default('Detalhes no sistema') }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% elif item.type == "ticket" %}
+                <a href="/mobile/equipment/tickets/{{ item.ticket_id }}" class="sys-card sys-card--surface block rounded-xl border p-3 no-underline interactive sm:p-4" style="border-color: var(--color-border);">
+                    <div class="mb-2 flex items-start justify-between gap-2">
+                        <div class="flex min-w-0 flex-1 items-center gap-2.5">
+                            <div class="flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10" style="background: var(--color-warning-bg); color: var(--color-warning);">
+                                <i data-lucide="alert-circle" class="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                    <p class="employees-text-strong m-0 truncate text-sm font-semibold sm:text-base" style="color: var(--color-text);">{{ item.equipment_code }}</p>
+                                    <span class="text-[11px] font-semibold sm:text-xs" style="color: var(--color-primary);">#{{ item.ticket_id }}</span>
+                                </div>
+                                <p class="employees-text-muted m-0 mt-0.5 text-[11px] sm:text-xs">{{ item.submitted_at_date }} · {{ item.submitted_at_time }}</p>
+                            </div>
+                        </div>
+                        <span class="inline-flex shrink-0 items-center rounded-md px-2 py-0.5 text-[10px] font-semibold sm:text-[11px] {{ item.status_badge_class }}">{{ item.status_label }}</span>
+                    </div>
+                    {% if item.description %}
+                    <div class="mt-2 rounded-lg border p-2.5" style="background: var(--color-border-light); border-color: var(--color-border);">
+                        <p class="employees-text-muted m-0 line-clamp-2 text-xs">{{ item.description }}</p>
+                    </div>
+                    {% endif %}
+                </a>
+                {% endif %}
+                {% endfor %}
         </div>
         {% else %}
-        <div class="flex flex-col items-center justify-center py-16">
-            <div class="icon-wrap w-14 h-14 rounded-full mb-4" style="background: var(--color-success-bg); color: var(--color-success);">
-                <i data-lucide="check-circle" class="w-7 h-7"></i>
-            </div>
-            <h3 class="text-section font-semibold mb-1" style="color: var(--color-text);">Nenhum problema registrado</h3>
-            <p class="text-caption" style="color: var(--color-text-muted);">Todos os checklists estão OK</p>
+        <div class="sys-empty-state flex flex-col items-center rounded-xl border px-4 py-10 text-center" style="border-color: var(--color-border); border-style: dashed;">
+            <span class="mb-3 inline-flex size-14 items-center justify-center rounded-full" style="background: var(--color-success-bg); color: var(--color-success);">
+                <i data-lucide="check-circle" class="h-7 w-7" aria-hidden="true"></i>
+            </span>
+            <p class="employees-text-strong m-0 text-base font-semibold" style="color: var(--color-text);">Nenhum problema registrado</p>
+            <p class="employees-text-muted m-0 mt-1 max-w-xs text-sm">Todos os checklists recentes estão OK.</p>
         </div>
         {% endif %}
     </div>
 </div>
-<script>document.addEventListener('DOMContentLoaded', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); });</script>
 {% endblock %}

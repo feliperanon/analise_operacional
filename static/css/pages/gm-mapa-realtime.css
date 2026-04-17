@@ -1,0 +1,114 @@
+/**
+ * Mapa tempo real (GM) — tela cheia abaixo do header (sem sys-card).
+ */
+body.gm-mapa-realtime-body .gv-panel-stack.gv-panel-stack {
+  padding-top: 0;
+  padding-bottom: 0;
+  gap: 0;
+}
+
+body.gm-mapa-realtime-body .ta-main-inner {
+  padding-bottom: 0;
+}
+
+/* Largura total da viewport; compensa padding do miolo GA */
+.gm-map-realtime-page.gm-map-full-bleed {
+  box-sizing: border-box;
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.gm-map-realtime-page .gm-realtime-map-root {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: calc(100dvh - 6.25rem);
+  height: calc(100dvh - 6.25rem);
+}
+
+.gm-map-realtime-page .gm-realtime-map-root .leaflet-control-container {
+  z-index: 500;
+}
+
+.gm-map-realtime-page .gm-realtime-map-panel {
+  border: 1px solid var(--emp-border, var(--sys-border));
+  box-shadow: var(--sys-shadow-xs), 0 4px 24px rgb(15 23 42 / 0.08);
+  background: color-mix(in srgb, var(--sys-surface, #fff) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.dark .gm-map-realtime-page .gm-realtime-map-panel {
+  background: color-mix(in srgb, rgb(15 23 42) 92%, transparent);
+  border-color: var(--sys-border, rgb(51 65 85));
+}
+
+.gm-map-realtime-page .leaflet-container {
+  background: #0f172a !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Popups legíveis no miolo claro */
+.gm-map-realtime-page .leaflet-popup-content-wrapper {
+  border-radius: var(--sys-radius-lg, 12px) !important;
+  box-shadow: var(--sys-shadow-md, 0 10px 15px -3px rgb(0 0 0 / 0.12)) !important;
+}
+
+html:not(.dark) .gm-map-realtime-page .leaflet-popup-content-wrapper {
+  background: var(--sys-surface, #fff) !important;
+  color: var(--sys-text-primary, #0f172a) !important;
+  border: 1px solid var(--sys-border, #e2e8f0) !important;
+}
+
+html:not(.dark) .gm-map-realtime-page .leaflet-popup-tip {
+  background: var(--sys-surface, #fff) !important;
+}
+
+html:not(.dark) .gm-map-realtime-page .leaflet-popup-close-button {
+  color: var(--sys-text-muted, #64748b) !important;
+}
+
+.dark .gm-map-realtime-page .leaflet-popup-content-wrapper {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+}
+
+.dark .gm-map-realtime-page .leaflet-popup-tip {
+  background: #1e293b !important;
+}
+
+.gm-map-realtime-page .custom-div-icon {
+  background: none !important;
+  border: none !important;
+}
+
+.gm-map-realtime-page .marker-pin {
+  transform: scale(1);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.gm-map-realtime-page .marker-pin:hover {
+  transform: scale(1.2);
+}
+
+.gm-map-realtime-page .gm-map-vehicle-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.gm-map-realtime-page .gm-map-vehicle-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gm-map-realtime-page .gm-map-vehicle-scroll::-webkit-scrollbar-thumb {
+  background: var(--sys-border-strong, #cbd5e1);
+  border-radius: 10px;
+}
+
+.dark .gm-map-realtime-page .gm-map-vehicle-scroll::-webkit-scrollbar-thumb {
+  background: #475569;
+}

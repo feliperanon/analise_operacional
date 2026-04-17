@@ -1,5 +1,14 @@
 {% extends "mobile/layout.html" %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415i">
+{% endblock %}
+
 {% block content %}
 <div id="xp-popup-delivery" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none hidden flex items-center justify-center">
     <div class="px-6 py-4 rounded-xl font-bold text-xl text-white" style="background: var(--color-primary); box-shadow: var(--shadow-modal);">+<span id="xp-amount-delivery">0</span> XP!</div>
@@ -8,130 +17,179 @@
     <div id="delivery-feedback-card" class="px-4 py-3 rounded-xl text-sm font-semibold text-white" style="background: rgba(15, 23, 42, 0.95); box-shadow: var(--shadow-modal);"></div>
 </div>
 <div id="delivery-rocket-layer" class="fixed inset-0 z-[109] pointer-events-none overflow-hidden"></div>
-<div x-data="deliveryPageController()" x-init="init()" class="min-h-screen pb-safe delivery-page-layout" style="background: var(--color-bg);">
+<div x-data="deliveryPageController()" x-init="init()" class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium min-h-screen pb-safe delivery-page-layout">
 
-    <!-- Header -->
-    <header class="py-3 shrink-0 relative z-20 mobile-header-op pt-safe">
-        <div class="container-mobile">
-        <div class="flex items-center justify-between gap-2">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+    <!-- Faixa superior: navegação e ações rápidas (fora do hero — matriz employees / GA) -->
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/dashboard" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 shrink-0 items-center justify-center rounded-lg interactive sm:size-11 no-underline" aria-label="Voltar ao painel" title="Voltar">
+                <i data-lucide="arrow-left" class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true"></i>
             </a>
-            <div class="text-center flex-1 min-w-0">
-                <h1 class="text-body-lg font-semibold truncate" style="color: var(--color-text);">Rota de entregas</h1>
-                <p class="text-caption truncate" style="color: var(--color-text-muted);" x-show="!deliverySessionOpen && assignedPlate" x-text="`Placa: ${assignedPlate}`"></p>
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Operação</p>
             </div>
-            <div class="flex items-center gap-1 shrink-0">
-                <button type="button" @click="window.openDriverGuide && window.openDriverGuide()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" title="Como usar">
-                    <i data-lucide="book-open" class="w-5 h-5"></i>
+            <div class="flex shrink-0 items-center gap-2">
+                {% if has_delivery_driver_access|default(false) %}
+                <button type="button" x-show="!isHelperView" @click="window.openDriverGuide && window.openDriverGuide()"
+                    class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive sm:size-14"
+                    title="Guia do motorista" aria-label="Abrir guia do motorista">
+                    <i data-lucide="book-open" class="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden="true"></i>
                 </button>
-                <button type="button" @click="loadDeliveryData()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" title="Atualizar">
-                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                {% endif %}
+                <button type="button" @click="loadDeliveryData()"
+                    class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive sm:size-14"
+                    title="Atualizar" aria-label="Atualizar rotas">
+                    <i data-lucide="refresh-cw" class="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
-        <!-- Card unificado: Rota ativa + Cockpit (visível quando rota iniciada) -->
-        <div x-show="deliverySessionOpen && !!selectedDeliveryDay" x-cloak class="mt-3 surface p-4 rounded-xl nav-panel-delivery">
-            <div class="flex items-center justify-between mb-3">
-                <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-primary);">Rota ativa</span>
-                <div class="flex items-center gap-2">
-                    <span class="text-caption px-2 py-0.5 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="formatDateBR(selectedDeliveryDay)"></span>
-                    <button x-show="!isHelperView" @click="openSessionEditModal()" class="touch-target-icon flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 interactive" style="background: var(--color-primary-bg); color: var(--color-primary);" title="Editar ajudantes e KM">
-                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-                        <span class="text-caption font-semibold">Editar</span>
-                    </button>
+    </div>
+
+    <div class="delivery-ga-main delivery-mobi-main space-y-3 pb-2 pt-1">
+
+    <!-- Painel da sessão ativa (detalhe operacional; KPIs ficam na faixa abaixo) -->
+    <div x-show="deliverySessionOpen && !!selectedDeliveryDay" x-cloak class="sys-card sys-card--surface delivery-session-card relative overflow-hidden rounded-xl border p-3 sm:p-4" style="border-color: var(--color-border);">
+        <div class="delivery-session-head flex items-center justify-between gap-2 border-b pb-2.5" style="border-color: var(--color-border);">
+            <div class="delivery-session-head__title flex min-w-0 flex-1 items-center gap-2">
+                <span class="delivery-session-head__badge shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style="background: var(--color-primary-bg); color: var(--color-primary);">Rota ativa</span>
+                <h3 class="m-0 min-w-0 truncate text-base font-semibold leading-tight" style="color: var(--color-text);" x-text="formatDateBR(selectedDeliveryDay)"></h3>
+            </div>
+            <button x-show="!isHelperView" type="button" @click="openSessionEditModal()"
+                class="delivery-session-head__edit sys-btn sys-btn--secondary inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold sm:gap-1.5 sm:px-2.5 sm:py-2 sm:text-sm"
+                title="Editar ajudantes e KM" aria-label="Editar ajudantes e quilometragem">
+                <i data-lucide="pencil" class="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true"></i>
+                Editar
+            </button>
+        </div>
+        <div class="mt-4 space-y-4">
+            <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+                <div>
+                    <p class="employees-text-section-label mb-1">Motorista</p>
+                    <p class="employees-text-strong text-sm font-semibold truncate" x-text="driverName || '-'"></p>
+                </div>
+                <div>
+                    <p class="employees-text-section-label mb-1">Ajudantes</p>
+                    <p class="employees-text-body text-sm font-medium break-words" x-text="sessionHelpersAbbreviated"></p>
                 </div>
             </div>
-            <div class="space-y-3">
-                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider mb-0.5" style="color: var(--color-text-muted);">Motorista</p>
-                        <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="driverName || '-'"></p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider mb-0.5" style="color: var(--color-text-muted);">Ajudantes</p>
-                        <p class="text-body font-medium break-words" style="color: var(--color-text-body);" x-text="sessionHelpers && sessionHelpers.length ? sessionHelpers.join(', ') : '—'"></p>
-                    </div>
+            <div class="flex flex-wrap gap-3 border-t border-slate-200 pt-3 dark:border-slate-600">
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="car" class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true"></i>
+                    <span class="employees-text-strong text-caption font-mono font-semibold" x-text="assignedPlate || '—'"></span>
                 </div>
-                <div class="flex flex-wrap gap-3 pt-2 border-t" style="border-color: var(--color-border);">
-                    <div class="flex items-center gap-1.5">
-                        <i data-lucide="car" class="w-4 h-4 flex-shrink-0" style="color: var(--color-primary);"></i>
-                        <span class="text-caption font-mono font-semibold" style="color: var(--color-text);" x-text="assignedPlate || '—'"></span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <i data-lucide="package" class="w-4 h-4 flex-shrink-0" style="color: var(--color-primary);"></i>
-                        <span class="text-caption font-mono" style="color: var(--color-text-body);" x-text="formatNumberBR(dayStats.totalWeight) + ' kg'"></span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <i data-lucide="gauge" class="w-4 h-4 flex-shrink-0" style="color: var(--color-text-muted);"></i>
-                        <span class="text-caption font-mono" style="color: var(--color-text-body);" x-text="'KM ' + (sessionKmDeparture || '—')"></span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <i data-lucide="play-circle" class="w-4 h-4 flex-shrink-0" style="color: var(--color-success);"></i>
-                        <span class="text-caption" style="color: var(--color-text-body);" x-text="sessionStartedAt || '—'"></span>
-                    </div>
-                    <div class="flex items-center gap-1.5" x-show="timerDisplay && timerDisplay !== '--:--:--'">
-                        <i data-lucide="clock" class="w-4 h-4 flex-shrink-0" style="color: var(--color-primary);"></i>
-                        <span class="text-caption font-mono font-semibold" style="color: var(--color-primary);" x-text="timerDisplay"></span>
-                    </div>
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="package" class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true"></i>
+                    <span class="employees-text-body text-caption font-mono" x-text="formatNumberBR(dayStats.totalWeight) + ' kg'"></span>
                 </div>
-                <!-- Resumo do dia — uma linha (menos competição visual que 5 chips) -->
-                <div class="pt-3 border-t flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-caption leading-snug" style="border-color: var(--color-border); color: var(--color-text-muted);">
-                    <span><span style="color: var(--color-text);" class="font-semibold font-mono" x-text="dayStats.totalStops"></span> paradas</span>
-                    <span class="font-mono"><span style="color: var(--color-warning);" class="font-semibold" x-text="dayStats.pending"></span> pendentes</span>
-                    <span class="font-mono"><span style="color: var(--color-primary);" class="font-semibold" x-text="dayStats.opened"></span> em rota</span>
-                    <span class="font-mono"><span style="color: var(--color-success);" class="font-semibold" x-text="dayStats.delivered"></span> ok</span>
-                    <span class="font-mono"><span style="color: var(--color-danger);" class="font-semibold" x-text="dayStats.returned"></span> devol.</span>
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="gauge" class="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true"></i>
+                    <span class="employees-text-body text-caption font-mono" x-text="'KM ' + (sessionKmDeparture || '—')"></span>
                 </div>
-                <!-- Alerta devoluções (mês atual) -->
-                <a x-show="$data.returnsAlertSafe?.is_above_target" x-cloak href="/mobile/returns"
-                    class="flex items-center gap-2 p-2.5 rounded-lg interactive mt-3"
-                    :style="$data.returnsAlertSafe?.severity === 'high' ? 'background: var(--color-danger-bg); border: 1px solid var(--color-danger);' : 'background: var(--color-warning-bg); border: 1px solid var(--color-warning);'">
-                    <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0" :style="$data.returnsAlertSafe?.severity === 'high' ? 'color: var(--color-danger);' : 'color: var(--color-warning);'"></i>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-caption font-semibold" style="color: var(--color-text);">Devoluções mês atual</p>
-                        <p class="text-caption-lg truncate" style="color: var(--color-text-body);" x-text="$data.returnsAlertSummary"></p>
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="play-circle" class="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true"></i>
+                    <span class="employees-text-body text-caption" x-text="sessionStartedAt || '—'"></span>
+                </div>
+                <div class="flex items-center gap-1.5" x-show="timerDisplay && timerDisplay !== '--:--:--'">
+                    <i data-lucide="clock" class="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" aria-hidden="true"></i>
+                    <span class="text-caption font-mono font-semibold text-blue-700 dark:text-blue-300" x-text="timerDisplay"></span>
+                </div>
+            </div>
+            <a x-show="$data.returnsAlertSafe?.is_above_target" x-cloak href="/mobile/returns"
+                class="sys-alert sys-alert--warn flex items-center gap-3 rounded-xl no-underline"
+                :class="$data.returnsAlertSafe?.severity === 'high' ? 'sys-alert--danger' : ''">
+                <i data-lucide="alert-triangle" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold">Devoluções mês atual</p>
+                    <p class="employees-text-muted mt-0.5 truncate text-xs" x-text="$data.returnsAlertSummary"></p>
+                </div>
+                <span class="shrink-0 text-xs font-semibold">Ver →</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- KPIs do dia: 3 métricas na mesma linha (sem scroll) -->
+    <div class="sys-kpi-shell w-full" x-show="deliverySessionOpen && !!selectedDeliveryDay" x-cloak aria-label="Resumo do dia">
+        <div class="sys-kpi-grid employees-kpi-row employees-kpi-row--delivery-three">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);"
+                role="button" tabindex="0"
+                @click="$nextTick(() => document.getElementById('delivery-workspace-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Pendentes</span>
+                            <div class="mt-1"><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums" x-text="dayStats.pending"></span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-amber-500 transition group-hover:scale-110 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
-                    <span class="text-caption font-semibold" style="color: var(--color-primary);">Ver →</span>
-                </a>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Fila de paradas</span></div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);"
+                role="button" tabindex="0"
+                @click="deliveredAccordionOpen = true; $nextTick(() => document.getElementById('delivery-section-delivered')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Entregues</span>
+                            <div class="mt-1"><span class="employees-kpi__value employees-kpi__value--state tabular-nums text-emerald-600 dark:text-emerald-400" x-text="dayStats.delivered"></span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Abrir lista</span></div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);"
+                role="button" tabindex="0"
+                @click="returnedAccordionOpen = true; $nextTick(() => document.getElementById('delivery-section-returned')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-red-600 dark:text-red-300">Devoluções</span>
+                            <div class="mt-1"><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums" x-text="dayStats.returned"></span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-red-500 transition group-hover:scale-110 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Registrar / lista</span></div>
+                </div>
             </div>
         </div>
-        <!-- GPS — discreto (uma linha, sem “cockpit”) -->
-        <div class="mt-2 flex items-center justify-center gap-2 text-[11px]" style="color: var(--color-text-muted);" x-show="deliverySessionOpen" x-cloak>
-            <template x-if="locationPermission === 'granted'">
-                <span class="flex items-center gap-1 px-2 py-1 rounded-full" style="background: rgba(16,185,129,0.2); color: #10b981;">
-                    <i data-lucide="navigation" class="w-3 h-3"></i>
-                    <span>GPS ativo</span>
-                    <span x-show="lastGpsUpdate" x-text="'· ' + formatTimeAgo(lastGpsUpdate)" style="opacity:0.7;"></span>
-                </span>
-            </template>
-            <template x-if="locationPermission === 'denied'">
-                <span class="flex items-center gap-1 px-2 py-1 rounded-full" style="background: rgba(239,68,68,0.15); color: #ef4444;">
-                    <i data-lucide="navigation-off" class="w-3 h-3"></i>
-                    <span>GPS negado — ordem padrão</span>
-                </span>
-            </template>
-            <template x-if="locationPermission === 'unavailable'">
-                <span class="flex items-center gap-1 px-2 py-1 rounded-full" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
-                    <i data-lucide="wifi-off" class="w-3 h-3"></i>
-                    <span>GPS indisponível</span>
-                </span>
-            </template>
-            <template x-if="!locationPermission && !locationLoading">
-                <button @click="iniciarMonitoramentoGPS()" class="flex items-center gap-1 px-2 py-1 rounded-full interactive" style="background: rgba(59,130,246,0.2); color: #3b82f6;">
-                    <i data-lucide="locate" class="w-3 h-3"></i>
-                    <span>Ativar GPS</span>
-                </button>
-            </template>
-            <template x-if="locationLoading">
-                <span class="flex items-center gap-1 px-2 py-1 rounded-full" style="background: rgba(99,102,241,0.15); color: #6366f1;">
-                    <i data-lucide="loader" class="w-3 h-3 animate-spin"></i>
-                    <span>Obtendo localização...</span>
-                </span>
-            </template>
-        </div>
-        </div>
-    </header>
+    </div>
+
+    <!-- GPS — barra contextual (fora do header compacto) -->
+    <div class="flex flex-wrap items-center justify-center gap-2 py-1 text-[11px] employees-text-muted" x-show="deliverySessionOpen" x-cloak>
+        <template x-if="locationPermission === 'granted'">
+            <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-1 font-medium text-emerald-700 dark:text-emerald-300">
+                <i data-lucide="navigation" class="h-3 w-3" aria-hidden="true"></i>
+                <span>GPS ativo</span>
+                <span x-show="lastGpsUpdate" x-text="'· ' + formatTimeAgo(lastGpsUpdate)" class="opacity-70"></span>
+            </span>
+        </template>
+        <template x-if="locationPermission === 'denied'">
+            <span class="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-1 font-medium text-red-700 dark:text-red-300">
+                <i data-lucide="navigation-off" class="h-3 w-3" aria-hidden="true"></i>
+                <span>GPS negado — ordem padrão</span>
+            </span>
+        </template>
+        <template x-if="locationPermission === 'unavailable'">
+            <span class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-1 font-medium text-amber-800 dark:text-amber-200">
+                <i data-lucide="wifi-off" class="h-3 w-3" aria-hidden="true"></i>
+                <span>GPS indisponível</span>
+            </span>
+        </template>
+        <template x-if="!locationPermission && !locationLoading">
+            <button type="button" @click="iniciarMonitoramentoGPS()" class="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-1 font-medium text-blue-700 interactive dark:text-blue-300">
+                <i data-lucide="locate" class="h-3 w-3" aria-hidden="true"></i>
+                <span>Ativar GPS</span>
+            </button>
+        </template>
+        <template x-if="locationLoading">
+            <span class="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2 py-1 font-medium text-indigo-700 dark:text-indigo-300">
+                <i data-lucide="loader" class="h-3 w-3 animate-spin" aria-hidden="true"></i>
+                <span>Obtendo localização...</span>
+            </span>
+        </template>
+    </div>
+    </div><!-- /.delivery-ga-main (bloco hero + sessão + KPIs + GPS) -->
 
     <!-- Conteúdo principal (largura padronizada) -->
     <div class="delivery-content">
@@ -153,49 +211,70 @@
     </div>
     <!-- Conteúdo quando dados carregados -->
     <div x-show="!deliveryDataLoading && !deliveryLoadError" x-cloak>
-    <!-- Day selector (compact, today+ only) -->
-    <div class="container-mobile mt-2" x-show="visibleDayCards.length > 1" x-cloak>
-        <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            <template x-for="card in visibleDayCards" :key="`day-${card.date}`">
-                <button @click="toggleDeliveryDay(card.date)" class="flex-shrink-0 px-3 py-1.5 rounded-lg border-2 text-body font-semibold transition-colors interactive"
-                    :style="selectedDeliveryDay===card.date ? 'background: var(--color-primary-bg); border-color: var(--color-primary); color: var(--color-primary);' : 'background: var(--color-surface-solid); border-color: var(--color-border-light); color: var(--color-text);'">
-                    <span x-text="card.label"></span>
-                    <span class="ml-1 text-caption" x-text="`(${card.count})`"></span>
-                </button>
-            </template>
-        </div>
-    </div>
-
-    <!-- Search bar (session only) -->
-    <div class="container-mobile mt-2" x-show="deliverySessionOpen" x-cloak>
-        <div class="flex gap-2">
-            <input type="text" x-model="deliverySearch" placeholder="Buscar cliente, código, pedido..."
-                class="flex-1 rounded-lg px-3 py-2 border text-body focus:outline-none transition-colors"
-                style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
-            <button type="button" @click="deliverySearch=''" x-show="deliverySearch"
-                class="px-3 py-2 rounded-lg border font-semibold text-body interactive"
-                style="border-color: var(--color-border); color: var(--color-text);">
-                <i data-lucide="x-circle" class="w-4 h-4"></i>
-            </button>
+    <!-- Filtros compactos (fora de card — só o necessário) -->
+    <div class="container-mobile mt-2" x-show="visibleDayCards.length > 1 || deliverySessionOpen" x-cloak>
+        <div class="delivery-toolbar delivery-toolbar--stack flex min-w-0 flex-col gap-3">
+            <div class="delivery-toolbar__block min-w-0" x-show="visibleDayCards.length > 1" x-cloak>
+                <p class="delivery-toolbar__legend">Dia operacional</p>
+                <div class="flex gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+                    <template x-for="card in visibleDayCards" :key="`day-${card.date}`">
+                        <button type="button" @click="toggleDeliveryDay(card.date)"
+                            class="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors interactive"
+                            style="border-color: var(--color-border); background: var(--color-surface-solid); color: var(--color-text);"
+                            :style="selectedDeliveryDay===card.date ? 'border-color: var(--color-primary); background: var(--color-primary-bg); color: var(--color-primary);' : ''">
+                            <span x-text="card.label"></span>
+                            <span class="ml-0.5 tabular-nums opacity-75" x-text="`(${card.count})`"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+            <div x-show="deliverySessionOpen" x-cloak
+                class="delivery-toolbar__session delivery-toolbar__session--inline grid min-w-0 gap-2"
+                :class="nextDeliveryRoutes.length > 0 ? 'grid-cols-2' : 'grid-cols-1'">
+                <div class="delivery-toolbar__block min-w-0">
+                    <label class="delivery-toolbar__legend" for="delivery-toolbar-search-input">Busca na rota</label>
+                    <div class="flex min-w-0 items-stretch gap-1.5">
+                        <div class="delivery-toolbar-search ops-toolbar-search delivery-toolbar__search min-w-0 flex-1">
+                            <svg class="h-4 w-4 shrink-0 opacity-60" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input id="delivery-toolbar-search-input" type="text" x-model="deliverySearch" placeholder="Cliente, pedido…" class="ops-toolbar-search__input min-w-0 text-sm">
+                        </div>
+                        <button type="button" @click="deliverySearch=''" x-show="deliverySearch" x-cloak
+                            class="delivery-toolbar__clear sys-btn sys-btn--secondary shrink-0 self-center px-2 py-2 text-[11px] font-semibold whitespace-nowrap sm:px-3 sm:text-xs">
+                            Limpar
+                        </button>
+                    </div>
+                </div>
+                <div class="delivery-toolbar__block min-w-0" x-show="nextDeliveryRoutes.length > 0" x-cloak>
+                    <label class="delivery-toolbar__legend" for="delivery-sort-order">Ordenar fila</label>
+                    <select id="delivery-sort-order" x-model="deliverySortOrder" @change="$nextTick(() => lucide.createIcons())"
+                        class="delivery-toolbar__sort sys-input min-h-10 w-full max-w-full rounded-lg px-2 py-2 text-xs font-semibold sm:px-3 sm:text-sm">
+                        <option value="proximity">Proximidade</option>
+                        <option value="weight">Peso (maior primeiro)</option>
+                        <option value="name">Nome (A–Z)</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Alerta devoluções quando SEM sessão ativa (mês atual) -->
     <div class="container-mobile mt-3" x-show="!deliverySessionOpen && $data.returnsAlertSafe?.is_above_target" x-cloak>
-        <a href="/mobile/returns" class="flex items-center gap-2 p-3 rounded-xl interactive surface"
-            :style="$data.returnsAlertSafe?.severity === 'high' ? 'background: var(--color-danger-bg); border: 1px solid var(--color-danger);' : 'background: var(--color-warning-bg); border: 1px solid var(--color-warning);'">
-            <i data-lucide="alert-triangle" class="w-4 h-4 flex-shrink-0" :style="$data.returnsAlertSafe?.severity === 'high' ? 'color: var(--color-danger);' : 'color: var(--color-warning);'"></i>
-            <div class="flex-1 min-w-0">
-                <p class="text-caption font-semibold" style="color: var(--color-text);">Devoluções mês atual</p>
-                <p class="text-caption-lg truncate" style="color: var(--color-text-body);" x-text="$data.returnsAlertSummary"></p>
+        <a href="/mobile/returns" class="sys-alert flex items-center gap-3 no-underline"
+            :class="$data.returnsAlertSafe?.severity === 'high' ? 'sys-alert--danger' : 'sys-alert--warn'">
+            <i data-lucide="alert-triangle" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+            <div class="min-w-0 flex-1">
+                <p class="text-sm font-semibold">Devoluções mês atual</p>
+                <p class="employees-text-muted mt-0.5 truncate text-xs" x-text="$data.returnsAlertSummary"></p>
             </div>
-            <span class="text-caption font-semibold" style="color: var(--color-primary);">Ver →</span>
+            <span class="shrink-0 text-xs font-semibold">Ver →</span>
         </a>
     </div>
 
     <!-- Sem sessão: formulário para iniciar ou reabrir (quando há rotas) - oculto para ajudantes -->
     <div class="container-mobile mt-6" x-show="!deliverySessionOpen && visibleDayCards.length > 0 && !isHelperView" x-cloak>
-        <div class="surface-shadow p-4 rounded-xl">
+        <div class="sys-card sys-card--surface sys-card--comfort p-4 sm:p-5">
             <!-- Rota encerrada hoje: opção de reabrir -->
             <div x-show="closedSessionToday" class="mb-6 p-4 rounded-xl border-2" style="background: var(--color-surface-solid); border-color: var(--color-primary);">
                 <p class="text-body font-semibold mb-2" style="color: var(--color-text);">Rota encerrada hoje</p>
@@ -273,20 +352,17 @@
     </div>
 
     <!-- Modal Reabrir Rota (sem x-teleport para evitar erro cloneNode no Alpine) -->
-    <div x-show="showReopenModal" x-cloak x-transition class="fixed inset-0 z-[100001] flex items-end sm:items-center justify-center p-0 sm:p-4"
+    <div x-show="showReopenModal" x-cloak x-transition class="delivery-modal-overlay emp-modal-shell fixed inset-0 z-[100001] flex items-end justify-center p-0 sm:items-center sm:p-4"
         @keydown.escape.window="showReopenModal = false">
-        <div class="absolute inset-0 bg-black/50" @click="showReopenModal = false"></div>
-        <div class="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl p-6 max-h-[85vh] overflow-y-auto surface-shadow" style="background: var(--color-surface);">
-            <h3 class="text-section font-bold mb-3" style="color: var(--color-text);">Reabrir rota</h3>
-            <p class="text-caption mb-4" style="color: var(--color-text-muted);">Informe o motivo da reabertura (obrigatório):</p>
-            <textarea x-model="reopenReason" rows="4" placeholder="Ex.: Esqueci uma entrega, cliente solicitou ajuste..."
-                class="w-full rounded-lg px-3 py-2.5 text-body mb-4"
-                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text); resize: vertical;"></textarea>
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="showReopenModal = false" aria-hidden="true"></div>
+        <div class="delivery-modal-card sys-modal-surface sys-card sys-card--surface relative mt-auto w-full max-w-md rounded-t-2xl p-6 max-h-[85vh] overflow-y-auto sm:mt-0 sm:rounded-2xl">
+            <h3 class="sys-section-heading mb-2 text-lg font-bold">Reabrir rota</h3>
+            <p class="employees-text-muted mb-4 text-sm">Informe o motivo da reabertura (obrigatório):</p>
+            <textarea x-model="reopenReason" rows="4" placeholder="Ex.: Esqueci uma entrega, cliente solicitou ajuste…"
+                class="sys-input mb-4 w-full resize-y rounded-lg px-3 py-2.5 text-sm"></textarea>
             <div class="flex gap-3">
-                <button type="button" @click="showReopenModal = false" class="flex-1 py-3 rounded-lg font-semibold interactive"
-                    style="background: var(--color-border-light); color: var(--color-text);">Cancelar</button>
-                <button type="button" @click="reopenDeliverySession()" class="flex-1 py-3 rounded-lg font-semibold text-white interactive"
-                    style="background: var(--color-primary);">Reabrir</button>
+                <button type="button" @click="showReopenModal = false" class="sys-btn sys-btn--secondary flex-1 justify-center py-3 text-sm font-semibold">Cancelar</button>
+                <button type="button" @click="reopenDeliverySession()" class="sys-btn sys-btn--primary flex-1 justify-center py-3 text-sm font-semibold">Reabrir</button>
             </div>
         </div>
     </div>
@@ -304,20 +380,43 @@
         </div>
     </div>
 
-    <!-- BLOCO B: Entrega em Andamento (glow azul isolado no topo) -->
-    <div class="container-mobile mt-4" x-show="deliverySessionOpen && !!inProgressRoute" x-cloak>
-        <div class="rounded-xl p-4 route-glow-blue" style="background: var(--color-surface);">
-            <div class="flex items-center gap-2 mb-3">
-                <div class="w-2 h-2 rounded-full animate-pulse" style="background: var(--color-primary);"></div>
-                <span class="text-caption font-bold uppercase tracking-wider" style="color: var(--color-primary);">Em Andamento</span>
-                <span class="ml-auto font-mono text-caption" style="color: var(--color-primary);" x-text="timerDisplay"></span>
+    <!-- BLOCO B: Entrega em Andamento -->
+    <div id="delivery-bloco-andamento" class="container-mobile mt-4 scroll-mt-4" x-show="deliverySessionOpen && !!inProgressRoute" x-cloak>
+        <div class="sys-card sys-card--surface overflow-hidden p-0 route-glow-blue">
+            <div class="employees-table-panel__head border-b border-blue-100 bg-blue-50/50 px-4 py-4 dark:border-blue-500/20 dark:bg-blue-950/25">
+                <div class="flex items-center gap-2">
+                    <div class="h-2 w-2 animate-pulse rounded-full bg-blue-600 dark:bg-blue-400"></div>
+                    <p class="employees-table-panel__kicker text-blue-700 dark:text-blue-300">Em andamento</p>
+                    <span class="ml-auto font-mono text-xs font-semibold text-blue-800 tabular-nums dark:text-blue-200" x-text="timerDisplay"></span>
+                </div>
             </div>
+            <div class="p-4">
             <template x-if="inProgressRoute">
                 <div>
                     <div class="flex items-start justify-between gap-2 mb-1">
                         <div class="flex-1 min-w-0">
-                            <p class="text-body-lg font-bold" style="color: var(--color-text);" x-text="inProgressRoute.client_name"></p>
-                            <p class="text-caption mt-0.5" x-text="`Cod ${inProgressRoute.client_code || '-'} • Pedido ${inProgressRoute.order_number || '-'}`"></p>
+                            <p class="text-body-lg font-bold mb-0" style="color: var(--color-text);">
+                                <a x-show="inProgressRoute.client_phone_wa"
+                                   :href="deliveryClientWhatsAppHref(inProgressRoute)"
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="inline-block underline decoration-2 underline-offset-2 hover:opacity-90"
+                                   style="color: var(--color-primary);"
+                                   x-text="inProgressRoute.client_name"></a>
+                                <span x-show="!inProgressRoute.client_phone_wa" x-text="inProgressRoute.client_name"></span>
+                            </p>
+                            <p class="text-caption mt-0.5 leading-snug" style="color: var(--color-text-body);">
+                                <span x-text="`Cod ${inProgressRoute.client_code || '-'} • Pedido ${inProgressRoute.order_number || '-'}`"></span>
+                                <span x-show="deliverySellerInline(inProgressRoute)">
+                                    <span> · </span>
+                                    <a x-show="inProgressRoute.seller_phone_wa"
+                                       :href="deliverySellerWhatsAppHref(inProgressRoute)"
+                                       target="_blank" rel="noopener noreferrer"
+                                       class="font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
+                                       style="color: var(--color-primary);"
+                                       x-text="deliverySellerInline(inProgressRoute)"></a>
+                                    <span x-show="!inProgressRoute.seller_phone_wa" class="font-semibold" style="color: var(--color-text);" x-text="deliverySellerInline(inProgressRoute)"></span>
+                                </span>
+                            </p>
                         </div>
                         <a :href="inProgressRoute.maps_url" target="_blank" class="touch-target-icon flex items-center justify-center rounded-lg interactive" style="background: var(--color-primary-bg); color: var(--color-primary);">
                             <i data-lucide="map-pin" class="w-4 h-4"></i>
@@ -346,34 +445,43 @@
                     </div>
                 </div>
             </template>
+            </div>
         </div>
     </div>
 
-    <!-- BLOCO C: Próximas Entregas -->
-    <div class="container-mobile mt-4" x-show="deliverySessionOpen && nextDeliveryRoutes.length > 0" x-cloak>
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-            <h2 class="text-section font-bold" style="color: var(--color-text);">Próximas Entregas</h2>
-            <div class="flex items-center gap-2 flex-wrap">
-                <span class="text-caption px-2 py-1 rounded" style="background: var(--color-border-light); color: var(--color-text-secondary);" x-text="nextDeliveryRoutes.length + ' paradas'"></span>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-caption" style="color: var(--color-text-muted);">Ordenar:</span>
-                    <select x-model="deliverySortOrder" @change="$nextTick(() => lucide.createIcons())"
-                        class="text-caption px-2.5 py-1.5 rounded-lg font-medium min-h-[36px] border-0 cursor-pointer"
-                        style="background: rgba(6,182,212,0.15); color: #06b6d4;">
-                        <option value="proximity">Proximidade</option>
-                        <option value="weight">Peso (maior primeiro)</option>
-                        <option value="name">Nome (A–Z)</option>
-                    </select>
-                </div>
+    <!-- BLOCO C: Próximas Entregas (painel principal estilo employees-table-panel) -->
+    <div id="delivery-workspace-panel" class="container-mobile mt-4 scroll-mt-4" x-show="deliverySessionOpen && nextDeliveryRoutes.length > 0" x-cloak>
+        <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+            <div class="employees-table-panel__head flex flex-row items-center justify-end border-b px-3 py-2 sm:px-4">
+                <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-100" x-text="nextDeliveryRoutes.length + ' na fila'"></span>
             </div>
-        </div>
-        <div class="space-y-2">
+            <div class="space-y-2 p-3 sm:p-4">
             <template x-for="(route, idx) in nextDeliveryRoutes" :key="`route-${route.id}`">
-                <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
+                <div class="delivery-route-card surface-shadow p-3" :class="routeStatusCardClass(route)">
                     <div class="flex items-start justify-between gap-2 mb-1">
                         <div class="flex-1 min-w-0">
-                            <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
-                            <p class="text-caption" x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></p>
+                            <p class="text-body font-semibold truncate mb-0" style="color: var(--color-text);">
+                                <a x-show="route.client_phone_wa"
+                                   :href="deliveryClientWhatsAppHref(route)"
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="underline decoration-2 underline-offset-2 hover:opacity-90"
+                                   style="color: var(--color-primary);"
+                                   x-text="route.client_name"></a>
+                                <span x-show="!route.client_phone_wa" x-text="route.client_name"></span>
+                            </p>
+                            <p class="text-caption mt-0.5 leading-snug" style="color: var(--color-text-body);">
+                                <span x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></span>
+                                <span x-show="deliverySellerInline(route)">
+                                    <span> · </span>
+                                    <a x-show="route.seller_phone_wa"
+                                       :href="deliverySellerWhatsAppHref(route)"
+                                       target="_blank" rel="noopener noreferrer"
+                                       class="font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
+                                       style="color: var(--color-primary);"
+                                       x-text="deliverySellerInline(route)"></a>
+                                    <span x-show="!route.seller_phone_wa" class="font-semibold" style="color: var(--color-text);" x-text="deliverySellerInline(route)"></span>
+                                </span>
+                            </p>
                         </div>
                         <a :href="route.maps_url" target="_blank" class="touch-target-icon flex items-center justify-center rounded-lg interactive" style="color: var(--color-primary);">
                             <i data-lucide="map-pin" class="w-4 h-4"></i>
@@ -410,6 +518,7 @@
                     <p x-show="!!inProgressRoute" class="text-center text-caption mt-1" style="color: var(--color-text-muted);">Finalize a entrega em andamento primeiro</p>
                 </div>
             </template>
+            </div>
         </div>
     </div>
 
@@ -423,25 +532,46 @@
     </div>
 
     <!-- BLOCO D: Entregues (accordion, fechado por padrão) -->
-    <div class="container-mobile mt-4" x-show="deliverySessionOpen && deliveredRoutes.length > 0" x-cloak>
-        <button @click="$data.deliveredAccordionOpen = !$data.deliveredAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-success-bg); color: var(--color-success);">
-            <span class="font-semibold text-body flex items-center gap-2">
-                <i data-lucide="check-circle" class="w-4 h-4"></i>
+    <div id="delivery-section-delivered" class="container-mobile mt-4 scroll-mt-4" x-show="deliverySessionOpen && deliveredRoutes.length > 0" x-cloak>
+        <div class="sys-card sys-card--surface overflow-hidden p-0">
+        <button type="button" @click="$data.deliveredAccordionOpen = !$data.deliveredAccordionOpen" class="flex w-full items-center justify-between border-b border-emerald-100 bg-emerald-50/70 px-4 py-3 text-left text-emerald-900 transition-colors hover:bg-emerald-50 dark:border-emerald-500/20 dark:bg-emerald-950/30 dark:text-emerald-50">
+            <span class="flex items-center gap-2 text-sm font-semibold sm:text-base">
+                <i data-lucide="check-circle" class="h-4 w-4 shrink-0"></i>
                 Entregues (<span x-text="deliveredRoutes.length"></span>)
-                <span class="text-caption font-normal" x-show="deliveredRoutes.length > 0">
+                <span class="text-xs font-normal opacity-90" x-show="deliveredRoutes.length > 0">
                     · <span x-text="formatNumberBR(deliveredTotalKg)"></span> kg
                     · <span x-text="formatCurrencyBR(deliveredTotalValue)"></span>
                 </span>
             </span>
-            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="$data.deliveredAccordionOpen && 'rotate-180'"></i>
+            <i data-lucide="chevron-down" class="h-4 w-4 shrink-0 text-emerald-800 transition-transform dark:text-emerald-200" :class="$data.deliveredAccordionOpen && 'rotate-180'"></i>
         </button>
-        <div x-show="$data.deliveredAccordionOpen" x-transition class="space-y-2 mt-2">
+        <div x-show="$data.deliveredAccordionOpen" x-transition class="space-y-2 p-3 sm:p-4">
             <template x-for="route in deliveredRoutes" :key="`delivered-${route.id}`">
-                <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
+                <div class="delivery-route-card surface-shadow p-3" :class="routeStatusCardClass(route)">
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 min-w-0">
-                            <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
-                            <p class="text-caption" x-text="`Cod ${route.client_code || '-'}`"></p>
+                            <p class="text-body font-semibold truncate mb-0" style="color: var(--color-text);">
+                                <a x-show="route.client_phone_wa"
+                                   :href="deliveryClientWhatsAppHref(route)"
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="underline decoration-2 underline-offset-2 hover:opacity-90"
+                                   style="color: var(--color-primary);"
+                                   x-text="route.client_name"></a>
+                                <span x-show="!route.client_phone_wa" x-text="route.client_name"></span>
+                            </p>
+                            <p class="text-caption mt-0.5 leading-snug" style="color: var(--color-text-body);">
+                                <span x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></span>
+                                <span x-show="deliverySellerInline(route)">
+                                    <span> · </span>
+                                    <a x-show="route.seller_phone_wa"
+                                       :href="deliverySellerWhatsAppHref(route)"
+                                       target="_blank" rel="noopener noreferrer"
+                                       class="font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
+                                       style="color: var(--color-primary);"
+                                       x-text="deliverySellerInline(route)"></a>
+                                    <span x-show="!route.seller_phone_wa" class="font-semibold" style="color: var(--color-text);" x-text="deliverySellerInline(route)"></span>
+                                </span>
+                            </p>
                         </div>
                         <span class="chip" style="background: var(--color-success-bg); color: var(--color-success);">Entregue</span>
                     </div>
@@ -455,27 +585,49 @@
                 </div>
             </template>
         </div>
+        </div>
     </div>
 
     <!-- BLOCO E: Devoluções (accordion, fechado por padrão, separado dos entregues) -->
-    <div class="container-mobile mt-4" x-show="deliverySessionOpen && returnedRoutes.length > 0" x-cloak>
-        <button @click="$data.returnedAccordionOpen = !$data.returnedAccordionOpen" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg interactive" style="background: var(--color-warning-bg); color: var(--color-warning);">
-            <span class="font-semibold text-body flex items-center gap-2">
-                <i data-lucide="package-x" class="w-4 h-4"></i>
+    <div id="delivery-section-returned" class="container-mobile mt-4 scroll-mt-4" x-show="deliverySessionOpen && returnedRoutes.length > 0" x-cloak>
+        <div class="sys-card sys-card--surface overflow-hidden p-0">
+        <button type="button" @click="$data.returnedAccordionOpen = !$data.returnedAccordionOpen" class="flex w-full items-center justify-between border-b border-amber-100 bg-amber-50/80 px-4 py-3 text-left text-amber-950 transition-colors hover:bg-amber-50 dark:border-amber-500/25 dark:bg-amber-950/35 dark:text-amber-50">
+            <span class="flex items-center gap-2 text-sm font-semibold sm:text-base">
+                <i data-lucide="package-x" class="h-4 w-4 shrink-0"></i>
                 Devoluções (<span x-text="returnedRoutes.length"></span>)
-                <span class="text-caption font-normal" x-show="returnedRoutes.length > 0">
+                <span class="text-xs font-normal opacity-90" x-show="returnedRoutes.length > 0">
                     · <span x-text="formatCurrencyBR(returnedTotalValue)"></span>
                 </span>
             </span>
-            <i data-lucide="chevron-down" class="w-4 h-4 transition-transform" :class="$data.returnedAccordionOpen && 'rotate-180'"></i>
+            <i data-lucide="chevron-down" class="h-4 w-4 shrink-0 text-amber-900 transition-transform dark:text-amber-200" :class="$data.returnedAccordionOpen && 'rotate-180'"></i>
         </button>
-        <div x-show="$data.returnedAccordionOpen" x-transition class="space-y-2 mt-2">
+        <div x-show="$data.returnedAccordionOpen" x-transition class="space-y-2 p-3 sm:p-4">
             <template x-for="route in returnedRoutes" :key="`returned-${route.id}`">
-                <div class="surface-shadow p-3 rounded-lg" :class="routeStatusCardClass(route)">
+                <div class="delivery-route-card surface-shadow p-3" :class="routeStatusCardClass(route)">
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 min-w-0">
-                            <p class="text-body font-semibold truncate" style="color: var(--color-text);" x-text="route.client_name"></p>
-                            <p class="text-caption" x-text="`Cod ${route.client_code || '-'}`"></p>
+                            <p class="text-body font-semibold truncate mb-0" style="color: var(--color-text);">
+                                <a x-show="route.client_phone_wa"
+                                   :href="deliveryClientWhatsAppHref(route)"
+                                   target="_blank" rel="noopener noreferrer"
+                                   class="underline decoration-2 underline-offset-2 hover:opacity-90"
+                                   style="color: var(--color-primary);"
+                                   x-text="route.client_name"></a>
+                                <span x-show="!route.client_phone_wa" x-text="route.client_name"></span>
+                            </p>
+                            <p class="text-caption mt-0.5 leading-snug" style="color: var(--color-text-body);">
+                                <span x-text="`Cod ${route.client_code || '-'} • Pedido ${route.order_number || '-'}`"></span>
+                                <span x-show="deliverySellerInline(route)">
+                                    <span> · </span>
+                                    <a x-show="route.seller_phone_wa"
+                                       :href="deliverySellerWhatsAppHref(route)"
+                                       target="_blank" rel="noopener noreferrer"
+                                       class="font-semibold underline decoration-dotted underline-offset-2 hover:opacity-90"
+                                       style="color: var(--color-primary);"
+                                       x-text="deliverySellerInline(route)"></a>
+                                    <span x-show="!route.seller_phone_wa" class="font-semibold" style="color: var(--color-text);" x-text="deliverySellerInline(route)"></span>
+                                </span>
+                            </p>
                         </div>
                         <span class="chip" style="background: var(--color-warning-bg); color: var(--color-warning);">Devolução</span>
                     </div>
@@ -488,6 +640,7 @@
                     </button>
                 </div>
             </template>
+        </div>
         </div>
     </div>
 
@@ -515,18 +668,17 @@
 
     <!-- Modal: Encerrar (teleport para ficar acima do botão Encerrar Rota) -->
     <template x-teleport="body">
-    <div x-show="showDeliveryEndModal" class="delivery-modal-overlay" x-cloak @click.self="showDeliveryEndModal=false">
-        <div @click.stop class="delivery-modal-card w-full max-w-md rounded-lg p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
+    <div x-show="showDeliveryEndModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="showDeliveryEndModal=false">
+        <div @click.stop class="delivery-modal-card sys-modal-surface sys-card sys-card--surface w-full max-w-md rounded-xl p-5 shadow-lg">
             <div class="mb-4">
-                <h3 class="text-title" style="color: var(--color-text);">Encerrar na Empresa</h3>
-                <p class="text-caption-lg mt-0.5">KM de chegada obrigatório</p>
+                <h3 class="sys-section-heading text-lg font-bold text-slate-900 dark:text-white">Encerrar na empresa</h3>
+                <p class="employees-text-muted mt-1 text-sm">KM de chegada obrigatório</p>
             </div>
             <input type="number" step="0.1" min="0" inputmode="decimal" x-model="deliveryEndKm" placeholder="Ex.: 125630,2"
-                class="w-full rounded-lg px-4 py-3 border-2 text-body mb-4 focus:outline-none focus:ring-2"
-                style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text);">
+                class="sys-input mb-4 w-full rounded-lg px-4 py-3 text-sm">
             <div class="flex gap-3">
-                <button @click="showDeliveryEndModal=false" class="flex-1 py-3 rounded-lg font-semibold text-body min-h-[56px]" style="background: var(--color-surface); border: 2px solid var(--color-border); color: var(--color-text);">Cancelar</button>
-                <button @click="endDeliverySession()" :disabled="actionLoading" class="flex-1 py-3 rounded-lg font-semibold text-body text-white min-h-[56px] interactive" style="background: var(--color-success);">
+                <button type="button" @click="showDeliveryEndModal=false" class="sys-btn sys-btn--secondary flex-1 justify-center py-3 text-sm font-semibold min-h-[56px]">Cancelar</button>
+                <button type="button" @click="endDeliverySession()" :disabled="actionLoading" class="sys-btn sys-btn--success flex-1 justify-center py-3 text-sm font-semibold min-h-[56px]">
                     <span x-text="actionLoading ? 'Aguarde...' : 'Encerrar'"></span>
                 </button>
             </div>
@@ -536,9 +688,9 @@
 
     <!-- Modal: Devolução (teleport para ficar acima do botão Encerrar Rota) -->
     <template x-teleport="body">
-    <div x-show="showMobileReturnModal" class="delivery-modal-overlay" x-cloak @click.self="showMobileReturnModal=false">
-        <div @click.stop class="delivery-modal-card w-full max-w-lg rounded-lg p-4 space-y-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
-            <h3 class="text-title" style="color: var(--color-text);">Registrar Devolução</h3>
+    <div x-show="showMobileReturnModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="showMobileReturnModal=false">
+        <div @click.stop class="delivery-modal-card sys-modal-surface sys-card sys-card--surface w-full max-w-lg space-y-4 rounded-xl p-4 shadow-lg sm:p-5">
+            <h3 class="sys-section-heading text-lg font-bold text-slate-900 dark:text-white">Registrar devolução</h3>
             <div>
                 <label class="text-section block mb-2" style="color: var(--color-text);">Motivo</label>
                 <select x-model="mobileReturn.reason" class="w-full rounded-lg px-4 py-3 border-2 text-body focus:outline-none focus:ring-2"
@@ -654,10 +806,10 @@
 
     <!-- Modal: Editar sessão (ajudantes e KM) - teleport para ficar acima do header e botão Encerrar -->
     <template x-teleport="body">
-    <div x-show="showSessionEditModal" class="delivery-modal-overlay" x-cloak @click.self="showSessionEditModal=false">
-        <div @click.stop class="delivery-modal-card w-full max-w-md rounded-xl p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
-            <h3 class="text-title mb-3" style="color: var(--color-text);">Editar rota</h3>
-            <p class="text-caption mb-4" style="color: var(--color-text-muted);">Altere ajudantes ou KM de saída.</p>
+    <div x-show="showSessionEditModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="showSessionEditModal=false">
+        <div @click.stop class="delivery-modal-card sys-modal-surface sys-card sys-card--surface w-full max-w-md rounded-xl p-4 shadow-lg sm:p-5">
+            <h3 class="sys-section-heading mb-2 text-lg font-bold text-slate-900 dark:text-white">Editar rota</h3>
+            <p class="employees-text-muted mb-4 text-sm">Altere ajudantes ou KM de saída.</p>
             <div class="space-y-3 mb-4">
                 <div>
                     <label class="block text-caption mb-1" style="color: var(--color-text-muted);">KM de saída</label>
@@ -707,7 +859,7 @@
 
     <!-- Modal: Comunicado de devolução -->
     <template x-teleport="body">
-    <div x-show="showReturnNoticeModal" class="delivery-modal-overlay" x-cloak @click.self="closeReturnNotice()">
+    <div x-show="showReturnNoticeModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="closeReturnNotice()">
         <div @click.stop class="delivery-modal-card w-full max-w-sm rounded-2xl p-5" style="background: linear-gradient(180deg, rgba(127, 29, 29, 0.98) 0%, rgba(69, 10, 10, 0.98) 100%); box-shadow: var(--shadow-modal); border: 1px solid rgba(248, 113, 113, 0.45);">
             <div class="flex flex-col items-center text-center">
                 <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style="background: rgba(255,255,255,0.12); color: #fecaca;">
@@ -725,10 +877,10 @@
 
     <!-- Modal: solicitar autorização (fora de 300 m) -->
     <template x-teleport="body">
-    <div x-show="showDeliveryAuthModal" class="delivery-modal-overlay" x-cloak @click.self="closeDeliveryAuthModal()">
-        <div @click.stop class="delivery-modal-card w-full max-w-md rounded-xl p-4" style="background: var(--color-surface); box-shadow: var(--shadow-modal);">
-            <h3 class="text-title font-bold mb-1" style="color: var(--color-text);">Fora do raio permitido</h3>
-            <p class="text-caption-lg mb-3" style="color: var(--color-text-muted);">
+    <div x-show="showDeliveryAuthModal" class="delivery-modal-overlay emp-modal-shell" x-cloak @click.self="closeDeliveryAuthModal()">
+        <div @click.stop class="delivery-modal-card sys-modal-surface sys-card sys-card--surface w-full max-w-md rounded-xl p-4 shadow-lg sm:p-5">
+            <h3 class="sys-section-heading mb-1 text-lg font-bold text-slate-900 dark:text-white">Fora do raio permitido</h3>
+            <p class="employees-text-muted mb-3 text-sm leading-relaxed">
                 Você está a <strong style="color: var(--color-warning);" x-text="deliveryAuthRoute ? formatarDistancia(deliveryAuthRoute.distancia_metros) : '—'"></strong> do cliente. É necessário estar a até 300 m (ou obter autorização do supervisor).
             </p>
             <label class="block text-caption font-semibold mb-1" style="color: var(--color-text-secondary);">Motivo da solicitação</label>
@@ -749,15 +901,30 @@
     </div>
     </template>
 </div>
+{% if has_delivery_driver_access|default(false) %}
 {% set guide_context = 'delivery' %}
 {% set guide_auto_open = false %}
 {% include 'mobile/_driver_guide.html' %}
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <style>
-    .delivery-page-layout { width: 100%; max-width: 100vw; overflow-x: hidden; }
-    .delivery-content { width: 100%; }
+    .delivery-page-layout {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: clip;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .delivery-content {
+        width: 100%;
+        max-width: 28rem;
+        margin-left: auto;
+        margin-right: auto;
+        padding-bottom: max(4.5rem, env(safe-area-inset-bottom, 0px));
+        box-sizing: border-box;
+    }
     .delivery-modal-overlay {
         position: fixed !important;
         inset: 0 !important;
@@ -809,7 +976,7 @@
     }
 </style>
 <script id="delivery-page-data" type="application/json">
-{"employees": {{ employees_json | safe }}, "returnsAlert": {{ returns_alert_json | safe }}, "driverName": {{ employee.name | tojson }}}
+{"employees": {{ employees_json | safe }}, "returnsAlert": {{ returns_alert_json | safe }}, "driverName": {{ employee.name | tojson }}, "employeeId": {{ employee.id }}}
 </script>
 <script>
     function deliveryPageController() {
@@ -817,6 +984,7 @@
         return {
             employees: Array.isArray(payload.employees) ? payload.employees : [],
             returnsAlert: payload.returnsAlert || {},
+            employeeId: Number(payload.employeeId) || 0,
             deliveryDataLoading: true,
             deliveryLoadError: '',
             sessionApiDate: null,
@@ -877,6 +1045,8 @@
             _prevLatForReorder: null,
             _prevLonForReorder: null,
             _gpsWatchId: null,
+            _locationPingTimer: null,
+            _lastLocationPushAt: 0,
             minDistanceToReorder: 100,  // metros
             showDeliveryAuthModal: false,
             deliveryAuthRoute: null,
@@ -907,7 +1077,7 @@
                 const q = (this.deliverySearch || '').trim().toLowerCase();
                 if (!q) return list;
                 return list.filter(r => {
-                    const text = [r.client_name, r.client_code, r.order_number, r.address, r.city, r.state, r.status].map(v => (v ?? '').toString().toLowerCase()).join(' ');
+                    const text = [r.client_name, r.client_code, r.order_number, r.address, r.city, r.state, r.status, r.seller_name, r.seller_code].map(v => (v ?? '').toString().toLowerCase()).join(' ');
                     return text.includes(q);
                 });
             },
@@ -974,6 +1144,11 @@
                     return !!(open && sess && c.date === sess);
                 });
             },
+            get sessionHelpersAbbreviated() {
+                const list = this.sessionHelpers || [];
+                if (!list.length) return '—';
+                return list.map((h) => this.abbreviatePersonName(String(h || '').trim())).filter(Boolean).join(', ');
+            },
             get dayStats() {
                 const rows = (this.deliveryRoutes || []).filter(r => r.date === this.selectedDeliveryDay);
                 const totalStops = rows.length;
@@ -1023,35 +1198,39 @@
                 window.addEventListener('beforeunload', () => {
                     if (this.timerInterval) clearInterval(this.timerInterval);
                     if (this._gpsWatchId !== null) navigator.geolocation.clearWatch(this._gpsWatchId);
+                    this.stopLocationPingToServer();
                 }, { once: true });
-                // Inicia GPS ao carregar (para usuário autorizar) e quando sessão abrir
-                this.$watch('deliverySessionOpen', (val) => { if (val) this.iniciarMonitoramentoGPS(); });
+                this.$watch('deliverySessionOpen', (val) => {
+                    this.syncLocationPing();
+                    if (val) this.iniciarMonitoramentoGPS();
+                });
+                this.$watch('isHelperView', () => this.syncLocationPing());
+                this.$watch('assignedPlate', () => this.syncLocationPing());
                 if (this.deliverySessionOpen) this.iniciarMonitoramentoGPS();
-                else setTimeout(() => this.iniciarMonitoramentoGPS(), 500); // Pré-autoriza GPS mesmo sem sessão
+                else setTimeout(() => this.iniciarMonitoramentoGPS(), 500);
             },
             iniciarMonitoramentoGPS() {
                 if (!('geolocation' in navigator)) {
                     this.locationPermission = 'unavailable';
                     return;
                 }
-                if (this.locationLoading || this.locationPermission === 'granted') return;
+                if (this._gpsWatchId === null) {
+                    this._gpsWatchId = navigator.geolocation.watchPosition(
+                        (pos) => this.onPosicaoAtualizada(pos),
+                        (err) => this.onErroGPS(err),
+                        { enableHighAccuracy: true, timeout: 30000, maximumAge: 45000 }
+                    );
+                }
+                if (this.locationPermission === 'granted') return;
+                if (this.locationLoading) return;
                 this.locationLoading = true;
                 this.locationError = null;
                 const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 };
-                // Obtém posição inicial
                 navigator.geolocation.getCurrentPosition(
                     (pos) => { this.onPosicaoAtualizada(pos); this.locationLoading = false; },
                     (err) => { this.onErroGPS(err); this.locationLoading = false; },
                     options
                 );
-                // Monitora posição contínua
-                if (this._gpsWatchId === null) {
-                    this._gpsWatchId = navigator.geolocation.watchPosition(
-                        (pos) => this.onPosicaoAtualizada(pos),
-                        (err) => this.onErroGPS(err),
-                        { enableHighAccuracy: true, timeout: 30000, maximumAge: 60000 }
-                    );
-                }
             },
             onPosicaoAtualizada(position) {
                 const lat = position.coords.latitude;
@@ -1065,6 +1244,52 @@
                 }
                 this.currentLatitude = lat;
                 this.currentLongitude = lon;
+                this.syncLocationPing();
+                const now = Date.now();
+                const plateOk = (this.assignedPlate || '').replace(/[\s-]/g, '').length >= 7;
+                if (
+                    this.deliverySessionOpen && !this.isHelperView && plateOk
+                    && this.locationPermission === 'granted'
+                    && now - this._lastLocationPushAt > 25000
+                ) {
+                    this._lastLocationPushAt = now;
+                    this.pushDriverLocationToServer();
+                }
+            },
+            syncLocationPing() {
+                const plateOk = (this.assignedPlate || '').replace(/[\s-]/g, '').length >= 7;
+                if (this.deliverySessionOpen && !this.isHelperView && plateOk) {
+                    this.startLocationPingToServer();
+                } else {
+                    this.stopLocationPingToServer();
+                }
+            },
+            startLocationPingToServer() {
+                this.stopLocationPingToServer();
+                this._locationPingTimer = setInterval(() => this.pushDriverLocationToServer(), 30000);
+                this.pushDriverLocationToServer();
+            },
+            stopLocationPingToServer() {
+                if (this._locationPingTimer) {
+                    clearInterval(this._locationPingTimer);
+                    this._locationPingTimer = null;
+                }
+            },
+            pushDriverLocationToServer() {
+                if (this.currentLatitude == null || this.currentLongitude == null) return;
+                const plate = (this.assignedPlate || '').trim();
+                if (!plate) return;
+                fetch('/api/mobile/delivery/location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        latitude: this.currentLatitude,
+                        longitude: this.currentLongitude,
+                        vehicle_plate: plate,
+                    }),
+                    keepalive: true,
+                    credentials: 'same-origin',
+                }).catch(() => {});
             },
             onErroGPS(error) {
                 const PERMISSION_DENIED = 1;
@@ -1086,7 +1311,6 @@
                 return dist >= this.minDistanceToReorder;
             },
             calcularDistancia(lat1, lon1, lat2, lon2) {
-                // Fórmula Haversine
                 const R = 6371000;
                 const phi1 = lat1 * Math.PI / 180;
                 const phi2 = lat2 * Math.PI / 180;
@@ -1125,6 +1349,70 @@
             statusLabel(s) { const m = { pendente: 'Pendente', iniciada: 'Iniciada', reaberta: 'Reaberta', entregue: 'Entregue', devolucao: 'Devolução' }; return m[s] || s; },
             formatNumberBR(v) { return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(v || 0)); },
             formatCurrencyBR(v) { return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0)); },
+            deliveryClientWhatsAppMessage() {
+                return '\u{1F69A} Souza Pinto Distribuidora\n\nOlá! Estou passando para avisar que você é o próximo destino da minha rota.\nJá estou a caminho e em breve estarei no seu local para realizar a entrega.\n\nSe tiver alguma dúvida ou caso não haja ninguém para receber, por favor entre em contato.';
+            },
+            deliveryClientWhatsAppHref(route) {
+                const d = route && route.client_phone_wa;
+                if (!d) return '#';
+                return `https://wa.me/${d}?text=${encodeURIComponent(this.deliveryClientWhatsAppMessage())}`;
+            },
+            deliverySellerWhatsAppMessage(route) {
+                const name = (route && route.client_name) || 'Cliente';
+                const cod = (route && route.client_code) || '-';
+                const ped = (route && route.order_number) || '-';
+                return `\u{1F69A} Souza Pinto Distribuidora\n\nOlá! Estou em rota de entrega.\nCliente: ${name}\nCód. ${cod} • Pedido ${ped}\n\nPreciso falar com você sobre esta parada.`;
+            },
+            deliverySellerWhatsAppHref(route) {
+                const d = route && route.seller_phone_wa;
+                if (!d) return '#';
+                return `https://wa.me/${d}?text=${encodeURIComponent(this.deliverySellerWhatsAppMessage(route))}`;
+            },
+            /** Ex.: "FELIPE RODRIGUES" → "Felipe R."; uma palavra → só capitalizado. */
+            abbreviatePersonName(raw) {
+                const s = String(raw || '').trim().replace(/\s+/g, ' ');
+                if (!s) return '';
+                const parts = s.split(' ');
+                const firstRaw = (parts[0] || '').trim();
+                if (!firstRaw) return '';
+                let first;
+                try {
+                    first = firstRaw.charAt(0).toLocaleUpperCase('pt-BR') + firstRaw.slice(1).toLocaleLowerCase('pt-BR');
+                } catch {
+                    first = firstRaw.charAt(0).toUpperCase() + firstRaw.slice(1).toLowerCase();
+                }
+                if (parts.length < 2) return first;
+                const lastWord = (parts[parts.length - 1] || '').trim();
+                const li = lastWord ? lastWord.charAt(0).toUpperCase() : '';
+                return li ? `${first} ${li}.` : first;
+            },
+            /** Primeiro nome do vendedor (mesma origem que /clients/:id — Employee ligado ao cliente). */
+            deliverySellerFirstName(route) {
+                const n = ((route && route.seller_name) || '').trim();
+                if (!n) return '';
+                const raw = (n.split(/\s+/)[0] || '').trim();
+                if (!raw) return '';
+                try {
+                    return raw.charAt(0).toLocaleUpperCase('pt-BR') + raw.slice(1).toLocaleLowerCase('pt-BR');
+                } catch {
+                    return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+                }
+            },
+            deliverySellerLabel(route) {
+                const first = this.deliverySellerFirstName(route);
+                const c = String((route && route.seller_code) || '').trim();
+                if (!first) return '';
+                return c ? `${first} (${c})` : first;
+            },
+            /** Nome abreviado + código (cards de rota, mobile). */
+            deliverySellerInline(route) {
+                const nameRaw = ((route && route.seller_name) || '').trim();
+                const name = nameRaw ? this.abbreviatePersonName(nameRaw) : '';
+                const c = String((route && route.seller_code) || '').trim();
+                if (!name && !c) return '';
+                if (name && c) return `${name} · ${c}`;
+                return name || c;
+            },
             formatPercent(v) { return this.formatNumberBR(Number(v || 0)) + '%'; },
             formatDateBR(v) { if (!v) return ''; const p = v.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : v; },
             formatTimer(st) {
@@ -1295,6 +1583,7 @@
                             console.warn('[NL delivery] API em modo fallback (rotas do dia simplificadas).');
                         }
                         this.$nextTick(() => lucide.createIcons());
+                        this.syncLocationPing();
                     })
                     .catch((err) => {
                         this.deliveryDataLoading = false;

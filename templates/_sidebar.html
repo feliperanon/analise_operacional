@@ -17,13 +17,13 @@
        x-transition:leave="transition ease-in duration-200"
        x-transition:leave-start="translate-x-0"
        x-transition:leave-end="-translate-x-full"
-       class="fixed inset-y-0 left-0 z-50 w-80 bg-slate-900 border-r border-slate-800 flex flex-col print-hidden">
+       class="sidebar-drawer-panel fixed inset-y-0 left-0 z-50 w-80 flex flex-col print-hidden border-r border-slate-800 bg-slate-900">
     
     <!-- Header -->
-    <div class="p-5 flex items-center justify-between border-b border-slate-800">
-        <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+    <div class="sidebar-drawer__header p-5 flex items-center justify-between border-b border-slate-800">
+        <h1 class="sidebar-drawer__brand text-xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
             Op. Inteligente</h1>
-        <button @click="sidebarOpen = false" class="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
+        <button type="button" @click="sidebarOpen = false" class="sidebar-drawer__close p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -31,7 +31,7 @@
     </div>
     
     <!-- Clock & Shift Indicator -->
-    <div class="sidebar-clock-strip px-4 py-3 border-b border-slate-800 bg-slate-800/30">
+    <div class="sidebar-clock-strip sidebar-drawer__clock px-4 py-3 border-b border-slate-800 bg-slate-800/30">
         <div class="flex items-center gap-3">
             <!-- Clock -->
             <div class="flex-1">
@@ -62,7 +62,7 @@
     </div>
 
     <!-- Navegação com Categorias Colapsáveis -->
-    <nav class="flex-1 px-3 py-4 overflow-y-auto custom-scrollbar space-y-1" @click="if($event.target.closest('a:not(.menu-toggle)')) sidebarOpen = false">
+    <nav class="sidebar-drawer__nav flex-1 px-3 py-4 overflow-y-auto custom-scrollbar space-y-1" @click="if($event.target.closest('a:not(.menu-toggle)')) sidebarOpen = false">
         {% set user_role = request.session.get("auth_user_role", "") %}
         {% set allowed_pages = request.session.get("allowed_pages", []) %}
         
@@ -109,9 +109,9 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     <span class="text-sm">Checklists em dia</span>
                 </a>
-                <a href="/lider/rotas" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-                    <span class="text-sm">Rotas e velocidade</span>
+                <a href="/lider/rotas/relatorio" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span class="text-sm">Relatório de rotas</span>
                 </a>
                 <a href="/admin/delivery-auth-requests" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -136,10 +136,6 @@
                 </svg>
             </button>
             <div x-show="openMenus.gerente" class="ml-4 mt-1 space-y-1 border-l border-amber-500/30 pl-4">
-                <a href="/gm/ordens-servico" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                    <span class="text-sm">Ordens de Serviço</span>
-                </a>
                 <a href="/gm/ordens-servico/kpis" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                     <span class="text-sm">KPIs dos Líderes</span>
@@ -151,10 +147,6 @@
                 <a href="/gm/mapa-realtime" class="flex items-center gap-3 px-3 py-2.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     <span class="text-sm font-bold">Mapa Real-time</span>
-                </a>
-                <a href="/gm/ordens-servico/historico" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span class="text-sm">Histórico Ordens</span>
                 </a>
                 <a href="/devolucoes/avaliar" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
@@ -198,10 +190,6 @@
                 <a href="/portaria" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                     <span class="text-sm">Portaria</span>
-                </a>
-                <a href="/operational/history" class="flex items-center gap-3 px-3 py-2.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span class="text-sm">Histórico Operacional</span>
                 </a>
             </div>
         </div>
@@ -454,7 +442,7 @@
     </nav>
 
     <!-- Footer com Usuário e Logout -->
-    <div class="sidebar-footer-strip p-4 border-t border-slate-800 shrink-0 bg-slate-900 mt-auto">
+    <div class="sidebar-footer-strip sidebar-drawer__footer p-4 border-t border-slate-800 shrink-0 bg-slate-900 mt-auto">
         <div class="flex items-center gap-3 px-2 py-2">
             {% set user_email = request.session.get("auth_user_email", "") %}
             {% set user_role = request.session.get("auth_user_role", "Admin") %}

@@ -3,166 +3,123 @@
 {% block title %}Portaria{% endblock %}
 
 {% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415r">
 <style>
-    .portaria-card {
-        transition: opacity 0.2s;
-    }
-    .portaria-card.confirming {
-        opacity: 0.7;
-        pointer-events: none;
-    }
+    .portaria-card.confirming { opacity: 0.7; pointer-events: none; }
     .portaria-km-input {
-        font-size: 1.125rem;
-        font-weight: 600;
-        font-family: var(--font-mono);
-        text-align: center;
-        padding: 0.75rem 1rem;
-        border-radius: var(--radius-lg);
-        border: 2px solid var(--color-border);
-        background: var(--color-surface-solid);
-        color: var(--color-text);
-        width: 100%;
-        -webkit-appearance: none;
+        width: 8.5rem; text-align: center; border-radius: 0.75rem; border: 1px solid var(--color-border);
+        background: var(--color-surface-solid); color: var(--color-text); padding: 0.45rem 0.65rem;
+        font-size: 0.9rem; font-weight: 600; font-family: var(--font-mono);
     }
-    .portaria-km-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
+    .portaria-km-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-bg); }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen pb-safe">
-    <header class="py-3 mobile-header-op pt-safe">
-        <div class="container-mobile">
-            <div class="flex items-center justify-between gap-3">
-                <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive">
-                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
-                </a>
-                <div class="text-center flex-1 min-w-0">
-                    <h1 class="text-body-lg font-semibold truncate" style="color: var(--color-text);">Portaria</h1>
-                    <p class="text-caption truncate" style="color: var(--color-text-muted);">Saída e chegada das rotas</p>
-                </div>
-                <a href="/mobile/portaria/historico" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive" title="Histórico">
-                    <i data-lucide="history" class="w-5 h-5"></i>
-                </a>
+<div class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium min-h-screen pb-safe flex flex-col min-w-0 w-full overflow-x-hidden">
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/dashboard" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive sm:size-14" aria-label="Voltar ao dashboard" title="Voltar">
+                <i data-lucide="arrow-left" class="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden="true"></i>
+            </a>
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Portaria</p>
             </div>
+            <a href="/mobile/portaria/historico" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive sm:size-14 no-underline" aria-label="Abrir histórico" title="Histórico">
+                <i data-lucide="history" class="h-5 w-5 shrink-0 sm:h-6 sm:w-6" aria-hidden="true"></i>
+            </a>
         </div>
-    </header>
+    </div>
 
-    <section class="container-mobile mt-4">
-        <div class="surface-shadow p-4 rounded-xl">
-            <div class="flex items-start justify-between gap-3">
-                <div>
-                    <p class="text-[10px] uppercase tracking-widest font-bold" style="color: var(--color-primary);">Conferências pendentes</p>
-                    <h2 class="text-section mt-1" style="color: var(--color-text);">
-                        {{ gatehouse_data.summary.total_pendentes }} para confirmar
-                    </h2>
+    <section class="dashboard-hero-strip">
+        <div class="delivery-ga-main delivery-mobi-main space-y-3 pb-2 pt-1">
+            <div class="sys-card sys-card--surface relative overflow-hidden rounded-xl border p-4 sm:p-4" style="border-color: var(--color-border);">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-caption uppercase tracking-wide font-bold" style="color: var(--color-text-muted);">Conferencias pendentes</p>
+                        <h1 class="text-title mt-1" style="color: var(--color-text);">{{ gatehouse_data.summary.total_pendentes }} para confirmar</h1>
+                        <p class="text-caption-lg mt-2" style="color: var(--color-text-secondary);">Saida e chegada das rotas do dia.</p>
+                    </div>
+                    <div class="dashboard-module-icon dashboard-module-icon--primary">
+                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    </div>
                 </div>
-                <div class="icon-wrap flex items-center justify-center" style="background: var(--color-primary-bg); color: var(--color-primary);">
-                    <i data-lucide="shield-check" class="w-5 h-5"></i>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3 mt-4">
-                <div class="rounded-xl p-3 text-center" style="background: rgba(59,130,246,0.12);">
-                    <p class="text-caption">Saídas</p>
-                    <p class="text-title mt-1" style="color: #60a5fa;">{{ gatehouse_data.summary.saida_pendentes }}</p>
-                </div>
-                <div class="rounded-xl p-3 text-center" style="background: rgba(34,197,94,0.12);">
-                    <p class="text-caption">Chegadas</p>
-                    <p class="text-title mt-1" style="color: #4ade80;">{{ gatehouse_data.summary.chegada_pendentes }}</p>
+                <div class="grid grid-cols-2 gap-3 mt-4">
+                    <div class="rounded-xl border p-3 text-center" style="border-color: var(--color-border); background: var(--color-surface-solid);">
+                        <p class="text-caption">Saidas</p>
+                        <p class="text-title mt-1" style="color: #60a5fa;">{{ gatehouse_data.summary.saida_pendentes }}</p>
+                    </div>
+                    <div class="rounded-xl border p-3 text-center" style="border-color: var(--color-border); background: var(--color-surface-solid);">
+                        <p class="text-caption">Chegadas</p>
+                        <p class="text-title mt-1" style="color: #4ade80;">{{ gatehouse_data.summary.chegada_pendentes }}</p>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="container-mobile mt-4">
+    <section class="delivery-ga-main mt-4">
         {% if gatehouse_data.entries %}
-        <div class="space-y-4">
+        <div class="space-y-3">
             {% for entry in gatehouse_data.entries %}
-            <div class="portaria-card surface-shadow rounded-xl overflow-hidden p-4" style="{{ entry.card_style }}" data-session-id="{{ entry.session_id }}" data-check-type="{{ entry.check_type }}">
-                <div class="flex items-start justify-between gap-3 mb-3">
-                    <div class="flex items-center gap-2">
-                        <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: rgba(0,0,0,0.08);">
-                            <i data-lucide="{{ entry.card_icon }}" class="w-5 h-5" style="color: inherit;"></i>
-                        </div>
-                        <div>
-                            <span class="text-xs font-bold uppercase tracking-wider" style="{% if entry.check_type == 'saida' %}color: #3b82f6;{% else %}color: #22c55e;{% endif %}">{{ entry.card_label }}</span>
-                            {% if entry.started_at %}
-                            <p class="text-[10px] mt-0.5" style="color: var(--color-text-muted);">{{ entry.started_at | fmt_hhmm if entry.started_at else '—' }}</p>
-                            {% endif %}
+            <div class="portaria-card sys-card sys-card--surface rounded-xl border p-4" style="border-color: var(--color-border);" data-session-id="{{ entry.session_id }}" data-check-type="{{ entry.check_type }}">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div class="dashboard-module-icon dashboard-module-icon--default"><i data-lucide="{{ entry.card_icon }}" class="w-5 h-5"></i></div>
+                        <div class="min-w-0">
+                            <p class="text-caption uppercase tracking-wide font-bold" style="{% if entry.check_type == 'saida' %}color: #3b82f6;{% else %}color: #22c55e;{% endif %}">{{ entry.card_label }}</p>
+                            <p class="text-caption">{{ entry.completed_deliveries }}/{{ entry.total_deliveries }} entregas</p>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <span class="text-caption font-bold px-2 py-1 rounded" style="background: rgba(0,0,0,0.12); color: var(--color-text);">{{ entry.completed_deliveries }}/{{ entry.total_deliveries }} entregas</span>
-                    </div>
+                    {% if entry.started_at %}
+                    <p class="text-caption shrink-0">{{ entry.started_at | fmt_hhmm }}</p>
+                    {% endif %}
                 </div>
 
-                <div class="space-y-2.5">
-                    <div class="flex justify-between items-center gap-2">
-                        <span class="text-[10px] uppercase tracking-wider shrink-0" style="color: var(--color-text-muted);">Motorista</span>
-                        <span class="text-body font-bold text-right" style="color: var(--color-text);">{{ entry.driver_name }}</span>
-                    </div>
-                    <div class="flex justify-between items-start gap-2">
-                        <span class="text-[10px] uppercase tracking-wider shrink-0" style="color: var(--color-text-muted);">Ajudante(s)</span>
-                        <span class="text-body text-right" style="color: var(--color-text-body);">{{ entry.helpers_text }}</span>
-                    </div>
-                    <div class="flex justify-between items-center gap-2">
-                        <span class="text-[10px] uppercase tracking-wider shrink-0" style="color: var(--color-text-muted);">Placa</span>
-                        <span class="text-body font-mono font-semibold" style="color: var(--color-text);">{{ entry.plate }}</span>
-                    </div>
-                    <div class="flex justify-between items-center gap-2">
-                        <span class="text-[10px] uppercase tracking-wider shrink-0" style="color: var(--color-text-muted);">KM {% if entry.check_type == 'saida' %}saída{% else %}chegada{% endif %}</span>
+                <div class="mt-3 space-y-2 text-body">
+                    <div class="flex justify-between gap-3"><span class="text-caption">Motorista</span><span class="font-semibold text-right" style="color: var(--color-text);">{{ entry.driver_name }}</span></div>
+                    <div class="flex justify-between gap-3"><span class="text-caption">Ajudante(s)</span><span class="text-right" style="color: var(--color-text-body);">{{ entry.helpers_text }}</span></div>
+                    <div class="flex justify-between gap-3"><span class="text-caption">Placa</span><span class="font-mono font-semibold" style="color: var(--color-text);">{{ entry.plate }}</span></div>
+                    <div class="flex justify-between items-center gap-3">
+                        <span class="text-caption">KM {% if entry.check_type == 'saida' %}saida{% else %}chegada{% endif %}</span>
                         {% if entry.check_type == 'chegada' %}
                         <input type="number" step="0.1" min="0" placeholder="Informe o KM" class="portaria-km-input portaria-km-input-field" data-session-id="{{ entry.session_id }}" inputmode="decimal" />
                         {% else %}
-                        <span class="text-body font-mono font-semibold" style="color: var(--color-text);">{{ entry.km | format_km_br }}</span>
+                        <span class="font-mono font-semibold" style="color: var(--color-text);">{{ entry.km | format_km_br }}</span>
                         {% endif %}
                     </div>
-                    <div class="flex justify-between items-center gap-2">
-                        <span class="text-[10px] uppercase tracking-wider shrink-0" style="color: var(--color-text-muted);">Peso total</span>
-                        <span class="text-body font-mono" style="color: var(--color-text);">{{ entry.peso_total_kg | format_kg_br if entry.peso_total_kg else '—' }}</span>
-                    </div>
-                    <div class="flex justify-between items-center gap-2">
-                        <span class="text-[10px] uppercase tracking-wider shrink-0" style="color: var(--color-text-muted);">Valor total</span>
-                        <span class="text-body font-mono font-semibold" style="color: var(--color-text);">{{ entry.valor_total | format_currency_br if entry.valor_total else '—' }}</span>
-                    </div>
-                    <div class="flex justify-between items-center gap-2 pt-1 border-t" style="border-color: var(--color-border);">
-                        <span class="text-[10px] uppercase tracking-wider shrink-0" style="color: var(--color-text-muted);">Checklist</span>
+                    <div class="flex justify-between gap-3"><span class="text-caption">Peso total</span><span class="font-mono" style="color: var(--color-text);">{{ entry.peso_total_kg | format_kg_br if entry.peso_total_kg else '—' }}</span></div>
+                    <div class="flex justify-between gap-3"><span class="text-caption">Valor total</span><span class="font-mono font-semibold" style="color: var(--color-text);">{{ entry.valor_total | format_currency_br if entry.valor_total else '—' }}</span></div>
+                    <div class="flex justify-between gap-3 border-t pt-2" style="border-color: var(--color-border);">
+                        <span class="text-caption">Checklist</span>
                         {% if entry.checklist_done %}
-                        <span class="text-caption font-semibold flex items-center gap-1" style="color: var(--color-success);">
-                            <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-                            Feito às {{ entry.checklist_at | fmt_hhmm if entry.checklist_at else '—' }}
-                        </span>
+                        <span class="text-caption inline-flex items-center gap-1" style="color: var(--color-success);"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i>Feito as {{ entry.checklist_at | fmt_hhmm if entry.checklist_at else '—' }}</span>
                         {% else %}
-                        <span class="text-caption font-medium" style="color: var(--color-text-muted);">Não realizado</span>
+                        <span class="text-caption" style="color: var(--color-text-muted);">Nao realizado</span>
                         {% endif %}
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    class="portaria-confirm-btn mt-4 w-full py-3 rounded-xl font-bold text-body flex items-center justify-center gap-2 interactive touch-target"
+                <button type="button" class="portaria-confirm-btn sys-btn w-full mt-4 py-3 rounded-xl font-semibold text-body inline-flex items-center justify-center gap-2 interactive"
                     style="background: {% if entry.check_type == 'saida' %}#3b82f6{% else %}#22c55e{% endif %}; color: white;"
-                    data-session-id="{{ entry.session_id }}"
-                    data-check-type="{{ entry.check_type }}"
-                >
-                    <i data-lucide="check-circle" class="w-5 h-5"></i>
-                    Ok, tudo certo
+                    data-session-id="{{ entry.session_id }}" data-check-type="{{ entry.check_type }}">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i>Ok, tudo certo
                 </button>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <div class="surface-shadow p-6 rounded-xl text-center">
-            <div class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center" style="background: var(--color-primary-bg); color: var(--color-primary);">
-                <i data-lucide="shield-check" class="w-7 h-7"></i>
-            </div>
-            <p class="text-body-lg font-semibold mt-4" style="color: var(--color-text);">Nenhuma conferência pendente</p>
-            <p class="text-caption-lg mt-2" style="color: var(--color-text-muted);">Saídas aparecem após o motorista iniciar a rota. Chegadas aparecem após finalizar todas as entregas.</p>
-            <a href="/mobile/portaria/historico" class="inline-flex items-center gap-2 mt-4 text-body font-semibold" style="color: var(--color-primary);">
-                <i data-lucide="history" class="w-4 h-4"></i>
-                Ver histórico
+        <div class="sys-card sys-card--surface rounded-xl border p-6 text-center" style="border-color: var(--color-border);">
+            <div class="dashboard-module-icon dashboard-module-icon--primary mx-auto"><i data-lucide="shield-check" class="w-6 h-6"></i></div>
+            <p class="text-body-lg font-semibold mt-4" style="color: var(--color-text);">Nenhuma conferencia pendente</p>
+            <p class="text-caption-lg mt-2">Saidas aparecem apos o motorista iniciar a rota. Chegadas aparecem apos finalizar todas as entregas.</p>
+            <a href="/mobile/portaria/historico" class="inline-flex items-center gap-2 mt-4 text-body font-semibold no-underline" style="color: var(--color-primary);">
+                <i data-lucide="history" class="w-4 h-4"></i>Ver historico
             </a>
         </div>
         {% endif %}
@@ -204,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     btn.disabled = false;
                 }
             }).catch(function() {
-                alert('Erro de conexão. Tente novamente.');
+                alert('Erro de conexao. Tente novamente.');
                 if (card) card.classList.remove('confirming');
                 btn.disabled = false;
             });

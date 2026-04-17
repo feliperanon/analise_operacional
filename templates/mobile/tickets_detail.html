@@ -2,95 +2,116 @@
 
 {% block title %}Detalhe Chamado #{{ ticket.id }}{% endblock %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415r">
+{% endblock %}
+
 {% block content %}
-<div class="min-h-screen pb-safe" style="background: var(--color-bg);">
-    <header class="container-mobile py-4 border-b shrink-0 relative z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
-        <div class="flex items-center justify-between">
-            <a href="/mobile/equipment/tickets" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+<div class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium min-h-screen pb-safe delivery-page-layout min-w-0 w-full overflow-x-hidden">
+
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/equipment/tickets" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 shrink-0 items-center justify-center rounded-lg interactive sm:size-11" title="Voltar à lista" aria-label="Voltar à lista de chamados">
+                <i data-lucide="arrow-left" class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true"></i>
             </a>
-            <div>
-                <h1 class="text-title-lg" style="color: var(--color-text);">Chamado #{{ ticket.id }}</h1>
-                <p class="text-caption" style="color: var(--color-text-muted);">Detalhes do chamado de manutenção</p>
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Chamado</p>
             </div>
-            <a href="/mobile/equipment/tickets/new" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: var(--color-primary); color: white;">
-                <i data-lucide="plus" class="w-5 h-5"></i>
+            <a href="/mobile/equipment/tickets/new"
+                class="delivery-topnav-action sys-btn sys-btn--primary inline-flex size-10 shrink-0 items-center justify-center rounded-lg interactive sm:size-11"
+                title="Novo chamado" aria-label="Abrir novo chamado">
+                <i data-lucide="plus" class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true"></i>
             </a>
         </div>
-    </header>
+    </div>
 
-    <div class="container-mobile py-4 space-y-6">
-        <!-- Status Card -->
-        <div class="surface p-5">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <span class="text-caption font-semibold uppercase" style="color: var(--color-text-muted);">Equipamento</span>
-                    <p class="text-title-lg mt-1" style="color: var(--color-text);">{{ ticket.equipment_code }}</p>
+    <div class="delivery-ga-main delivery-mobi-main space-y-3 pb-4 pt-1">
+        <p class="employees-text-muted m-0 px-0.5 text-center text-xs">Chamado #{{ ticket.id }} · {{ ticket.equipment_code }}</p>
+
+        <section class="sys-card sys-card--surface rounded-xl border p-4 sm:p-4" style="border-color: var(--color-border);">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                    <p class="employees-text-section-label text-[10px]">Equipamento</p>
+                    <p class="employees-text-strong m-0 mt-1 text-lg font-semibold" style="color: var(--color-text);">{{ ticket.equipment_code }}</p>
+                    {% if ticket.title %}
+                    <p class="employees-text-body m-0 mt-1 text-sm" style="color: var(--color-text-secondary);">{{ ticket.title }}</p>
+                    {% endif %}
                 </div>
-                <div class="flex flex-col items-end gap-2">
-                    <span class="text-caption font-semibold px-2.5 py-1 rounded"
-                        style="{% if ticket.status == 'open' %}background: var(--color-warning-bg); color: var(--color-warning);{% else %}background: var(--color-success-bg); color: var(--color-success);{% endif %}">
-                        {{ 'ABERTO' if ticket.status == 'open' else 'FECHADO' }}
-                    </span>
-                    <span class="text-caption font-semibold px-2.5 py-1 rounded"
-                        style="{% if ticket.severity == 'high' %}background: var(--color-danger-bg); color: var(--color-danger);{% else %}background: var(--color-border-light); color: var(--color-text-secondary);{% endif %}">
-                        {{ 'ALTA' if ticket.severity == 'high' else 'BAIXA' }}
-                    </span>
+                <div class="flex shrink-0 flex-col items-end gap-2">
+                    {% if ticket.status == 'open' %}
+                    <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" style="background: var(--color-warning-bg); color: var(--color-warning);">Aberto</span>
+                    {% elif ticket.status == 'in_progress' %}
+                    <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" style="background: var(--color-primary-bg); color: var(--color-primary);">Em andamento</span>
+                    {% elif ticket.status == 'resolved' %}
+                    <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" style="background: var(--color-border-light); color: var(--color-text-secondary);">Resolvido</span>
+                    {% else %}
+                    <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" style="background: var(--color-success-bg); color: var(--color-success);">Fechado</span>
+                    {% endif %}
+                    {% if ticket.severity == 'high' %}
+                    <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" style="background: var(--color-danger-bg); color: var(--color-danger);">Alta severidade</span>
+                    {% else %}
+                    <span class="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase" style="background: var(--color-border-light); color: var(--color-text-secondary);">Severidade normal</span>
+                    {% endif %}
                 </div>
             </div>
-            <div class="flex items-center gap-2 pt-4 border-t text-caption" style="border-color: var(--color-border-light); color: var(--color-text-muted);">
-                <i data-lucide="calendar" class="w-4 h-4"></i>
-                <span>{{ ticket.created_at.strftime("%d/%m/%Y") }}</span>
-                <span>•</span>
-                <i data-lucide="clock" class="w-4 h-4"></i>
-                <span>{{ ticket.created_at.strftime("%H:%M") }}</span>
+            <div class="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-3 text-[11px]" style="border-color: var(--color-border); color: var(--color-text-muted);">
+                <span class="inline-flex items-center gap-1"><i data-lucide="calendar" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>{{ ticket.created_at.strftime("%d/%m/%Y") }}</span>
+                <span class="inline-flex items-center gap-1"><i data-lucide="clock" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>{{ ticket.created_at.strftime("%H:%M") }}</span>
+                {% if ticket.priority %}
+                <span class="inline-flex items-center gap-1 font-semibold" style="color: var(--color-text-secondary);">
+                    <i data-lucide="flag" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></i>
+                    {% if ticket.priority == 'critical' %}Crítica{% elif ticket.priority == 'high' %}Alta{% elif ticket.priority == 'low' %}Baixa{% else %}Média{% endif %}
+                </span>
+                {% endif %}
             </div>
-        </div>
+        </section>
 
-        <!-- Descrição -->
-        <div>
-            <h2 class="text-section font-semibold mb-2 flex items-center gap-2" style="color: var(--color-text);">
-                <div class="icon-wrap w-8 h-8" style="background: var(--color-primary-bg); color: var(--color-primary);">
-                    <i data-lucide="file-text" class="w-4 h-4"></i>
-                </div>
-                Descrição
-            </h2>
-            <div class="surface p-4">
-                <p class="text-body" style="color: var(--color-text-secondary);">{{ ticket.description }}</p>
+        <section class="sys-card sys-card--surface rounded-xl border p-4" style="border-color: var(--color-border);">
+            <div class="mb-3 flex items-center gap-2">
+                <span class="inline-flex size-8 items-center justify-center rounded-lg" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                    <i data-lucide="file-text" class="h-4 w-4" aria-hidden="true"></i>
+                </span>
+                <h2 class="employees-text-section-label m-0">Descrição</h2>
             </div>
-        </div>
+            <p class="employees-text-body m-0 text-sm leading-relaxed" style="color: var(--color-text-secondary);">{{ ticket.description }}</p>
+        </section>
 
-        <!-- Imagens -->
         {% if images %}
-        <div>
-            <h2 class="text-section font-semibold mb-2 flex items-center gap-2" style="color: var(--color-text);">
-                <div class="icon-wrap w-8 h-8" style="background: var(--color-primary-bg); color: var(--color-primary);">
-                    <i data-lucide="image" class="w-4 h-4"></i>
-                </div>
-                Evidências
-            </h2>
-            <div class="grid grid-cols-2 gap-3">
+        <section class="space-y-3">
+            <div class="flex items-center gap-2 px-0.5">
+                <span class="inline-flex size-8 items-center justify-center rounded-lg" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                    <i data-lucide="image" class="h-4 w-4" aria-hidden="true"></i>
+                </span>
+                <span class="employees-text-section-label m-0">Evidências</span>
+                <span class="employees-text-muted rounded px-1.5 py-0.5 text-[11px] font-semibold tabular-nums" style="background: var(--color-border-light);">{{ images|length }}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 sm:gap-3">
                 {% for img in images %}
-                <a href="{{ img }}" target="_blank" class="block aspect-square rounded-lg overflow-hidden surface interactive">
-                    <img src="{{ img }}" class="w-full h-full object-cover" alt="Evidência">
+                <a href="{{ img }}" target="_blank" rel="noopener noreferrer" class="sys-card sys-card--surface block aspect-square overflow-hidden rounded-xl border no-underline interactive" style="border-color: var(--color-border);">
+                    <img src="{{ img }}" class="h-full w-full object-cover" alt="Evidência do chamado">
                 </a>
                 {% endfor %}
             </div>
-        </div>
+        </section>
         {% endif %}
 
         {% if ticket.status == 'closed' %}
-        <div class="surface p-4 flex items-start gap-3" style="background: var(--color-success-bg); border-color: var(--color-success);">
-            <div class="icon-wrap w-10 h-10 flex-shrink-0" style="background: var(--color-success-bg); color: var(--color-success);">
-                <i data-lucide="check-check" class="w-5 h-5"></i>
-            </div>
-            <div>
-                <h3 class="text-section font-semibold" style="color: var(--color-success);">Chamado Encerrado</h3>
-                <p class="text-caption mt-0.5" style="color: var(--color-text-secondary);">
-                    Finalizado em {{ ticket.closed_at.strftime("%d/%m/%Y %H:%M") if ticket.closed_at else '-' }}
+        <section class="sys-card sys-card--surface flex items-start gap-3 rounded-xl border p-4" style="border-color: rgba(16, 185, 129, 0.35); background: var(--color-success-bg);">
+            <span class="inline-flex size-10 shrink-0 items-center justify-center rounded-xl" style="background: var(--color-success-bg); color: var(--color-success);">
+                <i data-lucide="check-check" class="h-5 w-5" aria-hidden="true"></i>
+            </span>
+            <div class="min-w-0">
+                <h3 class="employees-text-strong m-0 text-base font-semibold" style="color: var(--color-success);">Chamado encerrado</h3>
+                <p class="employees-text-muted m-0 mt-1 text-xs">
+                    Finalizado em {{ ticket.closed_at.strftime("%d/%m/%Y %H:%M") if ticket.closed_at else '—' }}
                 </p>
             </div>
-        </div>
+        </section>
         {% endif %}
     </div>
 </div>

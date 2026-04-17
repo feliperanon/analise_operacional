@@ -166,7 +166,8 @@ class Client(SQLModel, table=True):
     client_group_id: Optional[int] = Field(default=None, foreign_key="clientgroup.id", index=True)
     # Campos de cadastro completo
     nb: Optional[str] = Field(default=None, index=True)  # Número/código do cliente
-    setor: Optional[str] = Field(default=None, index=True)
+    vendedor_id: Optional[int] = Field(default=None, foreign_key="employee.id", index=True)
+    setor: Optional[str] = Field(default=None, index=True)  # espelha seller_code do vendedor (legado / BI)
     me: Optional[str] = Field(default=None)
     sa: Optional[str] = Field(default=None)
     visita: Optional[str] = Field(default=None)
@@ -349,6 +350,11 @@ class Route(SQLModel, table=True):
     delivery_time_log: Optional[str] = None  # JSON array com histórico de status/horários
     delivery_reopen_count: Optional[int] = 0
     delivery_helpers_json: Optional[str] = None  # JSON list de employee_id (ajudantes)
+    delivery_whatsapp_status: Optional[str] = Field(default=None, index=True)
+    delivery_whatsapp_ready_at: Optional[datetime] = Field(default=None, index=True)
+    delivery_whatsapp_last_sent_at: Optional[datetime] = Field(default=None, index=True)
+    delivery_whatsapp_last_sent_by: Optional[str] = Field(default=None, index=True)
+    delivery_whatsapp_summary_json: Optional[str] = None
     # Coordenadas GPS do motorista no momento da ação (capturadas pelo app mobile)
     driver_lat_start: Optional[float] = None   # ao iniciar entrega
     driver_lon_start: Optional[float] = None
@@ -415,6 +421,70 @@ class DeliverySession(SQLModel, table=True):
     started_at: datetime = Field(default_factory=datetime.now)
     ended_at: Optional[datetime] = None
     reopen_reason: Optional[str] = None  # Motivo ao reabrir rota fechada no mesmo dia
+    # Última posição reportada pelo app mobile (ping durante a rota)
+    driver_last_lat: Optional[float] = None
+    driver_last_lon: Optional[float] = None
+    driver_last_location_at: Optional[datetime] = None
+
+
+class DeliveryWhatsAppBatch(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    route_group_key: str = Field(index=True)
+    route_date: str = Field(index=True)
+    shift: str = Field(default="Manhã", index=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    vehicle_plate: str = Field(index=True)
+    status: str = Field(default="pendente_envio", index=True)
+    provider_name: Optional[str] = Field(default=None, index=True)
+    operator_user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    operator_label: Optional[str] = Field(default=None, index=True)
+    total_clients: int = Field(default=0)
+    eligible_count: int = Field(default=0)
+    sent_count: int = Field(default=0)
+    failed_count: int = Field(default=0)
+    ignored_count: int = Field(default=0)
+    no_contact_count: int = Field(default=0)
+    invalid_count: int = Field(default=0)
+    blocked_count: int = Field(default=0)
+    already_sent_count: int = Field(default=0)
+    is_retry: bool = Field(default=False, index=True)
+    preview_message: Optional[str] = None
+    request_payload_json: Optional[str] = None
+    response_json: Optional[str] = None
+    failure_reason: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    started_at: Optional[datetime] = Field(default=None, index=True)
+    finished_at: Optional[datetime] = Field(default=None, index=True)
+
+
+class DeliveryWhatsAppItem(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint("batch_id", "client_id", name="uq_deliverywhatsappitem_batch_client"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    batch_id: int = Field(foreign_key="deliverywhatsappbatch.id", index=True)
+    route_group_key: str = Field(index=True)
+    route_id: Optional[int] = Field(default=None, foreign_key="route.id", index=True)
+    route_date: str = Field(index=True)
+    shift: str = Field(default="Manhã", index=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    vehicle_plate: str = Field(index=True)
+    client_id: int = Field(foreign_key="client.id", index=True)
+    client_name: Optional[str] = Field(default=None, index=True)
+    phone_raw: Optional[str] = None
+    phone_normalized: Optional[str] = Field(default=None, index=True)
+    status: str = Field(default="pendente_envio", index=True)
+    attempt_number: int = Field(default=1)
+    provider_name: Optional[str] = Field(default=None, index=True)
+    provider_message_id: Optional[str] = Field(default=None, index=True)
+    operator_user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    operator_label: Optional[str] = Field(default=None, index=True)
+    request_payload_json: Optional[str] = None
+    response_json: Optional[str] = None
+    failure_reason: Optional[str] = None
+    sent_at: Optional[datetime] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
 
 
 class DeliveryAuthRequest(SQLModel, table=True):

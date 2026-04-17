@@ -7,6 +7,34 @@ Skeletons, pull-to-refresh premium, empty states, feedback tátil.
     box-sizing: border-box;
 }
 
+/*
+ * Fundo contínuo (html + body + main): o :root em _design_tokens usa --color-bg escuro,
+ * enquanto o miolo claro fica em .delivery-ga-shell. O padding inferior do <main> (.pb-safe)
+ * era transparente e deixava aparecer o fundo escuro do body — faixa preta no rodapé.
+ * Valores alinhados a .delivery-ga-shell.ga-employee-theme.employees-page (mobile-delivery-ga.css).
+ */
+html {
+    background-color: rgb(241 245 249);
+}
+
+body.mobile-app-body {
+    background-color: rgb(241 245 249);
+    min-height: 100dvh;
+}
+
+main.mobile-app-main {
+    background-color: rgb(241 245 249);
+}
+
+html.dark {
+    background-color: rgb(15 23 42);
+}
+
+html.dark body.mobile-app-body,
+html.dark main.mobile-app-main {
+    background-color: rgb(15 23 42);
+}
+
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
     .pb-safe {
         padding-bottom: calc(1rem + env(safe-area-inset-bottom));

@@ -1,269 +1,14 @@
 {% extends "mobile/layout.html" %}
 
 {% block head_extra %}
-<style>
-    /* iPhone: respiro sob notch / Dynamic Island; sem overlap com menu (oculto nesta página) */
-    .dashboard-hero-safe {
-        padding-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
-    }
-    .dashboard-panel {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.94) 100%);
-        border: 1px solid rgba(71, 85, 105, 0.45);
-        border-radius: 1.375rem;
-        box-shadow: 0 8px 20px rgba(2, 6, 23, 0.18);
-    }
-    .dashboard-panel::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        pointer-events: none;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 42%);
-    }
-    .dashboard-panel > * {
-        position: relative;
-        z-index: 1;
-    }
-    .dashboard-hero-card,
-    .dashboard-mission-card {
-        border-color: rgba(59, 130, 246, 0.22);
-    }
-    .dashboard-hero-section + .dashboard-hero-section {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid rgba(71, 85, 105, 0.24);
-    }
-    .dashboard-hero-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 0.75rem;
-    }
-    .dashboard-hero-status {
-        margin-top: 0.75rem;
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .dashboard-avatar-level {
-        position: absolute;
-        right: -0.2rem;
-        bottom: -0.2rem;
-        min-width: 1.6rem;
-        height: 1.6rem;
-        padding: 0 0.4rem;
-        border-radius: 999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.68rem;
-        line-height: 1.05;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-        color: #fff;
-        background: var(--color-primary);
-        border: 2px solid var(--color-surface-solid);
-        box-shadow: 0 4px 10px rgba(2, 6, 23, 0.28);
-        white-space: nowrap;
-    }
-    .dashboard-section-kicker {
-        font-size: 0.6875rem;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--color-text-muted);
-    }
-    .dashboard-status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.35rem 0.7rem;
-        border-radius: 999px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        line-height: 1;
-        border: 1px solid transparent;
-    }
-    .dashboard-status-pill--neutral {
-        background: rgba(51, 65, 85, 0.55);
-        color: #cbd5e1;
-        border-color: rgba(100, 116, 139, 0.4);
-    }
-    .dashboard-status-pill--success {
-        background: rgba(16, 185, 129, 0.15);
-        color: #6ee7b7;
-        border-color: rgba(52, 211, 153, 0.28);
-    }
-    .dashboard-status-pill--warning {
-        background: rgba(245, 158, 11, 0.16);
-        color: #fbbf24;
-        border-color: rgba(251, 191, 36, 0.3);
-    }
-    .dashboard-status-pill--danger {
-        background: rgba(244, 63, 94, 0.16);
-        color: #fda4af;
-        border-color: rgba(251, 113, 133, 0.28);
-    }
-    .dashboard-status-pill--active {
-        background: rgba(59, 130, 246, 0.16);
-        color: #93c5fd;
-        border-color: rgba(96, 165, 250, 0.28);
-    }
-    .dashboard-top-action {
-        width: 2.75rem;
-        height: 2.75rem;
-        border-radius: 0.95rem;
-        border: 1px solid rgba(71, 85, 105, 0.42);
-        background: rgba(15, 23, 42, 0.72);
-        color: var(--color-text-body);
-    }
-    .dashboard-top-action--danger {
-        background: rgba(127, 29, 29, 0.16);
-        border-color: rgba(248, 113, 113, 0.22);
-        color: #fca5a5;
-    }
-    .dashboard-info-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.6rem 0.8rem;
-        border-radius: 0.95rem;
-        background: rgba(2, 6, 23, 0.18);
-        border: 1px solid rgba(71, 85, 105, 0.32);
-        color: var(--color-text-body);
-        font-size: 0.75rem;
-        line-height: 1.2;
-    }
-    .dashboard-info-chip--stacked {
-        align-items: flex-start;
-    }
-    .dashboard-helper-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-        min-width: 0;
-    }
-    .dashboard-helper-label {
-        font-size: 0.68rem;
-        font-weight: 700;
-        color: var(--color-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-    .dashboard-helper-name {
-        display: block;
-        color: var(--color-text-body);
-        line-height: 1.3;
-        white-space: normal;
-        word-break: break-word;
-    }
-    .dashboard-stats-strip {
-        margin-top: 1rem;
-        background: rgba(2, 6, 23, 0.18);
-        border: 1px solid rgba(71, 85, 105, 0.28);
-        border-radius: 1.05rem;
-        overflow: hidden;
-    }
-    .dashboard-stats-grid {
-        display: grid;
-    }
-    .dashboard-stats-grid--3 {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-    .dashboard-stats-grid--2 {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .dashboard-stat-cell {
-        padding: 0.85rem 0.7rem;
-        text-align: center;
-    }
-    .dashboard-stat-cell + .dashboard-stat-cell {
-        border-left: 1px solid rgba(71, 85, 105, 0.2);
-    }
-    .dashboard-stat-cell--wide {
-        grid-column: 1 / -1;
-        border-left: 0;
-        border-top: 1px solid rgba(71, 85, 105, 0.2);
-    }
-    .dashboard-cta {
-        min-height: 3.5rem;
-        border-radius: 1.05rem;
-        font-size: 0.95rem;
-        font-weight: 700;
-        transition: transform 0.15s ease, opacity 0.15s ease;
-    }
-    .dashboard-cta:active {
-        transform: scale(0.985);
-    }
-    .dashboard-cta-primary {
-        background: var(--color-primary);
-        color: white;
-        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
-    }
-    .dashboard-module-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.75rem;
-    }
-    .dashboard-module-tile,
-    .dashboard-module-row {
-        background: rgba(2, 6, 23, 0.24);
-        border: 1px solid rgba(71, 85, 105, 0.3);
-        border-radius: 1.15rem;
-    }
-    .dashboard-module-tile {
-        min-height: 8.25rem;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.9rem;
-        text-align: left;
-    }
-    .dashboard-module-row {
-        padding: 0.95rem 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.85rem;
-    }
-    .dashboard-module-icon {
-        width: 2.75rem;
-        height: 2.75rem;
-        border-radius: 0.95rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .dashboard-module-icon--primary {
-        background: rgba(59, 130, 246, 0.16);
-        color: #93c5fd;
-    }
-    .dashboard-module-icon--tool {
-        background: rgba(245, 158, 11, 0.16);
-        color: #fbbf24;
-    }
-    .dashboard-module-icon--default {
-        background: rgba(51, 65, 85, 0.72);
-        color: #cbd5e1;
-    }
-    .dashboard-module-brief {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        line-height: 1.35;
-    }
-    @media (max-width: 360px) {
-        .dashboard-module-grid {
-            grid-template-columns: minmax(0, 1fr);
-        }
-        .dashboard-stats-grid--3 {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-    }
-</style>
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415r">
+<link rel="stylesheet" href="/static/css/pages/mobile-dashboard-shell.css?v=20260416">
+
 {% endblock %}
 
 {% macro render_dashboard_module(module, appearance='row') %}
@@ -387,6 +132,11 @@
         {% set ns.secondary = ns.secondary + [module] %}
     {% endif %}
 {% endfor %}
+{% set has_delivery_driver_access = has_delivery_driver_access|default(false) %}
+{% set show_delivery_driver_hero = show_delivery_overview and has_delivery_driver_access %}
+
+<div x-data="dashboardController()" class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium min-h-screen pb-safe flex flex-col min-w-0 w-full overflow-x-hidden" x-ref="mainContainer" x-cloak @open-delivery-setup-modal="openDeliverySetupModal()">
+
 <!-- Offline Banner -->
 <div id="offline-banner" class="offline-banner text-center py-2 text-body font-medium z-50 text-white" style="background: var(--color-danger);">
     <i data-lucide="wifi-off" class="w-4 h-4 inline-block mr-1"></i>
@@ -406,11 +156,9 @@
     </div>
 </div>
 
-<div x-data="dashboardController()" class="flex flex-col min-w-0 w-full overflow-x-hidden" x-ref="mainContainer" x-cloak @open-delivery-setup-modal="openDeliverySetupModal()">
-    
     <!-- Loading Skeleton (formato dos cards) -->
     <template x-if="!initialized">
-        <div class="container-mobile mt-6 space-y-4">
+        <div class="delivery-ga-main mt-3 space-y-4">
             <div class="skeleton h-28 rounded-[24px]"></div>
             <div class="skeleton h-64 rounded-[28px]"></div>
             <div class="grid grid-cols-2 gap-3">
@@ -423,11 +171,11 @@
 
     <!-- Main Content -->
     <div x-show="initialized">
-        
-        <!-- 1. Barra operacional superior -->
-        <section class="dashboard-hero-safe">
-            <div class="container-mobile">
-                <div class="dashboard-panel dashboard-hero-card p-4">
+
+        <!-- Painel do dia (cartão claro — mesmo vocabulário visual do módulo de entregas) -->
+        <section class="dashboard-hero-strip">
+            <div class="delivery-ga-main delivery-mobi-main space-y-3 pb-2 pt-safe">
+                <div class="sys-card sys-card--surface dashboard-hero-card-light relative overflow-hidden rounded-xl border p-4 sm:p-4" style="border-color: var(--color-border);">
                     <div class="dashboard-hero-section">
                         <div class="dashboard-hero-header">
                             <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -440,8 +188,8 @@
                                     <span class="dashboard-avatar-level">{{ gamification.level.level }}</span>
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <h1 class="text-title truncate">{{ employee.name|emp_name }}</h1>
-                                    <p class="text-caption mt-1">
+                                    <h1 class="text-title truncate" style="color: var(--color-text);">{{ employee.name|emp_name }}</h1>
+                                    <p class="text-caption mt-1" style="color: var(--color-text-secondary);">
                                         {{ gamification.level.name }} • <span x-text="formatBrInt(totalXp)">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }}</span> XP
                                     </p>
                                     <div class="dashboard-hero-status">
@@ -451,17 +199,6 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-2 flex-shrink-0">
-                                <button type="button" @click="openHelpModal()" class="dashboard-top-action touch-target-icon interactive inline-flex items-center justify-center" title="Ajuda" aria-label="Ajuda">
-                                    <i data-lucide="life-buoy" class="w-4.5 h-4.5"></i>
-                                </button>
-                                <a href="/mobile/achievements" class="dashboard-top-action touch-target-icon interactive inline-flex items-center justify-center" title="Conquistas" aria-label="Conquistas">
-                                    <i data-lucide="award" class="w-4.5 h-4.5"></i>
-                                </a>
-                                <a href="/mobile/logout" class="dashboard-top-action dashboard-top-action--danger touch-target-icon interactive inline-flex items-center justify-center" title="Sair" aria-label="Sair">
-                                    <i data-lucide="log-out" class="w-4.5 h-4.5"></i>
-                                </a>
-                            </div>
                         </div>
                     </div>
 
@@ -470,7 +207,7 @@
                             <div class="min-w-0 flex-1">
                                 <p class="dashboard-section-kicker">Missão do dia</p>
                                 <div class="mt-2 flex flex-wrap items-center gap-2">
-                                    {% if show_delivery_overview %}
+                                    {% if show_delivery_driver_hero %}
                                     <h2 class="text-title-lg" style="color: var(--color-text);">Rota e operação do dia</h2>
                                     <span class="dashboard-status-pill dashboard-status-pill--neutral" :class="heroStatusPillClasses" x-text="heroStatusLabel">
                                         {% if delivery_total > 0 and delivery_open == 0 and delivery_completed > 0 %}Operação concluída{% elif delivery_total > 0 %}Pronto para iniciar{% else %}Painel pronto{% endif %}
@@ -482,12 +219,12 @@
                                     </span>
                                     {% endif %}
                                 </div>
-                                {% if show_delivery_overview %}
-                                <p class="text-body-lg mt-3" x-text="heroStatusMessage">
+                                {% if show_delivery_driver_hero %}
+                                <p class="text-body-lg mt-3" style="color: var(--color-text-body);" x-text="heroStatusMessage">
                                     {% if delivery_total > 0 %}{{ delivery_open }} rota(s) em aberto hoje.{% else %}Nenhuma rota lançada por enquanto. O painel segue pronto para a próxima operação.{% endif %}
                                 </p>
                                 {% else %}
-                                <p class="text-body-lg mt-3">{{ hub_profile.description or module_hub_message }}</p>
+                                <p class="text-body-lg mt-3" style="color: var(--color-text-body);">{{ hub_profile.description or module_hub_message }}</p>
                                 {% endif %}
                             </div>
                             <div class="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style="{{ hub_icon_style }}">
@@ -495,7 +232,7 @@
                             </div>
                         </div>
 
-                        {% if show_delivery_overview %}
+                        {% if show_delivery_driver_hero %}
                         <div class="dashboard-stats-strip">
                             <div class="dashboard-stats-grid dashboard-stats-grid--3">
                             <div class="dashboard-stat-cell">
@@ -526,43 +263,46 @@
                         </div>
                         {% endif %}
 
-                        <div class="mt-4 flex flex-wrap gap-2.5">
-                            {% if show_delivery_overview %}
-                            <span class="dashboard-info-chip" x-show="assignedPlate || '{{ delivery_plate }}'">
-                                <i data-lucide="truck" class="w-4 h-4"></i>
-                                <span>Placa <strong x-text="assignedPlate || '{{ delivery_plate or '—' }}'">{{ delivery_plate or '—' }}</strong></span>
-                            </span>
-                            <span class="dashboard-info-chip dashboard-info-chip--stacked" x-show="helperNames.length > 0">
-                                <i data-lucide="users" class="w-4 h-4"></i>
-                                <span class="dashboard-helper-list">
-                                    <span class="dashboard-helper-label">Ajudantes</span>
-                                    <template x-for="(helperName, idx) in helperNames" :key="`helper-${idx}-${helperName}`">
-                                        <span class="dashboard-helper-name" x-text="helperName"></span>
-                                    </template>
-                                </span>
-                            </span>
+                        <div class="dashboard-session-meta mt-4" x-show="{{ show_delivery_driver_hero|tojson }} || showSyncMetaRow">
+                            {% if show_delivery_driver_hero %}
+                            <div class="dashboard-session-meta__row">
+                                <div class="dashboard-session-meta__icon" aria-hidden="true">
+                                    <i data-lucide="truck" class="w-4 h-4"></i>
+                                </div>
+                                <div class="dashboard-session-meta__body">
+                                    <p class="dashboard-session-meta__label">Placa do veículo</p>
+                                    <p class="dashboard-session-meta__value dashboard-session-meta__value--mono" x-text="sessionPlateDisplay">{{ delivery_plate or '—' }}</p>
+                                </div>
+                            </div>
+                            <div class="dashboard-session-meta__row" x-show="hasHelpersSummary">
+                                <div class="dashboard-session-meta__icon" aria-hidden="true">
+                                    <i data-lucide="users" class="w-4 h-4"></i>
+                                </div>
+                                <div class="dashboard-session-meta__body">
+                                    <p class="dashboard-session-meta__label">Ajudantes</p>
+                                    <p class="dashboard-session-meta__value" x-text="helpersSummaryLine"></p>
+                                </div>
+                            </div>
                             {% endif %}
-                            <span class="dashboard-info-chip" x-show="syncQueueCount > 0 || !isOnlineApp">
-                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                                <span x-text="syncStatusLabel"></span>
-                            </span>
+                            <div class="dashboard-session-meta__row" x-show="showSyncMetaRow" :class="(!isOnlineApp || syncQueueCount > 0) ? 'dashboard-session-meta__row--alert' : ''">
+                                <div class="dashboard-session-meta__icon" aria-hidden="true">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                </div>
+                                <div class="dashboard-session-meta__body">
+                                    <p class="dashboard-session-meta__label">Sincronização</p>
+                                    <p class="dashboard-session-meta__value" x-text="syncStatusLabel"></p>
+                                </div>
+                            </div>
                         </div>
 
+                        {% if not show_delivery_driver_hero and hub_primary_action and hub_primary_action.href %}
                         <div class="mt-4">
-                            {% if show_delivery_overview %}
-                            <button type="button" @click="handleHeroAction()" class="dashboard-cta dashboard-cta-primary interactive w-full inline-flex items-center justify-center gap-2">
-                                <i data-lucide="truck" class="w-5 h-5"></i>
-                                <span x-text="missionCtaLabel">
-                                    {% if delivery_total > 0 and delivery_open == 0 and delivery_completed > 0 %}Revisar operação{% elif delivery_total > 0 %}Iniciar entregas{% else %}Abrir módulo de entregas{% endif %}
-                                </span>
-                            </button>
-                            {% elif hub_primary_action and hub_primary_action.href %}
                             <a href="{{ hub_primary_action.href }}" class="dashboard-cta dashboard-cta-primary interactive w-full inline-flex items-center justify-center gap-2">
                                 <i data-lucide="{{ hub_primary_action.icon or 'arrow-right' }}" class="w-5 h-5"></i>
                                 <span>{{ hub_primary_action.label }}</span>
                             </a>
-                            {% endif %}
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -570,23 +310,26 @@
 
     </div>
 
-    {% if ns.primary %}
-    <section id="modules" class="container-mobile mt-4" x-show="initialized">
-        <h2 class="text-section mb-3">Módulos principais</h2>
+    {% if ns.primary or ns.secondary or show_delivery_driver_hero %}
+    <section id="modules" class="delivery-ga-main mt-4" x-show="initialized">
         <div class="dashboard-module-grid">
+            {% if show_delivery_driver_hero %}
+            <button type="button" @click="handleHeroAction()" class="interactive block dashboard-module-tile w-full text-left">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="dashboard-module-icon dashboard-module-icon--primary"><i data-lucide="truck" class="w-5 h-5"></i></div>
+                    <i data-lucide="arrow-up-right" class="w-4 h-4" style="color: var(--color-text-muted);"></i>
+                </div>
+                <div>
+                    <p class="text-body-lg font-semibold" style="color: var(--color-text);"><span x-text="missionCtaLabel">{% if delivery_total > 0 and delivery_open == 0 and delivery_completed > 0 %}Revisar operação{% elif delivery_total > 0 %}Iniciar entregas{% else %}Abrir módulo de entregas{% endif %}</span></p>
+                    <p class="dashboard-module-brief text-caption-lg mt-2">Abrir rota de entregas, acompanhar paradas e registrar a operação do dia.</p>
+                </div>
+            </button>
+            {% endif %}
             {% for module in ns.primary %}
             {{ render_dashboard_module(module, 'tile') }}
             {% endfor %}
-        </div>
-    </section>
-    {% endif %}
-
-    {% if ns.secondary %}
-    <section class="container-mobile mt-4" x-show="initialized">
-        <h2 class="text-section mb-3">Outros acessos</h2>
-        <div class="space-y-2">
             {% for module in ns.secondary %}
-            {{ render_dashboard_module(module, 'row') }}
+            {{ render_dashboard_module(module, 'tile') }}
             {% endfor %}
         </div>
     </section>
@@ -596,7 +339,7 @@
 
     <!-- 4a. Time Bonuses (Bônus por Horário) -->
     {% if time_bonuses %}
-    <section class="container-mobile mt-4">
+    <section class="delivery-ga-main mt-4">
         <h2 class="text-section mb-2" style="color: var(--color-text);">Bônus por horário</h2>
         <div class="space-y-2">
             {% for bonus in time_bonuses %}
@@ -614,7 +357,7 @@
     {% endif %}
 
     {% if upcoming_events %}
-    <section class="container-mobile mt-4">
+    <section class="delivery-ga-main mt-4">
         <h2 class="text-section mb-2" style="color: var(--color-text);">Próximos eventos</h2>
         <div class="flex overflow-x-auto gap-3 pb-3 -mx-4 px-4 no-scrollbar">
             {% for event in upcoming_events %}
@@ -863,9 +606,11 @@
         </div>
     </div>
 
+{% if has_delivery_driver_access %}
 {% set guide_context = 'dashboard' %}
 {% set guide_auto_open = true %}
 {% include 'mobile/_driver_guide.html' %}
+{% endif %}
 
 <!-- Delivery Setup Modal: mesmos padrões do Help/EndDay (sem teleport para preservar escopo Alpine) -->
 <div x-show="showDeliverySetupModal" x-cloak
@@ -1087,6 +832,7 @@
             selectedDeliveryDay: '',
             deliverySessionOpen: false,
             assignedPlate: '',
+            serverAssignedPlate: {{ (delivery_plate or '')|tojson }},
             helperNames: {{ delivery_helper_names | safe }},
             hubProfileKey: {{ (hub_profile.key if hub_profile and hub_profile.key else '')|tojson }},
             todayRouteSummary: {
@@ -1198,6 +944,22 @@
                 if (this.syncInProgress) return 'Sincronizando dados locais';
                 if (this.syncQueueCount > 0) return `${this.syncQueueCount} item(ns) pendente(s)`;
                 return 'Sincronização em dia';
+            },
+            get sessionPlateDisplay() {
+                const p = String(this.assignedPlate || this.serverAssignedPlate || '').trim();
+                return p ? p.toUpperCase() : '—';
+            },
+            get helpersSummaryLine() {
+                const names = Array.isArray(this.helperNames)
+                    ? this.helperNames.map((n) => String(n || '').trim()).filter(Boolean)
+                    : [];
+                return names.join(' · ');
+            },
+            get hasHelpersSummary() {
+                return this.helpersSummaryLine.length > 0;
+            },
+            get showSyncMetaRow() {
+                return this.syncQueueCount > 0 || !this.isOnlineApp;
             },
             get currentMonthLabel() {
                 const d = new Date();

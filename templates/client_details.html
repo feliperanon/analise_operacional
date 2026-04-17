@@ -1,92 +1,249 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}{{ client.name }} · Cliente · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Cadastros / Clientes / Ficha</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">{{ client.name }}</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Cadastro, grupo comercial e histórico operacional</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/clients.css">
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+    (function () {
+        function setBodyLock(locked) {
+            document.body.classList.toggle('overflow-hidden', !!locked);
+        }
+
+        function normalizeWhatsappPhoneDigits(value) {
+            const raw = String(value || '').trim();
+            let digits = raw.replace(/\D/g, '');
+            digits = digits.replace(/^0+/, '');
+            // Se o usuario estiver digitando no formato internacional (+55...),
+            // removemos o DDI para evitar duplicacao ao reaplicar o +55.
+            if (raw.startsWith('+55') && digits.startsWith('55')) digits = digits.slice(2);
+            if (digits.startsWith('55') && digits.length > 11) digits = digits.slice(2);
+            if (digits.length > 11) digits = digits.slice(-11);
+            return digits;
+        }
+
+        function formatWhatsappPhoneValue(value) {
+            const digits = normalizeWhatsappPhoneDigits(value);
+            return digits ? `+55${digits}` : '';
+        }
+
+        function bindWhatsappPhoneInputs(root) {
+            (root || document).querySelectorAll('[data-whatsapp-phone="true"]').forEach((input) => {
+                if (input.dataset.phoneBound === '1') return;
+                input.dataset.phoneBound = '1';
+                const sync = () => {
+                    if (!input.value) return;
+                    input.value = formatWhatsappPhoneValue(input.value);
+                };
+                input.addEventListener('input', sync);
+                input.addEventListener('blur', sync);
+                if (input.value) sync();
+            });
+        }
+
+        window.openEditModal = function () {
+            const modal = document.getElementById('editModalShell');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            setBodyLock(true);
+            bindWhatsappPhoneInputs(modal);
+        };
+
+        window.closeEditModal = function () {
+            const modal = document.getElementById('editModalShell');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            setBodyLock(false);
+        };
+
+        window.openDeleteModal = function () {
+            const modal = document.getElementById('deleteModalShell');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            setBodyLock(true);
+        };
+
+        window.closeDeleteModal = function () {
+            const modal = document.getElementById('deleteModalShell');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            setBodyLock(false);
+        };
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape') return;
+            window.closeEditModal();
+            window.closeDeleteModal();
+        });
+
+        bindWhatsappPhoneInputs(document);
+    })();
+</script>
+{% endblock %}
 
 {% block content %}
-<div class="p-8">
-    <div class="max-w-7xl mx-auto">
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium clients-page clients-detail-page space-y-5 pt-2 md:pt-3">
 
-        <!-- Header & Nav -->
-        <div class="flex items-center justify-between mb-8">
-            <div class="flex items-center gap-4">
-                <a href="/clients"
-                    class="p-2 bg-slate-800 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
                     </svg>
-                </a>
-                <div>
-                    <h1 class="text-3xl font-bold text-white mb-1">{{ client.name }}</h1>
-                    <p class="text-slate-400 text-sm">Perfil do Cliente e Histórico Operacional</p>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        Ficha operacional
+                    </span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">{{ client.name }}</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
+                        Cadastro, grupo comercial e histórico operacional. Contato alinhado à API do WhatsApp.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {% if client.nb %}{{ client.nb|fmt_nb_br }}{% else %}Sem NB{% endif %}
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ client.municipio or 'Município não informado' }}
+                        </span>
+                        {% if client_phone_api_ready %}
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+                            WhatsApp pronto
+                        </span>
+                        {% else %}
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            WhatsApp pendente
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="clients-detail-hero__meta">
+                        <span>WhatsApp: <strong>{{ client_phone_display or 'Não informado' }}</strong></span>
+                        <span>Razão social: <strong>{{ client.razao_social or client.name }}</strong></span>
+                        <span>Status: <strong>{{ client.status_operacional or 'ATIVO' }}</strong></span>
+                    </div>
                 </div>
             </div>
-
-            <div class="flex gap-3">
-                <button onclick="openEditModal()"
-                    class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-lg font-bold border border-slate-700 transition flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                        </path>
-                    </svg>
-                    Editar
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-xl xl:flex-shrink-0 xl:justify-end">
+                <a href="/clients" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                    </span>
+                    <span class="employees-cta__label">Voltar à lista</span>
+                </a>
+                <button type="button" onclick="openEditModal()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    </span>
+                    <span class="employees-cta__label">Editar cadastro</span>
                 </button>
-                <button onclick="openDeleteModal()"
-                    class="px-4 py-2 bg-slate-800 hover:bg-rose-900/30 text-rose-400 rounded-lg font-bold border border-slate-700 hover:border-rose-800 transition flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                        </path>
-                    </svg>
-                    Excluir
+                <button type="button" onclick="openDeleteModal()" class="employees-cta sys-btn sys-btn--secondary w-full justify-center border-rose-200 text-rose-700 hover:border-rose-300 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-200 dark:hover:bg-rose-950/40 sm:w-auto">
+                    <span class="employees-cta__icon text-rose-600 dark:text-rose-300" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </span>
+                    <span class="employees-cta__label">Excluir cliente</span>
                 </button>
             </div>
         </div>
+    </div>
 
-        <!-- Dados do Cliente -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
-            <h3 class="text-white font-bold mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="client-detail-layout lg:grid lg:grid-cols-12 lg:items-start lg:gap-6">
+        <div class="client-detail-layout__ficha w-full min-w-0 space-y-6 lg:col-span-12">
+        <!-- Dados + Grupo + Raio-X (cartão unificado, largura total) -->
+        <section class="client-detail-panel" aria-labelledby="client-ficha-aside-heading">
+            <div class="client-detail-panel__head">
+                <svg class="h-5 w-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                 </svg>
-                Dados do Cliente
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                {% if client.nb %}<div><span class="text-slate-500">NB:</span> <span class="text-white">{{ client.nb }}</span></div>{% endif %}
-                {% if client.setor %}<div><span class="text-slate-500">Setor:</span> <span class="text-white">{{ client.setor }}</span></div>{% endif %}
-                {% if client.me %}<div><span class="text-slate-500">ME:</span> <span class="text-white">{{ client.me }}</span></div>{% endif %}
-                {% if client.sa %}<div><span class="text-slate-500">SA:</span> <span class="text-white">{{ client.sa }}</span></div>{% endif %}
-                {% if client.visita %}<div><span class="text-slate-500">Visita:</span> <span class="text-white">{{ client.visita }}</span></div>{% endif %}
-                {% if client.nome_fantasia %}<div><span class="text-slate-500">Nome Fantasia:</span> <span class="text-white">{{ client.nome_fantasia }}</span></div>{% endif %}
-                {% if client.razao_social %}<div><span class="text-slate-500">Razão Social:</span> <span class="text-white">{{ client.razao_social }}</span></div>{% endif %}
-                {% if client.municipio %}<div><span class="text-slate-500">Município:</span> <span class="text-white">{{ client.municipio }}</span></div>{% endif %}
-                {% if client.bairro %}<div><span class="text-slate-500">Bairro:</span> <span class="text-white">{{ client.bairro }}</span></div>{% endif %}
-                {% if endereco_display or client.endereco %}<div class="md:col-span-2 lg:col-span-4"><span class="text-slate-500">Endereço:</span> <span class="text-white">{{ endereco_display or client.endereco }}</span></div>{% endif %}
-                {% if client.fone %}<div><span class="text-slate-500">Fone:</span> <span class="text-white">{{ client.fone }}</span></div>{% endif %}
-                {% if client.segmento %}<div><span class="text-slate-500">Segmento:</span> <span class="text-white">{{ client.segmento }}</span></div>{% endif %}
-                {% if client.status_cliente %}<div><span class="text-slate-500">Status:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span></div>{% endif %}
-                {% if client.status_operacional %}<div><span class="text-slate-500">Status Operacional:</span> <span class="px-2 py-0.5 rounded text-xs font-bold {% if client.status_operacional == 'ATIVO' %}bg-emerald-500/20 text-emerald-400{% elif client.status_operacional == 'FECHOU' %}bg-rose-500/20 text-rose-400{% elif client.status_operacional == 'INATIVO' %}bg-slate-500/20 text-slate-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">{{ client.status_operacional }}</span></div>{% endif %}
-                {% if client.numero %}<div><span class="text-slate-500">Nº:</span> <span class="text-white">{{ client.numero }}</span></div>{% endif %}
-                {% if client.complemento %}<div><span class="text-slate-500">Complemento:</span> <span class="text-white">{{ client.complemento }}</span></div>{% endif %}
-                {% if client.referencia %}<div class="md:col-span-2 lg:col-span-4"><span class="text-slate-500">Referência:</span> <span class="text-white">{{ client.referencia }}</span></div>{% endif %}
-                {% if client.observacoes_acesso %}<div class="md:col-span-2 lg:col-span-4"><span class="text-slate-500">Observações de acesso:</span> <span class="text-white">{{ client.observacoes_acesso }}</span></div>{% endif %}
-                {% if client.fone_alternativo %}<div><span class="text-slate-500">Fone alternativo:</span> <span class="text-white">{{ client.fone_alternativo }}</span></div>{% endif %}
-                {% if client.janela_horario_inicio or client.janela_horario_fim %}<div><span class="text-slate-500">Janela recebimento:</span> <span class="text-white">{{ client.janela_horario_inicio or '-' }} - {{ client.janela_horario_fim or '-' }}</span></div>{% endif %}
-                {% if client.prioridade_logistica %}<div><span class="text-slate-500">Prioridade logística:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400">{{ client.prioridade_logistica }}</span></div>{% endif %}
-                {% if client.lgpd_nao_contatar %}<div><span class="text-slate-500">LGPD:</span> <span class="text-amber-400 text-xs">Não contatar</span></div>{% endif %}
-                {% if client.lgpd_restricao_dados %}<div><span class="text-slate-500">LGPD:</span> <span class="text-amber-400 text-xs">Restrição de dados</span></div>{% endif %}
-                {% if not (client.nb or client.setor or client.municipio or client.bairro or client.endereco or client.fone or client.segmento or client.status_cliente or client.status_operacional or client.numero or client.complemento or client.fone_alternativo or client.prioridade_logistica) %}
-                <p class="text-slate-500 italic col-span-full">Nenhum dado adicional cadastrado. Clique em Editar para preencher.</p>
+                <h2 id="client-ficha-aside-heading" class="client-detail-panel__title">Ficha do cliente</h2>
+            </div>
+            <div class="client-detail-panel__body divide-y divide-slate-200 dark:divide-slate-700">
+            <div class="pb-5">
+            <h3 id="client-data-heading" class="client-detail-aside-section__title mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Dados do cliente</h3>
+            {% set card_cadastro = client.nb or client_vendedor_card or client.setor or client.me or client.sa or client.visita or client.nome_fantasia or client.razao_social or client.segmento or client.status_cliente or client.status_operacional %}
+            {% set card_local = client.municipio or client.bairro or endereco_display or client.endereco or client.numero or client.complemento or client.referencia or client.observacoes_acesso or client_phone_display or client_alt_phone_display or client.janela_horario_inicio or client.janela_horario_fim or client.prioridade_logistica or client.lgpd_nao_contatar or client.lgpd_restricao_dados %}
+            {% if not (card_cadastro or card_local) %}
+            <p class="text-slate-500 italic text-center py-4">Nenhum dado adicional cadastrado. Use <strong class="text-slate-400">Editar cadastro</strong> para preencher.</p>
+            {% else %}
+            <div class="client-detail-fields-split grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
+                {% if card_cadastro %}
+                <div class="client-detail-fields-card">
+                    <h4 class="client-detail-fields-card__title">Cadastro e comercial</h4>
+                    <div class="client-detail-fields grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 text-sm">
+                        {% if client.nb %}<div><span class="text-slate-500">NB:</span> <span class="text-white">{{ client.nb|fmt_nb_br }}</span></div>{% endif %}
+                        {% if client_vendedor_card %}
+                        <div class="sm:col-span-2">
+                            <span class="text-slate-500">Vendedor:</span>
+                            <a href="/employees/{{ client_vendedor_card.id }}" class="ml-1 font-medium text-white underline decoration-slate-500 underline-offset-2 hover:text-blue-300">{{ client_vendedor_card.name|emp_name }}</a>
+                            {% if client_vendedor_card.seller_code %}
+                            <span class="text-slate-400"> — código {{ client_vendedor_card.seller_code }}</span>
+                            {% endif %}
+                        </div>
+                        {% elif client.setor %}
+                        <div class="sm:col-span-2"><span class="text-slate-500">Vendedor (legado):</span> <span class="text-white">código {{ client.setor }}</span> <span class="text-xs text-slate-500">(sem vínculo no cadastro de colaboradores)</span></div>
+                        {% endif %}
+                        {% if client.me %}<div><span class="text-slate-500">ME:</span> <span class="text-white">{{ client.me }}</span></div>{% endif %}
+                        {% if client.sa %}<div><span class="text-slate-500">SA:</span> <span class="text-white">{{ client.sa }}</span></div>{% endif %}
+                        {% if client.visita %}<div><span class="text-slate-500">Visita:</span> <span class="text-white">{{ client.visita }}</span></div>{% endif %}
+                        {% if client.nome_fantasia %}<div><span class="text-slate-500">Nome Fantasia:</span> <span class="text-white">{{ client.nome_fantasia }}</span></div>{% endif %}
+                        {% if client.razao_social %}<div><span class="text-slate-500">Razão Social:</span> <span class="text-white">{{ client.razao_social }}</span></div>{% endif %}
+                        {% if client.segmento %}<div><span class="text-slate-500">Segmento:</span> <span class="text-white">{{ client.segmento }}</span></div>{% endif %}
+                        {% if client.status_cliente %}<div><span class="text-slate-500">Status:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span></div>{% endif %}
+                        {% if client.status_operacional %}<div><span class="text-slate-500">Status Operacional:</span> <span class="px-2 py-0.5 rounded text-xs font-bold {% if client.status_operacional == 'ATIVO' %}bg-emerald-500/20 text-emerald-400{% elif client.status_operacional == 'FECHOU' %}bg-rose-500/20 text-rose-400{% elif client.status_operacional == 'INATIVO' %}bg-slate-500/20 text-slate-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">{{ client.status_operacional }}</span></div>{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if card_local %}
+                <div class="client-detail-fields-card">
+                    <h4 class="client-detail-fields-card__title">Localização, contato e logística</h4>
+                    <div class="client-detail-fields grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 text-sm">
+                        {% if client.municipio %}<div><span class="text-slate-500">Município:</span> <span class="text-white">{{ client.municipio }}</span></div>{% endif %}
+                        {% if client.bairro %}<div><span class="text-slate-500">Bairro:</span> <span class="text-white">{{ client.bairro }}</span></div>{% endif %}
+                        {% if endereco_display or client.endereco %}<div class="sm:col-span-2"><span class="text-slate-500">Endereço:</span> <span class="text-white">{{ endereco_display or client.endereco }}</span></div>{% endif %}
+                        {% if client.numero %}<div><span class="text-slate-500">Nº:</span> <span class="text-white">{{ client.numero }}</span></div>{% endif %}
+                        {% if client.complemento %}<div><span class="text-slate-500">Complemento:</span> <span class="text-white">{{ client.complemento }}</span></div>{% endif %}
+                        {% if client.referencia %}<div class="sm:col-span-2"><span class="text-slate-500">Referência:</span> <span class="text-white">{{ client.referencia }}</span></div>{% endif %}
+                        {% if client.observacoes_acesso %}<div class="sm:col-span-2"><span class="text-slate-500">Observações de acesso:</span> <span class="text-white">{{ client.observacoes_acesso }}</span></div>{% endif %}
+                        {% if client_phone_display %}<div class="sm:col-span-2"><span class="text-slate-500">WhatsApp principal:</span> <span class="text-white">{{ client_phone_display }}</span>{% if client_phone_api_ready %}<span class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">API pronta</span>{% endif %}</div>{% endif %}
+                        {% if client_alt_phone_display %}<div><span class="text-slate-500">Fone alternativo:</span> <span class="text-white">{{ client_alt_phone_display }}</span></div>{% endif %}
+                        {% if client.janela_horario_inicio or client.janela_horario_fim %}<div><span class="text-slate-500">Janela recebimento:</span> <span class="text-white">{{ client.janela_horario_inicio or '-' }} - {{ client.janela_horario_fim or '-' }}</span></div>{% endif %}
+                        {% if client.prioridade_logistica %}<div><span class="text-slate-500">Prioridade logística:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400">{{ client.prioridade_logistica }}</span></div>{% endif %}
+                        {% if client.lgpd_nao_contatar %}<div><span class="text-slate-500">LGPD:</span> <span class="text-amber-400 text-xs">Não contatar</span></div>{% endif %}
+                        {% if client.lgpd_restricao_dados %}<div><span class="text-slate-500">LGPD:</span> <span class="text-amber-400 text-xs">Restrição de dados</span></div>{% endif %}
+                    </div>
+                </div>
                 {% endif %}
             </div>
-        </div>
+            {% endif %}
+            </div>
 
-        <!-- Grupo comercial (redes / BI) -->
-        <div class="bg-slate-800 rounded-2xl border border-indigo-500/30 p-6 mb-8">
-            <h3 class="text-white font-bold mb-2 flex items-center gap-2">
-                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                Grupo comercial (análise nos BIs)
+            <div class="client-detail-aside-section border-0 pt-5">
+            <h3 id="client-group-heading" class="client-detail-aside-section__title mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
+                <svg class="h-4 w-4 shrink-0 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                Grupo comercial
             </h3>
-            <p class="text-slate-400 text-sm mb-4">Agrupe lojas da mesma rede (ex.: EPA, DMA). No <strong class="text-white">BI Clientes</strong> e <strong class="text-white">BI Devoluções</strong> você escolhe ver <em>só esta loja</em> ou <em>todo o grupo</em> agregado.</p>
+            <p class="mb-4 text-sm leading-relaxed text-slate-600 dark:text-slate-400">Agrupe lojas da mesma rede (ex.: EPA, DMA). Nos BIs você vê <strong class="text-slate-800 dark:text-slate-200">só esta loja</strong> ou o <strong class="text-slate-800 dark:text-slate-200">grupo agregado</strong>.</p>
             <form action="/clients/{{ client.id }}/group" method="post" class="flex flex-col md:flex-row flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-xs text-slate-500 mb-1">Grupo existente</label>
@@ -105,216 +262,222 @@
                 <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium">Salvar grupo</button>
             </form>
             {% if current_client_group %}
-            <div class="mt-4 pt-4 border-t border-slate-700">
-                <p class="text-sm text-indigo-300 font-medium mb-2">Grupo atual: {{ current_client_group.name }}</p>
+            <div class="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+                <p class="mb-2 text-sm font-medium text-indigo-700 dark:text-indigo-300">Grupo atual: {{ current_client_group.name }}</p>
                 {% if group_peers|length %}
-                <p class="text-xs text-slate-500 mb-2">Outras lojas no grupo ({{ group_peers|length }}):</p>
+                <p class="mb-2 text-xs text-slate-500">Outras lojas no grupo ({{ group_peers|length }}):</p>
                 <ul class="flex flex-wrap gap-2">
                     {% for p in group_peers %}
-                    <li><a href="/clients/{{ p.id }}" class="text-sm text-blue-400 hover:text-blue-300 underline">{{ p.name }}</a></li>
+                    <li><a href="/clients/{{ p.id }}" class="text-sm text-blue-600 underline hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">{{ p.name }}</a></li>
                     {% endfor %}
                 </ul>
                 {% else %}
                 <p class="text-xs text-slate-500">Nenhuma outra loja neste grupo ainda. Atribua o mesmo grupo nas outras fichas.</p>
                 {% endif %}
                 <div class="mt-3 flex flex-wrap gap-2">
-                    <a href="/bi/clientes?client_id={{ client.id }}&client_scope=solo" class="text-xs px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600">BI Clientes · só esta loja</a>
-                    <a href="/bi/clientes?client_id={{ client.id }}&client_scope=group" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/50 border border-indigo-500/30">BI Clientes · grupo inteiro</a>
-                    <a href="/bi/devolucoes?client_id={{ client.id }}&client_scope=solo" class="text-xs px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600">BI Devoluções · só esta loja</a>
-                    <a href="/bi/devolucoes?client_id={{ client.id }}&client_scope=group" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-900/50 text-indigo-200 hover:bg-indigo-800/50 border border-indigo-500/30">BI Devoluções · grupo</a>
+                    <a href="/bi/clientes?client_id={{ client.id }}&client_scope=solo" class="rounded-lg bg-slate-200 px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">BI Clientes · só esta loja</a>
+                    <a href="/bi/clientes?client_id={{ client.id }}&client_scope=group" class="rounded-lg border border-indigo-400/40 bg-indigo-100 px-3 py-1.5 text-xs text-indigo-900 hover:bg-indigo-200/80 dark:border-indigo-500/30 dark:bg-indigo-950/50 dark:text-indigo-200 dark:hover:bg-indigo-900/50">BI Clientes · grupo inteiro</a>
+                    <a href="/bi/devolucoes?client_id={{ client.id }}&client_scope=solo" class="rounded-lg bg-slate-200 px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">BI Devoluções · só esta loja</a>
+                    <a href="/bi/devolucoes?client_id={{ client.id }}&client_scope=group" class="rounded-lg border border-indigo-400/40 bg-indigo-100 px-3 py-1.5 text-xs text-indigo-900 hover:bg-indigo-200/80 dark:border-indigo-500/30 dark:bg-indigo-950/50 dark:text-indigo-200 dark:hover:bg-indigo-900/50">BI Devoluções · grupo</a>
                 </div>
             </div>
             {% endif %}
+            </div>
+
+            <div class="client-detail-aside-section border-0 pt-5">
+            <h3 id="client-ray-heading" class="client-detail-aside-section__title mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Raio-X e % devolução no ano
+            </h3>
+            <div class="client-detail-ray-kpi-row mb-0 flex flex-nowrap gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Total movimentado</p>
+                <p class="client-detail-kpi__value text-sm text-blue-600 dark:text-blue-400">{{ stats.total_tonnage_fmt }} <span class="client-detail-kpi__unit">kg</span></p>
+            </div>
+            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Tempo médio (carga)</p>
+                <p class="client-detail-kpi__value text-sm text-emerald-600 dark:text-emerald-400">{{ stats.avg_duration_fmt }}</p>
+            </div>
+            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Última operação</p>
+                <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.last_op_date }}</p>
+                <p class="client-detail-kpi__sub">{{ stats.last_op_days_ago|fmt_br_int }} dias atrás</p>
+            </div>
+            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Top colaborador</p>
+                <p class="client-detail-kpi__value truncate text-sm text-slate-900 dark:text-white" title="{{ stats.top_employee|emp_name }}">{{ (stats.top_employee|emp_name) if stats.top_employee else '—' }}</p>
+                <p class="client-detail-kpi__sub">{{ stats.top_employee_count|fmt_br_int }} ops.</p>
+            </div>
+            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Viagens (rotas)</p>
+                <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.total_routes|fmt_br_int }}</p>
+            </div>
+            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Média peso / viagem</p>
+                <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.avg_tonnage_per_route_fmt }} <span class="client-detail-kpi__unit">kg</span></p>
+            </div>
+            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Produtividade média</p>
+                <p class="client-detail-kpi__value text-sm text-emerald-600 dark:text-emerald-400">{{ stats.avg_productivity_fmt }} <span class="client-detail-kpi__unit">kg/h</span></p>
+            </div>
+            <div class="client-detail-kpi client-detail-kpi--devolucao min-h-0 w-[min(100%,13rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Devolução · volume (ano)</p>
+                <div class="client-detail-pct-bar relative mb-1.5 h-2 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-700" role="img" aria-label="Percentual devolvido por volume: {{ chart_devolucao.pct_volume }} por cento">
+                    <div class="absolute left-0 top-0 h-full min-w-0 rounded-l-lg bg-rose-500/90 transition-[width] duration-300" style="width: {{ chart_devolucao.pct_volume }}%"></div>
+                </div>
+                <p class="client-detail-kpi__value text-sm text-rose-600 dark:text-rose-400">{{ chart_devolucao.pct_volume|fmt_br }}%</p>
+                <p class="client-detail-kpi__sub leading-snug">{{ chart_devolucao.ton_dev_ano_fmt }} kg dev. · base {{ chart_devolucao.ton_base_ano_fmt }} kg</p>
+            </div>
+            <div class="client-detail-kpi client-detail-kpi--devolucao min-h-0 w-[min(100%,13rem)] shrink-0 py-3">
+                <p class="client-detail-kpi__label">Devolução · valor (ano)</p>
+                <div class="client-detail-pct-bar relative mb-1.5 h-2 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-700" role="img" aria-label="Percentual devolvido por valor: {{ chart_devolucao.pct_valor }} por cento">
+                    <div class="absolute left-0 top-0 h-full min-w-0 rounded-l-lg bg-amber-500/90 transition-[width] duration-300" style="width: {{ chart_devolucao.pct_valor }}%"></div>
+                </div>
+                <p class="client-detail-kpi__value text-sm text-amber-600 dark:text-amber-400">{{ chart_devolucao.pct_valor|fmt_br }}%</p>
+                <p class="client-detail-kpi__sub leading-snug">R$ {{ chart_devolucao.valor_dev_ano_fmt }} / base R$ {{ chart_devolucao.valor_base_ano_fmt }}</p>
+            </div>
+            </div>
+            </div>
+            </div>
+        </section>
         </div>
 
-        <!-- KPI Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <!-- Total Tonnage -->
-            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Total Movimentado (Geral)</p>
-                <p class="text-3xl font-bold text-blue-400">{{ stats.total_tonnage_fmt }} <span
-                        class="text-sm text-slate-500 font-normal">ton</span></p>
-            </div>
-
-            <!-- Avg Duration -->
-            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Tempo Médio (Carga)</p>
-                <p class="text-3xl font-bold text-emerald-400">{{ stats.avg_duration_fmt }}</p>
-            </div>
-
-            <!-- Last Op -->
-            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Última Operação</p>
-                <p class="text-xl font-bold text-white">{{ stats.last_op_date }}</p>
-                <p class="text-xs text-slate-500">{{ stats.last_op_days_ago }} dias atrás</p>
-            </div>
-
-            <!-- Top Employee -->
-            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
-                <p class="text-slate-500 text-xs font-bold uppercase mb-1">Top Colaborador</p>
-                <p class="text-lg font-bold text-white truncate" title="{{ stats.top_employee }}">{{ stats.top_employee
-                    or '-' }}</p>
-                <p class="text-xs text-slate-500">{{ stats.top_employee_count }} operações</p>
-            </div>
-        </div>
-
+        <div class="client-detail-layout__main w-full min-w-0 space-y-6 mt-6 lg:col-span-12">
         <!-- Period Analysis - Linha 1: Volume | Valor Financeiro lado a lado -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+            <section class="client-detail-panel">
+                <div class="client-detail-panel__head">
+                    <svg class="h-5 w-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
-                    Volume por Período
-                </h3>
-                <div class="grid grid-cols-4 gap-3">
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Hoje</p>
-                        <p class="text-lg font-bold text-white">{{ periods.today_fmt }} t</p>
+                    <h3 class="client-detail-panel__title">Volume por período (kg)</h3>
+                </div>
+                <div class="client-detail-panel__body">
+                <div class="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Hoje</p>
+                        <p class="client-detail-period-cell__value">{{ periods.today_fmt }} kg</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Semana</p>
-                        <p class="text-lg font-bold text-white">{{ periods.week_fmt }} t</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Semana</p>
+                        <p class="client-detail-period-cell__value">{{ periods.week_fmt }} kg</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Mês</p>
-                        <p class="text-lg font-bold text-white">{{ periods.month_fmt }} t</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Mês</p>
+                        <p class="client-detail-period-cell__value">{{ periods.month_fmt }} kg</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Ano</p>
-                        <p class="text-xl font-bold text-indigo-400">{{ periods.year_fmt }} t</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Ano</p>
+                        <p class="client-detail-period-cell__value text-indigo-400">{{ periods.year_fmt }} kg</p>
                     </div>
                 </div>
-            </div>
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                </div>
+            </section>
+            <section class="client-detail-panel">
+                <div class="client-detail-panel__head">
+                    <svg class="h-5 w-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    Valor Financeiro (R$) por Período
-                </h3>
-                <div class="grid grid-cols-4 gap-3">
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Hoje</p>
-                        <p class="text-lg font-bold text-white">{{ periods_valor.today_fmt }}</p>
+                    <h3 class="client-detail-panel__title">Valor financeiro (R$)</h3>
+                </div>
+                <div class="client-detail-panel__body">
+                <div class="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Hoje</p>
+                        <p class="client-detail-period-cell__value">{{ periods_valor.today_fmt }}</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Semana</p>
-                        <p class="text-lg font-bold text-white">{{ periods_valor.week_fmt }}</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Semana</p>
+                        <p class="client-detail-period-cell__value">{{ periods_valor.week_fmt }}</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Mês</p>
-                        <p class="text-lg font-bold text-white">{{ periods_valor.month_fmt }}</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Mês</p>
+                        <p class="client-detail-period-cell__value">{{ periods_valor.month_fmt }}</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Ano</p>
-                        <p class="text-xl font-bold text-emerald-400">{{ periods_valor.year_fmt }}</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Ano</p>
+                        <p class="client-detail-period-cell__value text-emerald-400">{{ periods_valor.year_fmt }}</p>
                     </div>
                 </div>
-            </div>
+                </div>
+            </section>
         </div>
 
         <!-- Linha 2: Devolução (Volume) | Valor Devolução (R$) lado a lado -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+            <section class="client-detail-panel">
+                <div class="client-detail-panel__head">
+                    <svg class="h-5 w-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
                     </svg>
-                    Devolução (Volume t) por Período
-                </h3>
-                <div class="grid grid-cols-4 gap-3">
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Hoje</p>
-                        <p class="text-lg font-bold text-white">{{ periods_devolucao_vol.today_fmt }} t</p>
+                    <h3 class="client-detail-panel__title">Devolução (volume kg)</h3>
+                </div>
+                <div class="client-detail-panel__body">
+                <div class="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Hoje</p>
+                        <p class="client-detail-period-cell__value">{{ periods_devolucao_vol.today_fmt }} kg</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Semana</p>
-                        <p class="text-lg font-bold text-white">{{ periods_devolucao_vol.week_fmt }} t</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Semana</p>
+                        <p class="client-detail-period-cell__value">{{ periods_devolucao_vol.week_fmt }} kg</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Mês</p>
-                        <p class="text-lg font-bold text-white">{{ periods_devolucao_vol.month_fmt }} t</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Mês</p>
+                        <p class="client-detail-period-cell__value">{{ periods_devolucao_vol.month_fmt }} kg</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Ano</p>
-                        <p class="text-xl font-bold text-rose-400">{{ periods_devolucao_vol.year_fmt }} t</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Ano</p>
+                        <p class="client-detail-period-cell__value text-rose-400">{{ periods_devolucao_vol.year_fmt }} kg</p>
                     </div>
                 </div>
-            </div>
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="text-white font-bold mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                </div>
+            </section>
+            <section class="client-detail-panel">
+                <div class="client-detail-panel__head">
+                    <svg class="h-5 w-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
-                    Valor Devolução (R$) por Período
-                </h3>
-                <div class="grid grid-cols-4 gap-3">
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Hoje</p>
-                        <p class="text-lg font-bold text-white">{{ periods_valor_devolucao.today_fmt }}</p>
+                    <h3 class="client-detail-panel__title">Valor devolução (R$)</h3>
+                </div>
+                <div class="client-detail-panel__body">
+                <div class="grid grid-cols-2 gap-2 sm:gap-3">
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Hoje</p>
+                        <p class="client-detail-period-cell__value">{{ periods_valor_devolucao.today_fmt }}</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Semana</p>
-                        <p class="text-lg font-bold text-white">{{ periods_valor_devolucao.week_fmt }}</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Semana</p>
+                        <p class="client-detail-period-cell__value">{{ periods_valor_devolucao.week_fmt }}</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Mês</p>
-                        <p class="text-lg font-bold text-white">{{ periods_valor_devolucao.month_fmt }}</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Mês</p>
+                        <p class="client-detail-period-cell__value">{{ periods_valor_devolucao.month_fmt }}</p>
                     </div>
-                    <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 text-center">
-                        <p class="text-slate-500 text-[10px] uppercase font-bold mb-0.5">Ano</p>
-                        <p class="text-xl font-bold text-amber-400">{{ periods_valor_devolucao.year_fmt }}</p>
+                    <div class="client-detail-period-cell">
+                        <p class="client-detail-period-cell__label">Ano</p>
+                        <p class="client-detail-period-cell__value text-amber-400">{{ periods_valor_devolucao.year_fmt }}</p>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Gráfico % Devolução -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
-            <h3 class="text-white font-bold mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-                % Devolução (Este Ano)
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <p class="text-slate-400 text-sm mb-2">Por volume (ton)</p>
-                    <div class="h-8 bg-slate-900 rounded-lg overflow-hidden flex">
-                        <div class="bg-rose-500/80 h-full transition-all" style="width: {{ chart_devolucao.pct_volume }}%"></div>
-                        <div class="bg-emerald-500/30 h-full flex-1"></div>
-                    </div>
-                    <p class="text-white font-bold mt-2">{{ chart_devolucao.pct_volume }}% devolvido</p>
-                    <p class="text-slate-500 text-xs mt-1">{{ chart_devolucao.ton_dev_ano_fmt }} t em devoluções (romaneio/vínculo rota) · base {{ chart_devolucao.ton_base_ano_fmt }} t entregues no ano</p>
                 </div>
-                <div>
-                    <p class="text-slate-400 text-sm mb-2">Por valor (R$)</p>
-                    <div class="h-8 bg-slate-900 rounded-lg overflow-hidden flex">
-                        <div class="bg-amber-500/80 h-full transition-all" style="width: {{ chart_devolucao.pct_valor }}%"></div>
-                        <div class="bg-emerald-500/30 h-full flex-1"></div>
-                    </div>
-                    <p class="text-white font-bold mt-2">{{ chart_devolucao.pct_valor }}% devolvido</p>
-                    <p class="text-slate-500 text-xs mt-1">R$ {{ chart_devolucao.valor_dev_ano_fmt }} (romaneio) / base R$ {{ chart_devolucao.valor_base_ano_fmt }} no ano</p>
-                </div>
-            </div>
+            </section>
         </div>
 
         <!-- Lista de Devoluções (registros do módulo Devoluções) -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-                <h3 class="text-white font-bold flex items-center gap-2">
-                    <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <section class="client-detail-panel client-detail-panel--table overflow-hidden shadow-lg">
+            <div class="client-detail-panel__head">
+                <div class="flex min-w-0 flex-1 items-center gap-2">
+                    <svg class="h-5 w-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
                     </svg>
-                    Devoluções
-                </h3>
-                <span class="text-slate-400 text-sm">{{ devolucoes_list|length }} registro(s)</span>
+                    <h3 class="client-detail-panel__title">Devoluções</h3>
+                </div>
+                <span class="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium tabular-nums text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">{{ devolucoes_list|length }} reg.</span>
             </div>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
+                <table class="w-full border-collapse text-left">
                     <thead>
-                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
+                        <tr class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                             <th class="px-6 py-4">Data romaneio</th>
                             <th class="px-6 py-4">Data entrega</th>
                             <th class="px-6 py-4 text-right">Valor (R$)</th>
@@ -326,63 +489,45 @@
                             <th class="px-6 py-4 text-center">R$ 300+</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700 text-sm">
+                    <tbody class="divide-y divide-slate-200 text-sm dark:divide-slate-700">
                         {% for dev in devolucoes_list %}
-                        <tr class="hover:bg-slate-700/30 transition-colors">
-                            <td class="px-6 py-4 text-slate-300 font-mono">{{ dev.data_romaneio_fmt }}</td>
-                            <td class="px-6 py-4 text-slate-300 font-mono">{{ dev.data_entrega_fmt }}</td>
-                            <td class="px-6 py-4 text-right font-medium text-amber-400">R$ {{ dev.valor_fmt }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ dev.motivo }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ dev.responsabilidade }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ dev.motorista }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ dev.vendedor }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ dev.ajudante }}</td>
+                        <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td class="px-6 py-4 font-mono text-slate-700 dark:text-slate-300">{{ dev.data_romaneio_fmt }}</td>
+                            <td class="px-6 py-4 font-mono text-slate-700 dark:text-slate-300">{{ dev.data_entrega_fmt }}</td>
+                            <td class="px-6 py-4 text-right font-medium text-amber-600 dark:text-amber-400">R$ {{ dev.valor_fmt }}</td>
+                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.motivo }}</td>
+                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.responsabilidade }}</td>
+                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.motorista }}</td>
+                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.vendedor }}</td>
+                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.ajudante }}</td>
                             <td class="px-6 py-4 text-center">
                                 {% if dev.acima_300 %}
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400">SIM</span>
+                                <span class="rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-400">SIM</span>
                                 {% else %}
-                                <span class="text-slate-500">—</span>
+                                <span class="text-slate-400">—</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="9" class="px-6 py-12 text-center text-slate-500">Nenhuma devolução registrada para este cliente.</td>
+                            <td colspan="9" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400">Nenhuma devolução registrada para este cliente.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </div>
-
-        <!-- Quick Stats -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
-                <h3 class="text-white font-bold mb-4">Raio-X</h3>
-                <ul class="space-y-4">
-                    <li class="flex justify-between items-center text-sm border-b border-slate-700 pb-3">
-                        <span class="text-slate-400">Total de Viagens (Rotas)</span>
-                        <span class="text-white font-bold">{{ stats.total_routes }}</span>
-                    </li>
-                    <li class="flex justify-between items-center text-sm border-b border-slate-700 pb-3">
-                        <span class="text-slate-400">Média Peso / Viagem</span>
-                        <span class="text-white font-bold">{{ stats.avg_tonnage_per_route_fmt }} kg</span>
-                    </li>
-                    <li class="flex justify-between items-center text-sm">
-                        <span class="text-slate-400">Produtividade Média</span>
-                        <span class="text-white font-bold">{{ stats.avg_productivity_fmt }} kg/h</span>
-                    </li>
-                </ul>
-        </div>
+        </section>
 
         {% if audit_logs %}
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6 mb-8">
-            <h3 class="text-white font-bold mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <section class="client-detail-panel">
+            <div class="client-detail-panel__head">
+                <svg class="h-5 w-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                Histórico de Alterações
-            </h3>
-            <div class="overflow-x-auto">
+                <h3 class="client-detail-panel__title">Histórico de alterações</h3>
+            </div>
+            <div class="client-detail-panel__body p-0 sm:p-0">
+            <div class="overflow-x-auto px-1 pb-1 sm:px-4 sm:pb-4">
                 <table class="w-full text-left text-sm">
                     <thead>
                         <tr class="text-slate-400 text-xs uppercase font-bold border-b border-slate-700">
@@ -396,7 +541,7 @@
                     <tbody class="divide-y divide-slate-700">
                         {% for log in audit_logs %}
                         <tr>
-                            <td class="py-2 text-slate-400 font-mono">{{ log.changed_at.strftime('%d/%m/%Y %H:%M') if log.changed_at else '-' }}</td>
+                            <td class="py-2 text-slate-400 font-mono">{{ log.changed_at|fmt_br_datetime if log.changed_at else '—' }}</td>
                             <td class="py-2 text-white">{{ log.changed_by or '-' }}</td>
                             <td class="py-2 text-slate-300">{{ log.field_name or '-' }}</td>
                             <td class="py-2 text-slate-400 truncate max-w-[120px]">{{ log.old_value or '-' }}</td>
@@ -406,273 +551,262 @@
                     </tbody>
                 </table>
             </div>
-        </div>
+            </div>
+        </section>
         {% endif %}
 
         <!-- History Table -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-                <h3 class="text-white font-bold flex items-center gap-2">
-                    <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Histórico de Operações
-                </h3>
+        <section class="client-detail-panel client-detail-panel--table overflow-hidden shadow-lg">
+            <div class="client-detail-panel__head">
+                <svg class="h-5 w-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <h3 class="client-detail-panel__title">Histórico de operações</h3>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
+                        <tr class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                             <th class="px-6 py-4">Data</th>
-                            <th class="px-6 py-4">Turno</th>
                             <th class="px-6 py-4">Colaborador</th>
                             <th class="px-6 py-4 text-right">Peso (kg)</th>
                             <th class="px-6 py-4 text-center">Duração</th>
                             <th class="px-6 py-4 text-center">Produtividade</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700 text-sm">
+                    <tbody class="divide-y divide-slate-200 text-sm dark:divide-slate-700">
                         {% for route in history %}
-                        <tr class="hover:bg-slate-700/30 transition-colors">
-                            <td class="px-6 py-4 text-white font-mono">{{ route.date_fmt }}</td>
-                            <td class="px-6 py-4 text-slate-300">
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold 
-                                    {% if route.shift == 'Manhã' %}bg-blue-500/20 text-blue-300
-                                    {% elif route.shift == 'Tarde' %}bg-orange-500/20 text-orange-300
-                                    {% else %}bg-purple-500/20 text-purple-300{% endif %}">
-                                    {{ route.shift }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 text-slate-300">{{ route.employee_name }}</td>
-                            <td class="px-6 py-4 text-right font-bold text-white">{{ route.tonnage_fmt }}</td>
-                            <td class="px-6 py-4 text-center text-slate-400 font-mono">{{ route.duration_fmt or '-' }}
+                        <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                            <td class="px-6 py-4 font-mono font-medium text-slate-900 dark:text-white">{{ route.date_fmt }}</td>
+                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ route.employee_name|emp_name }}</td>
+                            <td class="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">{{ route.tonnage_kg_fmt }}</td>
+                            <td class="px-6 py-4 text-center font-mono text-slate-500 dark:text-slate-400">{{ route.duration_fmt or '-' }}
                             </td>
                             <td class="px-6 py-4 text-center">
                                 {% if route.productivity > 0 %}
-                                <span class="text-emerald-400 font-bold">{{ route.productivity_fmt }}</span> <span
+                                <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ route.productivity_fmt }}</span> <span
                                     class="text-[10px] text-slate-500">kg/h</span>
                                 {% else %}
-                                <span class="text-slate-600">-</span>
+                                <span class="text-slate-400">-</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center text-slate-500">Nenhum registro encontrado.
+                            <td colspan="5" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400">Nenhum registro encontrado.
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+        </section>
+
+        </div>
         </div>
 
-    </div>
 </div>
 
-<!-- Edit Modal -->
-<div id="editModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
-    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-2xl mx-4">
-        <h3 class="text-lg font-bold text-white mb-4">Editar Cliente</h3>
-        <form action="/clients/{{ client.id }}/update" method="post" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Nome *</label>
-                    <input type="text" name="name" value="{{ client.name }}" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">NB</label>
-                    <input type="text" name="nb" value="{{ client.nb or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">SETOR</label>
-                    <input type="text" name="setor" value="{{ client.setor or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">ME</label>
-                    <input type="text" name="me" value="{{ client.me or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">SA</label>
-                    <input type="text" name="sa" value="{{ client.sa or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">VISITA</label>
-                    <input type="text" name="visita" value="{{ client.visita or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">FANTAS</label>
-                    <input type="text" name="nome_fantasia" value="{{ client.nome_fantasia or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Razão Social</label>
-                    <input type="text" name="razao_social" value="{{ client.razao_social or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">MUNICÍPIO</label>
-                    <input type="text" name="municipio" value="{{ client.municipio or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">BAIRRO</label>
-                    <input type="text" name="bairro" value="{{ client.bairro or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">ENDEREÇO</label>
-                    <input type="text" name="endereco" value="{{ client.endereco or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">FONE</label>
-                    <input type="text" name="fone" value="{{ client.fone or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">SEGMENTO</label>
-                    <input type="text" name="segmento" value="{{ client.segmento or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">STATUS</label>
-                    <input type="text" name="status_cliente" value="{{ client.status_cliente or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Status Operacional</label>
-                    <select name="status_operacional" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="ATIVO" {% if (client.status_operacional or 'ATIVO') == 'ATIVO' %}selected{% endif %}>ATIVO</option>
-                        <option value="FECHOU" {% if client.status_operacional == 'FECHOU' %}selected{% endif %}>FECHOU</option>
-                        <option value="INATIVO" {% if client.status_operacional == 'INATIVO' %}selected{% endif %}>INATIVO</option>
-                        <option value="EM_VALIDACAO" {% if client.status_operacional == 'EM_VALIDACAO' %}selected{% endif %}>EM_VALIDACAO</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Logradouro</label>
-                    <input type="text" name="logradouro" value="{{ client.logradouro or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Número</label>
-                    <input type="text" name="numero" value="{{ client.numero or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Complemento</label>
-                    <input type="text" name="complemento" value="{{ client.complemento or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Referência</label>
-                    <input type="text" name="referencia" value="{{ client.referencia or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Observações de acesso</label>
-                    <input type="text" name="observacoes_acesso" value="{{ client.observacoes_acesso or '' }}"
-                        placeholder="entrada lateral, doca..."
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Fone alternativo</label>
-                    <input type="text" name="fone_alternativo" value="{{ client.fone_alternativo or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Observações contato</label>
-                    <input type="text" name="observacoes_contato" value="{{ client.observacoes_contato or '' }}"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Janela início</label>
-                    <input type="text" name="janela_horario_inicio" value="{{ client.janela_horario_inicio or '' }}" placeholder="08:00"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Janela fim</label>
-                    <input type="text" name="janela_horario_fim" value="{{ client.janela_horario_fim or '' }}" placeholder="17:00"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Dias semana</label>
-                    <input type="text" name="janela_dias_semana" value="{{ client.janela_dias_semana or '' }}"
-                        placeholder='["seg","ter","qua"]'
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Prioridade logística</label>
-                    <select name="prioridade_logistica" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">—</option>
-                        <option value="A" {% if client.prioridade_logistica == 'A' %}selected{% endif %}>A</option>
-                        <option value="B" {% if client.prioridade_logistica == 'B' %}selected{% endif %}>B</option>
-                        <option value="C" {% if client.prioridade_logistica == 'C' %}selected{% endif %}>C</option>
-                    </select>
-                </div>
-                <div class="md:col-span-2 flex gap-6 items-center">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="lgpd_nao_contatar" {% if client.lgpd_nao_contatar %}checked{% endif %}
-                            class="rounded bg-slate-900 border-slate-600 text-amber-500 focus:ring-blue-500">
-                        <span class="text-sm text-slate-400">LGPD: Não contatar</span>
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" name="lgpd_restricao_dados" {% if client.lgpd_restricao_dados %}checked{% endif %}
-                            class="rounded bg-slate-900 border-slate-600 text-amber-500 focus:ring-blue-500">
-                        <span class="text-sm text-slate-400">LGPD: Restrição de dados</span>
-                    </label>
-                </div>
-            </div>
-            <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
-                <button type="button" onclick="closeEditModal()"
-                    class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
-                <button type="submit"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold">Salvar</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Delete Modal -->
-<div id="deleteModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm">
-    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm mx-4">
-        <h3 class="text-lg font-bold text-white mb-2">Excluir Cliente?</h3>
-        <p class="text-slate-400 text-sm mb-6">Atenção: A exclusão é permanente e removerá <b>todo o histórico de
-                operações</b> vinculado a este cliente. Deseja continuar?</p>
-        <form action="/clients/{{ client.id }}/delete" method="post" class="flex justify-end gap-2">
-            <button type="button" onclick="closeDeleteModal()"
-                class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
-            <button type="submit"
-                class="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold">Confirmar
-                Exclusão</button>
-        </form>
-    </div>
-</div>
-
-<script>
-    function openEditModal() {
-        document.getElementById('editModal').classList.remove('hidden');
-        document.getElementById('editModal').classList.add('flex');
-    }
-    function closeEditModal() {
-        document.getElementById('editModal').classList.add('hidden');
-        document.getElementById('editModal').classList.remove('flex');
-    }
-    function openDeleteModal() {
-        document.getElementById('deleteModal').classList.remove('hidden');
-        document.getElementById('deleteModal').classList.add('flex');
-    }
-    function closeDeleteModal() {
-        document.getElementById('deleteModal').classList.add('hidden');
-        document.getElementById('deleteModal').classList.remove('flex');
-    }
-</script>
 {% endblock %}
+
+{% block layout_portal %}
+<div id="editModalShell" class="clients-modal hidden" aria-labelledby="edit-client-modal-title" role="dialog" aria-modal="true">
+    <div class="clients-modal__backdrop" onclick="closeEditModal()"></div>
+    <div class="clients-modal__dialog">
+        <div class="clients-modal__card sys-card sys-card--surface">
+            <div class="clients-modal__head">
+                <div>
+                    <p class="employees-text-section-label">Cadastro manual</p>
+                    <h3 class="sys-section-heading mt-1 text-xl" id="edit-client-modal-title">Editar Cliente</h3>
+                </div>
+                <button type="button" onclick="closeEditModal()" class="clients-modal-close" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <form action="/clients/{{ client.id }}/update" method="post" class="clients-modal__form">
+                <div class="clients-contact-highlight mb-5">
+                    <p class="clients-contact-highlight__title">Contato operacional</p>
+                    <p class="clients-contact-highlight__text">Padronize o telefone principal no formato da API do WhatsApp para evitar falhas no envio.</p>
+                    <div class="clients-modal__grid mt-4">
+                        <div class="clients-filter-field clients-filter-field--span-2">
+                            <label for="edit-client-fone" class="clients-field-label">WhatsApp principal</label>
+                            <input id="edit-client-fone" type="text" name="fone" value="{{ client_phone_input or '' }}" placeholder="+5531999550189" inputmode="tel" autocomplete="tel" maxlength="14" data-whatsapp-phone="true" class="clients-control">
+                            <p class="clients-field-help">Padrao API: +55 + DDD + numero. Ex.: +5531999550189.</p>
+                        </div>
+                        <div class="clients-filter-field clients-filter-field--span-2">
+                            <label for="edit-client-fone-alt" class="clients-field-label">Fone alternativo</label>
+                            <input id="edit-client-fone-alt" type="text" name="fone_alternativo" value="{{ client_alt_phone_input or '' }}" placeholder="+553133334444" inputmode="tel" autocomplete="tel" maxlength="14" data-whatsapp-phone="true" class="clients-control">
+                            <p class="clients-field-help">Opcional. Se estiver valido, tambem sera normalizado para o padrao do envio.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clients-modal__grid">
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label class="clients-field-label">Nome *</label>
+                        <input type="text" name="name" value="{{ client.name }}" required class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">NB</label>
+                        <input type="text" name="nb" value="{{ client.nb or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label for="edit-client-vendedor" class="clients-field-label">Vendedor (cadastro de colaboradores)</label>
+                        <select id="edit-client-vendedor" name="vendedor_id" class="clients-control">
+                            <option value="">— Sem vendedor</option>
+                            {% for v in vendedores_list %}
+                            <option value="{{ v.id }}" {% if vendedor_select_id == v.id %}selected{% endif %}>{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="clients-field-help">Somente colaboradores com cargo que contém &quot;VENDEDOR&quot;. O código segue o campo <strong>Código do Vendedor</strong> na ficha do colaborador.</p>
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">ME</label>
+                        <input type="text" name="me" value="{{ client.me or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">SA</label>
+                        <input type="text" name="sa" value="{{ client.sa or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Visita</label>
+                        <input type="text" name="visita" value="{{ client.visita or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">FANTAS</label>
+                        <input type="text" name="nome_fantasia" value="{{ client.nome_fantasia or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label class="clients-field-label">Razao social</label>
+                        <input type="text" name="razao_social" value="{{ client.razao_social or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Municipio</label>
+                        <input type="text" name="municipio" value="{{ client.municipio or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Bairro</label>
+                        <input type="text" name="bairro" value="{{ client.bairro or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label class="clients-field-label">Endereco</label>
+                        <input type="text" name="endereco" value="{{ client.endereco or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Status</label>
+                        <input type="text" name="status_cliente" value="{{ client.status_cliente or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Status operacional</label>
+                        <select name="status_operacional" class="clients-control">
+                            <option value="ATIVO" {% if (client.status_operacional or 'ATIVO') == 'ATIVO' %}selected{% endif %}>ATIVO</option>
+                            <option value="FECHOU" {% if client.status_operacional == 'FECHOU' %}selected{% endif %}>FECHOU</option>
+                            <option value="INATIVO" {% if client.status_operacional == 'INATIVO' %}selected{% endif %}>INATIVO</option>
+                            <option value="EM_VALIDACAO" {% if client.status_operacional == 'EM_VALIDACAO' %}selected{% endif %}>EM_VALIDACAO</option>
+                        </select>
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Segmento</label>
+                        <input type="text" name="segmento" value="{{ client.segmento or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Logradouro</label>
+                        <input type="text" name="logradouro" value="{{ client.logradouro or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Numero</label>
+                        <input type="text" name="numero" value="{{ client.numero or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Complemento</label>
+                        <input type="text" name="complemento" value="{{ client.complemento or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label class="clients-field-label">Referencia</label>
+                        <input type="text" name="referencia" value="{{ client.referencia or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label class="clients-field-label">Observacoes de acesso</label>
+                        <input type="text" name="observacoes_acesso" value="{{ client.observacoes_acesso or '' }}" placeholder="entrada lateral, doca..." class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label class="clients-field-label">Observacoes contato</label>
+                        <input type="text" name="observacoes_contato" value="{{ client.observacoes_contato or '' }}" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Janela inicio</label>
+                        <input type="text" name="janela_horario_inicio" value="{{ client.janela_horario_inicio or '' }}" placeholder="08:00" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Janela fim</label>
+                        <input type="text" name="janela_horario_fim" value="{{ client.janela_horario_fim or '' }}" placeholder="17:00" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label class="clients-field-label">Dias da semana</label>
+                        <input type="text" name="janela_dias_semana" value="{{ client.janela_dias_semana or '' }}" placeholder='["seg","ter","qua"]' class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label class="clients-field-label">Prioridade logistica</label>
+                        <select name="prioridade_logistica" class="clients-control">
+                            <option value="">-</option>
+                            <option value="A" {% if client.prioridade_logistica == 'A' %}selected{% endif %}>A</option>
+                            <option value="B" {% if client.prioridade_logistica == 'B' %}selected{% endif %}>B</option>
+                            <option value="C" {% if client.prioridade_logistica == 'C' %}selected{% endif %}>C</option>
+                        </select>
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-800/40">
+                            <p class="clients-field-label mb-2">LGPD</p>
+                            <div class="flex flex-wrap gap-4">
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                    <input type="checkbox" name="lgpd_nao_contatar" {% if client.lgpd_nao_contatar %}checked{% endif %} class="rounded border-slate-300 text-amber-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700">
+                                    <span>Nao contatar</span>
+                                </label>
+                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                    <input type="checkbox" name="lgpd_restricao_dados" {% if client.lgpd_restricao_dados %}checked{% endif %} class="rounded border-slate-300 text-amber-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700">
+                                    <span>Restricao de dados</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="clients-modal__actions mt-6">
+                    <button type="button" onclick="closeEditModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
+                    <button type="submit" class="sys-btn sys-btn--primary justify-center">Salvar alteracoes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="deleteModalShell" class="clients-modal hidden" aria-labelledby="delete-client-modal-title" role="dialog" aria-modal="true">
+    <div class="clients-modal__backdrop" onclick="closeDeleteModal()"></div>
+    <div class="clients-modal__dialog">
+        <div class="clients-modal__card clients-modal__card--compact sys-card sys-card--surface">
+            <div class="clients-modal__head">
+                <div>
+                    <p class="employees-text-section-label">Acao irreversivel</p>
+                    <h3 class="sys-section-heading mt-1 text-lg" id="delete-client-modal-title">Excluir Cliente?</h3>
+                </div>
+                <button type="button" onclick="closeDeleteModal()" class="clients-modal-close" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="clients-modal__form">
+                <p class="text-sm text-slate-600 dark:text-slate-300">A exclusao remove permanentemente o cadastro e o historico operacional vinculado a este cliente.</p>
+                <form action="/clients/{{ client.id }}/delete" method="post" class="clients-modal__actions mt-6">
+                    <button type="button" onclick="closeDeleteModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
+                    <button type="submit" class="sys-btn justify-center border border-rose-600 bg-rose-600 text-white hover:bg-rose-700">Confirmar exclusao</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock layout_portal %}

@@ -2,221 +2,278 @@
 
 {% block title %}Checklist Diário{% endblock %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260416a">
+{% endblock %}
+
 {% block content %}
 <script type="application/json" id="checklist-initial-data">{"totalItems":{{ items|length }},"keys":[{% for item in items %}{{ item.key|tojson }}{% if not loop.last %},{% endif %}{% endfor %}],"equipmentLastKm":{{ equipment_last_km|tojson }}}</script>
-<div x-data="checklistController()" class="min-h-screen pb-32" style="background: var(--color-bg);">
+<div x-data="checklistController()" x-init="init()" class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium checklist-mobile-page min-h-screen pb-safe delivery-page-layout">
 
-    <!-- Header HUD (minimal) -->
-    <header class="container-mobile py-3 border-b shrink-0 mobile-header-op pt-safe">
-        <div class="flex items-center justify-between gap-3">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: rgba(30,41,59,0.8); color: var(--color-text-body);">
-                <i data-lucide="arrow-left" class="w-5 h-5 lucide-thick"></i>
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/dashboard" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 shrink-0 items-center justify-center rounded-lg interactive sm:size-11 no-underline" aria-label="Voltar ao painel" title="Voltar">
+                <i data-lucide="arrow-left" class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true"></i>
             </a>
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                    <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-success);">Checklist</span>
-                    <span class="text-[10px] font-mono" style="color: var(--color-text-muted);" x-text="checkedCount + '/' + totalItems"></span>
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Checklist</p>
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+                {% if has_delivery_driver_access|default(false) %}
+                <button type="button" @click="window.openDriverGuide && window.openDriverGuide()"
+                    class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive"
+                    title="Guia do motorista" aria-label="Abrir guia do motorista">
+                    <i data-lucide="book-open" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+                </button>
+                {% endif %}
+                <button type="button" @click="$nextTick(() => document.getElementById('checklist-items-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))"
+                    class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive"
+                    title="Ir aos itens" aria-label="Rolar até os itens do checklist">
+                    <i data-lucide="list-checks" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="delivery-ga-main delivery-mobi-main space-y-2 pb-1.5 pt-0.5">
+        <div class="sys-card sys-card--surface delivery-session-card relative overflow-hidden rounded-xl border p-3" style="border-color: var(--color-border);">
+            <div class="delivery-session-head flex flex-wrap items-center justify-between gap-2 border-b pb-2.5" style="border-color: var(--color-border);">
+                <div class="delivery-session-head__title flex min-w-0 flex-1 items-center gap-2">
+                    <span class="delivery-session-head__badge shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide" style="background: var(--color-primary-bg); color: var(--color-primary);">Check List</span>
+                    <h3 class="m-0 min-w-0 truncate text-base font-semibold leading-tight" style="color: var(--color-text);">{{ today[8:10] }}/{{ today[5:7] }}/{{ today[0:4] }}</h3>
                 </div>
-                <h1 class="text-sm font-semibold truncate" style="color: var(--color-text);">Caminhão</h1>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-[10px] font-bold font-mono" style="color: var(--color-success);">+50 XP</span>
-                <span class="text-[10px]" style="color: var(--color-text-muted);">{{ employee.work_shift }}</span>
-            </div>
-        </div>
-        <div class="mt-2">
-            <div class="w-full rounded-full h-1 overflow-hidden" style="background: var(--color-border);">
-                <div class="h-full transition-all duration-300 rounded-full" style="background: var(--color-success);" :style="`width: ${completionPercentage}%`"></div>
-            </div>
-        </div>
-    </header>
-
-    <div class="container-mobile py-4 space-y-4">
-
-        <!-- Equipamento -->
-        <div class="surface p-4 rounded-xl">
-            <label for="equipment-code" class="text-section block mb-2" style="color: var(--color-text);">Caminhão *</label>
-            <div class="flex items-center gap-3">
-                <div class="icon-wrap flex-shrink-0">
-                    <i data-lucide="truck" class="w-5 h-5 lucide-thick" style="color: var(--color-primary);"></i>
+            <div class="mt-3 space-y-2">
+                <div class="flex items-center justify-between gap-2 text-xs" style="color: var(--color-text-muted);">
+                    <span>Progresso dos itens</span>
+                    <span class="font-mono font-semibold tabular-nums" style="color: var(--color-text-body);" x-text="answeredCount + '/' + totalItems"></span>
                 </div>
-                <select id="equipment-code" name="equipment_code" x-model="equipmentCode"
-                    @change="odometerKm = (equipmentLastKm[equipmentCode] != null && equipmentLastKm[equipmentCode] !== '') ? equipmentLastKm[equipmentCode] : ''"
-                    class="flex-1 min-w-0 w-full px-4 py-3 rounded-lg text-body font-medium focus:ring-2 focus:ring-offset-0 focus:outline-none"
-                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
-                    <option value="" disabled selected style="color: var(--color-text-muted);">Selecione o caminhão</option>
-                    {% if equipment_list %}
-                    {% for eq in equipment_list %}
-                    <option value="{{ eq.code }}" style="color: var(--color-text-body);">{{ eq.label|default(eq.code) }}</option>
-                    {% endfor %}
-                    {% else %}
-                    <option value="" disabled>Sem cadastro</option>
-                    {% endif %}
-                </select>
+                <div class="h-1.5 w-full overflow-hidden rounded-full" style="background: var(--color-border);">
+                    <div class="h-full max-w-full rounded-full transition-[width] duration-300 ease-out"
+                        :style="{ width: progressPct + '%', background: 'var(--color-primary)' }"></div>
+                </div>
             </div>
         </div>
 
-        <!-- KM hodômetro -->
-        <div x-show="equipmentCode" x-transition class="surface p-4">
-            <label for="odometer-km" class="text-section block mb-2" style="color: var(--color-text);">KM do hodômetro *</label>
-            <input id="odometer-km" name="odometer_km" type="number" x-model.number="odometerKm" min="0" step="1" placeholder="Ex: 150000"
-                class="w-full px-4 py-3 rounded-lg font-mono text-body"
-                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
-            <p x-show="equipmentCode && equipmentLastKm[equipmentCode]" class="text-caption mt-2 font-mono" style="color: var(--color-text-muted);">
-                KM anterior: <span x-text="equipmentLastKm[equipmentCode] || '-'"></span> — Máx: <span x-text="(Number(equipmentLastKm[equipmentCode]) || 0) + 1000"></span>
-            </p>
-        </div>
-
-        <div class="flex items-center justify-between gap-3 flex-wrap">
-            <h2 class="text-section" style="color: var(--color-text);">Itens de Verificação</h2>
-            <button @click="window.openDriverGuide && window.openDriverGuide()"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold interactive"
-                style="border: 1px solid var(--color-primary); color: var(--color-primary);">
-                <i data-lucide="book-open" class="w-3.5 h-3.5 lucide-thick"></i>
-                Como usar
-            </button>
-            <a href="/mobile/equipment/tickets/new"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-caption font-semibold interactive"
-                style="border: 1px solid var(--color-danger); color: var(--color-danger);">
-                <i data-lucide="alert-circle" class="w-3.5 h-3.5 lucide-thick"></i>
-                Abrir chamado
+        <div class="grid grid-cols-2 gap-2">
+            <a href="/mobile/equipment/tickets" class="delivery-route-card interactive flex min-h-[5rem] w-full min-w-0 flex-col items-center justify-center gap-1.5 p-2.5 no-underline sm:min-h-[5.5rem] sm:gap-2 sm:p-3">
+                <div class="flex size-11 shrink-0 items-center justify-center rounded-xl sm:size-12" style="background: rgba(59,130,246,0.15); color: var(--color-primary);">
+                    <i data-lucide="list" class="h-5 w-5 lucide-thick sm:h-6 sm:w-6" aria-hidden="true"></i>
+                </div>
+                <span class="text-center text-xs font-semibold leading-tight sm:text-sm" style="color: var(--color-text-body);">Ver chamados</span>
             </a>
-            <button @click="markAllGood(); haptic('light');"
-                class="touch-target flex items-center gap-2 px-3 py-2 rounded-lg text-caption font-semibold interactive"
-                style="border: 1px solid var(--color-success); color: var(--color-success);">
-                <i data-lucide="check-circle-2" class="w-4 h-4 lucide-thick"></i>
-                Marcar Tudo OK
-            </button>
+            <a href="/mobile/routine/history" class="delivery-route-card interactive flex min-h-[5rem] w-full min-w-0 flex-col items-center justify-center gap-1.5 p-2.5 no-underline sm:min-h-[5.5rem] sm:gap-2 sm:p-3">
+                <div class="flex size-11 shrink-0 items-center justify-center rounded-xl sm:size-12" style="background: rgba(16,185,129,0.15); color: var(--color-success);">
+                    <i data-lucide="history" class="h-5 w-5 lucide-thick sm:h-6 sm:w-6" aria-hidden="true"></i>
+                </div>
+                <span class="text-center text-xs font-semibold leading-tight sm:text-sm" style="color: var(--color-text-body);">Histórico</span>
+            </a>
         </div>
+    </div>
 
-        <!-- Action Tiles (Checklist) -->
-        <div class="space-y-2">
-            {% for item in items %}
-            <div class="surface p-4 rounded-xl transition-all"
-                :class="{
-                    'action-tile status-ok': items['{{ item.key }}'] === true,
-                    'action-tile status-fail': items['{{ item.key }}'] === false,
-                    'action-tile status-pending': items['{{ item.key }}'] !== true && items['{{ item.key }}'] !== false
-                }"
-                :style="items['{{ item.key }}'] === false ? 'background: rgba(239,68,68,0.08);' : (items['{{ item.key }}'] === true ? 'background: rgba(16,185,129,0.08);' : '')">
+    <div class="delivery-content">
+        <div class="container-mobile space-y-3 pb-2 pt-1">
 
-                <div class="flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <div class="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-lg"
-                            :style="items['{{ item.key }}'] === true ? 'background: var(--color-success); color: white;' : (items['{{ item.key }}'] === false ? 'background: var(--color-danger); color: white;' : 'background: var(--color-border); color: var(--color-text-muted);')">
-                            <i :data-lucide="items['{{ item.key }}'] === false ? 'alert-triangle' : 'check'" class="w-5 h-5 lucide-thick"></i>
+            <div id="checklist-equipment-anchor" class="scroll-mt-24 space-y-2">
+                <div class="sys-card sys-card--surface delivery-session-card relative w-full min-w-0 overflow-hidden rounded-xl border p-3" style="border-color: var(--color-border);">
+                    <div class="delivery-session-head flex flex-wrap items-center justify-between gap-2 border-b pb-2.5" style="border-color: var(--color-border);">
+                        <div class="delivery-session-head__title flex min-w-0 flex-1 items-center gap-2">
+                            <span class="delivery-session-head__badge shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide" style="background: var(--color-primary-bg); color: var(--color-primary);">Veículo</span>
+                            <h3 class="m-0 min-w-0 truncate text-base font-semibold leading-tight" style="color: var(--color-text);">Dados do caminhão</h3>
                         </div>
-                        <span class="text-body font-medium" style="color: var(--color-text-body);">{{ item.label }}</span>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0">
-                        <button @click="setItem('{{ item.key }}', false)"
-                            class="min-h-[48px] min-w-[48px] px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 font-semibold text-body interactive"
-                            :class="items['{{ item.key }}'] === false ? 'bg-red-500/90 text-white' : 'border border-slate-600 text-slate-400'"
-                            style="border-color: var(--color-border);">
-                            <i data-lucide="x" class="w-5 h-5 lucide-thick"></i>
-                            <span>Falha</span>
-                        </button>
-                        <button @click="setItem('{{ item.key }}', true)"
-                            class="min-h-[48px] min-w-[48px] px-3 py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all active:scale-95 font-semibold text-body interactive"
-                            :class="items['{{ item.key }}'] === true ? 'bg-emerald-500/90 text-white' : 'border border-slate-600 text-slate-400'"
-                            style="border-color: var(--color-border);">
-                            <i data-lucide="check" class="w-5 h-5 lucide-thick"></i>
-                            <span>OK</span>
-                        </button>
+                    <div class="mt-3">
+                        <label for="equipment-code" class="mb-1.5 block text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-muted);">Caminhão <span style="color: var(--color-danger);">*</span></label>
+                        <div class="flex items-center gap-3">
+                            <div class="flex size-11 shrink-0 items-center justify-center rounded-lg" style="background: var(--color-primary-bg); color: var(--color-primary);">
+                                <i data-lucide="truck" class="h-5 w-5 lucide-thick" aria-hidden="true"></i>
+                            </div>
+                            <select id="equipment-code" name="equipment_code" x-model="equipmentCode"
+                                @change="odometerKm = (equipmentLastKm[equipmentCode] != null && equipmentLastKm[equipmentCode] !== '') ? equipmentLastKm[equipmentCode] : ''"
+                                class="sys-input min-h-12 min-w-0 flex-1 rounded-lg px-3 py-2.5 text-sm font-medium"
+                                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+                                <option value="" disabled selected>Selecione o caminhão</option>
+                                {% if equipment_list %}
+                                {% for eq in equipment_list %}
+                                <option value="{{ eq.code }}">{{ eq.label|default(eq.code) }}</option>
+                                {% endfor %}
+                                {% else %}
+                                <option value="" disabled>Sem cadastro</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex min-w-0 gap-2" role="group" aria-label="Ações rápidas">
+                    <button type="button" @click="markAllGood(); haptic('light'); refreshIcons();"
+                        class="sys-btn sys-btn--secondary inline-flex min-h-12 min-w-0 flex-1 basis-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-center text-xs font-semibold leading-tight sm:gap-2 sm:px-3 sm:text-sm">
+                        <i data-lucide="check-circle-2" class="h-4 w-4 shrink-0" aria-hidden="true"></i>
+                        <span class="min-w-0">Marcar tudo OK</span>
+                    </button>
+                    <a href="/mobile/equipment/tickets/new"
+                        class="sys-btn sys-btn--secondary inline-flex min-h-12 min-w-0 flex-1 basis-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-center text-xs font-semibold leading-tight no-underline sm:gap-2 sm:px-3 sm:text-sm"
+                        style="border-color: rgba(239, 68, 68, 0.45); color: var(--color-danger);">
+                        <i data-lucide="alert-circle" class="h-4 w-4 shrink-0" aria-hidden="true"></i>
+                        <span class="min-w-0">Abrir chamado</span>
+                    </a>
+                </div>
+            </div>
+
+            <div x-show="equipmentCode" x-transition x-cloak>
+                <div class="sys-card sys-card--surface delivery-session-card relative overflow-hidden rounded-xl border p-3" style="border-color: var(--color-border);">
+                    <div class="delivery-session-head flex flex-wrap items-center justify-between gap-2 border-b pb-2.5" style="border-color: var(--color-border);">
+                        <div class="delivery-session-head__title flex min-w-0 flex-1 items-center gap-2">
+                            <span class="delivery-session-head__badge shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide" style="background: var(--color-primary-bg); color: var(--color-primary);">KM</span>
+                            <h3 class="m-0 min-w-0 truncate text-base font-semibold leading-tight" style="color: var(--color-text);">Hodômetro</h3>
+                        </div>
+                    </div>
+                    <div class="mt-3 space-y-2">
+                        <label for="odometer-km" class="mb-1 block text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-muted);">KM do hodômetro <span style="color: var(--color-danger);">*</span></label>
+                        <input id="odometer-km" name="odometer_km" type="number" x-model.number="odometerKm" min="0" step="1" inputmode="numeric" placeholder="Ex.: 150000"
+                            class="sys-input w-full rounded-lg px-4 py-3 font-mono text-sm"
+                            style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+                        <p x-show="equipmentCode && equipmentLastKm[equipmentCode] != null && equipmentLastKm[equipmentCode] !== ''" class="mt-2 text-xs font-mono" style="color: var(--color-text-muted);">
+                            KM anterior: <span x-text="equipmentLastKm[equipmentCode] || '-'"></span> — máx. sugerido: <span x-text="(Number(equipmentLastKm[equipmentCode]) || 0) + 1000"></span>
+                        </p>
                     </div>
                 </div>
             </div>
-            {% endfor %}
-        </div>
 
-        <!-- Issue Report -->
-        <div x-show="hasIssues" x-transition class="surface p-4 rounded-xl" style="border: 1px solid var(--color-border);">
-            <div class="flex items-start gap-3 mb-3">
-                <div class="w-10 h-10 flex-shrink-0 rounded-lg flex items-center justify-center" style="background: var(--color-warning-bg); color: var(--color-warning);">
-                    <i data-lucide="alert-octagon" class="w-5 h-5 lucide-thick"></i>
-                </div>
-                <div>
-                    <h3 class="text-section" style="color: var(--color-text);">Problemas Identificados</h3>
-                    <p class="text-caption mt-0.5" style="color: var(--color-text-muted);">Opcional: descreva o problema e anexe fotos.</p>
-                </div>
-            </div>
-            <label for="checklist-observations" class="text-caption block mb-1" style="color: var(--color-text-muted);">Comentário (opcional)</label>
-            <textarea id="checklist-observations" name="observations" x-model="observations" rows="3" placeholder="Ex: Roda travando, garfo empenado..."
-                class="w-full rounded-lg px-4 py-3 text-body resize-none mb-3"
-                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);"></textarea>
-            <label class="text-caption block mb-1" style="color: var(--color-text-muted);">Fotografia (opcional)</label>
-            <input type="file" id="files" multiple accept="image/*" capture="environment" @change="handleFileSelect" class="hidden">
-            <label for="files"
-                class="flex flex-col items-center justify-center w-full min-h-[6rem] rounded-lg border-2 border-dashed cursor-pointer interactive"
-                style="border-color: var(--color-border); background: var(--color-surface-solid); color: var(--color-text-muted);">
-                <div x-show="fileCount === 0" class="flex flex-col items-center gap-2">
-                    <i data-lucide="camera" class="w-5 h-5 lucide-thick"></i>
-                    <span class="text-caption">Tirar ou selecionar foto</span>
-                </div>
-                <div x-show="fileCount > 0" class="flex flex-col items-center gap-2" style="color: var(--color-success);">
-                    <i data-lucide="image-plus" class="w-5 h-5 lucide-thick"></i>
-                    <span class="text-caption font-medium" x-text="fileCount + ' foto(s)'"></span>
-                </div>
-            </label>
-        </div>
+            <div id="checklist-items-anchor" class="scroll-mt-24"></div>
 
-        <!-- Quick Access -->
-        <div class="grid grid-cols-2 gap-3">
-            <a href="/mobile/equipment/tickets" class="surface p-4 flex flex-col items-center justify-center gap-2 interactive rounded-xl">
-                <div class="icon-wrap w-12 h-12" style="background: rgba(59,130,246,0.2); color: var(--color-primary);">
-                    <i data-lucide="list" class="w-6 h-6 lucide-thick"></i>
-                </div>
-                <span class="text-body font-semibold" style="color: var(--color-text-body);">Ver chamados</span>
-            </a>
-            <a href="/mobile/routine/history" class="surface p-4 flex flex-col items-center justify-center gap-2 interactive rounded-xl">
-                <div class="icon-wrap w-12 h-12" style="background: rgba(16,185,129,0.2); color: var(--color-success);">
-                    <i data-lucide="history" class="w-6 h-6 lucide-thick"></i>
-                </div>
-                <span class="text-body font-semibold" style="color: var(--color-text-body);">Histórico</span>
-            </a>
-        </div>
-
-        {% if missing_days %}
-        <div class="surface p-4 rounded-xl" style="border: 1px solid var(--color-warning);">
-            <div class="flex items-center gap-3 mb-3">
-                <i data-lucide="calendar-off" class="w-5 h-5 lucide-thick" style="color: var(--color-warning);"></i>
-                <h3 class="text-section" style="color: var(--color-text);">Dias Pendentes</h3>
-            </div>
             <div class="space-y-2">
-                {% for day in missing_days|default([]) %}
-                <div class="flex items-center justify-between surface p-3 rounded-lg">
-                    <div>
-                        <p class="text-body font-semibold" style="color: var(--color-text-body);">{{ day.date_fmt }}</p>
-                        <p class="text-caption capitalize" style="color: var(--color-text-muted);">{{ day.weekday_pt }}</p>
+                {% for item in items %}
+                <div
+                    class="checklist-item-card flex items-center gap-2 p-2 sm:gap-2.5 sm:px-2.5 sm:py-2"
+                    :class="{
+                        'checklist-item-card--ok': items['{{ item.key }}'] === true,
+                        'checklist-item-card--fail': items['{{ item.key }}'] === false
+                    }"
+                    role="group"
+                    aria-label="Item {{ item.label|e }}">
+                    <div
+                        class="flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm sm:size-9 sm:rounded-lg"
+                        :style="items['{{ item.key }}'] === true
+                            ? 'background: var(--color-success); color: white;'
+                            : (items['{{ item.key }}'] === false
+                                ? 'background: var(--color-danger); color: white;'
+                                : 'background: var(--color-surface-solid); color: var(--color-text-muted); box-shadow: inset 0 0 0 1px var(--color-border);')">
+                        <i
+                            :data-lucide="items['{{ item.key }}'] === false ? 'alert-triangle' : (items['{{ item.key }}'] === true ? 'check' : 'circle')"
+                            class="h-3.5 w-3.5 lucide-thick sm:h-4 sm:w-4"
+                            aria-hidden="true"></i>
                     </div>
-                    <span class="text-caption font-semibold px-2 py-0.5 rounded" style="color: var(--color-warning);">Não Feito</span>
+                    <div class="min-w-0 flex-1">
+                        <p class="m-0 truncate text-sm font-semibold leading-tight" style="color: var(--color-text);">{{ item.label }}</p>
+                        <p class="mt-px text-[10px] font-semibold uppercase leading-none tracking-wide" style="color: var(--color-danger);" x-show="items['{{ item.key }}'] === false">Falha</p>
+                    </div>
+                    <div class="checklist-item-segment checklist-item-segment--inline shrink-0" role="group" aria-label="Resposta do item">
+                        <button
+                            type="button"
+                            class="checklist-item-segment__btn inline-flex items-center justify-center gap-0.5"
+                            aria-label="Marcar falha"
+                            @click="setItem('{{ item.key }}', false); haptic('light'); refreshIcons();"
+                            :style="items['{{ item.key }}'] === false
+                                ? 'background: var(--color-danger); color: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);'
+                                : 'background: transparent; color: var(--color-text-muted);'">
+                            <i data-lucide="x" class="h-3 w-3 shrink-0 lucide-thick" aria-hidden="true"></i>
+                            Falha
+                        </button>
+                        <button
+                            type="button"
+                            class="checklist-item-segment__btn inline-flex items-center justify-center gap-0.5"
+                            aria-label="Marcar OK"
+                            @click="setItem('{{ item.key }}', true); haptic('light'); refreshIcons();"
+                            :style="items['{{ item.key }}'] === true
+                                ? 'background: var(--color-success); color: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.1);'
+                                : 'background: transparent; color: var(--color-text-muted);'">
+                            <i data-lucide="check" class="h-3 w-3 shrink-0 lucide-thick" aria-hidden="true"></i>
+                            OK
+                        </button>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
-        </div>
-        {% endif %}
-    </div>
 
-    <!-- Botão Flutuante Concluir (safe-area + fade gradient) -->
-    <div class="btn-float-conclude">
-        <div class="w-full max-w-[640px] mx-auto px-4">
-            <button @click="submitChecklist()" :disabled="isSubmitting || !canSubmit"
-                class="w-full min-h-[48px] py-3 rounded-xl font-bold text-body-lg text-white transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); box-shadow: 0 0 18px rgba(37,99,235,0.35); border: 1px solid rgba(255,255,255,0.2);">
-                <span x-show="isSubmitting"><i data-lucide="loader-2" class="w-5 h-5 animate-spin lucide-thick"></i> Enviando...</span>
-                <span x-show="!isSubmitting" class="flex items-center gap-2">
-                    <span x-text="hasIssues ? 'Reportar Problema' : 'Concluir Checklist'"></span>
-                    <i :data-lucide="hasIssues ? 'alert-octagon' : 'check-circle'" class="w-5 h-5 lucide-thick"></i>
-                </span>
-            </button>
-            <p x-text="statusMessage" class="text-center text-caption mt-2 h-4"
-                :style="statusType === 'error' ? 'color: var(--color-danger);' : 'color: var(--color-success);'"></p>
+            <div x-show="hasIssues" x-transition x-cloak>
+                <div class="sys-card sys-card--surface delivery-session-card relative overflow-hidden rounded-xl border p-3" style="border-color: var(--color-border);">
+                    <div class="delivery-session-head flex flex-wrap items-center justify-between gap-2 border-b pb-2.5" style="border-color: var(--color-border);">
+                        <div class="delivery-session-head__title flex min-w-0 flex-1 items-center gap-2">
+                            <span class="delivery-session-head__badge shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold tracking-wide" style="background: var(--color-warning-bg); color: var(--color-warning);">Atenção</span>
+                            <div class="min-w-0 flex-1">
+                                <h3 class="m-0 truncate text-base font-semibold leading-tight" style="color: var(--color-text);">Problemas identificados</h3>
+                                <p class="mt-0.5 text-xs leading-snug" style="color: var(--color-text-muted);">Descreva e anexe fotos, se quiser.</p>
+                            </div>
+                        </div>
+                        <div class="flex size-11 shrink-0 items-center justify-center rounded-lg max-sm:hidden" style="background: var(--color-warning-bg); color: var(--color-warning);">
+                            <i data-lucide="alert-octagon" class="h-5 w-5 lucide-thick" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 space-y-3">
+                        <div>
+                            <label for="checklist-observations" class="mb-1 block text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-muted);">Comentário (opcional)</label>
+                            <textarea id="checklist-observations" name="observations" x-model="observations" rows="3" placeholder="Ex.: Roda travando, garfo empenado…"
+                                class="w-full resize-none rounded-lg px-4 py-3 text-sm"
+                                style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);"></textarea>
+                        </div>
+                        <div>
+                            <p class="mb-1 text-xs font-semibold uppercase tracking-wide" style="color: var(--color-text-muted);">Fotos (opcional)</p>
+                            <input type="file" id="files" name="files" multiple accept="image/*" capture="environment" @change="handleFileSelect" class="hidden">
+                            <label for="files"
+                                class="flex min-h-[5.5rem] w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors interactive"
+                                style="border-color: var(--color-border); background: var(--color-surface-solid); color: var(--color-text-muted);">
+                                <div x-show="fileCount === 0" class="flex flex-col items-center gap-2 py-2">
+                                    <i data-lucide="camera" class="h-5 w-5 lucide-thick" aria-hidden="true"></i>
+                                    <span class="text-xs">Tirar ou escolher foto</span>
+                                </div>
+                                <div x-show="fileCount > 0" class="flex flex-col items-center gap-2 py-2" style="color: var(--color-success);">
+                                    <i data-lucide="image-plus" class="h-5 w-5 lucide-thick" aria-hidden="true"></i>
+                                    <span class="text-xs font-semibold" x-text="fileCount + ' foto(s)'"></span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="checklist-footer-submit" class="checklist-footer-submit-end mt-8 w-full border-t border-[var(--color-border)] pb-safe pt-6">
+                <div class="checklist-footer-track">
+                    <button type="button" @click="submitChecklist()" :disabled="isSubmitting || !canSubmit"
+                        class="checklist-submit-btn relative flex min-h-[3.5rem] w-full overflow-hidden rounded-2xl text-white transition-[transform,opacity,box-shadow] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[3.75rem] interactive touch-target"
+                        :class="hasIssues ? 'checklist-submit-btn--warn' : 'checklist-submit-btn--ok'">
+                        <span x-show="isSubmitting" x-cloak class="absolute inset-0 z-10 flex items-center justify-center gap-2.5 px-4 text-[15px] font-semibold tracking-tight">
+                            <i data-lucide="loader-2" class="h-5 w-5 shrink-0 animate-spin" aria-hidden="true"></i>
+                            Enviando…
+                        </span>
+                        <span x-show="!isSubmitting" class="checklist-submit-btn__body flex w-full min-w-0 items-center gap-3 px-4 py-3.5 sm:gap-4 sm:px-5 sm:py-4">
+                            <span class="checklist-submit-btn__icon flex size-11 shrink-0 items-center justify-center sm:size-12" aria-hidden="true">
+                                <i :data-lucide="hasIssues ? 'alert-octagon' : 'check-circle'" class="h-5 w-5 lucide-thick sm:h-[1.35rem] sm:w-[1.35rem]"></i>
+                            </span>
+                            <span class="min-w-0 flex-1 text-left">
+                                <span class="block text-[15px] font-bold leading-snug tracking-tight sm:text-base" x-text="hasIssues ? 'Reportar problema' : 'Concluir checklist'"></span>
+                                <span class="mt-0.5 block text-[11px] font-medium leading-tight text-white/80 sm:text-xs" x-text="hasIssues ? 'Registro para manutenção' : 'Enviar respostas do dia'"></span>
+                            </span>
+                            <i data-lucide="chevron-right" class="checklist-submit-btn__chevron size-5 shrink-0 sm:size-6" aria-hidden="true"></i>
+                        </span>
+                    </button>
+                    <p x-show="statusMessage" x-text="statusMessage" class="mt-2 min-h-[1rem] text-center text-xs font-medium"
+                        :style="statusType === 'error' ? 'color: var(--color-danger);' : (statusType === 'info' ? 'color: var(--color-text-muted);' : 'color: var(--color-success);')"></p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+{% if has_delivery_driver_access|default(false) %}
 {% set guide_context = 'checklist' %}
 {% set guide_auto_open = false %}
 {% include 'mobile/_driver_guide.html' %}
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -238,6 +295,17 @@
             statusType: '',
             totalItems: initialData.totalItems || 0,
             itemKeys: initialData.keys || [],
+            progressPct: 0,
+
+            syncProgress() {
+                const n = this.totalItems;
+                if (n === 0) {
+                    this.progressPct = 100;
+                    return;
+                }
+                const answered = this.itemKeys.filter(k => this.items[k] === true || this.items[k] === false).length;
+                this.progressPct = Math.min(100, Math.round((answered / n) * 100));
+            },
 
             haptic(type) {
                 if (!('vibrate' in navigator)) return;
@@ -245,41 +313,50 @@
                 else if (type === 'error') navigator.vibrate([30, 10, 30]);
             },
 
-            init() { this.markAllGood(); this.$nextTick(() => lucide.createIcons()); },
+            refreshIcons() {
+                this.$nextTick(() => { try { lucide.createIcons(); } catch (_) {} });
+            },
+
+            init() {
+                this.markAllGood();
+                this.syncProgress();
+                this.refreshIcons();
+            },
 
             setItem(key, value) {
                 this.items[key] = value;
+                this.syncProgress();
                 this.haptic(value ? 'success' : 'error');
+                this.refreshIcons();
             },
 
             markAllGood() {
-                this.itemKeys.forEach(k => this.items[k] = true);
+                this.itemKeys.forEach(k => { this.items[k] = true; });
                 this.observations = '';
+                this.syncProgress();
             },
 
-            get checkedCount() { return Object.values(this.items).filter(v => v === true).length; },
-            get completionPercentage() {
-                const answered = Object.keys(this.items).length;
-                if (this.totalItems === 0) return 100;
-                return Math.round((answered / this.totalItems) * 100);
+            get failCount() { return this.itemKeys.filter(k => this.items[k] === false).length; },
+            get answeredCount() {
+                return this.itemKeys.filter(k => this.items[k] === true || this.items[k] === false).length;
             },
-            get hasIssues() { return Object.values(this.items).some(v => v === false); },
+            get hasIssues() { return this.failCount > 0; },
             get canSubmit() {
                 if (!this.equipmentCode) return false;
                 const kmRaw = (this.odometerKm ?? '').toString().trim();
                 if (!kmRaw) return false;
                 const km = Number(kmRaw.replace(',', '.'));
                 if (isNaN(km) || km < 0) return false;
-                if (Object.keys(this.items).length < this.totalItems) return false;
+                if (this.answeredCount < this.totalItems) return false;
                 return true;
             },
 
-            handleFileSelect(e) { this.fileCount = e.target.files.length; },
+            handleFileSelect(e) { this.fileCount = e.target.files ? e.target.files.length : 0; },
 
             async submitChecklist() {
                 if (!this.canSubmit || this.isSubmitting) return;
                 this.isSubmitting = true;
-                this.statusMessage = 'Enviando...';
+                this.statusMessage = 'Enviando…';
                 this.statusType = 'info';
                 this.haptic('light');
                 const formData = new FormData();
@@ -288,7 +365,7 @@
                 formData.append('shift', '{{ employee.work_shift }}');
                 formData.append('items', JSON.stringify(this.items));
                 formData.append('observations', this.observations);
-                if (this.odometerKm) formData.append('odometer_km', this.odometerKm);
+                if (this.odometerKm !== '' && this.odometerKm != null) formData.append('odometer_km', this.odometerKm);
                 const fileInput = document.getElementById('files');
                 if (fileInput?.files) {
                     for (let i = 0; i < fileInput.files.length; i++) formData.append('files', fileInput.files[i]);
@@ -302,16 +379,17 @@
                         result = {};
                     }
                     if (!res.ok || !result.success) throw new Error(result.error || result.detail || 'Erro no envio');
-                    this.statusMessage = `Equipamento Seguro! +${result.xp_earned || 50} XP`;
+                    this.statusMessage = `Equipamento seguro! +${result.xp_earned || 50} XP`;
                     this.statusType = 'success';
                     this.haptic('success');
                     if (typeof confetti === 'function') confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
                     setTimeout(() => { window.location.href = '/mobile/dashboard?success=checklist+concluido'; }, 1500);
                 } catch (e) {
-                    this.statusMessage = e.message;
+                    this.statusMessage = e.message || 'Falha ao enviar';
                     this.statusType = 'error';
                     this.isSubmitting = false;
                     this.haptic('error');
+                    this.refreshIcons();
                 }
             }
         };

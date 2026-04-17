@@ -1,560 +1,498 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Clientes - Gestao Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Cadastros / Clientes</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Clientes</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Cadastro, importacao e acompanhamento da carteira comercial</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/clients.css">
+{% endblock %}
 
 {% block content %}
-<div class="p-8">
-    <div class="max-w-6xl mx-auto">
-        <!-- Cabeçalho -->
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-white mb-2">Banco de Clientes</h1>
-                <p class="text-slate-400">Gerencie a lista de clientes para a operação. Cadastre manualmente ou importe via Excel.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <button type="button" onclick="openNovoClienteModal()"
-                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Novo Cliente
-                </button>
-                <form action="/clients/import" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
-                    <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600 text-sm font-medium">
-                        <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
-                        <span>CSV/Excel</span>
-                        <input type="file" name="file" accept=".xlsx,.xls,.csv" required class="hidden" id="clients-excel-input">
-                    </label>
-                    <span id="clients-file-name" class="text-slate-500 text-xs max-w-[140px] truncate"></span>
-                    <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
-                        <i data-lucide="import" class="w-4 h-4"></i>
-                        Importar
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium clients-page space-y-4 pt-2 md:pt-3">
+
+    {% if request.query_params.get("message") == "import_success" %}
+    <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span class="min-w-0 flex-1">
+            Importacao concluida: {{ request.query_params.get('created', 0) }} criado(s){% if request.query_params.get('rejected', 0)|int > 0 %}, {{ request.query_params.get('rejected') }} rejeitado(s){% endif %}.
+        </span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
+
+    {% if request.query_params.get("message") == "import_confirm" %}
+    <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span class="min-w-0 flex-1">
+            Importacao confirmada: {{ request.query_params.get('created', 0) }} criado(s), {{ request.query_params.get('updated', 0) }} mesclado(s), {{ request.query_params.get('skipped', 0) }} ignorado(s){% if request.query_params.get('rejected', 0)|int > 0 %}, {{ request.query_params.get('rejected') }} rejeitado(s){% endif %}.
+        </span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
+
+    {% if request.query_params.get("error") in ["invalid_file", "missing_columns", "import_failed"] %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="min-w-0 flex-1">
+            {% if request.query_params.get("error") == "invalid_file" %}
+            Arquivo invalido. Envie um Excel (`.xlsx`, `.xls`) ou CSV valido.
+            {% elif request.query_params.get("error") == "missing_columns" %}
+            A planilha precisa ter ao menos a coluna <strong>FANTAS</strong> ou <strong>Razao Social</strong>.
+            {% else %}
+            Erro ao processar o arquivo. Revise o formato e tente novamente.
+            {% endif %}
+        </span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
+
+    {% if request.query_params.get('bulk_level') in ['success', 'error'] %}
+    <div class="sys-alert {% if request.query_params.get('bulk_level') == 'success' %}sys-alert--success{% else %}sys-alert--danger{% endif %} flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            {% if request.query_params.get('bulk_level') == 'success' %}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            {% else %}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            {% endif %}
+        </svg>
+        <span class="min-w-0 flex-1">{{ request.query_params.get('bulk_feedback', '') }}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+    {% endif %}
+
+    <div class="sys-card sys-card--surface clients-filter-card clients-toolbar-unified">
+        <div class="clients-unified-toolbar__top flex flex-col gap-3 border-b border-slate-200/80 py-4 dark:border-slate-700/60 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <p class="min-w-0 text-xs font-medium leading-relaxed text-slate-600 dark:text-slate-300">
+                <span class="tabular-nums text-slate-900 dark:text-slate-100">{{ clients_stats.total_filtered|fmt_br_int }}</span> na lista
+                <span class="text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
+                <span class="tabular-nums">{{ clients_stats.segment_count|fmt_br_int }}</span> segmentos
+                <span class="text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
+                <span class="tabular-nums">{{ clients_stats.group_count|fmt_br_int }}</span> grupos
+            </p>
+            <div class="flex w-full flex-shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <div x-data="{ open: false, fileName: '' }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[10rem]">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                        </span>
+                        <span class="employees-cta__label">Importar</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
                     </button>
-                </form>
-                <a href="/clients/template" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors" download="planilha_clientes_modelo.xlsx">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    Modelo Excel
-                </a>
+                    <div x-show="open" @click.outside="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,22rem)]">
+                        <form action="/clients/import" method="post" enctype="multipart/form-data" class="space-y-2">
+                            <label class="employees-menu-item cursor-pointer">
+                                <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"></path>
+                                    </svg>
+                                </span>
+                                <span class="employees-menu-item__text">
+                                    <span class="employees-menu-item__title">Planilha Excel ou CSV</span>
+                                    <span class="employees-menu-item__hint">Selecione um arquivo para importar em lote</span>
+                                </span>
+                                <input type="file" name="file" accept=".xlsx,.xls,.csv" required class="hidden" @change="fileName = $event.target.files.length ? $event.target.files[0].name : ''">
+                            </label>
+                            <p class="clients-import-file px-4 pb-1" x-show="fileName" x-text="fileName"></p>
+                            <div class="clients-import-actions px-4 pb-3">
+                                <button type="submit" class="sys-btn sys-btn--primary justify-center">Importar agora</button>
+                                <a href="/clients/template" class="sys-btn sys-btn--secondary justify-center" download="planilha_clientes_modelo.xlsx">Baixar modelo</a>
+                            </div>
+                        </form>
+                        <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
+                        <a href="/clients/import" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Tela de importacao</span>
+                                <span class="employees-menu-item__hint">Acompanhe lotes e resolva conflitos</span>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+                <button type="button" onclick="openNovoClienteModal()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                    </span>
+                    <span class="employees-cta__label">Novo Cliente</span>
+                </button>
             </div>
         </div>
+        <div class="clients-filter-card__head clients-toolbar-unified__filters-head flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 py-3 dark:border-slate-700/60">
+            <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Filtros</h3>
+            <a href="/clients" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar text-xs">Limpar</a>
+        </div>
 
-        {% if request.query_params.get("message") == "import_success" %}
-        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
-            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Importação concluída: {{ request.query_params.get('created', 0) }} criado(s){% if request.query_params.get('rejected', 0)|int > 0 %}, {{ request.query_params.get('rejected') }} rejeitado(s){% endif %}.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("message") == "import_confirm" %}
-        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
-            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Importação confirmada: {{ request.query_params.get('created', 0) }} criado(s), {{ request.query_params.get('updated', 0) }} mesclado(s), {{ request.query_params.get('skipped', 0) }} ignorado(s){% if request.query_params.get('rejected', 0)|int > 0 %}, {{ request.query_params.get('rejected') }} rejeitado(s){% endif %}.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("error") == "invalid_file" %}
-        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Arquivo inválido. Envie um arquivo Excel (.xlsx, .xls) ou CSV.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("error") == "missing_columns" %}
-        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>O Excel precisa ter ao menos a coluna <strong>FANTAS</strong> (Nome Fantasia) ou <strong>Razão Social</strong>.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("error") == "import_failed" %}
-        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Erro ao processar o arquivo. Verifique o formato do Excel.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get('bulk_level') == 'success' %}
-        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 flex items-center gap-2">
-            <i data-lucide="users" class="w-5 h-5 flex-shrink-0"></i>
-            <span>{{ request.query_params.get('bulk_feedback', '') }}</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get('bulk_level') == 'error' %}
-        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>{{ request.query_params.get('bulk_feedback', '') }}</span>
-        </div>
-        {% endif %}
-
-        <script type="application/json" id="mov-drill-data">{{ mov_drill_json | safe }}</script>
-        <script type="application/json" id="precad-drill-data">{{ precad_drill_json | safe }}</script>
-        <script type="application/json" id="client-names-data">{{ client_names_json | safe }}</script>
-
-        <!-- Filtros -->
-        <div class="space-y-4 mb-6">
-            <form action="/clients" method="get" class="flex flex-wrap items-center gap-3">
-                <select name="status" onchange="this.form.submit()"
-                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
+        <form action="/clients" method="get" class="clients-filter-form">
+            <div class="clients-filter-field">
+                <label for="clients-status" class="clients-field-label">Status</label>
+                <select id="clients-status" name="status" class="clients-control">
                     <option value="ativos" {% if status_filter == 'ativos' %}selected{% endif %}>Ativos</option>
                     <option value="todos" {% if status_filter == 'todos' %}selected{% endif %}>Todos</option>
                     <option value="precadastro" {% if status_filter == 'precadastro' %}selected{% endif %}>Pre-cadastro</option>
                     <option value="fechou" {% if status_filter == 'fechou' %}selected{% endif %}>Fechados</option>
                     <option value="inativo" {% if status_filter == 'inativo' %}selected{% endif %}>Inativos</option>
-                    <option value="em_validacao" {% if status_filter == 'em_validacao' %}selected{% endif %}>Em Validação</option>
+                    <option value="em_validacao" {% if status_filter == 'em_validacao' %}selected{% endif %}>Em validacao</option>
                 </select>
-                <select name="segmento" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 max-w-[200px]" title="Segmento">
-                    <option value="">Segmento (todos)</option>
+            </div>
+
+            <div class="clients-filter-field">
+                <label for="clients-segmento" class="clients-field-label">Segmento</label>
+                <select id="clients-segmento" name="segmento" class="clients-control">
+                    <option value="">Todos os segmentos</option>
                     {% for seg in segmentos_opts %}
                     <option value="{{ seg|e }}" {% if segmento_filter == seg %}selected{% endif %}>{{ seg }}</option>
                     {% endfor %}
                 </select>
-                <input type="text" name="q" value="{{ search or '' }}" placeholder="Buscar nome, razão, NB, município..."
-                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm min-w-[200px] flex-1 max-w-md focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                <span class="text-slate-500 text-sm">Período (última mov.):</span>
-                <input type="date" name="mov_from" value="{{ mov_from or '' }}"
-                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
-                <input type="date" name="mov_to" value="{{ mov_to or '' }}"
-                    class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
-                <span class="text-slate-500 text-sm">Pre-cadastro:</span>
-                <select name="precadastro" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="clients-filter-field clients-filter-field--wide">
+                <label for="clients-search" class="clients-field-label">Busca</label>
+                <input id="clients-search" type="text" name="q" value="{{ search or '' }}" placeholder="Nome, razao social, NB ou municipio" class="clients-control">
+            </div>
+
+            <div class="clients-filter-field">
+                <label for="clients-mov-from" class="clients-field-label">Ult. mov. de</label>
+                <input id="clients-mov-from" type="date" name="mov_from" value="{{ mov_from or '' }}" class="clients-control">
+            </div>
+
+            <div class="clients-filter-field">
+                <label for="clients-mov-to" class="clients-field-label">Ult. mov. ate</label>
+                <input id="clients-mov-to" type="date" name="mov_to" value="{{ mov_to or '' }}" class="clients-control">
+            </div>
+
+            <div class="clients-filter-field">
+                <label for="clients-precadastro" class="clients-field-label">Pre-cadastro</label>
+                <select id="clients-precadastro" name="precadastro" class="clients-control">
                     <option value="">Todos</option>
-                    <option value="sim" {% if precadastro == 'sim' %}selected{% endif %}>Só pre-cadastro</option>
+                    <option value="sim" {% if precadastro == 'sim' %}selected{% endif %}>So pre-cadastro</option>
                 </select>
-                <select name="precadastro_idade" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div class="clients-filter-field">
+                <label for="clients-precadastro-idade" class="clients-field-label">Idade do pre-cadastro</label>
+                <select id="clients-precadastro-idade" name="precadastro_idade" class="clients-control">
                     <option value="">Qualquer idade</option>
-                    <option value="1m" {% if precadastro_idade == '1m' %}selected{% endif %}>1 mês</option>
+                    <option value="1m" {% if precadastro_idade == '1m' %}selected{% endif %}>1 mes</option>
                     <option value="3m" {% if precadastro_idade == '3m' %}selected{% endif %}>3 meses</option>
                     <option value="6m" {% if precadastro_idade == '6m' %}selected{% endif %}>6 meses</option>
                     <option value="9m" {% if precadastro_idade == '9m' %}selected{% endif %}>9 meses</option>
                     <option value="1y" {% if precadastro_idade == '1y' %}selected{% endif %}>1 ano</option>
                     <option value="1y_plus" {% if precadastro_idade == '1y_plus' %}selected{% endif %}>+1 ano</option>
                 </select>
-                <span class="text-slate-500 text-sm">Ordenar:</span>
-                <select name="sort" onchange="this.form.submit()" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500 min-w-[200px]">
-                    <option value="mov_desc" {% if (sort_order or 'mov_desc') == 'mov_desc' %}selected{% endif %}>Últ. mov. (mais recente)</option>
-                    <option value="mov_asc" {% if sort_order == 'mov_asc' %}selected{% endif %}>Últ. mov. (mais antiga)</option>
-                    <option value="name_asc" {% if sort_order == 'name_asc' %}selected{% endif %}>Nome (A–Z)</option>
-                    <option value="name_desc" {% if sort_order == 'name_desc' %}selected{% endif %}>Nome (Z–A)</option>
-                    <option value="nb_asc" {% if sort_order == 'nb_asc' %}selected{% endif %}>NB (crescente)</option>
-                    <option value="nb_desc" {% if sort_order == 'nb_desc' %}selected{% endif %}>NB (decrescente)</option>
+            </div>
+
+            <div class="clients-filter-field">
+                <label for="clients-sort" class="clients-field-label">Ordenacao</label>
+                <select id="clients-sort" name="sort" class="clients-control">
+                    <option value="mov_desc" {% if (sort_order or 'mov_desc') == 'mov_desc' %}selected{% endif %}>Ult. mov. mais recente</option>
+                    <option value="mov_asc" {% if sort_order == 'mov_asc' %}selected{% endif %}>Ult. mov. mais antiga</option>
+                    <option value="name_asc" {% if sort_order == 'name_asc' %}selected{% endif %}>Nome A-Z</option>
+                    <option value="name_desc" {% if sort_order == 'name_desc' %}selected{% endif %}>Nome Z-A</option>
+                    <option value="nb_asc" {% if sort_order == 'nb_asc' %}selected{% endif %}>NB crescente</option>
+                    <option value="nb_desc" {% if sort_order == 'nb_desc' %}selected{% endif %}>NB decrescente</option>
                 </select>
-                <button type="submit" class="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">
-                    Filtrar
-                </button>
-            </form>
-        </div>
-
-        <!-- Gráficos em fatia (donut) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-            <button type="button" onclick="openClientsDashModal('mov')" class="text-left group rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-900/90 via-slate-800/95 to-slate-900/90 p-5 shadow-lg shadow-black/20 hover:border-slate-500/50 hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/40">
-                <div class="flex items-start justify-between gap-3 mb-1">
-                    <div>
-                        <h3 class="text-slate-100 font-semibold tracking-tight">Última movimentação</h3>
-                        <p class="text-slate-500 text-xs mt-0.5">Lista filtrada · {{ chart_movimentacao.total|fmt_br_int }} cliente(s)</p>
-                    </div>
-                    <span class="text-[10px] uppercase tracking-wider text-slate-600 group-hover:text-cyan-500/80 shrink-0">Abrir</span>
-                </div>
-                <div class="relative mx-auto mt-2" style="width: 200px; height: 200px; max-width: 100%;">
-                    <canvas id="donutMovSmall" aria-hidden="true"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-1">
-                        <span id="movDonutPct" class="text-3xl font-bold text-white tabular-nums tracking-tight">—</span>
-                        <span id="movDonutLbl" class="text-[10px] text-slate-500 text-center max-w-[120px] leading-tight mt-1">faixa principal</span>
-                    </div>
-                </div>
-                <div id="movDonutLegend" class="mt-3 flex flex-wrap gap-x-3 gap-y-1 justify-center text-[11px] text-slate-400"></div>
-            </button>
-            <button type="button" onclick="openClientsDashModal('precad')" class="text-left group rounded-2xl border border-slate-700/80 bg-gradient-to-br from-slate-900/90 via-slate-800/95 to-slate-900/90 p-5 shadow-lg shadow-black/20 hover:border-violet-500/30 hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-violet-500/40">
-                <div class="flex items-start justify-between gap-3 mb-1">
-                    <div>
-                        <h3 class="text-slate-100 font-semibold tracking-tight">Pré-cadastro</h3>
-                        <p class="text-slate-500 text-xs mt-0.5">Só pré-cadastro na lista · idade do cadastro</p>
-                    </div>
-                    <span class="text-[10px] uppercase tracking-wider text-slate-600 group-hover:text-violet-400/80 shrink-0">Abrir</span>
-                </div>
-                <div class="relative mx-auto mt-2" style="width: 200px; height: 200px; max-width: 100%;">
-                    <canvas id="donutPrecSmall" aria-hidden="true"></canvas>
-                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-1">
-                        <span id="precDonutPct" class="text-3xl font-bold text-white tabular-nums tracking-tight">—</span>
-                        <span id="precDonutLbl" class="text-[10px] text-slate-500 text-center max-w-[120px] leading-tight mt-1">faixa principal</span>
-                    </div>
-                </div>
-                <div id="precDonutLegend" class="mt-3 flex flex-wrap gap-x-3 gap-y-1 justify-center text-[11px] text-slate-400"></div>
-            </button>
-        </div>
-
-        <dialog id="clientsDashModal" class="rounded-2xl border border-slate-600 bg-slate-900 text-slate-200 shadow-2xl max-w-3xl w-[calc(100%-2rem)] max-h-[90vh] overflow-hidden backdrop:bg-black/70 p-0">
-            <div class="p-5 border-b border-slate-700 flex justify-between items-start gap-3">
-                <div>
-                    <h2 id="dashModalTitle" class="text-lg font-semibold text-white">Análise</h2>
-                    <p id="dashModalSub" class="text-xs text-slate-500 mt-0.5"></p>
-                </div>
-                <button type="button" onclick="document.getElementById('clientsDashModal').close()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition shrink-0">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-5 overflow-y-auto max-h-[calc(90vh-8rem)]">
-                <div class="flex flex-col lg:flex-row gap-6 items-start">
-                    <div class="relative mx-auto shrink-0" style="width: 280px; height: 280px;">
-                        <canvas id="donutModal"></canvas>
-                    </div>
-                    <div class="flex-1 min-w-0 w-full">
-                        <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-2">Resumo por faixa</p>
-                        <div class="overflow-x-auto rounded-xl border border-slate-700/80">
-                            <table class="w-full text-sm">
-                                <thead><tr class="text-left text-slate-500 text-xs border-b border-slate-700">
-                                    <th class="py-2 px-3">Faixa</th>
-                                    <th class="py-2 px-3 text-right">Qtd</th>
-                                    <th class="py-2 px-3 text-right">%</th>
-                                </tr></thead>
-                                <tbody id="dashModalTable"></tbody>
-                            </table>
-                        </div>
-                        <p class="text-[10px] text-slate-600 mt-3">Clique em uma fatia do gráfico para listar os clientes.</p>
-                        <div id="dashModalClients" class="mt-3 rounded-xl border border-slate-700/60 bg-slate-800/40 p-3 max-h-48 overflow-y-auto hidden">
-                            <p class="text-xs font-medium text-slate-400 mb-2" id="dashModalClientsTitle"></p>
-                            <ul id="dashModalClientsList" class="text-sm space-y-1"></ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </dialog>
-
-        <!-- Lista -->
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/50 space-y-4">
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <h3 class="text-slate-300 font-medium">Clientes Cadastrados</h3>
-                </div>
-                <form action="/clients/bulk-assign-group" method="post" id="bulk-group-form" class="flex flex-wrap items-end gap-3 p-4 rounded-xl bg-slate-900/50 border border-slate-600/60">
-                    <input type="hidden" name="return_query" value="{{ request.url.query }}">
-                    <div class="flex flex-col gap-1">
-                        <label class="text-[10px] uppercase tracking-wider text-slate-500">Enviar para grupo</label>
-                        <select name="group_id" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm min-w-[180px]">
-                            <option value="">— Grupo existente —</option>
-                            {% for g in client_groups %}
-                            <option value="{{ g.id }}">{{ g.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="flex flex-col gap-1">
-                        <label class="text-[10px] uppercase tracking-wider text-slate-500">Ou novo grupo</label>
-                        <input type="text" name="new_group_name" placeholder="Ex.: EPA / DMA" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm w-44 placeholder-slate-600">
-                    </div>
-                    <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
-                        Enviar
-                    </button>
-                    <span class="text-xs text-slate-500 self-center"><span id="bulk-selected-count">0</span> selecionado(s)</span>
-                </form>
             </div>
 
-            {% if clients %}
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-900/50 text-slate-400 text-xs uppercase font-bold">
-                            <th class="px-3 py-4 w-10">
-                                <input type="checkbox" id="bulk-select-all" class="rounded border-slate-600 bg-slate-800 text-emerald-500" title="Marcar todos">
-                            </th>
-                            <th class="px-6 py-4 whitespace-nowrap" title="Número do cliente no cadastro mestre (campo NB). Diferente do ID interno usado na URL /clients/… e em vínculos no banco.">Cód. (NB)</th>
-                            <th class="px-3 py-3">Nome</th>
-                            <th class="px-3 py-3 whitespace-nowrap">Data cadastro</th>
-                            <th class="px-3 py-3 whitespace-nowrap">Última mov.</th>
-                            <th class="px-3 py-3">Setor</th>
-                            <th class="px-3 py-3">Município</th>
-                            <th class="px-3 py-3">Segmento</th>
-                            <th class="px-3 py-3">Status</th>
-                            <th class="px-3 py-3 text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-700/80 text-sm">
-                        {% for client in clients %}
-                        <tr class="hover:bg-slate-700/25 transition-colors client-table-row" data-client-id="{{ client.id }}">
-                            <td class="px-3 py-3 align-middle">
-                                <input type="checkbox" name="client_ids" value="{{ client.id }}" form="bulk-group-form" class="client-bulk-cb rounded border-slate-600 bg-slate-800 text-emerald-500">
-                            </td>
-                            <td class="px-3 py-3 text-slate-400 font-mono tabular-nums text-xs cursor-help" title="ID interno do cadastro: {{ client.id }}">{{ client.nb|fmt_nb_br }}</td>
-                            <td class="px-3 py-3">
-                                <a href="/clients/{{ client.id }}" class="text-white font-medium hover:text-blue-400 transition-colors" title="ID interno do cadastro: {{ client.id }}">{{ client.name or client.nb or '-' }}</a>
-                            </td>
-                            <td class="px-6 py-4 text-slate-300 whitespace-nowrap">
-                                {% set data_cad = data_cadastro_by_client.get(client.id) %}
-                                {% if client.created_at %}
-                                {{ client.created_at|fmt_br_datetime }}
-                                {% elif data_cad %}
-                                {{ data_cad|fmt_br_date }}
-                                {% else %}
-                                —
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-slate-300 whitespace-nowrap">
-                                {% set last_mov = last_movement_by_client.get(client.id) %}
-                                {% if last_mov %}
-                                <span class="text-emerald-400">{{ last_mov|fmt_br_date }}</span>
-                                {% else %}
-                                <span class="text-slate-500">Sem movimentação</span>
-                                {% endif %}
-                                {% if precadastro_bucket_by_client.get(client.id) and precadastro_buckets_labels %}
-                                <span class="text-slate-500 text-xs ml-1">({{ precadastro_buckets_labels.get(precadastro_bucket_by_client.get(client.id), precadastro_bucket_by_client.get(client.id)) }})</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-slate-300">{{ client.setor or '-' }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ client.municipio or '-' }}</td>
-                            <td class="px-6 py-4 text-slate-300">{{ client.segmento or '-' }}</td>
-                            <td class="px-6 py-4">
-                                {% if client.status_cliente or client.status_operacional %}
-                                {% set st = (client.status_cliente or client.status_operacional or '')|upper %}
-                                {% set label = client.status_cliente or client.status_operacional %}
-                                {% if 'FECHOU' in st %}
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-400">{{ label }}</span>
-                                {% elif 'INATIVO' in st %}
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500/20 text-slate-400">{{ label }}</span>
-                                {% elif 'EM_VALIDACAO' in st or 'VALIDA' in st %}
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">{{ label }}</span>
-                                {% else %}
-                                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">{{ label }}</span>
-                                {% endif %}
-                                {% else %}
-                                <span class="text-slate-500">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-right">
-                                <a href="/clients/{{ client.id }}" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors text-xs font-medium">
-                                    <i data-lucide="eye" class="w-4 h-4"></i>
-                                    Ver
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="p-12 text-center text-slate-500">
-                <svg class="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                    </path>
-                </svg>
-                <p>Nenhum cliente cadastrado ainda ou nenhum resultado para os filtros.</p>
-                <p class="text-sm mt-2">Use Novo Cliente, importe Excel ou ajuste os filtros.</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Modal Novo Cliente -->
-<div id="novoClienteModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
-    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-3xl mx-4">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg font-semibold text-white flex items-center gap-2">
-                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Novo Cliente
-            </h2>
-            <button type="button" onclick="closeNovoClienteModal()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-            <form action="/clients/add" method="post" class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto pr-2">
-                    <div class="md:col-span-2 lg:col-span-2">
-                        <label for="new-client-name" class="block text-xs font-medium text-slate-400 mb-1">Nome *</label>
-                        <input id="new-client-name" type="text" name="name" required placeholder="Razão Social ou Nome Fantasia"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
-                    </div>
-                    <div><label for="new-client-nb" class="block text-xs font-medium text-slate-400 mb-1">NB</label><input id="new-client-nb" type="text" name="nb" placeholder="Código" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-setor" class="block text-xs font-medium text-slate-400 mb-1">SETOR</label><input id="new-client-setor" type="text" name="setor" placeholder="Setor" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-me" class="block text-xs font-medium text-slate-400 mb-1">ME</label><input id="new-client-me" type="text" name="me" placeholder="ME" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-sa" class="block text-xs font-medium text-slate-400 mb-1">SA</label><input id="new-client-sa" type="text" name="sa" placeholder="SA" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-visita" class="block text-xs font-medium text-slate-400 mb-1">VISITA</label><input id="new-client-visita" type="text" name="visita" placeholder="Frequência" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-fantasia" class="block text-xs font-medium text-slate-400 mb-1">FANTAS</label><input id="new-client-fantasia" type="text" name="nome_fantasia" placeholder="Nome Fantasia" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-razao" class="block text-xs font-medium text-slate-400 mb-1">Razão Social</label><input id="new-client-razao" type="text" name="razao_social" placeholder="Razão Social" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-municipio" class="block text-xs font-medium text-slate-400 mb-1">MUNICÍPIO</label><input id="new-client-municipio" type="text" name="municipio" placeholder="Cidade" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-bairro" class="block text-xs font-medium text-slate-400 mb-1">BAIRRO</label><input id="new-client-bairro" type="text" name="bairro" placeholder="Bairro" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div class="md:col-span-2"><label for="new-client-endereco" class="block text-xs font-medium text-slate-400 mb-1">ENDEREÇO</label><input id="new-client-endereco" type="text" name="endereco" placeholder="Endereço" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-fone" class="block text-xs font-medium text-slate-400 mb-1">FONE</label><input id="new-client-fone" type="text" name="fone" placeholder="Telefone" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-segmento" class="block text-xs font-medium text-slate-400 mb-1">SEGMENTO</label><input id="new-client-segmento" type="text" name="segmento" placeholder="Segmento" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                    <div><label for="new-client-status" class="block text-xs font-medium text-slate-400 mb-1">STATUS</label><input id="new-client-status" type="text" name="status_cliente" placeholder="Ativo, Inativo..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500 placeholder-slate-500"></div>
-                </div>
-            <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
-                <button type="button" onclick="closeNovoClienteModal()" class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
-                <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors">Adicionar Cliente</button>
+            <div class="clients-filter-actions">
+                <button type="submit" class="sys-btn sys-btn--primary justify-center">Aplicar</button>
+                <a href="/clients" class="sys-btn sys-btn--secondary justify-center">Resetar</a>
+                <span class="employees-filter-counter">{{ clients_stats.total_filtered|fmt_br_int }} cliente(s)</span>
             </div>
         </form>
     </div>
+
+    <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel clients-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-4 py-4 sm:px-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Lista</h3>
+            </div>
+
+            <form action="/clients/bulk-assign-group" method="post" id="bulk-group-form" class="clients-bulk-form">
+                <input type="hidden" name="return_query" value="{{ request.url.query }}">
+                <div class="clients-filter-field">
+                    <label for="bulk-group-id" class="clients-field-label">Grupo existente</label>
+                    <select id="bulk-group-id" name="group_id" class="clients-control">
+                        <option value="">Selecione um grupo</option>
+                        {% for g in client_groups %}
+                        <option value="{{ g.id }}">{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="clients-filter-field">
+                    <label for="bulk-group-name" class="clients-field-label">Ou novo grupo</label>
+                    <input id="bulk-group-name" type="text" name="new_group_name" placeholder="Ex.: EPA / DMA" class="clients-control">
+                </div>
+                <div class="clients-bulk-form__actions">
+                    <button type="submit" class="sys-btn sys-btn--primary justify-center">Enviar selecionados</button>
+                    <span class="clients-bulk-count"><strong id="bulk-selected-count">0</strong> marcado(s)</span>
+                </div>
+            </form>
+        </div>
+
+        {% if clients %}
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact clients-data-table w-full min-w-full border-collapse text-left text-sm md:min-w-[1080px]" id="employeesTable">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th employees-data-table__th--static clients-data-table__th--select px-3 py-2 pl-5">
+                            <input type="checkbox" id="bulk-select-all" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" title="Marcar todos">
+                        </th>
+                        <th class="employees-data-table__th clients-data-table__th--nb px-3 py-2">Cod. (NB)</th>
+                        <th class="employees-data-table__th employees-data-table__th--col-name px-3 py-2">Cliente</th>
+                        <th class="employees-data-table__th clients-data-table__th--created px-3 py-2">Data cadastro</th>
+                        <th class="employees-data-table__th clients-data-table__th--movement px-3 py-2">Ultima mov.</th>
+                        <th class="employees-data-table__th employees-data-table__th--col-center px-3 py-2">Vendedor</th>
+                        <th class="employees-data-table__th employees-data-table__th--col-schedule px-3 py-2">Municipio</th>
+                        <th class="employees-data-table__th employees-data-table__th--col-role px-3 py-2">Segmento</th>
+                        <th class="employees-data-table__th employees-data-table__th--col-status px-3 py-2">Status</th>
+                        <th class="employees-data-table__th employees-data-table__th--static employees-data-table__th--col-actions px-3 py-2">Acoes</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y">
+                    {% for client in clients %}
+                    {% set label = client.status_cliente or client.status_operacional or '-' %}
+                    {% set st = (client.status_cliente or client.status_operacional or '')|upper %}
+                    <tr class="group employee-row employees-data-table__row transition-colors clients-data-table__row" data-client-id="{{ client.id }}">
+                        <td class="employees-data-table__cell clients-cell-select px-3 py-2 pl-5 align-middle" data-label="Selecionar">
+                            <input type="checkbox" name="client_ids" value="{{ client.id }}" form="bulk-group-form" class="client-bulk-cb rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        </td>
+                        <td class="employees-data-table__cell clients-data-table__cell--nb px-3 py-2 align-middle whitespace-nowrap" data-label="NB" title="ID interno do cadastro: {{ client.id }}">
+                            {{ client.nb|fmt_nb_br }}
+                        </td>
+                        <td class="employee-cell-primary employees-data-table__td--col-name px-3 py-2 align-middle" data-label="Cliente">
+                            <div class="employee-primary-content min-w-0">
+                                <a href="/clients/{{ client.id }}" class="employee-name employees-data-table__name-link block truncate font-medium transition-colors hover:underline employees-text-strong" title="ID interno do cadastro: {{ client.id }}">
+                                    {{ client.name or client.nb or '-' }}
+                                </a>
+                                <p class="clients-data-table__subline mt-1 truncate">{{ client.razao_social or client.nome_fantasia or 'Sem razao social informada' }}</p>
+                            </div>
+                        </td>
+                        <td class="employees-data-table__cell px-3 py-2 align-middle whitespace-nowrap" data-label="Cadastro">
+                            {% set data_cad = data_cadastro_by_client.get(client.id) %}
+                            {% if client.created_at %}
+                            {{ client.created_at|fmt_br_datetime }}
+                            {% elif data_cad %}
+                            {{ data_cad|fmt_br_date }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell employees-data-table__cell--muted px-3 py-2 align-middle whitespace-nowrap" data-label="Ultima mov.">
+                            {% set last_mov = last_movement_by_client.get(client.id) %}
+                            {% if last_mov %}
+                            <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ last_mov|fmt_br_date }}</span>
+                            {% else %}
+                            <span class="clients-text-muted">Sem movimentacao</span>
+                            {% endif %}
+                            {% if precadastro_bucket_by_client.get(client.id) and precadastro_buckets_labels %}
+                            <div class="clients-data-table__meta-chip">{{ precadastro_buckets_labels.get(precadastro_bucket_by_client.get(client.id), precadastro_bucket_by_client.get(client.id)) }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell employees-data-table__td--col-center px-3 py-2 align-middle whitespace-nowrap" data-label="Vendedor">
+                            {% set ve = vendedor_by_id.get(client.vendedor_id) if (vendedor_by_id and client.vendedor_id) else none %}
+                            {% if ve %}
+                            <span class="employees-pill employees-pill--neutral" title="Colaborador #{{ ve.id }}">{{ ve.name|emp_name }}{% if ve.seller_code %} ({{ ve.seller_code }}){% endif %}</span>
+                            {% elif client.setor %}
+                            <span class="employees-pill employees-pill--neutral" title="Legado: apenas código no cadastro">{{ client.setor }}</span>
+                            {% else %}
+                            <span class="clients-text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell employees-data-table__td--col-schedule px-3 py-2 align-middle whitespace-nowrap" data-label="Municipio">{{ client.municipio or '-' }}</td>
+                        <td class="employees-data-table__cell employees-data-table__td--col-role px-3 py-2 align-middle" data-label="Segmento">
+                            {% if client.segmento %}
+                            <span class="employees-data-table__role-ellipsis">{{ client.segmento }}</span>
+                            {% else %}
+                            <span class="clients-text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__td--col-status px-3 py-2 align-middle whitespace-nowrap" data-label="Status">
+                            {% if 'FECHOU' in st %}
+                            <span class="clients-status-badge clients-status-badge--closed">{{ label }}</span>
+                            {% elif 'INATIVO' in st %}
+                            <span class="clients-status-badge clients-status-badge--inactive">{{ label }}</span>
+                            {% elif 'EM_VALIDACAO' in st or 'VALIDA' in st %}
+                            <span class="clients-status-badge clients-status-badge--validation">{{ label }}</span>
+                            {% elif 'PRE' in st %}
+                            <span class="clients-status-badge clients-status-badge--precadastro">{{ label }}</span>
+                            {% elif label != '-' %}
+                            <span class="clients-status-badge clients-status-badge--active">{{ label }}</span>
+                            {% else %}
+                            <span class="clients-text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="employee-actions-cell employees-data-table__td--col-actions px-3 py-2 align-middle" data-label="Acoes">
+                            <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                                <a href="/clients/{{ client.id }}" class="employee-action-btn employee-action-btn--edit" title="Abrir cadastro">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="clients-empty-state">
+            <svg class="mx-auto mb-4 h-12 w-12 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M5 7l1.5 11.5A2 2 0 008.48 20h7.04a2 2 0 001.98-1.5L19 7"></path>
+            </svg>
+            <p class="text-base font-semibold text-slate-700 dark:text-slate-200">Nenhum cliente encontrado.</p>
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Revise os filtros acima, importe uma planilha ou crie um novo cliente.</p>
+        </div>
+        {% endif %}
+    </div>
 </div>
+{% endblock %}
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-function openNovoClienteModal() {
-    document.getElementById('novoClienteModal').classList.remove('hidden');
-    document.getElementById('novoClienteModal').classList.add('flex');
-}
-function closeNovoClienteModal() {
-    document.getElementById('novoClienteModal').classList.add('hidden');
-    document.getElementById('novoClienteModal').classList.remove('flex');
-}
-document.getElementById('clients-excel-input')?.addEventListener('change', function() {
-    const span = document.getElementById('clients-file-name');
-    if (span) span.textContent = this.files?.length ? this.files[0].name : '';
-});
+{% block body_scripts %}
+<script src="/static/js/pages/clients-page.js"></script>
+{% endblock %}
 
-(function clientsDashboard() {
-    const MOV_COLORS = ['#34d399', '#2dd4bf', '#a3e635', '#fbbf24', '#fb923c', '#f87171', '#64748b'];
-    const PREC_COLORS = ['#818cf8', '#a78bfa', '#c084fc', '#e879f9', '#f472b6', '#94a3b8'];
-    let movData, precData, nameMap;
-    try {
-        movData = JSON.parse(document.getElementById('mov-drill-data').textContent);
-        precData = JSON.parse(document.getElementById('precad-drill-data').textContent);
-        nameMap = JSON.parse(document.getElementById('client-names-data').textContent);
-    } catch (e) { return; }
+{% block layout_portal %}
+<div id="novoClienteModal" class="clients-modal hidden">
+    <div class="clients-modal__backdrop" onclick="closeNovoClienteModal()"></div>
+    <div class="clients-modal__dialog">
+        <div class="clients-modal__card sys-card sys-card--surface">
+            <div class="clients-modal__head">
+                <div>
+                    <h3 class="sys-section-heading text-lg">Novo cliente</h3>
+                </div>
+                <button type="button" onclick="closeNovoClienteModal()" class="clients-modal-close" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
 
-    function nz(slices) { return (slices || []).filter(s => s.count > 0); }
-    function dominant(slices, total) {
-        const n = nz(slices);
-        if (!n.length || !total) return { pct: 0, label: '—' };
-        const top = n.reduce((a, b) => a.count >= b.count ? a : b);
-        return { pct: Math.round((1000 * top.count) / total) / 10, label: top.label };
-    }
-    function buildDonut(canvas, slices, colors, cutout) {
-        const n = nz(slices);
-        if (!canvas || typeof Chart === 'undefined') return null;
-        if (!n.length) {
-            return new Chart(canvas.getContext('2d'), {
-                type: 'doughnut',
-                data: { labels: ['—'], datasets: [{ data: [1], backgroundColor: ['#334155'], borderWidth: 0 }] },
-                options: { cutout: cutout + '%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
-            });
-        }
-        return new Chart(canvas.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: n.map(s => s.label),
-                datasets: [{
-                    data: n.map(s => s.count),
-                    backgroundColor: n.map((_, i) => colors[i % colors.length]),
-                    borderWidth: 0,
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                cutout: cutout + '%',
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: {
-                    callbacks: { label: (c) => c.label + ': ' + Number(c.raw).toLocaleString('pt-BR') }
-                }}
-            }
-        });
-    }
-    function fillLegend(elId, slices, colors) {
-        const el = document.getElementById(elId);
-        if (!el) return;
-        const n = nz(slices);
-        el.innerHTML = n.map((s, i) =>
-            '<span class="inline-flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:' + (colors[i % colors.length]) + '"></span>' + s.label + ' <span class="text-slate-500">' + s.count + '</span></span>'
-        ).join('');
-    }
+            <form action="/clients/add" method="post" class="clients-modal__form">
+                <div class="clients-modal__grid">
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label for="new-client-name" class="clients-field-label">Nome *</label>
+                        <input id="new-client-name" type="text" name="name" required placeholder="Razao social ou nome fantasia" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-nb" class="clients-field-label">NB</label>
+                        <input id="new-client-nb" type="text" name="nb" placeholder="Codigo" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label for="new-client-vendedor" class="clients-field-label">Vendedor (colaborador)</label>
+                        <select id="new-client-vendedor" name="vendedor_id" class="clients-control">
+                            <option value="">— Sem vendedor</option>
+                            {% for v in vendedores_list %}
+                            <option value="{{ v.id }}">{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="clients-field-help">Lista: colaboradores com cargo contendo &quot;VENDEDOR&quot;. O código é o da ficha do colaborador (Código do Vendedor).</p>
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-me" class="clients-field-label">ME</label>
+                        <input id="new-client-me" type="text" name="me" placeholder="ME" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-sa" class="clients-field-label">SA</label>
+                        <input id="new-client-sa" type="text" name="sa" placeholder="SA" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-visita" class="clients-field-label">Visita</label>
+                        <input id="new-client-visita" type="text" name="visita" placeholder="Frequencia" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-fantasia" class="clients-field-label">FANTAS</label>
+                        <input id="new-client-fantasia" type="text" name="nome_fantasia" placeholder="Nome fantasia" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-razao" class="clients-field-label">Razao social</label>
+                        <input id="new-client-razao" type="text" name="razao_social" placeholder="Razao social" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-municipio" class="clients-field-label">Municipio</label>
+                        <input id="new-client-municipio" type="text" name="municipio" placeholder="Cidade" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-bairro" class="clients-field-label">Bairro</label>
+                        <input id="new-client-bairro" type="text" name="bairro" placeholder="Bairro" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label for="new-client-endereco" class="clients-field-label">Endereco</label>
+                        <input id="new-client-endereco" type="text" name="endereco" placeholder="Endereco" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field clients-filter-field--span-2">
+                        <label for="new-client-fone" class="clients-field-label">WhatsApp principal</label>
+                        <input
+                            id="new-client-fone"
+                            type="text"
+                            name="fone"
+                            placeholder="+5531999550189"
+                            inputmode="tel"
+                            autocomplete="tel"
+                            maxlength="14"
+                            data-whatsapp-phone="true"
+                            class="clients-control">
+                        <p class="clients-field-help">Padrao API: +55 + DDD + numero. Ex.: +5531999550189.</p>
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-segmento" class="clients-field-label">Segmento</label>
+                        <input id="new-client-segmento" type="text" name="segmento" placeholder="Segmento" class="clients-control">
+                    </div>
+                    <div class="clients-filter-field">
+                        <label for="new-client-status" class="clients-field-label">Status</label>
+                        <input id="new-client-status" type="text" name="status_cliente" placeholder="Ativo, Inativo..." class="clients-control">
+                    </div>
+                </div>
 
-    const totalMov = movData.total || 0;
-    const dm = dominant(movData.slices, totalMov);
-    const elPct = document.getElementById('movDonutPct');
-    const elLbl = document.getElementById('movDonutLbl');
-    if (elPct) elPct.textContent = totalMov ? (dm.pct + '%') : '0%';
-    if (elLbl) elLbl.textContent = dm.label || '—';
-    buildDonut(document.getElementById('donutMovSmall'), movData.slices, MOV_COLORS, 78);
-    fillLegend('movDonutLegend', movData.slices, MOV_COLORS);
-
-    const totalPrec = precData.total || 0;
-    const dp = dominant(precData.slices, totalPrec);
-    const elPP = document.getElementById('precDonutPct');
-    const elPL = document.getElementById('precDonutLbl');
-    if (elPP) elPP.textContent = totalPrec ? (dp.pct + '%') : '0%';
-    if (elPL) elPL.textContent = dp.label || '—';
-    buildDonut(document.getElementById('donutPrecSmall'), precData.slices, PREC_COLORS, 78);
-    fillLegend('precDonutLegend', precData.slices, PREC_COLORS);
-
-    let modalChart = null;
-    let modalKind = null;
-    window.openClientsDashModal = function(kind) {
-        modalKind = kind;
-        const data = kind === 'mov' ? movData : precData;
-        const colors = kind === 'mov' ? MOV_COLORS : PREC_COLORS;
-        const title = kind === 'mov' ? 'Última movimentação' : 'Pré-cadastro (lista filtrada)';
-        document.getElementById('dashModalTitle').textContent = title;
-        document.getElementById('dashModalSub').textContent = (data.total || 0).toLocaleString('pt-BR') + ' cliente(s) na base do gráfico';
-        const tbody = document.getElementById('dashModalTable');
-        const t = data.total || 1;
-        tbody.innerHTML = (data.slices || []).map(s => {
-            const pct = Math.round((1000 * s.count) / t) / 10;
-            return '<tr class="border-b border-slate-800/80 hover:bg-slate-800/50"><td class="py-2 px-3 text-slate-300">' + s.label + '</td><td class="py-2 px-3 text-right tabular-nums">' + s.count.toLocaleString('pt-BR') + '</td><td class="py-2 px-3 text-right text-slate-500 tabular-nums">' + pct + '%</td></tr>';
-        }).join('');
-        document.getElementById('dashModalClients').classList.add('hidden');
-        const canvas = document.getElementById('donutModal');
-        if (modalChart) modalChart.destroy();
-        const n = nz(data.slices);
-        modalChart = new Chart(canvas.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: n.map(s => s.label),
-                datasets: [{
-                    data: n.length ? n.map(s => s.count) : [1],
-                    backgroundColor: n.length ? n.map((_, i) => colors[i % colors.length]) : ['#334155'],
-                    borderWidth: 0,
-                    hoverOffset: 6
-                }]
-            },
-            options: {
-                cutout: '72%',
-                responsive: true,
-                maintainAspectRatio: false,
-                onClick: (evt, elements) => {
-                    if (!elements.length || !n.length) return;
-                    const idx = elements[0].index;
-                    const slice = n[idx];
-                    const box = document.getElementById('dashModalClients');
-                    const ul = document.getElementById('dashModalClientsList');
-                    document.getElementById('dashModalClientsTitle').textContent = slice.label + ' · ' + slice.count + ' cliente(s)';
-                    ul.innerHTML = (slice.ids || []).map(id =>
-                        '<li><a href="/clients/' + id + '" class="text-cyan-400 hover:text-cyan-300 hover:underline">' + (nameMap[id] || ('#' + id)) + '</a></li>'
-                    ).join('') || '<li class="text-slate-500">Nenhum</li>';
-                    box.classList.remove('hidden');
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: (c) => c.label + ': ' + Number(c.raw).toLocaleString('pt-BR') } }
-                }
-            }
-        });
-        document.getElementById('clientsDashModal').showModal();
-        if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-    };
-})();
-
-function syncRowHighlight(cb) {
-    const tr = cb.closest('tr');
-    if (tr) tr.classList.toggle('bg-emerald-950/25', cb.checked);
-}
-document.getElementById('bulk-select-all')?.addEventListener('change', function() {
-    document.querySelectorAll('.client-bulk-cb').forEach(cb => { cb.checked = this.checked; syncRowHighlight(cb); });
-    updateBulkCount();
-});
-document.querySelectorAll('.client-bulk-cb').forEach(cb => {
-    cb.addEventListener('change', function() { syncRowHighlight(this); updateBulkCount(); });
-});
-function updateBulkCount() {
-    const n = document.querySelectorAll('.client-bulk-cb:checked').length;
-    const el = document.getElementById('bulk-selected-count');
-    if (el) el.textContent = n;
-}
-updateBulkCount();
-document.getElementById('bulk-group-form')?.addEventListener('submit', function(e) {
-    const n = document.querySelectorAll('.client-bulk-cb:checked').length;
-    if (!n) {
-        e.preventDefault();
-        alert('Selecione ao menos um cliente na tabela.');
-        return;
-    }
-    const gid = this.querySelector('[name=group_id]')?.value;
-    const nw = (this.querySelector('[name=new_group_name]')?.value || '').trim();
-    if (!gid && !nw) {
-        e.preventDefault();
-        alert('Escolha um grupo existente ou digite o nome de um novo grupo.');
-    }
-});
-if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-</script>
+                <div class="clients-modal__actions">
+                    <button type="button" onclick="closeNovoClienteModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
+                    <button type="submit" class="sys-btn sys-btn--primary justify-center">Adicionar cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

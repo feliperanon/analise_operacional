@@ -32,7 +32,7 @@
         <div class="driver-guide-backdrop" @click="close()"></div>
 
         <div
-            class="driver-guide-sheet"
+            class="driver-guide-sheet delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium"
             x-transition:enter="transition ease-out duration-300"
             x-transition:enter-start="opacity-0 translate-y-8"
             x-transition:enter-end="opacity-100 translate-y-0"
@@ -40,16 +40,16 @@
             x-transition:leave-start="opacity-100 translate-y-0"
             x-transition:leave-end="opacity-0 translate-y-8"
         >
-            <div class="driver-guide-handle"></div>
+            <div class="driver-guide-handle" aria-hidden="true"></div>
 
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                    <span class="driver-guide-kicker">Guia do Motorista</span>
+                    <span class="driver-guide-kicker">Guia do motorista</span>
                     <h3 class="driver-guide-title">Como usar o aplicativo de entrega</h3>
                     <p class="driver-guide-subtitle">Do login ao encerramento da rota, em linguagem simples.</p>
                 </div>
-                <button type="button" @click="close()" class="driver-guide-close" aria-label="Fechar guia">
-                    <i data-lucide="x" class="w-5 h-5"></i>
+                <button type="button" @click="close()" class="driver-guide-close delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-11 shrink-0 items-center justify-center rounded-xl interactive sm:size-12" aria-label="Fechar guia">
+                    <i data-lucide="x" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -80,9 +80,9 @@
             <div class="driver-guide-card">
                 <p class="driver-guide-list-title">O que fazer</p>
                 <div class="space-y-2.5">
-                    <template x-for="item in currentStep.items" :key="item">
+                    <template x-for="(item, itemIdx) in currentStep.items" :key="`${stepIndex}-${itemIdx}`">
                         <div class="driver-guide-list-row">
-                            <span class="driver-guide-list-dot"></span>
+                            <span class="driver-guide-list-dot" aria-hidden="true"></span>
                             <p class="driver-guide-body" x-text="item"></p>
                         </div>
                     </template>
@@ -92,7 +92,7 @@
             <div class="driver-guide-card driver-guide-note-card" x-show="currentStep.tip">
                 <div class="flex items-start gap-3">
                     <div class="driver-guide-note-icon">
-                        <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <i data-lucide="sparkles" class="w-4 h-4" aria-hidden="true"></i>
                     </div>
                     <div class="min-w-0">
                         <p class="driver-guide-note-title">Atenção</p>
@@ -102,34 +102,36 @@
             </div>
 
             <div class="driver-guide-actions">
-                <button
-                    type="button"
-                    @click="prevStep()"
-                    class="driver-guide-secondary-btn"
-                    :disabled="stepIndex === 0"
-                >
-                    Voltar
-                </button>
-
+                <div class="flex gap-2">
+                    <button
+                        type="button"
+                        @click="prevStep()"
+                        class="sys-btn sys-btn--secondary interactive min-h-12 flex-1 rounded-xl px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+                        :disabled="stepIndex === 0"
+                    >
+                        Voltar
+                    </button>
+                    <button
+                        type="button"
+                        @click="nextStep()"
+                        class="sys-btn sys-btn--primary interactive min-h-12 flex-1 rounded-xl px-3 text-sm font-semibold"
+                        x-text="stepIndex === steps.length - 1 ? 'Concluir guia' : 'Próximo passo'"
+                    ></button>
+                </div>
                 <a
                     x-show="showActionButton()"
+                    x-cloak
                     :href="currentStep.href"
-                    class="driver-guide-link-btn"
+                    class="sys-btn sys-btn--sky interactive inline-flex min-h-12 w-full items-center justify-center rounded-xl px-3 text-sm font-semibold no-underline"
                     x-text="currentStep.cta"
                 ></a>
-
-                <button
-                    type="button"
-                    @click="nextStep()"
-                    class="driver-guide-primary-btn"
-                    x-text="stepIndex === steps.length - 1 ? 'Concluir guia' : 'Próximo passo'"
-                ></button>
             </div>
         </div>
     </div>
 </div>
 
 <style>
+    /* Folha do guia: alinhada ao shell mobile GA (tokens --color-* + sys-btn no markup) */
     .driver-guide-overlay {
         position: fixed;
         inset: 0;
@@ -138,65 +140,71 @@
         align-items: flex-end;
         justify-content: center;
         padding: 1rem;
+        padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
     }
 
     .driver-guide-backdrop {
         position: absolute;
         inset: 0;
-        background: rgba(2, 6, 23, 0.72);
-        backdrop-filter: blur(4px);
+        background: rgb(15 23 42 / 0.45);
+        backdrop-filter: blur(6px);
+    }
+
+    html.dark .driver-guide-backdrop {
+        background: rgb(0 0 0 / 0.55);
     }
 
     .driver-guide-sheet {
         position: relative;
-        width: min(100%, 32rem);
-        max-height: calc(100dvh - 2rem);
+        z-index: 1;
+        width: min(100%, 28rem);
+        max-height: calc(100dvh - 2rem - env(safe-area-inset-bottom, 0px));
+        overflow-x: hidden;
         overflow-y: auto;
-        border-radius: 28px 28px 20px 20px;
-        border: 1px solid rgba(96, 165, 250, 0.22);
-        background:
-            radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 36%),
-            linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(2, 6, 23, 0.98) 100%);
-        box-shadow: 0 30px 80px rgba(2, 6, 23, 0.45);
-        padding: 1rem;
-        color: #e2e8f0;
+        border-radius: 1.25rem 1.25rem 1rem 1rem;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-solid);
+        box-shadow: 0 24px 48px rgb(15 23 42 / 0.12);
+        padding: 1rem 1rem 1.1rem;
+        color: var(--color-text-body);
+    }
+
+    html.dark .driver-guide-sheet {
+        box-shadow: 0 24px 48px rgb(0 0 0 / 0.35);
     }
 
     .driver-guide-handle {
-        width: 52px;
-        height: 5px;
+        width: 2.5rem;
+        height: 0.3rem;
         border-radius: 999px;
-        background: rgba(148, 163, 184, 0.45);
-        margin: 0 auto 0.9rem;
+        background: var(--color-border);
+        margin: 0 auto 0.85rem;
     }
 
     .driver-guide-kicker {
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
-        padding: 0.38rem 0.7rem;
-        border-radius: 999px;
-        background: rgba(37, 99, 235, 0.16);
-        color: #93c5fd;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 0.08em;
+        padding: 0.2rem 0;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
+        color: var(--color-text-muted);
     }
 
     .driver-guide-title {
-        margin: 0.75rem 0 0;
-        color: #f8fafc;
-        font-size: 1.25rem;
+        margin: 0.5rem 0 0;
+        color: var(--color-text);
+        font-size: 1.15rem;
         font-weight: 800;
-        line-height: 1.2;
+        line-height: 1.25;
     }
 
     .driver-guide-subtitle,
     .driver-guide-body {
         margin: 0;
-        color: #cbd5e1;
-        font-size: 0.92rem;
+        color: var(--color-text-body);
+        font-size: 0.9rem;
         line-height: 1.5;
     }
 
@@ -204,148 +212,142 @@
         margin-top: 0.35rem;
     }
 
-    .driver-guide-close {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 42px;
-        height: 42px;
-        border-radius: 14px;
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        background: rgba(15, 23, 42, 0.7);
-        color: #e2e8f0;
-        flex-shrink: 0;
-    }
-
     .driver-guide-progress-track {
         width: 100%;
-        height: 8px;
+        height: 6px;
         border-radius: 999px;
-        background: rgba(30, 41, 59, 0.96);
+        background: var(--color-border-light);
         overflow: hidden;
         margin: 1rem 0 0.85rem;
+        border: 1px solid var(--color-border);
     }
 
     .driver-guide-progress-fill {
         height: 100%;
         border-radius: 999px;
-        background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 55%, #34d399 100%);
-        box-shadow: 0 0 16px rgba(59, 130, 246, 0.35);
+        background: linear-gradient(90deg, var(--color-primary) 0%, rgb(34 197 94) 100%);
         transition: width 0.25s ease;
     }
 
     .driver-guide-steps {
         display: flex;
-        gap: 0.55rem;
+        gap: 0.5rem;
         overflow-x: auto;
-        padding-bottom: 0.25rem;
-        margin-bottom: 0.95rem;
+        padding-bottom: 0.35rem;
+        margin-bottom: 0.85rem;
+        -webkit-overflow-scrolling: touch;
     }
 
     .driver-guide-step-chip {
         display: inline-flex;
         align-items: center;
-        gap: 0.45rem;
+        gap: 0.4rem;
         min-width: max-content;
         border-radius: 999px;
-        border: 1px solid rgba(51, 65, 85, 0.92);
-        background: rgba(15, 23, 42, 0.72);
-        color: #94a3b8;
-        padding: 0.55rem 0.75rem;
-        font-size: 0.78rem;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface);
+        color: var(--color-text-secondary);
+        padding: 0.45rem 0.65rem;
+        font-size: 0.75rem;
         font-weight: 700;
-        transition: all 0.2s ease;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
     .driver-guide-step-chip-active {
-        border-color: rgba(96, 165, 250, 0.78);
-        background: rgba(30, 64, 175, 0.32);
-        color: #eff6ff;
-        box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+        border-color: var(--color-primary);
+        background: var(--color-primary-bg);
+        color: var(--color-primary);
     }
 
     .driver-guide-step-chip-number {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 22px;
-        height: 22px;
+        min-width: 1.35rem;
+        height: 1.35rem;
+        padding: 0 0.25rem;
         border-radius: 999px;
-        background: rgba(148, 163, 184, 0.14);
-        font-size: 0.72rem;
+        background: var(--color-border-light);
+        font-size: 0.68rem;
         font-weight: 800;
         flex-shrink: 0;
     }
 
+    .driver-guide-step-chip-active .driver-guide-step-chip-number {
+        background: rgb(255 255 255 / 0.85);
+    }
+
+    html.dark .driver-guide-step-chip-active .driver-guide-step-chip-number {
+        background: rgb(15 23 42 / 0.5);
+    }
+
     .driver-guide-card {
-        border-radius: 22px;
-        border: 1px solid rgba(51, 65, 85, 0.84);
-        background: rgba(15, 23, 42, 0.72);
-        padding: 1rem;
-        margin-bottom: 0.8rem;
+        border-radius: 0.85rem;
+        border: 1px solid var(--color-border);
+        padding: 0.95rem 1rem;
+        margin-bottom: 0.65rem;
+        background: var(--color-surface-solid);
     }
 
     .driver-guide-hero-card {
-        background:
-            linear-gradient(135deg, rgba(30, 64, 175, 0.24) 0%, rgba(15, 23, 42, 0.82) 52%, rgba(15, 118, 110, 0.18) 100%);
-        border-color: rgba(96, 165, 250, 0.3);
+        background: linear-gradient(180deg, var(--color-primary-bg) 0%, var(--color-surface-solid) 55%);
+        border-color: var(--color-border);
     }
 
     .driver-guide-stage-pill {
         display: inline-flex;
         align-items: center;
-        padding: 0.38rem 0.72rem;
+        padding: 0.28rem 0.6rem;
         border-radius: 999px;
-        background: rgba(148, 163, 184, 0.14);
-        color: #bfdbfe;
-        font-size: 11px;
+        background: var(--color-border-light);
+        color: var(--color-text-secondary);
+        font-size: 0.65rem;
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
     }
 
     .driver-guide-section-title {
-        margin: 0.85rem 0 0.35rem;
-        color: #f8fafc;
-        font-size: 1.05rem;
+        margin: 0.75rem 0 0.3rem;
+        color: var(--color-text);
+        font-size: 1rem;
         font-weight: 800;
         line-height: 1.35;
     }
 
     .driver-guide-list-title,
     .driver-guide-note-title {
-        margin: 0 0 0.7rem;
-        color: #e2e8f0;
-        font-size: 0.78rem;
+        margin: 0 0 0.6rem;
+        color: var(--color-text-muted);
+        font-size: 0.72rem;
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
     }
 
     .driver-guide-note-title {
-        margin-bottom: 0.25rem;
-        color: #dbeafe;
+        margin-bottom: 0.2rem;
+        color: var(--color-text-secondary);
     }
 
     .driver-guide-list-row {
         display: flex;
         align-items: flex-start;
-        gap: 0.7rem;
+        gap: 0.65rem;
     }
 
     .driver-guide-list-dot {
-        width: 0.55rem;
-        height: 0.55rem;
-        margin-top: 0.45rem;
+        width: 0.45rem;
+        height: 0.45rem;
+        margin-top: 0.5rem;
         border-radius: 999px;
-        background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
-        box-shadow: 0 0 10px rgba(96, 165, 250, 0.35);
+        background: var(--color-primary);
         flex-shrink: 0;
     }
 
     .driver-guide-note-card {
-        background: rgba(30, 64, 175, 0.15);
-        border-color: rgba(96, 165, 250, 0.24);
+        background: var(--color-warning-bg);
+        border-color: rgba(245, 158, 11, 0.35);
     }
 
     .driver-guide-note-icon {
@@ -354,57 +356,18 @@
         justify-content: center;
         width: 2rem;
         height: 2rem;
-        border-radius: 14px;
-        background: rgba(59, 130, 246, 0.18);
-        color: #93c5fd;
+        border-radius: 0.65rem;
+        background: var(--color-primary-bg);
+        color: var(--color-primary);
         flex-shrink: 0;
+        border: 1px solid var(--color-border);
     }
 
     .driver-guide-actions {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-        gap: 0.75rem;
-        margin-top: 0.25rem;
-    }
-
-    .driver-guide-secondary-btn,
-    .driver-guide-primary-btn,
-    .driver-guide-link-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 52px;
-        border-radius: 18px;
-        padding: 0.9rem 1rem;
-        font-size: 0.95rem;
-        font-weight: 800;
-        text-align: center;
-        transition: all 0.2s ease;
-    }
-
-    .driver-guide-secondary-btn {
-        border: 1px solid rgba(71, 85, 105, 0.95);
-        background: rgba(15, 23, 42, 0.82);
-        color: #e2e8f0;
-    }
-
-    .driver-guide-secondary-btn:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-    }
-
-    .driver-guide-link-btn {
-        border: 1px solid rgba(96, 165, 250, 0.28);
-        background: rgba(30, 64, 175, 0.16);
-        color: #dbeafe;
-    }
-
-    .driver-guide-primary-btn {
-        border: 1px solid rgba(96, 165, 250, 0.22);
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        color: #ffffff;
-        box-shadow: 0 14px 30px rgba(37, 99, 235, 0.24);
-        grid-column: span 2;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-top: 0.35rem;
     }
 
     .driver-guide-fab {
@@ -416,13 +379,13 @@
         align-items: center;
         gap: 0.5rem;
         border-radius: 999px;
-        border: 1px solid rgba(96, 165, 250, 0.24);
-        background: rgba(15, 23, 42, 0.94);
-        color: #eff6ff;
-        padding: 0.78rem 0.95rem;
-        font-size: 0.82rem;
-        font-weight: 800;
-        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.32);
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-solid);
+        color: var(--color-text);
+        padding: 0.65rem 0.9rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        box-shadow: 0 8px 24px rgb(15 23 42 / 0.1);
     }
 
     @media (min-width: 640px) {
@@ -431,7 +394,7 @@
         }
 
         .driver-guide-sheet {
-            border-radius: 28px;
+            border-radius: 1.25rem;
         }
     }
 </style>

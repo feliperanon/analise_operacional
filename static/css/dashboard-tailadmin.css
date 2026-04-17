@@ -1,117 +1,264 @@
 /**
- * Tema drawer/sidebar TailAdmin — apenas em páginas com body.dashboard-app
- * (/dashboard e /dashboard/tv)
+ * Drawer do menu (#sidebar-drawer em _sidebar.html) — padrão Gestão Avista / employees
+ * em todas as páginas que incluem o menu (base.html, base_gestao_avista, informativo, etc.).
+ * Overlay + painel claro/escuro (gray) alinhados ao sys-page-header.
  */
-body.dashboard-app .sidebar-overlay {
-  background-color: rgba(15, 23, 42, 0.35) !important;
+
+.sidebar-overlay {
+  background-color: rgb(15 23 42 / 0.35) !important;
+  backdrop-filter: blur(6px);
 }
-body.dashboard-app #sidebar-drawer {
+
+#sidebar-drawer.sidebar-drawer-panel {
   background-color: #ffffff !important;
-  border-color: rgb(229 231 235) !important;
-  box-shadow: 4px 0 24px rgba(15, 23, 42, 0.06);
+  border-right: 1px solid rgb(229 231 235) !important; /* gray-200 */
+  color: rgb(55 65 81); /* gray-700 */
+  box-shadow: 4px 0 32px -12px rgb(15 23 42 / 0.12);
 }
-body.dashboard-app #sidebar-drawer .border-slate-800 {
-  border-color: rgb(229 231 235) !important;
+
+#sidebar-drawer .sidebar-drawer__header {
+  border-bottom-color: rgb(229 231 235) !important;
 }
-body.dashboard-app #sidebar-drawer h1.text-xl {
+
+#sidebar-drawer .sidebar-drawer__brand {
   background: none !important;
   -webkit-background-clip: unset !important;
   background-clip: unset !important;
-  color: #111827 !important;
+  -webkit-text-fill-color: unset !important;
+  color: rgb(31 41 55) !important; /* gray-800 */
 }
-body.dashboard-app #sidebar-drawer .sidebar-clock-strip {
-  background-color: rgb(249 250 251) !important;
+
+#sidebar-drawer .sidebar-drawer__close {
+  color: rgb(107 114 128) !important; /* gray-500 */
 }
-body.dashboard-app #sidebar-drawer .sidebar-footer-strip {
-  background-color: #ffffff !important;
-  border-color: rgb(229 231 235) !important;
+
+#sidebar-drawer .sidebar-drawer__close:hover {
+  background-color: rgb(243 244 246) !important; /* gray-100 */
+  color: rgb(17 24 39) !important;
 }
-body.dashboard-app #sidebar-drawer .sidebar-footer-strip .text-white {
-  color: #111827 !important;
+
+#sidebar-drawer .sidebar-drawer__clock {
+  border-bottom-color: rgb(229 231 235) !important;
+  background-color: rgb(249 250 251) !important; /* gray-50 */
 }
-body.dashboard-app #sidebar-drawer .sidebar-footer-strip .text-slate-500 {
-  color: #6b7280 !important;
+
+#sidebar-drawer #sidebar-time {
+  color: rgb(17 24 39) !important;
 }
-body.dashboard-app #sidebar-drawer .text-yellow-400 {
-  color: #ca8a04 !important;
+
+#sidebar-drawer #sidebar-date {
+  color: rgb(107 114 128) !important;
 }
-body.dashboard-app #sidebar-drawer .hover\:text-yellow-300:hover {
-  color: #a16207 !important;
+
+#sidebar-drawer #sidebar-shift-start {
+  color: rgb(31 41 55) !important;
 }
-body.dashboard-app #sidebar-drawer .hover\:bg-yellow-500\/10:hover {
-  background-color: rgb(254 249 195) !important;
+
+#sidebar-drawer #sidebar-shift-end,
+#sidebar-drawer #sidebar-shift-progress-text {
+  color: rgb(107 114 128) !important;
 }
-body.dashboard-app #sidebar-drawer #sidebar-time {
-  color: #111827 !important;
-}
-body.dashboard-app #sidebar-drawer #sidebar-date,
-body.dashboard-app #sidebar-drawer #sidebar-shift-progress-text {
-  color: #6b7280 !important;
-}
-body.dashboard-app #sidebar-drawer #sidebar-shift-start {
-  color: #111827 !important;
-}
-body.dashboard-app #sidebar-drawer #sidebar-shift-end {
-  color: #9ca3af !important;
-}
-body.dashboard-app #sidebar-drawer .bg-slate-700 {
+
+#sidebar-drawer .sidebar-drawer__clock .bg-slate-700 {
   background-color: rgb(229 231 235) !important;
 }
-body.dashboard-app #sidebar-drawer a.flex.items-center.gap-3,
-body.dashboard-app #sidebar-drawer button.menu-toggle {
-  color: #374151 !important;
+
+#sidebar-drawer nav.sidebar-drawer__nav > a.flex,
+#sidebar-drawer nav.sidebar-drawer__nav button.menu-toggle {
+  color: rgb(75 85 99) !important; /* gray-600 */
 }
-body.dashboard-app #sidebar-drawer a.flex.items-center.gap-3:hover,
-body.dashboard-app #sidebar-drawer button.menu-toggle:hover {
-  color: #111827 !important;
+
+#sidebar-drawer nav.sidebar-drawer__nav > a.flex:hover,
+#sidebar-drawer nav.sidebar-drawer__nav button.menu-toggle:hover {
   background-color: rgb(243 244 246) !important;
+  color: rgb(17 24 39) !important;
 }
-body.dashboard-app #sidebar-drawer a.text-slate-500 {
-  color: #6b7280 !important;
+
+#sidebar-drawer nav.sidebar-drawer__nav .ml-4 a.flex {
+  color: rgb(107 114 128) !important;
 }
-body.dashboard-app #sidebar-drawer a.text-slate-500:hover {
-  color: #2563eb !important;
-  background-color: transparent !important;
+
+#sidebar-drawer nav.sidebar-drawer__nav .ml-4 a.flex:hover {
+  background-color: rgb(249 250 251) !important;
+  color: rgb(31 41 55) !important;
 }
-body.dashboard-app #sidebar-drawer a[href="/dashboard/tv"]:hover {
-  color: #0891b2 !important;
+
+#sidebar-drawer nav a.text-cyan-300:hover,
+#sidebar-drawer nav a.text-emerald-300:hover,
+#sidebar-drawer nav a.text-emerald-400:hover,
+#sidebar-drawer nav a.text-blue-400:hover,
+#sidebar-drawer nav a.text-yellow-400:hover {
+  color: inherit;
 }
-body.dashboard-app #sidebar-drawer a[href="/logout"] {
-  color: #e11d48 !important;
+
+#sidebar-drawer nav a.text-emerald-400 {
+  color: rgb(5 150 105) !important;
 }
-body.dashboard-app #sidebar-drawer a[href="/logout"]:hover {
+
+#sidebar-drawer nav a.text-cyan-300 {
+  color: rgb(8 145 178) !important;
+}
+
+#sidebar-drawer nav a.text-blue-400 {
+  color: rgb(37 99 235) !important;
+}
+
+#sidebar-drawer nav a.text-yellow-400 {
+  color: rgb(202 138 4) !important;
+}
+
+#sidebar-drawer nav .border-l.border-cyan-500\/30 {
+  border-left-color: rgb(207 250 254) !important;
+}
+
+#sidebar-drawer nav .border-l.border-amber-500\/30 {
+  border-left-color: rgb(254 243 199) !important;
+}
+
+#sidebar-drawer nav .border-l.border-rose-500\/30 {
+  border-left-color: rgb(255 228 230) !important;
+}
+
+#sidebar-drawer nav .border-l.border-slate-500\/30 {
+  border-left-color: rgb(226 232 240) !important;
+}
+
+#sidebar-drawer nav .border-l.border-emerald-500\/30 {
+  border-left-color: rgb(209 250 229) !important;
+}
+
+#sidebar-drawer nav .border-l.border-indigo-500\/30 {
+  border-left-color: rgb(224 231 255) !important;
+}
+
+#sidebar-drawer .sidebar-drawer__footer {
+  background-color: #ffffff !important;
+  border-top-color: rgb(229 231 235) !important;
+}
+
+#sidebar-drawer .sidebar-drawer__footer .text-white {
+  color: rgb(17 24 39) !important;
+}
+
+#sidebar-drawer .sidebar-drawer__footer .text-slate-500 {
+  color: rgb(107 114 128) !important;
+}
+
+#sidebar-drawer .sidebar-drawer__footer a[href="/logout"] {
+  color: rgb(225 29 72) !important;
+}
+
+#sidebar-drawer .sidebar-drawer__footer a[href="/logout"]:hover {
   background-color: rgb(255 241 242) !important;
-  color: #be123c !important;
+  color: rgb(190 18 60) !important;
 }
-body.dashboard-app #sidebar-drawer .border-cyan-500\/30,
-body.dashboard-app #sidebar-drawer .border-slate-500\/30 {
-  border-color: rgb(229 231 235) !important;
-}
-body.dashboard-app #sidebar-drawer button[class*="hover:bg-slate-800"] {
-  color: #6b7280 !important;
-}
-body.dashboard-app #sidebar-drawer button[class*="hover:bg-slate-800"]:hover {
-  color: #111827 !important;
-  background-color: rgb(243 244 246) !important;
-}
-body.dashboard-app #sidebar-drawer .hover\:bg-white\/5:hover {
-  background-color: rgb(243 244 246) !important;
-}
-body.dashboard-app #sidebar-drawer .text-emerald-400 {
-  color: #059669 !important;
-}
-body.dashboard-app #sidebar-drawer .hover\:text-emerald-300:hover {
-  color: #047857 !important;
-}
-body.dashboard-app #sidebar-drawer .hover\:bg-emerald-500\/10:hover {
-  background-color: rgb(209 250 229) !important;
-}
-body.dashboard-app #sidebar-drawer .text-blue-400 {
-  color: #2563eb !important;
-}
-body.dashboard-app #sidebar-drawer .hover\:text-blue-300:hover {
-  color: #1d4ed8 !important;
-}
-body.dashboard-app #sidebar-drawer .hover\:bg-blue-500\/10:hover {
-  background-color: rgb(219 234 254) !important;
+
+@media (prefers-color-scheme: dark) {
+  .sidebar-overlay {
+    background-color: rgb(0 0 0 / 0.45) !important;
+  }
+
+  #sidebar-drawer.sidebar-drawer-panel {
+    background-color: rgb(17 24 39) !important;
+    border-right-color: rgb(31 41 55) !important;
+    color: rgb(209 213 219);
+    box-shadow: 4px 0 32px -8px rgb(0 0 0 / 0.45);
+  }
+
+  #sidebar-drawer .sidebar-drawer__header {
+    border-bottom-color: rgb(31 41 55) !important;
+  }
+
+  #sidebar-drawer .sidebar-drawer__brand {
+    color: rgb(255 255 255 / 0.9) !important;
+  }
+
+  #sidebar-drawer .sidebar-drawer__close {
+    color: rgb(156 163 175) !important;
+  }
+
+  #sidebar-drawer .sidebar-drawer__close:hover {
+    background-color: rgb(255 255 255 / 0.06) !important;
+    color: #fff !important;
+  }
+
+  #sidebar-drawer .sidebar-drawer__clock {
+    border-bottom-color: rgb(31 41 55) !important;
+    background-color: rgb(31 41 55 / 0.45) !important;
+  }
+
+  #sidebar-drawer #sidebar-time {
+    color: rgb(243 244 246) !important;
+  }
+
+  #sidebar-drawer #sidebar-date,
+  #sidebar-drawer #sidebar-shift-end,
+  #sidebar-drawer #sidebar-shift-progress-text {
+    color: rgb(156 163 175) !important;
+  }
+
+  #sidebar-drawer #sidebar-shift-start {
+    color: rgb(243 244 246) !important;
+  }
+
+  #sidebar-drawer .sidebar-drawer__clock .bg-slate-700 {
+    background-color: rgb(55 65 81) !important;
+  }
+
+  #sidebar-drawer nav.sidebar-drawer__nav > a.flex,
+  #sidebar-drawer nav.sidebar-drawer__nav button.menu-toggle {
+    color: rgb(156 163 175) !important;
+  }
+
+  #sidebar-drawer nav.sidebar-drawer__nav > a.flex:hover,
+  #sidebar-drawer nav.sidebar-drawer__nav button.menu-toggle:hover {
+    background-color: rgb(255 255 255 / 0.06) !important;
+    color: #fff !important;
+  }
+
+  #sidebar-drawer nav.sidebar-drawer__nav .ml-4 a.flex {
+    color: rgb(156 163 175) !important;
+  }
+
+  #sidebar-drawer nav.sidebar-drawer__nav .ml-4 a.flex:hover {
+    background-color: rgb(255 255 255 / 0.06) !important;
+    color: #fff !important;
+  }
+
+  #sidebar-drawer nav .border-l.border-cyan-500\/30 {
+    border-left-color: rgb(6 182 212 / 0.35) !important;
+  }
+
+  #sidebar-drawer nav .border-l.border-amber-500\/30 {
+    border-left-color: rgb(245 158 11 / 0.35) !important;
+  }
+
+  #sidebar-drawer nav .border-l.border-rose-500\/30 {
+    border-left-color: rgb(244 63 94 / 0.35) !important;
+  }
+
+  #sidebar-drawer nav .border-l.border-slate-500\/30 {
+    border-left-color: rgb(100 116 139 / 0.4) !important;
+  }
+
+  #sidebar-drawer nav .border-l.border-emerald-500\/30 {
+    border-left-color: rgb(16 185 129 / 0.35) !important;
+  }
+
+  #sidebar-drawer nav .border-l.border-indigo-500\/30 {
+    border-left-color: rgb(99 102 241 / 0.35) !important;
+  }
+
+  #sidebar-drawer .sidebar-drawer__footer {
+    background-color: rgb(17 24 39) !important;
+    border-top-color: rgb(31 41 55) !important;
+  }
+
+  #sidebar-drawer .sidebar-drawer__footer .text-white {
+    color: rgb(243 244 246) !important;
+  }
+
+  #sidebar-drawer .sidebar-drawer__footer .text-slate-500 {
+    color: rgb(156 163 175) !important;
+  }
 }

@@ -361,8 +361,21 @@
   gap: 0.625rem;
   width: 100%;
   min-width: 0;
+  /* visible: dropdown de funções (absolute) não pode ficar sob overflow-y:hidden do antigo layout */
+  overflow: visible;
+}
+
+/* Só a faixa “rótulo + busca” rola no eixo X; <details> de funções fica fora para o painel não ser recortado */
+.ga-employee-theme.employees-page .employees-filter-bar.employees-filter-bar--strip .employees-filter-bar__primary-scroll {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
 }
@@ -696,7 +709,8 @@
 }
 
 /* ----- Painel + tabela de dados ----- */
-.ga-employee-theme.employees-page #employees-table-panel.employees-table-panel {
+.ga-employee-theme.employees-page #employees-table-panel.employees-table-panel,
+.ga-employee-theme.employees-page #delivery-operations-panel.employees-table-panel {
   border: 1px solid var(--emp-border);
   box-shadow: var(--emp-shadow-card), var(--emp-shadow-elevated);
   border-radius: var(--emp-radius-lg);
@@ -1575,12 +1589,14 @@ html.dark .ga-employee-theme.employees-page .employees-data-table__sort-icon--ac
   color: rgb(147 197 253);
 }
 
-html.dark .ga-employee-theme.employees-page #employees-table-panel.employees-table-panel {
+html.dark .ga-employee-theme.employees-page #employees-table-panel.employees-table-panel,
+html.dark .ga-employee-theme.employees-page #delivery-operations-panel.employees-table-panel {
   border-color: rgb(55 65 81);
   background: rgb(17 24 39);
 }
 
-html.dark .ga-employee-theme.employees-page #employees-table-panel.employees-table-panel > .employees-table-panel__head {
+html.dark .ga-employee-theme.employees-page #employees-table-panel.employees-table-panel > .employees-table-panel__head,
+html.dark .ga-employee-theme.employees-page #delivery-operations-panel.employees-table-panel > .employees-table-panel__head {
   border-color: rgb(55 65 81);
   background: rgb(31 41 55 / 0.6);
 }

@@ -1,125 +1,178 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Frotas em tempo real · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Gerente / Mapa em tempo real</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Frotas em tempo real</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Última posição dos motoristas (rastreio ou GPS ao iniciar parada)</p>
+{% endblock %}
+
+{% block body_class_extra %} gm-mapa-realtime-body{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" />
+<link rel="stylesheet" href="/static/css/pages/gm-mapa-realtime.css" />
+{% endblock %}
 
 {% block content %}
-{# Leaflet servido em /static para evitar "Tracking Prevention blocked access to storage" no Edge (scripts de CDN terceiros). #}
-<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" />
 <script src="/static/vendor/leaflet/leaflet.js"></script>
 
-<div class="h-[calc(100vh-3rem)] flex flex-col relative" x-data="mapController()">
-    <!-- Header/Filter Overlay -->
-    <div class="absolute top-4 right-6 z-[1000] w-72 space-y-3 pointer-events-none">
-        <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/50 p-4 rounded-2xl shadow-2xl pointer-events-auto">
-            <div class="flex items-center justify-between mb-2">
-                <h2 class="text-sm font-bold text-white flex items-center gap-2">
-                    <i data-lucide="map-pin" class="w-4 h-4 text-blue-500"></i>
-                    Frotas em Tempo Real
-                </h2>
-                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            </div>
-            <p class="text-[10px] text-slate-400" x-text="lastUpdateText">Atualizando...</p>
-            
-            <div class="mt-4 space-y-2 max-h-[40vh] overflow-y-auto custom-scrollbar">
-                <template x-for="car in vehicles">
-                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/50 border border-slate-700/30 hover:border-blue-500/50 transition-colors cursor-pointer"
-                         @click="focusVehicle(car)">
-                        <div class="flex flex-col">
-                            <span class="text-xs font-bold text-white" x-text="car.plate"></span>
-                            <span class="text-[9px] text-slate-500" x-text="car.driver_name"></span>
+<div class="gm-map-realtime-page gm-map-full-bleed flex min-h-0 flex-1 flex-col"
+     x-data="mapController()">
+
+        <div class="gm-realtime-map-root relative w-full flex-1" x-ref="mapRoot">
+            <div id="map" class="absolute inset-0 z-0 h-full w-full bg-slate-900" aria-label="Mapa"></div>
+
+            <div class="gm-realtime-map-panel pointer-events-none absolute right-4 top-4 z-[1000] max-h-[min(85vh,28rem)] w-[min(100%-2rem,18rem)] space-y-2 rounded-2xl p-4">
+                <div class="pointer-events-auto">
+                    <h3 class="employees-text-strong text-sm font-semibold tracking-tight">Veículos</h3>
+                    <p class="employees-text-caption text-[11px] mt-0.5">Toque para centralizar no mapa</p>
+                    <p class="employees-text-caption text-[10px] mt-1 opacity-80" x-text="lastUpdateText"></p>
+                    <div class="gm-map-vehicle-scroll mt-3 max-h-[min(40vh,14rem)] space-y-2 overflow-y-auto pr-1">
+                        <template x-for="car in vehicles" :key="'m-' + (car.employee_id != null ? car.employee_id : car.plate)">
+                            <button type="button"
+                                    class="flex w-full items-center justify-between gap-2 rounded-xl border border-transparent bg-slate-50/90 px-3 py-2.5 text-left transition hover:border-sky-200 hover:bg-white dark:border-slate-600/50 dark:bg-slate-800/80 dark:hover:border-sky-500/40"
+                                    @click="focusVehicle(car)">
+                                <div class="min-w-0 flex flex-col">
+                                    <span class="employees-text-strong truncate text-xs font-bold" x-text="car.plate"></span>
+                                    <span class="employees-text-caption truncate text-[10px]" x-text="car.driver_name"></span>
+                                </div>
+                                <svg class="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                            </button>
+                        </template>
+                        <div x-show="vehicles.length === 0" class="py-6 text-center">
+                            <svg class="mx-auto mb-2 h-8 w-8 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/>
+                            </svg>
+                            <p class="employees-text-muted text-[11px]">Nenhuma posição no momento.</p>
+                            <p class="employees-text-caption mt-1 px-1 text-[10px] leading-snug">GPS ao iniciar entrega ou rastreio com sessão aberta no mobile.</p>
                         </div>
-                        <i data-lucide="navigation" class="w-3 h-3 text-slate-600"></i>
                     </div>
-                </template>
-                <div x-show="vehicles.length === 0" class="text-center py-6">
-                    <i data-lucide="truck" class="w-8 h-8 text-slate-700 mx-auto mb-2"></i>
-                    <p class="text-slate-500 text-[10px]">Nenhum caminhão ativo.</p>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Map Container -->
-    <div id="map" class="flex-1 w-full bg-slate-900"></div>
 </div>
 
 <script>
 function mapController() {
     return {
         map: null,
-        markers: {}, // {plate: marker}
+        markers: {},
         vehicles: [],
         lastUpdate: null,
         lastUpdateText: 'Nunca atualizado',
-        
-        init() {
-            // Inicializar mapa
-            this.map = L.map('map', {
-                zoomControl: false
-            }).setView([-23.5505, -46.6333], 12);
-            
-            L.control.zoom({ position: 'bottomright' }).addTo(this.map);
 
+        init() {
+            if (typeof L === 'undefined') {
+                this.lastUpdateText = 'Mapa indisponível: Leaflet JS não carregou.';
+                console.error('[mapa-realtime] Leaflet ausente');
+                return;
+            }
+            /* Centro aproximado de Belo Horizonte (MG) */
+            this.map = L.map('map', { zoomControl: false }).setView([-19.9167, -43.9345], 12);
+            L.control.zoom({ position: 'bottomright' }).addTo(this.map);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
                 subdomains: 'abcd',
                 maxZoom: 20
             }).addTo(this.map);
 
+            const resizeMap = () => { try { this.map.invalidateSize(true); } catch (e) {} };
+            const rootEl = this.$refs.mapRoot;
+            if (rootEl && typeof ResizeObserver !== 'undefined') {
+                this._mapResizeObserver = new ResizeObserver(() => resizeMap());
+                this._mapResizeObserver.observe(rootEl);
+            }
+            this.$nextTick(() => {
+                requestAnimationFrame(() => {
+                    resizeMap();
+                    setTimeout(resizeMap, 150);
+                    setTimeout(resizeMap, 600);
+                });
+            });
+
             this.fetchLocations();
-            setInterval(() => this.fetchLocations(), 30000); 
-            
+            setInterval(() => this.fetchLocations(), 30000);
             setTimeout(() => lucide.createIcons(), 200);
         },
 
         async fetchLocations() {
             try {
-                const res = await fetch('/api/gm/locations-realtime');
-                if (!res.ok) throw new Error();
+                const res = await fetch('/api/gm/locations-realtime', { credentials: 'same-origin' });
+                if (!res.ok) {
+                    if (res.status === 403) this.lastUpdateText = 'Sem permissão (perfil Gerente).';
+                    else if (res.status === 401) this.lastUpdateText = 'Sessão expirada — faça login novamente.';
+                    else this.lastUpdateText = 'Erro ao carregar posições (' + res.status + ').';
+                    throw new Error('HTTP ' + res.status);
+                }
                 const data = await res.json();
-                this.vehicles = data;
-                this.updateMarkers(data);
+                const list = Array.isArray(data) ? data : [];
+                this.vehicles = list;
+                this.updateMarkers(list);
                 this.lastUpdate = new Date();
                 this.lastUpdateText = 'Atualizado às ' + this.lastUpdate.toLocaleTimeString('pt-BR');
                 lucide.createIcons();
             } catch (e) {
                 console.error('Erro no fetch do mapa', e);
+                if (this.lastUpdateText.indexOf('Erro') === -1 && this.lastUpdateText.indexOf('permissão') === -1 && this.lastUpdateText.indexOf('Sessão') === -1) {
+                    this.lastUpdateText = 'Falha de rede ou servidor ao buscar posições.';
+                }
             }
         },
 
+        vehicleKey(v) {
+            return v && v.employee_id != null ? String(v.employee_id) : String(v.plate || '');
+        },
+
         updateMarkers(data) {
-            const currentPlates = new Set();
-            
+            const currentIds = new Set();
             data.forEach(v => {
-                currentPlates.add(v.plate);
-                
-                if (this.markers[v.plate]) {
-                    this.markers[v.plate].setLatLng([v.lat, v.lng]);
+                const id = this.vehicleKey(v);
+                if (!id) return;
+                currentIds.add(id);
+                const srcPing = v.position_source === 'ping';
+                const statusHtml = srcPing
+                    ? '<span style="font-size:11px;color:#10b981;">Rastreio em tempo real</span>'
+                    : '<span style="font-size:11px;color:#f59e0b;">GPS ao iniciar a parada</span>';
+                const pinColor = srcPing ? 'bg-blue-600' : 'bg-amber-500';
+                const name = (v.driver_name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const plate = (v.plate || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                if (this.markers[id]) {
+                    this.markers[id].setLatLng([v.lat, v.lng]);
                 } else {
                     const icon = L.divIcon({
                         className: 'custom-div-icon',
-                        html: `<div class="marker-pin bg-blue-600 border-2 border-white shadow-lg w-8 h-8 rounded-full flex items-center justify-center text-white"><i data-lucide="truck" class="w-4 h-4"></i></div>`,
+                        html: `<div class="marker-pin ${pinColor} border-2 border-white shadow-lg w-8 h-8 rounded-full flex items-center justify-center text-white"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></div>`,
                         iconSize: [32, 32],
                         iconAnchor: [16, 32]
                     });
-
                     const marker = L.marker([v.lat, v.lng], { icon: icon }).addTo(this.map);
-                    marker.bindPopup(`
-                        <div class="p-2 min-w-[120px]">
-                            <p class="font-bold text-sm text-slate-100">${v.plate}</p>
-                            <p class="text-xs text-slate-400">${v.driver_name}</p>
-                            <div class="mt-2 pt-2 border-t border-slate-700 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                <span class="text-[9px] text-emerald-400">Ativo agora</span>
-                            </div>
-                        </div>
-                    `);
-                    this.markers[v.plate] = marker;
+                    marker.bindPopup(
+                        '<div style="min-width:120px;">' +
+                        '<p style="font-weight:700;font-size:0.875rem;margin:0 0 4px;">' + plate + '</p>' +
+                        '<p style="font-size:0.75rem;opacity:0.85;margin:0 0 8px;">' + name + '</p>' +
+                        '<div style="border-top:1px solid rgba(148,163,184,0.35);padding-top:8px;">' + statusHtml + '</div></div>'
+                    );
+                    this.markers[id] = marker;
                 }
             });
 
-            Object.keys(this.markers).forEach(plate => {
-                if (!currentPlates.has(plate)) {
-                    this.map.removeLayer(this.markers[plate]);
-                    delete this.markers[plate];
+            Object.keys(this.markers).forEach(mid => {
+                if (!currentIds.has(mid)) {
+                    this.map.removeLayer(this.markers[mid]);
+                    delete this.markers[mid];
                 }
             });
 
@@ -130,34 +183,13 @@ function mapController() {
         },
 
         focusVehicle(car) {
-            if (this.markers[car.plate]) {
+            const id = this.vehicleKey(car);
+            if (id && this.markers[id]) {
                 this.map.flyTo([car.lat, car.lng], 16);
-                this.markers[car.plate].openPopup();
+                this.markers[id].openPopup();
             }
         }
-    }
+    };
 }
 </script>
-
-<style>
-/* Leaflet Integration */
-.leaflet-container { background: #0f172a !important; }
-.leaflet-popup-content-wrapper {
-    background: #1e293b !important;
-    color: white !important;
-    border: 1px solid #334155 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.5) !important;
-}
-.leaflet-popup-tip { background: #1e293b !important; }
-.leaflet-popup-close-button { color: #94a3b8 !important; }
-
-.custom-div-icon { background: none !important; border: none !important; }
-.marker-pin { transform: scale(1); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-.marker-pin:hover { transform: scale(1.2); }
-
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-</style>
 {% endblock %}

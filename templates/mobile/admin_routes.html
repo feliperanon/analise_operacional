@@ -2,64 +2,148 @@
 
 {% block title %}Entregas em Tempo Real{% endblock %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260416a">
+<style>
+    .dashboard-panel {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.94) 100%);
+        border: 1px solid rgba(71, 85, 105, 0.45);
+        border-radius: 1.375rem;
+        box-shadow: 0 8px 20px rgba(2, 6, 23, 0.18);
+    }
+    .dashboard-panel::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), transparent 42%);
+    }
+    .dashboard-panel > * { position: relative; z-index: 1; }
+    .dashboard-hero-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+    .dashboard-hero-status { margin-top: 0.75rem; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .dashboard-section-kicker { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-muted); }
+    .dashboard-status-pill { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.7rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; line-height: 1; border: 1px solid transparent; }
+    .dashboard-status-pill--neutral { background: rgba(51, 65, 85, 0.55); color: #cbd5e1; border-color: rgba(100, 116, 139, 0.4); }
+    .dashboard-status-pill--success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border-color: rgba(52, 211, 153, 0.28); }
+    .dashboard-status-pill--warning { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); }
+    .dashboard-top-action {
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 0.95rem;
+        border: 1px solid rgba(71, 85, 105, 0.42);
+        background: rgba(15, 23, 42, 0.72);
+        color: var(--color-text-body);
+    }
+    .dashboard-stats-strip { margin-top: 1rem; background: rgba(2, 6, 23, 0.18); border: 1px solid rgba(71, 85, 105, 0.28); border-radius: 1.05rem; overflow: hidden; }
+    .dashboard-stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .dashboard-stat-cell { padding: 0.85rem 0.7rem; text-align: center; }
+    .dashboard-stat-cell + .dashboard-stat-cell { border-left: 1px solid rgba(71, 85, 105, 0.2); }
+    .dashboard-hero-card-light { border-color: var(--color-border); }
+    .dashboard-hero-card-light .dashboard-status-pill--neutral {
+        background: var(--color-border-light);
+        color: var(--color-text-secondary);
+        border-color: var(--color-border);
+    }
+    .dashboard-hero-card-light .dashboard-status-pill--success {
+        background: var(--color-success-bg);
+        color: var(--color-success);
+        border-color: rgba(16, 185, 129, 0.35);
+    }
+    .dashboard-hero-card-light .dashboard-status-pill--warning {
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+        border-color: rgba(245, 158, 11, 0.35);
+    }
+    .dashboard-hero-card-light .dashboard-top-action {
+        background: var(--color-surface-solid);
+        border-color: var(--color-border);
+        color: var(--color-text-body);
+    }
+    .dashboard-hero-card-light .dashboard-stats-strip {
+        background: var(--color-border-light);
+        border-color: var(--color-border);
+    }
+    .dashboard-hero-card-light .dashboard-stat-cell + .dashboard-stat-cell {
+        border-left-color: var(--color-border);
+    }
+    .dashboard-back-link {
+        background: var(--color-primary-bg);
+        color: var(--color-primary);
+        border: 1px solid var(--color-primary-border);
+    }
+    .dashboard-back-link:hover {
+        filter: brightness(0.98);
+    }
+    .dashboard-stat-value--success { color: var(--color-success); }
+    .dashboard-stat-value--danger { color: var(--color-danger); }
+    .dashboard-stat-value--primary { color: var(--color-primary); }
+    .admin-route-card { border: 1px solid var(--color-border); border-radius: 1rem; background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06); }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="min-h-screen pb-safe" style="background: var(--color-bg);" x-data="routeManager()">
-    <header class="container-mobile py-3 border-b shrink-0 sticky top-0 z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
-        <div class="flex items-center justify-between gap-2">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap flex-shrink-0">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
-            </a>
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-                <div class="icon-wrap w-10 h-10 flex items-center justify-center flex-shrink-0" style="background: var(--color-primary); color: white;">
-                    <i data-lucide="route" class="w-5 h-5"></i>
+<div class="delivery-ga-shell delivery-mobi ga-employee-theme employees-page min-h-screen pb-safe" x-data="routeManager()">
+    <section class="dashboard-hero-strip">
+        <div class="delivery-ga-main delivery-mobi-main space-y-3 pb-2 pt-3">
+            <div class="sys-card sys-card--surface dashboard-hero-card-light relative overflow-hidden rounded-xl border p-4 sm:p-4" style="border-color: var(--color-border);">
+                <div class="dashboard-hero-header">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive dashboard-back-link">
+                            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                        </a>
+                        <div class="min-w-0">
+                            <p class="dashboard-section-kicker">Painel operacional</p>
+                            <h1 class="text-title-lg truncate mt-1" style="color: var(--color-text);">Entregas em Tempo Real</h1>
+                            <p class="text-caption-lg mt-1">Motoristas, progresso e situação</p>
+                        </div>
+                    </div>
+                    <button @click="loadRoutes()" class="dashboard-top-action inline-flex shrink-0 items-center justify-center" :class="isLoading ? 'opacity-60' : ''">
+                        <i data-lucide="refresh-cw" class="w-5 h-5" :class="isLoading ? 'animate-spin' : ''"></i>
+                    </button>
                 </div>
-                <div class="min-w-0">
-                    <h1 class="text-title-lg truncate" style="color: var(--color-text);">Entregas em Tempo Real</h1>
-                    <p class="text-caption-lg">Motoristas, progresso e situação</p>
+
+                <div class="dashboard-hero-status">
+                    <span class="dashboard-status-pill dashboard-status-pill--neutral">Rotas em operação</span>
+                    <span class="dashboard-status-pill dashboard-status-pill--warning" x-show="(alerts.clients_over_20min || []).length > 0" x-text="(alerts.clients_over_20min || []).length + ' alerta(s)'"></span>
+                    <span class="dashboard-status-pill dashboard-status-pill--success" x-show="kpi.rotas_concluidas > 0" x-text="kpi.rotas_concluidas + ' concluída(s)'"></span>
+                </div>
+
+                <div class="dashboard-stats-strip">
+                    <div class="dashboard-stats-grid">
+                        <div class="dashboard-stat-cell">
+                            <p class="text-caption">Abertas</p>
+                            <p class="text-title mt-1" x-text="kpi.abertas || 0"></p>
+                        </div>
+                        <div class="dashboard-stat-cell">
+                            <p class="text-caption">Concluídas</p>
+                            <p class="text-title mt-1 dashboard-stat-value--success" x-text="kpi.rotas_concluidas || 0"></p>
+                        </div>
+                        <div class="dashboard-stat-cell">
+                            <p class="text-caption">Devoluções</p>
+                            <p class="text-title mt-1 dashboard-stat-value--danger" x-text="devolucao_dia.count || 0"></p>
+                        </div>
+                        <div class="dashboard-stat-cell">
+                            <p class="text-caption">Conclusão</p>
+                            <p class="text-title mt-1 dashboard-stat-value--primary" x-text="conclusaoPct() + '%'"></p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <button @click="loadRoutes()" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap flex-shrink-0" :class="isLoading ? 'opacity-60' : ''">
-                <i data-lucide="refresh-cw" class="w-5 h-5" :class="isLoading ? 'animate-spin' : ''"></i>
-            </button>
         </div>
-
-        <!-- KPIs compactos -->
-        <div class="flex flex-wrap gap-2 mt-3">
-            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style="background: rgba(30,41,59,0.8);">
-                <span class="text-caption" style="color: var(--color-text-muted);">Abertas</span>
-                <span class="text-body font-bold" style="color: var(--color-text);" x-text="kpi.abertas || 0"></span>
-            </div>
-            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style="background: rgba(16,185,129,0.15);">
-                <span class="text-caption" style="color: var(--color-text-muted);">Concluídas</span>
-                <span class="text-body font-bold" style="color: var(--color-success);" x-text="kpi.rotas_concluidas || 0"></span>
-            </div>
-            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style="background: rgba(239,68,68,0.12);">
-                <span class="text-caption" style="color: var(--color-text-muted);">Devoluções</span>
-                <span class="text-body font-bold" style="color: var(--color-danger);" x-text="devolucao_dia.count || 0"></span>
-            </div>
-            <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" :style="(alerts.clients_over_20min || []).length > 0 ? 'background: rgba(245,158,11,0.15)' : 'background: rgba(30,41,59,0.8)'">
-                <span class="text-caption" style="color: var(--color-text-muted);">Alertas</span>
-                <span class="text-body font-bold" :style="(alerts.clients_over_20min || []).length > 0 ? 'color: var(--color-warning)' : 'color: var(--color-text)'" x-text="(alerts.clients_over_20min || []).length"></span>
-            </div>
-        </div>
-
-        <!-- Barra de conclusão total (rotas concluídas / total de rotas) -->
-        <div class="mt-3">
-            <div class="flex justify-between items-center mb-1">
-                <span class="text-caption" style="color: var(--color-text-muted);">Conclusão das rotas</span>
-                <span class="text-caption font-bold" style="color: var(--color-success);" x-text="conclusaoPct() + '%'"></span>
-            </div>
-            <div class="h-2 rounded-full overflow-hidden" style="background: var(--color-border);">
-                <div class="h-full rounded-full transition-all duration-500" :style="'width:' + conclusaoPct() + '%; background: linear-gradient(90deg, var(--color-primary), var(--color-success));'"></div>
-            </div>
-        </div>
-    </header>
+    </section>
 
     <div x-show="isLoading" class="flex items-center justify-center py-24">
         <div class="w-10 h-10 border-2 rounded-full animate-spin" style="border-color: var(--color-border); border-top-color: var(--color-primary);"></div>
     </div>
 
-    <div x-show="!isLoading" class="container-mobile py-4 space-y-5">
+    <div x-show="!isLoading" class="delivery-ga-main delivery-mobi-main py-4 space-y-5">
         <!-- Rotas / Motoristas com entregas -->
         <section>
             <div class="flex items-center justify-between mb-3">
@@ -73,7 +157,7 @@
             </div>
 
             <template x-if="liveSeparation.length === 0">
-                <div class="surface p-8 text-center rounded-xl">
+                <div class="admin-route-card p-8 text-center">
                     <div class="icon-wrap w-14 h-14 rounded-full mx-auto mb-3"><i data-lucide="inbox" class="w-7 h-7"></i></div>
                     <p class="text-body" style="color: var(--color-text-secondary);">Nenhuma rota no momento</p>
                 </div>
@@ -81,7 +165,7 @@
 
             <div class="space-y-3">
                 <template x-for="card in liveSeparation" :key="card.employee_id">
-                    <div class="overflow-hidden rounded-xl border-2 touch-target" :class="statusCardClass(card)">
+                    <div class="admin-route-card overflow-hidden touch-target" :class="statusCardClass(card)">
                         <div class="p-4 flex items-start gap-3">
                             <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-body status-avatar" :class="statusAvatarClass(card)" x-text="(card.employee_name || '?')[0]"></div>
                             <div class="min-w-0 flex-1">
@@ -142,7 +226,7 @@
                 </h2>
                 <span class="text-caption font-bold px-3 py-1 rounded-full" style="background: rgba(239,68,68,0.15); color: var(--color-danger);" x-text="devolucao_dia.count || 0"></span>
             </div>
-            <div class="surface rounded-xl overflow-hidden">
+            <div class="admin-route-card overflow-hidden">
                 <div class="divide-y" style="border-color: var(--color-border);">
                     <template x-for="item in (devolucao_dia.items_list || [])" :key="item.client_name + item.driver_name">
                         <div class="px-4 py-2.5 flex items-center gap-2" style="background: rgba(239,68,68,0.06);">
@@ -164,7 +248,7 @@
                     Alto índice devolução
                 </h2>
             </div>
-            <div class="surface rounded-xl overflow-hidden">
+            <div class="admin-route-card overflow-hidden">
                 <div class="divide-y" style="border-color: var(--color-border);">
                     <template x-for="row in (clientesAltoIndice || [])" :key="row.client_name + row.driver_name">
                         <div class="px-4 py-2.5 flex items-center gap-2" style="background: rgba(245,158,11,0.06);">
@@ -189,14 +273,14 @@
             </div>
 
             <template x-if="employeesWithoutRoute.length === 0">
-                <div class="surface p-6 text-center rounded-xl">
+                <div class="admin-route-card p-6 text-center">
                     <p class="text-body" style="color: var(--color-text-secondary);">Todos possuem rota ativa</p>
                 </div>
             </template>
 
             <div class="space-y-2">
                 <template x-for="emp in employeesWithoutRoute" :key="emp.id">
-                    <div class="surface p-3 flex items-center justify-between rounded-xl">
+                    <div class="admin-route-card p-3 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <span class="text-caption font-semibold px-2 py-1 rounded" style="background: var(--color-primary-bg); color: var(--color-primary);" x-text="emp.registration_id"></span>
                             <span class="text-body font-medium" style="color: var(--color-text);" x-text="emp.name"></span>
@@ -240,25 +324,19 @@
                 return Math.max(0, Math.floor((now - started) / 60000));
             },
             clientCardClass(r) {
-                const m = this.elapsedMinutes(r);
-                if (m >= 20) return 'bg-amber-500/20 border border-amber-500/50';
-                if (m >= 11) return 'bg-orange-500/20 border border-orange-500/50';
-                if (m <= 10) return 'bg-emerald-500/20 border border-emerald-500/50';
-                return 'bg-slate-700/40';
+                const mins = this.elapsedMinutes(r);
+                if (mins >= 20) return 'bg-amber-500/20 border border-amber-400/60';
+                return 'bg-slate-700/25 border border-slate-500/40';
             },
             clientCardTextClass(r) {
-                const m = this.elapsedMinutes(r);
-                if (m >= 20) return 'text-amber-300';
-                if (m >= 11) return 'text-orange-300';
-                if (m <= 10) return 'text-emerald-300';
-                return '';
+                const mins = this.elapsedMinutes(r);
+                if (mins >= 20) return 'text-amber-100';
+                return 'text-slate-100';
             },
             clientCardMinutesClass(r) {
-                const m = this.elapsedMinutes(r);
-                if (m >= 20) return 'text-amber-400 font-semibold';
-                if (m >= 11) return 'text-orange-400 font-semibold';
-                if (m <= 10) return 'text-emerald-400 font-semibold';
-                return 'text-slate-500';
+                const mins = this.elapsedMinutes(r);
+                if (mins >= 20) return 'text-amber-300 font-semibold';
+                return 'text-slate-300 font-semibold';
             },
 
             getOpenRoutes(card) {

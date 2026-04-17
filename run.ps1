@@ -3,8 +3,11 @@
 # Verifica se o arquivo python existe no venv
 if (Test-Path ".venv\Scripts\python.exe") {
     Write-Host "Iniciando servidor FastAPI..."
+    # Padrao: SQLite local — evita o servidor ficar em "Waiting for application startup" quando o
+    # Postgres do .env (Render) esta dormido, sem VPN ou lento. Para usar o banco remoto: antes de
+    # rodar o script, execute: $env:FORCE_LOCAL_DB = "false"
     if (-not $env:FORCE_LOCAL_DB) {
-        $env:FORCE_LOCAL_DB = "false"
+        $env:FORCE_LOCAL_DB = "true"
     }
     if ($env:FORCE_LOCAL_DB -eq "true") {
         Write-Host "Banco local SQLite habilitado para esta sessao (FORCE_LOCAL_DB=true)."

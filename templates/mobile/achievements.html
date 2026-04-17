@@ -1,123 +1,140 @@
 {% extends "mobile/layout.html" %}
 
+{% block title %}Conquistas{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415k">
+{% endblock %}
+
 {% block content %}
-<div x-data="{ activeTab: 'badges', filterBy: 'all' }" class="flex flex-col min-h-screen pb-safe" style="background: var(--color-bg);">
+<div x-data="{ activeTab: 'badges' }" class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium min-h-screen pb-safe delivery-page-layout">
 
-    <header class="container-mobile py-4 border-b shrink-0 relative z-20" style="border-color: var(--color-border-light); background: var(--color-surface);">
-        <div class="flex items-center justify-between">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/dashboard" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 shrink-0 items-center justify-center rounded-lg interactive sm:size-11 no-underline" aria-label="Voltar ao painel" title="Voltar">
+                <i data-lucide="arrow-left" class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true"></i>
             </a>
-            <h1 class="text-title-lg" style="color: var(--color-text);">Conquistas</h1>
-            <div class="w-10"></div>
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Conquistas</p>
+            </div>
+            <div class="size-10 shrink-0 sm:size-11" aria-hidden="true"></div>
         </div>
-    </header>
+    </div>
 
-    <div class="container-mobile mt-4">
-        <div class="surface p-4">
-            <div class="flex items-center gap-4">
-                <div class="relative flex-shrink-0">
-                    <div class="w-16 h-16 rounded-lg overflow-hidden" style="background: var(--color-primary);">
-                        <img src="{{ static_path('badges/' + gamification.level.badge_image) }}"
-                            onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
-                            class="w-full h-full object-cover" alt="">
-                    </div>
+    <div class="delivery-ga-main delivery-mobi-main space-y-3 pb-4 pt-1">
+        <p class="employees-text-muted m-0 px-0.5 text-center text-xs">Nível, medalhas e histórico de XP</p>
+
+        <div class="sys-card sys-card--surface rounded-xl border p-3 sm:p-4" style="border-color: var(--color-border);">
+            <div class="flex items-center gap-3 sm:gap-4">
+                <div class="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl sm:h-16 sm:w-16" style="background: var(--color-primary);">
+                    <img src="{{ static_path('badges/' + gamification.level.badge_image) }}"
+                        onerror="this.src='https://ui-avatars.com/api/?name={{ employee.name|emp_name }}&background=1e3a8a&color=fff'"
+                        class="block h-14 w-14 max-h-14 max-w-14 object-cover object-center sm:h-16 sm:w-16 sm:max-h-16 sm:max-w-16"
+                        width="56"
+                        height="56"
+                        alt=""
+                        decoding="async">
                 </div>
-                <div class="flex-1 min-w-0">
-                    <h2 class="text-title-lg truncate" style="color: var(--color-text);">{{ gamification.level.name }}</h2>
-                    <div class="flex items-center gap-2 mt-1 flex-wrap">
-                        <span class="text-caption font-semibold px-2 py-0.5 rounded-full" style="background: var(--color-primary-bg); color: var(--color-primary); border: 1px solid var(--color-primary-border);">Nível {{ gamification.level.level }}</span>
-                        <span class="text-caption-lg">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }} XP</span>
+                <div class="min-w-0 flex-1">
+                    <h2 class="employees-text-strong m-0 truncate text-base font-semibold sm:text-lg" style="color: var(--color-text);">{{ gamification.level.name }}</h2>
+                    <div class="mt-1 flex flex-wrap items-center gap-2">
+                        <span class="rounded-full border px-2 py-0.5 text-[11px] font-semibold sm:text-xs" style="background: var(--color-primary-bg); color: var(--color-primary); border-color: var(--color-primary-border);">Nível {{ gamification.level.level }}</span>
+                        <span class="employees-text-body text-sm font-medium tabular-nums">{{ "{:,}".format(gamification.total_xp).replace(",", ".") }} XP</span>
                     </div>
                 </div>
             </div>
             <div class="mt-4">
-                <div class="flex justify-between text-caption mb-1" style="color: var(--color-text-secondary);">
-                    <span>Progresso para {{ gamification.next_level.name if gamification.next_level else 'Máx' }}</span>
-                    <span class="font-semibold" style="color: var(--color-text);">{{ "{:.0f}".format(gamification.progress_percent) }}%</span>
+                <div class="mb-1 flex justify-between gap-2 text-[11px] sm:text-xs" style="color: var(--color-text-secondary);">
+                    <span class="min-w-0 truncate">Progresso para {{ gamification.next_level.name if gamification.next_level else 'Máx.' }}</span>
+                    <span class="shrink-0 font-semibold tabular-nums" style="color: var(--color-text);">{{ "{:.0f}".format(gamification.progress_percent) }}%</span>
                 </div>
-                <div class="h-2 w-full rounded-full overflow-hidden" style="background: var(--color-border-light);">
+                <div class="h-2 w-full overflow-hidden rounded-full" style="background: var(--color-border-light);">
                     <div class="h-full rounded-full transition-all" style="background: var(--color-primary); width: {{ gamification.progress_percent }}%;"></div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="container-mobile mt-4 grid grid-cols-2 gap-3">
-        <div class="surface p-4">
-            <p class="text-caption mb-1" style="color: var(--color-text-muted);">Desbloqueadas</p>
-            <p class="text-title-lg" style="color: var(--color-text);">{{ unlocked_count }} <span class="text-caption-lg font-normal">/ {{ total_achievements }}</span></p>
-        </div>
-        <div class="surface p-4">
-            <p class="text-caption mb-1" style="color: var(--color-text-muted);">XP de Bônus</p>
-            <p class="text-title-lg" style="color: var(--color-success);">+{{ "{:,}".format(total_bonus_xp).replace(",", ".") }}</p>
-        </div>
-    </div>
-
-    <div class="container-mobile mt-6">
-        <div class="flex p-1 rounded-lg mb-4" style="background: var(--color-border-light);">
-            <button @click="activeTab = 'badges'"
-                class="flex-1 py-2.5 text-body font-semibold rounded-md transition-colors"
-                :style="activeTab === 'badges' ? 'background: var(--color-primary); color: white;' : 'color: var(--color-text-secondary);'">
-                Medalhas
-            </button>
-            <button @click="activeTab = 'history'"
-                class="flex-1 py-2.5 text-body font-semibold rounded-md transition-colors"
-                :style="activeTab === 'history' ? 'background: var(--color-primary); color: white;' : 'color: var(--color-text-secondary);'">
-                Histórico
-            </button>
-        </div>
-
-        <div x-show="activeTab === 'badges'" x-cloak>
-            <div class="space-y-3">
-                {% for achievement in achievements %}
-                <div class="surface p-4 {{ 'opacity-90' if not achievement.unlocked else '' }}">
-                    <div class="flex items-start gap-3">
-                        <div class="icon-wrap w-12 h-12 flex-shrink-0 flex items-center justify-center text-xl {% if not achievement.unlocked %}opacity-60{% endif %}"
-                            {% if achievement.unlocked %}style="background: var(--color-success-bg); color: var(--color-success);"{% endif %}>
-                            <i data-lucide="{{ achievement.icon }}" class="w-6 h-6"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex justify-between items-start gap-2">
-                                <h3 class="text-body font-semibold truncate" style="color: var(--color-text);">{{ achievement.name }}</h3>
-                                {% if achievement.unlocked %}
-                                <span class="text-caption font-semibold px-2 py-0.5 rounded" style="background: var(--color-success-bg); color: var(--color-success);">Conquistada</span>
-                                {% else %}
-                                <span class="text-caption font-semibold px-2 py-0.5 rounded" style="background: var(--color-border-light); color: var(--color-text-muted);">Bloqueada</span>
-                                {% endif %}
-                            </div>
-                            <p class="text-body mt-1">{{ achievement.description }}</p>
-                            <div class="mt-2 flex items-center gap-2 flex-wrap">
-                                <span class="text-caption font-semibold px-2 py-0.5 rounded" style="background: var(--color-primary-bg); color: var(--color-primary);">+{{ achievement.xp_reward }} XP</span>
-                                {% if achievement.unlocked and achievement.earned_at %}
-                                <span class="text-caption flex items-center gap-1" style="color: var(--color-text-muted);">
-                                    <i data-lucide="calendar" class="w-3 h-3"></i>
-                                    {{ achievement.earned_at.strftime('%d/%m/%Y') }}
-                                </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
+        <div class="grid grid-cols-2 gap-2">
+            <div class="sys-card sys-card--surface rounded-xl border p-3" style="border-color: var(--color-border);">
+                <p class="employees-text-muted m-0 mb-1 text-[10px] font-bold uppercase tracking-wide">Desbloqueadas</p>
+                <p class="employees-text-strong m-0 text-lg font-bold tabular-nums sm:text-xl" style="color: var(--color-text);">{{ unlocked_count }} <span class="text-sm font-normal opacity-80">/ {{ total_achievements }}</span></p>
+            </div>
+            <div class="sys-card sys-card--surface rounded-xl border p-3" style="border-color: var(--color-border);">
+                <p class="employees-text-muted m-0 mb-1 text-[10px] font-bold uppercase tracking-wide">XP bônus</p>
+                <p class="employees-text-strong m-0 text-lg font-bold tabular-nums sm:text-xl" style="color: var(--color-success);">+{{ "{:,}".format(total_bonus_xp).replace(",", ".") }}</p>
             </div>
         </div>
 
-        <div x-show="activeTab === 'history'" x-cloak>
-            <div class="surface overflow-hidden divide-y" style="border-color: var(--color-border-light);">
-                {% for tx in xp_history_full %}
-                <div class="p-4 flex items-center justify-between">
-                    <div>
-                        <p class="text-body font-semibold" style="color: var(--color-text);">{{ tx.reason }}</p>
-                        <p class="text-caption mt-0.5" style="color: var(--color-text-muted);">{{ tx.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+        <div class="space-y-3">
+            <div class="flex gap-1 rounded-xl border p-1" style="border-color: var(--color-border); background: var(--color-border-light);">
+                <button type="button" @click="activeTab = 'badges'"
+                    class="min-h-10 flex-1 rounded-lg py-2 text-xs font-semibold transition-colors sm:text-sm"
+                    :style="activeTab === 'badges' ? 'background: var(--color-primary); color: white;' : 'color: var(--color-text-secondary); background: transparent;'">
+                    Medalhas
+                </button>
+                <button type="button" @click="activeTab = 'history'"
+                    class="min-h-10 flex-1 rounded-lg py-2 text-xs font-semibold transition-colors sm:text-sm"
+                    :style="activeTab === 'history' ? 'background: var(--color-primary); color: white;' : 'color: var(--color-text-secondary); background: transparent;'">
+                    Histórico
+                </button>
+            </div>
+
+            <div x-show="activeTab === 'badges'" x-cloak>
+                <div class="space-y-2">
+                    {% for achievement in achievements %}
+                    <div class="sys-card sys-card--surface rounded-xl border p-3 sm:p-4 {{ 'opacity-90' if not achievement.unlocked else '' }}" style="border-color: var(--color-border);">
+                        <div class="flex items-start gap-3">
+                            <div class="icon-wrap flex size-11 shrink-0 items-center justify-center sm:size-12 {% if not achievement.unlocked %}opacity-60{% endif %}"
+                                {% if achievement.unlocked %}style="background: var(--color-success-bg); color: var(--color-success);"{% endif %}>
+                                <i data-lucide="{{ achievement.icon }}" class="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-start justify-between gap-2">
+                                    <h3 class="employees-text-strong m-0 truncate text-sm font-semibold sm:text-base" style="color: var(--color-text);">{{ achievement.name }}</h3>
+                                    {% if achievement.unlocked %}
+                                    <span class="shrink-0 rounded px-2 py-0.5 text-[10px] font-semibold sm:text-xs" style="background: var(--color-success-bg); color: var(--color-success);">Conquistada</span>
+                                    {% else %}
+                                    <span class="shrink-0 rounded px-2 py-0.5 text-[10px] font-bold uppercase sm:text-xs" style="background: var(--color-border-light); color: var(--color-text-muted);">Bloqueada</span>
+                                    {% endif %}
+                                </div>
+                                <p class="employees-text-body m-0 mt-1 text-sm leading-snug" style="color: var(--color-text-body);">{{ achievement.description }}</p>
+                                <div class="mt-2 flex flex-wrap items-center gap-2">
+                                    <span class="rounded px-2 py-0.5 text-[11px] font-semibold sm:text-xs" style="background: var(--color-primary-bg); color: var(--color-primary);">+{{ achievement.xp_reward }} XP</span>
+                                    {% if achievement.unlocked and achievement.earned_at %}
+                                    <span class="employees-text-muted inline-flex items-center gap-1 text-[11px]">
+                                        <i data-lucide="calendar" class="h-3 w-3" aria-hidden="true"></i>
+                                        {{ achievement.earned_at.strftime('%d/%m/%Y') }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <span class="text-body font-semibold font-mono" {% if tx.amount > 0 %}style="color: var(--color-success);"{% else %}style="color: var(--color-danger);"{% endif %}>
-                        {{ "+" if tx.amount > 0 else "" }}{{ tx.amount }}
-                    </span>
+                    {% endfor %}
                 </div>
-                {% else %}
-                <div class="p-8 text-center text-body" style="color: var(--color-text-muted);">Nenhum registro encontrado.</div>
-                {% endfor %}
+            </div>
+
+            <div x-show="activeTab === 'history'" x-cloak>
+                <div class="sys-card sys-card--surface overflow-hidden rounded-xl border" style="border-color: var(--color-border);">
+                    {% for tx in xp_history_full %}
+                    <div class="flex items-center justify-between gap-3 border-b px-3 py-3 last:border-b-0 sm:px-4" style="border-color: var(--color-border-light);">
+                        <div class="min-w-0">
+                            <p class="employees-text-strong m-0 text-sm font-semibold" style="color: var(--color-text);">{{ tx.reason }}</p>
+                            <p class="employees-text-muted m-0 mt-0.5 text-[11px]">{{ tx.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                        <span class="shrink-0 font-mono text-sm font-bold tabular-nums {% if tx.amount > 0 %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                            {{ "+" if tx.amount > 0 else "" }}{{ tx.amount }}
+                        </span>
+                    </div>
+                    {% else %}
+                    <div class="employees-text-muted px-4 py-10 text-center text-sm">Nenhum registro encontrado.</div>
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>

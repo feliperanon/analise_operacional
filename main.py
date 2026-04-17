@@ -831,6 +831,9 @@ async def lifespan(app: FastAPI):
         app.state.db_ready = True
 
     startup_task = asyncio.create_task(_background_startup())
+    logger.info(
+        "Startup: migrações/DB em background — liberando porta TCP (Render scan / health)."
+    )
 
     try:
         yield

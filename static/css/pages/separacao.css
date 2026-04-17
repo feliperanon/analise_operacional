@@ -25,6 +25,48 @@ html.dark .ga-employee-theme.employees-page.separacao-page dialog.separacao-moda
   background: var(--sys-bg-subtle);
 }
 
+.ga-employee-theme.employees-page.separacao-page .delivery-ops-panel__head {
+  gap: 0.75rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-ops-panel__block {
+  border-top: 1px solid color-mix(in srgb, var(--sys-border) 78%, transparent);
+  padding-top: 0.75rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-ops-panel__head > .delivery-ops-panel__block:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-ops-panel__actions .sys-btn,
+.ga-employee-theme.employees-page.separacao-page .delivery-ops-panel__actions .delivery-mini-input {
+  min-height: 1.9rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-bulk-bar .bulk-action-form {
+  display: inline-flex;
+  align-items: center;
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-bulk-bar .bulk-action-btn,
+.ga-employee-theme.employees-page.separacao-page .separacao-bulk-bar .bulk-action-date {
+  min-height: 2rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-bulk-bar .bulk-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.ga-employee-theme.employees-page.separacao-page .separacao-bulk-bar .bulk-action-date {
+  min-width: 9.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
 .ga-employee-theme.employees-page.separacao-page .delivery-filter-input,
 .ga-employee-theme.employees-page.separacao-page .delivery-mini-input,
 .ga-employee-theme.employees-page.separacao-page .delivery-mini-select {
@@ -34,6 +76,24 @@ html.dark .ga-employee-theme.employees-page.separacao-page dialog.separacao-moda
   color: var(--sys-text-primary);
   outline: none;
   font-size: var(--sys-text-xs, 0.75rem);
+}
+
+.ga-employee-theme.employees-page.separacao-page input[type="date"].delivery-filter-input,
+.ga-employee-theme.employees-page.separacao-page input[type="date"].delivery-mini-input {
+  min-height: 2.125rem;
+  padding: 0.35rem 0.55rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ga-employee-theme.employees-page.separacao-page input[type="date"].delivery-filter-input::-webkit-date-and-time-value,
+.ga-employee-theme.employees-page.separacao-page input[type="date"].delivery-mini-input::-webkit-date-and-time-value {
+  text-align: center;
+}
+
+.ga-employee-theme.employees-page.separacao-page input[type="date"].delivery-filter-input::-webkit-datetime-edit,
+.ga-employee-theme.employees-page.separacao-page input[type="date"].delivery-mini-input::-webkit-datetime-edit {
+  text-align: center;
 }
 
 .ga-employee-theme.employees-page.separacao-page .delivery-filter-input:focus,
@@ -318,6 +378,471 @@ html.dark .ga-employee-theme.employees-page.separacao-page #delivery-search-resu
   color: #a5b4fc;
 }
 
+/* Métricas WhatsApp: antes em cartão avulso; agora embutidas no cabeçalho do painel de rotas (.delivery-ops-panel__whatsapp). */
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-ops__grid {
+  display: grid;
+  gap: 0.625rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  max-width: 36rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-ops-panel__whatsapp-grid {
+  max-width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .ga-employee-theme.employees-page.separacao-page .delivery-ops-panel__whatsapp-grid {
+    max-width: min(28rem, 100%);
+  }
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-ops__metric {
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-lg);
+  background: var(--sys-surface);
+  padding: 0.72rem 0.78rem;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-ops__metric {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.88));
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-ops__label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-ops__value {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.45rem;
+  line-height: 1;
+  color: var(--sys-text-primary);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-ops__hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 11px;
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(16 185 129 / 0.25);
+  background: rgb(236 253 245 / 0.9);
+  padding: 0.18rem 0.55rem;
+  font-size: 11px;
+  color: rgb(5 150 105);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-chip strong {
+  font-weight: 700;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-chip--danger {
+  border-color: rgb(239 68 68 / 0.24);
+  background: rgb(254 242 242 / 0.9);
+  color: rgb(185 28 28);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-chip {
+  border-color: rgb(16 185 129 / 0.4);
+  background: rgb(6 78 59 / 0.28);
+  color: rgb(110 231 183);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-chip--danger {
+  border-color: rgb(248 113 113 / 0.42);
+  background: rgb(127 29 29 / 0.3);
+  color: rgb(252 165 165);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  background: linear-gradient(180deg, rgb(248 250 252 / 0.82), rgb(241 245 249 / 0.82));
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-strip {
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.36), rgba(15, 23, 42, 0.5));
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-strip__summary,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-strip__actions,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-strip__title,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-strip__counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-inline-note {
+  font-size: 11px;
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--sys-border);
+  background: rgb(255 255 255 / 0.78);
+  padding: 0.22rem 0.55rem;
+  font-size: 11px;
+  color: var(--sys-text-secondary);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-count {
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-count--danger {
+  border-color: rgb(244 63 94 / 0.3);
+  color: rgb(190 24 93);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-count--danger {
+  color: #fda4af;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  border-radius: var(--sys-radius-md);
+  border: 1px solid transparent;
+  padding: 0.32rem 0.58rem;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-action--ghost {
+  border-color: var(--sys-border);
+  background: var(--sys-surface);
+  color: var(--sys-text-secondary);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-action--primary {
+  background: linear-gradient(135deg, #0f766e, #10b981);
+  color: #fff;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-action--secondary {
+  background: linear-gradient(135deg, #b45309, #f59e0b);
+  color: #fff;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.24rem 0.62rem;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--nao_disponivel,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--sem_contato,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--telefone_invalido {
+  background: rgb(226 232 240 / 0.9);
+  color: rgb(71 85 105);
+  border-color: rgb(148 163 184 / 0.3);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--pendente_envio,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--elegivel {
+  background: rgb(254 243 199 / 0.9);
+  color: rgb(180 83 9);
+  border-color: rgb(245 158 11 / 0.35);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--em_processamento {
+  background: rgb(224 231 255 / 0.92);
+  color: rgb(67 56 202);
+  border-color: rgb(99 102 241 / 0.35);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--enviado,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--ja_enviado {
+  background: rgb(209 250 229 / 0.92);
+  color: rgb(5 122 85);
+  border-color: rgb(16 185 129 / 0.35);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--enviado_parcial {
+  background: rgb(219 234 254 / 0.92);
+  color: rgb(29 78 216);
+  border-color: rgb(59 130 246 / 0.35);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--falha,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--bloqueado,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--cancelado {
+  background: rgb(255 228 230 / 0.92);
+  color: rgb(190 24 93);
+  border-color: rgb(244 63 94 / 0.35);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--nao_disponivel,
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--sem_contato,
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--telefone_invalido {
+  background: rgba(71, 85, 105, 0.35);
+  color: #cbd5e1;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--pendente_envio,
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--elegivel {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fcd34d;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--em_processamento {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--enviado,
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--ja_enviado {
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--enviado_parcial {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--falha,
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--bloqueado,
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-pill--cancelado {
+  background: rgba(244, 63, 94, 0.18);
+  color: #fda4af;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-modal-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-modal-kpis {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-card,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-meta-card,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-modal-section,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-row,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-history-row {
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-lg);
+  background: var(--sys-surface);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-card {
+  padding: 0.55rem 0.6rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-label,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-meta-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-kpi-value {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 1.05rem;
+  line-height: 1.1;
+  color: var(--sys-text-primary);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-meta-card {
+  padding: 0.6rem 0.7rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-meta-card + .delivery-whatsapp-meta-card {
+  margin-top: 0.5rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-message-preview {
+  margin-top: 0.45rem;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--sys-text-primary);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-audit-list {
+  display: grid;
+  gap: 0.38rem;
+  margin-top: 0.45rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-audit-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.55rem;
+  font-size: 11px;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-audit-list dt {
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-audit-list dd {
+  margin: 0;
+  text-align: right;
+  color: var(--sys-text-primary);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-modal-section {
+  padding: 0.62rem 0.72rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-modal-list,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-modal-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  max-height: none;
+  overflow: visible;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-row {
+  gap: 0.55rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-check {
+  display: inline-flex;
+  align-items: flex-start;
+  padding-top: 0.15rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-check input[type="checkbox"] {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: #7c3aed;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-main {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-row,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-history-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.52rem 0.62rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-name,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-history-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sys-text-primary);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-meta,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-history-meta,
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-history-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+  font-size: 11px;
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.22rem;
+  min-width: 9.25rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-error {
+  font-size: 10px;
+  text-align: right;
+  color: rgb(190 24 93);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-empty {
+  border: 1px dashed var(--sys-border);
+  border-radius: var(--sys-radius-lg);
+  padding: 0.7rem;
+  font-size: 11px;
+  color: var(--sys-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 1023px) {
+  .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-ops__grid,
+  .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-modal-grid,
+  .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-modal-kpis {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-row,
+  .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-history-row {
+    flex-direction: column;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-whatsapp-client-status {
+    align-items: flex-start;
+    min-width: 0;
+  }
+}
+
 .ga-employee-theme.employees-page.separacao-page .separacao-delivery-table {
   border-collapse: collapse;
   font-size: var(--sys-text-xs, 0.75rem);
@@ -412,4 +937,404 @@ html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separac
 
 html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separacao-row--default {
   background: rgba(15, 23, 42, 0.35);
+}
+
+/* Painel “Ajustar rota” — segmentos claros, motorista largo, ajudantes em linha própria */
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-details__summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.5rem 0.75rem;
+  font-size: var(--sys-text-xs, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted);
+  background: var(--sys-bg-subtle);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-details__body {
+  border-top: 1px solid var(--sys-border);
+  background: var(--sys-surface);
+  padding: 0.65rem 0.75rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.25fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-segment {
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-md, 0.375rem);
+  background: var(--sys-bg-subtle);
+  padding: 0.65rem 0.75rem;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-segment--reassign {
+  grid-column: 1 / -1;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-segment__title {
+  margin: 0 0 0.5rem;
+  font-size: var(--sys-text-xs, 0.75rem);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-form--reassign {
+  width: 100%;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-form--inline-compact {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--sys-border);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-form--inline {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Motorista | caminhão | ajudantes | Limpar/Aplicar na mesma linha */
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-row--team-one-line {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0.65rem 0.75rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-row--team-one-line .delivery-admin-field {
+  margin: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-form--inline .delivery-admin-field {
+  flex: 1 1 auto;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-field--planning-date {
+  flex: 0 0 auto;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-field--driver {
+  flex: 0 1 28%;
+  min-width: 11rem;
+  max-width: 36%;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-field--vehicle {
+  flex: 0 0 6.75rem;
+  width: 6.75rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-field--helpers-inline {
+  flex: 1 1 auto;
+  min-width: 12rem;
+  max-width: none;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-row--team-one-line .delivery-admin-helper-picker {
+  min-width: 0;
+  width: 100%;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-label {
+  font-size: var(--sys-text-2xs, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted);
+  white-space: nowrap;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-select--driver {
+  width: 100%;
+  max-width: 100%;
+  min-height: 2.125rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-select--vehicle {
+  width: 100%;
+  min-height: 2.125rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-input--date {
+  width: auto;
+  min-width: 10rem;
+  padding: 0.4rem 0.55rem;
+  min-height: 2.125rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-input--plate {
+  width: 6.75rem;
+  max-width: 7.5rem;
+  padding: 0.4rem 0.5rem;
+  min-height: 2.125rem;
+  box-sizing: border-box;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-input--km {
+  width: 6.75rem;
+  max-width: 7rem;
+  min-width: 5.5rem;
+  padding: 0.4rem 0.5rem;
+  min-height: 2.125rem;
+  box-sizing: border-box;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-input--km::-webkit-outer-spin-button,
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-input--km::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-input--km[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-helper-search {
+  display: block;
+  width: 100%;
+  max-width: none;
+  padding: 0.4rem 0.55rem;
+  min-height: 2.125rem;
+  box-sizing: border-box;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-helper-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  width: 100%;
+  min-height: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-helper-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--sys-radius-sm, 0.25rem);
+  border: 1px solid rgb(14 165 233 / 0.35);
+  background: rgb(14 165 233 / 0.12);
+  font-size: var(--sys-text-xs, 0.75rem);
+  font-weight: 500;
+  color: var(--sys-text-primary);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .delivery-admin-helper-chip {
+  border-color: rgb(56 189 248 / 0.35);
+  background: rgb(12 74 110 / 0.35);
+  color: rgb(224 242 254);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-helper-chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 18rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-helper-chip .delivery-helper-remove {
+  flex-shrink: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-row--team-one-line .delivery-admin-actions--segment {
+  flex: 0 0 auto;
+  margin-left: auto;
+  /* alinha botões com os selects (mesma linha que o label acima) */
+  padding-top: 1.15rem;
+}
+
+@media (max-width: 960px) {
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-form--inline {
+    flex-wrap: wrap;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-row--team-one-line {
+    flex-wrap: wrap;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-field--driver {
+    flex: 1 1 45%;
+    max-width: none;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-field--vehicle {
+    flex: 0 0 6.75rem;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-field--helpers-inline {
+    flex: 1 1 100%;
+    order: 3;
+    min-width: 0;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-row--team-one-line .delivery-admin-actions--segment {
+    order: 4;
+    margin-left: 0;
+    padding-top: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-actions--segment {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-bottom: 0.1rem;
+}
+
+@media (max-width: 640px) {
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-form--inline .delivery-admin-actions--segment {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-btn {
+  font-size: var(--sys-text-xs, 0.75rem);
+  padding: 0.4rem 0.75rem;
+  white-space: nowrap;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-actions__meta {
+  font-weight: 600;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-btn {
+  min-height: 1.9rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 0.55rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-btn--ghost {
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #4338ca;
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-btn--ghost:hover {
+  background: rgba(99, 102, 241, 0.16);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-btn--success {
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #047857;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-btn--success:hover {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-btn--teal {
+  border-color: rgba(20, 184, 166, 0.35);
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.1);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-quick-btn--teal:hover {
+  background: rgba(20, 184, 166, 0.18);
+}
+
+@media (max-width: 640px) {
+  .ga-employee-theme.employees-page.separacao-page .delivery-quick-actions__buttons {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-stop-inline-actions {
+  margin-top: 0.15rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-stop-inline-btn {
+  min-height: 1.7rem;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.64rem;
+  border-radius: 0.5rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-stop-inline-btn--move {
+  border-color: rgba(139, 92, 246, 0.35);
+  color: #6d28d9;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-stop-inline-btn--move:hover {
+  background: rgba(139, 92, 246, 0.18);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-stop-inline-btn--danger {
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-stop-inline-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.18);
 }

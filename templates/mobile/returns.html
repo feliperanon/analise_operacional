@@ -2,132 +2,286 @@
 
 {% block title %}Devolução - Avaliação{% endblock %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415h">
+<style>
+  /* Devoluções: 3 KPIs na mesma linha, colunas iguais (sobrescreve 2×2 do mobile-delivery-ga) */
+  .delivery-ga-shell.returns-mobile-page.delivery-mobi.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.returns-kpi-row--3col {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.375rem;
+  }
+  .delivery-ga-shell.returns-mobile-page.delivery-mobi.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.returns-kpi-row--3col > .sys-kpi-card.employees-kpi {
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 4.5rem !important;
+    padding: 0.45rem 0.35rem !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col .sys-kpi-cell-inner.employees-kpi__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+    min-height: 0;
+    padding: 0.35rem 0.2rem;
+  }
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col .employees-kpi__head {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    width: 100%;
+  }
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col .employees-kpi__head > .min-w-0 {
+    min-width: 0;
+    width: 100%;
+    text-align: center;
+  }
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col [data-lucide],
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col .employees-kpi__head svg {
+    width: 0.8125rem !important;
+    height: 0.8125rem !important;
+    opacity: 0.8;
+  }
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col .sys-kpi-label {
+    display: block;
+    font-size: 0.5625rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    hyphens: auto;
+    overflow-wrap: anywhere;
+  }
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col .employees-kpi__value {
+    font-size: 0.8125rem !important;
+    line-height: 1.15;
+  }
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col .employees-kpi__meta {
+    margin-top: 0.2rem;
+    font-size: 0.5rem;
+    line-height: 1.15;
+    opacity: 0.88;
+    text-align: center;
+    width: 100%;
+  }
+  .delivery-ga-shell.returns-mobile-page .returns-kpi-row--3col .employees-kpi__meta span {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-align: center;
+  }
+  /* Mesma largura útil que delivery-ga-main (28rem + padding safe area) */
+  .delivery-ga-shell.returns-mobile-page .delivery-content > .container-mobile {
+    max-width: min(100%, 28rem);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<header class="container-mobile py-3 border-b shrink-0 mobile-header-op">
-    <div class="flex items-center justify-between gap-3">
-        <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg icon-wrap interactive">
-            <i data-lucide="arrow-left" class="w-5 h-5"></i>
-        </a>
-        <div class="flex-1 min-w-0">
-            <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-text-muted);">Devoluções</span>
-            <h1 class="text-body-lg font-semibold truncate" style="color: var(--color-text);">Resumo e prêmio</h1>
+<div class="delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium returns-mobile-page min-h-screen pb-safe delivery-page-layout">
+
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/dashboard" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 shrink-0 items-center justify-center rounded-lg interactive sm:size-11 no-underline" aria-label="Voltar ao painel" title="Voltar">
+                <i data-lucide="arrow-left" class="h-4 w-4 shrink-0 sm:h-5 sm:w-5" aria-hidden="true"></i>
+            </a>
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Devoluções</p>
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+                <button type="button" id="btnHelpDevolucao"
+                    class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive"
+                    title="Como funciona o prêmio" aria-label="Ajuda sobre devoluções">
+                    <i data-lucide="help-circle" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+                </button>
+                <button type="button" id="btnRefreshReturns"
+                    class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive"
+                    title="Atualizar" aria-label="Atualizar dados">
+                    <i data-lucide="refresh-cw" class="h-5 w-5 shrink-0" aria-hidden="true"></i>
+                </button>
+            </div>
         </div>
     </div>
-</header>
 
-<div class="container-mobile py-4">
-    <div class="flex items-center justify-between mb-3">
-        <h2 class="text-body-lg font-semibold" style="color: var(--color-text);">Minhas devoluções</h2>
-        <select id="returnPeriodFilter" onchange="loadReturnData()"
-            class="text-caption px-3 py-2 rounded-lg font-medium"
-            style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text);">
-        </select>
-    </div>
-
-    <div class="surface p-4 mb-4 relative">
-        <button type="button" id="btnHelpDevolucao" class="absolute top-3 right-3 touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
-            <i data-lucide="help-circle" class="w-4 h-4"></i>
-        </button>
-        <div class="grid grid-cols-3 gap-2 mb-4">
-            <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-danger-bg); border-color: var(--color-danger);">
-                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">Total Ajust. (R$)</p>
-                <p id="totalReturnValue" class="text-sm font-bold leading-tight" style="color: var(--color-danger);">R$ 0,00</p>
-            </div>
-            <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-warning-bg); border-color: var(--color-warning);">
-                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">% Devolvido Ajust.</p>
-                <p id="totalReturnPercent" class="text-sm font-bold leading-tight" style="color: var(--color-warning);">0%</p>
-            </div>
-            <div class="text-center p-2 rounded-lg border min-w-0" style="background: var(--color-success-bg); border-color: var(--color-success);">
-                <p class="text-[10px] mb-0.5 truncate" style="color: var(--color-text-muted);">Prêmio Dev.</p>
-                <p id="premioDevolucao" class="text-sm font-bold leading-tight" style="color: var(--color-success);">R$ 0,00</p>
-            </div>
-        </div>
-        <div class="h-64 w-full" style="color: #ffffff;">
-            <canvas id="performanceChart"></canvas>
-        </div>
-        <div id="dailySeriesAudit" class="mt-3 space-y-1.5 text-caption max-h-40 overflow-y-auto"></div>
-
-        <div id="cargaDescargaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3" style="background: var(--color-surface-solid); border-color: var(--color-border);">
-            <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 min-w-0">
-                    <h3 class="text-body font-semibold mb-1" style="color: var(--color-text);">Carga e Descarga</h3>
-                    <p id="cargaDescargaWeekLabel" class="text-xs font-medium" style="color: var(--color-primary);">—</p>
-                    <p id="cargaDescargaStatus" class="text-caption mt-0.5" style="color: var(--color-text-muted);"><span id="cargaDescargaCount">0</span> recarga(s)</p>
-                    <p class="text-[10px] mt-0.5" style="color: var(--color-text-muted);">peso &gt;2.500 kg ou vol. &gt;250</p>
+    <div class="delivery-ga-main delivery-mobi-main space-y-2 pb-1.5 pt-0.5">
+        <div class="sys-card sys-card--surface delivery-session-card relative overflow-hidden rounded-xl border p-3" style="border-color: var(--color-border);">
+            <div class="delivery-session-head flex flex-wrap items-center justify-between gap-2 border-b pb-2.5" style="border-color: var(--color-border);">
+                <div class="delivery-session-head__title flex min-w-0 flex-1 items-center gap-2">
+                    <span class="delivery-session-head__badge shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style="background: var(--color-primary-bg); color: var(--color-primary);">Resumo</span>
+                    <h3 class="m-0 min-w-0 truncate text-base font-semibold leading-tight" style="color: var(--color-text);">Indicadores e prêmio</h3>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <button type="button" id="btnHelpCargaDescarga" class="touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
-                        <i data-lucide="help-circle" class="w-4 h-4"></i>
+            </div>
+            <div class="mt-3">
+                <label for="returnPeriodFilter" class="employees-text-section-label mb-1 block">Período</label>
+                <select id="returnPeriodFilter" onchange="loadReturnData()"
+                    class="sys-input min-h-12 w-full rounded-lg px-3 py-2.5 text-sm font-medium"
+                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text-body);">
+                </select>
+            </div>
+        </div>
+
+        <div class="sys-kpi-shell w-full" aria-label="Totais do período">
+            <div class="sys-kpi-grid employees-kpi-row returns-kpi-row--3col">
+                <div class="sys-kpi-card employees-kpi">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-center justify-center gap-1">
+                            <i data-lucide="trending-down" class="shrink-0 text-red-500 dark:text-red-400" aria-hidden="true"></i>
+                            <div class="min-w-0 flex-1">
+                                <span class="sys-kpi-label text-red-600 dark:text-red-300">Valor devolvido</span>
+                                <div class="mt-0.5"><span id="totalReturnValue" class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums font-bold">R$ 0,00</span></div>
+                            </div>
+                        </div>
+                        <div class="employees-kpi__meta"><span class="employees-text-muted">Total ajustado no período</span></div>
+                    </div>
+                </div>
+                <div class="sys-kpi-card employees-kpi">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-center justify-center gap-1">
+                            <i data-lucide="percent" class="shrink-0 text-amber-500 dark:text-amber-400" aria-hidden="true"></i>
+                            <div class="min-w-0 flex-1">
+                                <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Percentual</span>
+                                <div class="mt-0.5"><span id="totalReturnPercent" class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums font-bold">0%</span></div>
+                            </div>
+                        </div>
+                        <div class="employees-kpi__meta"><span class="employees-text-muted">Devolvido sobre as paradas</span></div>
+                    </div>
+                </div>
+                <div class="sys-kpi-card employees-kpi">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <div class="employees-kpi__head flex w-full items-center justify-center gap-1">
+                            <i data-lucide="gift" class="shrink-0 text-emerald-500 dark:text-emerald-400" aria-hidden="true"></i>
+                            <div class="min-w-0 flex-1">
+                                <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Prêmio</span>
+                                <div class="mt-0.5"><span id="premioDevolucao" class="employees-kpi__value tabular-nums font-bold text-emerald-600 dark:text-emerald-400">R$ 0,00</span></div>
+                            </div>
+                        </div>
+                        <div class="employees-kpi__meta"><span class="employees-text-muted">Conforme a faixa do período</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="delivery-content">
+        <div class="container-mobile space-y-3 pb-6 pt-1">
+
+            <div class="sys-card sys-card--surface delivery-session-card rounded-xl border p-3" style="border-color: var(--color-border);">
+                <p class="employees-text-section-label mb-2">Evolução diária</p>
+                <p class="mb-3 text-xs" style="color: var(--color-text-muted);">Toque no gráfico para ver o detalhamento por cliente.</p>
+                <div class="h-60 w-full overflow-hidden rounded-lg border" style="border-color: var(--color-border); background: var(--color-surface-solid);">
+                    <canvas id="performanceChart" aria-label="Gráfico de devoluções por dia"></canvas>
+                </div>
+                <div id="dailySeriesAudit" class="mt-3 max-h-40 space-y-1.5 overflow-y-auto text-caption"></div>
+            </div>
+
+            <div id="cargaDescargaCard" class="delivery-route-card flex flex-col gap-3 border p-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <h3 class="mb-1 text-sm font-semibold" style="color: var(--color-text);">Carga e descarga</h3>
+                        <p id="cargaDescargaWeekLabel" class="text-xs font-medium" style="color: var(--color-primary);">—</p>
+                        <p id="cargaDescargaStatus" class="mt-0.5 text-caption" style="color: var(--color-text-muted);"><span id="cargaDescargaCount">0</span> recarga(s)</p>
+                        <p class="mt-0.5 text-[10px]" style="color: var(--color-text-muted);">peso &gt;2.500 kg ou vol. &gt;250</p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <button type="button" id="btnHelpCargaDescarga" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 items-center justify-center rounded-lg interactive"
+                            title="Como funciona" aria-label="Ajuda carga e descarga">
+                            <i data-lucide="help-circle" class="h-4 w-4" aria-hidden="true"></i>
+                        </button>
+                        <span id="cargaDescargaValor" class="text-lg font-bold tabular-nums" style="color: var(--color-success);">R$ 0,00</span>
+                    </div>
+                </div>
+                <div id="cargaDescargaByDay" class="max-h-32 space-y-1.5 overflow-y-auto text-caption"></div>
+            </div>
+
+            <div id="cestaBasicaCard" class="delivery-route-card flex flex-col gap-3 border p-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <h3 class="mb-1 text-sm font-semibold" style="color: var(--color-text);">Cesta básica</h3>
+                        <p id="cestaBasicaStatus" class="text-caption" style="color: var(--color-text-muted);">Carregando...</p>
+                    </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <button type="button" id="btnHelpCestaBasica" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 items-center justify-center rounded-lg interactive"
+                            title="Como funciona" aria-label="Ajuda cesta básica">
+                            <i data-lucide="help-circle" class="h-4 w-4" aria-hidden="true"></i>
+                        </button>
+                        <span id="cestaBasicaValor" class="text-lg font-bold tabular-nums" style="color: var(--color-success);">R$ 0,00</span>
+                    </div>
+                </div>
+                <div id="cestaBasicaParabens" class="hidden flex items-center gap-2 rounded-lg border px-3 py-2 text-left" style="background: var(--color-success-bg); border-color: rgba(16,185,129,0.35);">
+                    <i data-lucide="trophy" class="h-5 w-5 shrink-0" style="color: var(--color-success);" aria-hidden="true"></i>
+                    <p class="text-caption font-medium" style="color: var(--color-success);">Parabéns por estar presente! Sua constância faz a diferença.</p>
+                </div>
+            </div>
+
+            <div id="returnDetails" class="hidden space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-semibold" style="color: var(--color-text);">Detalhamento por cliente</h3>
+                    <button type="button" onclick="closeReturnDetails()" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-10 items-center justify-center rounded-lg interactive" aria-label="Fechar">
+                        <i data-lucide="x" class="h-4 w-4" aria-hidden="true"></i>
                     </button>
-                    <span id="cargaDescargaValor" class="text-xl font-bold" style="color: var(--color-success);">R$ 0,00</span>
                 </div>
-            </div>
-            <div id="cargaDescargaByDay" class="space-y-1.5 text-caption max-h-32 overflow-y-auto"></div>
-        </div>
-
-        <div id="cestaBasicaCard" class="mt-4 p-4 rounded-lg border flex flex-col gap-3" style="background: var(--color-surface-solid); border-color: var(--color-border);">
-            <div class="flex items-start justify-between gap-3">
-                <div class="flex-1 min-w-0">
-                    <h3 class="text-body font-semibold mb-1" style="color: var(--color-text);">Cesta Básica</h3>
-                    <p id="cestaBasicaStatus" class="text-caption" style="color: var(--color-text-muted);">Carregando...</p>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <button type="button" id="btnHelpCestaBasica" class="touch-target-icon rounded-full p-1" style="color: var(--color-text-muted);" title="Como funciona">
-                        <i data-lucide="help-circle" class="w-4 h-4"></i>
-                    </button>
-                    <span id="cestaBasicaValor" class="text-xl font-bold" style="color: var(--color-success);">R$ 0,00</span>
-                </div>
-            </div>
-            <div id="cestaBasicaParabens" class="hidden flex items-center gap-2 px-3 py-2 rounded-lg text-left" style="background: var(--color-success-bg); border: 1px solid rgba(16,185,129,0.4);">
-                <i data-lucide="trophy" class="w-5 h-5 shrink-0" style="color: var(--color-success);"></i>
-                <p class="text-caption font-medium" style="color: var(--color-success);">Parabéns por estar presente! Sua constância faz a diferença.</p>
+                <div id="returnDetailsList" class="max-h-96 space-y-2 overflow-y-auto"></div>
             </div>
         </div>
     </div>
 
-    <div id="modalHelpCestaBasica" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.6);">
-        <div class="surface p-4 rounded-xl max-w-sm w-full" style="border: 1px solid var(--color-border);">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-body font-bold" style="color: var(--color-text);">Como funciona Cesta Básica</h3>
-                <button type="button" onclick="closeModal('modalHelpCestaBasica')" class="touch-target-icon rounded-lg" style="color: var(--color-text-muted);"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <div id="modalHelpCestaBasica" class="delivery-modal-overlay emp-modal-shell hidden fixed inset-0 z-[100000] flex items-center justify-center p-4" style="background: rgba(15, 23, 42, 0.45);">
+        <div class="delivery-modal-card sys-modal-surface sys-card sys-card--surface max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-xl border p-4 shadow-lg" style="border-color: var(--color-border);">
+            <div class="mb-3 flex items-center justify-between">
+                <h3 class="text-base font-bold" style="color: var(--color-text);">Como funciona cesta básica</h3>
+                <button type="button" onclick="closeModal('modalHelpCestaBasica')" class="inline-flex size-9 items-center justify-center rounded-lg interactive" style="color: var(--color-text-muted);" aria-label="Fechar"><i data-lucide="x" class="h-5 w-5"></i></button>
             </div>
-            <div class="space-y-3 text-caption" style="color: var(--color-text-secondary);">
+            <div class="space-y-3 text-caption" style="color: var(--color-text-body);">
                 <p><strong>R$ 100,00</strong> — pago ao colaborador que cumprir a condição.</p>
                 <p><strong>Condição:</strong> não ter falta nem advertência no período.</p>
                 <p>Os dados de falta e advertência são registrados pelo gestor no sistema (desktop).</p>
             </div>
-            <button onclick="closeModal('modalHelpCestaBasica')" class="mt-4 w-full py-2 rounded-lg text-body font-medium" style="background: var(--color-primary); color: white;">Entendi</button>
+            <button type="button" onclick="closeModal('modalHelpCestaBasica')" class="sys-btn mt-4 w-full justify-center py-3 text-sm font-semibold" style="background: var(--color-primary); color: white;">Entendi</button>
         </div>
     </div>
 
-    <div id="modalHelpDevolucao" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.6);">
-        <div class="surface p-4 rounded-xl max-w-sm w-full" style="border: 1px solid var(--color-border);">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-body font-bold" style="color: var(--color-text);">Como funciona o Prêmio Devolução</h3>
-                <button type="button" onclick="closeModal('modalHelpDevolucao')" class="touch-target-icon rounded-lg" style="color: var(--color-text-muted);"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <div id="modalHelpDevolucao" class="delivery-modal-overlay emp-modal-shell hidden fixed inset-0 z-[100000] flex items-center justify-center p-4" style="background: rgba(15, 23, 42, 0.45);">
+        <div class="delivery-modal-card sys-modal-surface sys-card sys-card--surface max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-xl border p-4 shadow-lg" style="border-color: var(--color-border);">
+            <div class="mb-3 flex items-center justify-between">
+                <h3 class="text-base font-bold" style="color: var(--color-text);">Como funciona o prêmio devolução</h3>
+                <button type="button" onclick="closeModal('modalHelpDevolucao')" class="inline-flex size-9 items-center justify-center rounded-lg interactive" style="color: var(--color-text-muted);" aria-label="Fechar"><i data-lucide="x" class="h-5 w-5"></i></button>
             </div>
-            <div class="space-y-2 text-caption" style="color: var(--color-text-secondary);">
+            <div class="space-y-2 text-caption" style="color: var(--color-text-body);">
                 <p><strong>0,0% até 1,5%</strong> = R$ 300,00</p>
                 <p><strong>1,51% até 2,0%</strong> = R$ 250,00</p>
                 <p><strong>2,01% até 2,5%</strong> = R$ 180,00</p>
                 <p><strong>Acima de 2,51%</strong> = R$ 0,00</p>
             </div>
-                <p class="mt-3 text-xs" style="color: var(--color-text-muted);">O percentual ajustado é o mesmo do desktop (Avaliar): devoluções atribuídas ao motorista sobre o total de paradas (entregas + devoluções), por contagem — não é cálculo por valor financeiro. No mês atual, o período vai do dia 1 até hoje.</p>
-            <button onclick="closeModal('modalHelpDevolucao')" class="mt-4 w-full py-2 rounded-lg text-body font-medium" style="background: var(--color-primary); color: white;">Entendi</button>
+            <p class="mt-3 text-xs" style="color: var(--color-text-muted);">O percentual ajustado é o mesmo do desktop (Avaliar): devoluções atribuídas ao motorista sobre o total de paradas (entregas + devoluções), por contagem — não é cálculo por valor financeiro. No mês atual, o período vai do dia 1 até hoje.</p>
+            <button type="button" onclick="closeModal('modalHelpDevolucao')" class="sys-btn mt-4 w-full justify-center py-3 text-sm font-semibold" style="background: var(--color-primary); color: white;">Entendi</button>
         </div>
     </div>
 
-    <div id="modalHelpCargaDescarga" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(0,0,0,0.6);">
-        <div class="surface p-4 rounded-xl max-w-sm w-full max-h-[85vh] overflow-y-auto" style="border: 1px solid var(--color-border);">
-            <div class="flex items-center justify-between mb-3">
-                <h3 class="text-body font-bold" style="color: var(--color-text);">Como funciona Carga e Descarga</h3>
-                <button type="button" onclick="closeModal('modalHelpCargaDescarga')" class="touch-target-icon rounded-lg" style="color: var(--color-text-muted);"><i data-lucide="x" class="w-5 h-5"></i></button>
+    <div id="modalHelpCargaDescarga" class="delivery-modal-overlay emp-modal-shell hidden fixed inset-0 z-[100000] flex items-center justify-center p-4" style="background: rgba(15, 23, 42, 0.45);">
+        <div class="delivery-modal-card sys-modal-surface sys-card sys-card--surface max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-xl border p-4 shadow-lg" style="border-color: var(--color-border);">
+            <div class="mb-3 flex items-center justify-between">
+                <h3 class="text-base font-bold" style="color: var(--color-text);">Como funciona carga e descarga</h3>
+                <button type="button" onclick="closeModal('modalHelpCargaDescarga')" class="inline-flex size-9 items-center justify-center rounded-lg interactive" style="color: var(--color-text-muted);" aria-label="Fechar"><i data-lucide="x" class="h-5 w-5"></i></button>
             </div>
-            <div class="space-y-3 text-caption" style="color: var(--color-text-secondary);">
+            <div class="space-y-3 text-caption" style="color: var(--color-text-body);">
                 <p><strong>R$ 46,00 por carga/recarga</strong></p>
-                <p><strong>Peso:</strong> acima de 2.500 kg <strong>ou</strong> <strong>Volume:</strong> acima de 250 volumes.</p>
+                <p><strong>Peso:</strong> acima de 2.500 kg <strong>ou</strong> <strong>volume:</strong> acima de 250 volumes.</p>
                 <p><strong>Equipe elegível:</strong></p>
-                <ul class="list-disc list-inside space-y-1 pl-2">
+                <ul class="list-inside list-disc space-y-1 pl-2">
                     <li>Só motorista — recebe</li>
                     <li>1 motorista + 1 ajudante — recebem</li>
                     <li>1 motorista + 2 ou mais ajudantes — não recebem</li>
@@ -135,18 +289,7 @@
                 <p><strong>Recarga:</strong> ao concluir a entrega e voltar para a empresa = 1 carga. Se sair de novo no mesmo dia = +1 recarga.</p>
                 <p>Semanal (segunda a domingo). Zerado toda terça-feira. Pagamento toda terça-feira.</p>
             </div>
-            <button onclick="closeModal('modalHelpCargaDescarga')" class="mt-4 w-full py-2 rounded-lg text-body font-medium" style="background: var(--color-primary); color: white;">Entendi</button>
-        </div>
-    </div>
-
-    <div id="returnDetails" class="hidden space-y-3">
-        <div class="flex items-center justify-between mb-2">
-            <h3 class="text-body font-semibold" style="color: var(--color-text);">Detalhamento por Cliente</h3>
-            <button onclick="closeReturnDetails()" class="touch-target-icon rounded-lg" style="color: var(--color-text-muted);">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-        </div>
-        <div id="returnDetailsList" class="space-y-2 max-h-96 overflow-y-auto">
+            <button type="button" onclick="closeModal('modalHelpCargaDescarga')" class="sys-btn mt-4 w-full justify-center py-3 text-sm font-semibold" style="background: var(--color-primary); color: white;">Entendi</button>
         </div>
     </div>
 </div>
@@ -155,6 +298,16 @@
 <script>
     let returnChart = null;
     const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    function returnsChartColors() {
+        const shell = document.querySelector('.delivery-ga-shell.delivery-mobi');
+        const el = shell || document.body;
+        const st = getComputedStyle(el);
+        const muted = (st.getPropertyValue('--color-text-muted') || '#64748b').trim();
+        const border = (st.getPropertyValue('--color-border') || '#e2e8f0').trim();
+        const text = (st.getPropertyValue('--color-text-body') || '#334155').trim();
+        return { muted, border, text };
+    }
 
     function buildPeriodOptions() {
         const sel = document.getElementById('returnPeriodFilter');
@@ -185,7 +338,6 @@
         return 0;
     }
 
-    /** Percentual pt-BR alinhado ao desktop: até 2 casas, sem forçar 3,23 → 3,2. */
     function formatPctBrDesktop(n) {
         const x = Number(n);
         if (!Number.isFinite(x)) return '0%';
@@ -202,6 +354,36 @@
             out.push(Number.isFinite(n) ? n : (Number.isFinite(fb) ? fb : 0));
         }
         return out;
+    }
+
+    /** Só dias com devolução (original ou ajustado &gt; 0): remove eixo em branco (fds/feriado). */
+    function pickDaysWithReturnsMovement(nDays, axisIso, values, adjustedValues, percents, adjustedPercents, labelsBR) {
+        const axisIsoF = [];
+        const valuesF = [];
+        const adjustedValuesF = [];
+        const percentsF = [];
+        const adjustedPercentsF = [];
+        const labelsBRF = [];
+        for (let i = 0; i < nDays; i++) {
+            const o = Number(values[i]) || 0;
+            const a = Number(adjustedValues[i]) || 0;
+            if (o <= 0 && a <= 0) continue;
+            axisIsoF.push(axisIso[i]);
+            valuesF.push(Number(values[i]) || 0);
+            adjustedValuesF.push(Number(adjustedValues[i]) || 0);
+            percentsF.push(percents[i]);
+            adjustedPercentsF.push(adjustedPercents[i]);
+            labelsBRF.push(labelsBR[i]);
+        }
+        return {
+            axisIso: axisIsoF,
+            values: valuesF,
+            adjustedValues: adjustedValuesF,
+            percents: percentsF,
+            adjustedPercents: adjustedPercentsF,
+            labelsBR: labelsBRF,
+            nActive: axisIsoF.length
+        };
     }
 
     function loadReturnData() {
@@ -236,7 +418,6 @@
                 data.carga_descarga_by_day = data.carga_descarga_by_day ?? [];
                 data.cesta_basica_eligible = data.cesta_basica_eligible ?? false;
                 data.cesta_basica_value = data.cesta_basica_value ?? 0;
-                // Regra solicitada: card "Total (R$)" exibe o consolidado ajustado do desktop.
                 const totalVal = Number.isFinite(Number(data.total_value_adjusted))
                     ? Number(data.total_value_adjusted)
                     : (Number(data.total_value) || 0);
@@ -255,7 +436,6 @@
                 const percents = normalizeNumericArray(data.chart_percents, nDays, 0);
                 const rawAdjustedValues = Array.isArray(data.chart_adjusted_values) ? data.chart_adjusted_values : [];
                 const rawAdjustedPercents = Array.isArray(data.chart_adjusted_percents) ? data.chart_adjusted_percents : [];
-                // Nunca espelhar a série original no ajustado: ausência/null => 0 (regra do desktop por dia).
                 const adjustedValues = normalizeNumericArray(rawAdjustedValues, nDays, 0);
                 const adjustedPercents = normalizeNumericArray(rawAdjustedPercents, nDays, 0);
                 const totalEntregas = Number(data.total_entregas_value) || 0;
@@ -284,7 +464,7 @@
                     } else {
                         cargaByDayEl.innerHTML = cargaByDay.map(d => {
                             const vl = Number(d.value) || 0;
-                            return `<div class="flex justify-between items-center py-1 border-b border-slate-700/40 last:border-0">
+                            return `<div class="flex items-center justify-between border-b py-1 last:border-0" style="border-color: var(--color-border);">
                                 <span style="color: var(--color-text-muted);">${d.date_label || d.date}</span>
                                 <span style="color: var(--color-success);">${d.count} recarga(s) — R$ ${vl.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </div>`;
@@ -308,14 +488,6 @@
                 }
 
                 const meta = 2.0;
-                const barColors = values.map((_, i) => {
-                    const pct = percents[i] != null ? percents[i] : 0;
-                    return pct > meta ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.9)';
-                });
-                const barBorders = values.map((_, i) => {
-                    const pct = percents[i] != null ? percents[i] : 0;
-                    return pct > meta ? 'rgba(239, 68, 68, 1)' : 'rgba(16, 185, 129, 1)';
-                });
 
                 const labelsBR = axisIso.map((l, idx) => {
                     const iso = axisIso[idx];
@@ -330,123 +502,139 @@
                     return l;
                 });
 
+                const f = pickDaysWithReturnsMovement(nDays, axisIso, values, adjustedValues, percents, adjustedPercents, labelsBR);
+                const barColorsF = f.percents.map((pct) => {
+                    const p = Number(pct) || 0;
+                    return p > meta ? 'rgba(239, 68, 68, 0.85)' : 'rgba(16, 185, 129, 0.85)';
+                });
+                const barBordersF = f.percents.map((pct) => {
+                    const p = Number(pct) || 0;
+                    return p > meta ? 'rgba(239, 68, 68, 1)' : 'rgba(16, 185, 129, 1)';
+                });
+
                 const chartEl = document.getElementById('performanceChart');
                 if (!chartEl) return;
                 const ctx = chartEl.getContext('2d');
-                if (returnChart) returnChart.destroy();
-                Chart.defaults.color = '#ffffff';
-                returnChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labelsBR,
-                        datasets: [
-                            {
-                                label: 'Original',
-                                data: values,
-                                backgroundColor: barColors,
-                                borderColor: barBorders,
-                                borderWidth: 1,
-                                borderRadius: 8,
-                                categoryPercentage: 0.7,
-                                barPercentage: 0.9,
-                                maxBarThickness: 18
-                            },
-                            {
-                                label: 'Ajustado',
-                                data: adjustedValues,
-                                backgroundColor: 'rgba(250, 204, 21, 0.9)',
-                                borderColor: 'rgba(253, 224, 71, 1)',
-                                borderWidth: 1,
-                                borderRadius: 8,
-                                categoryPercentage: 0.7,
-                                barPercentage: 0.9,
-                                maxBarThickness: 18
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        onClick: (e, items) => {
-                            if (items.length > 0) {
-                                showReturnDetails(Array.isArray(data.top_clients) ? data.top_clients : [], totalEntregas);
-                            }
+                if (returnChart) { returnChart.destroy(); returnChart = null; }
+                const { muted, border, text } = returnsChartColors();
+                Chart.defaults.color = muted;
+                if (f.nActive > 0) {
+                    returnChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: f.labelsBR,
+                            datasets: [
+                                {
+                                    label: 'Original',
+                                    data: f.values,
+                                    backgroundColor: barColorsF,
+                                    borderColor: barBordersF,
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    categoryPercentage: 0.7,
+                                    barPercentage: 0.9,
+                                    maxBarThickness: 18
+                                },
+                                {
+                                    label: 'Ajustado',
+                                    data: f.adjustedValues,
+                                    backgroundColor: 'rgba(245, 158, 11, 0.85)',
+                                    borderColor: 'rgba(217, 119, 6, 1)',
+                                    borderWidth: 1,
+                                    borderRadius: 8,
+                                    categoryPercentage: 0.7,
+                                    barPercentage: 0.9,
+                                    maxBarThickness: 18
+                                }
+                            ]
                         },
-                        plugins: {
-                            legend: {
-                                display: true,
-                                labels: { color: '#ffffff', boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'rectRounded' }
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            onClick: (e, items) => {
+                                if (items.length > 0) {
+                                    showReturnDetails(Array.isArray(data.top_clients) ? data.top_clients : [], totalEntregas);
+                                }
                             },
-                            tooltip: {
-                                callbacks: {
-                                    title: (ctx) => {
-                                        if (!ctx || !ctx.length) return '';
-                                        const i = ctx[0].dataIndex;
-                                        const iso = axisIso[i];
-                                        if (iso && String(iso).length >= 10) {
-                                            const p = String(iso).slice(0, 10).split('-');
-                                            if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    labels: { color: text, boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'rectRounded' }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        title: (ctx) => {
+                                            if (!ctx || !ctx.length) return '';
+                                            const i = ctx[0].dataIndex;
+                                            const iso = f.axisIso[i];
+                                            if (iso && String(iso).length >= 10) {
+                                                const p = String(iso).slice(0, 10).split('-');
+                                                if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+                                            }
+                                            return `Dia ${ctx[0].label}`;
+                                        },
+                                        label: (c) => {
+                                            if (c.datasetIndex > 0) return '';
+                                            const i = c.dataIndex;
+                                            const original = Number(f.values[i]) || 0;
+                                            const ajustado = Number(f.adjustedValues[i]) || 0;
+                                            const pOriginal = Number(f.percents[i]) || 0;
+                                            const pAjustado = Number(f.adjustedPercents[i]) || 0;
+                                            return [
+                                                `Original: R$ ${original.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+                                                `Ajustado: R$ ${ajustado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
+                                                `% original do dia: ${formatPctBrDesktop(pOriginal)}`,
+                                                `% ajustado do dia: ${formatPctBrDesktop(pAjustado)}`
+                                            ];
+                                        },
+                                        footer: (ctx) => {
+                                            if (!ctx || !ctx.length) return '';
+                                            const i = ctx[0].dataIndex;
+                                            const p = f.percents[i] != null ? f.percents[i] : 0;
+                                            return p > meta ? 'Acima da meta de 2,0%' : 'Dentro da meta de 2,0%';
                                         }
-                                        return `Dia ${ctx[0].label}`;
-                                    },
-                                    label: (c) => {
-                                        if (c.datasetIndex > 0) return '';
-                                        const i = c.dataIndex;
-                                        const original = Number(values[i]) || 0;
-                                        const ajustado = Number(adjustedValues[i]) || 0;
-                                        const pOriginal = Number(percents[i]) || 0;
-                                        const pAjustado = Number(adjustedPercents[i]) || 0;
-                                        return [
-                                            `Original: R$ ${original.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-                                            `Ajustado: R$ ${ajustado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`,
-                                            `% original do dia: ${formatPctBrDesktop(pOriginal)}`,
-                                            `% ajustado do dia: ${formatPctBrDesktop(pAjustado)}`
-                                        ];
-                                    },
-                                    footer: (ctx) => {
-                                        if (!ctx || !ctx.length) return '';
-                                        const i = ctx[0].dataIndex;
-                                        const p = percents[i] != null ? percents[i] : 0;
-                                        return p > meta ? 'Acima da meta de 2,0%' : 'Dentro da meta de 2,0%';
                                     }
                                 }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: 'rgba(255,255,255,0.15)' },
-                                ticks: { color: '#ffffff', font: { size: 10 }, callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0}) }
                             },
-                            x: { grid: { display: false }, ticks: { color: '#ffffff', font: { size: 10 } } }
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: border.includes('rgb') ? border : 'rgba(148, 163, 184, 0.25)' },
+                                    ticks: { color: muted, font: { size: 10 }, callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0}) }
+                                },
+                                x: { grid: { display: false }, ticks: { color: muted, font: { size: 10 } } }
+                            }
                         }
-                    }
-                });
+                    });
+                }
 
                 const dailyAuditEl = document.getElementById('dailySeriesAudit');
                 if (dailyAuditEl) {
-                    const rows = [];
-                    for (let i = 0; i < nDays; i++) {
-                        const iso = axisIso[i] || '';
-                        const original = Number(values[i]) || 0;
-                        const ajustado = Number(adjustedValues[i]) || 0;
-                        if (original === 0 && ajustado === 0) continue;
-                        const p = String(iso).slice(0, 10).split('-');
-                        const dia = p.length === 3 ? `${p[2]}/${p[1]}` : labelsBR[i];
-                        const semAjuste = original > 0 && ajustado === 0;
-                        rows.push(`
-                            <div class="flex items-center justify-between py-1 border-b border-slate-700/40 last:border-0">
+                    if (f.nActive === 0) {
+                        dailyAuditEl.innerHTML = '';
+                    } else {
+                        const rows = [];
+                        for (let j = 0; j < f.nActive; j++) {
+                            const iso = f.axisIso[j] || '';
+                            const original = Number(f.values[j]) || 0;
+                            const ajustado = Number(f.adjustedValues[j]) || 0;
+                            const p = String(iso).slice(0, 10).split('-');
+                            const dia = p.length === 3 ? `${p[2]}/${p[1]}` : f.labelsBR[j];
+                            const semAjuste = original > 0 && ajustado === 0;
+                            rows.push(`
+                            <div class="flex items-center justify-between border-b py-1 last:border-0" style="border-color: var(--color-border);">
                                 <span style="color: var(--color-text-muted);">${dia}</span>
                                 <span style="color: ${semAjuste ? 'var(--color-warning)' : 'var(--color-text-secondary)'};">
-                                    Orig: R$ ${original.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                    · Ajust: R$ ${ajustado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    Ajust.: R$ ${ajustado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                     ${semAjuste ? ' · sem ajustado no dia' : ''}
                                 </span>
                             </div>
                         `);
+                        }
+                        dailyAuditEl.innerHTML = rows.join('');
                     }
-                    dailyAuditEl.innerHTML = rows.join('');
                 }
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             })
             .catch(err => {
                 console.error('Erro ao carregar devoluções:', err);
@@ -471,10 +659,10 @@
             const pctStr = percentCliente.toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
             const valStr = 'R$ ' + (client.value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             const volStr = (client.volume || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' t';
-            return `<div class="surface p-4 border-l-4" style="border-color: var(--color-danger);">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-body font-semibold" style="color: var(--color-text);">${(client.name || 'Cliente').replace(/</g,'&lt;')}</p>
-                    <span class="text-caption px-2 py-1 rounded-full font-bold" style="background: var(--color-warning-bg); color: var(--color-warning);">${pctStr}</span>
+            return `<div class="delivery-route-card border p-3" style="border-color: var(--color-danger); border-left-width: 4px;">
+                <div class="mb-2 flex items-center justify-between">
+                    <p class="text-sm font-semibold" style="color: var(--color-text);">${(client.name || 'Cliente').replace(/</g,'&lt;')}</p>
+                    <span class="rounded-full px-2 py-1 text-caption font-bold" style="background: var(--color-warning-bg); color: var(--color-warning);">${pctStr}</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-caption">
                     <div><p style="color: var(--color-text-muted);">Valor devolvido</p><p class="font-bold" style="color: var(--color-danger);">${valStr}</p></div>
@@ -483,6 +671,7 @@
             </div>`;
         }).join('');
         detailsDiv.classList.remove('hidden');
+        detailsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
@@ -498,6 +687,10 @@
         loadReturnData();
         document.getElementById('btnHelpDevolucao')?.addEventListener('click', () => {
             document.getElementById('modalHelpDevolucao')?.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+        document.getElementById('btnRefreshReturns')?.addEventListener('click', () => {
+            loadReturnData();
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });
         document.getElementById('btnHelpCargaDescarga')?.addEventListener('click', () => {

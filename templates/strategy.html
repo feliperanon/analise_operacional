@@ -1,966 +1,541 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Estratégia e inteligência · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / BI e métricas / Estratégia</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Estratégia e inteligência</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Curva ABC, produtividade, SLA e custo operacional no mesmo ritmo do cadastro de colaboradores</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/strategy.css">
+{% endblock %}
 
 {% block content %}
-<div class="p-8">
-    <div class="max-w-7xl mx-auto">
-        <!-- Header & Filters -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-white mb-2">Estratégia & Inteligência 🧠</h1>
-                <p class="text-slate-400">Análise de clientes, horários, custos e eficiência.</p>
-            </div>
 
-            <!-- Filters -->
-            <div class="flex items-center gap-3">
-                <div class="bg-slate-800 p-2 rounded-xl flex items-center gap-3 border border-slate-700 shadow-lg">
-                    <!-- Date -->
-                    <input type="date" id="strategy-date"
-                        class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none">
+<div id="strategy-cockpit" class="ga-employee-theme employees-shell employees-page employees-page--premium strategy-page space-y-5 pt-2 md:pt-3" aria-busy="false">
 
-                    <div class="w-px h-6 bg-slate-600"></div>
-
-                    <!-- Shift -->
-                    <select id="strategy-shift"
-                        class="bg-transparent text-white text-sm font-bold border-none focus:ring-0 cursor-pointer outline-none [&>option]:bg-slate-800">
-                        <option value="Todos">Todos os Turnos</option>
-                        <option value="Manhã">Manhã</option>
-                        <option value="Tarde">Tarde</option>
-                        <option value="Noite">Noite</option>
-                    </select>
-                </div>
-                
-                <!-- Refresh Button -->
-                <button onclick="loadStrategyData()" id="refresh-btn"
-                    class="bg-slate-800 hover:bg-slate-700 p-2.5 rounded-xl border border-slate-700 shadow-lg transition-all group">
-                    <svg class="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" id="refresh-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                </button>
-                
-                <!-- Export Button -->
-                <button onclick="exportReport()" 
-                    class="bg-green-600 hover:bg-green-500 px-4 py-2.5 rounded-xl text-white text-sm font-bold shadow-lg transition-all flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Exportar
-                </button>
-            </div>
-        </div>
-
-        <!-- Global KPIs -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <!-- Produtividade Global -->
-            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div class="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="flex justify-between items-start relative z-10">
-                    <div>
-                        <p class="text-xs font-bold text-slate-500 uppercase">Produtividade</p>
-                        <div class="mt-1 flex items-baseline gap-2">
-                            <span id="kpi-global-kgh" class="text-2xl font-bold text-white skeleton-text">---</span>
-                            <span class="text-sm text-slate-400">Kg/h</span>
-                        </div>
-                    </div>
-                    <div id="kpi-kgh-change" class="text-xs font-bold px-2 py-1 rounded hidden">
-                        <span id="kpi-kgh-change-text"></span>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-center gap-2 relative z-10">
-                    <div class="flex-1 bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                        <div id="kpi-meta-bar" class="h-full bg-green-500 transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                    <span id="kpi-meta-text" class="text-xs text-slate-400">0% da meta</span>
-                </div>
-            </div>
-
-            <!-- Ociosidade Média -->
-            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div class="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="relative z-10">
-                    <p class="text-xs font-bold text-slate-500 uppercase">Ociosidade Média</p>
-                    <div class="mt-1 flex items-baseline gap-2">
-                        <span id="kpi-avg-idle" class="text-2xl font-bold text-white skeleton-text">---</span>
-                    </div>
-                    <p class="text-xs text-slate-400 mt-2">Por colaborador (hoje)</p>
-                </div>
-            </div>
-
-            <!-- Rotas Concluídas -->
-            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div class="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="flex justify-between items-start relative z-10">
-                    <div>
-                        <p class="text-xs font-bold text-slate-500 uppercase">Rotas Concluídas</p>
-                        <div class="mt-1 flex items-baseline gap-2">
-                            <span id="kpi-routes" class="text-2xl font-bold text-white skeleton-text">---</span>
-                            <span class="text-sm text-slate-400">rotas</span>
-                        </div>
-                    </div>
-                    <div class="bg-blue-500/20 p-2 rounded-lg">
-                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5">
+            <div class="flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+                <div class="flex min-w-0 items-start gap-4">
+                    <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                        <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                         </svg>
                     </div>
-                </div>
-                <p class="text-xs text-slate-400 mt-2 relative z-10">Volume: <span id="kpi-vol-day" class="font-mono text-slate-300">0 kg</span></p>
-            </div>
-
-            <!-- Colaboradores Ativos -->
-            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg relative overflow-hidden group">
-                <div class="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div class="flex justify-between items-start relative z-10">
-                    <div>
-                        <p class="text-xs font-bold text-slate-500 uppercase">Colaboradores</p>
-                        <div class="mt-1 flex items-baseline gap-2">
-                            <span id="kpi-employees" class="text-2xl font-bold text-white skeleton-text">---</span>
-                            <span class="text-sm text-slate-400">ativos</span>
+                    <div class="min-w-0">
+                        <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                            Cockpit gerencial
+                        </span>
+                        <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Operação em tempo real</h2>
+                        <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                                <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+                                <span id="strategy-chip-routes">— rotas no dia</span>
+                            </span>
+                            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                                <span id="strategy-chip-volume">— kg movimentados</span>
+                            </span>
+                            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                                <span id="strategy-chip-meta">— % da meta</span>
+                            </span>
                         </div>
                     </div>
-                    <div class="bg-green-500/20 p-2 rounded-lg">
-                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </div>
+                <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+                    <button type="button" onclick="exportReport()" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" title="Gera PDF no navegador">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </span>
+                        <span class="employees-cta__label">Exportar PDF</span>
+                    </button>
+                </div>
+            </div>
+            <div class="strategy-hero-toolbar flex flex-col gap-3 border-t border-gray-200 pt-4 dark:border-gray-800 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+                <div class="flex flex-wrap items-end gap-3">
+                    <div class="flex flex-col gap-1">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Data</span>
+                        <input type="date" id="strategy-date" class="strategy-toolbar-date min-w-[10.5rem]" autocomplete="off">
+                    </div>
+                    <button type="button" onclick="loadStrategyData()" id="refresh-btn" class="strategy-refresh-btn ops-toolbar-ghost-btn employees-filter-bar__btn inline-flex items-center gap-2 self-end" title="Recarregar dados da data selecionada (todos os turnos)">
+                        <svg class="h-4 w-4 text-slate-500 dark:text-slate-400" id="refresh-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                         </svg>
-                    </div>
+                        <span class="text-sm font-medium">Atualizar</span>
+                    </button>
+                    <button type="button" onclick="strategyClearKpiFilter()" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar self-end border-0 bg-transparent py-2 text-left sm:text-left" title="Desativa o cartão de KPI selecionado e volta a exibir todas as linhas nas tabelas (motoristas, ABC, SLA) sem recorte">
+                        Limpar recortes dos KPIs
+                    </button>
                 </div>
-                <p class="text-xs text-slate-400 mt-2 relative z-10">Com movimentação no turno</p>
-            </div>
-        </div>
-
-        <!-- Alerts Section -->
-        <div id="alerts-section" class="mb-6">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                    <h3 class="text-sm font-bold text-white">Alertas & Insights</h3>
-                </div>
-                <div id="alerts-container" class="flex flex-wrap gap-2">
-                    <div class="skeleton-box h-8 w-48 rounded-lg"></div>
-                    <div class="skeleton-box h-8 w-56 rounded-lg"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Cost Calculator -->
-        <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 shadow-lg mb-6">
-            <p class="text-xs font-bold text-slate-500 uppercase mb-3">Calculadora de Custo Operacional</p>
-            <div class="flex flex-col md:flex-row gap-4 items-end">
-                <div class="flex-1 w-full">
-                    <label class="text-xs text-slate-400 mb-1 block">Folha Mensal (R$)</label>
-                    <input type="number" id="payroll-input" placeholder="Ex: 50000"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                        onkeyup="calcCost()">
-                </div>
-                <div class="flex-1 w-full">
-                    <p class="text-xs text-slate-400 mb-1">Volume Total (Ref.)</p>
-                    <p class="text-lg font-mono text-slate-300 border-b border-slate-700 pb-1" id="total-vol" data-val="0">...</p>
-                </div>
-                <div class="flex-1 bg-slate-700/50 p-3 rounded-lg text-center w-full border border-slate-600">
-                    <p class="text-xs text-slate-400">Custo por Tonelada</p>
-                    <p class="text-xl font-bold text-green-400" id="cost-result">R$ -</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- 1. ABC Curve -->
-        <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <span>1. Curva ABC de Clientes</span>
-            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">Pareto 80/20</span>
-        </h2>
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
-            <div class="overflow-x-auto max-h-96 custom-scrollbar">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
-                        <tr>
-                            <th class="px-6 py-4">Classificação</th>
-                            <th class="px-6 py-4">Cliente</th>
-                            <th class="px-6 py-4">Volume (Kg)</th>
-                            <th class="px-6 py-4">% Acumulado</th>
-                            <th class="px-6 py-4">Visual</th>
-                        </tr>
-                    </thead>
-                    <tbody id="abc-table-body" class="divide-y divide-slate-700 text-sm">
-                        <tr><td colspan="5" class="p-8 text-center text-slate-500">Carregando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 2. Productivity Chart -->
-        <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <span>2. Evolução de Produtividade (30 dias)</span>
-            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">📈</span>
-        </h2>
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg p-6 mb-8">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-4 text-xs">
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        <span class="text-slate-400">Produtividade Real</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-0.5 bg-amber-500/50 border-t-2 border-dashed border-amber-500"></div>
-                        <span class="text-slate-400">Meta (<span id="chart-target-label">0</span> Kg/h)</span>
-                    </div>
-                </div>
-            </div>
-            <div class="relative h-80 w-full">
-                <canvas id="prodChart"></canvas>
-            </div>
-        </div>
-
-        <!-- 3. Individual Productivity -->
-        <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
-            <span>3. Produtividade Individual & Ociosidade</span>
-            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">⏱️</span>
-        </h2>
-        
-        <!-- Search & Sort Controls -->
-        <div class="flex flex-col md:flex-row gap-3 mb-4">
-            <div class="flex-1 relative">
-                <input type="text" id="productivity-search" placeholder="Buscar colaborador..."
-                    class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 pl-10 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                    oninput="filterProductivityTable()">
-                <svg class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                </svg>
-            </div>
-            <div class="flex gap-2">
-                <button onclick="sortProductivity('kgh')" data-sort="kgh" data-dir="desc"
-                    class="sort-btn bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 border border-slate-700 transition-all flex items-center gap-2">
-                    <span>Kg/h</span>
-                    <svg class="w-4 h-4 sort-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </button>
-                <button onclick="sortProductivity('idle')" data-sort="idle" data-dir="asc"
-                    class="sort-btn bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 border border-slate-700 transition-all flex items-center gap-2">
-                    <span>Ociosidade</span>
-                    <svg class="w-4 h-4 sort-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </button>
-                <button onclick="sortProductivity('name')" data-sort="name" data-dir="asc"
-                    class="sort-btn bg-slate-800 hover:bg-slate-700 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 border border-slate-700 transition-all flex items-center gap-2">
-                    <span>Nome</span>
-                    <svg class="w-4 h-4 sort-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-        
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
-            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
-                        <tr>
-                            <th class="px-6 py-4">#</th>
-                            <th class="px-6 py-4">Colaborador</th>
-                            <th class="px-6 py-4">Produtividade</th>
-                            <th class="px-6 py-4">Progresso</th>
-                            <th class="px-6 py-4">Tempo Ativo</th>
-                            <th class="px-6 py-4">Tempo Ocioso</th>
-                            <th class="px-6 py-4">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="productivity-table-body" class="divide-y divide-slate-700 text-sm">
-                        <tr><td colspan="7" class="p-8 text-center text-slate-500">Carregando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 4. Helper Productivity -->
-        <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
-            <span>4. Produtividade dos Ajudantes</span>
-            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">👥 apoio em rota</span>
-        </h2>
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-900/30">
-                <p class="text-sm text-slate-300">Avaliação dos ajudantes vinculados às rotas no dia. A produtividade considera as rotas em que cada ajudante participou.</p>
-            </div>
-            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
-                        <tr>
-                            <th class="px-6 py-4">#</th>
-                            <th class="px-6 py-4">Colaborador</th>
-                            <th class="px-6 py-4">Produtividade</th>
-                            <th class="px-6 py-4">Progresso</th>
-                            <th class="px-6 py-4">Tempo Ativo</th>
-                            <th class="px-6 py-4">Tempo Ocioso</th>
-                            <th class="px-6 py-4">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="helper-productivity-table-body" class="divide-y divide-slate-700 text-sm">
-                        <tr><td colspan="7" class="p-8 text-center text-slate-500">Carregando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 5. Team Productivity -->
-        <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
-            <span>5. Visão Geral da Equipe</span>
-            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">motoristas + ajudantes</span>
-        </h2>
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden mb-8">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-900/30">
-                <p class="text-sm text-slate-300">Consolidação de todos os participantes das rotas no dia, incluindo motoristas, ajudantes e quem atuou nos dois papéis.</p>
-            </div>
-            <div class="overflow-x-auto max-h-[500px] custom-scrollbar">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-900/80 text-xs uppercase text-slate-400 font-bold sticky top-0 backdrop-blur-sm z-10">
-                        <tr>
-                            <th class="px-6 py-4">#</th>
-                            <th class="px-6 py-4">Colaborador</th>
-                            <th class="px-6 py-4">Produtividade</th>
-                            <th class="px-6 py-4">Progresso</th>
-                            <th class="px-6 py-4">Tempo Ativo</th>
-                            <th class="px-6 py-4">Tempo Ocioso</th>
-                            <th class="px-6 py-4">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="team-productivity-table-body" class="divide-y divide-slate-700 text-sm">
-                        <tr><td colspan="7" class="p-8 text-center text-slate-500">Carregando...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 6. SLA Ranking -->
-        <h2 class="text-xl font-bold text-white mb-4 mt-8 flex items-center gap-2">
-            <span>6. SLA de Atendimento (Gargalos)</span>
-            <span class="text-xs font-normal text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700">⏱️</span>
-        </h2>
-        <div class="bg-slate-800 rounded-2xl border border-slate-700 shadow-lg overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-900/50 text-xs uppercase text-slate-400 font-bold">
-                        <tr>
-                            <th class="px-6 py-4">Cliente</th>
-                            <th class="px-6 py-4">Tempo Médio (SLA)</th>
-                            <th class="px-6 py-4">Qtd. Rotas</th>
-                            <th class="px-6 py-4">Impacto</th>
-                        </tr>
-                    </thead>
-                    <tbody id="sla-table-body" class="divide-y divide-slate-700 text-sm">
-                        <tr><td colspan="4" class="p-8 text-center text-slate-500">Carregando...</td></tr>
-                    </tbody>
-                </table>
+                <p class="m-0 max-w-md text-[11px] leading-snug employees-text-caption sm:text-right">Métricas do dia consideram <strong>todos os turnos</strong>. Use os cartões abaixo para filtrar visualização.</p>
             </div>
         </div>
     </div>
+
+    <div class="sys-kpi-shell w-full">
+        <p id="strategy-kpi-hint" class="sr-only">Cartões clicáveis: filtram tabelas ou rolam até ABC e SLA. Clique de novo no mesmo cartão para limpar o recorte.</p>
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Indicadores do dia" aria-describedby="strategy-kpi-hint">
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(99, 102, 241, 0.72);" data-strategy-kpi="prod" role="button" tabindex="0" onclick="strategyApplyKpiFilter('prod')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('prod');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-indigo-600 dark:text-indigo-300">Produtividade</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-global-kgh" class="employees-kpi__value tabular-nums skeleton-text">—</span>
+                                <span class="employees-kpi__denom text-sm">kg/h</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-indigo-500 transition group-hover:scale-110 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta w-full space-y-1">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 rounded-full h-1.5 overflow-hidden bg-slate-200 dark:bg-slate-700">
+                                <div id="kpi-meta-bar" class="h-full bg-emerald-500 transition-all duration-500" style="width:0%"></div>
+                            </div>
+                            <span id="kpi-meta-text" class="text-[10px] font-semibold employees-text-muted">0%</span>
+                        </div>
+                        <div id="kpi-kgh-change" class="hidden text-[10px] font-bold">
+                            <span id="kpi-kgh-change-text"></span>
+                        </div>
+                        <span class="employees-text-muted text-[11px]">Vs. dia anterior · clique para ir à tabela</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);" data-strategy-kpi="idle-high" role="button" tabindex="0" onclick="strategyApplyKpiFilter('idle-high')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('idle-high');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-red-600 dark:text-red-300">Ociosidade</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-avg-idle" class="employees-kpi__value tabular-nums skeleton-text">—</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-red-400 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">Média motoristas · filtra &gt;2h ociosos</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);" data-strategy-kpi="routes" role="button" tabindex="0" onclick="strategyApplyKpiFilter('routes')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('routes');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Rotas</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-routes" class="employees-kpi__value tabular-nums skeleton-text">—</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">Volume: <span id="kpi-vol-day" class="font-mono employees-text-body">0 kg</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);" data-strategy-kpi="employees" role="button" tabindex="0" onclick="strategyApplyKpiFilter('employees')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('employees');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Equipe ativa</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-employees" class="employees-kpi__value tabular-nums skeleton-text">—</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">Colaboradores com rota no recorte</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);" data-strategy-kpi="abc-a" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-a')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('abc-a');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Clientes A</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-abc-a" class="employees-kpi__value tabular-nums">—</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">A</span>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">Curva ABC · Pareto</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);" data-strategy-kpi="abc-b" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-b')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('abc-b');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Clientes B</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-abc-b" class="employees-kpi__value tabular-nums">—</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400">B</span>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">Transição e revisão</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.72);" data-strategy-kpi="abc-c" role="button" tabindex="0" onclick="strategyApplyKpiFilter('abc-c')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('abc-c');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Clientes C</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-abc-c" class="employees-kpi__value tabular-nums">—</span>
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-500">C</span>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">Cauda longa</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(244, 63, 94, 0.72);" data-strategy-kpi="sla-critical" role="button" tabindex="0" onclick="strategyApplyKpiFilter('sla-critical')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('sla-critical');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-rose-600 dark:text-rose-300">SLA crítico</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-sla-critical" class="employees-kpi__value tabular-nums">—</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-rose-500 transition group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">Clientes &gt;1h no ranking</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(34, 197, 94, 0.72);" data-strategy-kpi="elite" role="button" tabindex="0" onclick="strategyApplyKpiFilter('elite')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('elite');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Elite</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-elite" class="employees-kpi__value tabular-nums">—</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">&gt;300 kg/h</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sys-kpi-card employees-kpi ops-card--interactive strategy-kpi-card group" style="--employees-kpi-accent: rgba(249, 115, 22, 0.72);" data-strategy-kpi="below-meta" role="button" tabindex="0" onclick="strategyApplyKpiFilter('below-meta')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();strategyApplyKpiFilter('below-meta');}">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Abaixo da meta</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="kpi-below-meta" class="employees-kpi__value tabular-nums">—</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-orange-500 transition group-hover:scale-110 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted text-[11px]">&lt;150 kg/h com movimento</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="strategy-panel-priorities" class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b border-gray-200 px-5 py-5 sm:px-6 dark:border-gray-800 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-text-section-label">Decisão do dia</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Resumo executivo e prioridades</h3>
+                <p id="strategy-exec-summary" class="strategy-exec-summary mt-3 max-w-3xl" aria-live="polite" aria-atomic="true">
+                    Carregando leitura consolidada…
+                </p>
+            </div>
+            <div class="max-w-sm text-xs leading-relaxed employees-text-caption lg:text-right lg:pt-1">
+                Prioridades classificadas em três severidades. Use os KPIs acima para recortar a operação sem perder o contexto.
+            </div>
+        </div>
+        <div class="px-5 py-4 sm:px-6 sm:py-5">
+            <p class="employees-text-section-label mb-3">Filas de atenção</p>
+            <div id="strategy-priority-columns" class="strategy-priority-grid">
+                <div class="strategy-priority-column strategy-priority-column--critical">
+                    <p class="strategy-priority-column__title">Crítico</p>
+                    <p class="employees-text-muted text-xs m-0">Carregando…</p>
+                </div>
+                <div class="strategy-priority-column strategy-priority-column--attention">
+                    <p class="strategy-priority-column__title">Atenção</p>
+                    <p class="employees-text-muted text-xs m-0">Carregando…</p>
+                </div>
+                <div class="strategy-priority-column strategy-priority-column--opportunity">
+                    <p class="strategy-priority-column__title">Oportunidade</p>
+                    <p class="employees-text-muted text-xs m-0">Carregando…</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="strategy-panel-workspace" class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-2 border-b border-gray-200 px-5 py-5 sm:px-6 dark:border-gray-800">
+            <p class="employees-text-section-label">Workspace analítico</p>
+            <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Tendência e curva ABC</h3>
+            <p class="employees-table-panel__lede mt-2 max-w-3xl text-sm">
+                O gráfico usa só <strong>dias com entrega e janela de tempo válida</strong> nos últimos 30 dias (fins de semana e dias sem movimentação não entram no eixo). Carrega ao rolar até o bloco. A curva ABC traz busca, paginação e detalhe do cliente selecionado.
+            </p>
+        </div>
+        <div class="p-5 sm:p-6 space-y-8">
+            <div>
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <h4 class="text-sm font-semibold employees-text-strong m-0">Evolução de produtividade (dias operacionais)</h4>
+                    <div class="flex flex-wrap items-center gap-4 text-xs employees-text-muted">
+                        <span class="inline-flex items-center gap-2"><span class="h-2 w-2 rounded-full bg-emerald-500"></span> Real</span>
+                        <span class="inline-flex items-center gap-2"><span class="h-0.5 w-6 border-t-2 border-dashed border-amber-500"></span> Meta <span id="chart-target-label" class="tabular-nums">0</span> kg/h</span>
+                    </div>
+                </div>
+                <div class="strategy-chart-mount strategy-chart-surface relative min-h-[16rem] rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900/40 p-4" id="strategy-chart-mount">
+                    <p id="strategy-chart-status" class="absolute inset-0 z-10 m-0 flex items-center justify-center px-4 text-center text-sm employees-text-muted" aria-live="polite">Aguardando visualização…</p>
+                    <div id="strategy-chart-canvas-wrap" class="relative h-80 w-full opacity-0 transition-opacity duration-200">
+                        <canvas id="prodChart" class="max-h-80 w-full"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="strategy-panel-abc" class="rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+                <div class="flex flex-col gap-3 border-b border-gray-200 bg-gray-50/80 px-4 py-4 sm:px-5 dark:border-gray-800 dark:bg-gray-900/50 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0">
+                        <h4 class="text-sm font-semibold employees-text-strong m-0">Curva ABC da carteira</h4>
+                        <p id="abc-summary-pareto" class="employees-text-muted text-xs mt-1 m-0">Pareto 80/20 · janela móvel 30 dias</p>
+                    </div>
+                    <div class="w-full sm:w-auto sm:min-w-[14rem]">
+                        <label class="sr-only" for="abc-search">Buscar cliente na ABC</label>
+                        <div class="ops-toolbar-search employees-filter-bar__search">
+                            <svg class="h-4 w-4 flex-shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input type="search" id="abc-search" class="ops-toolbar-search__input" placeholder="Buscar cliente…" autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+                <div class="sys-table-wrap sys-table-wrap--x-scroll strategy-table-panel">
+                    <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm">
+                        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                            <tr>
+                                <th class="employees-data-table__th px-4 py-3">Classe</th>
+                                <th class="employees-data-table__th px-4 py-3">Cliente</th>
+                                <th class="employees-data-table__th px-4 py-3">Volume (kg)</th>
+                                <th class="employees-data-table__th px-4 py-3">Participação</th>
+                                <th class="employees-data-table__th px-4 py-3 w-48">Visual</th>
+                            </tr>
+                        </thead>
+                        <tbody id="abc-table-body" class="employees-data-table__body divide-y divide-gray-200 dark:divide-gray-800">
+                            <tr><td colspan="5" class="p-8 text-center employees-text-muted text-sm">Carregando…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800">
+                    <div id="abc-drill-panel" class="strategy-abc-drill strategy-abc-drill--placeholder flex-1 min-w-0">
+                        <p class="strategy-abc-drill__title">Detalhe do cliente</p>
+                        <p id="abc-drill-body" class="strategy-abc-drill__body strategy-abc-drill__body--hint m-0 text-sm employees-text-muted">Clique em uma linha da tabela para ver volume, participação e rotas.</p>
+                    </div>
+                    <button type="button" id="abc-load-more" class="sys-btn sys-btn--secondary justify-center shrink-0 hidden">Carregar mais linhas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="strategy-panel-drivers" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0 strategy-table-panel strategy-table-panel--tall">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Motoristas</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Produtividade individual</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Mesma densidade da lista de colaboradores: ordenação explícita e busca por nome.</p>
+            </div>
+            <div class="strategy-productivity-toolbar flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-stretch lg:min-w-[18rem] lg:flex-1 lg:max-w-none">
+                <div class="ops-toolbar-search employees-filter-bar__search min-w-0 flex-1">
+                    <label class="sr-only" for="productivity-search">Filtrar por nome do motorista</label>
+                    <svg class="h-4 w-4 flex-shrink-0 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <input type="search" id="productivity-search" placeholder="Buscar por nome…" autocomplete="off" enterkeyhint="search" class="ops-toolbar-search__input min-w-0">
+                </div>
+                <div class="flex flex-shrink-0 flex-wrap gap-2 sm:items-center" role="toolbar" aria-label="Ordenar produtividade dos motoristas">
+                    <button type="button" onclick="sortProductivity('kgh')" data-sort="kgh" data-dir="desc" aria-pressed="true" title="Ordenar por kg/h. Clique para inverter." class="strategy-sort-btn is-active sort-btn ops-toolbar-ghost-btn employees-filter-bar__btn whitespace-nowrap px-3 py-2 text-xs">
+                        <span>Kg/h</span>
+                        <svg class="sort-icon inline h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <button type="button" onclick="sortProductivity('idle')" data-sort="idle" data-dir="asc" aria-pressed="false" title="Ordenar por tempo ocioso. Clique para inverter." class="strategy-sort-btn sort-btn ops-toolbar-ghost-btn employees-filter-bar__btn whitespace-nowrap px-3 py-2 text-xs">
+                        <span>Ociosidade</span>
+                        <svg class="sort-icon inline h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <button type="button" onclick="sortProductivity('name')" data-sort="name" data-dir="asc" aria-pressed="false" title="Ordenar por nome. Clique para inverter." class="strategy-sort-btn sort-btn ops-toolbar-ghost-btn employees-filter-bar__btn whitespace-nowrap px-3 py-2 text-xs">
+                        <span>Nome</span>
+                        <svg class="sort-icon inline h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-3 py-2 w-10">#</th>
+                        <th class="employees-data-table__th px-3 py-2">Colaborador</th>
+                        <th class="employees-data-table__th px-3 py-2">Produtividade</th>
+                        <th class="employees-data-table__th px-3 py-2">Progresso</th>
+                        <th class="employees-data-table__th px-3 py-2">Ativo</th>
+                        <th class="employees-data-table__th px-3 py-2">Ocioso</th>
+                        <th class="employees-data-table__th px-3 py-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="productivity-table-body" class="employees-data-table__body divide-y">
+                    <tr><td colspan="7" class="p-8 text-center employees-text-muted text-sm">Carregando…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0 strategy-table-panel strategy-table-panel--tall">
+        <div class="employees-table-panel__head border-b px-5 py-5 sm:px-6">
+            <p class="employees-table-panel__kicker">Ajudantes</p>
+            <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Produtividade em rota de apoio</h3>
+            <p class="employees-table-panel__lede mt-2 max-w-2xl text-sm">Rotas vinculadas ao dia; mesma métrica de kg/h e ociosidade frente à jornada.</p>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-3 py-2 w-10">#</th>
+                        <th class="employees-data-table__th px-3 py-2">Colaborador</th>
+                        <th class="employees-data-table__th px-3 py-2">Produtividade</th>
+                        <th class="employees-data-table__th px-3 py-2">Progresso</th>
+                        <th class="employees-data-table__th px-3 py-2">Ativo</th>
+                        <th class="employees-data-table__th px-3 py-2">Ocioso</th>
+                        <th class="employees-data-table__th px-3 py-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="helper-productivity-table-body" class="employees-data-table__body divide-y">
+                    <tr><td colspan="7" class="p-8 text-center employees-text-muted text-sm">Carregando…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0 strategy-table-panel strategy-table-panel--tall">
+        <div class="employees-table-panel__head border-b px-5 py-5 sm:px-6">
+            <p class="employees-table-panel__kicker">Equipe consolidada</p>
+            <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Motoristas e ajudantes</h3>
+            <p class="employees-table-panel__lede mt-2 max-w-2xl text-sm">Visão única para comparar papéis e desempenho no mesmo recorte de data e turno.</p>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-3 py-2 w-10">#</th>
+                        <th class="employees-data-table__th px-3 py-2">Colaborador</th>
+                        <th class="employees-data-table__th px-3 py-2">Produtividade</th>
+                        <th class="employees-data-table__th px-3 py-2">Progresso</th>
+                        <th class="employees-data-table__th px-3 py-2">Ativo</th>
+                        <th class="employees-data-table__th px-3 py-2">Ocioso</th>
+                        <th class="employees-data-table__th px-3 py-2">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="team-productivity-table-body" class="employees-data-table__body divide-y">
+                    <tr><td colspan="7" class="p-8 text-center employees-text-muted text-sm">Carregando…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="strategy-panel-sla" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head border-b px-5 py-5 sm:px-6">
+            <p class="employees-table-panel__kicker">SLA</p>
+            <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Gargalos de atendimento</h3>
+            <p class="employees-table-panel__lede mt-2 max-w-2xl text-sm">Tempo médio por cliente no dia filtrado; priorize quem aparece como crítico.</p>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-4 py-3">Cliente</th>
+                        <th class="employees-data-table__th px-4 py-3">Tempo médio</th>
+                        <th class="employees-data-table__th px-4 py-3">Rotas</th>
+                        <th class="employees-data-table__th px-4 py-3">Impacto</th>
+                    </tr>
+                </thead>
+                <tbody id="sla-table-body" class="employees-data-table__body divide-y">
+                    <tr><td colspan="4" class="p-8 text-center employees-text-muted text-sm">Carregando…</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <details class="sys-card sys-card--surface sys-card--comfort strategy-cost-details group">
+        <summary class="flex flex-wrap items-center justify-between gap-2">
+            <span class="inline-flex items-center gap-2">
+                <span class="text-slate-400 transition-transform group-open:rotate-90 dark:text-slate-500" aria-hidden="true">▸</span>
+                <span>Calculadora de custo operacional (simulação)</span>
+            </span>
+            <span class="text-xs font-normal employees-text-muted">Volume referência vem dos KPIs carregados</span>
+        </summary>
+        <div class="mt-4 grid gap-4 sm:grid-cols-3">
+            <div>
+                <label class="employees-text-section-label text-[10px] mb-1 block" for="payroll-input">Folha mensal (R$)</label>
+                <input type="number" id="payroll-input" placeholder="Ex.: 50000" class="sys-input w-full" oninput="calcCost()" autocomplete="off">
+            </div>
+            <div>
+                <p class="employees-text-section-label text-[10px] mb-1">Volume total (referência)</p>
+                <p class="text-base font-mono employees-text-strong border-b border-gray-200 pb-1 dark:border-gray-700" id="total-vol" data-val="0">—</p>
+            </div>
+            <div class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-center dark:border-gray-700 dark:bg-gray-900/40">
+                <p class="text-xs employees-text-muted m-0">Custo por tonelada</p>
+                <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400 m-0 mt-1" id="cost-result">R$ —</p>
+            </div>
+        </div>
+    </details>
+
 </div>
 
-<!-- Dependencies -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-
-<!-- Logic -->
-<script>
-    let prodChartInstance = null;
-    let currentData = null;
-    let productivityData = [];
-    let helperProductivityData = [];
-    let teamProductivityData = [];
-    let currentSort = { field: 'kgh', dir: 'desc' };
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const dateInput = document.getElementById('strategy-date');
-        if (!dateInput.value) {
-            dateInput.value = new Date().toISOString().split('T')[0];
-        }
-
-        document.getElementById('strategy-date').addEventListener('change', loadStrategyData);
-        document.getElementById('strategy-shift').addEventListener('change', loadStrategyData);
-
-        loadStrategyData();
-    });
-
-    async function loadStrategyData() {
-        const date = document.getElementById('strategy-date').value;
-        const shift = document.getElementById('strategy-shift').value;
-
-        // Show loading state
-        const refreshIcon = document.getElementById('refresh-icon');
-        refreshIcon.classList.add('animate-spin');
-        document.body.style.cursor = 'wait';
-        
-        // Add skeleton loading to KPIs
-        document.querySelectorAll('.skeleton-text').forEach(el => el.classList.add('animate-pulse', 'bg-slate-700', 'rounded'));
-
-        try {
-            const response = await fetch(`/api/strategy?date=${date}&shift=${shift}`);
-            if (!response.ok) throw new Error("Falha ao carregar dados");
-
-            const data = await response.json();
-            currentData = data;
-            productivityData = [...(data.productivity || [])];
-            helperProductivityData = [...(data.helper_productivity || [])];
-            teamProductivityData = [...(data.team_productivity || [])];
-            renderAll(data);
-        } catch (error) {
-            console.error(error);
-            showToast("Erro ao carregar dados da API.", "error");
-        } finally {
-            document.body.style.cursor = 'default';
-            refreshIcon.classList.remove('animate-spin');
-            document.querySelectorAll('.skeleton-text').forEach(el => el.classList.remove('animate-pulse', 'bg-slate-700', 'rounded'));
-        }
-    }
-
-    function renderAll(data) {
-        renderKPIs(data.kpi);
-        renderAlerts(data.alerts);
-        renderABC(data.abc_data);
-        renderChart(data.prod_chart_labels, data.prod_chart_data, data.prod_chart_target);
-        renderProductivityTable('productivity-table-body', productivityData, data.kpi.target_kgh, {
-            emptyMessage: 'Sem dados de movimentação.',
-            rowClass: 'driver-productivity-row'
-        });
-        renderProductivityTable('helper-productivity-table-body', helperProductivityData, data.kpi.target_kgh, {
-            emptyMessage: 'Nenhum ajudante vinculado às rotas deste período.',
-            rowClass: 'helper-productivity-row'
-        });
-        renderProductivityTable('team-productivity-table-body', teamProductivityData, data.kpi.target_kgh, {
-            emptyMessage: 'Sem dados consolidados da equipe.',
-            rowClass: 'team-productivity-row'
-        });
-        renderSLA(data.sla_ranking);
-    }
-
-    function renderKPIs(kpi) {
-        document.getElementById('kpi-global-kgh').innerText = kpi.global_kgh;
-        document.getElementById('kpi-avg-idle').innerText = kpi.avg_idle;
-        document.getElementById('kpi-routes').innerText = kpi.routes_count || 0;
-        document.getElementById('kpi-employees').innerText = kpi.employees_count || 0;
-        document.getElementById('kpi-vol-day').innerText = kpi.total_vol + " kg";
-        document.getElementById('total-vol').innerText = kpi.total_vol + " kg";
-        document.getElementById('total-vol').dataset.val = kpi.total_vol_raw || 0;
-
-        // Meta progress bar
-        const metaPercent = Math.min(kpi.meta_percent || 0, 100);
-        document.getElementById('kpi-meta-bar').style.width = metaPercent + '%';
-        document.getElementById('kpi-meta-bar').className = `h-full transition-all duration-500 ${metaPercent >= 100 ? 'bg-green-500' : metaPercent >= 70 ? 'bg-yellow-500' : 'bg-red-500'}`;
-        document.getElementById('kpi-meta-text').innerText = `${Math.round(metaPercent)}% da meta`;
-
-        // KGH change indicator
-        const kghChange = kpi.kgh_change || 0;
-        const changeEl = document.getElementById('kpi-kgh-change');
-        const changeTextEl = document.getElementById('kpi-kgh-change-text');
-        
-        if (kghChange !== 0) {
-            changeEl.classList.remove('hidden');
-            if (kghChange > 0) {
-                changeEl.className = 'text-xs font-bold px-2 py-1 rounded bg-green-500/20 text-green-400';
-                changeTextEl.innerText = `▲ ${kghChange.toFixed(1)}%`;
-            } else {
-                changeEl.className = 'text-xs font-bold px-2 py-1 rounded bg-red-500/20 text-red-400';
-                changeTextEl.innerText = `▼ ${Math.abs(kghChange).toFixed(1)}%`;
-            }
-        } else {
-            changeEl.classList.add('hidden');
-        }
-
-        calcCost();
-    }
-
-    function renderAlerts(alerts) {
-        const container = document.getElementById('alerts-container');
-        if (!alerts || alerts.length === 0) {
-            container.innerHTML = `<span class="text-slate-500 text-sm">Nenhum alerta no momento.</span>`;
-            return;
-        }
-
-        container.innerHTML = alerts.map(alert => {
-            let bgClass = 'bg-slate-700/50 border-slate-600 text-slate-300';
-            if (alert.type === 'success') bgClass = 'bg-green-500/10 border-green-500/30 text-green-400';
-            else if (alert.type === 'warning') bgClass = 'bg-amber-500/10 border-amber-500/30 text-amber-400';
-            else if (alert.type === 'danger') bgClass = 'bg-red-500/10 border-red-500/30 text-red-400';
-            
-            return `
-                <div class="px-3 py-2 rounded-lg border ${bgClass} text-sm flex items-center gap-2">
-                    <span>${alert.icon}</span>
-                    <span>${alert.message}</span>
-                </div>
-            `;
-        }).join('');
-    }
-
-    function renderABC(abcData) {
-        const tbody = document.getElementById('abc-table-body');
-        if (!abcData || abcData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500">Sem dados suficientes.</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = abcData.map(row => {
-            let badgeClass = "bg-slate-600/20 text-slate-400 border border-slate-600/30";
-            let barColor = "bg-slate-500";
-            let label = "Classe C";
-
-            if (row.class === 'A') {
-                badgeClass = "bg-green-500/20 text-green-400 border border-green-500/30";
-                barColor = "bg-green-500";
-                label = "Classe A";
-            } else if (row.class === 'B') {
-                badgeClass = "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30";
-                barColor = "bg-yellow-500";
-                label = "Classe B";
-            }
-
-            const val = row.tonnage || 0;
-            const share = row.share || 0;
-            const name = row.name || "Desconhecido";
-
-            return `
-                <tr class="hover:bg-slate-700/30 transition-colors">
-                    <td class="px-6 py-4">
-                        <span class="px-3 py-1 rounded-full font-bold text-xs ${badgeClass}">${label}</span>
-                    </td>
-                    <td class="px-6 py-4 font-medium text-white">${name}</td>
-                    <td class="px-6 py-4 text-slate-300 font-mono">${fmt(val)}</td>
-                    <td class="px-6 py-4 text-slate-400">${share.toFixed(1)}%</td>
-                    <td class="px-6 py-4 w-48">
-                        <div class="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                            <div class="h-full ${barColor}" style="width: ${Math.min(share, 100)}%"></div>
-                        </div>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-    }
-
-    function renderChart(labels, values, target) {
-        const ctx = document.getElementById('prodChart').getContext('2d');
-        
-        document.getElementById('chart-target-label').innerText = target || 0;
-
-        if (prodChartInstance) {
-            prodChartInstance.destroy();
-        }
-
-        // Create target line data
-        const targetLine = new Array(labels.length).fill(target || 0);
-
-        prodChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: 'Produtividade (Kg/h)',
-                        data: values,
-                        borderColor: '#34d399',
-                        backgroundColor: 'rgba(52, 211, 153, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.4,
-                        pointBackgroundColor: '#10b981',
-                        pointRadius: 3,
-                        pointHoverRadius: 6,
-                        fill: true
-                    },
-                    {
-                        label: 'Meta',
-                        data: targetLine,
-                        borderColor: '#f59e0b',
-                        borderWidth: 2,
-                        borderDash: [5, 5],
-                        pointRadius: 0,
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: '#1e293b',
-                        titleColor: '#fff',
-                        bodyColor: '#cbd5e1',
-                        borderColor: '#334155',
-                        borderWidth: 1
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: '#334155' },
-                        ticks: { color: '#94a3b8' },
-                        title: { display: true, text: 'Kg/h', color: '#64748b' }
-                    },
-                    x: {
-                        grid: { color: 'transparent' },
-                        ticks: { color: '#94a3b8' }
-                    }
-                }
-            }
-        });
-    }
-
-    function renderProductivityTable(tbodyId, prodList, targetKgh, options = {}) {
-        const tbody = document.getElementById(tbodyId);
-        if (!prodList || prodList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-500">${options.emptyMessage || 'Sem dados de movimentação.'}</td></tr>`;
-            return;
-        }
-
-        const target = targetKgh || 200;
-        const rowClass = options.rowClass || 'productivity-row';
-
-        tbody.innerHTML = prodList.map((row, index) => {
-            const kgh = row.kgh;
-            let kghClass = kgh > 250 ? "text-green-400" : (kgh < 150 ? "text-red-400" : "text-yellow-400");
-
-            const idleH = Math.floor(row.idle_hours);
-            const idleM = Math.floor((row.idle_hours - idleH) * 60);
-            const idleClass = row.idle_hours > 2.0 ? "text-red-400" : "text-green-400";
-
-            const activeH = Math.floor(row.active_hours);
-            const activeM = Math.floor((row.active_hours - activeH) * 60);
-
-            // Progress bar
-            const progress = Math.min((kgh / target) * 100, 100);
-            let progressColor = progress >= 100 ? 'bg-green-500' : progress >= 70 ? 'bg-yellow-500' : 'bg-red-500';
-
-            const roleLabel = row.role_label || 'Motorista';
-            let roleClass = 'bg-slate-700/50 text-slate-300 border border-slate-600/30';
-            if (roleLabel === 'Ajudante') roleClass = 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20';
-            else if (roleLabel === 'Misto') roleClass = 'bg-violet-500/10 text-violet-300 border border-violet-500/20';
-            else if (roleLabel === 'Motorista') roleClass = 'bg-blue-500/10 text-blue-300 border border-blue-500/20';
-
-            let statusBadge = `<span class="bg-slate-700/50 text-slate-400 px-2 py-1 rounded text-xs">Normal</span>`;
-            if (kgh > 300) statusBadge = `<span class="bg-green-500/10 text-green-400 px-2 py-1 rounded text-xs border border-green-500/20">🚀 Elite</span>`;
-            else if (row.idle_hours > 2.0) statusBadge = `<span class="bg-red-500/10 text-red-400 px-2 py-1 rounded text-xs border border-red-500/20">⚠️ Ocioso</span>`;
-
-            // Rank badge
-            let rankBadge = '';
-            if (index === 0) rankBadge = '<span class="text-amber-400">🥇</span>';
-            else if (index === 1) rankBadge = '<span class="text-slate-300">🥈</span>';
-            else if (index === 2) rankBadge = '<span class="text-amber-600">🥉</span>';
-            else rankBadge = `<span class="text-slate-500">${index + 1}</span>`;
-
-            return `
-                <tr class="hover:bg-slate-700/30 transition-colors ${rowClass}" data-name="${row.name.toLowerCase()}">
-                    <td class="px-6 py-4 font-bold">${rankBadge}</td>
-                    <td class="px-6 py-4">
-                        <div class="space-y-1">
-                            <div class="font-medium text-white">${row.name}</div>
-                            <div class="flex flex-wrap items-center gap-2 text-[10px]">
-                                <span class="px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${roleClass}">${roleLabel}</span>
-                                <span class="text-slate-500">${row.route_count || 0} rota(s)</span>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4">
-                        <span class="font-mono ${kghClass} font-bold text-lg">${Math.round(kgh)} Kg/h</span>
-                    </td>
-                    <td class="px-6 py-4 w-32">
-                        <div class="flex items-center gap-2">
-                            <div class="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
-                                <div class="h-full ${progressColor} transition-all" style="width: ${progress}%"></div>
-                            </div>
-                            <span class="text-xs text-slate-400">${Math.round(progress)}%</span>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 text-slate-300">${activeH}h ${activeM}m</td>
-                    <td class="px-6 py-4">
-                        <span class="font-mono ${idleClass} font-bold">${idleH}h ${idleM}m</span>
-                    </td>
-                    <td class="px-6 py-4">${statusBadge}</td>
-                </tr>
-            `;
-        }).join('');
-    }
-
-    function filterProductivityTable() {
-        const search = document.getElementById('productivity-search').value.toLowerCase();
-        document.querySelectorAll('.driver-productivity-row').forEach(row => {
-            const name = row.dataset.name;
-            row.style.display = name.includes(search) ? '' : 'none';
-        });
-    }
-
-    function sortProductivity(field) {
-        const btn = document.querySelector(`[data-sort="${field}"]`);
-        let dir = btn.dataset.dir;
-        
-        // Toggle direction
-        dir = dir === 'asc' ? 'desc' : 'asc';
-        btn.dataset.dir = dir;
-        
-        // Update icon rotation
-        const icon = btn.querySelector('.sort-icon');
-        icon.style.transform = dir === 'asc' ? 'rotate(180deg)' : 'rotate(0deg)';
-        
-        // Sort data
-        productivityData.sort((a, b) => {
-            let valA, valB;
-            if (field === 'kgh') {
-                valA = a.kgh;
-                valB = b.kgh;
-            } else if (field === 'idle') {
-                valA = a.idle_hours;
-                valB = b.idle_hours;
-            } else if (field === 'name') {
-                valA = a.name.toLowerCase();
-                valB = b.name.toLowerCase();
-            }
-            
-            if (typeof valA === 'string') {
-                return dir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-            }
-            return dir === 'asc' ? valA - valB : valB - valA;
-        });
-        
-        renderProductivityTable('productivity-table-body', productivityData, currentData?.kpi?.target_kgh, {
-            emptyMessage: 'Sem dados de movimentação.',
-            rowClass: 'driver-productivity-row'
-        });
-    }
-
-    function renderSLA(slaList) {
-        const tbody = document.getElementById('sla-table-body');
-        if (!slaList || slaList.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-500">Sem dados.</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = slaList.map(row => {
-            let impact = `<span class="text-green-400 font-bold">✅ OK</span>`;
-            if (row.sla_min > 60) impact = `<span class="text-red-400 font-bold flex items-center gap-1">🚨 Crítico (>1h)</span>`;
-            else if (row.sla_min > 30) impact = `<span class="text-yellow-400 font-bold">⚠️ Atenção</span>`;
-
-            return `
-                <tr class="hover:bg-slate-700/30 transition-colors">
-                    <td class="px-6 py-4 font-medium text-white">${row.name}</td>
-                    <td class="px-6 py-4">
-                        <span class="font-mono text-slate-300">${row.sla_fmt}</span>
-                    </td>
-                    <td class="px-6 py-4 text-slate-400">${row.count || 0} rotas</td>
-                    <td class="px-6 py-4">${impact}</td>
-                </tr>
-            `;
-        }).join('');
-    }
-
-    function calcCost() {
-        const payroll = parseFloat(document.getElementById('payroll-input').value) || 0;
-        let volStr = document.getElementById('total-vol').innerText;
-        volStr = volStr.replace(/\./g, '').replace(' kg', '').replace(',', '.');
-        const vol = parseFloat(volStr) || 1;
-        const tons = vol / 1000;
-
-        if (tons > 0 && payroll > 0) {
-            const cost = payroll / tons;
-            document.getElementById('cost-result').innerText = "R$ " + cost.toFixed(2).replace('.', ',');
-        } else {
-            document.getElementById('cost-result').innerText = "R$ -";
-        }
-    }
-
-    function fmt(n) {
-        if (n === null || n === undefined) return "0,00";
-        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    function showToast(message, type = 'info') {
-        // Simple toast notification
-        const toast = document.createElement('div');
-        toast.className = `fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg z-50 transition-all transform translate-y-0 ${
-            type === 'error' ? 'bg-red-600 text-white' : 
-            type === 'success' ? 'bg-green-600 text-white' : 
-            'bg-slate-700 text-white'
-        }`;
-        toast.innerText = message;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.classList.add('translate-y-20', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
-
-    function exportReport() {
-        if (!currentData) {
-            showToast("Carregue os dados primeiro.", "error");
-            return;
-        }
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const date = document.getElementById('strategy-date').value;
-        const shift = document.getElementById('strategy-shift').value;
-        
-        // Title
-        doc.setFontSize(18);
-        doc.setTextColor(30, 41, 59);
-        doc.text("Relatório de Estratégia & Inteligência", 14, 20);
-        
-        // Subtitle
-        doc.setFontSize(10);
-        doc.setTextColor(100, 116, 139);
-        doc.text(`Data: ${date} | Turno: ${shift}`, 14, 28);
-        doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 34);
-        
-        // KPIs Section
-        doc.setFontSize(14);
-        doc.setTextColor(30, 41, 59);
-        doc.text("Indicadores Principais", 14, 46);
-        
-        const kpi = currentData.kpi;
-        doc.setFontSize(10);
-        doc.setTextColor(71, 85, 105);
-        doc.text(`Produtividade Média: ${kpi.global_kgh} Kg/h`, 14, 54);
-        doc.text(`Ociosidade Média: ${kpi.avg_idle}`, 14, 60);
-        doc.text(`Rotas Concluídas: ${kpi.routes_count}`, 14, 66);
-        doc.text(`Colaboradores Ativos: ${kpi.employees_count}`, 14, 72);
-        doc.text(`Volume Total: ${kpi.total_vol} kg`, 14, 78);
-        
-        // Productivity Table - Motoristas
-        if (currentData.productivity && currentData.productivity.length > 0) {
-            doc.setFontSize(14);
-            doc.setTextColor(30, 41, 59);
-            doc.text("Produtividade dos Motoristas", 14, 92);
-            
-            const prodTableData = currentData.productivity.slice(0, 15).map((p, i) => [
-                i + 1,
-                p.name,
-                `${Math.round(p.kgh)} Kg/h`,
-                `${Math.floor(p.active_hours)}h ${Math.floor((p.active_hours % 1) * 60)}m`,
-                `${Math.floor(p.idle_hours)}h ${Math.floor((p.idle_hours % 1) * 60)}m`
-            ]);
-            
-            doc.autoTable({
-                startY: 98,
-                head: [['#', 'Colaborador', 'Produtividade', 'Tempo Ativo', 'Ociosidade']],
-                body: prodTableData,
-                theme: 'striped',
-                headStyles: { fillColor: [30, 41, 59] },
-                styles: { fontSize: 8 }
-            });
-        }
-
-        // Productivity Table - Ajudantes
-        if (currentData.helper_productivity && currentData.helper_productivity.length > 0) {
-            const startY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 150;
-
-            doc.setFontSize(14);
-            doc.setTextColor(30, 41, 59);
-            doc.text("Produtividade dos Ajudantes", 14, startY);
-
-            const helperTableData = currentData.helper_productivity.slice(0, 15).map((p, i) => [
-                i + 1,
-                p.name,
-                `${Math.round(p.kgh)} Kg/h`,
-                `${Math.floor(p.active_hours)}h ${Math.floor((p.active_hours % 1) * 60)}m`,
-                `${Math.floor(p.idle_hours)}h ${Math.floor((p.idle_hours % 1) * 60)}m`
-            ]);
-
-            doc.autoTable({
-                startY: startY + 6,
-                head: [['#', 'Ajudante', 'Produtividade', 'Tempo Ativo', 'Ociosidade']],
-                body: helperTableData,
-                theme: 'striped',
-                headStyles: { fillColor: [8, 145, 178] },
-                styles: { fontSize: 8 }
-            });
-        }
-
-        // Productivity Table - Equipe
-        if (currentData.team_productivity && currentData.team_productivity.length > 0) {
-            const startY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 190;
-
-            doc.setFontSize(14);
-            doc.setTextColor(30, 41, 59);
-            doc.text("Visao Geral da Equipe", 14, startY);
-
-            const teamTableData = currentData.team_productivity.slice(0, 15).map((p, i) => [
-                i + 1,
-                p.name,
-                p.role_label || '-',
-                `${Math.round(p.kgh)} Kg/h`,
-                `${Math.floor(p.active_hours)}h ${Math.floor((p.active_hours % 1) * 60)}m`,
-            ]);
-
-            doc.autoTable({
-                startY: startY + 6,
-                head: [['#', 'Colaborador', 'Papel', 'Produtividade', 'Tempo Ativo']],
-                body: teamTableData,
-                theme: 'striped',
-                headStyles: { fillColor: [79, 70, 229] },
-                styles: { fontSize: 8 }
-            });
-        }
-        
-        // SLA Table
-        if (currentData.sla_ranking && currentData.sla_ranking.length > 0) {
-            const startY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 15 : 150;
-            
-            doc.setFontSize(14);
-            doc.setTextColor(30, 41, 59);
-            doc.text("SLA de Atendimento", 14, startY);
-            
-            const slaTableData = currentData.sla_ranking.map(s => [
-                s.name,
-                s.sla_fmt,
-                s.count || 0,
-                s.sla_min > 60 ? 'Crítico' : s.sla_min > 30 ? 'Atenção' : 'OK'
-            ]);
-            
-            doc.autoTable({
-                startY: startY + 6,
-                head: [['Cliente', 'Tempo Médio', 'Rotas', 'Status']],
-                body: slaTableData,
-                theme: 'striped',
-                headStyles: { fillColor: [30, 41, 59] },
-                styles: { fontSize: 8 }
-            });
-        }
-        
-        // Save
-        doc.save(`relatorio_estrategia_${date}.pdf`);
-        showToast("Relatório exportado com sucesso!", "success");
-    }
-</script>
-
-<!-- Custom Styles -->
-<style>
-    .custom-scrollbar::-webkit-scrollbar {
-        height: 6px;
-        width: 6px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-track {
-        background: #1e293b;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: #475569;
-        border-radius: 3px;
-    }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: #64748b;
-    }
-    .skeleton-box {
-        background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
-        background-size: 200% 100%;
-        animation: shimmer 1.5s infinite;
-    }
-    @keyframes shimmer {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
-    }
-    .sort-icon {
-        transition: transform 0.2s ease;
-    }
-</style>
+<script defer src="/static/js/strategy-page.js"></script>
 {% endblock %}

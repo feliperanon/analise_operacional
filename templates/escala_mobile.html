@@ -2,45 +2,187 @@
 
 {% block title %}Escala Operacional{% endblock %}
 
-{% block content %}
-<div class="escala-module min-h-screen flex flex-col pb-safe" x-data="escalaApp()" style="background: var(--color-bg);">
-    <header class="container-mobile py-3 border-b shrink-0" style="border-color: var(--color-border); background: var(--color-surface);">
-        <div class="flex items-center justify-between gap-3">
-            <a href="/mobile/dashboard" class="touch-target-icon flex items-center justify-center rounded-lg" style="background: var(--color-surface-solid); color: var(--color-text);">
-                <i data-lucide="arrow-left" class="w-5 h-5"></i>
-            </a>
-            <div class="flex-1 min-w-0">
-                <span class="text-[10px] font-bold uppercase tracking-widest" style="color: var(--color-primary);">Escala</span>
-                <h1 class="text-section truncate" style="color: var(--color-text);">Escala Operacional</h1>
-            </div>
-        </div>
-    </header>
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/system-tokens.css">
+<link rel="stylesheet" href="/static/css/system-layout.css">
+<link rel="stylesheet" href="/static/css/system-components.css">
+<link rel="stylesheet" href="/static/css/system-utilities.css">
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/mobile-delivery-ga.css?v=20260415r">
+<style>
+    .escala-shell {
+        --escala-col-bg: rgba(248, 250, 252, 0.94);
+        --escala-col-border: var(--color-border);
+        --escala-card-bg: var(--color-surface);
+    }
+    html.dark .escala-shell {
+        --escala-col-bg: rgba(2, 6, 23, 0.36);
+        --escala-col-border: rgba(71, 85, 105, 0.45);
+        --escala-card-bg: rgba(15, 23, 42, 0.94);
+    }
 
-    <div class="container-mobile py-4 flex-1 overflow-auto">
-        <div class="flex flex-wrap items-center gap-2 mb-4">
-            <input type="date" x-model="filters.date" @change="loadData()"
-                   class="rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 min-w-0"
-                   style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text);">
-            <select x-model="filters.shift" @change="loadData()"
-                    class="rounded-lg px-3 py-2 text-xs outline-none focus:ring-1"
-                    style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text);">
-                {% for s in shifts %}
-                <option value="{{ s }}" {% if s == selected_shift %}selected{% endif %}>{{ s }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="rounded-lg px-3 py-2 mb-4" style="background: var(--color-surface-solid); border: 1px solid var(--color-border);">
-            <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <div class="flex items-center gap-1.5"><span class="text-[9px] uppercase" style="color: var(--color-text-muted);">Motoristas</span><span class="text-sm font-bold text-emerald-400" x-text="summary.motoristas">0</span></div>
-                <div class="flex items-center gap-1.5"><span class="text-[9px] uppercase" style="color: var(--color-text-muted);">Ajudantes</span><span class="text-sm font-bold text-blue-400" x-text="summary.ajudantes">0</span></div>
-                <div class="flex items-center gap-1.5"><span class="text-[9px] uppercase" style="color: var(--color-text-muted);">Escalados</span><span class="text-sm font-bold text-emerald-300" x-text="summary.escalados">0</span></div>
-                <div class="flex items-center gap-1.5"><span class="text-[9px] uppercase" style="color: var(--color-text-muted);">Sem escala</span><span class="text-sm font-bold text-amber-300" x-text="summary.sem_escala">0</span></div>
+    .escala-shell .dashboard-panel {
+        border-radius: 1rem;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface);
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    }
+
+    .escala-shell .dashboard-section-kicker {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--color-text-muted);
+    }
+
+    .escala-shell .dashboard-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        line-height: 1;
+        border: 1px solid transparent;
+    }
+
+    .escala-shell .dashboard-status-pill--active {
+        background: var(--color-primary-bg);
+        color: var(--color-primary);
+        border-color: var(--color-primary-border);
+    }
+
+    .escala-shell .dashboard-status-pill--success {
+        background: var(--color-success-bg);
+        color: var(--color-success);
+        border-color: rgba(16, 185, 129, 0.35);
+    }
+
+    .escala-shell .dashboard-status-pill--warning {
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+        border-color: rgba(245, 158, 11, 0.35);
+    }
+
+    .escala-shell .escala-column {
+        border: 1px solid var(--escala-col-border);
+        background: var(--escala-col-bg);
+        border-radius: 0.95rem;
+    }
+
+    .escala-shell .escala-column-header {
+        border-bottom: 1px solid var(--escala-col-border);
+    }
+
+    .escala-shell .escala-card {
+        border: 1px solid var(--escala-col-border);
+        background: var(--escala-card-bg);
+        border-radius: 0.9rem;
+        overflow: hidden;
+    }
+
+    .escala-shell .escala-plate-drag {
+        background: rgba(245, 158, 11, 0.08);
+        border-bottom: 1px solid var(--escala-col-border);
+    }
+
+    .escala-shell .escala-metric-chip {
+        border-radius: 999px;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-solid);
+        padding: 0.18rem 0.5rem;
+        font-size: 0.64rem;
+        line-height: 1.25;
+    }
+
+    .escala-shell .escala-assign-box {
+        border-radius: 0.7rem;
+        border: 1px solid var(--color-border);
+        background: var(--color-surface-solid);
+    }
+
+    .escala-shell .delivery-ga-main {
+        max-width: min(100%, 28rem);
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+        padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="escala-shell delivery-ga-shell delivery-mobi ga-employee-theme employees-shell employees-page employees-page--premium min-h-screen pb-safe flex flex-col min-w-0 w-full overflow-x-hidden" x-data="escalaApp()" x-cloak>
+    <div class="delivery-ga-topnav shrink-0 relative z-20 pt-safe">
+        <div class="delivery-ga-main flex items-center justify-between gap-2 py-2.5">
+            <a href="/mobile/dashboard" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive sm:size-14" aria-label="Voltar ao dashboard">
+                <i data-lucide="arrow-left" class="h-5 w-5 shrink-0 sm:h-6 sm:w-6"></i>
+            </a>
+            <div class="flex min-w-0 flex-1 justify-center px-2">
+                <p class="employees-text-section-label truncate text-center">Mobile · Escala</p>
             </div>
+            <button type="button" class="delivery-topnav-action sys-btn sys-btn--secondary inline-flex size-12 shrink-0 items-center justify-center rounded-xl interactive sm:size-14" @click="loadData()" title="Atualizar escala" aria-label="Atualizar escala">
+                <i data-lucide="refresh-cw" class="h-5 w-5 shrink-0 sm:h-6 sm:w-6"></i>
+            </button>
         </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    </div>
+
+    <div class="delivery-ga-main flex-1 overflow-auto py-3 space-y-3">
+        <section class="dashboard-panel p-3">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                    <p class="dashboard-section-kicker">Escala operacional</p>
+                    <h1 class="text-title-lg mt-1" style="color: var(--color-text);">Escala de motoristas e ajudantes</h1>
+                    <p class="text-caption-lg mt-2" style="color: var(--color-text-body);">Painel mobile de alocacao para entrega. Arraste por coluna e ajuste equipe em tempo real.</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style="background: var(--color-primary-bg); border: 1px solid var(--color-primary-border); color: var(--color-primary);">
+                    <i data-lucide="calendar-days" class="w-5 h-5"></i>
+                </div>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+                <span class="dashboard-status-pill dashboard-status-pill--active"><span x-text="summary.escalados || 0"></span> escalados</span>
+                <span class="dashboard-status-pill dashboard-status-pill--warning"><span x-text="summary.sem_escala || 0"></span> sem escala</span>
+                <span class="dashboard-status-pill dashboard-status-pill--success"><span x-text="summary.motoristas || 0"></span> motoristas</span>
+            </div>
+        </section>
+
+        <section class="sys-card sys-card--surface rounded-xl border p-3 space-y-2" style="border-color: var(--color-border);">
+            <p class="employees-text-section-label">Filtro da operacao</p>
+            <div class="flex items-center gap-2">
+                <div class="flex-1 min-w-0">
+                    <label class="employees-text-caption">Data</label>
+                    <input type="date" x-model="filters.date" @change="loadData()"
+                        class="w-full mt-1 rounded-lg px-3 py-2 text-xs outline-none focus:ring-1"
+                        style="background: var(--color-surface-solid); border: 1px solid var(--color-border); color: var(--color-text);">
+                </div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-2 gap-2 text-center">
+            <div class="sys-card sys-card--surface rounded-xl border py-2.5" style="border-color: var(--color-border);">
+                <p class="employees-text-caption">Motoristas</p>
+                <p class="text-title mt-1 text-emerald-600 dark:text-emerald-300" x-text="summary.motoristas || 0">0</p>
+            </div>
+            <div class="sys-card sys-card--surface rounded-xl border py-2.5" style="border-color: var(--color-border);">
+                <p class="employees-text-caption">Ajudantes</p>
+                <p class="text-title mt-1 text-blue-600 dark:text-blue-300" x-text="summary.ajudantes || 0">0</p>
+            </div>
+            <div class="sys-card sys-card--surface rounded-xl border py-2.5" style="border-color: var(--color-border);">
+                <p class="employees-text-caption">Rotas</p>
+                <p class="text-title mt-1 text-emerald-600 dark:text-emerald-300" x-text="summary.total || 0">0</p>
+            </div>
+            <div class="sys-card sys-card--surface rounded-xl border py-2.5" style="border-color: var(--color-border);">
+                <p class="employees-text-caption">Sem escala</p>
+                <p class="text-title mt-1 text-amber-600 dark:text-amber-300" x-text="summary.sem_escala || 0">0</p>
+            </div>
+        </section>
+
+        <div class="grid grid-cols-1 gap-3">
             <template x-for="col in columns" :key="col.id">
-                <div class="escala-column min-w-0 rounded-xl flex flex-col" style="border: 1px solid var(--color-border); background: var(--color-surface);">
-                    <div class="px-3 py-2.5 border-b flex items-center justify-between shrink-0" :class="col.headerClass" style="border-color: var(--color-border);">
+                <section class="escala-column min-w-0 flex flex-col">
+                    <div class="escala-column-header px-3 py-2.5 flex items-center justify-between shrink-0" :class="col.headerClass">
                         <span class="text-[10px] font-semibold uppercase tracking-wider" x-text="col.label"></span>
                         <span class="text-[10px] font-mono px-1.5 py-0.5 rounded" style="background: rgba(255,255,255,0.1);" x-text="(escalasByCol[col.id] || []).length">0</span>
                     </div>
@@ -55,7 +197,7 @@
                                     <p class="text-[10px] text-emerald-500/90 uppercase tracking-wider mb-1.5 flex items-center gap-1"><i data-lucide="user" class="w-3 h-3"></i> Motoristas disponíveis</p>
                                     <div class="flex flex-wrap gap-1">
                                         <template x-for="m in (apiData.motoristas_disponiveis || [])" :key="m.id">
-                                            <span class="inline-flex px-2 py-1 rounded-md text-[11px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-200" x-text="m.name"></span>
+                                            <span class="inline-flex px-2 py-1 rounded-md text-[11px] bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-200" x-text="m.name"></span>
                                         </template>
                                     </div>
                                 </div>
@@ -63,7 +205,7 @@
                                     <p class="text-[10px] text-blue-500/90 uppercase tracking-wider mb-1.5 flex items-center gap-1"><i data-lucide="users" class="w-3 h-3"></i> Ajudantes disponíveis</p>
                                     <div class="flex flex-wrap gap-1">
                                         <template x-for="a in (apiData.ajudantes_disponiveis || [])" :key="a.id">
-                                            <span class="inline-flex px-2 py-1 rounded-md text-[11px] bg-blue-500/15 border border-blue-500/30 text-blue-200" x-text="a.name"></span>
+                                            <span class="inline-flex px-2 py-1 rounded-md text-[11px] bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-blue-200" x-text="a.name"></span>
                                         </template>
                                     </div>
                                 </div>
@@ -72,11 +214,9 @@
                             </div>
                         </template>
                         <template x-for="esc in (escalasByCol[col.id] || [])" :key="esc.id">
-                            <div class="escala-card rounded-xl border overflow-hidden" :data-escala-id="esc.id"
-                                 style="background: var(--color-surface); border-color: var(--color-border);">
+                            <article class="escala-card" :data-escala-id="esc.id">
                                 <!-- Placa = Rota: arraste só aqui para mover o card. Dropar em baixo = rota parada -->
-                                <div class="flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing select-none"
-                                     style="background: rgba(245,158,11,0.12); border-bottom: 1px solid var(--color-border);"
+                                <div class="escala-plate-drag flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing select-none"
                                      draggable="true" @dragstart="dragStart($event, esc)" @dragend="dragEnd($event)"
                                      title="Arraste a placa para mover a rota">
                                     <i data-lucide="truck" class="w-4 h-4 text-amber-500 shrink-0"></i>
@@ -85,41 +225,41 @@
                                 <div class="p-3 space-y-3">
                                     <!-- Peso, valor, paradas -->
                                     <div class="flex flex-wrap gap-1.5 text-[10px]" style="color: var(--color-text-muted);">
-                                        <span class="px-2 py-0.5 rounded" style="background: rgba(255,255,255,0.06);" x-text="formatKg(esc.total_weight)"></span>
-                                        <span class="px-2 py-0.5 rounded" style="background: rgba(255,255,255,0.06);" x-text="formatMoeda(esc.total_value)"></span>
-                                        <span class="px-2 py-0.5 rounded" style="background: rgba(255,255,255,0.06);" x-text="(esc.total_qty || 0) + ' paradas'"></span>
+                                        <span class="escala-metric-chip" x-text="formatKg(esc.total_weight)"></span>
+                                        <span class="escala-metric-chip" x-text="formatMoeda(esc.total_value)"></span>
+                                        <span class="escala-metric-chip" x-text="(esc.total_qty || 0) + ' paradas'"></span>
                                     </div>
                                     <!-- Motorista (troca pelo botão) -->
                                     <div class="flex items-center gap-2">
-                                        <div class="flex-1 min-w-0 rounded-lg px-2.5 py-2 flex items-center gap-2 border border-emerald-500/30 bg-emerald-500/10">
+                                        <div class="escala-assign-box flex-1 min-w-0 px-2.5 py-2 flex items-center gap-2">
                                             <i data-lucide="user" class="w-3.5 h-3.5 text-emerald-400 shrink-0"></i>
-                                            <span class="text-xs font-medium text-emerald-200 truncate" x-text="esc.driver_name || '—'"></span>
+                                            <span class="text-xs font-medium text-emerald-700 dark:text-emerald-200 truncate" x-text="esc.driver_name || '—'"></span>
                                         </div>
-                                        <button @click.stop="openQuickChange(esc, 'motorista')" class="shrink-0 p-2 rounded-lg touch-target" title="Trocar motorista" style="background: rgba(255,255,255,0.08); color: var(--color-text-muted);">
-                                            <i data-lucide="user" class="w-4 h-4"></i>
+                                        <button @click.stop="openQuickChange(esc, 'motorista')" class="shrink-0 p-2 rounded-lg touch-target border inline-flex items-center justify-center" title="Trocar motorista" style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-muted);">
+                                            <i data-lucide="user" class="w-4 h-4 text-emerald-600 dark:text-emerald-300"></i>
                                         </button>
                                     </div>
                                     <!-- Ajudantes (troca pelo botão) -->
                                     <div class="flex items-center gap-2">
-                                        <div class="flex-1 min-w-0 rounded-lg px-2.5 py-2 flex items-center gap-2 border border-blue-500/30 bg-blue-500/10">
+                                        <div class="escala-assign-box flex-1 min-w-0 px-2.5 py-2 flex items-center gap-2">
                                             <i data-lucide="users" class="w-3.5 h-3.5 text-blue-400 shrink-0"></i>
-                                            <span class="text-xs font-medium text-blue-200 truncate" x-text="(esc.helper_names || []).length ? (esc.helper_names || []).join(', ') : '—'"></span>
+                                            <span class="text-xs font-medium text-blue-700 dark:text-blue-200 truncate" x-text="formatHelperNamesShort(esc)"></span>
                                         </div>
-                                        <button @click.stop="openQuickChange(esc, 'ajudante')" class="shrink-0 p-2 rounded-lg touch-target" title="Trocar ajudantes" style="background: rgba(255,255,255,0.08); color: var(--color-text-muted);">
-                                            <i data-lucide="users" class="w-4 h-4"></i>
+                                        <button @click.stop="openQuickChange(esc, 'ajudante')" class="shrink-0 p-2 rounded-lg touch-target border inline-flex items-center justify-center" title="Trocar ajudantes" style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-muted);">
+                                            <i data-lucide="users" class="w-4 h-4 text-blue-600 dark:text-blue-300"></i>
                                         </button>
                                     </div>
                                     <!-- Trocar caminhão -->
                                     <div class="pt-1">
-                                        <button @click.stop="openQuickChange(esc, 'caminhao')" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs touch-target" style="background: rgba(255,255,255,0.06); color: var(--color-text-muted);" title="Trocar caminhão">
+                                        <button @click.stop="openQuickChange(esc, 'caminhao')" class="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs touch-target border" style="background: var(--color-surface-solid); border-color: var(--color-border); color: var(--color-text-muted);" title="Trocar caminhão">
                                             <i data-lucide="truck" class="w-3.5 h-3.5"></i> Trocar caminhão
                                         </button>
                                     </div>
                                 </div>
-                            </div>
+                            </article>
                         </template>
                     </div>
-                </div>
+                </section>
             </template>
         </div>
     </div>
