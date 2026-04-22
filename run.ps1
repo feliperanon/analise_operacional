@@ -3,18 +3,10 @@
 # Verifica se o arquivo python existe no venv
 if (Test-Path ".venv\Scripts\python.exe") {
     Write-Host "Iniciando servidor FastAPI..."
-    # Padrao: SQLite local — evita o servidor ficar em "Waiting for application startup" quando o
-    # Postgres do .env (Render) esta dormido, sem VPN ou lento. Para usar o banco remoto: antes de
-    # rodar o script, execute: $env:FORCE_LOCAL_DB = "false"
-    if (-not $env:FORCE_LOCAL_DB) {
-        $env:FORCE_LOCAL_DB = "true"
-    }
-    if ($env:FORCE_LOCAL_DB -eq "true") {
-        Write-Host "Banco local SQLite habilitado para esta sessao (FORCE_LOCAL_DB=true)."
-    }
-    else {
-        Write-Host "Banco remoto habilitado para esta sessao (FORCE_LOCAL_DB=$env:FORCE_LOCAL_DB)."
-    }
+    # Forca banco remoto do Render em todas as execucoes deste script.
+    # (Evita herdar FORCE_LOCAL_DB=true de sessoes antigas do PowerShell.)
+    $env:FORCE_LOCAL_DB = "false"
+    Write-Host "Banco remoto do Render habilitado para esta sessao (FORCE_LOCAL_DB=false)."
     # --reload-delay: evita dois reloads seguidos; reload-exclude database.py: mudanças só em pool/URL
     # exigem reinício manual (Ctrl+C), mas evita ficar preso reabrindo Postgres a cada save.
     # Ao salvar arquivos monitorados, o processo reinicia: requisições em voo podem falhar com net::ERR_CONNECTION_RESET.

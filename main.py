@@ -191,6 +191,14 @@ logger.setLevel(LOG_LEVEL)
 logger.addHandler(handler)
 logger.addHandler(console_handler)
 
+# Garante que logs de outros modulos (ex.: services.whatsapp_provider)
+# tambem aparecam no stream do Render.
+root_logger = logging.getLogger()
+root_logger.setLevel(LOG_LEVEL)
+if not root_logger.handlers:
+    root_logger.addHandler(handler)
+    root_logger.addHandler(console_handler)
+
 # --- Config ---
 SECRET_KEY = os.getenv("SECRET_KEY", DEFAULT_SECRET_KEY_PLACEHOLDER)
 
@@ -1586,6 +1594,7 @@ PAGE_OPTIONS = [
     {"key": "lider", "label": "Líder", "path": "/smart-flow", "prefixes": ["/smart-flow", "/api/smart-flow", "/smart-flow/load", "/lider", "/api/lider"]},
     {"key": "gerente", "label": "Gerente", "path": "/gm/ordens-servico/kpis", "prefixes": ["/gm", "/api/gm"]},
     {"key": "processos", "label": "Processos", "path": "/separacao", "prefixes": ["/separacao", "/escala", "/devolucoes", "/portaria"]},
+    {"key": "comercial", "label": "Comercial", "path": "/comercial/entregas", "prefixes": ["/comercial", "/api/comercial"]},
     {"key": "padronizacao", "label": "Processos e Padronização", "path": "/documentos", "prefixes": ["/documentos", "/api/documentos"]},
     {"key": "rotinas", "label": "Rotinas & Checklists", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "oficina", "label": "Oficina", "path": "/vehicles", "prefixes": ["/vehicles", "/admin/equipment/tickets"]},
@@ -2867,6 +2876,26 @@ app.include_router(gm_ordens_servico_router)
 
 def require_admin(request: Request):
     return require_roles(request, {"admin"})
+
+
+def require_comercial_access(request: Request):
+    user = require_login(request)
+    if not (isinstance(user, dict) and user.get("type") == "user"):
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+
+    role = str(user.get("role") or "").strip().lower()
+    if role == "admin":
+        return user
+
+    raw_allowed_pages = request.session.get("allowed_pages")
+    if isinstance(raw_allowed_pages, list):
+        allowed_pages = [str(key) for key in raw_allowed_pages if str(key) in PAGE_KEYS]
+    else:
+        allowed_pages = parse_allowed_pages(raw_allowed_pages)
+
+    if "comercial" not in allowed_pages:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+    return user
 
 def get_delivery_whatsapp_operator_context(
     request: Request,
@@ -15197,6 +15226,194 @@ async def separacao_page(
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     return response
+
+
+@app.get("/comercial/entregas", response_class=HTMLResponse)
+async def comercial_entregas_page(
+    request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    shift: str = "Todos",
+    status: str = "todos",
+    motorista: str = "",
+    cliente: str = "",
+    session: Session = Depends(get_session),
+):
+    require_comercial_access(request)
+
+    today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    date_from_str = (date_from or today_str).strip()
+    date_to_str = (date_to or date_from_str).strip()
+    if date_from_str > date_to_str:
+        date_from_str, date_to_str = date_to_str, date_from_str
+
+    selected_status = (status or "todos").strip().lower()
+    valid_statuses = {"pendente", "iniciada", "reaberta", "entregue", "devolucao", "cancelada", "todos"}
+    if selected_status not in valid_statuses:
+        selected_status = "todos"
+
+    query = (
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= date_from_str)
+        .where(models.Route.date <= date_to_str)
+    )
+    if selected_status != "todos":
+        query = query.where(models.Route.delivery_status == selected_status)
+    query = query.order_by(models.Route.date.desc(), models.Route.shift, models.Route.delivery_route_code, models.Route.created_at.desc())
+    delivery_rows = list(session.exec(query).all())
+
+    employees = list(session.exec(select(models.Employee)).all())
+    employee_map = {int(e.id): str(e.name or "").strip() for e in employees if getattr(e, "id", None)}
+    employee_phone_map = {}
+    for emp in employees:
+        emp_id = int(getattr(emp, "id", 0) or 0)
+        if not emp_id:
+            continue
+        phone_e164, _phone_display = normalize_phone_br(getattr(emp, "phone", None))
+        digits = "".join(ch for ch in str(phone_e164 or "") if ch.isdigit())
+        employee_phone_map[emp_id] = digits or ""
+
+    helper_ids = set()
+    client_ids = set()
+    for row in delivery_rows:
+        client_ids.add(int(row.client_id))
+        helper_ids.update(_parse_route_helper_ids(getattr(row, "delivery_helpers_json", None)))
+
+    clients = []
+    if client_ids:
+        clients = list(session.exec(select(models.Client).where(models.Client.id.in_(list(client_ids)))).all())
+    client_map = {}
+    client_search_blob_map = {}
+    for c in clients:
+        c_id = int(getattr(c, "id", 0) or 0)
+        if not c_id:
+            continue
+        client_display = str(c.razao_social or c.nome_fantasia or c.name or "Cliente").strip()
+        client_map[c_id] = client_display
+        client_search_blob_map[c_id] = " ".join(
+            [
+                str(c.nb or "").strip(),
+                str(c.nome_fantasia or "").strip(),
+                str(c.razao_social or "").strip(),
+                str(c.name or "").strip(),
+            ]
+        ).casefold()
+
+    helper_name_map = {hid: employee_map.get(hid, f"Ajudante #{hid}") for hid in helper_ids}
+
+    status_label_map = {
+        "pendente": "Pendente",
+        "iniciada": "Em rota",
+        "reaberta": "Reaberta",
+        "entregue": "Entregue",
+        "devolucao": "Devolução",
+        "cancelada": "Cancelada",
+    }
+    status_style_map = {
+        "entregue": "background:#DCFCE7;color:#166534;border:1px solid #86EFAC;",
+        "iniciada": "background:#DBEAFE;color:#1D4ED8;border:1px solid #93C5FD;",
+        "devolucao": "background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;",
+        "reaberta": "background:#FEF3C7;color:#92400E;border:1px solid #FCD34D;",
+        "cancelada": "background:#E2E8F0;color:#334155;border:1px solid #CBD5E1;",
+        "pendente": "background:#F1F5F9;color:#334155;border:1px solid #CBD5E1;",
+    }
+
+    rows_view = []
+    status_totals = {
+        "pendente": 0,
+        "iniciada": 0,
+        "reaberta": 0,
+        "entregue": 0,
+        "devolucao": 0,
+        "cancelada": 0,
+    }
+    motorista_filter = (motorista or "").strip().casefold()
+    cliente_filter = (cliente or "").strip().casefold()
+
+    def _fmt_date_br(date_str: str) -> str:
+        try:
+            return datetime.strptime(str(date_str or ""), "%Y-%m-%d").strftime("%d/%m/%Y")
+        except Exception:
+            return str(date_str or "-")
+
+    def _fmt_time_br(value: Optional[str]) -> str:
+        raw = str(value or "").strip()
+        if not raw:
+            return "-"
+        if len(raw) >= 5 and raw[2] == ":":
+            return raw[:5]
+        try:
+            return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+        except Exception:
+            return raw
+
+    for row in delivery_rows:
+        status_raw = str(getattr(row, "delivery_status", "") or "pendente").strip().lower()
+        if status_raw not in status_totals:
+            status_raw = "pendente"
+        driver_id = int(row.employee_id or 0)
+        driver_name = employee_map.get(driver_id, "Motorista não identificado")
+        client_id = int(row.client_id or 0)
+        client_name = client_map.get(client_id, "Cliente não identificado")
+        helper_names = [
+            helper_name_map.get(hid, f"Ajudante #{hid}")
+            for hid in _parse_route_helper_ids(getattr(row, "delivery_helpers_json", None))
+        ]
+        helper_names = [name for name in helper_names if str(name or "").strip()]
+        helper_names = list(dict.fromkeys(helper_names))
+        equipe = [driver_name] + helper_names
+
+        if motorista_filter and motorista_filter not in driver_name.casefold():
+            continue
+        client_blob = client_search_blob_map.get(client_id, client_name.casefold())
+        if cliente_filter and cliente_filter not in client_blob:
+            continue
+
+        wa_phone = employee_phone_map.get(driver_id, "")
+        wa_text = (
+            f"Olá {driver_name}, aqui é do Comercial da Souza Pinto. "
+            f"Pode confirmar a entrega do cliente {client_name} (data { _fmt_date_br(row.date) })?"
+        )
+        wa_url = f"https://wa.me/{wa_phone}?{urlencode({'text': wa_text})}" if wa_phone else ""
+
+        status_totals[status_raw] += 1
+        rows_view.append(
+            {
+                "date_br": _fmt_date_br(row.date),
+                "status_raw": status_raw,
+                "status_label": status_label_map.get(status_raw, "Pendente"),
+                "status_style": status_style_map.get(status_raw, status_style_map["pendente"]),
+                "driver_name": driver_name,
+                "driver_whatsapp_url": wa_url,
+                "team_members": equipe,
+                "client_name": client_name,
+                "started_at": _fmt_time_br(row.delivery_started_at or row.start_time),
+                "finished_at": _fmt_time_br(row.delivery_finished_at or row.end_time),
+            }
+        )
+
+    return templates.TemplateResponse(
+        "comercial_entregas.html",
+        {
+            "request": request,
+            "rows": rows_view,
+            "date_from": date_from_str,
+            "date_to": date_to_str,
+            "selected_status": selected_status,
+            "motorista": motorista or "",
+            "cliente": cliente or "",
+            "summary_total": len(rows_view),
+            "summary_total_fmt": f"{len(rows_view):,}".replace(",", "."),
+            "status_totals": status_totals,
+        },
+    )
+
+
+@app.get("/comercial", response_class=RedirectResponse)
+async def comercial_entry():
+    return RedirectResponse(url="/comercial/entregas", status_code=status.HTTP_303_SEE_OTHER)
+
 
 @app.post("/separacao/add", response_class=RedirectResponse)
 async def add_separacao(
