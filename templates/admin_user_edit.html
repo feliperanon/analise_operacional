@@ -1,137 +1,154 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Editar usuário · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Sistema / Usuários / Edição</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Editar usuário</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Ajuste de vínculo, perfil, permissões e segurança</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+{% endblock %}
 
 {% block content %}
 {% set emp = employee_map.get(u.employee_id) if u.employee_id else None %}
-<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
-    <div class="max-w-2xl mx-auto">
-        <a href="/admin/users" class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white mb-6">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            Voltar
-        </a>
+<div class="ga-employee-theme employees-shell employees-page space-y-5 pt-2 md:pt-3">
+    <a href="/admin/users" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Voltar para usuários
+    </a>
 
-        <div class="bg-slate-800/90 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-            <div class="px-6 py-5 border-b border-slate-700/80 bg-slate-800/60">
-                <h1 class="text-lg font-bold text-white">{{ u.username }}</h1>
-                <p class="text-sm text-slate-400">{{ emp.name|emp_name if emp else 'Sem colaborador' }}{% if emp %} ({{ emp.registration_id }}){% endif %}</p>
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                    <span class="px-2 py-0.5 rounded-md text-[11px] border border-slate-600 text-slate-300">Perfil: {{ 'Admin' if u.role == 'admin' else 'Líder' }}</span>
-                    <span class="px-2 py-0.5 rounded-md text-[11px] {{ 'border border-emerald-500/40 text-emerald-300 bg-emerald-500/10' if u.is_active else 'border border-rose-500/40 text-rose-300 bg-rose-500/10' }}">
-                        {{ "Ativo" if u.is_active else "Inativo" }}
-                    </span>
-                </div>
+    <div class="sys-card sys-card--surface sys-card--comfort">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h2 class="sys-section-heading">{{ u.username }}</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    {{ emp.name|emp_name if emp else "Sem colaborador vinculado" }}{% if emp %} ({{ emp.registration_id }}){% endif %}
+                </p>
             </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="sys-badge sys-badge--neutral">Perfil: {{ "Admin" if u.role == "admin" else "Líder" }}</span>
+                <span class="sys-badge {{ 'sys-badge--ok' if u.is_active else 'sys-badge--critical' }}">
+                    {{ "Ativo" if u.is_active else "Inativo" }}
+                </span>
+            </div>
+        </div>
+    </div>
 
-            <div class="p-6 space-y-6">
-                <!-- Colaborador -->
-                <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-                    <label class="block text-xs font-medium text-slate-400 mb-2">Colaborador</label>
-                    <form action="/admin/users/{{ u.id }}/employee" method="POST" class="flex gap-2">
-                        <select name="employee_id" class="flex-1 rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
-                            <option value="">Selecione...</option>
-                            {% for e in employees %}
-                            <option value="{{ e.id }}" {{ "selected" if u.employee_id == e.id else "" }}>{{ e.name|emp_name }} ({{ e.registration_id }})</option>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="sys-card sys-card--surface">
+            <h3 class="sys-section-title">Colaborador</h3>
+            <form action="/admin/users/{{ u.id }}/employee" method="POST" class="mt-3 space-y-3">
+                <select name="employee_id" class="sys-input w-full">
+                    <option value="">Selecione...</option>
+                    {% for e in employees %}
+                    <option value="{{ e.id }}" {{ "selected" if u.employee_id == e.id else "" }}>{{ e.name|emp_name }} ({{ e.registration_id }})</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Salvar colaborador</button>
+            </form>
+        </div>
+
+        <div class="sys-card sys-card--surface">
+            <h3 class="sys-section-title">Perfil de acesso</h3>
+            <form action="/admin/users/{{ u.id }}/role" method="POST" class="mt-3 space-y-3">
+                <select name="role" class="sys-input w-full">
+                    <option value="leader" {{ "selected" if u.role == "leader" else "" }}>Líder</option>
+                    <option value="admin" {{ "selected" if u.role == "admin" else "" }}>Admin</option>
+                </select>
+                <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Salvar perfil</button>
+            </form>
+        </div>
+    </div>
+
+    {% if u.role != "admin" %}
+    <div class="sys-card sys-card--surface">
+        <h3 class="sys-section-title">Páginas permitidas</h3>
+        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Escolha os módulos que este usuário pode visualizar no menu e acessar via URL.</p>
+
+        <form action="/admin/users/{{ u.id }}/pages" method="POST" class="mt-4 space-y-4">
+            {% set used_keys = [
+                'lider', 'gerente',
+                'processos', 'comercial', 'padronizacao',
+                'rotinas', 'oficina',
+                'cadastros',
+                'pessoas',
+                'bi',
+                'sistema', 'admin_game'
+            ] %}
+            {% set page_groups = [
+                {'title': 'Gestão', 'keys': ['lider', 'gerente']},
+                {'title': 'Operação', 'keys': ['processos', 'comercial', 'padronizacao', 'rotinas', 'oficina']},
+                {'title': 'Pessoas e Cadastros', 'keys': ['pessoas', 'cadastros']},
+                {'title': 'Análises', 'keys': ['bi']},
+                {'title': 'Administração', 'keys': ['sistema', 'admin_game']}
+            ] %}
+
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {% for grp in page_groups %}
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+                    <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">{{ grp.title }}</h4>
+                    <div class="space-y-1.5">
+                        {% for key in grp["keys"] %}
+                            {% for page in page_options %}
+                                {% if page.key == key %}
+                                <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                    <input type="checkbox" name="pages" value="{{ page.key }}" class="rounded border-slate-300 bg-white text-blue-600 dark:border-slate-600 dark:bg-slate-900" {{ "checked" if page.key in allowed else "" }}>
+                                    {{ page.label }}
+                                </label>
+                                {% endif %}
                             {% endfor %}
-                        </select>
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Salvar</button>
-                    </form>
-                </div>
-
-                <!-- Perfil -->
-                <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-                    <label class="block text-xs font-medium text-slate-400 mb-2">Perfil</label>
-                    <form action="/admin/users/{{ u.id }}/role" method="POST" class="flex gap-2">
-                        <select name="role" class="flex-1 rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
-                            <option value="leader" {{ "selected" if u.role == "leader" else "" }}>Líder</option>
-                            <option value="admin" {{ "selected" if u.role == "admin" else "" }}>Admin</option>
-                        </select>
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Salvar</button>
-                    </form>
-                </div>
-
-                {% if u.role != "admin" %}
-                <!-- Páginas -->
-                <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-                    <div class="mb-3">
-                        <label class="block text-xs font-medium text-slate-400">Páginas permitidas</label>
-                        <p class="text-[11px] text-slate-500 mt-1">Selecione por categoria e subcategoria. O envio continua no mesmo formato de permissões.</p>
+                        {% endfor %}
                     </div>
-                    <form action="/admin/users/{{ u.id }}/pages" method="POST" class="space-y-4">
-                        {% set used_keys = [
-                            'lider', 'gerente',
-                            'processos', 'padronizacao',
-                            'rotinas', 'oficina',
-                            'cadastros',
-                            'pessoas',
-                            'bi',
-                            'sistema', 'admin_game'
-                        ] %}
-                        {% set page_groups = [
-                            {'title': 'Gestão', 'keys': ['lider', 'gerente']},
-                            {'title': 'Operação', 'keys': ['processos', 'padronizacao', 'rotinas', 'oficina']},
-                            {'title': 'Pessoas e Cadastros', 'keys': ['pessoas', 'cadastros']},
-                            {'title': 'Análises', 'keys': ['bi']},
-                            {'title': 'Administração', 'keys': ['sistema', 'admin_game']}
-                        ] %}
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {% for grp in page_groups %}
-                            <div class="rounded-lg border border-slate-700 bg-slate-800/50 p-3">
-                                <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-300 mb-2">{{ grp.title }}</h3>
-                                <div class="space-y-1.5">
-                                    {% for key in grp.keys %}
-                                        {% for page in page_options %}
-                                            {% if page.key == key %}
-                                            <label class="flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
-                                                <input type="checkbox" name="pages" value="{{ page.key }}" class="rounded border-slate-600 bg-slate-900 text-blue-500" {{ "checked" if page.key in allowed else "" }}>
-                                                {{ page.label }}
-                                            </label>
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-                            <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Outras permissões</h3>
-                            <div class="space-y-1.5">
-                                {% for page in page_options %}
-                                    {% if page.key not in used_keys %}
-                                    <label class="flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
-                                        <input type="checkbox" name="pages" value="{{ page.key }}" class="rounded border-slate-600 bg-slate-900 text-blue-500" {{ "checked" if page.key in allowed else "" }}>
-                                        {{ page.label }}
-                                    </label>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        <button type="submit" class="mt-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Salvar permissões</button>
-                    </form>
                 </div>
-                {% endif %}
+                {% endfor %}
+            </div>
 
-                <!-- Senha -->
-                <div class="rounded-xl border border-slate-700 bg-slate-900/40 p-4">
-                    <label class="block text-xs font-medium text-slate-400 mb-2">Nova senha</label>
-                    <form action="/admin/users/{{ u.id }}/password" method="POST" class="flex gap-2">
-                        <input type="password" name="password" required placeholder="••••••••"
-                            class="flex-1 rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
-                        <button type="submit" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Trocar senha</button>
-                    </form>
-                </div>
-
-                <!-- Status -->
-                <div class="pt-4 border-t border-slate-700">
-                    <form action="/admin/users/{{ u.id }}/status" method="POST">
-                        <input type="hidden" name="active" value="{{ 'false' if u.is_active else 'true' }}">
-                        <button type="submit" class="px-4 py-2 rounded-lg {{ 'bg-red-500/20 text-red-200 hover:bg-red-500/30' if u.is_active else 'bg-emerald-500/20 text-emerald-200 hover:bg-emerald-500/30' }} text-sm font-medium">
-                            {{ "Desativar usuário" if u.is_active else "Ativar usuário" }}
-                        </button>
-                    </form>
+            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/30">
+                <h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Outras permissões</h4>
+                <div class="grid grid-cols-1 gap-1.5 md:grid-cols-2">
+                    {% for page in page_options %}
+                        {% if page.key not in used_keys %}
+                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                            <input type="checkbox" name="pages" value="{{ page.key }}" class="rounded border-slate-300 bg-white text-blue-600 dark:border-slate-600 dark:bg-slate-900" {{ "checked" if page.key in allowed else "" }}>
+                            {{ page.label }}
+                        </label>
+                        {% endif %}
+                    {% endfor %}
                 </div>
             </div>
+
+            <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Salvar permissões</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="sys-card sys-card--surface">
+            <h3 class="sys-section-title">Senha</h3>
+            <form action="/admin/users/{{ u.id }}/password" method="POST" class="mt-3 space-y-3">
+                <input type="password" name="password" required placeholder="••••••••" class="sys-input w-full">
+                <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Trocar senha</button>
+            </form>
+        </div>
+
+        <div class="sys-card sys-card--surface">
+            <h3 class="sys-section-title">Status do usuário</h3>
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Usuários inativos não conseguem autenticar no sistema.</p>
+            <form action="/admin/users/{{ u.id }}/status" method="POST" class="mt-3">
+                <input type="hidden" name="active" value="{{ 'false' if u.is_active else 'true' }}">
+                <button type="submit" class="sys-btn {{ 'sys-btn--ghost-danger' if u.is_active else 'sys-btn--success' }} w-full justify-center">
+                    {{ "Desativar usuário" if u.is_active else "Ativar usuário" }}
+                </button>
+            </form>
         </div>
     </div>
 </div>

@@ -1,119 +1,166 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Usuários · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Sistema / Usuários</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Gestão de usuários</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Cadastre acessos, perfil e permissões de páginas</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+{% endblock %}
 
 {% block content %}
-<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-        <div>
-            <h1 class="text-xl md:text-2xl font-bold text-white">Usuários</h1>
-            <p class="text-xs text-slate-400 mt-1">{{ users|length }} cadastrados</p>
-        </div>
-    </div>
-
+<div class="ga-employee-theme employees-shell employees-page space-y-5 pt-2 md:pt-3">
     {% if message %}
-    <div class="mb-4 p-3 rounded-lg text-sm {{ 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-200' if level != 'error' else 'bg-red-500/10 border border-red-500/30 text-red-200' }}">
+    <div class="sys-alert {{ 'sys-alert--danger' if level == 'error' else 'sys-alert--success' }}">
         {{ message }}
     </div>
     {% endif %}
 
-    <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <!-- Formulário: Novo usuário -->
-        <div class="xl:col-span-1 order-2 xl:order-1">
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-5">
-                <h2 class="font-bold text-white text-sm mb-1">Novo usuário</h2>
-                <p class="text-xs text-slate-400 mb-4">Login Google usa o mesmo e-mail.</p>
-                <form action="/admin/users/create" method="POST" class="space-y-3">
-                    <input type="email" name="email" required placeholder="E-mail"
-                        class="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none">
-                    <input type="password" name="password" required placeholder="Senha"
-                        class="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-blue-500 focus:outline-none">
-                    <select name="employee_id" required
-                        class="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
-                        <option value="">Colaborador...</option>
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-4 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="min-w-0">
+                <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                    Administração do sistema
+                </span>
+                <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Controle de acesso</h2>
+                <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">Gestão completa de usuários com vínculo, perfil e módulos liberados.</p>
+            </div>
+            <div class="employees-hero__chips mt-1 flex flex-wrap items-center gap-2 text-xs font-medium xl:mt-0">
+                <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                    {{ users|length }} usuários
+                </span>
+                <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                    {{ users|selectattr("is_active")|list|length }} ativos
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <section class="sys-card sys-card--surface xl:col-span-1">
+            <h3 class="sys-section-title">Novo usuário</h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Login Google usa o mesmo e-mail.</p>
+
+            <form action="/admin/users/create" method="POST" class="mt-4 space-y-3">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">E-mail</label>
+                    <input class="sys-input w-full" type="email" name="email" required placeholder="email@empresa.com">
+                </div>
+
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Senha</label>
+                    <input class="sys-input w-full" type="password" name="password" required placeholder="********">
+                </div>
+
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Colaborador</label>
+                    <select class="sys-input w-full" name="employee_id" required>
+                        <option value="">Selecione...</option>
                         {% for e in employees %}
                         <option value="{{ e.id }}">{{ e.name|emp_name }} ({{ e.registration_id }})</option>
                         {% endfor %}
                     </select>
-                    <select name="role"
-                        class="w-full rounded-lg bg-slate-900 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Perfil</label>
+                    <select class="sys-input w-full" name="role">
                         <option value="leader">Líder</option>
                         <option value="admin">Admin</option>
                     </select>
-                    <div class="space-y-1 max-h-20 overflow-y-auto">
-                        {% for page in page_options %}
-                        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                            <input type="checkbox" name="pages" value="{{ page.key }}" checked class="rounded border-slate-600 bg-slate-900 text-blue-500">
-                            {{ page.label }}
-                        </label>
-                        {% endfor %}
-                    </div>
-                    <button type="submit" class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
-                        Criar usuário
-                    </button>
-                </form>
-            </div>
-        </div>
+                </div>
 
-        <!-- Lista de usuários -->
-        <div class="xl:col-span-3 order-1 xl:order-2">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Permissões de páginas</label>
+                    <div class="max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900/40">
+                        <div class="space-y-1.5">
+                            {% for page in page_options %}
+                            <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                <input type="checkbox" name="pages" value="{{ page.key }}" class="rounded border-slate-300 bg-white text-blue-600 dark:border-slate-600 dark:bg-slate-900" checked>
+                                {{ page.label }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Criar usuário</button>
+            </form>
+        </section>
+
+        <section class="sys-card sys-card--surface xl:col-span-2">
+            <h3 class="sys-section-title">Lista de usuários</h3>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ users|length }} registros</p>
+
             {% if not users %}
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-8 text-center">
-                <p class="text-slate-400">Nenhum usuário cadastrado</p>
-                <p class="text-sm text-slate-500 mt-1">Use o formulário ao lado para criar.</p>
+            <div class="sys-empty-state mt-4">
+                <p class="sys-empty-state__title">Nenhum usuário cadastrado</p>
+                <p class="sys-empty-state__text">Use o formulário ao lado para criar.</p>
             </div>
             {% else %}
-            <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="text-left text-slate-400 border-b border-slate-700 bg-slate-900/50">
-                                <th class="py-3 px-4 font-medium whitespace-nowrap">E-mail</th>
-                                <th class="py-3 px-4 font-medium whitespace-nowrap">Colaborador</th>
-                                <th class="py-3 px-4 font-medium whitespace-nowrap">Perfil</th>
-                                <th class="py-3 px-4 font-medium whitespace-nowrap">Status</th>
-                                <th class="py-3 px-4 font-medium whitespace-nowrap">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-700/50">
-                            {% for u in users %}
-                            {% set emp = employee_map.get(u.employee_id) if u.employee_id else None %}
-                            <tr class="hover:bg-slate-700/20">
-                                <td class="py-3 px-4">
-                                    <span class="text-white font-medium" title="{{ u.username }}">{{ u.username }}</span>
-                                    {% if u.google_sub %}<span class="ml-2 text-[10px] text-emerald-400">Google</span>{% endif %}
-                                </td>
-                                <td class="py-3 px-4 text-slate-300" title="{{ emp.name|emp_name if emp else '-' }}">{{ emp.name|emp_name if emp else '—' }}</td>
-                                <td class="py-3 px-4">
-                                    <span class="text-xs px-2 py-0.5 rounded whitespace-nowrap {{ 'bg-amber-500/20 text-amber-300' if u.role == 'admin' else 'bg-slate-600/60 text-slate-300' }}">{{ 'Admin' if u.role == 'admin' else 'Líder' }}</span>
-                                </td>
-                                <td class="py-3 px-4">
-                                    <span class="text-xs px-2 py-0.5 rounded whitespace-nowrap {{ 'bg-emerald-500/20 text-emerald-300' if u.is_active else 'bg-red-500/20 text-red-300' }}">{{ 'Ativo' if u.is_active else 'Inativo' }}</span>
-                                </td>
-                                <td class="py-3 px-4">
-                                    <div class="flex items-center gap-3 whitespace-nowrap">
-                                        <form action="/admin/users/{{ u.id }}/status" method="POST" class="inline">
-                                            <input type="hidden" name="active" value="{{ 'false' if u.is_active else 'true' }}">
-                                            <button type="submit" class="text-xs text-slate-400 hover:text-white">
-                                                {{ 'Desativar' if u.is_active else 'Ativar' }}
-                                            </button>
-                                        </form>
-                                        <a href="/admin/users/{{ u.id }}/edit" class="text-xs text-blue-400 hover:text-blue-300">Editar</a>
-                                        <form action="/admin/users/{{ u.id }}/delete" method="POST" class="inline"
-                                            onsubmit="return confirm('Excluir este usuário? Esta ação não pode ser desfeita.');">
-                                            <button type="submit" class="text-xs text-red-400 hover:text-red-300">
-                                                Excluir
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+            <div class="sys-table-wrap sys-table-wrap--x-scroll mt-4">
+                <table class="sys-table w-full min-w-[880px]">
+                    <thead>
+                        <tr>
+                            <th>E-mail</th>
+                            <th>Colaborador</th>
+                            <th>Perfil</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        {% set emp = employee_map.get(u.employee_id) if u.employee_id else None %}
+                        <tr>
+                            <td>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-medium text-slate-800 dark:text-slate-100" title="{{ u.username }}">{{ u.username }}</span>
+                                    {% if u.google_sub %}
+                                    <span class="sys-badge sys-badge--neutral">Google</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td title="{{ emp.name|emp_name if emp else '-' }}">{{ emp.name|emp_name if emp else '—' }}</td>
+                            <td>
+                                <span class="sys-badge sys-badge--neutral">{{ 'Admin' if u.role == 'admin' else 'Líder' }}</span>
+                            </td>
+                            <td>
+                                <span class="sys-badge {{ 'sys-badge--ok' if u.is_active else 'sys-badge--critical' }}">
+                                    {{ 'Ativo' if u.is_active else 'Inativo' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <form action="/admin/users/{{ u.id }}/status" method="POST">
+                                        <input type="hidden" name="active" value="{{ 'false' if u.is_active else 'true' }}">
+                                        <button type="submit" class="sys-btn sys-btn--secondary">{{ 'Desativar' if u.is_active else 'Ativar' }}</button>
+                                    </form>
+                                    <a href="/admin/users/{{ u.id }}/edit" class="sys-btn sys-btn--sky">Editar</a>
+                                    <form action="/admin/users/{{ u.id }}/delete" method="POST" onsubmit="return confirm('Excluir este usuário? Esta ação não pode ser desfeita.');">
+                                        <button type="submit" class="sys-btn sys-btn--ghost-danger">Excluir</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
             {% endif %}
-        </div>
+        </section>
     </div>
 </div>
 {% endblock %}
