@@ -55,6 +55,15 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_env_value(raw_value: str) -> str:
+    """Normaliza valores de env para evitar erros comuns de configuracao."""
+    value = (raw_value or "").strip().strip('"').strip("'")
+    # Evita erros quando comentario foi colocado na mesma linha do valor no .env.
+    if "#" in value:
+        value = value.split("#", 1)[0].strip()
+    return value
+
+
 @dataclass
 class WhatsAppSendResult:
     success: bool
@@ -385,9 +394,9 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
         content_variables_extra: Optional[Dict[str, Any]] = None,
         timeout_seconds: float = 45.0,
     ) -> None:
-        self.account_sid = (account_sid or os.getenv("TWILIO_ACCOUNT_SID") or "").strip()
-        self.auth_token = (auth_token or os.getenv("TWILIO_AUTH_TOKEN") or "").strip()
-        raw_from = (whatsapp_from or os.getenv("TWILIO_WHATSAPP_FROM") or "").strip()
+        self.account_sid = _sanitize_env_value(account_sid or os.getenv("TWILIO_ACCOUNT_SID") or "")
+        self.auth_token = _sanitize_env_value(auth_token or os.getenv("TWILIO_AUTH_TOKEN") or "")
+        raw_from = _sanitize_env_value(whatsapp_from or os.getenv("TWILIO_WHATSAPP_FROM") or "")
         if raw_from.lower().startswith("whatsapp:"):
             self.whatsapp_from = raw_from
         elif raw_from.startswith("+"):
@@ -397,17 +406,17 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
         else:
             self.whatsapp_from = raw_from
         self.timeout_seconds = timeout_seconds
-        self.content_sid = (content_sid or os.getenv("TWILIO_WHATSAPP_CONTENT_SID") or "").strip()
+        self.content_sid = _sanitize_env_value(content_sid or os.getenv("TWILIO_WHATSAPP_CONTENT_SID") or "")
         if content_message_var is not None:
-            raw_msg_var = str(content_message_var).strip()
+            raw_msg_var = _sanitize_env_value(str(content_message_var))
         else:
-            raw_msg_var = (os.getenv("TWILIO_WHATSAPP_CONTENT_MESSAGE_VAR") or "").strip()
+            raw_msg_var = _sanitize_env_value(os.getenv("TWILIO_WHATSAPP_CONTENT_MESSAGE_VAR") or "")
         self.content_message_var: Optional[str] = raw_msg_var or None
         self._content_variables_extra: Dict[str, Any] = {}
         if content_variables_extra is not None:
             self._content_variables_extra = dict(content_variables_extra)
         else:
-            extra_raw = (os.getenv("TWILIO_WHATSAPP_CONTENT_VARIABLES_EXTRA") or "").strip()
+            extra_raw = _sanitize_env_value(os.getenv("TWILIO_WHATSAPP_CONTENT_VARIABLES_EXTRA") or "")
             if extra_raw:
                 try:
                     parsed = json.loads(extra_raw)
@@ -415,6 +424,12 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
                         self._content_variables_extra = parsed
                 except json.JSONDecodeError:
                     self._content_variables_extra = {}
+
+    @staticmethod
+    def _is_valid_content_sid(content_sid: str) -> bool:
+        if not content_sid:
+            return True
+        return content_sid.startswith("HX") and len(content_sid) == 34
 
     def _maybe_build_content_variables(self, message: str) -> Optional[str]:
         """So monta ContentVariables se houver placeholder (MESSAGE_VAR). Sem isso, omitir o campo."""
@@ -486,6 +501,15 @@ class TwilioWhatsAppProvider(BaseWhatsAppProvider):
             )
         if not to_uri or len(_recipient_digits_e164(phone_number)) < 10:
             detail = "Numero de destino invalido ou vazio."
+            return WhatsAppSendResult(
+                success=False,
+                provider_name=self.provider_name,
+                request_payload=request_payload,
+                response_payload={"ok": False, "timestamp": now, "error": detail},
+                error_message=detail,
+            )
+        if self.content_sid and not self._is_valid_content_sid(self.content_sid):
+            detail = "TWILIO_WHATSAPP_CONTENT_SID invalido. Use um SID no formato HX + 32 caracteres."
             return WhatsAppSendResult(
                 success=False,
                 provider_name=self.provider_name,

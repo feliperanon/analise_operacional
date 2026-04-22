@@ -42,6 +42,18 @@ def test_twilio_from_adds_prefix():
     assert provider.whatsapp_from == "whatsapp:+14155238886"
 
 
+def test_twilio_env_values_strip_inline_comments(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACxxxxxxxx")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "secret")
+    monkeypatch.setenv("TWILIO_WHATSAPP_FROM", "whatsapp:+15559359500 # producao")
+    monkeypatch.setenv("TWILIO_WHATSAPP_CONTENT_SID", "HX2b691353b708edb8c0be23bb3de069a1 # template aviso")
+    monkeypatch.setenv("TWILIO_WHATSAPP_CONTENT_MESSAGE_VAR", "1 # placeholder")
+    provider = TwilioWhatsAppProvider()
+    assert provider.whatsapp_from == "whatsapp:+15559359500"
+    assert provider.content_sid == "HX2b691353b708edb8c0be23bb3de069a1"
+    assert provider.content_message_var == "1"
+
+
 def test_twilio_api_error():
     provider = TwilioWhatsAppProvider(
         account_sid="ACx",
@@ -59,6 +71,19 @@ def test_twilio_api_error():
         result = provider.send_message(phone_number="+5511987654321", message="Hi")
     assert result.success is False
     assert "21211" in (result.error_message or "")
+
+
+def test_twilio_invalid_content_sid_fails_fast():
+    provider = TwilioWhatsAppProvider(
+        account_sid="ACx",
+        auth_token="y",
+        whatsapp_from="whatsapp:+15559359500",
+        content_sid="INVALID_SID",
+        content_message_var="1",
+    )
+    result = provider.send_message(phone_number="+5511987654321", message="Texto aviso")
+    assert result.success is False
+    assert "CONTENT_SID invalido" in (result.error_message or "")
 
 
 def test_get_whatsapp_provider_twilio(monkeypatch: pytest.MonkeyPatch):
