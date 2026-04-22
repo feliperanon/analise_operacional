@@ -1628,6 +1628,34 @@ def allowed_prefixes_for(keys: List[str]) -> List[str]:
             prefixes.extend(opt["prefixes"])
     return prefixes
 
+
+def allowed_page_path_for(keys: List[str]) -> Optional[str]:
+    for opt in PAGE_OPTIONS:
+        if opt["key"] in keys:
+            return str(opt["path"])
+    return None
+
+
+def resolve_desktop_landing_path(request: Request) -> str:
+    user = get_current_user(request)
+    if not isinstance(user, dict) or user.get("type") != "user":
+        return "/dashboard"
+
+    role = (request.session.get("auth_user_role") or "").lower()
+    if role != "leader":
+        return "/dashboard"
+
+    raw_allowed_pages = request.session.get("allowed_pages")
+    if isinstance(raw_allowed_pages, list):
+        allowed_pages = [str(key) for key in raw_allowed_pages if str(key) in PAGE_KEYS]
+    else:
+        allowed_pages = parse_allowed_pages(raw_allowed_pages)
+
+    page_path = allowed_page_path_for(allowed_pages)
+    if page_path:
+        return page_path
+    return "/dashboard"
+
 # --- Checklist Operacional (Transpaleteira) ---
 CHECKLIST_ITEMS = [
     {"key": "limpeza", "label": "Limpeza", "critical": False},
@@ -2981,7 +3009,7 @@ def require_game_master(request: Request, session: Session = Depends(get_session
 
 @app.get("/", response_class=RedirectResponse)
 async def root_entry(request: Request):
-    return RedirectResponse(url="/dashboard", status_code=303)
+    return RedirectResponse(url=resolve_desktop_landing_path(request), status_code=303)
 
 
 def _parse_br_float_form(val: Any) -> Optional[float]:
@@ -4697,7 +4725,7 @@ async def login_submit(
     if remember:
         request.session["remember_me"] = True
 
-    return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url=resolve_desktop_landing_path(request), status_code=303)
 
 
 @app.get("/users", response_class=RedirectResponse)
@@ -12139,6 +12167,151 @@ def _opt_form(v) -> Optional[str]:
     return str(v).strip() or None
 
 
+def _client_audit_actor(request: Request) -> str:
+    """Identificador do usuário para ClientAuditLog (sessão web)."""
+    email = (request.session.get("auth_user_email") or request.session.get("username") or "").strip()
+    return email or "sistema"
+
+
+def _client_snapshot_auditable(client: models.Client) -> Dict[str, str]:
+    """Snapshot stringificado dos campos editáveis no cadastro de cliente (diff de auditoria)."""
+    vid = getattr(client, "vendedor_id", None)
+    return {
+        "name": str(client.name or "").strip(),
+        "nb": str(client.nb or "").strip(),
+        "me": str(client.me or "").strip(),
+        "sa": str(client.sa or "").strip(),
+        "visita": str(client.visita or "").strip(),
+        "nome_fantasia": str(client.nome_fantasia or "").strip(),
+        "razao_social": str(client.razao_social or "").strip(),
+        "municipio": str(client.municipio or "").strip(),
+        "bairro": str(client.bairro or "").strip(),
+        "endereco": str(client.endereco or "").strip(),
+        "endereco_normalizado": str(client.endereco_normalizado or "").strip(),
+        "fone": str(client.fone or "").strip(),
+        "fone_e164": str(client.fone_e164 or "").strip(),
+        "segmento": str(client.segmento or "").strip(),
+        "status_cliente": str(client.status_cliente or "").strip(),
+        "status_operacional": str(client.status_operacional or "").strip(),
+        "logradouro": str(client.logradouro or "").strip(),
+        "numero": str(client.numero or "").strip(),
+        "complemento": str(client.complemento or "").strip(),
+        "referencia": str(client.referencia or "").strip(),
+        "observacoes_acesso": str(client.observacoes_acesso or "").strip(),
+        "fone_alternativo": str(client.fone_alternativo or "").strip(),
+        "observacoes_contato": str(client.observacoes_contato or "").strip(),
+        "janela_dias_semana": str(client.janela_dias_semana or "").strip(),
+        "janela_horario_inicio": str(client.janela_horario_inicio or "").strip(),
+        "janela_horario_fim": str(client.janela_horario_fim or "").strip(),
+        "prioridade_logistica": str(client.prioridade_logistica or "").strip(),
+        "lgpd_nao_contatar": "1" if bool(getattr(client, "lgpd_nao_contatar", False)) else "",
+        "lgpd_restricao_dados": "1" if bool(getattr(client, "lgpd_restricao_dados", False)) else "",
+        "vendedor_id": str(int(vid)) if vid is not None else "",
+        "setor": str(client.setor or "").strip(),
+    }
+
+
+def _append_client_audit_diff(
+    session: Session,
+    client_id: int,
+    before: Dict[str, str],
+    after: Dict[str, str],
+    actor: str,
+) -> None:
+    max_len = 500
+    for key in sorted(set(before) | set(after)):
+        ov = before.get(key, "")
+        nv = after.get(key, "")
+        if ov != nv:
+            session.add(
+                models.ClientAuditLog(
+                    client_id=client_id,
+                    changed_by=actor,
+                    field_name=key,
+                    old_value=ov[:max_len] if ov else None,
+                    new_value=nv[:max_len] if nv else None,
+                    action="update",
+                )
+            )
+
+
+def _apply_client_profile_form(
+    session: Session,
+    client: models.Client,
+    *,
+    name: str,
+    nb: Optional[str],
+    vendedor_id: Optional[str],
+    me: Optional[str],
+    sa: Optional[str],
+    visita: Optional[str],
+    nome_fantasia: Optional[str],
+    razao_social: Optional[str],
+    municipio: Optional[str],
+    bairro: Optional[str],
+    endereco: Optional[str],
+    fone: Optional[str],
+    segmento: Optional[str],
+    status_cliente: Optional[str],
+    status_operacional: Optional[str],
+    logradouro: Optional[str],
+    numero: Optional[str],
+    complemento: Optional[str],
+    referencia: Optional[str],
+    observacoes_acesso: Optional[str],
+    fone_alternativo: Optional[str],
+    observacoes_contato: Optional[str],
+    janela_dias_semana: Optional[str],
+    janela_horario_inicio: Optional[str],
+    janela_horario_fim: Optional[str],
+    prioridade_logistica: Optional[str],
+    lgpd_nao_contatar: Optional[str],
+    lgpd_restricao_dados: Optional[str],
+) -> Tuple[tuple, tuple]:
+    """Aplica o mesmo payload do formulário de /clients/:id/update. Retorna chaves de endereço antes/depois (geocoding)."""
+    old_address_key = (client.endereco or "", client.logradouro or "", client.numero or "", client.municipio or "")
+    fone_val = _opt_form(fone)
+    fone_e164_val, _ = normalize_phone_br(fone_val)
+    fone_alt_val = _opt_form(fone_alternativo)
+    fone_alt_e164_val, _ = normalize_phone_br(fone_alt_val)
+    endereco_val = _opt_form(endereco)
+    endereco_clean = normalize_address(endereco_val) if endereco_val else None
+    endereco_norm_val = endereco_clean.upper().replace(" ", "") if endereco_clean and len(endereco_clean) >= 10 else None
+    client.name = name.strip()
+    client.nb = _opt_form(nb)
+    client.me = _opt_form(me)
+    client.sa = _opt_form(sa)
+    client.visita = _opt_form(visita)
+    client.nome_fantasia = _opt_form(nome_fantasia)
+    client.razao_social = _opt_form(razao_social)
+    client.municipio = _opt_form(municipio)
+    client.bairro = _opt_form(bairro)
+    client.endereco = endereco_clean or endereco_val
+    client.endereco_normalizado = endereco_norm_val
+    client.fone = fone_e164_val or fone_val
+    client.fone_e164 = fone_e164_val
+    client.segmento = _opt_form(segmento)
+    client.status_cliente = _opt_form(status_cliente)
+    client.status_operacional = _opt_form(status_operacional) or "ATIVO"
+    client.logradouro = _opt_form(logradouro)
+    client.numero = _opt_form(numero)
+    client.complemento = _opt_form(complemento)
+    client.referencia = _opt_form(referencia)
+    client.observacoes_acesso = _opt_form(observacoes_acesso)
+    client.fone_alternativo = fone_alt_e164_val or fone_alt_val
+    client.observacoes_contato = _opt_form(observacoes_contato)
+    client.janela_dias_semana = _opt_form(janela_dias_semana)
+    client.janela_horario_inicio = _opt_form(janela_horario_inicio)
+    client.janela_horario_fim = _opt_form(janela_horario_fim)
+    client.prioridade_logistica = _opt_form(prioridade_logistica)
+    client.lgpd_nao_contatar = (lgpd_nao_contatar or "").strip().lower() in ("on", "1", "true", "sim", "sim")
+    client.lgpd_restricao_dados = (lgpd_restricao_dados or "").strip().lower() in ("on", "1", "true", "sim", "sim")
+    apply_vendedor_to_client(session, client, parse_vendedor_id_form(vendedor_id))
+    client.updated_at = datetime.now()
+    new_address_key = (client.endereco or "", client.logradouro or "", client.numero or "", client.municipio or "")
+    return old_address_key, new_address_key
+
+
 def _try_geocode_client(client: models.Client, session: Session) -> None:
     """Tenta geocodificar um cliente de forma segura (nunca lança exceção).
 
@@ -12947,76 +13120,41 @@ async def update_client(
     require_login(request)
     client = session.get(models.Client, client_id)
     if client:
-        old_name, old_nb, old_setor, old_razao, old_status_op = (
-            client.name, client.nb, client.setor, client.razao_social, client.status_operacional
+        before = _client_snapshot_auditable(client)
+        old_address_key, _ = _apply_client_profile_form(
+            session,
+            client,
+            name=name,
+            nb=nb,
+            vendedor_id=vendedor_id,
+            me=me,
+            sa=sa,
+            visita=visita,
+            nome_fantasia=nome_fantasia,
+            razao_social=razao_social,
+            municipio=municipio,
+            bairro=bairro,
+            endereco=endereco,
+            fone=fone,
+            segmento=segmento,
+            status_cliente=status_cliente,
+            status_operacional=status_operacional,
+            logradouro=logradouro,
+            numero=numero,
+            complemento=complemento,
+            referencia=referencia,
+            observacoes_acesso=observacoes_acesso,
+            fone_alternativo=fone_alternativo,
+            observacoes_contato=observacoes_contato,
+            janela_dias_semana=janela_dias_semana,
+            janela_horario_inicio=janela_horario_inicio,
+            janela_horario_fim=janela_horario_fim,
+            prioridade_logistica=prioridade_logistica,
+            lgpd_nao_contatar=lgpd_nao_contatar,
+            lgpd_restricao_dados=lgpd_restricao_dados,
         )
-        old_vendedor_id = getattr(client, "vendedor_id", None)
-        # Captura endereço antigo para verificar se mudou
-        old_address_key = (client.endereco or "", client.logradouro or "", client.numero or "", client.municipio or "")
-        fone_val = _opt_form(fone)
-        fone_e164_val, _ = normalize_phone_br(fone_val)
-        fone_alt_val = _opt_form(fone_alternativo)
-        fone_alt_e164_val, _ = normalize_phone_br(fone_alt_val)
-        endereco_val = _opt_form(endereco)
-        endereco_clean = normalize_address(endereco_val) if endereco_val else None
-        endereco_norm_val = endereco_clean.upper().replace(" ", "") if endereco_clean and len(endereco_clean) >= 10 else None
-        client.name = name.strip()
-        client.nb = _opt_form(nb)
-        client.me = _opt_form(me)
-        client.sa = _opt_form(sa)
-        client.visita = _opt_form(visita)
-        client.nome_fantasia = _opt_form(nome_fantasia)
-        client.razao_social = _opt_form(razao_social)
-        client.municipio = _opt_form(municipio)
-        client.bairro = _opt_form(bairro)
-        client.endereco = endereco_clean or endereco_val
-        client.endereco_normalizado = endereco_norm_val
-        client.fone = fone_e164_val or fone_val
-        client.fone_e164 = fone_e164_val
-        client.segmento = _opt_form(segmento)
-        client.status_cliente = _opt_form(status_cliente)
-        client.status_operacional = _opt_form(status_operacional) or "ATIVO"
-        client.logradouro = _opt_form(logradouro)
-        client.numero = _opt_form(numero)
-        client.complemento = _opt_form(complemento)
-        client.referencia = _opt_form(referencia)
-        client.observacoes_acesso = _opt_form(observacoes_acesso)
-        client.fone_alternativo = fone_alt_e164_val or fone_alt_val
-        client.observacoes_contato = _opt_form(observacoes_contato)
-        client.janela_dias_semana = _opt_form(janela_dias_semana)
-        client.janela_horario_inicio = _opt_form(janela_horario_inicio)
-        client.janela_horario_fim = _opt_form(janela_horario_fim)
-        client.prioridade_logistica = _opt_form(prioridade_logistica)
-        client.lgpd_nao_contatar = (lgpd_nao_contatar or "").strip().lower() in ("on", "1", "true", "sim", "sim")
-        client.lgpd_restricao_dados = (lgpd_restricao_dados or "").strip().lower() in ("on", "1", "true", "sim", "sim")
-        apply_vendedor_to_client(session, client, parse_vendedor_id_form(vendedor_id))
-        client.updated_at = datetime.now()
-        username = request.session.get("username", "sistema")
-        new_name = name.strip()
-        new_nb = _opt_form(nb)
-        new_setor = client.setor
-        new_vid = getattr(client, "vendedor_id", None)
-        new_razao = _opt_form(razao_social)
-        new_status_op = _opt_form(status_operacional) or "ATIVO"
-        audit_fields = [
-            ("name", old_name, new_name),
-            ("nb", old_nb, new_nb),
-            ("setor", old_setor, new_setor),
-            ("vendedor_id", str(old_vendedor_id) if old_vendedor_id else None, str(new_vid) if new_vid else None),
-            ("razao_social", old_razao, new_razao),
-            ("status_operacional", old_status_op, new_status_op),
-        ]
-        for field_name, old_val, new_val in audit_fields:
-            if str(old_val or "") != str(new_val or ""):
-                log_entry = models.ClientAuditLog(
-                    client_id=client_id,
-                    changed_by=username,
-                    field_name=field_name,
-                    old_value=str(old_val)[:500] if old_val else None,
-                    new_value=str(new_val)[:500] if new_val else None,
-                    action="update",
-                )
-                session.add(log_entry)
+        after = _client_snapshot_auditable(client)
+        _append_client_audit_diff(session, int(client_id), before, after, _client_audit_actor(request))
         session.add(client)
         session.commit()
         # Regeocodifica se o endereço mudou
@@ -15390,6 +15528,7 @@ async def comercial_entregas_page(
                 "client_name": client_name,
                 "started_at": _fmt_time_br(row.delivery_started_at or row.start_time),
                 "finished_at": _fmt_time_br(row.delivery_finished_at or row.end_time),
+                "client_id": client_id,
             }
         )
 
@@ -15413,6 +15552,169 @@ async def comercial_entregas_page(
 @app.get("/comercial", response_class=RedirectResponse)
 async def comercial_entry():
     return RedirectResponse(url="/comercial/entregas", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/api/comercial/clients/{client_id}", response_class=JSONResponse)
+async def api_comercial_client_detail(
+    request: Request,
+    client_id: int,
+    session: Session = Depends(get_session),
+):
+    require_comercial_access(request)
+    client = session.get(models.Client, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    vendedor_select_id = resolve_vendedor_id_for_select(client, session)
+    vendedores = list_vendedores(session)
+    audit_rows = list(
+        session.exec(
+            select(models.ClientAuditLog)
+            .where(models.ClientAuditLog.client_id == client_id)
+            .order_by(models.ClientAuditLog.changed_at.desc())
+            .limit(40)
+        ).all()
+    )
+    return JSONResponse(
+        {
+            "client": {
+                "id": client.id,
+                "name": client.name or "",
+                "nb": client.nb or "",
+                "me": client.me or "",
+                "sa": client.sa or "",
+                "visita": client.visita or "",
+                "nome_fantasia": client.nome_fantasia or "",
+                "razao_social": client.razao_social or "",
+                "municipio": client.municipio or "",
+                "bairro": client.bairro or "",
+                "endereco": client.endereco or "",
+                "fone": client.fone or "",
+                "fone_alternativo": client.fone_alternativo or "",
+                "segmento": client.segmento or "",
+                "status_cliente": client.status_cliente or "",
+                "status_operacional": client.status_operacional or "ATIVO",
+                "logradouro": client.logradouro or "",
+                "numero": client.numero or "",
+                "complemento": client.complemento or "",
+                "referencia": client.referencia or "",
+                "observacoes_acesso": client.observacoes_acesso or "",
+                "observacoes_contato": client.observacoes_contato or "",
+                "janela_dias_semana": client.janela_dias_semana or "",
+                "janela_horario_inicio": client.janela_horario_inicio or "",
+                "janela_horario_fim": client.janela_horario_fim or "",
+                "prioridade_logistica": client.prioridade_logistica or "",
+                "lgpd_nao_contatar": bool(client.lgpd_nao_contatar),
+                "lgpd_restricao_dados": bool(client.lgpd_restricao_dados),
+                "vendedor_select_id": vendedor_select_id,
+                "latitude": client.latitude,
+                "longitude": client.longitude,
+                "geocoding_status": client.geocoding_status or "",
+            },
+            "vendedores": [
+                {
+                    "id": e.id,
+                    "name": (e.name or "").strip(),
+                    "seller_code": ((e.seller_code or "").strip() or ""),
+                }
+                for e in vendedores
+                if getattr(e, "id", None)
+            ],
+            "audit": [
+                {
+                    "changed_at": log.changed_at.isoformat() if getattr(log, "changed_at", None) else "",
+                    "changed_by": (log.changed_by or "").strip(),
+                    "field_name": (log.field_name or "").strip(),
+                    "old_value": log.old_value or "",
+                    "new_value": log.new_value or "",
+                }
+                for log in audit_rows
+            ],
+        }
+    )
+
+
+@app.post("/api/comercial/clients/{client_id}/update", response_class=JSONResponse)
+async def api_comercial_client_update(
+    request: Request,
+    client_id: int,
+    name: str = Form(...),
+    nb: Optional[str] = Form(None),
+    vendedor_id: Optional[str] = Form(None),
+    me: Optional[str] = Form(None),
+    sa: Optional[str] = Form(None),
+    visita: Optional[str] = Form(None),
+    nome_fantasia: Optional[str] = Form(None),
+    razao_social: Optional[str] = Form(None),
+    municipio: Optional[str] = Form(None),
+    bairro: Optional[str] = Form(None),
+    endereco: Optional[str] = Form(None),
+    fone: Optional[str] = Form(None),
+    segmento: Optional[str] = Form(None),
+    status_cliente: Optional[str] = Form(None),
+    status_operacional: Optional[str] = Form(None),
+    logradouro: Optional[str] = Form(None),
+    numero: Optional[str] = Form(None),
+    complemento: Optional[str] = Form(None),
+    referencia: Optional[str] = Form(None),
+    observacoes_acesso: Optional[str] = Form(None),
+    fone_alternativo: Optional[str] = Form(None),
+    observacoes_contato: Optional[str] = Form(None),
+    janela_dias_semana: Optional[str] = Form(None),
+    janela_horario_inicio: Optional[str] = Form(None),
+    janela_horario_fim: Optional[str] = Form(None),
+    prioridade_logistica: Optional[str] = Form(None),
+    lgpd_nao_contatar: Optional[str] = Form(None),
+    lgpd_restricao_dados: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    require_comercial_access(request)
+    client = session.get(models.Client, client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    before = _client_snapshot_auditable(client)
+    old_address_key, _ = _apply_client_profile_form(
+        session,
+        client,
+        name=name,
+        nb=nb,
+        vendedor_id=vendedor_id,
+        me=me,
+        sa=sa,
+        visita=visita,
+        nome_fantasia=nome_fantasia,
+        razao_social=razao_social,
+        municipio=municipio,
+        bairro=bairro,
+        endereco=endereco,
+        fone=fone,
+        segmento=segmento,
+        status_cliente=status_cliente,
+        status_operacional=status_operacional,
+        logradouro=logradouro,
+        numero=numero,
+        complemento=complemento,
+        referencia=referencia,
+        observacoes_acesso=observacoes_acesso,
+        fone_alternativo=fone_alternativo,
+        observacoes_contato=observacoes_contato,
+        janela_dias_semana=janela_dias_semana,
+        janela_horario_inicio=janela_horario_inicio,
+        janela_horario_fim=janela_horario_fim,
+        prioridade_logistica=prioridade_logistica,
+        lgpd_nao_contatar=lgpd_nao_contatar,
+        lgpd_restricao_dados=lgpd_restricao_dados,
+    )
+    after = _client_snapshot_auditable(client)
+    _append_client_audit_diff(session, int(client_id), before, after, _client_audit_actor(request))
+    session.add(client)
+    session.commit()
+    new_address_key = (client.endereco or "", client.logradouro or "", client.numero or "", client.municipio or "")
+    if old_address_key != new_address_key:
+        client.geocoding_status = "pending"
+        session.add(client)
+        session.commit()
+        _try_geocode_client(client, session)
+    return JSONResponse({"ok": True})
 
 
 @app.post("/separacao/add", response_class=RedirectResponse)

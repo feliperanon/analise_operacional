@@ -91,6 +91,120 @@
         word-break: break-word;
         line-height: 1.35;
     }
+    .comercial-cliente-btn {
+        display: inline;
+        padding: 0;
+        margin: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        color: #0369a1;
+        text-align: left;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+    .comercial-cliente-btn:hover {
+        color: #0c4a6e;
+    }
+    .comercial-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        /* Acima do header (z-30), overlay do menu (z-40), drawer (z-50) e botão menu (z-60) — fora do stacking context do main */
+        z-index: 110;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding: 10px 12px 16px;
+        background: rgba(15, 23, 42, 0.45);
+        /* Sem rolagem dentro do card branco: se não couber, rola só o backdrop (área escura) */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .comercial-modal-card {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-width: min(98vw, 1280px);
+        margin-top: 4px;
+        margin-bottom: auto;
+        max-height: none;
+        border-radius: var(--sys-radius-lg, 12px);
+        box-shadow: var(--sys-shadow-lg, 0 20px 40px rgba(0,0,0,.12));
+        background: var(--sys-surface-elevated, #fff);
+    }
+    html.dark .comercial-modal-card {
+        background: rgb(30 41 59);
+        border: 1px solid rgb(51 65 85);
+    }
+    .comercial-modal-body {
+        flex: none;
+        overflow: visible;
+        padding: 0.4rem 0.65rem 0.65rem;
+    }
+    .comercial-modal-grid {
+        display: grid;
+        gap: 0.3rem 0.55rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    @media (min-width: 720px) {
+        .comercial-modal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1100px) {
+        .comercial-modal-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (max-width: 480px) {
+        .comercial-modal-grid { grid-template-columns: 1fr; }
+    }
+    .comercial-modal-grid .span-2 { grid-column: 1 / -1; }
+    .comercial-modal-form .sys-section__label--field {
+        font-size: 9px;
+        margin-bottom: 2px;
+    }
+    .comercial-modal-form .sys-input,
+    .comercial-modal-form select.sys-input {
+        font-size: 12px;
+        line-height: 1.25;
+        padding-top: 0.3rem;
+        padding-bottom: 0.3rem;
+        min-height: 0;
+    }
+    .comercial-kv-label {
+        display: block;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        line-height: 1.15;
+    }
+    .comercial-kv-value {
+        margin: 0 0 0.15rem;
+        font-size: 12px;
+        line-height: 1.25;
+        color: #0f172a;
+        word-break: break-word;
+    }
+    html.dark .comercial-kv-value { color: #f1f5f9; }
+    .comercial-audit-table {
+        width: 100%;
+        font-size: 10px;
+        border-collapse: collapse;
+    }
+    .comercial-audit-table th,
+    .comercial-audit-table td {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 4px 3px;
+        text-align: left;
+        vertical-align: top;
+    }
+    .comercial-audit-wrap {
+        overflow: visible;
+    }
+    html.dark .comercial-audit-table th,
+    html.dark .comercial-audit-table td {
+        border-color: #334155;
+    }
     .comercial-time {
         text-align: center;
         font-variant-numeric: tabular-nums;
@@ -103,7 +217,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="ga-employee-theme employees-shell employees-page space-y-5 pt-2 md:pt-3">
+<div
+    class="ga-employee-theme employees-shell employees-page space-y-5 pt-2 md:pt-3"
+    x-data="comercialClientePanel()"
+    @keydown.escape.window="modalOpen && closeModal()"
+>
     <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
         <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
         <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
@@ -206,7 +324,13 @@
                             <span class="comercial-equipe-helper">{{ row.team_members[1:]|join(', ') }}</span>
                             {% endif %}
                         </td>
-                        <td class="comercial-col-cliente comercial-cliente">{{ row.client_name }}</td>
+                        <td class="comercial-col-cliente comercial-cliente">
+                            {% if row.client_id %}
+                            <button type="button" class="comercial-cliente-btn" @click="openCliente({{ row.client_id }})">{{ row.client_name }}</button>
+                            {% else %}
+                            {{ row.client_name }}
+                            {% endif %}
+                        </td>
                         <td class="comercial-col-hora comercial-time">{{ row.started_at }}</td>
                         <td class="comercial-col-hora comercial-time">{{ row.finished_at }}</td>
                     </tr>
@@ -221,5 +345,333 @@
         </div>
         {% endif %}
     </div>
+
+    <template x-teleport="body">
+    <div
+        x-show="modalOpen"
+        x-cloak
+        class="comercial-modal-backdrop"
+        @click.self="closeModal()"
+        role="dialog"
+        aria-modal="true"
+        :aria-busy="loading || saving"
+    >
+        <div class="comercial-modal-card sys-card sys-card--surface overflow-visible" @click.stop>
+            <div class="flex shrink-0 items-start justify-between gap-2 border-b border-slate-200 px-3 py-2.5 dark:border-slate-600">
+                <div class="min-w-0">
+                    <p class="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cadastro do cliente</p>
+                    <h3 class="mt-0.5 truncate text-base font-semibold leading-tight text-slate-900 dark:text-white" x-text="clientRow.name || '—'"></h3>
+                </div>
+                <button type="button" class="sys-btn sys-btn--secondary shrink-0" @click="closeModal()">Fechar</button>
+            </div>
+            <div class="comercial-modal-body">
+                <p x-show="error" class="sys-alert sys-alert--danger mb-3 text-sm" x-text="error"></p>
+                <p x-show="successMsg" class="sys-alert sys-alert--success mb-3 text-sm" x-text="successMsg"></p>
+
+                <div x-show="!editMode && !loading && clientRow.id" x-cloak>
+                        <div class="comercial-modal-grid mb-2">
+                            <div><span class="comercial-kv-label">NB</span><p class="comercial-kv-value" x-text="clientRow.nb || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Nome (interno)</span><p class="comercial-kv-value" x-text="clientRow.name || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Nome fantasia</span><p class="comercial-kv-value" x-text="clientRow.nome_fantasia || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Razão social</span><p class="comercial-kv-value" x-text="clientRow.razao_social || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Vendedor</span><p class="comercial-kv-value" x-text="vendedorLabel()"></p></div>
+                            <div><span class="comercial-kv-label">ME / SA / Visita</span><p class="comercial-kv-value"><span x-text="clientRow.me || '—'"></span> / <span x-text="clientRow.sa || '—'"></span> / <span x-text="clientRow.visita || '—'"></span></p></div>
+                            <div><span class="comercial-kv-label">Município</span><p class="comercial-kv-value" x-text="clientRow.municipio || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Bairro</span><p class="comercial-kv-value" x-text="clientRow.bairro || '—'"></p></div>
+                            <div class="span-2"><span class="comercial-kv-label">Endereço (livre)</span><p class="comercial-kv-value" x-text="clientRow.endereco || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Logradouro</span><p class="comercial-kv-value" x-text="clientRow.logradouro || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Número</span><p class="comercial-kv-value" x-text="clientRow.numero || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Complemento</span><p class="comercial-kv-value" x-text="clientRow.complemento || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Referência</span><p class="comercial-kv-value" x-text="clientRow.referencia || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Telefone</span><p class="comercial-kv-value" x-text="clientRow.fone || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Telefone alternativo</span><p class="comercial-kv-value" x-text="clientRow.fone_alternativo || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Segmento</span><p class="comercial-kv-value" x-text="clientRow.segmento || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Status cliente</span><p class="comercial-kv-value" x-text="clientRow.status_cliente || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Status operacional</span><p class="comercial-kv-value" x-text="clientRow.status_operacional || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Prioridade logística</span><p class="comercial-kv-value" x-text="clientRow.prioridade_logistica || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Janela (dias)</span><p class="comercial-kv-value font-mono text-xs" x-text="clientRow.janela_dias_semana || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Janela horário</span><p class="comercial-kv-value"><span x-text="clientRow.janela_horario_inicio || '—'"></span> – <span x-text="clientRow.janela_horario_fim || '—'"></span></p></div>
+                            <div class="span-2"><span class="comercial-kv-label">Observações de acesso</span><p class="comercial-kv-value" x-text="clientRow.observacoes_acesso || '—'"></p></div>
+                            <div class="span-2"><span class="comercial-kv-label">Observações de contato</span><p class="comercial-kv-value" x-text="clientRow.observacoes_contato || '—'"></p></div>
+                            <div><span class="comercial-kv-label">LGPD não contatar</span><p class="comercial-kv-value" x-text="clientRow.lgpd_nao_contatar ? 'Sim' : 'Não'"></p></div>
+                            <div><span class="comercial-kv-label">LGPD restrição</span><p class="comercial-kv-value" x-text="clientRow.lgpd_restricao_dados ? 'Sim' : 'Não'"></p></div>
+                            <div><span class="comercial-kv-label">Geocodificação</span><p class="comercial-kv-value" x-text="clientRow.geocoding_status || '—'"></p></div>
+                            <div><span class="comercial-kv-label">Coordenadas</span><p class="comercial-kv-value"><span x-text="coordText()"></span></p></div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" class="sys-btn sys-btn--primary" @click="editMode = true">Editar cadastro</button>
+                        </div>
+                </div>
+
+                <div x-show="editMode && !loading && clientRow.id" x-cloak>
+                    <form class="comercial-modal-form space-y-2" @submit.prevent="salvarCliente()">
+                        <div class="comercial-modal-grid">
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Nome (interno) *</label>
+                                <input type="text" class="sys-input w-full" name="name" x-model="form.name" required maxlength="500">
+                            </div>
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">NB</label>
+                                <input type="text" class="sys-input w-full" name="nb" x-model="form.nb" maxlength="80">
+                            </div>
+                            <div class="span-2">
+                                <label class="sys-section__label sys-section__label--field">Vendedor</label>
+                                <select class="sys-input w-full" name="vendedor_id" x-model="form.vendedor_id">
+                                    <option value="">—</option>
+                                    <template x-for="v in vendedoresList" :key="v.id">
+                                        <option :value="String(v.id)" x-text="v.name + (v.seller_code ? ' (' + v.seller_code + ')' : '')"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div><label class="sys-section__label sys-section__label--field">ME</label><input type="text" class="sys-input w-full" x-model="form.me"></div>
+                            <div><label class="sys-section__label sys-section__label--field">SA</label><input type="text" class="sys-input w-full" x-model="form.sa"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Visita</label><input type="text" class="sys-input w-full" x-model="form.visita"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Nome fantasia</label><input type="text" class="sys-input w-full" x-model="form.nome_fantasia"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Razão social</label><input type="text" class="sys-input w-full" x-model="form.razao_social"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Município</label><input type="text" class="sys-input w-full" x-model="form.municipio"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Bairro</label><input type="text" class="sys-input w-full" x-model="form.bairro"></div>
+                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Endereço (livre)</label><input type="text" class="sys-input w-full" x-model="form.endereco"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Logradouro</label><input type="text" class="sys-input w-full" x-model="form.logradouro"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Número</label><input type="text" class="sys-input w-full" x-model="form.numero"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Complemento</label><input type="text" class="sys-input w-full" x-model="form.complemento"></div>
+                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Referência</label><input type="text" class="sys-input w-full" x-model="form.referencia"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Telefone</label><input type="text" class="sys-input w-full" x-model="form.fone" inputmode="tel"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Telefone alternativo</label><input type="text" class="sys-input w-full" x-model="form.fone_alternativo" inputmode="tel"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Segmento</label><input type="text" class="sys-input w-full" x-model="form.segmento"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Status cliente</label><input type="text" class="sys-input w-full" x-model="form.status_cliente"></div>
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Status operacional</label>
+                                <select class="sys-input w-full" x-model="form.status_operacional">
+                                    <option value="ATIVO">ATIVO</option>
+                                    <option value="FECHOU">FECHOU</option>
+                                    <option value="INATIVO">INATIVO</option>
+                                    <option value="EM_VALIDACAO">EM_VALIDACAO</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Prioridade</label>
+                                <select class="sys-input w-full" x-model="form.prioridade_logistica">
+                                    <option value="">—</option>
+                                    <option value="A">A</option>
+                                    <option value="B">B</option>
+                                    <option value="C">C</option>
+                                </select>
+                            </div>
+                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Janela dias (JSON)</label><input type="text" class="sys-input w-full font-mono text-xs" x-model="form.janela_dias_semana"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Janela início</label><input type="text" class="sys-input w-full" x-model="form.janela_horario_inicio" placeholder="08:00"></div>
+                            <div><label class="sys-section__label sys-section__label--field">Janela fim</label><input type="text" class="sys-input w-full" x-model="form.janela_horario_fim" placeholder="17:00"></div>
+                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Observações de acesso</label><input type="text" class="sys-input w-full" x-model="form.observacoes_acesso"></div>
+                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Observações de contato</label><input type="text" class="sys-input w-full" x-model="form.observacoes_contato"></div>
+                            <div class="span-2 flex flex-wrap gap-4 pt-1">
+                                <label class="flex items-center gap-2 text-sm"><input type="checkbox" x-model="form.lgpd_nao_contatar" class="rounded border-slate-300"> LGPD não contatar</label>
+                                <label class="flex items-center gap-2 text-sm"><input type="checkbox" x-model="form.lgpd_restricao_dados" class="rounded border-slate-300"> LGPD restrição de dados</label>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-2 border-t border-slate-200 pt-2 dark:border-slate-600">
+                            <button type="button" class="sys-btn sys-btn--secondary" @click="cancelarEdicao()" :disabled="saving">Voltar</button>
+                            <button type="submit" class="sys-btn sys-btn--primary" :disabled="saving"><span x-show="!saving">Salvar</span><span x-show="saving">Salvando…</span></button>
+                        </div>
+                    </form>
+                </div>
+
+                <div x-show="loading" class="py-10 text-center text-sm text-slate-500">Carregando cadastro…</div>
+
+                <details class="mt-2 rounded-lg border border-slate-200 dark:border-slate-600" x-show="auditList.length">
+                    <summary class="cursor-pointer px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Histórico de alterações</summary>
+                    <div class="comercial-audit-wrap px-1.5 pb-1.5">
+                        <table class="comercial-audit-table">
+                            <thead>
+                                <tr>
+                                    <th>Quando</th>
+                                    <th>Usuário</th>
+                                    <th>Campo</th>
+                                    <th>De</th>
+                                    <th>Para</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(a, idx) in auditList" :key="idx">
+                                    <tr>
+                                        <td x-text="fmtData(a.changed_at)"></td>
+                                        <td x-text="a.changed_by || '—'"></td>
+                                        <td x-text="a.field_name || '—'"></td>
+                                        <td x-text="a.old_value || '—'"></td>
+                                        <td x-text="a.new_value || '—'"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
+    </template>
 </div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+function comercialClientePanel() {
+    return {
+        modalOpen: false,
+        loading: false,
+        saving: false,
+        editMode: false,
+        error: '',
+        successMsg: '',
+        clientRow: {},
+        vendedoresList: [],
+        auditList: [],
+        form: {},
+        openCliente(id) {
+            this.modalOpen = true;
+            this.editMode = false;
+            this.error = '';
+            this.successMsg = '';
+            this.fetchCliente(id);
+        },
+        closeModal() {
+            this.modalOpen = false;
+            this.loading = false;
+            this.saving = false;
+            this.editMode = false;
+            this.clientRow = {};
+            this.vendedoresList = [];
+            this.auditList = [];
+            this.form = {};
+        },
+        vendedorLabel() {
+            const vid = this.clientRow.vendedor_select_id;
+            if (!vid) return '—';
+            const v = (this.vendedoresList || []).find(function (x) { return String(x.id) === String(vid); });
+            if (!v) return '#' + vid;
+            return (v.name || '') + (v.seller_code ? ' (' + v.seller_code + ')' : '');
+        },
+        coordText() {
+            const la = this.clientRow.latitude;
+            const lo = this.clientRow.longitude;
+            if (la == null || lo == null) return '—';
+            return String(la) + ', ' + String(lo);
+        },
+        syncFormFromClient(c) {
+            this.form = {
+                name: c.name || '',
+                nb: c.nb || '',
+                vendedor_id: c.vendedor_select_id != null ? String(c.vendedor_select_id) : '',
+                me: c.me || '',
+                sa: c.sa || '',
+                visita: c.visita || '',
+                nome_fantasia: c.nome_fantasia || '',
+                razao_social: c.razao_social || '',
+                municipio: c.municipio || '',
+                bairro: c.bairro || '',
+                endereco: c.endereco || '',
+                fone: c.fone || '',
+                fone_alternativo: c.fone_alternativo || '',
+                segmento: c.segmento || '',
+                status_cliente: c.status_cliente || '',
+                status_operacional: c.status_operacional || 'ATIVO',
+                logradouro: c.logradouro || '',
+                numero: c.numero || '',
+                complemento: c.complemento || '',
+                referencia: c.referencia || '',
+                observacoes_acesso: c.observacoes_acesso || '',
+                observacoes_contato: c.observacoes_contato || '',
+                janela_dias_semana: c.janela_dias_semana || '',
+                janela_horario_inicio: c.janela_horario_inicio || '',
+                janela_horario_fim: c.janela_horario_fim || '',
+                prioridade_logistica: c.prioridade_logistica || '',
+                lgpd_nao_contatar: !!c.lgpd_nao_contatar,
+                lgpd_restricao_dados: !!c.lgpd_restricao_dados,
+            };
+        },
+        async fetchCliente(id) {
+            this.loading = true;
+            this.error = '';
+            try {
+                const r = await fetch('/api/comercial/clients/' + encodeURIComponent(id), { credentials: 'same-origin' });
+                if (r.status === 401 || r.status === 403) {
+                    this.error = 'Sessão expirada ou sem permissão. Atualize a página e entre novamente.';
+                    this.loading = false;
+                    return;
+                }
+                if (!r.ok) {
+                    this.error = 'Não foi possível carregar o cadastro.';
+                    this.loading = false;
+                    return;
+                }
+                const data = await r.json();
+                this.clientRow = data.client || {};
+                this.vendedoresList = data.vendedores || [];
+                this.auditList = data.audit || [];
+                this.syncFormFromClient(this.clientRow);
+            } catch (e) {
+                this.error = 'Erro de rede ao carregar o cadastro.';
+            }
+            this.loading = false;
+        },
+        cancelarEdicao() {
+            this.editMode = false;
+            this.error = '';
+            this.successMsg = '';
+            this.syncFormFromClient(this.clientRow);
+        },
+        async salvarCliente() {
+            const id = this.clientRow.id;
+            if (!id) return;
+            this.saving = true;
+            this.error = '';
+            this.successMsg = '';
+            const body = new URLSearchParams();
+            const f = this.form;
+            const keys = [
+                'name', 'nb', 'vendedor_id', 'me', 'sa', 'visita', 'nome_fantasia', 'razao_social',
+                'municipio', 'bairro', 'endereco', 'fone', 'segmento', 'status_cliente', 'status_operacional',
+                'logradouro', 'numero', 'complemento', 'referencia', 'observacoes_acesso', 'fone_alternativo',
+                'observacoes_contato', 'janela_dias_semana', 'janela_horario_inicio', 'janela_horario_fim', 'prioridade_logistica'
+            ];
+            keys.forEach(function (k) {
+                body.set(k, f[k] != null ? String(f[k]) : '');
+            });
+            if (f.lgpd_nao_contatar) body.set('lgpd_nao_contatar', 'on');
+            if (f.lgpd_restricao_dados) body.set('lgpd_restricao_dados', 'on');
+            try {
+                const r = await fetch('/api/comercial/clients/' + encodeURIComponent(id) + '/update', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString(),
+                });
+                if (!r.ok) {
+                    let msg = 'Não foi possível salvar.';
+                    try {
+                        const err = await r.json();
+                        if (err.detail) msg = typeof err.detail === 'string' ? err.detail : msg;
+                    } catch (e2) { /* ignore */ }
+                    this.error = msg;
+                    this.saving = false;
+                    return;
+                }
+                this.successMsg = 'Alterações salvas. O histórico foi registrado.';
+                this.editMode = false;
+                await this.fetchCliente(id);
+            } catch (e) {
+                this.error = 'Erro de rede ao salvar.';
+            }
+            this.saving = false;
+        },
+        fmtData(iso) {
+            if (!iso) return '—';
+            try {
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return iso;
+                return d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            } catch (e) {
+                return iso;
+            }
+        },
+    };
+}
+</script>
 {% endblock %}

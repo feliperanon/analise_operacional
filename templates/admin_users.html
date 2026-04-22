@@ -1,17 +1,17 @@
 {% extends "base_gestao_avista.html" %}
 
-{% block title %}Usuários · Gestão Avista{% endblock %}
+{% block title %}Usuarios · Gestao Avista{% endblock %}
 
 {% block header_breadcrumb %}
-<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Sistema / Usuários</p>
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Sistema / Usuarios</p>
 {% endblock %}
 
 {% block header_title %}
-<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Gestão de usuários</h1>
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Gestao de usuarios</h1>
 {% endblock %}
 
 {% block header_subtitle %}
-<p class="text-xs text-gray-500 dark:text-gray-400">Cadastre acessos, perfil e permissões de páginas</p>
+<p class="text-xs text-gray-500 dark:text-gray-400">Cadastro de acessos, perfil e permissoes por colaborador</p>
 {% endblock %}
 
 {% block head_extra %}
@@ -19,138 +19,160 @@
 {% endblock %}
 
 {% block content %}
-<div class="ga-employee-theme employees-shell employees-page space-y-5 pt-2 md:pt-3">
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+
     {% if message %}
-    <div class="sys-alert {{ 'sys-alert--danger' if level == 'error' else 'sys-alert--success' }}">
-        {{ message }}
+    <div class="sys-alert {{ 'sys-alert--danger' if level == 'error' else 'sys-alert--success' }} flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            {% if level == 'error' %}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            {% else %}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            {% endif %}
+        </svg>
+        <span class="min-w-0 flex-1 text-sm">{{ message }}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
     </div>
     {% endif %}
 
     <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
         <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
         <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-        <div class="relative flex flex-col gap-4 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
-            <div class="min-w-0">
-                <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-                    Administração do sistema
-                </span>
-                <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Controle de acesso</h2>
-                <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">Gestão completa de usuários com vínculo, perfil e módulos liberados.</p>
-            </div>
-            <div class="employees-hero__chips mt-1 flex flex-wrap items-center gap-2 text-xs font-medium xl:mt-0">
-                <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                    {{ users|length }} usuários
-                </span>
-                <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                    {{ users|selectattr("is_active")|list|length }} ativos
-                </span>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.37 0 4.604.578 6.58 1.602M15 10a3 3 0 11-6 0 3 3 0 016 0zM19 21H5a2 2 0 01-2-2v-1a7 7 0 0114 0v1a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        Painel operacional
+                    </span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Acessos do sistema</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Crie usuarios, vincule ao colaborador e gerencie permissoes por perfil.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+                            {{ users|length }} cadastrados
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ employees|length }} colaboradores
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ page_options|length }} permissoes
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <section class="sys-card sys-card--surface xl:col-span-1">
-            <h3 class="sys-section-title">Novo usuário</h3>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Login Google usa o mesmo e-mail.</p>
+    <div class="grid grid-cols-1 gap-5 xl:grid-cols-12">
+        <section class="sys-card sys-card--surface sys-card--comfort xl:col-span-4">
+            <h3 class="sys-section-heading">Novo usuario</h3>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Login Google usa o mesmo e-mail cadastrado.</p>
 
             <form action="/admin/users/create" method="POST" class="mt-4 space-y-3">
                 <div>
                     <label class="sys-section__label sys-section__label--field">E-mail</label>
-                    <input class="sys-input w-full" type="email" name="email" required placeholder="email@empresa.com">
+                    <input type="email" name="email" required placeholder="email@empresa.com" class="sys-input">
                 </div>
-
                 <div>
                     <label class="sys-section__label sys-section__label--field">Senha</label>
-                    <input class="sys-input w-full" type="password" name="password" required placeholder="********">
+                    <input type="password" name="password" required placeholder="********" class="sys-input">
                 </div>
-
                 <div>
                     <label class="sys-section__label sys-section__label--field">Colaborador</label>
-                    <select class="sys-input w-full" name="employee_id" required>
+                    <select name="employee_id" required class="sys-input">
                         <option value="">Selecione...</option>
                         {% for e in employees %}
                         <option value="{{ e.id }}">{{ e.name|emp_name }} ({{ e.registration_id }})</option>
                         {% endfor %}
                     </select>
                 </div>
-
                 <div>
                     <label class="sys-section__label sys-section__label--field">Perfil</label>
-                    <select class="sys-input w-full" name="role">
-                        <option value="leader">Líder</option>
+                    <select name="role" class="sys-input">
+                        <option value="leader">Lider</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
-
                 <div>
-                    <label class="sys-section__label sys-section__label--field">Permissões de páginas</label>
-                    <div class="max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-slate-700 dark:bg-slate-900/40">
-                        <div class="space-y-1.5">
-                            {% for page in page_options %}
-                            <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                                <input type="checkbox" name="pages" value="{{ page.key }}" class="rounded border-slate-300 bg-white text-blue-600 dark:border-slate-600 dark:bg-slate-900" checked>
-                                {{ page.label }}
-                            </label>
-                            {% endfor %}
-                        </div>
+                    <label class="sys-section__label sys-section__label--field">Permissoes de paginas</label>
+                    <div class="max-h-44 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2.5 text-sm dark:border-slate-700 dark:bg-slate-900">
+                        {% for page in page_options %}
+                        <label class="mb-1 flex items-center gap-2 last:mb-0">
+                            <input type="checkbox" name="pages" value="{{ page.key }}" checked class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-800">
+                            <span class="text-slate-700 dark:text-slate-200">{{ page.label }}</span>
+                        </label>
+                        {% endfor %}
                     </div>
                 </div>
-
-                <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Criar usuário</button>
+                <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Criar usuario</button>
             </form>
         </section>
 
-        <section class="sys-card sys-card--surface xl:col-span-2">
-            <h3 class="sys-section-title">Lista de usuários</h3>
-            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ users|length }} registros</p>
+        <section class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0 xl:col-span-8">
+            <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+                <div class="min-w-0 flex-1">
+                    <p class="employees-table-panel__kicker">Controle de acesso</p>
+                    <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista de usuarios</h3>
+                    <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Ative, desative, edite permissoes ou remova acessos existentes.</p>
+                </div>
+                <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                    <span class="employees-text-caption">{{ users|length }} registro(s) no total.</span>
+                </div>
+            </div>
 
             {% if not users %}
-            <div class="sys-empty-state mt-4">
-                <p class="sys-empty-state__title">Nenhum usuário cadastrado</p>
-                <p class="sys-empty-state__text">Use o formulário ao lado para criar.</p>
-            </div>
+            <div class="sys-empty-state m-5">Nenhum usuario cadastrado. Use o formulario para criar o primeiro acesso.</div>
             {% else %}
-            <div class="sys-table-wrap sys-table-wrap--x-scroll mt-4">
-                <table class="sys-table w-full min-w-[880px]">
-                    <thead>
+            <div class="sys-table-wrap sys-table-wrap--x-scroll">
+                <table class="employees-data-table employees-data-table--compact w-full min-w-[900px] border-collapse text-left text-sm">
+                    <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
                         <tr>
-                            <th>E-mail</th>
-                            <th>Colaborador</th>
-                            <th>Perfil</th>
-                            <th>Status</th>
-                            <th>Ações</th>
+                            <th class="employees-data-table__th px-4 py-2.5">E-mail</th>
+                            <th class="employees-data-table__th px-4 py-2.5">Colaborador</th>
+                            <th class="employees-data-table__th px-4 py-2.5">Perfil</th>
+                            <th class="employees-data-table__th px-4 py-2.5">Status</th>
+                            <th class="employees-data-table__th px-4 py-2.5">Acoes</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="employees-data-table__body divide-y">
                         {% for u in users %}
                         {% set emp = employee_map.get(u.employee_id) if u.employee_id else None %}
                         <tr>
-                            <td>
+                            <td class="px-4 py-3">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span class="font-medium text-slate-800 dark:text-slate-100" title="{{ u.username }}">{{ u.username }}</span>
+                                    <span class="font-medium text-slate-900 dark:text-slate-100" title="{{ u.username }}">{{ u.username }}</span>
                                     {% if u.google_sub %}
-                                    <span class="sys-badge sys-badge--neutral">Google</span>
+                                    <span class="sys-badge sys-badge--ok">Google</span>
                                     {% endif %}
                                 </div>
                             </td>
-                            <td title="{{ emp.name|emp_name if emp else '-' }}">{{ emp.name|emp_name if emp else '—' }}</td>
-                            <td>
-                                <span class="sys-badge sys-badge--neutral">{{ 'Admin' if u.role == 'admin' else 'Líder' }}</span>
+                            <td class="px-4 py-3 text-slate-700 dark:text-slate-300" title="{{ emp.name|emp_name if emp else '-' }}">{{ emp.name|emp_name if emp else '—' }}</td>
+                            <td class="px-4 py-3">
+                                <span class="sys-badge {{ 'sys-badge--alert' if u.role == 'admin' else 'sys-badge--neutral' }}">{{ 'Admin' if u.role == 'admin' else 'Lider' }}</span>
                             </td>
-                            <td>
-                                <span class="sys-badge {{ 'sys-badge--ok' if u.is_active else 'sys-badge--critical' }}">
-                                    {{ 'Ativo' if u.is_active else 'Inativo' }}
-                                </span>
+                            <td class="px-4 py-3">
+                                <span class="sys-badge {{ 'sys-badge--ok' if u.is_active else 'sys-badge--critical' }}">{{ 'Ativo' if u.is_active else 'Inativo' }}</span>
                             </td>
-                            <td>
+                            <td class="px-4 py-3">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <form action="/admin/users/{{ u.id }}/status" method="POST">
+                                    <form action="/admin/users/{{ u.id }}/status" method="POST" class="inline">
                                         <input type="hidden" name="active" value="{{ 'false' if u.is_active else 'true' }}">
-                                        <button type="submit" class="sys-btn sys-btn--secondary">{{ 'Desativar' if u.is_active else 'Ativar' }}</button>
+                                        <button type="submit" class="sys-btn sys-btn--secondary text-xs">{{ 'Desativar' if u.is_active else 'Ativar' }}</button>
                                     </form>
-                                    <a href="/admin/users/{{ u.id }}/edit" class="sys-btn sys-btn--sky">Editar</a>
-                                    <form action="/admin/users/{{ u.id }}/delete" method="POST" onsubmit="return confirm('Excluir este usuário? Esta ação não pode ser desfeita.');">
-                                        <button type="submit" class="sys-btn sys-btn--ghost-danger">Excluir</button>
+                                    <a href="/admin/users/{{ u.id }}/edit" class="sys-btn sys-btn--sky text-xs no-underline">Editar</a>
+                                    <form action="/admin/users/{{ u.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Excluir este usuario? Esta acao nao pode ser desfeita.');">
+                                        <button type="submit" class="sys-btn sys-btn--ghost-danger text-xs">Excluir</button>
                                     </form>
                                 </div>
                             </td>
