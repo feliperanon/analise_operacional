@@ -651,161 +651,6 @@
         </div>
     </div>
 
-    <!-- HEADER EDIT MODAL (altura natural; rolagem só no overlay se não couber na tela) -->
-    <div id="header-edit-modal" class="fixed inset-0 z-[70] hidden overflow-y-auto overscroll-contain" role="dialog" aria-modal="true">
-        <div class="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0"
-            id="header-edit-backdrop" onclick="closeHeaderEdit()"></div>
-        <div class="relative z-10 mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 sm:py-12">
-            <div class="w-full rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 transform opacity-0 transition-all scale-95"
-                id="header-edit-panel">
-                <div class="flex shrink-0 items-center justify-between border-b border-slate-200 p-4 sm:p-5 dark:border-slate-700">
-                    <h3 class="text-xl font-bold text-slate-900 dark:text-white">Editar Colaborador</h3>
-                    <button onclick="closeHeaderEdit()" class="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-                <div class="p-4 sm:p-5">
-                    <form action="/employees/{{ emp.id }}/update" method="POST" id="header-edit-form" class="space-y-3">
-                        <!-- Basic Info: um único grid, uma linha em lg+ -->
-                        <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/40">
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Nome</label>
-                                <input type="text" name="name" value="{{ emp.name|emp_name }}" required
-                                    class="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            </div>
-                            <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/40">
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Matrícula</label>
-                                <input type="text" name="registration_id" value="{{ emp.registration_id }}" required
-                                    class="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            </div>
-                            <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/40">
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400" for="header-edit-phone">WhatsApp / telefone</label>
-                                <input type="text" name="phone" id="header-edit-phone" value="{{ employee_phone_input or '' }}"
-                                    placeholder="+5531994059789" maxlength="14" inputmode="tel" autocomplete="tel"
-                                    data-whatsapp-phone="true"
-                                    class="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                                <p class="mt-1 text-[11px] text-slate-500">Padrão API: +55 + DDD + número (igual ao cadastro de cliente).</p>
-                            </div>
-                            <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/40">
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Código do Vendedor</label>
-                                <input type="text" name="seller_code" value="{{ emp.seller_code or '' }}"
-                                    class="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Cargo</label>
-                                <input type="text" name="role" value="{{ emp.role }}" required
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Turno</label>
-                                <select name="work_shift"
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                                    <option value="Manhã" {% if emp.work_shift=='Manhã' %}selected{% endif %}>Manhã</option>
-                                    <option value="Tarde" {% if emp.work_shift=='Tarde' %}selected{% endif %}>Tarde</option>
-                                    <option value="Noite" {% if emp.work_shift=='Noite' %}selected{% endif %}>Noite</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Horário</label>
-                                <input type="text" name="work_schedule" value="{{ emp.work_schedule or '' }}"
-                                    placeholder="07:00 - 17:00"
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Centro de Custo</label>
-                                <input type="text" name="cost_center" value="{{ emp.cost_center }}" required
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Status</label>
-                                <select name="status"
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                                    <option value="active" {% if emp.status=='active' %}selected{% endif %}>Ativo</option>
-                                    <option value="vacation" {% if emp.status=='vacation' %}selected{% endif %}>Férias</option>
-                                    <option value="away" {% if emp.status=='away' %}selected{% endif %}>Afastado</option>
-                                    <option value="fired" {% if emp.status=='fired' %}selected{% endif %}>Demitido</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Admissão</label>
-                                <input type="date" name="admission_date"
-                                    value="{{ emp.admission_date.strftime('%Y-%m-%d') if emp.admission_date else '' }}"
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            </div>
-                            <div>
-                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Nascimento</label>
-                                <input type="date" name="birthday"
-                                    value="{{ emp.birthday.strftime('%Y-%m-%d') if emp.birthday else '' }}"
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
-                            </div>
-                            <div></div>
-                        </div>
-
-                        <!-- Mobile Access Toggles -->
-                        <div>
-                            <label class="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Acessos mobile</label>
-                            <style>
-                                .toggle-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
-                                .toggle-row:hover { background: rgba(241,245,249,.95); }
-                                .dark .toggle-row:hover { background: rgba(71,85,105,.25); }
-                                .toggle-wrap { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
-                                .toggle-switch-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 10; }
-                                .toggle-switch { position: absolute; inset: 0; border-radius: 11px; background: #475569; transition: background .2s; pointer-events: none; }
-                                .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s ease; }
-                                .toggle-switch-input:checked + .toggle-switch { background: #2563eb; }
-                                .toggle-switch-input:checked + .toggle-switch::after { transform: translateX(18px); }
-                            </style>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
-                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_separation" value="true" class="toggle-switch-input" {% if emp.mobile_access_separation %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Entregas</span></label>
-                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_checklist" value="true" class="toggle-switch-input" {% if emp.mobile_access_checklist %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Checklist Operacional</span></label>
-                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_admin_start" value="true" class="toggle-switch-input" {% if emp.mobile_access_admin_start %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Entregas em Tempo Real</span></label>
-                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_returns" value="true" class="toggle-switch-input" {% if emp.mobile_access_returns %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Dashboard Devoluções</span></label>
-                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_helper" value="true" class="toggle-switch-input" {% if emp.mobile_access_helper %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Pode ser Ajudante</span></label>
-                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_gatehouse" value="true" class="toggle-switch-input" {% if emp.mobile_access_gatehouse %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Módulo Portaria</span></label>
-                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_escala" value="true" class="toggle-switch-input" {% if emp.mobile_access_escala %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Módulo Escala</span></label>
-                            </div>
-                        </div>
-
-                        <!-- Work Days -->
-                        <div>
-                            <label class="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Dias de Trabalho</label>
-                            <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
-                                {% set days_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
-                                'Sunday'] %}
-                                {% set days_pt = {'Monday':'Seg', 'Tuesday':'Ter', 'Wednesday':'Qua', 'Thursday':'Qui',
-                                'Friday':'Sex', 'Saturday':'Sáb', 'Sunday':'Dom'} %}
-                                {% for d in days_list %}
-                                <label class="flex cursor-pointer items-center gap-1.5 rounded bg-slate-100/90 p-1.5 transition hover:bg-slate-200/80 dark:bg-slate-900/50 dark:hover:bg-slate-700/50">
-                                    <input type="checkbox" name="work_days" value="{{ d }}" {% if d in (emp.work_days or '') %}checked{% endif %}
-                                        class="h-3.5 w-3.5 rounded border-slate-400 bg-white text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800">
-                                    <span class="text-xs text-slate-700 dark:text-slate-300">{{ days_pt[d] }}</span>
-                                </label>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        <div class="mt-3 flex justify-end gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
-                            <button type="button" onclick="closeHeaderEdit()"
-                                class="px-4 py-2 text-sm text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Cancelar</button>
-                            <button type="submit"
-                                class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-6 py-2 rounded-lg transition shadow-lg shadow-blue-500/20">
-                                Salvar Tudo
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script>
         function normalizeWhatsappPhoneDigits(value) {
@@ -1554,4 +1399,162 @@
         }
     </script>
 </div>
+{% endblock %}
+
+{% block layout_portal %}
+    <!-- HEADER EDIT MODAL (altura natural; rolagem só no overlay se não couber na tela) -->
+    <div id="header-edit-modal" class="fixed inset-0 z-[70] hidden overflow-y-auto overscroll-contain" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity opacity-0"
+            id="header-edit-backdrop" onclick="closeHeaderEdit()"></div>
+        <div class="relative z-10 mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 sm:py-12">
+            <div class="w-full rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 transform opacity-0 transition-all scale-95"
+                id="header-edit-panel">
+                <div class="flex shrink-0 items-center justify-between border-b border-slate-200 p-4 sm:p-5 dark:border-slate-700">
+                    <h3 class="text-xl font-bold text-slate-900 dark:text-white">Editar Colaborador</h3>
+                    <button onclick="closeHeaderEdit()" class="rounded-full p-1 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="p-4 sm:p-5">
+                    <form action="/employees/{{ emp.id }}/update" method="POST" id="header-edit-form" class="space-y-3">
+                        <!-- Basic Info: um único grid, uma linha em lg+ -->
+                        <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/40">
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Nome</label>
+                                <input type="text" name="name" value="{{ emp.name|emp_name }}" required
+                                    class="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                            </div>
+                            <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/40">
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Matrícula</label>
+                                <input type="text" name="registration_id" value="{{ emp.registration_id }}" required
+                                    class="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                            </div>
+                            <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/40">
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400" for="header-edit-phone">WhatsApp / telefone</label>
+                                <input type="text" name="phone" id="header-edit-phone" value="{{ employee_phone_input or '' }}"
+                                    placeholder="+5531994059789" maxlength="14" inputmode="tel" autocomplete="tel"
+                                    data-whatsapp-phone="true"
+                                    class="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-mono text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                                <p class="mt-1 text-[11px] text-slate-500">Padrão API: +55 + DDD + número (igual ao cadastro de cliente).</p>
+                            </div>
+                            <div class="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800/40">
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Código do Vendedor</label>
+                                <input type="text" name="seller_code" value="{{ emp.seller_code or '' }}"
+                                    class="w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Cargo</label>
+                                <input type="text" name="role" value="{{ emp.role }}" required
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Turno</label>
+                                <select name="work_shift"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                                    <option value="Manhã" {% if emp.work_shift=='Manhã' %}selected{% endif %}>Manhã</option>
+                                    <option value="Tarde" {% if emp.work_shift=='Tarde' %}selected{% endif %}>Tarde</option>
+                                    <option value="Noite" {% if emp.work_shift=='Noite' %}selected{% endif %}>Noite</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Horário</label>
+                                <input type="text" name="work_schedule" value="{{ emp.work_schedule or '' }}"
+                                    placeholder="07:00 - 17:00"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Centro de Custo</label>
+                                <input type="text" name="cost_center" value="{{ emp.cost_center }}" required
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Status</label>
+                                <select name="status"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                                    <option value="active" {% if emp.status=='active' %}selected{% endif %}>Ativo</option>
+                                    <option value="vacation" {% if emp.status=='vacation' %}selected{% endif %}>Férias</option>
+                                    <option value="away" {% if emp.status=='away' %}selected{% endif %}>Afastado</option>
+                                    <option value="fired" {% if emp.status=='fired' %}selected{% endif %}>Demitido</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Admissão</label>
+                                <input type="date" name="admission_date"
+                                    value="{{ emp.admission_date.strftime('%Y-%m-%d') if emp.admission_date else '' }}"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Nascimento</label>
+                                <input type="date" name="birthday"
+                                    value="{{ emp.birthday.strftime('%Y-%m-%d') if emp.birthday else '' }}"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-white">
+                            </div>
+                            <div></div>
+                        </div>
+
+                        <!-- Mobile Access Toggles -->
+                        <div>
+                            <label class="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Acessos mobile</label>
+                            <style>
+                                .toggle-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+                                .toggle-row:hover { background: rgba(241,245,249,.95); }
+                                .dark .toggle-row:hover { background: rgba(71,85,105,.25); }
+                                .toggle-wrap { position: relative; width: 40px; height: 22px; flex-shrink: 0; }
+                                .toggle-switch-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 10; }
+                                .toggle-switch { position: absolute; inset: 0; border-radius: 11px; background: #475569; transition: background .2s; pointer-events: none; }
+                                .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: transform .2s ease; }
+                                .toggle-switch-input:checked + .toggle-switch { background: #2563eb; }
+                                .toggle-switch-input:checked + .toggle-switch::after { transform: translateX(18px); }
+                            </style>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_separation" value="true" class="toggle-switch-input" {% if emp.mobile_access_separation %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Entregas</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_checklist" value="true" class="toggle-switch-input" {% if emp.mobile_access_checklist %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Checklist Operacional</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_admin_start" value="true" class="toggle-switch-input" {% if emp.mobile_access_admin_start %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Entregas em Tempo Real</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_returns" value="true" class="toggle-switch-input" {% if emp.mobile_access_returns %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Dashboard Devoluções</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_helper" value="true" class="toggle-switch-input" {% if emp.mobile_access_helper %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Pode ser Ajudante</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_gatehouse" value="true" class="toggle-switch-input" {% if emp.mobile_access_gatehouse %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Módulo Portaria</span></label>
+                                <label class="toggle-row"><span class="toggle-wrap"><input type="checkbox" name="mobile_access_escala" value="true" class="toggle-switch-input" {% if emp.mobile_access_escala %}checked{% endif %}><span class="toggle-switch"></span></span><span class="text-xs font-medium text-slate-700 dark:text-slate-300">Módulo Escala</span></label>
+                            </div>
+                        </div>
+
+                        <!-- Work Days -->
+                        <div>
+                            <label class="mb-2 block text-xs font-medium text-slate-600 dark:text-slate-400">Dias de Trabalho</label>
+                            <div class="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+                                {% set days_list = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+                                'Sunday'] %}
+                                {% set days_pt = {'Monday':'Seg', 'Tuesday':'Ter', 'Wednesday':'Qua', 'Thursday':'Qui',
+                                'Friday':'Sex', 'Saturday':'Sáb', 'Sunday':'Dom'} %}
+                                {% for d in days_list %}
+                                <label class="flex cursor-pointer items-center gap-1.5 rounded bg-slate-100/90 p-1.5 transition hover:bg-slate-200/80 dark:bg-slate-900/50 dark:hover:bg-slate-700/50">
+                                    <input type="checkbox" name="work_days" value="{{ d }}" {% if d in (emp.work_days or '') %}checked{% endif %}
+                                        class="h-3.5 w-3.5 rounded border-slate-400 bg-white text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-800">
+                                    <span class="text-xs text-slate-700 dark:text-slate-300">{{ days_pt[d] }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="mt-3 flex justify-end gap-3 border-t border-slate-200 pt-3 dark:border-slate-700">
+                            <button type="button" onclick="closeHeaderEdit()"
+                                class="px-4 py-2 text-sm text-slate-600 transition hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">Cancelar</button>
+                            <button type="submit"
+                                class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold px-6 py-2 rounded-lg transition shadow-lg shadow-blue-500/20">
+                                Salvar Tudo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}

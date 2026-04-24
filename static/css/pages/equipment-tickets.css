@@ -1,0 +1,110 @@
+/**
+ * Chamados de equipamento — camada contextual sobre employees.css / design system GA.
+ * Escopo: .ga-employee-theme.employees-page.equipment-tickets-page
+ */
+
+.ga-employee-theme.employees-page.equipment-tickets-page .equipment-tickets-bulk-bar {
+  border-color: var(--sys-border, rgba(148, 163, 184, 0.35));
+  background: color-mix(in srgb, var(--sys-surface-elevated, #fff) 92%, transparent);
+}
+
+html.dark .ga-employee-theme.employees-page.equipment-tickets-page .equipment-tickets-bulk-bar {
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.ga-employee-theme.employees-page.equipment-tickets-page .equipment-tickets-danger-zone {
+  border-radius: var(--sys-radius-xl, 1rem);
+  border: 1px solid color-mix(in srgb, rgb(239 68 68) 45%, transparent);
+  background: color-mix(in srgb, rgb(239 68 68) 8%, transparent);
+}
+
+.ga-employee-theme.employees-page.equipment-tickets-page .equipment-tickets-pagination {
+  gap: 0.5rem;
+}
+
+.ga-employee-theme.employees-page.equipment-tickets-page .equipment-tickets-pagination a[disabled],
+.ga-employee-theme.employees-page.equipment-tickets-page .equipment-tickets-pagination span[disabled] {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+/* Paridade mobile: transforma #ticketsTable em cards como employees */
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable thead {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tbody {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem;
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-xl);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgb(241 245 249);
+    white-space: normal;
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row td:first-child {
+    border-top: 0;
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 6.2rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row td.employee-actions-cell {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row td.employee-actions-cell::before {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row .employee-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 767px) {
+  html.dark .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row {
+    background: linear-gradient(180deg, rgb(17 24 39) 0%, rgb(30 41 59) 100%);
+    border-color: rgb(55 65 81);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  html.dark .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row td {
+    border-top-color: rgb(55 65 81);
+  }
+
+  html.dark .ga-employee-theme.employees-page.equipment-tickets-page #ticketsTable tr.ticket-row td[data-label]::before {
+    color: rgb(148 163 184);
+  }
+}

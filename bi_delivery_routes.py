@@ -3517,13 +3517,24 @@ def _build_bi_devolucoes_dataset(
     # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
     valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
 
-    # mapa de cores por responsabilidade (evita string matching no template)
-    _RESP_COLORS_DETAIL = {"MERCADO": "var(--color-danger)", "COMERCIAL": "var(--color-warning)"}
-    _resp_color_default = "var(--color-primary)"
+    # Cores em hexadecimal (layout claro GA; sem depender de --color-* do tema escuro)
+    _RESP_HEX_DETAIL = {"MERCADO": "#dc2626", "COMERCIAL": "#d97706"}
+    _resp_hex_default = "#2563eb"
 
-    def _resp_color(nome: str) -> str:
+    def _resp_hex(nome: str) -> str:
         n = (nome or "").upper()
-        return next((v for k, v in _RESP_COLORS_DETAIL.items() if k in n), _resp_color_default)
+        return next((v for k, v in _RESP_HEX_DETAIL.items() if k in n), _resp_hex_default)
+
+    def _resp_tom(nome: str) -> str:
+        """Classe CSS semântica para selo de responsabilidade."""
+        n = (nome or "").upper()
+        if "MERCADO" in n:
+            return "mercado"
+        if "COMERCIAL" in n:
+            return "comercial"
+        if "LOG" in n:
+            return "logistica"
+        return "outro"
 
     # por dia
     per_day: dict[str, dict] = {}
@@ -3551,7 +3562,7 @@ def _build_bi_devolucoes_dataset(
     # heatmap dia-da-semana x hora_do_dia (não temos hora, então dia-da-semana x dia-do-mês para enriquecer)
     heatmap_dow_dom: dict[int, dict[int, int]] = {i: {} for i in range(7)}  # dow -> {dom: count}
 
-    DOW_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+    DOW_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
 
     rows_detail: list[dict] = []
 
@@ -3685,7 +3696,8 @@ def _build_bi_devolucoes_dataset(
             "ajudante": ajudante_nome,
             "motivo": motivo_nome,
             "responsabilidade": resp_nome,
-            "responsabilidade_color": _resp_color(resp_nome),
+            "responsabilidade_hex": _resp_hex(resp_nome),
+            "responsabilidade_tom": _resp_tom(resp_nome),
             "cluster": cluster,
             "valor": val,
             "acima_300": d.acima_300 or "NAO",
@@ -3727,9 +3739,10 @@ def _build_bi_devolucoes_dataset(
     weeks_sorted = sorted(per_week.keys())
     evolucao_semanal = [per_week[k] for k in weeks_sorted]
 
-    # responsabilidade breakdown — adiciona cor para uso no template sem string matching
+    # responsabilidade breakdown — cor em hex para gráficos e cartões
     for _rk, _rv in per_resp.items():
-        _rv["color"] = _resp_color(_rk)
+        _rv["color"] = _resp_hex(_rk)
+        _rv["tom"] = _resp_tom(_rk)
     resp_breakdown = sorted(per_resp.values(), key=lambda x: x["qtd"], reverse=True)
 
     # Drill-down por responsabilidade: motivos com qtd, valor e % (para modal ao clicar no card)
@@ -3921,7 +3934,7 @@ async def bi_devolucoes_export(
         writer.writerow(headers_csv)
         for r in rows:
             writer.writerow([
-                r.get("data") or "",
+                _fmt_br_data(r.get("data") or ""),
                 r.get("cliente") or "",
                 r.get("vendedor") or "",
                 r.get("motorista") or "",
@@ -3949,7 +3962,7 @@ async def bi_devolucoes_export(
             ws_sheet.append(headers_csv)
             for r in rows:
                 ws_sheet.append([
-                    r.get("data") or "",
+                    _fmt_br_data(r.get("data") or ""),
                     r.get("cliente") or "",
                     r.get("vendedor") or "",
                     r.get("motorista") or "",

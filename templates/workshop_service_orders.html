@@ -1,0 +1,169 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Ordens de serviço · Oficina{% endblock %}
+{% block header_breadcrumb %}<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / Ordens de serviço</p>{% endblock %}
+{% block header_title %}<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Ordens de serviço</h1>{% endblock %}
+{% block header_subtitle %}<p class="text-xs text-gray-500 dark:text-gray-400">Gestão integrada por veículo, checklist e ação corretiva/preventiva</p>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/pages/employees.css">{% endblock %}
+
+{% block content %}
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+  {% if message %}
+  <div class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center justify-between gap-3">
+    <span>{{ message }}</span>
+    <button type="button" onclick="this.parentElement.remove()" class="emp-modal-close" aria-label="Fechar">×</button>
+  </div>
+  {% endif %}
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row">
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Total</span><span class="employees-kpi__value tabular-nums">{{ summary.total }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Em aberto</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ summary.open }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Concluídas</span><span class="employees-kpi__value tabular-nums">{{ summary.done }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Críticas</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ summary.critical }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Preventivas</span><span class="employees-kpi__value tabular-nums">{{ summary.preventive }}</span></div></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-5 xl:grid-cols-3">
+    <div class="xl:col-span-1">
+      <div class="sys-card sys-card--surface sys-card--comfort p-5">
+        <h3 class="sys-section-heading text-base">Nova OS</h3>
+        <p class="employees-text-muted mt-1 text-xs leading-relaxed">Descreva a ocorrência e registre o plano de ação. Cada linha do plano segue o padrão <code class="rounded bg-slate-200/80 px-1 py-0.5 text-[0.7rem] dark:bg-slate-700/80">Ação | Responsável | Prazo</code> (data em dd/mm).</p>
+        <form action="/workshop/service-orders/create" method="POST" class="mt-4 flex flex-col gap-4">
+          <input type="hidden" name="origin" value="{{ prefill.origin }}">
+          <div class="flex flex-nowrap items-end gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]">
+            <div class="min-w-[min(100%,18rem)] flex-[2] flex-shrink-0">
+              <label class="sys-section__label sys-section__label--field">Veículo</label>
+              <p class="employees-text-muted mt-0.5 text-[11px] leading-snug">É obrigatório selecionar o veículo (placa).</p>
+              <select name="vehicle_id" class="sys-select mt-1 w-full min-w-0" required aria-required="true">
+                <option value="">Selecione a placa…</option>
+                {% for v in vehicles %}
+                <option value="{{ v.id }}" {% if prefill.vehicle_id == v.id %}selected{% endif %}>{{ v.placa }} · {{ v.marca }} {{ v.modelo }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="w-[7.75rem] flex-shrink-0">
+              <label class="sys-section__label sys-section__label--field">Tipo</label>
+              <select name="order_type" class="sys-select w-full">
+                <option value="corretiva" {% if prefill.order_type == 'corretiva' %}selected{% endif %}>Corretiva</option>
+                <option value="preventiva" {% if prefill.order_type == 'preventiva' %}selected{% endif %}>Preventiva</option>
+              </select>
+            </div>
+            <div class="w-[7.75rem] flex-shrink-0">
+              <label class="sys-section__label sys-section__label--field">Prioridade</label>
+              <select name="priority" class="sys-select w-full">
+                <option value="medium">Média</option>
+                <option value="high">Alta</option>
+                <option value="critical">Crítica</option>
+                <option value="low">Baixa</option>
+              </select>
+            </div>
+            <div class="min-w-[12rem] flex-[1.15] flex-shrink-0">
+              <label class="sys-section__label sys-section__label--field">Checklist (opcional)</label>
+              <select name="checklist_id" class="sys-select w-full min-w-0">
+                <option value="">Nenhum</option>
+                {% for c in checklists %}
+                <option value="{{ c.id }}" {% if prefill.checklist_id == c.id %}selected{% endif %}>#{{ c.id }} · {{ c.equipment_code }} · {{ c.date }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-slate-200/90 bg-gradient-to-b from-slate-50/90 to-white p-4 shadow-sm dark:border-slate-700/80 dark:from-slate-900/50 dark:to-slate-900/30 sm:p-5">
+            <p class="employees-text-section-label mb-3">Detalhe da ocorrência</p>
+            <div class="space-y-4">
+              <div>
+                <label class="sys-section__label sys-section__label--field" for="os-problem-description">Descrição do problema</label>
+                <p class="employees-text-muted mt-0.5 text-[11px] leading-snug">Texto corrido: contexto, sintomas ou o que foi reportado.</p>
+                <textarea id="os-problem-description" name="problem_description" class="sys-input mt-1.5 w-full min-h-[5.5rem] resize-y leading-relaxed" rows="3" placeholder="Ex.: Ruído ao frear, luz de injeção acesa…">{{ prefill.problem_description }}</textarea>
+              </div>
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+                <div class="flex min-h-0 flex-col">
+                  <label class="sys-section__label sys-section__label--field" for="os-issues-text">Problemas identificados</label>
+                  <p class="employees-text-muted mt-0.5 text-[11px] leading-snug">Um item por linha (lista objetiva).</p>
+                  <textarea id="os-issues-text" name="issues_text" class="sys-input mt-1.5 min-h-[7.5rem] w-full flex-1 resize-y font-mono text-xs leading-relaxed" rows="4" placeholder="Pastilhas desgastadas&#10;Fluido de freio abaixo do mínimo">{{ prefill.issues_text }}</textarea>
+                </div>
+                <div class="flex min-h-0 flex-col md:border-l md:border-slate-200/90 md:pl-5 dark:md:border-slate-700/80">
+                  <label class="sys-section__label sys-section__label--field" for="os-actions-text">Plano de ação</label>
+                  <p class="employees-text-muted mt-0.5 text-[11px] leading-snug">Uma linha por tarefa. Separe com <span class="font-mono text-[10px]">|</span> (pipe).</p>
+                  <textarea id="os-actions-text" name="actions_text" class="sys-input mt-1.5 min-h-[9rem] w-full flex-1 resize-y font-mono text-xs leading-relaxed" rows="5" placeholder="Substituir pastilha | Mecânico João | 26/04&#10;Ajustar iluminação traseira | Elétrica | 27/04"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <input type="hidden" name="return_to" value="/workshop/service-orders">
+          <div class="border-t border-slate-200/90 pt-4 dark:border-slate-700/80">
+            <button type="submit" class="sys-btn sys-btn--primary flex w-full items-center justify-center gap-2 py-2.5 text-sm font-semibold">
+              <svg class="h-4 w-4 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              Criar OS
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="xl:col-span-2 space-y-5">
+      <form method="GET" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+          <div class="employees-filter-bar__inner">
+            <div class="employees-filter-bar__primary">
+              <div class="employees-filter-bar__primary-scroll">
+                <select name="status" class="ops-toolbar-control px-3">
+                  <option value="">Todos status</option>
+                  <option value="open" {{ "selected" if status_filter == "open" else "" }}>Aberta</option>
+                  <option value="triage" {{ "selected" if status_filter == "triage" else "" }}>Triagem</option>
+                  <option value="in_progress" {{ "selected" if status_filter == "in_progress" else "" }}>Em execução</option>
+                  <option value="waiting_parts" {{ "selected" if status_filter == "waiting_parts" else "" }}>Aguardando peça</option>
+                  <option value="done" {{ "selected" if status_filter == "done" else "" }}>Concluída</option>
+                  <option value="closed" {{ "selected" if status_filter == "closed" else "" }}>Encerrada</option>
+                </select>
+                <select name="priority" class="ops-toolbar-control px-3">
+                  <option value="">Todas prioridades</option>
+                  <option value="critical" {{ "selected" if priority_filter == "critical" else "" }}>Crítica</option>
+                  <option value="high" {{ "selected" if priority_filter == "high" else "" }}>Alta</option>
+                  <option value="medium" {{ "selected" if priority_filter == "medium" else "" }}>Média</option>
+                  <option value="low" {{ "selected" if priority_filter == "low" else "" }}>Baixa</option>
+                </select>
+              </div>
+            </div>
+            <div class="employees-filter-bar__divider"></div>
+            <div class="employees-filter-bar__secondary">
+              <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
+              <a href="/workshop/service-orders" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar</a>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      {% for row in rows %}
+      {% set order = row.order %}
+      <a href="/workshop/service-orders/{{ order.id }}" class="sys-card sys-card--surface block p-4 no-underline transition hover:border-amber-400/50 hover:shadow-md dark:hover:border-amber-500/30">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div class="min-w-0 flex-1">
+            <p class="employees-text-section-label">OS #{{ order.id }} · {{ row.priority_label }}</p>
+            <h3 class="sys-section-heading mt-1 text-gray-900 dark:text-white">{{ order.title }}</h3>
+            <p class="employees-text-muted mt-1 text-xs">
+              Veículo: {{ row.vehicle.placa if row.vehicle else "-" }} · Motorista: {{ row.driver_name }} · Origem: {{ order.origin }}{% if row.checklist %} · Checklist #{{ row.checklist.id }}{% endif %}
+            </p>
+            <p class="employees-text-body mt-2 line-clamp-2 text-sm">{{ order.problem_description or "Sem descrição detalhada." }}</p>
+          </div>
+          <div class="flex shrink-0 flex-col items-end gap-2 sm:min-w-[12rem]">
+            <span class="sys-badge {% if order.status in ['done','closed'] %}sys-badge--ok{% elif order.priority == 'critical' %}sys-badge--critical{% else %}sys-badge--alert{% endif %}">{{ row.status_label }}</span>
+            <span class="employees-text-muted text-right text-xs">Ações: {{ row.actions_done }}/{{ row.actions_total }} ({{ row.actions_pct }}%)</span>
+            <span class="text-xs font-medium text-amber-600 dark:text-amber-400">Abrir detalhes →</span>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+
+      {% if not rows %}
+      <div class="sys-card sys-card--surface p-8 text-center">
+        <div class="sys-empty-state">Nenhuma ordem de serviço encontrada para o filtro atual.</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

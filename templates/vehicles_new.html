@@ -1,0 +1,592 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Frota · Cadastro avançado · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / Frota</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Cadastro de frota</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Veículos, importação em lote e status operacional</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/vehicles-new.css">
+{% endblock %}
+
+{% block content %}
+
+<script type="application/json" id="vehicles-page-data">{{ vehicles_json | safe }}</script>
+
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+
+    {% if error == "placa_exists" %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="min-w-0 flex-1">Já existe um veículo com esta placa.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    {% elif error == "invalid_type" %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="min-w-0 flex-1">Tipo de veículo inválido.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    {% elif error == "invalid_file" %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="min-w-0 flex-1">Arquivo inválido. Use planilha .xlsx ou .xls.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    {% elif error == "missing_columns" %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="min-w-0 flex-1">Planilha sem colunas obrigatórias (Placa, Veículo, Marca, Modelo).</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    {% elif error == "import_failed" %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span class="min-w-0 flex-1">Falha ao processar a importação. Verifique o arquivo e tente novamente.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    {% endif %}
+
+    {% if success %}
+    <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span class="min-w-0 flex-1">{{ success }}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    {% endif %}
+
+    {% if message == "import_success" %}
+    <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span class="min-w-0 flex-1">Importação concluída: {{ imported or 0 }} incluídos, {{ skipped or 0 }} ignorados (duplicados).</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    {% endif %}
+
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Oficina &amp; logística</span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Painel de veículos</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Cadastro unificado, importação por planilha, filtros rápidos e ações em lote — mesmo fluxo visual do quadro de colaboradores.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+                            {{ stats.total }} na frota
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ stats.caminhao }} caminhões · {{ stats.moto }} motos · {{ stats.carro }} carros
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ stats.workshop }} na oficina
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        </span>
+                        <span class="employees-cta__label">Importar</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+                        <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importar e lote</p>
+                        <button type="button" onclick="document.getElementById('vehicleImportModal').classList.remove('hidden')" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Planilha Excel</span>
+                                <span class="employees-menu-item__hint">Cadastro em massa (.xlsx)</span>
+                            </span>
+                        </button>
+                        <button type="button" onclick="document.getElementById('vehicleBulkModal').classList.remove('hidden')" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Operações em lote</span>
+                                <span class="employees-menu-item__hint">Oficina, ativar / desativar</span>
+                            </span>
+                        </button>
+                        <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
+                        <a href="/vehicles/template" class="employees-menu-item no-underline text-inherit">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Baixar modelo</span>
+                                <span class="employees-menu-item__hint">Planilha padrão do sistema</span>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+
+                <button type="button" onclick="openVehicleAddModal()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </span>
+                    <span class="employees-cta__label">Novo veículo</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo da frota">
+        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);" data-summary-filter="all" role="button" aria-pressed="true" onclick="setVehicleFilter('all')">
+            <div class="sys-kpi-cell-inner employees-kpi__inner">
+                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Total</span>
+                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                            <span class="employees-kpi__value tabular-nums">{{ stats.total }}</span>
+                        </div>
+                    </div>
+                    <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                </div>
+                <div class="employees-kpi__meta"><span class="employees-text-muted">Todos os cadastros</span></div>
+            </div>
+        </div>
+
+        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);" data-summary-filter="road" role="button" aria-pressed="false" onclick="setVehicleFilter('road')">
+            <div class="sys-kpi-cell-inner employees-kpi__inner">
+                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Em operação</span>
+                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                            <span class="employees-kpi__value tabular-nums">{{ stats.operational_road }}</span>
+                        </div>
+                    </div>
+                    <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="employees-kpi__meta"><span class="employees-text-muted">Ativos, sem oficina nem baixa</span></div>
+            </div>
+        </div>
+
+        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);" data-summary-filter="workshop" role="button" aria-pressed="false" onclick="setVehicleFilter('workshop')">
+            <div class="sys-kpi-cell-inner employees-kpi__inner">
+                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Oficina</span>
+                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                            <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ stats.workshop }}</span>
+                        </div>
+                    </div>
+                    <svg class="h-4 w-4 shrink-0 text-orange-500 transition group-hover:scale-110 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </div>
+                <div class="employees-kpi__meta"><span class="employees-text-muted">Manutenção / indisponíveis</span></div>
+            </div>
+        </div>
+
+        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(96, 165, 250, 0.72);" data-summary-filter="sold" role="button" aria-pressed="false" onclick="setVehicleFilter('sold')">
+            <div class="sys-kpi-cell-inner employees-kpi__inner">
+                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Vendidos</span>
+                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                            <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--blue tabular-nums">{{ stats.sold }}</span>
+                        </div>
+                    </div>
+                    <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="employees-kpi__meta"><span class="employees-text-muted">Com data de venda</span></div>
+            </div>
+        </div>
+
+        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);" data-summary-filter="inactive" role="button" aria-pressed="false" onclick="setVehicleFilter('inactive')">
+            <div class="sys-kpi-cell-inner employees-kpi__inner">
+                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <span class="sys-kpi-label text-red-600 dark:text-red-300">Inativos</span>
+                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                            <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ stats.inactive }}</span>
+                        </div>
+                    </div>
+                    <svg class="h-4 w-4 shrink-0 text-red-500 transition group-hover:scale-110 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                </div>
+                <div class="employees-kpi__meta"><span class="employees-text-muted">Fora da operação</span></div>
+            </div>
+        </div>
+
+        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);" data-summary-filter="caminhao" role="button" aria-pressed="false" onclick="setVehicleFilter('caminhao')">
+            <div class="sys-kpi-cell-inner employees-kpi__inner">
+                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Caminhões</span>
+                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                            <span class="employees-kpi__value tabular-nums">{{ stats.caminhao }}</span>
+                        </div>
+                    </div>
+                    <svg class="h-4 w-4 shrink-0 text-amber-500 transition group-hover:scale-110 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                </div>
+                <div class="employees-kpi__meta"><span class="employees-text-muted">Filtrar por tipo</span></div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner">
+            <div class="employees-filter-bar__primary">
+                <div class="employees-filter-bar__primary-scroll">
+                <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+                <div class="ops-toolbar-search employees-filter-bar__search">
+                    <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="searchInput" placeholder="Placa, marca, modelo, RENAVAM…" class="ops-toolbar-search__input" autocomplete="off">
+                </div>
+                </div>
+                <details id="typeFilterMenu" class="employees-role-details employees-filter-bar__roles group relative flex-shrink-0">
+                    <summary class="ops-toolbar-control employees-role-filter-trigger flex w-full cursor-pointer list-none items-center justify-between gap-2 px-3.5">
+                        <span id="typeFilterLabel" class="truncate employees-text-strong">Tipos: todos</span>
+                        <svg class="employees-role-filter-trigger__caret h-4 w-4 flex-shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </summary>
+                    <div class="employees-role-dropdown absolute left-0 right-0 top-full z-30 mt-2 w-full min-w-[280px] max-w-[min(100vw-2rem,22rem)] sm:left-auto sm:right-0">
+                        <div class="employees-role-dropdown__head">
+                            <div>
+                                <p class="employees-role-dropdown__head-title">Tipo de veículo</p>
+                                <p class="employees-role-dropdown__head-sub">Um ou mais tipos na mesma busca</p>
+                            </div>
+                            <button type="button" onclick="clearVehicleTypeFilters()" class="employees-role-dropdown__clear">Limpar</button>
+                        </div>
+                        <div class="employees-role-dropdown__search-wrap">
+                            <svg class="employees-role-dropdown__search-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="typeFilterSearch" oninput="filterVehicleTypeOptions()" placeholder="Filtrar opções…" class="employees-role-dropdown__search sys-input w-full min-h-0 py-0 pl-9 pr-3">
+                        </div>
+                        <div class="employees-role-dropdown__options custom-scrollbar">
+                            <label class="employees-role-filter-row employees-role-filter-row--opt veh-type-row flex cursor-pointer items-center gap-2 px-2 py-2" data-type-label="caminhão caminhao">
+                                <input type="checkbox" value="caminhao" class="veh-type-checkbox employees-role-filter-checkbox">
+                                <span class="employees-role-filter-label">Caminhão</span>
+                            </label>
+                            <label class="employees-role-filter-row employees-role-filter-row--opt veh-type-row flex cursor-pointer items-center gap-2 px-2 py-2" data-type-label="moto">
+                                <input type="checkbox" value="moto" class="veh-type-checkbox employees-role-filter-checkbox">
+                                <span class="employees-role-filter-label">Moto</span>
+                            </label>
+                            <label class="employees-role-filter-row employees-role-filter-row--opt veh-type-row flex cursor-pointer items-center gap-2 px-2 py-2" data-type-label="carro">
+                                <input type="checkbox" value="carro" class="veh-type-checkbox employees-role-filter-checkbox">
+                                <span class="employees-role-filter-label">Carro</span>
+                            </label>
+                        </div>
+                    </div>
+                </details>
+            </div>
+            <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+            <div class="employees-filter-bar__secondary">
+                <button type="button" onclick="setVehicleFilter('all')" class="veh-filter-btn filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" data-filter="all" aria-pressed="true">Ver todos</button>
+                <button type="button" onclick="setVehicleFilter('road')" class="veh-filter-btn filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-filter="road" aria-pressed="false">Em operação</button>
+                <button type="button" onclick="setVehicleFilter('workshop')" class="veh-filter-btn filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-filter="workshop" aria-pressed="false">Oficina</button>
+                <a href="/vehicles" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar" title="Visão geral com gráficos">
+                    <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+                    <span class="employees-filter-bar__link-sub-text">Visão frota</span>
+                </a>
+                <a href="/vehicles/odometer" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar" title="Hodômetro">
+                    <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <span class="employees-filter-bar__link-sub-text">KM</span>
+                </a>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="vehicles-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Cadastro de veículos</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista da frota</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Em telas menores, cada linha vira um card. A lista pagina 50 itens por vez para manter a interface fluida.</p>
+            </div>
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span class="employees-text-caption">Marque linhas para ações em lote ou use o menu Importar.</span>
+                Selecionados: <span id="vehiclesSelectedCount" class="font-semibold employees-text-strong">0</span>
+            </div>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+        <table class="employees-data-table employees-data-table--compact employees-data-table--vehicles w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]" id="vehiclesTable">
+            <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                <tr>
+                    <th class="employees-data-table__th veh-col-check employees-data-table__th--static px-2 py-2 pl-3" title="Seleção"><span class="sr-only">Sel.</span></th>
+                    <th class="employees-data-table__th veh-col-plate group cursor-pointer select-none px-3 py-2 pl-2 transition-colors" onclick="sortVehiclesTable('placa')">
+                        <div class="flex items-center gap-1.5">Placa <svg data-sort-icon="placa" class="employees-data-table__sort-icon w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg></div>
+                    </th>
+                    <th class="employees-data-table__th veh-col-type group cursor-pointer select-none px-2 py-2 transition-colors" onclick="sortVehiclesTable('type')">
+                        <div class="flex items-center gap-1.5">Tipo <svg data-sort-icon="type" class="employees-data-table__sort-icon w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg></div>
+                    </th>
+                    <th class="employees-data-table__th veh-col-brand group cursor-pointer select-none px-2 py-2 transition-colors" onclick="sortVehiclesTable('marca')">
+                        <div class="flex items-center gap-1.5">Marca <svg data-sort-icon="marca" class="employees-data-table__sort-icon w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg></div>
+                    </th>
+                    <th class="employees-data-table__th veh-col-model group cursor-pointer select-none px-2 py-2 transition-colors" onclick="sortVehiclesTable('modelo')">
+                        <div class="flex items-center gap-1.5">Modelo <svg data-sort-icon="modelo" class="employees-data-table__sort-icon w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg></div>
+                    </th>
+                    <th class="employees-data-table__th veh-col-year group cursor-pointer select-none px-2 py-2 transition-colors" onclick="sortVehiclesTable('ano')">
+                        <div class="flex items-center gap-1.5">Ano <svg data-sort-icon="ano" class="employees-data-table__sort-icon w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg></div>
+                    </th>
+                    <th class="employees-data-table__th veh-col-km group cursor-pointer select-none px-2 py-2 transition-colors" onclick="sortVehiclesTable('km')">
+                        <div class="flex items-center gap-1.5">KM <svg data-sort-icon="km" class="employees-data-table__sort-icon w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg></div>
+                    </th>
+                    <th class="employees-data-table__th veh-col-status group cursor-pointer select-none px-2 py-2 transition-colors" onclick="sortVehiclesTable('status')">
+                        <div class="flex items-center gap-1.5">Status <svg data-sort-icon="status" class="employees-data-table__sort-icon w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg></div>
+                    </th>
+                    <th class="employees-data-table__th veh-col-actions employees-data-table__th--static px-2 py-2">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="employees-data-table__body divide-y" id="vehiclesTableBody"></tbody>
+        </table>
+        </div>
+        <div class="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-slate-700">
+            <p id="vehiclesPaginationMeta" class="text-xs font-medium employees-text-muted">—</p>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button" id="vehiclesPagePrev" onclick="vehiclesPagePrev()" class="sys-btn sys-btn--secondary text-xs">Anterior</button>
+                <button type="button" id="vehiclesPageNext" onclick="vehiclesPageNext()" class="sys-btn sys-btn--secondary text-xs">Próxima</button>
+                <button type="button" onclick="vehiclesSelectPage()" class="sys-btn sys-btn--secondary text-xs">Selecionar página</button>
+                <button type="button" onclick="vehiclesClearSelection()" class="ops-toolbar-ghost-btn employees-filter-bar__btn text-xs">Limpar seleção</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{# --- Modais --- #}
+<div id="vehicleImportModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-6 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Importar veículos</h3>
+            <button type="button" onclick="document.getElementById('vehicleImportModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form action="/vehicles/import" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <div class="emp-modal-dropzone">
+                <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Selecione o arquivo Excel (.xlsx ou .xls)</p>
+                <input type="file" name="file" accept=".xlsx,.xls" required class="text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700 dark:text-slate-300">
+            </div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">
+                <p class="font-medium text-slate-700 dark:text-slate-300">Colunas esperadas (primeira aba):</p>
+                <code class="mt-1 inline-block rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">Placa, Veículo, Marca, Modelo</code>
+                <span class="block mt-1">Opcionais: Renavam, Ano, Nº do CRV, CHASSI. Placa deve ser única.</span>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('vehicleImportModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Importar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="vehicleBulkModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Operações em lote</h3>
+            <button type="button" onclick="document.getElementById('vehicleBulkModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <p class="text-sm employees-text-body mb-4">Escolha a operação e aplique aos veículos selecionados na tabela ou a todos os resultados filtrados atuais.</p>
+        <div class="space-y-3">
+            <label class="sys-section__label sys-section__label--field" for="bulkVehicleAction">Operação</label>
+            <select id="bulkVehicleAction" class="sys-select w-full">
+                <option value="">Selecione…</option>
+                <option value="workshop_on">Marcar “na oficina”</option>
+                <option value="workshop_off">Retirar de “na oficina”</option>
+                <option value="activate">Reativar cadastro</option>
+                <option value="deactivate">Desativar cadastro</option>
+            </select>
+            <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 p-3 dark:border-slate-600">
+                <input type="checkbox" id="bulkApplyFiltered" class="h-4 w-4 rounded border-slate-300 text-indigo-600">
+                <span class="text-sm">Aplicar a <strong>todos</strong> os veículos da lista filtrada (ignora seleção por checkbox)</span>
+            </label>
+        </div>
+        <div class="mt-6 flex justify-end gap-3">
+            <button type="button" onclick="document.getElementById('vehicleBulkModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+            <button type="button" onclick="runVehicleBulk()" class="sys-btn sys-btn--primary">Executar</button>
+        </div>
+    </div>
+</div>
+
+<div id="vehicleAddModal" class="emp-modal-shell fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex min-h-full items-start justify-center px-4 pb-10 pt-6 sm:px-6 sm:pb-12 sm:pt-8">
+    <div class="sys-card sys-card--surface w-full max-w-2xl overflow-hidden rounded-xl shadow-lg max-h-[min(90vh,calc(100dvh-2rem))] min-h-0">
+        <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 p-4 sm:p-6 dark:border-slate-700">
+            <h3 class="sys-section-heading text-xl">Novo veículo</h3>
+            <button type="button" onclick="document.getElementById('vehicleAddModal').classList.add('hidden')" class="emp-modal-close p-2" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form action="/vehicles/add" method="POST" class="min-h-0 overflow-hidden">
+            <div class="max-h-[min(70vh,calc(100dvh-8rem))] overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Placa *</label>
+                        <input type="text" name="placa" required maxlength="7" class="sys-input w-full font-mono uppercase" placeholder="ABC1234" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Tipo *</label>
+                        <select name="vehicle_type" required class="sys-select w-full">
+                            <option value="caminhao">Caminhão</option>
+                            <option value="moto">Moto</option>
+                            <option value="carro">Carro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Marca *</label>
+                        <input type="text" name="marca" required class="sys-input w-full" placeholder="FORD">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Modelo *</label>
+                        <input type="text" name="modelo" required class="sys-input w-full" placeholder="CARGO 815">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Ano</label>
+                        <input type="text" name="ano" class="sys-input w-full" placeholder="2019/2019">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Renavam</label>
+                        <input type="text" name="renavam" class="sys-input w-full">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="sys-section__label sys-section__label--field">Nº do CRV</label>
+                        <input type="text" name="crv_number" class="sys-input w-full">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="sys-section__label sys-section__label--field">Chassi</label>
+                        <input type="text" name="chassi" class="sys-input w-full font-mono">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 p-4 dark:border-slate-700">
+                <button type="button" onclick="document.getElementById('vehicleAddModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Cadastrar</button>
+            </div>
+        </form>
+    </div>
+    </div>
+</div>
+
+<div id="vehicleEditModal" class="emp-modal-shell fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex min-h-full items-start justify-center px-4 pb-10 pt-6 sm:px-6 sm:pb-12 sm:pt-8">
+    <div class="sys-card sys-card--surface w-full max-w-2xl overflow-hidden rounded-xl shadow-lg max-h-[min(90vh,calc(100dvh-2rem))] min-h-0">
+        <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 p-4 sm:p-6 dark:border-slate-700">
+            <h3 class="sys-section-heading text-xl">Editar veículo</h3>
+            <button type="button" onclick="document.getElementById('vehicleEditModal').classList.add('hidden')" class="emp-modal-close p-2" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form method="POST" class="min-h-0 overflow-hidden" id="vehicleEditForm" action="">
+            <input type="hidden" name="return_to" value="/vehicles/new">
+            <div class="max-h-[min(70vh,calc(100dvh-8rem))] overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Placa *</label>
+                        <input type="text" name="placa" required maxlength="7" class="sys-input w-full font-mono uppercase">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Tipo *</label>
+                        <select name="vehicle_type" required class="sys-select w-full">
+                            <option value="caminhao">Caminhão</option>
+                            <option value="moto">Moto</option>
+                            <option value="carro">Carro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Marca *</label>
+                        <input type="text" name="marca" required class="sys-input w-full">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Modelo *</label>
+                        <input type="text" name="modelo" required class="sys-input w-full">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Ano</label>
+                        <input type="text" name="ano" class="sys-input w-full">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Renavam</label>
+                        <input type="text" name="renavam" class="sys-input w-full">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="sys-section__label sys-section__label--field">Nº do CRV</label>
+                        <input type="text" name="crv_number" class="sys-input w-full">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="sys-section__label sys-section__label--field">Chassi</label>
+                        <input type="text" name="chassi" class="sys-input w-full font-mono">
+                    </div>
+                    <div id="edit-odometer-wrap" class="sm:col-span-2 hidden">
+                        <label class="sys-section__label sys-section__label--field">Último KM (caminhão)</label>
+                        <input type="text" name="odometer_km" class="sys-input w-full font-mono" placeholder="Ex.: 150000">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="sys-section__label sys-section__label--field">Situação cadastral</label>
+                        <select name="is_active" class="sys-select w-full">
+                            <option value="1">Ativo</option>
+                            <option value="0">Inativo</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2 sm:col-span-2">
+                        <input type="hidden" name="in_workshop" id="vehicle_edit_in_workshop" value="0">
+                        <input type="checkbox" id="edit_in_workshop_cb" class="h-4 w-4 rounded border-slate-300">
+                        <label for="edit_in_workshop_cb" class="text-sm">Na oficina</label>
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Valor venda (R$)</label>
+                        <input type="text" name="sale_value" class="sys-input w-full" placeholder="0,00">
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Data da venda</label>
+                        <input type="date" name="sold_at" class="sys-input w-full">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 p-4 dark:border-slate-700">
+                <button type="button" onclick="document.getElementById('vehicleEditModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
+            </div>
+        </form>
+    </div>
+    </div>
+</div>
+
+<div id="vehicleDeleteModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-center gap-3">
+            <div class="emp-modal-icon-ring emp-modal-icon-ring--lg text-red-600">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h3 class="sys-section-heading text-lg">Excluir veículo</h3>
+        </div>
+        <p class="text-sm employees-text-body mb-4">Confirma a exclusão permanente de <strong id="vehicleDeletePlate" class="font-mono uppercase">—</strong>? Esta ação não pode ser desfeita.</p>
+        <form id="vehicleDeleteForm" method="post" action="" class="flex justify-end gap-3">
+            <input type="hidden" name="return_to" value="/vehicles/new">
+            <button type="button" onclick="document.getElementById('vehicleDeleteModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+            <button type="submit" class="sys-btn sys-btn--primary bg-red-600 hover:bg-red-500 border-red-600">Excluir</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block body_scripts %}
+<script defer src="/static/js/pages/vehicles-new.js"></script>
+{% endblock %}

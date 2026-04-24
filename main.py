@@ -6,7 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from typing import Optional, List, Any, Dict, Tuple
+from typing import Optional, List, Any, Dict, Tuple, Literal
 import json
 import csv
 import io
@@ -27,8 +27,8 @@ import statistics
 from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-from sqlmodel import Session, select, col, delete, text, or_, desc
-from sqlalchemy import func, inspect, not_, and_
+from sqlmodel import Session, select, col, delete, text, or_, desc, asc
+from sqlalchemy import func, inspect, not_, and_, cast
 from sqlalchemy.types import String, DateTime
 from sqlalchemy.exc import IntegrityError, OperationalError
 from typing import List
@@ -63,11 +63,21 @@ from services.delivery_whatsapp_service import (
     send_delivery_whatsapp_notifications,
 )
 from services.geocoding_service import geocoding_service
-from client_import_utils import normalize_address, normalize_phone_br, normalize_key, find_col_map as find_client_col_map
+from client_import_utils import (
+    normalize_address,
+    normalize_phone_br,
+    normalize_key,
+    find_col_map as find_client_col_map,
+    norm_nb_key,
+    norm_cnpj_digits,
+    norm_me_sheet_compare,
+    normalize_import_phone_br,
+)
 from client_vendedor import (
     apply_vendedor_to_client,
     list_vendedores,
     parse_vendedor_id_form,
+    resolve_employee_id_by_seller_code,
     resolve_vendedor_id_for_select,
     vendedor_card_for_client,
 )
@@ -737,6 +747,8 @@ def _lifespan_blocking_db_work() -> None:
         ensure_vehicle_schema()
         ensure_checklist_odometer_schema()
         ensure_client_schema()
+        ensure_column(engine, "client", "cnpj_cpf", "VARCHAR(32)")
+        ensure_column(engine, "clientimportstaging", "cnpj_cpf", "VARCHAR(32)")
         ensure_client_group_schema()
         ensure_route_schema()
         ensure_delivery_whatsapp_schema()
@@ -1597,7 +1609,7 @@ PAGE_OPTIONS = [
     {"key": "comercial", "label": "Comercial", "path": "/comercial/entregas", "prefixes": ["/comercial", "/api/comercial"]},
     {"key": "padronizacao", "label": "Processos e Padronização", "path": "/documentos", "prefixes": ["/documentos", "/api/documentos"]},
     {"key": "rotinas", "label": "Rotinas & Checklists", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
-    {"key": "oficina", "label": "Oficina", "path": "/vehicles", "prefixes": ["/vehicles", "/admin/equipment/tickets"]},
+    {"key": "oficina", "label": "Oficina", "path": "/vehicles", "prefixes": ["/vehicles", "/api/vehicles", "/admin/equipment/tickets", "/workshop/service-orders"]},
     {"key": "cadastros", "label": "Cadastros", "path": "/clients", "prefixes": ["/clients", "/employees", "/funcoes", "/api/employees"]},
     {"key": "pessoas", "label": "Pessoas & RH", "path": "/people-intelligence", "prefixes": ["/people-intelligence", "/admin/turnover-analysis"]},
     {"key": "bi", "label": "BI & Métricas", "path": "/strategy", "prefixes": ["/strategy", "/relatorio-avaliacao-motorista", "/bi", "/operations/performance", "/operations/performance/analysis", "/rankings", "/api/rankings", "/gamificacao/entregas"]},
@@ -5263,6 +5275,75 @@ def _parse_session_helper_ids(helpers_json: Optional[str]) -> List[int]:
         return []
 
 
+def _sync_route_delivery_helpers_for_escala(
+    session: Session,
+    *,
+    employee_id: int,
+    route_date: str,
+    vehicle_plate: str,
+    helper_names: Optional[List[str]] = None,
+    helper_ids: Optional[List[int]] = None,
+) -> int:
+    """Grava ajudantes nas rotas (Route.delivery_helpers_json) para o quadro /escala refletir o app/sessão."""
+    plate_norm = _norm_plate(vehicle_plate)
+    if not plate_norm:
+        return 0
+    resolved_ids: List[int] = []
+    seen_ids = set()
+    if helper_ids is not None:
+        for hid in helper_ids:
+            try:
+                h = int(hid)
+            except (TypeError, ValueError):
+                continue
+            if h <= 0 or h == employee_id or h in seen_ids:
+                continue
+            seen_ids.add(h)
+            resolved_ids.append(h)
+    else:
+        _, name_to_id = _load_employee_name_maps(session, include_fired=True)
+        seen_names = set()
+        for raw in helper_names or []:
+            clean = (raw or "").strip()
+            if not clean:
+                continue
+            key = clean.lower()
+            if key in seen_names:
+                continue
+            seen_names.add(key)
+            if clean.isdigit():
+                h = int(clean)
+                if h > 0 and h != employee_id and h not in seen_ids:
+                    seen_ids.add(h)
+                    resolved_ids.append(h)
+                continue
+            eid = name_to_id.get(key)
+            if eid and eid != employee_id and eid not in seen_ids:
+                seen_ids.add(eid)
+                resolved_ids.append(eid)
+    helpers_json = json.dumps(resolved_ids) if resolved_ids else None
+    rows = list(
+        session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.employee_id == employee_id)
+            .where(models.Route.date == route_date)
+            .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
+        ).all()
+    )
+    updated = 0
+    plate_upper = (vehicle_plate or "").strip().upper()
+    for r in rows:
+        if _norm_plate(r.delivery_vehicle_plate or "") != plate_norm:
+            continue
+        r.delivery_helpers_json = helpers_json
+        if plate_upper and (r.delivery_vehicle_plate or "").strip().upper() != plate_upper:
+            r.delivery_vehicle_plate = plate_upper
+        session.add(r)
+        updated += 1
+    return updated
+
+
 def _compute_carga_descarga_metrics(
     session: Session,
     user_id: int,
@@ -7727,6 +7808,7 @@ def ensure_client_schema():
             "visita": "VARCHAR(64)",
             "nome_fantasia": "VARCHAR(255)",
             "razao_social": "VARCHAR(255)",
+            "cnpj_cpf": "VARCHAR(32)",
             "municipio": "VARCHAR(128)",
             "bairro": "VARCHAR(128)",
             "endereco": "VARCHAR(255)",
@@ -8504,12 +8586,16 @@ async def api_mobile_delivery_session_start(
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
+    try:
+        user_id_int = int(str(user_id))
+    except (TypeError, ValueError):
+        return JSONResponse({"error": "Sessão inválida"}, status_code=401)
     today_str = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
 
     routes = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.employee_id == user_id)
+        .where(models.Route.employee_id == user_id_int)
         .where(models.Route.date == today_str)
         .where(models.Route.delivery_status.in_(["pendente", "iniciada", "reaberta"]))
     ).all()
@@ -8525,7 +8611,7 @@ async def api_mobile_delivery_session_start(
 
     existing = session.exec(
         select(models.DeliverySession)
-        .where(models.DeliverySession.employee_id == user_id)
+        .where(models.DeliverySession.employee_id == user_id_int)
         .where(models.DeliverySession.date == today_str)
         .where(models.DeliverySession.status == "open")
     ).first()
@@ -8546,7 +8632,7 @@ async def api_mobile_delivery_session_start(
 
     new_session = models.DeliverySession(
         date=today_str,
-        employee_id=user_id,
+        employee_id=user_id_int,
         status="open",
         vehicle_plate=payload.plate.strip().upper(),
         helpers_json=json.dumps(helper_names),
@@ -8554,13 +8640,20 @@ async def api_mobile_delivery_session_start(
         started_at=datetime.now(ZoneInfo("America/Sao_Paulo")),
     )
     session.add(new_session)
+    _sync_route_delivery_helpers_for_escala(
+        session,
+        employee_id=user_id_int,
+        route_date=today_str,
+        vehicle_plate=payload.plate.strip().upper(),
+        helper_names=helper_names,
+    )
     session.commit()
     try:
         mark_delivery_group_whatsapp_ready(
             session,
             route_date=today_str,
             shift=str(routes[0].shift or "Manhã"),
-            employee_id=int(user_id),
+            employee_id=user_id_int,
             vehicle_plate=payload.plate.strip().upper(),
         )
     except Exception as whatsapp_error:
@@ -8765,6 +8858,13 @@ async def api_mobile_delivery_session_update(
                 unique.append(h)
         ds.helpers_json = json.dumps(unique, ensure_ascii=False) if unique else None
         updated = True
+        _sync_route_delivery_helpers_for_escala(
+            session,
+            employee_id=user_id,
+            route_date=ds.date,
+            vehicle_plate=ds.vehicle_plate or "",
+            helper_names=unique,
+        )
     if payload.km_departure is not None and isinstance(payload.km_departure, (int, float)):
         km = float(payload.km_departure)
         if km > 0:
@@ -10379,6 +10479,18 @@ async def admin_checklists_dashboard(
 ):
     days_param = request.query_params.get("days", "30")
     period_days = parse_int_env(days_param, 30)
+    search_param = (request.query_params.get("search") or "").strip()
+    shift_filter = (request.query_params.get("shift") or "").strip()
+    call_status_filter = (request.query_params.get("call_status") or "pending").strip()
+    try:
+        page = max(1, int(request.query_params.get("page", "1")))
+    except Exception:
+        page = 1
+    try:
+        per_page = int(request.query_params.get("per_page", "12"))
+    except Exception:
+        per_page = 12
+    per_page = min(max(per_page, 6), 50)
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
     start_date = now_br - timedelta(days=period_days)
 
@@ -10462,15 +10574,46 @@ async def admin_checklists_dashboard(
         "tickets_high": f"/admin/equipment/tickets?days={period_days}&severity=high&status=open",
     }
 
-    # Chamados abertos (checklists críticos pendentes)
-    open_calls_query = (
+    # Chamados operacionais (pendentes/gerais), com paginação
+    open_calls_base = (
         select(models.TranspalletChecklist, models.Employee)
         .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
         .where(models.TranspalletChecklist.critical_flag == True)
-        .where(models.TranspalletChecklist.status.in_(["submitted", "reviewed"]))
-        .order_by(desc(models.TranspalletChecklist.submitted_at))
-        .limit(10)
     )
+    if call_status_filter == "pending":
+        open_calls_base = open_calls_base.where(models.TranspalletChecklist.status.in_(["submitted", "reviewed"]))
+    elif call_status_filter == "approved":
+        open_calls_base = open_calls_base.where(models.TranspalletChecklist.status == "approved")
+    elif call_status_filter == "rejected":
+        open_calls_base = open_calls_base.where(models.TranspalletChecklist.status == "rejected")
+
+    if shift_filter:
+        open_calls_base = open_calls_base.where(models.TranspalletChecklist.shift == shift_filter)
+
+    if search_param:
+        search_like = f"%{search_param}%"
+        open_calls_base = open_calls_base.where(
+            or_(
+                models.Employee.name.ilike(search_like),
+                models.Employee.registration_id.ilike(search_like),
+                models.TranspalletChecklist.equipment_code.ilike(search_like),
+            )
+        )
+
+    open_calls_total = (
+        session.exec(
+            select(func.count())
+            .select_from(models.TranspalletChecklist)
+            .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
+            .where(*open_calls_base._where_criteria)
+        ).one()
+        or 0
+    )
+    open_calls_total_pages = max(1, (open_calls_total + per_page - 1) // per_page)
+    if page > open_calls_total_pages:
+        page = open_calls_total_pages
+
+    open_calls_query = open_calls_base.order_by(desc(models.TranspalletChecklist.submitted_at)).offset((page - 1) * per_page).limit(per_page)
     open_calls_rows = session.exec(open_calls_query).all()
     open_calls = []
     label_map = checklist_item_label_map()
@@ -10481,8 +10624,23 @@ async def admin_checklists_dashboard(
             "equipment_code": checklist.equipment_code,
             "employee_name": employee.name,
             "date_br": fmt_ddmmyyyy(checklist.date),
-            "blocked_items": blocked_items
+            "blocked_items": blocked_items,
+            "status": checklist.status,
+            "shift": checklist.shift,
+            "detail_url": f"/admin/routine/checklists/{checklist.id}",
         })
+
+    base_query_params = dict(request.query_params)
+    prev_url = None
+    next_url = None
+    if page > 1:
+        prev_params = dict(base_query_params)
+        prev_params["page"] = page - 1
+        prev_url = "/admin/routine/checklists/dashboard?" + urlencode(prev_params)
+    if page < open_calls_total_pages:
+        next_params = dict(base_query_params)
+        next_params["page"] = page + 1
+        next_url = "/admin/routine/checklists/dashboard?" + urlencode(next_params)
 
     return templates.TemplateResponse(
         "admin_routine_checklists_dashboard.html",
@@ -10499,9 +10657,79 @@ async def admin_checklists_dashboard(
             "ticket_stats": ticket_stats,
             "ticket_top_eq": ticket_top_eq,
             "card_urls": card_urls,
-            "open_calls": open_calls
+            "open_calls": open_calls,
+            "dashboard_filters": {
+                "search": search_param,
+                "shift": shift_filter,
+                "call_status": call_status_filter,
+                "page": page,
+                "per_page": per_page,
+            },
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total_count": open_calls_total,
+                "total_pages": open_calls_total_pages,
+                "has_prev": page > 1,
+                "has_next": page < open_calls_total_pages,
+                "prev_url": prev_url,
+                "next_url": next_url,
+            },
+            "shift_options": ["Manhã", "Tarde", "Noite"],
         }
     )
+
+def _equipment_tickets_period_floor(days_raw: Optional[str], tz) -> Optional[datetime]:
+    if not days_raw:
+        return None
+    try:
+        d = int(str(days_raw).strip())
+    except (TypeError, ValueError):
+        return None
+    if d <= 0:
+        return None
+    return datetime.now(tz) - timedelta(days=d)
+
+
+def _equipment_tickets_build_conditions(
+    *,
+    period_floor: Optional[datetime],
+    ticket_status_filter: str,
+    severity_filter: str,
+    equipment_filter: str,
+    shift_filter: str,
+    q: str,
+):
+    conditions = []
+    if period_floor is not None:
+        conditions.append(models.EquipmentTicket.created_at >= period_floor)
+    if ticket_status_filter:
+        conditions.append(models.EquipmentTicket.status == ticket_status_filter)
+    if severity_filter:
+        conditions.append(models.EquipmentTicket.severity == severity_filter)
+    if equipment_filter:
+        conditions.append(models.EquipmentTicket.equipment_code.ilike(f"%{equipment_filter.strip()}%"))
+    if shift_filter:
+        conditions.append(models.EquipmentTicket.shift == shift_filter)
+    qn = (q or "").strip()
+    if qn:
+        term = f"%{qn}%"
+        id_part = None
+        if qn.isdigit():
+            try:
+                id_part = models.EquipmentTicket.id == int(qn)
+            except ValueError:
+                id_part = None
+        text_part = or_(
+            models.EquipmentTicket.equipment_code.ilike(term),
+            models.EquipmentTicket.description.ilike(term),
+            models.Employee.name.ilike(term),
+            models.Employee.registration_id.ilike(term),
+            cast(models.EquipmentTicket.id, String).ilike(term),
+        )
+        conditions.append(or_(id_part, text_part) if id_part is not None else text_part)
+    return conditions
+
 
 @app.get("/admin/equipment/tickets", response_class=HTMLResponse)
 async def admin_equipment_tickets(
@@ -10509,63 +10737,140 @@ async def admin_equipment_tickets(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
+    tz_br = ZoneInfo("America/Sao_Paulo")
     message = request.query_params.get("message")
     level = request.query_params.get("level", "success")
-    ticket_status_filter = request.query_params.get("status") or ""
-    severity_filter = request.query_params.get("severity") or ""
-    equipment_filter = request.query_params.get("equipment") or ""
+    err_q = request.query_params.get("error")
+    ok_q = request.query_params.get("success")
+    ticket_status_filter = (request.query_params.get("status") or "").strip()
+    severity_filter = (request.query_params.get("severity") or "").strip()
+    equipment_filter = (request.query_params.get("equipment") or "").strip()
+    shift_filter = (request.query_params.get("shift") or "").strip()
+    q = (request.query_params.get("q") or "").strip()
+    sort = (request.query_params.get("sort") or "created_desc").strip()
+    days_param = request.query_params.get("days")
 
-    query = (
+    try:
+        page = max(1, int(request.query_params.get("page") or 1))
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        per_page = int(request.query_params.get("per_page") or 25)
+    except (TypeError, ValueError):
+        per_page = 25
+    per_page = min(100, max(10, per_page))
+
+    period_floor = _equipment_tickets_period_floor(days_param, tz_br)
+    list_conditions = _equipment_tickets_build_conditions(
+        period_floor=period_floor,
+        ticket_status_filter=ticket_status_filter,
+        severity_filter=severity_filter,
+        equipment_filter=equipment_filter,
+        shift_filter=shift_filter,
+        q=q,
+    )
+
+    count_stmt = (
+        select(func.count(models.EquipmentTicket.id))
+        .select_from(models.EquipmentTicket)
+        .join(models.Employee, models.Employee.id == models.EquipmentTicket.employee_id)
+    )
+    if list_conditions:
+        count_stmt = count_stmt.where(and_(*list_conditions))
+    total_filtered = int(session.exec(count_stmt).one() or 0)
+    total_pages = max(1, math.ceil(total_filtered / per_page)) if per_page else 1
+    if page > total_pages:
+        page = total_pages
+    offset = (page - 1) * per_page
+
+    list_stmt = (
         select(models.EquipmentTicket, models.Employee)
         .join(models.Employee, models.Employee.id == models.EquipmentTicket.employee_id)
-        .order_by(models.EquipmentTicket.created_at.desc())
+        .offset(offset)
+        .limit(per_page)
     )
-    if ticket_status_filter:
-        query = query.where(models.EquipmentTicket.status == ticket_status_filter)
-    if severity_filter:
-        query = query.where(models.EquipmentTicket.severity == severity_filter)
-    if equipment_filter:
-        query = query.where(models.EquipmentTicket.equipment_code.ilike(f"%{equipment_filter}%"))
+    sort_map = {
+        "created_desc": desc(models.EquipmentTicket.created_at),
+        "created_asc": asc(models.EquipmentTicket.created_at),
+        "severity_desc": desc(models.EquipmentTicket.severity),
+        "severity_asc": asc(models.EquipmentTicket.severity),
+        "status_desc": desc(models.EquipmentTicket.status),
+        "status_asc": asc(models.EquipmentTicket.status),
+    }
+    list_stmt = list_stmt.order_by(sort_map.get(sort, desc(models.EquipmentTicket.created_at)))
+    if list_conditions:
+        list_stmt = list_stmt.where(and_(*list_conditions))
+    rows = session.exec(list_stmt).all()
 
-    rows = session.exec(query).all()
+    # KPIs globais (sem filtros de lista) — leves, só contagens
+    floor7 = datetime.now(tz_br) - timedelta(days=7)
+    stats_total = int(session.exec(select(func.count(models.EquipmentTicket.id))).one() or 0)
+    stats_open = int(
+        session.exec(
+            select(func.count(models.EquipmentTicket.id)).where(models.EquipmentTicket.status == "open")
+        ).one()
+        or 0
+    )
+    stats_high_open = int(
+        session.exec(
+            select(func.count(models.EquipmentTicket.id)).where(
+                models.EquipmentTicket.status == "open",
+                models.EquipmentTicket.severity == "high",
+            )
+        ).one()
+        or 0
+    )
+    stats_recent_7 = int(
+        session.exec(
+            select(func.count(models.EquipmentTicket.id)).where(models.EquipmentTicket.created_at >= floor7)
+        ).one()
+        or 0
+    )
+
     tickets = []
     for ticket, employee in rows:
         imgs = ticket.images or []
         if not isinstance(imgs, list):
-            imgs = [] # Defensive: ignore malformed json
+            imgs = []
         image_urls = [f"/static/uploads/tickets/{img}" for img in imgs]
-        
-        # Defensive datetime
-        created_at_br = "-"
-        if ticket.created_at:
-            created_at_br = fmt_datetime_br(ticket.created_at)
-
+        created_at_br = fmt_datetime_br(ticket.created_at) if ticket.created_at else "-"
+        desc_short = (ticket.description or "")[:140]
+        if ticket.description and len(ticket.description) > 140:
+            desc_short += "…"
         tickets.append({
             "ticket": ticket,
             "employee": employee,
             "created_at_br": created_at_br,
-            "image_urls": image_urls
+            "image_urls": image_urls,
+            "description_short": desc_short,
+            "edit_payload": {
+                "id": ticket.id,
+                "description": ticket.description or "",
+                "severity": ticket.severity or "low",
+                "shift": ticket.shift or "",
+            },
         })
-    
-    # KPI Stats
-    total_count = len(tickets)
-    open_count = len([t for t in tickets if t["ticket"].status == "open"])
-    high_count = len([t for t in tickets if t["ticket"].severity == "high" and t["ticket"].status == "open"])
-    
-    now_7d = datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=7)
-    # Fix TZ: Make comparison robust (ignoring TZ for count or ensuring both aligned)
-    # Simplify: convert both to naive or aware.
-    now_7d_naive = now_7d.replace(tzinfo=None)
-    
-    recent_count = 0
-    for t in tickets:
-        dt = t["ticket"].created_at
-        if dt:
-            # If naive, compare with naive. If aware, compare with aware?
-            # Safest is to strip TZ for this "recent" check as 7 days is rough.
-            dt_naive = dt.replace(tzinfo=None) if dt.tzinfo else dt
-            if dt_naive >= now_7d_naive:
-                recent_count += 1
+
+    def _page_url(p: int) -> str:
+        params = dict(request.query_params)
+        params["page"] = str(p)
+        return "/admin/equipment/tickets?" + urlencode(params)
+
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_filtered,
+        "total_pages": total_pages,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
+        "prev_url": _page_url(page - 1),
+        "next_url": _page_url(page + 1),
+        "range_from": offset + 1 if total_filtered else 0,
+        "range_to": min(offset + per_page, total_filtered),
+    }
+
+    error = err_q or (message if level == "error" else None)
+    success = ok_q or (message if level != "error" else None)
 
     return templates.TemplateResponse(
         "admin_equipment_tickets.html",
@@ -10573,20 +10878,292 @@ async def admin_equipment_tickets(
             "request": request,
             "message": message,
             "level": level,
+            "error": error,
+            "success": success,
             "tickets": tickets,
             "stats": {
-                "total": total_count,
-                "open": open_count,
-                "high": high_count,
-                "recent": recent_count
+                "total": stats_total,
+                "open": stats_open,
+                "high": stats_high_open,
+                "recent": stats_recent_7,
             },
             "filters": {
                 "status": ticket_status_filter,
                 "severity": severity_filter,
-                "equipment": equipment_filter
-            }
-        }
+                "equipment": equipment_filter,
+                "shift": shift_filter,
+                "days": days_param or "",
+                "q": q,
+                "sort": sort,
+            },
+            "pagination": pagination,
+            "shift_options": ["Manhã", "Tarde", "Noite"],
+        },
     )
+
+
+@app.post("/admin/equipment/tickets/create", response_class=RedirectResponse)
+async def admin_equipment_ticket_create(
+    request: Request,
+    registration_id: str = Form(...),
+    equipment_code: str = Form(...),
+    description: str = Form(...),
+    severity: str = Form("low"),
+    shift: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    registration_id = (registration_id or "").strip()
+    equipment_code = (equipment_code or "").strip().upper()
+    description = (description or "").strip()
+    severity = (severity or "low").strip().lower()
+    shift = (shift or "").strip() or None
+
+    if severity not in ("low", "high"):
+        severity = "low"
+
+    if not registration_id or not equipment_code or not description:
+        q = urlencode({"error": "Matrícula, equipamento e descrição são obrigatórios.", "level": "error"})
+        return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+    emp = session.exec(
+        select(models.Employee).where(models.Employee.registration_id == registration_id)
+    ).first()
+    if not emp:
+        q = urlencode({"error": "Colaborador não encontrado para esta matrícula.", "level": "error"})
+        return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    shift_val = shift or (emp.work_shift or "Manhã")
+    ticket = models.EquipmentTicket(
+        equipment_code=equipment_code,
+        employee_id=emp.id,
+        created_at=now_br,
+        shift=shift_val,
+        description=description,
+        severity=severity,
+        images=[],
+        status="open",
+    )
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+    actor_label = format_user_label(user)
+    session.add(
+        models.EquipmentTicketEvent(
+            ticket_id=ticket.id,
+            event_type="created",
+            description=f"Chamado registrado pela oficina ({actor_label}).",
+            created_by=actor_label,
+            created_at=now_br,
+        )
+    )
+    session.commit()
+    q = urlencode({"success": f"Chamado #{ticket.id} criado com sucesso."})
+    return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/admin/equipment/tickets/{ticket_id}/update", response_class=RedirectResponse)
+async def admin_equipment_ticket_update(
+    request: Request,
+    ticket_id: int,
+    description: str = Form(...),
+    severity: str = Form("low"),
+    shift: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    ticket = session.get(models.EquipmentTicket, ticket_id)
+    if not ticket:
+        q = urlencode({"error": "Chamado não encontrado.", "level": "error"})
+        return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+    description = (description or "").strip()
+    severity = (severity or "low").strip().lower()
+    shift = (shift or "").strip()
+    if severity not in ("low", "high"):
+        severity = "low"
+    if not description:
+        q = urlencode({"error": "Descrição não pode ficar vazia.", "level": "error"})
+        return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+    actor_label = format_user_label(user)
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    ticket.description = description
+    ticket.severity = severity
+    ticket.shift = shift or ticket.shift
+    session.add(ticket)
+    session.add(
+        models.EquipmentTicketEvent(
+            ticket_id=ticket.id,
+            event_type="comment",
+            description=f"Dados atualizados por {actor_label}.",
+            created_by=actor_label,
+            created_at=now_br,
+        )
+    )
+    session.commit()
+    q = urlencode({"success": f"Chamado #{ticket_id} atualizado."})
+    return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/admin/equipment/tickets/bulk-close", response_class=RedirectResponse)
+async def admin_equipment_tickets_bulk_close(
+    request: Request,
+    ticket_ids: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    raw = (ticket_ids or "").strip()
+    ids = []
+    for part in raw.split(","):
+        part = part.strip()
+        if part.isdigit():
+            ids.append(int(part))
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        q = urlencode({"error": "Nenhum chamado selecionado.", "level": "error"})
+        return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    actor_label = format_user_label(user)
+    closed_n = 0
+    for tid in ids:
+        ticket = session.get(models.EquipmentTicket, tid)
+        if not ticket or ticket.status != "open":
+            continue
+        ticket.status = "closed"
+        ticket.closed_at = now_br
+        ticket.closed_by = actor_label
+        session.add(ticket)
+        session.add(
+            models.Event(
+                timestamp=now_br,
+                text=f"Chamado #{ticket.id} encerrado em lote por {actor_label}.",
+                type="ticket_close",
+                category="processo",
+                sector=ticket.equipment_code,
+                impact="low",
+                reference_type="ticket",
+                reference_id=ticket.id,
+                employee_id=ticket.employee_id,
+            )
+        )
+        closed_n += 1
+    session.commit()
+    q = urlencode({"success": f"{closed_n} chamado(s) encerrado(s)." if closed_n else "Nenhum chamado aberto no recorte."})
+    return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/admin/equipment/tickets/import", response_class=RedirectResponse)
+async def admin_equipment_tickets_import(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    require_login(request)
+    import pandas as pd
+
+    def norm_header(s: str) -> str:
+        s = unicodedata.normalize("NFKD", str(s or ""))
+        s = "".join(ch for ch in s if not unicodedata.combining(ch))
+        return s.strip().lower()
+
+    def pick_col(cols, *names):
+        mapping = {norm_header(c): c for c in cols}
+        for n in names:
+            k = norm_header(n)
+            if k in mapping:
+                return mapping[k]
+        for c in cols:
+            nc = norm_header(c)
+            for n in names:
+                nk = norm_header(n).replace(" ", "")
+                if nk and nk in nc.replace(" ", ""):
+                    return c
+        return None
+
+    content = await file.read()
+    filename = (file.filename or "").lower()
+    try:
+        if filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+        df.columns = [str(c).strip() for c in df.columns]
+    except Exception as e:
+        q = urlencode({"error": f"Arquivo inválido: {e}", "level": "error"})
+        return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+    col_reg = pick_col(
+        df.columns,
+        "matricula", "matrícula", "registration", "registro", "id", "empregado",
+    )
+    col_eq = pick_col(df.columns, "equipamento", "equipment", "placa", "codigo", "código", "veiculo", "veículo")
+    col_desc = pick_col(df.columns, "descricao", "descrição", "description", "problema", "observacao", "observação")
+    col_sev = pick_col(df.columns, "severidade", "severity", "prioridade")
+    col_shift = pick_col(df.columns, "turno", "shift")
+
+    if not col_reg or not col_eq or not col_desc:
+        q = urlencode({
+            "error": "Cabeçalhos obrigatórios: matrícula (ou registro), equipamento e descrição.",
+            "level": "error",
+        })
+        return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
+
+    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    actor_label = format_user_label(user)
+    created = 0
+    skipped = 0
+
+    for _, row in df.iterrows():
+        reg = str(row.get(col_reg) or "").strip()
+        eq = str(row.get(col_eq) or "").strip().upper()
+        desc = str(row.get(col_desc) or "").strip()
+        if not reg or not eq or not desc:
+            skipped += 1
+            continue
+        emp = session.exec(select(models.Employee).where(models.Employee.registration_id == reg)).first()
+        if not emp:
+            skipped += 1
+            continue
+        sev = "low"
+        if col_sev and pd.notna(row.get(col_sev)):
+            sv = norm_header(str(row.get(col_sev)))
+            if "alt" in sv or "high" in sv or "crit" in sv:
+                sev = "high"
+        sh = None
+        if col_shift and pd.notna(row.get(col_shift)):
+            sh = str(row.get(col_shift)).strip()
+        shift_val = sh or (emp.work_shift or "Manhã")
+        ticket = models.EquipmentTicket(
+            equipment_code=eq,
+            employee_id=emp.id,
+            created_at=now_br,
+            shift=shift_val,
+            description=desc,
+            severity=sev,
+            images=[],
+            status="open",
+        )
+        session.add(ticket)
+        session.flush()
+        session.refresh(ticket)
+        session.add(
+            models.EquipmentTicketEvent(
+                ticket_id=ticket.id,
+                event_type="created",
+                description=f"Importado por {actor_label} (planilha).",
+                created_by=actor_label,
+                created_at=now_br,
+            )
+        )
+        created += 1
+
+    session.commit()
+    q = urlencode({"success": f"Importação concluída: {created} chamado(s). Ignorados: {skipped}."})
+    return RedirectResponse(url=f"/admin/equipment/tickets?{q}", status_code=status.HTTP_303_SEE_OTHER)
 
 @app.post("/admin/equipment/tickets/{ticket_id}/close", response_class=RedirectResponse)
 async def admin_equipment_ticket_close(
@@ -10636,13 +11213,43 @@ async def admin_checklists_settings(
         select(models.TranspalletEquipment).order_by(models.TranspalletEquipment.code)
     ).all()
 
+    email_recipients = session.exec(
+        select(models.ChecklistEmailRecipient).order_by(models.ChecklistEmailRecipient.email)
+    ).all()
+
+    usage_rows = session.exec(
+        select(
+            models.TranspalletChecklist.equipment_code,
+            func.count(models.TranspalletChecklist.id),
+        ).group_by(models.TranspalletChecklist.equipment_code)
+    ).all()
+    usage_by_code = {row[0]: int(row[1]) for row in usage_rows}
+
+    total_eq = len(equipment_list)
+    available_n = sum(1 for e in equipment_list if (e.status or "") == "available")
+    blocked_n = sum(1 for e in equipment_list if (e.status or "") == "blocked")
+    with_hist = sum(1 for e in equipment_list if usage_by_code.get(e.code, 0) > 0)
+    email_active = sum(1 for r in email_recipients if r.is_active)
+
+    settings_stats = {
+        "equipment_total": total_eq,
+        "equipment_available": available_n,
+        "equipment_blocked": blocked_n,
+        "equipment_with_checklists": with_hist,
+        "emails_active": email_active,
+        "emails_total": len(email_recipients),
+    }
+
     return templates.TemplateResponse(
         "admin_routine_checklists_settings.html",
         {
             "request": request,
             "message": message,
             "level": level,
-            "equipment_list": equipment_list
+            "equipment_list": equipment_list,
+            "email_recipients": email_recipients,
+            "usage_by_code": usage_by_code,
+            "settings_stats": settings_stats,
         }
     )
 
@@ -10680,7 +11287,7 @@ async def admin_checklists_remove_email(
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
+    recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
     if not recipient:
         return admin_checklists_settings_redirect("E-mail não encontrado.", "error")
     if recipient.is_active:
@@ -10767,88 +11374,432 @@ async def admin_checklists_remove_equipment(
         return admin_checklists_settings_redirect("Equipamento bloqueado removido com sucesso.", "success")
     return admin_checklists_settings_redirect("Equipamento removido.", "success")
 
+
+def _normalize_header_token(value: str) -> str:
+    value = unicodedata.normalize("NFKD", str(value or ""))
+    value = "".join(ch for ch in value if not unicodedata.combining(ch))
+    return value.strip().lower()
+
+
+def _pick_equipment_import_code_column(columns) -> Optional[str]:
+    normalized = {_normalize_header_token(col): col for col in columns}
+    for candidate in (
+        "code",
+        "código",
+        "codigo",
+        "equipamento",
+        "equipment",
+        "placa",
+        "patrimonio",
+        "patrimônio",
+        "id equipamento",
+    ):
+        key = _normalize_header_token(candidate)
+        if key in normalized:
+            return normalized[key]
+    for norm_col, original_col in normalized.items():
+        for sub in ("equip", "codigo", "código", "placa", "patrim"):
+            if sub in norm_col.replace(" ", ""):
+                return original_col
+    return None
+
+
+@app.post("/admin/routine/checklists/settings/equipment/import", response_class=RedirectResponse)
+async def admin_checklists_equipment_import(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    import pandas as pd
+
+    content = await file.read()
+    try:
+        df = pd.read_excel(io.BytesIO(content))
+    except Exception:
+        return admin_checklists_settings_redirect("Arquivo inválido. Use .xlsx com coluna de código.", "error")
+    df.columns = df.columns.astype(str).str.strip()
+    col = _pick_equipment_import_code_column(df.columns)
+    if not col:
+        return admin_checklists_settings_redirect(
+            "Não encontrei coluna de código (ex.: code, código, equipamento). Verifique o cabeçalho.",
+            "error",
+        )
+
+    _code_rows = session.exec(select(models.TranspalletEquipment.code)).all()
+    existing_codes: set[str] = set()
+    for x in _code_rows:
+        existing_codes.add(x[0] if isinstance(x, tuple) else x)
+    added = 0
+    skipped_dup = 0
+    seen: set[str] = set()
+    for raw in df[col].tolist():
+        if raw is None or pd.isna(raw):
+            continue
+        code = str(raw).strip()
+        if not code:
+            continue
+        if code in seen:
+            skipped_dup += 1
+            continue
+        seen.add(code)
+        if code in existing_codes:
+            skipped_dup += 1
+            continue
+        session.add(models.TranspalletEquipment(code=code, status="available"))
+        existing_codes.add(code)
+        added += 1
+    session.commit()
+    return admin_checklists_settings_redirect(
+        f"Importação concluída: {added} equipamento(s) novo(s). {skipped_dup} linha(s) ignorada(s) (duplicado ou vazio).",
+        "success",
+    )
+
+
+@app.post("/admin/routine/checklists/settings/equipment/bulk-delete", response_class=RedirectResponse)
+async def admin_checklists_equipment_bulk_delete(
+    request: Request,
+    equipment_ids: Optional[List[int]] = Form(None),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    if not equipment_ids:
+        return admin_checklists_settings_redirect("Selecione ao menos um equipamento.", "error")
+    removed = 0
+    blocked_skipped = 0
+    history_skipped = 0
+    for eid in equipment_ids:
+        equipment = session.get(models.TranspalletEquipment, eid)
+        if not equipment:
+            continue
+        if equipment.status == "blocked":
+            blocked_skipped += 1
+            continue
+        usage_count = session.exec(
+            select(func.count(models.TranspalletChecklist.id)).where(
+                models.TranspalletChecklist.equipment_code == equipment.code
+            )
+        ).one() or 0
+        if usage_count:
+            history_skipped += 1
+            continue
+        session.delete(equipment)
+        removed += 1
+    session.commit()
+    parts = [f"{removed} removido(s)."]
+    if blocked_skipped:
+        parts.append(f"{blocked_skipped} bloqueado(s) não removido(s) (use a exclusão individual com confirmação).")
+    if history_skipped:
+        parts.append(f"{history_skipped} com histórico de checklist preservado(s).")
+    return admin_checklists_settings_redirect(" ".join(parts), "success")
+
+
+@app.post("/admin/routine/checklists/settings/equipment/{equipment_id}/update-code", response_class=RedirectResponse)
+async def admin_checklists_equipment_update_code(
+    request: Request,
+    equipment_id: int,
+    new_code: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    equipment = session.get(models.TranspalletEquipment, equipment_id)
+    if not equipment:
+        return admin_checklists_settings_redirect("Equipamento não encontrado.", "error")
+    code_norm = (new_code or "").strip()
+    if not code_norm:
+        return admin_checklists_settings_redirect("Informe o código.", "error")
+    usage_count = session.exec(
+        select(func.count(models.TranspalletChecklist.id)).where(
+            models.TranspalletChecklist.equipment_code == equipment.code
+        )
+    ).one() or 0
+    if usage_count:
+        return admin_checklists_settings_redirect(
+            "Não é possível alterar o código de equipamento com checklists registrados.",
+            "error",
+        )
+    if code_norm != equipment.code:
+        clash = session.exec(
+            select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == code_norm)
+        ).first()
+        if clash:
+            return admin_checklists_settings_redirect("Já existe equipamento com este código.", "error")
+    equipment.code = code_norm
+    session.add(equipment)
+    session.commit()
+    return admin_checklists_settings_redirect("Código atualizado.", "success")
+
+
+@app.post("/admin/routine/checklists/settings/equipment/{equipment_id}/block", response_class=RedirectResponse)
+async def admin_checklists_equipment_block_manual(
+    request: Request,
+    equipment_id: int,
+    reason: str = Form(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    equipment = session.get(models.TranspalletEquipment, equipment_id)
+    if not equipment:
+        return admin_checklists_settings_redirect("Equipamento não encontrado.", "error")
+    reason = (reason or "").strip()
+    if not reason:
+        return admin_checklists_settings_redirect("Informe o motivo do bloqueio.", "error")
+    block_equipment(session, equipment, reason, equipment.last_checklist_id)
+    session.add(equipment)
+    session.commit()
+    return admin_checklists_settings_redirect("Equipamento bloqueado.", "success")
+
+
+@app.post("/admin/routine/checklists/settings/equipment/{equipment_id}/release", response_class=RedirectResponse)
+async def admin_checklists_equipment_release_manual(
+    request: Request,
+    equipment_id: int,
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    equipment = session.get(models.TranspalletEquipment, equipment_id)
+    if not equipment:
+        return admin_checklists_settings_redirect("Equipamento não encontrado.", "error")
+    actor_label = format_user_label(user)
+    release_equipment(session, equipment, actor_label)
+    session.add(equipment)
+    session.commit()
+    return admin_checklists_settings_redirect("Equipamento liberado.", "success")
+
+
+def _admin_checklists_summary_from_pairs(
+    pairs: List[Tuple[models.TranspalletChecklist, models.Employee]],
+    equipment_by_code: Dict[str, models.TranspalletEquipment],
+) -> Dict[str, int]:
+    out = {"total": len(pairs), "pending": 0, "approved": 0, "rejected": 0, "blocked": 0, "nonconforming": 0}
+    for checklist, _ in pairs:
+        sv = checklist.status or "submitted"
+        if sv in ("submitted", "reviewed"):
+            out["pending"] += 1
+        elif sv == "approved":
+            out["approved"] += 1
+        elif sv == "rejected":
+            out["rejected"] += 1
+        eq = equipment_by_code.get(checklist.equipment_code)
+        if eq and getattr(eq, "status", None) == "blocked":
+            out["blocked"] += 1
+        out["nonconforming"] += len(checklist.nonconforming_keys or [])
+    return out
+
+
+def _admin_checklists_summary_sql(
+    session: Session, filter_exprs: List[Any], join_equipment_blocked: bool
+) -> Dict[str, int]:
+    join_emp = models.Employee.id == models.TranspalletChecklist.employee_id
+
+    def _count_stmt(*extra_where):
+        stmt = (
+            select(func.count())
+            .select_from(models.TranspalletChecklist)
+            .join(models.Employee, join_emp)
+        )
+        if join_equipment_blocked:
+            stmt = stmt.join(
+                models.TranspalletEquipment,
+                models.TranspalletEquipment.code == models.TranspalletChecklist.equipment_code,
+            )
+        return stmt.where(*filter_exprs, *extra_where)
+
+    total = int(session.exec(_count_stmt()).one() or 0)
+    pending = int(
+        session.exec(
+            _count_stmt(models.TranspalletChecklist.status.in_(["submitted", "reviewed"]))
+        ).one()
+        or 0
+    )
+    approved = int(
+        session.exec(_count_stmt(models.TranspalletChecklist.status == "approved")).one() or 0
+    )
+    rejected = int(
+        session.exec(_count_stmt(models.TranspalletChecklist.status == "rejected")).one() or 0
+    )
+    blocked = int(
+        session.exec(
+            select(func.count())
+            .select_from(models.TranspalletChecklist)
+            .join(models.Employee, join_emp)
+            .join(
+                models.TranspalletEquipment,
+                models.TranspalletEquipment.code == models.TranspalletChecklist.equipment_code,
+            )
+            .where(*filter_exprs, models.TranspalletEquipment.status == "blocked")
+        ).one()
+        or 0
+    )
+    nc_stmt = (
+        select(models.TranspalletChecklist.nonconforming_keys)
+        .select_from(models.TranspalletChecklist)
+        .join(models.Employee, join_emp)
+    )
+    if join_equipment_blocked:
+        nc_stmt = nc_stmt.join(
+            models.TranspalletEquipment,
+            models.TranspalletEquipment.code == models.TranspalletChecklist.equipment_code,
+        )
+    nc_stmt = nc_stmt.where(*filter_exprs)
+    nc_rows = session.exec(nc_stmt).all()
+    nonconforming = sum(len(keys or []) for keys in nc_rows)
+    return {
+        "total": total,
+        "pending": pending,
+        "approved": approved,
+        "rejected": rejected,
+        "blocked": blocked,
+        "nonconforming": int(nonconforming),
+    }
+
+
 @app.get("/admin/routine/checklists", response_class=HTMLResponse)
 async def admin_checklists_page(
     request: Request,
     session: Session = Depends(get_session),
     user=Depends(require_leader)
 ):
-    date_filter = request.query_params.get("date")
-    status_filter = request.query_params.get("status")
-    equipment_filter = request.query_params.get("equipment")
-    employee_filter = request.query_params.get("employee_id")
-    
-    # New filters for drill-down
+    date_filter = (request.query_params.get("date") or "").strip()
+    status_filter = (request.query_params.get("status") or "").strip()
+    equipment_filter = (request.query_params.get("equipment") or "").strip()
+    employee_filter = (request.query_params.get("employee_id") or "").strip()
+    shift_filter = (request.query_params.get("shift") or "").strip()
+    search_filter = (request.query_params.get("search") or "").strip()
+    sort_by = (request.query_params.get("sort") or "submitted_desc").strip()
+    equipment_status_filter = (request.query_params.get("equipment_status") or "").strip()
+
     period_days_param = request.query_params.get("period_days")
     nonconforming_param = request.query_params.get("nonconforming")
     critical_param = request.query_params.get("critical")
-    item_key_param = request.query_params.get("item_key")
-    
+    item_key_param = (request.query_params.get("item_key") or "").strip()
+
+    page_param = request.query_params.get("page")
+    per_page_param = request.query_params.get("per_page")
+    message = request.query_params.get("message")
+    level = (request.query_params.get("level") or "info").strip().lower()
+
+    try:
+        page = max(1, int(page_param or 1))
+    except Exception:
+        page = 1
+    try:
+        per_page = int(per_page_param or 50)
+    except Exception:
+        per_page = 50
+    per_page = min(max(per_page, 10), 200)
+
     employee_filter_id = None
     if employee_filter:
         try:
             employee_filter_id = int(employee_filter)
-        except:
+        except Exception:
             employee_filter_id = None
 
-    query = (
-        select(models.TranspalletChecklist, models.Employee)
-        .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
-        .order_by(models.TranspalletChecklist.submitted_at.desc())
-    )
-    
-    # Priority: Specific date > Period
+    filter_exprs: List[Any] = []
+    join_equipment_blocked = equipment_status_filter == "blocked"
+
     if date_filter:
-        query = query.where(models.TranspalletChecklist.date == date_filter)
+        filter_exprs.append(models.TranspalletChecklist.date == date_filter)
     elif period_days_param:
         try:
             days = int(period_days_param)
             start_d = datetime.now(ZoneInfo("America/Sao_Paulo")) - timedelta(days=days)
-            query = query.where(models.TranspalletChecklist.submitted_at >= start_d)
-        except: pass
-        
-    if status_filter:
-        query = query.where(models.TranspalletChecklist.status == status_filter)
-    if equipment_filter:
-        query = query.where(models.TranspalletChecklist.equipment_code.ilike(f"%{equipment_filter}%"))
-    if employee_filter_id:
-        query = query.where(models.TranspalletChecklist.employee_id == employee_filter_id)
-        
-    # Drill-down logic
-    # Filter in python or SQL? SQL is better but nonconforming_keys is JSON/Column.
-    # Check model definition. If it's JSON, SQL filtering depends on DB.
-    # We will filter in Python if needed, but SQLModel check is safer if supported.
-    # For now, let's filter in Python for complex JSON checks if we can't trust SQL support.
-    # BUT fetching all and filtering is slow.
-    # If `nonconforming_keys` is not None/empty.
-    # query = query.where(models.TranspalletChecklist.nonconforming_keys != None) # might not work on all DBs
-    
-    # Let's fetch and filter in python for these specific drill-downs as dataset is small enough (<10k?). 
-    # Or apply simple SQL checks.
-    
-    rows = session.exec(query).all()
-    
-    # APPLY PYTHON FILTERS (Drill-down)
-    filtered_rows = []
-    for checklist, employee in rows:
-        include = True
-        
-        if nonconforming_param == "1":
-            if not checklist.nonconforming_keys:
-                include = False
-                
-        if critical_param == "1":
-            if not checklist.critical_flag:
-                include = False
-        
-        if item_key_param:
-            if item_key_param not in (checklist.nonconforming_keys or []):
-                include = False
+            filter_exprs.append(models.TranspalletChecklist.submitted_at >= start_d)
+        except Exception:
+            pass
 
-        if include:
-            filtered_rows.append((checklist, employee))
-            
-    rows = filtered_rows
+    if status_filter == "__pending__":
+        filter_exprs.append(models.TranspalletChecklist.status.in_(["submitted", "reviewed"]))
+    elif status_filter:
+        filter_exprs.append(models.TranspalletChecklist.status == status_filter)
+    if shift_filter:
+        filter_exprs.append(models.TranspalletChecklist.shift == shift_filter)
+    if equipment_filter:
+        filter_exprs.append(
+            models.TranspalletChecklist.equipment_code.ilike(f"%{equipment_filter}%")
+        )
+    if employee_filter_id:
+        filter_exprs.append(models.TranspalletChecklist.employee_id == employee_filter_id)
+    if search_filter:
+        search_like = f"%{search_filter}%"
+        filter_exprs.append(
+            or_(
+                models.Employee.name.ilike(search_like),
+                models.Employee.registration_id.ilike(search_like),
+                models.TranspalletChecklist.equipment_code.ilike(search_like),
+            )
+        )
+    if join_equipment_blocked:
+        filter_exprs.append(models.TranspalletEquipment.status == "blocked")
+
+    base_query = select(models.TranspalletChecklist, models.Employee).join(
+        models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id
+    )
+    if join_equipment_blocked:
+        base_query = base_query.join(
+            models.TranspalletEquipment,
+            models.TranspalletEquipment.code == models.TranspalletChecklist.equipment_code,
+        )
+    base_query = base_query.where(*filter_exprs)
+
+    order_map = {
+        "submitted_desc": models.TranspalletChecklist.submitted_at.desc(),
+        "submitted_asc": models.TranspalletChecklist.submitted_at.asc(),
+        "date_desc": models.TranspalletChecklist.date.desc(),
+        "date_asc": models.TranspalletChecklist.date.asc(),
+        "status_asc": models.TranspalletChecklist.status.asc(),
+        "status_desc": models.TranspalletChecklist.status.desc(),
+        "employee_asc": models.Employee.name.asc(),
+        "employee_desc": models.Employee.name.desc(),
+        "equipment_asc": models.TranspalletChecklist.equipment_code.asc(),
+        "equipment_desc": models.TranspalletChecklist.equipment_code.desc(),
+    }
+    order_clause = order_map.get(sort_by, models.TranspalletChecklist.submitted_at.desc())
+
+    has_complex_filters = (
+        nonconforming_param == "1" or critical_param == "1" or bool(item_key_param)
+    )
+
+    total_count = 0
+    rows = []
+    filtered_rows_full: Optional[List[Tuple[models.TranspalletChecklist, models.Employee]]] = None
+    if has_complex_filters:
+        candidate_rows = session.exec(base_query.order_by(order_clause).limit(2500)).all()
+        filtered_rows = []
+        for checklist, employee in candidate_rows:
+            include = True
+            if nonconforming_param == "1" and not checklist.nonconforming_keys:
+                include = False
+            if critical_param == "1" and not checklist.critical_flag:
+                include = False
+            if item_key_param and item_key_param not in (checklist.nonconforming_keys or []):
+                include = False
+            if include:
+                filtered_rows.append((checklist, employee))
+        filtered_rows_full = filtered_rows
+        total_count = len(filtered_rows)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        rows = filtered_rows[start_idx:end_idx]
+    else:
+        count_stmt = (
+            select(func.count())
+            .select_from(models.TranspalletChecklist)
+            .join(models.Employee, models.Employee.id == models.TranspalletChecklist.employee_id)
+        )
+        if join_equipment_blocked:
+            count_stmt = count_stmt.join(
+                models.TranspalletEquipment,
+                models.TranspalletEquipment.code == models.TranspalletChecklist.equipment_code,
+            )
+        total_count = session.exec(count_stmt.where(*filter_exprs)).one() or 0
+        offset = (page - 1) * per_page
+        rows = session.exec(base_query.order_by(order_clause).offset(offset).limit(per_page)).all()
+
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
+    if page > total_pages:
+        page = total_pages
 
     equipment_codes = {c.equipment_code for c, _ in rows}
     equipment_map = {}
@@ -10869,30 +11820,28 @@ async def admin_checklists_page(
         "available": "Disponível"
     }
 
+    if has_complex_filters and filtered_rows_full is not None:
+        eq_codes_sum = {c.equipment_code for c, _ in filtered_rows_full}
+        eq_map_summary: Dict[str, models.TranspalletEquipment] = {}
+        if eq_codes_sum:
+            eq_map_summary = {
+                e.code: e
+                for e in session.exec(
+                    select(models.TranspalletEquipment).where(
+                        models.TranspalletEquipment.code.in_(eq_codes_sum)
+                    )
+                ).all()
+            }
+        summary_raw = _admin_checklists_summary_from_pairs(filtered_rows_full, eq_map_summary)
+    else:
+        summary_raw = _admin_checklists_summary_sql(session, filter_exprs, join_equipment_blocked)
+
     checklist_rows = []
-    summary = {
-        "total": 0,
-        "pending": 0,
-        "approved": 0,
-        "rejected": 0,
-        "blocked": 0,
-        "nonconforming": 0
-    }
     for checklist, employee in rows:
         equipment = equipment_map.get(checklist.equipment_code)
         status_value = checklist.status or "submitted"
         equipment_status = equipment.status if equipment else "available"
         nonconforming_count = len(checklist.nonconforming_keys or [])
-        summary["total"] += 1
-        summary["nonconforming"] += nonconforming_count
-        if status_value in ["submitted", "reviewed"]:
-            summary["pending"] += 1
-        elif status_value == "approved":
-            summary["approved"] += 1
-        elif status_value == "rejected":
-            summary["rejected"] += 1
-        if equipment_status == "blocked":
-            summary["blocked"] += 1
         checklist_rows.append({
             "checklist": checklist,
             "employee": employee,
@@ -10905,6 +11854,69 @@ async def admin_checklists_page(
         })
 
     employees = session.exec(select(models.Employee).order_by(models.Employee.name)).all()
+    shift_options = ["Manhã", "Tarde", "Noite"]
+
+    def _checklist_kpi_url(**setvals):
+        q = dict(request.query_params)
+        q.pop("page", None)
+        drop = setvals.pop("_drop", ())  # type: ignore
+        for k in drop:
+            q.pop(k, None)
+        for k, v in setvals.items():
+            if v is None or v == "":
+                q.pop(k, None)
+            else:
+                q[k] = str(v)
+        return "/admin/routine/checklists?" + urlencode(q)
+
+    kpi_urls = {
+        "all": _checklist_kpi_url(
+            _drop=("status", "equipment_status", "nonconforming", "critical", "item_key")
+        ),
+        "pending": _checklist_kpi_url(
+            _drop=("equipment_status", "nonconforming", "critical", "item_key"),
+            status="__pending__",
+        ),
+        "approved": _checklist_kpi_url(
+            _drop=("equipment_status", "nonconforming", "critical", "item_key"),
+            status="approved",
+        ),
+        "rejected": _checklist_kpi_url(
+            _drop=("equipment_status", "nonconforming", "critical", "item_key"),
+            status="rejected",
+        ),
+        "blocked": _checklist_kpi_url(
+            _drop=("status", "nonconforming", "critical", "item_key"),
+            equipment_status="blocked",
+        ),
+        "nonconforming": _checklist_kpi_url(
+            _drop=("status", "equipment_status", "critical", "item_key"),
+            nonconforming="1",
+        ),
+    }
+
+    base_params = dict(request.query_params)
+    prev_url = None
+    next_url = None
+    if page > 1:
+        prev_params = dict(base_params)
+        prev_params["page"] = page - 1
+        prev_url = "/admin/routine/checklists?" + urlencode(prev_params)
+    if page < total_pages:
+        next_params = dict(base_params)
+        next_params["page"] = page + 1
+        next_url = "/admin/routine/checklists?" + urlencode(next_params)
+
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total_count": total_count,
+        "total_pages": total_pages,
+        "has_prev": page > 1,
+        "has_next": page < total_pages,
+        "prev_url": prev_url,
+        "next_url": next_url,
+    }
 
     return templates.TemplateResponse(
         "admin_routine_checklists.html",
@@ -10913,25 +11925,219 @@ async def admin_checklists_page(
             "rows": checklist_rows,
             "employees": employees,
             "status_options": ["submitted", "reviewed", "approved", "rejected"],
+            "shift_options": shift_options,
             "status_labels": status_labels,
+            "sort_options": [
+                ("submitted_desc", "Envio (mais recente)"),
+                ("submitted_asc", "Envio (mais antigo)"),
+                ("date_desc", "Data (mais recente)"),
+                ("date_asc", "Data (mais antiga)"),
+                ("status_asc", "Status (A-Z)"),
+                ("employee_asc", "Colaborador (A-Z)"),
+                ("equipment_asc", "Equipamento (A-Z)")
+            ],
             "filters": {
                 "date": date_filter or "",
                 "status": status_filter or "",
                 "equipment": equipment_filter or "",
                 "employee_id": employee_filter_id,
+                "shift": shift_filter,
+                "search": search_filter,
+                "sort": sort_by,
+                "page": page,
+                "per_page": per_page,
                 "period_days": period_days_param,
                 "nonconforming": nonconforming_param,
-                "critical": critical_param
+                "critical": critical_param,
+                "equipment_status": equipment_status_filter or "",
             },
+            "pagination": pagination,
+            "flash_message": message,
+            "flash_level": level,
+            "kpi_urls": kpi_urls,
             "summary": {
-                "total": format_int_br(summary["total"]),
-                "pending": format_int_br(summary["pending"]),
-                "approved": format_int_br(summary["approved"]),
-                "rejected": format_int_br(summary["rejected"]),
-                "blocked": format_int_br(summary["blocked"]),
-                "nonconforming": format_int_br(summary["nonconforming"])
-            }
+                "total": format_int_br(summary_raw["total"]),
+                "pending": format_int_br(summary_raw["pending"]),
+                "approved": format_int_br(summary_raw["approved"]),
+                "rejected": format_int_br(summary_raw["rejected"]),
+                "blocked": format_int_br(summary_raw["blocked"]),
+                "nonconforming": format_int_br(summary_raw["nonconforming"]),
+            },
         }
+    )
+
+
+@app.post("/admin/routine/checklists/create", response_class=RedirectResponse)
+async def admin_checklist_create(
+    request: Request,
+    employee_id: int = Form(...),
+    equipment_code: str = Form(...),
+    date: str = Form(...),
+    shift: str = Form(...),
+    checklist_status: str = Form("submitted"),
+    observations: str = Form(""),
+    nonconforming_keys: str = Form(""),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    employee = session.get(models.Employee, employee_id)
+    if not employee:
+        return RedirectResponse(
+            url="/admin/routine/checklists?message=Colaborador+inválido.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    normalized_equipment = (equipment_code or "").strip().upper()
+    if not normalized_equipment:
+        return RedirectResponse(
+            url="/admin/routine/checklists?message=Equipamento+obrigatório.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    allowed_status = {"submitted", "reviewed", "approved", "rejected"}
+    normalized_status = checklist_status if checklist_status in allowed_status else "submitted"
+    tokens = [item.strip() for item in (nonconforming_keys or "").split(",") if item.strip()]
+
+    new_checklist = models.TranspalletChecklist(
+        employee_id=employee_id,
+        equipment_code=normalized_equipment,
+        date=date,
+        shift=shift,
+        status=normalized_status,
+        observations=(observations or "").strip(),
+        items={},
+        nonconforming_keys=tokens,
+        critical_flag=len(tokens) > 0,
+    )
+    session.add(new_checklist)
+    session.flush()
+
+    actor_label = format_user_label(user)
+    session.add(models.Event(
+        timestamp=datetime.now(ZoneInfo("America/Sao_Paulo")),
+        text=f"Checklist #{new_checklist.id} criado manualmente por {actor_label}.",
+        type="checklist_create",
+        category="processo",
+        sector=normalized_equipment,
+        impact="medium",
+        reference_type="checklist",
+        reference_id=new_checklist.id,
+        employee_id=employee_id
+    ))
+    session.commit()
+
+    return RedirectResponse(
+        url="/admin/routine/checklists?message=Checklist+criado+com+sucesso.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/admin/routine/checklists/import", response_class=RedirectResponse)
+async def admin_checklists_import(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    user=Depends(require_leader)
+):
+    filename = (file.filename or "").lower()
+    if not filename.endswith(".xlsx") and not filename.endswith(".xls"):
+        return RedirectResponse(
+            url="/admin/routine/checklists?message=Arquivo+inválido.+Use+.xlsx+ou+.xls.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    try:
+        content = await file.read()
+        engine = "openpyxl" if filename.endswith(".xlsx") else "xlrd"
+        df = pd.read_excel(io.BytesIO(content), engine=engine, header=0)
+    except Exception as exc:
+        return RedirectResponse(
+            url=f"/admin/routine/checklists?message=Erro+ao+ler+arquivo:+{str(exc)}&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    required_cols = {"employee_registration", "equipment_code", "date", "shift"}
+    normalized_cols = {str(c).strip().lower(): c for c in list(df.columns)}
+    missing = [col for col in required_cols if col not in normalized_cols]
+    if missing:
+        return RedirectResponse(
+            url=f"/admin/routine/checklists?message=Colunas+obrigatórias+ausentes:+{','.join(missing)}&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    status_col = normalized_cols.get("status")
+    obs_col = normalized_cols.get("observations")
+    nonconf_col = normalized_cols.get("nonconforming_keys")
+
+    employees = session.exec(select(models.Employee)).all()
+    employee_by_reg = {str((emp.registration_id or "")).strip(): emp for emp in employees}
+
+    imported = 0
+    skipped = 0
+    allowed_status = {"submitted", "reviewed", "approved", "rejected"}
+
+    for _, raw in df.iterrows():
+        reg = str(raw.get(normalized_cols["employee_registration"], "")).strip()
+        equipment_code = str(raw.get(normalized_cols["equipment_code"], "")).strip().upper()
+        date_value = str(raw.get(normalized_cols["date"], "")).strip()
+        shift_value = str(raw.get(normalized_cols["shift"], "")).strip()
+
+        if not reg or reg.lower() == "nan":
+            skipped += 1
+            continue
+        employee = employee_by_reg.get(reg)
+        if not employee or not equipment_code or not date_value or not shift_value:
+            skipped += 1
+            continue
+
+        status_value = "submitted"
+        if status_col:
+            candidate_status = str(raw.get(status_col, "submitted")).strip().lower()
+            if candidate_status in allowed_status:
+                status_value = candidate_status
+
+        observations = ""
+        if obs_col:
+            observations = str(raw.get(obs_col, "")).strip()
+            if observations.lower() == "nan":
+                observations = ""
+
+        nonconf_tokens = []
+        if nonconf_col:
+            nonconf_raw = str(raw.get(nonconf_col, "")).strip()
+            if nonconf_raw and nonconf_raw.lower() != "nan":
+                nonconf_tokens = [item.strip() for item in nonconf_raw.split(",") if item.strip()]
+
+        checklist = models.TranspalletChecklist(
+            employee_id=employee.id,
+            equipment_code=equipment_code,
+            date=date_value,
+            shift=shift_value,
+            status=status_value,
+            observations=observations,
+            items={},
+            nonconforming_keys=nonconf_tokens,
+            critical_flag=len(nonconf_tokens) > 0,
+        )
+        session.add(checklist)
+        imported += 1
+
+    actor_label = format_user_label(user)
+    session.add(models.Event(
+        timestamp=datetime.now(ZoneInfo("America/Sao_Paulo")),
+        text=f"Importação de checklists por {actor_label}: {imported} inseridos, {skipped} ignorados.",
+        type="checklist_import",
+        category="processo",
+        sector="CHECKLISTS",
+        impact="medium",
+        reference_type="checklist",
+        reference_id=0
+    ))
+    session.commit()
+
+    return RedirectResponse(
+        url=f"/admin/routine/checklists?message=Importação+concluída:+{imported}+inseridos,+{skipped}+ignorados.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 @app.get("/admin/routine/checklists/{checklist_id}", response_class=HTMLResponse)
@@ -10950,6 +12156,23 @@ async def admin_checklist_detail(
     ).first()
 
     label_map = checklist_item_label_map()
+    status_labels = {
+        "submitted": "Enviado",
+        "reviewed": "Em revisão",
+        "approved": "Aprovado",
+        "rejected": "Rejeitado",
+    }
+    equipment_labels = {"blocked": "Bloqueado", "available": "Disponível"}
+    status_value = checklist.status or "submitted"
+    equipment_status = equipment.status if equipment else "available"
+    odometer_km_br = None
+    if checklist.odometer_km is not None:
+        try:
+            odometer_km_br = f"{float(checklist.odometer_km):,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        except (TypeError, ValueError):
+            odometer_km_br = str(checklist.odometer_km)
+    message = request.query_params.get("message")
+    level = (request.query_params.get("level") or "info").strip().lower()
     return templates.TemplateResponse(
         "admin_routine_checklist_detail.html",
         {
@@ -10960,7 +12183,16 @@ async def admin_checklist_detail(
             "employee_registration_id": employee.registration_id if employee else "-",
             "equipment": equipment,
             "label_map": label_map,
-            "items": CHECKLIST_ITEMS
+            "items": CHECKLIST_ITEMS,
+            "date_br": fmt_ddmmyyyy(checklist.date),
+            "time_br": fmt_hhmm(checklist.submitted_at),
+            "status_label": status_labels.get(status_value, status_value),
+            "equipment_status_label": equipment_labels.get(equipment_status, equipment_status),
+            "odometer_km_br": odometer_km_br,
+            "reviewed_by_display": checklist.reviewed_by,
+            "nonconforming_count": len(checklist.nonconforming_keys or []),
+            "flash_message": message,
+            "flash_level": level,
         }
     )
 
@@ -12184,6 +13416,7 @@ def _client_snapshot_auditable(client: models.Client) -> Dict[str, str]:
         "visita": str(client.visita or "").strip(),
         "nome_fantasia": str(client.nome_fantasia or "").strip(),
         "razao_social": str(client.razao_social or "").strip(),
+        "cnpj_cpf": str(getattr(client, "cnpj_cpf", None) or "").strip(),
         "municipio": str(client.municipio or "").strip(),
         "bairro": str(client.bairro or "").strip(),
         "endereco": str(client.endereco or "").strip(),
@@ -12223,7 +13456,7 @@ def _append_client_audit_diff(
         ov = before.get(key, "")
         nv = after.get(key, "")
         if ov != nv:
-            session.add(
+                session.add(
                 models.ClientAuditLog(
                     client_id=client_id,
                     changed_by=actor,
@@ -12233,6 +13466,21 @@ def _append_client_audit_diff(
                     action="update",
                 )
             )
+
+
+def _employee_phone_display_pair(stored: Optional[str]) -> Tuple[str, str]:
+    """Employee.phone (armazenamento legado sem +55) → (raw, texto amigável)."""
+    raw = (stored or "").strip()
+    if not raw:
+        return "", ""
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    if len(digits) >= 11:
+        digits = digits[-11:]
+    if len(digits) in (10, 11):
+        _e164, disp = normalize_phone_br("+55" + digits)
+        return raw, (disp or raw).strip()
+    e164, disp = normalize_phone_br(raw)
+    return raw, (disp or raw).strip() if e164 else (raw, raw)
 
 
 def _apply_client_profile_form(
@@ -12247,6 +13495,7 @@ def _apply_client_profile_form(
     visita: Optional[str],
     nome_fantasia: Optional[str],
     razao_social: Optional[str],
+    cnpj_cpf: Optional[str],
     municipio: Optional[str],
     bairro: Optional[str],
     endereco: Optional[str],
@@ -12284,6 +13533,7 @@ def _apply_client_profile_form(
     client.visita = _opt_form(visita)
     client.nome_fantasia = _opt_form(nome_fantasia)
     client.razao_social = _opt_form(razao_social)
+    client.cnpj_cpf = _opt_form(cnpj_cpf)
     client.municipio = _opt_form(municipio)
     client.bairro = _opt_form(bairro)
     client.endereco = endereco_clean or endereco_val
@@ -12422,6 +13672,17 @@ def _is_precadastro(c: models.Client) -> bool:
             (c.status_cliente or "").strip().upper() == "PRE CADASTRO")
 
 
+def _clients_page_query_string(request: Request, **overrides: Any) -> str:
+    """Preserva filtros na query string (paginação / per_page)."""
+    q: Dict[str, str] = {k: v for k, v in request.query_params.items()}
+    for k, v in overrides.items():
+        if v is None:
+            q.pop(k, None)
+        else:
+            q[k] = str(v)
+    return urlencode(q)
+
+
 def _precadastro_bucket(created_at: Optional[datetime]) -> Optional[str]:
     """Retorna '1m', '3m', '6m', '9m', '1y', '1y_plus' conforme idade do cadastro."""
     if not created_at:
@@ -12477,6 +13738,18 @@ async def clients_page(
         logger.exception(f"clients_page query error: {e}")
         all_clients = []
 
+    try:
+        raw_segs = session.exec(
+            select(models.Client.segmento)
+            .where(col(models.Client.segmento).is_not(None))
+            .where(col(models.Client.segmento) != "")
+            .distinct()
+        ).all()
+        segmentos_opts = sorted({(str(s) or "").strip() for s in raw_segs if s and str(s).strip()})
+    except Exception:
+        logger.exception("clients_page segmentos_opts distinct")
+        segmentos_opts = sorted({(c.segmento or "").strip() for c in all_clients if (c.segmento or "").strip()})
+
     # Última movimentação por client_id (max Route.date)
     last_movement_by_client: Dict[int, str] = {}
     try:
@@ -12514,7 +13787,6 @@ async def clients_page(
             (c.municipio and q in (c.municipio or "").lower())
         )]
 
-    segmentos_opts = sorted({(c.segmento or "").strip() for c in all_clients if (c.segmento or "").strip()})
     if segmento_filter:
         clients = [c for c in clients if (c.segmento or "").strip() == segmento_filter]
 
@@ -12590,23 +13862,34 @@ async def clients_page(
 
     clients_sorted = [x[0] for x in client_list_with_meta]
     last_movement_by_client_final = {x[0].id: x[1] for x in client_list_with_meta}
-    precadastro_bucket_by_client = {x[0].id: x[2] for x in client_list_with_meta}
+    precadastro_bucket_by_client_full = {x[0].id: x[2] for x in client_list_with_meta}
 
     sem_mov_count = sum(1 for c in clients_sorted if not last_movement_by_client.get(c.id))
-    # Data do cadastro para exibição: pre-cadastro já feito → 01/03/2026; com created_at → created_at; senão → 01/01/2025
-    data_cadastro_by_client: Dict[int, str] = {}
-    for c in clients_sorted:
-        if _is_precadastro(c):
-            data_cadastro_by_client[c.id] = "2026-03-01"
-        elif getattr(c, "created_at", None):
-            try:
-                dt = c.created_at
-                d = dt.date() if hasattr(dt, "date") else dt
-                data_cadastro_by_client[c.id] = d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)[:10]
-            except Exception:
-                data_cadastro_by_client[c.id] = "2025-01-01"
-        else:
-            data_cadastro_by_client[c.id] = "2025-01-01"
+
+    try:
+        page = int(request.query_params.get("page", "1") or 1)
+    except (TypeError, ValueError):
+        page = 1
+    try:
+        per_page = int(request.query_params.get("per_page", "100") or 100)
+    except (TypeError, ValueError):
+        per_page = 100
+    per_page = max(25, min(250, per_page))
+    page = max(1, page)
+
+    total_filtered = len(clients_sorted)
+    total_pages = max(1, (total_filtered + per_page - 1) // per_page) if total_filtered else 1
+    if page > total_pages:
+        page = total_pages
+    start = (page - 1) * per_page
+    page_clients = clients_sorted[start : start + per_page]
+
+    last_movement_page = {c.id: last_movement_by_client_final.get(c.id) for c in page_clients}
+    precadastro_bucket_by_client = {
+        c.id: precadastro_bucket_by_client_full[c.id]
+        for c in page_clients
+        if c.id in precadastro_bucket_by_client_full and precadastro_bucket_by_client_full[c.id]
+    }
 
     precadastro_buckets_labels = {"1m": "1 mês", "3m": "3 meses", "6m": "6 meses", "9m": "9 meses", "1y": "1 ano", "1y_plus": "+1 ano"}
     try:
@@ -12622,7 +13905,7 @@ async def clients_page(
 
     vendedor_by_id: Dict[int, models.Employee] = {}
     try:
-        vid_set = {getattr(c, "vendedor_id", None) for c in clients_sorted}
+        vid_set = {getattr(c, "vendedor_id", None) for c in page_clients}
         vid_set.discard(None)
         if vid_set:
             for e in session.exec(select(models.Employee).where(models.Employee.id.in_(list(vid_set)))).all():
@@ -12630,24 +13913,53 @@ async def clients_page(
     except Exception:
         pass
 
+    active_total = precadastro_total = validation_total = closed_total = inactive_total = 0
+    for c in all_clients:
+        if _is_ativo(c):
+            active_total += 1
+        if _is_precadastro(c):
+            precadastro_total += 1
+        if (c.status_operacional or "").upper() == "EM_VALIDACAO":
+            validation_total += 1
+        if _is_fechou(c):
+            closed_total += 1
+        if _is_inativo(c):
+            inactive_total += 1
+
     clients_stats = {
         "total_all": len(all_clients),
-        "total_filtered": len(clients_sorted),
-        "active_total": sum(1 for c in all_clients if _is_ativo(c)),
-        "precadastro_total": sum(1 for c in all_clients if _is_precadastro(c)),
-        "validation_total": sum(1 for c in all_clients if (c.status_operacional or "").upper() == "EM_VALIDACAO"),
-        "closed_total": sum(1 for c in all_clients if _is_fechou(c)),
-        "inactive_total": sum(1 for c in all_clients if _is_inativo(c)),
+        "total_filtered": total_filtered,
+        "active_total": active_total,
+        "precadastro_total": precadastro_total,
+        "validation_total": validation_total,
+        "closed_total": closed_total,
+        "inactive_total": inactive_total,
         "sem_mov_total": sem_mov_count,
         "segment_count": len(segmentos_opts),
         "municipality_count": len({(c.municipio or "").strip() for c in clients_sorted if (c.municipio or "").strip()}),
         "group_count": len(client_groups_list),
     }
 
+    per_page_opts = (50, 100, 150, 250)
+    per_page_links = [
+        {"n": n, "qs": _clients_page_query_string(request, page=1, per_page=n)} for n in per_page_opts
+    ]
+    clients_pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages,
+        "total_filtered": total_filtered,
+        "showing_from": start + 1 if total_filtered else 0,
+        "showing_to": min(start + per_page, total_filtered),
+        "prev_qs": _clients_page_query_string(request, page=page - 1) if page > 1 else None,
+        "next_qs": _clients_page_query_string(request, page=page + 1) if page < total_pages else None,
+        "per_page_links": per_page_links,
+    }
+
     return templates.TemplateResponse("clients.html", {
         "request": request,
         "user": user,
-        "clients": clients_sorted,
+        "clients": page_clients,
         "status_filter": status_filter,
         "search": search,
         "mov_from": mov_from or "",
@@ -12657,12 +13969,12 @@ async def clients_page(
         "sort_order": sort_order,
         "segmento_filter": segmento_filter,
         "segmentos_opts": segmentos_opts,
-        "last_movement_by_client": last_movement_by_client_final,
-        "data_cadastro_by_client": data_cadastro_by_client,
+        "last_movement_by_client": last_movement_page,
         "precadastro_bucket_by_client": precadastro_bucket_by_client,
         "precadastro_buckets_labels": precadastro_buckets_labels,
         "client_groups": client_groups_list,
         "clients_stats": clients_stats,
+        "clients_pagination": clients_pagination,
         "vendedores_list": vendedores_list,
         "vendedor_by_id": vendedor_by_id,
     })
@@ -12721,6 +14033,64 @@ async def clients_bulk_assign_group(request: Request, session: Session = Depends
 async def list_clients(session: Session = Depends(get_session)):
     clients = session.exec(select(models.Client)).all()
     return {"clients": [c.name for c in clients]}
+
+
+@app.get("/clients/template")
+async def clients_template(request: Request):
+    """Retorna planilha Excel modelo para importação de clientes."""
+    import pandas as pd
+    require_login(request)
+    df = pd.DataFrame([
+        {
+            "NB": "001",
+            "SETOR": "110",
+            "Setor": "Varejo",
+            "VISITA": "Semanal",
+            "FANTAS": "Supermercado ABC",
+            "Razão Social": "ABC Comércio Ltda",
+            "CNPJ/CPF": "12.345.678/0001-90",
+            "MUNICÍPIO": "São Paulo",
+            "BAIRRO": "Centro",
+            "ENDEREÇO": "Rua Exemplo, 100",
+            "FONE": "(11) 3333-4444",
+            "SEGMENTO": "Alimentício",
+            "STATUS": "Ativo",
+            "MESA": "Norte",
+        },
+        {
+            "NB": "002",
+            "SETOR": "201",
+            "Setor": "Atacado",
+            "VISITA": "Quinzenal",
+            "FANTAS": "Atacadão XYZ",
+            "Razão Social": "XYZ Distribuidora S.A.",
+            "CNPJ/CPF": "",
+            "MUNICÍPIO": "Curitiba",
+            "BAIRRO": "Industrial",
+            "ENDEREÇO": "Av. Indústria, 500",
+            "FONE": "(41) 99999-0000",
+            "SEGMENTO": "Logística",
+            "STATUS": "Ativo",
+            "MESA": "Sul",
+        },
+    ])
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, engine="openpyxl")
+    buf.seek(0)
+    return Response(
+        content=buf.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=planilha_clientes_modelo.xlsx"},
+    )
+
+
+@app.get("/clients/import")
+async def clients_import_get(request: Request):
+    """Redireciona para /clients se acessar /clients/import via GET."""
+    require_login(request)
+    return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @app.get("/clients/{client_id}", response_class=HTMLResponse)
 async def client_details(request: Request, client_id: int, session: Session = Depends(get_session)):
     user = require_login(request)
@@ -12979,10 +14349,21 @@ async def client_details(request: Request, client_id: int, session: Session = De
     vendedor_select_id = resolve_vendedor_id_for_select(client, session)
     client_vendedor_card = vendedor_card_for_client(session, client)
 
+    janela_dias_check: set = set()
+    try:
+        raw_j = (client.janela_dias_semana or "").strip()
+        if raw_j:
+            parsed = json.loads(raw_j)
+            if isinstance(parsed, list):
+                janela_dias_check = {str(x).strip().lower() for x in parsed if str(x).strip()}
+    except Exception:
+        janela_dias_check = set()
+
     return templates.TemplateResponse("client_details.html", {
         "request": request,
         "user": user,
         "client": client,
+        "janela_dias_check": janela_dias_check,
         "endereco_display": endereco_display or client.endereco,
         "audit_logs": audit_logs,
         "stats": {
@@ -13083,6 +14464,29 @@ async def client_set_commercial_group(
     session.commit()
     return RedirectResponse(url=f"/clients/{client_id}", status_code=status.HTTP_303_SEE_OTHER)
 
+def _fill_client_from_import_staging(session: Session, client: models.Client, row: models.ClientImportStaging) -> None:
+    client.name = row.name
+    client.nb = row.nb
+    client.me = row.me
+    client.sa = row.sa
+    client.visita = row.visita
+    client.nome_fantasia = row.nome_fantasia
+    client.razao_social = row.razao_social
+    client.cnpj_cpf = row.cnpj_cpf
+    client.municipio = row.municipio
+    client.bairro = row.bairro
+    client.endereco = row.endereco
+    client.endereco_normalizado = row.endereco_normalizado
+    client.fone = row.fone
+    client.fone_e164 = row.fone_e164
+    client.segmento = row.segmento
+    client.status_cliente = row.status_cliente
+    vid = resolve_employee_id_by_seller_code(session, row.setor)
+    apply_vendedor_to_client(session, client, vid)
+    if not vid and row.setor:
+        client.setor = (row.setor or "").strip() or None
+
+
 @app.post("/clients/{client_id}/update", response_class=RedirectResponse)
 async def update_client(
     request: Request,
@@ -13090,11 +14494,13 @@ async def update_client(
     name: str = Form(...),
     nb: Optional[str] = Form(None),
     vendedor_id: Optional[str] = Form(None),
+    seller_code: Optional[str] = Form(None),
     me: Optional[str] = Form(None),
     sa: Optional[str] = Form(None),
     visita: Optional[str] = Form(None),
     nome_fantasia: Optional[str] = Form(None),
     razao_social: Optional[str] = Form(None),
+    cnpj_cpf: Optional[str] = Form(None),
     municipio: Optional[str] = Form(None),
     bairro: Optional[str] = Form(None),
     endereco: Optional[str] = Form(None),
@@ -13120,18 +14526,31 @@ async def update_client(
     require_login(request)
     client = session.get(models.Client, client_id)
     if client:
+        vid_eff = parse_vendedor_id_form(vendedor_id)
+        sc_fb = _opt_form(seller_code)
+        if sc_fb:
+            rid = resolve_employee_id_by_seller_code(session, sc_fb)
+            if rid:
+                vid_eff = rid
+        if not vid_eff:
+            me_fb = _opt_form(me)
+            if me_fb:
+                rid_me = resolve_employee_id_by_seller_code(session, me_fb)
+                if rid_me:
+                    vid_eff = rid_me
         before = _client_snapshot_auditable(client)
         old_address_key, _ = _apply_client_profile_form(
             session,
             client,
             name=name,
             nb=nb,
-            vendedor_id=vendedor_id,
+            vendedor_id=str(vid_eff) if vid_eff else "",
             me=me,
             sa=sa,
             visita=visita,
             nome_fantasia=nome_fantasia,
             razao_social=razao_social,
+            cnpj_cpf=cnpj_cpf,
             municipio=municipio,
             bairro=bairro,
             endereco=endereco,
@@ -13180,60 +14599,6 @@ async def delete_client(request: Request, client_id: int, session: Session = Dep
         
         session.delete(client)
         session.commit()
-    return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
-
-
-@app.get("/clients/template")
-async def clients_template(request: Request):
-    """Retorna planilha Excel modelo para importação de clientes."""
-    import pandas as pd
-    require_login(request)
-    df = pd.DataFrame([
-        {
-            "NB": "001",
-            "SETOR": "Varejo",
-            "ME": "01",
-            "SA": "Norte",
-            "VISITA": "Semanal",
-            "FANTAS": "Supermercado ABC",
-            "Razão Social": "ABC Comércio Ltda",
-            "MUNICÍPIO": "São Paulo",
-            "BAIRRO": "Centro",
-            "ENDEREÇO": "Rua Exemplo, 100",
-            "FONE": "(11) 3333-4444",
-            "SEGMENTO": "Alimentício",
-            "STATUS": "Ativo",
-        },
-        {
-            "NB": "002",
-            "SETOR": "Atacado",
-            "ME": "02",
-            "SA": "Sul",
-            "VISITA": "Quinzenal",
-            "FANTAS": "Atacadão XYZ",
-            "Razão Social": "XYZ Distribuidora S.A.",
-            "MUNICÍPIO": "Curitiba",
-            "BAIRRO": "Industrial",
-            "ENDEREÇO": "Av. Indústria, 500",
-            "FONE": "(41) 99999-0000",
-            "SEGMENTO": "Logística",
-            "STATUS": "Ativo",
-        },
-    ])
-    buf = io.BytesIO()
-    df.to_excel(buf, index=False, engine="openpyxl")
-    buf.seek(0)
-    return Response(
-        content=buf.read(),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=planilha_clientes_modelo.xlsx"},
-    )
-
-
-@app.get("/clients/import")
-async def clients_import_get(request: Request):
-    """Redireciona para /clients se acessar /clients/import via GET."""
-    require_login(request)
     return RedirectResponse(url="/clients", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -13288,11 +14653,13 @@ async def clients_import(
         if name_col is None:
             return RedirectResponse(url="/clients?error=missing_columns", status_code=status.HTTP_303_SEE_OTHER)
 
-        # Índices para dedup (fone_e164, endereco_normalizado, razao+bairro)
+        # Índices para dedup (fone_e164, endereco_normalizado, razao+bairro) + reimportação por NB/CNPJ
         all_clients = list(session.exec(select(models.Client)).all())
         existing_by_fone = {}
         existing_by_endereco = {}
         existing_by_razao_bairro_key = {}
+        existing_by_nb: Dict[str, int] = {}
+        existing_by_cnpj: Dict[str, int] = {}
         for c in all_clients:
             fe164 = c.fone_e164
             if not fe164 and c.fone:
@@ -13305,7 +14672,14 @@ async def clients_import(
             rk, bk = normalize_key(c.razao_social or c.name or ""), normalize_key(c.bairro or "")
             if rk and bk:
                 existing_by_razao_bairro_key[(rk, bk)] = c.id
+            nb_k = norm_nb_key(c.nb)
+            if nb_k:
+                existing_by_nb[nb_k] = c.id
+            ck = norm_cnpj_digits(getattr(c, "cnpj_cpf", None))
+            if ck:
+                existing_by_cnpj[ck] = c.id
         existing_names = {n[0].strip().lower() for n in session.exec(select(models.Client.name)).all()}
+        clients_by_id: Dict[int, models.Client] = {c.id: c for c in all_clients if c.id}
 
         batch = models.ClientImportBatch(filename=file.filename, created_by=user)
         session.add(batch)
@@ -13335,18 +14709,49 @@ async def clients_import(
             fone_raw = _opt_val(row.get(col_map.get("fone"))) if "fone" in col_map else None
             segmento = _opt_val(row.get(col_map.get("segmento"))) if "segmento" in col_map else None
             status_cliente = _opt_val(row.get(col_map.get("status"))) if "status" in col_map else None
+            cnpj_cpf = _opt_val(row.get(col_map.get("cnpj_cpf"))) if "cnpj_cpf" in col_map else None
 
             endereco = normalize_address(endereco_raw) if endereco_raw else None
             endereco_norm = normalize_address(endereco_raw).upper().replace(" ", "") if endereco_raw else None
-            fone_e164, fone_amigavel = normalize_phone_br(fone_raw)
-            fone = fone_amigavel or fone_raw
+            fone = fone_raw
+            fone_e164 = None
+            if fone_raw:
+                ip_fone = normalize_import_phone_br(fone_raw)
+                if ip_fone.valid and ip_fone.e164 and ip_fone.display:
+                    fone_e164 = ip_fone.e164
+                    fone = ip_fone.display
+                else:
+                    fone_e164, fone_amigavel = normalize_phone_br(fone_raw)
+                    fone = fone_amigavel or fone_raw
             municipio_key = normalize_key(municipio)
             bairro_key = normalize_key(bairro)
             razao_key = normalize_key(razao_social or name)
 
+            reimport_id: Optional[int] = None
+            nb_k = norm_nb_key(nb)
+            if nb_k and nb_k in existing_by_nb:
+                reimport_id = existing_by_nb[nb_k]
+            elif cnpj_cpf:
+                cj = norm_cnpj_digits(cnpj_cpf)
+                if cj and cj in existing_by_cnpj:
+                    reimport_id = existing_by_cnpj[cj]
+
+            # Reimportação: atualiza só se setor/código da planilha ≠ cadastro (planilha: coluna SETOR e/ou ME; sistema: setor espelhado ou me).
+            if reimport_id and ("setor" in col_map or "me" in col_map):
+                prev_c = clients_by_id.get(reimport_id)
+                if prev_c is not None:
+                    sheet_key = norm_me_sheet_compare(setor) or norm_me_sheet_compare(me)
+                    db_key = norm_me_sheet_compare(getattr(prev_c, "setor", None)) or norm_me_sheet_compare(
+                        getattr(prev_c, "me", None)
+                    )
+                    if sheet_key == db_key:
+                        continue
+
             conflict_type = None
             conflict_client_id = None
-            if fone_e164 and fone_e164 in existing_by_fone:
+            if reimport_id:
+                conflict_client_id = reimport_id
+            elif fone_e164 and fone_e164 in existing_by_fone:
                 conflict_type = "fone"
                 conflict_client_id = existing_by_fone.get(fone_e164)
             elif endereco_norm and len(endereco_norm) >= 10 and endereco_norm in existing_by_endereco:
@@ -13356,7 +14761,7 @@ async def clients_import(
                 conflict_type = "razao_bairro"
                 conflict_client_id = existing_by_razao_bairro_key.get((razao_key, bairro_key))
 
-            if name.lower() in existing_names and not conflict_type:
+            if name.lower() in existing_names and not conflict_type and not reimport_id:
                 conflict_type = "nome"
                 conflict_client_id = None
 
@@ -13371,6 +14776,7 @@ async def clients_import(
                 visita=visita,
                 nome_fantasia=nome_fantasia,
                 razao_social=razao_social,
+                cnpj_cpf=cnpj_cpf,
                 municipio=municipio,
                 bairro=bairro,
                 endereco=endereco or endereco_raw,
@@ -13383,7 +14789,7 @@ async def clients_import(
                 bairro_key=bairro_key,
                 conflict_type=conflict_type,
                 conflict_client_id=conflict_client_id,
-                action="create" if not conflict_type else "pending",
+                action="merge" if reimport_id else ("create" if not conflict_type else "pending"),
             )
             session.add(staging)
             if conflict_type:
@@ -13396,8 +14802,23 @@ async def clients_import(
         if rows_conflict:
             return RedirectResponse(url=f"/clients/import/conflicts/{batch.id}", status_code=status.HTTP_303_SEE_OTHER)
 
-        log_created, log_rejected = 0, 0
+        log_created, log_updated, log_rejected = 0, 0, 0
         for s in rows_clean:
+            if s.conflict_client_id:
+                c_exist = session.get(models.Client, s.conflict_client_id)
+                if not c_exist:
+                    log_rejected += 1
+                    continue
+                old_nm = (c_exist.name or "").strip().lower()
+                _fill_client_from_import_staging(session, c_exist, s)
+                new_nm = (c_exist.name or "").strip().lower()
+                if new_nm != old_nm:
+                    if old_nm in existing_names:
+                        existing_names.discard(old_nm)
+                    existing_names.add(new_nm)
+                session.add(c_exist)
+                log_updated += 1
+                continue
             if s.name.lower() in existing_names:
                 log_rejected += 1
                 continue
@@ -13410,6 +14831,7 @@ async def clients_import(
                 visita=s.visita,
                 nome_fantasia=s.nome_fantasia,
                 razao_social=s.razao_social,
+                cnpj_cpf=s.cnpj_cpf,
                 municipio=s.municipio,
                 bairro=s.bairro,
                 endereco=s.endereco,
@@ -13420,16 +14842,29 @@ async def clients_import(
                 status_cliente=s.status_cliente,
             )
             session.add(c)
+            session.flush()
+            vid_new = resolve_employee_id_by_seller_code(session, s.setor)
+            apply_vendedor_to_client(session, c, vid_new)
+            if not vid_new and s.setor:
+                c.setor = (s.setor or "").strip() or None
+            session.add(c)
             existing_names.add(s.name.lower())
+            nk = norm_nb_key(c.nb)
+            if nk:
+                existing_by_nb[nk] = c.id
+            ck2 = norm_cnpj_digits(c.cnpj_cpf)
+            if ck2:
+                existing_by_cnpj[ck2] = c.id
             log_created += 1
         batch.status = "completed"
         batch.log_created = log_created
+        batch.log_updated = log_updated
         batch.log_rejected = log_rejected
         session.add(batch)
         session.exec(delete(models.ClientImportStaging).where(models.ClientImportStaging.batch_id == batch.id))
         session.commit()
         return RedirectResponse(
-            url=f"/clients?message=import_success&created={log_created}&rejected={log_rejected}",
+            url=f"/clients?message=import_success&created={log_created}&updated={log_updated}&rejected={log_rejected}",
             status_code=status.HTTP_303_SEE_OTHER
         )
     except ValueError as e:
@@ -13437,6 +14872,101 @@ async def clients_import(
     except Exception as e:
         logger.exception(f"Clients import error: {e}")
         return RedirectResponse(url="/clients?error=import_failed", status_code=status.HTTP_303_SEE_OTHER)
+
+
+def _norm_seller_code_cmp(val: Optional[str]) -> str:
+    """Normaliza código de vendedor para comparação (trim, dígitos sem zeros à esquerda)."""
+    s = (val or "").strip()
+    if not s:
+        return ""
+    if s.isdigit():
+        return s.lstrip("0") or "0"
+    return s.casefold()
+
+
+def _client_import_conflicts_payload(
+    session: Session,
+    rows: list,
+    conflict_map: dict,
+) -> tuple[dict, list[dict]]:
+    """Resumo e linhas serializáveis para a UI de conflitos (JSON + KPIs + comparativo de vendedor)."""
+    conflict_rows = [r for r in rows if r.conflict_type]
+    mergeable = sum(1 for r in conflict_rows if r.conflict_client_id and conflict_map.get(r.id))
+    clean = len(rows) - len(conflict_rows)
+    by_type: dict[str, int] = {}
+    for r in conflict_rows:
+        k = (r.conflict_type or "outro").strip() or "outro"
+        by_type[k] = by_type.get(k, 0) + 1
+    summary = {
+        "total": len(rows),
+        "conflicts": len(conflict_rows),
+        "clean": clean,
+        "mergeable": mergeable,
+        "by_type": by_type,
+    }
+    out_rows: list[dict] = []
+    merge_vendor_diff = 0
+    for r in rows:
+        c = conflict_map.get(r.id)
+        has_merge = bool(r.conflict_client_id and c)
+        if not r.conflict_type:
+            default_action = "create"
+        elif has_merge:
+            default_action = "merge"
+        else:
+            default_action = "create"
+
+        existing_seller_display = ""
+        new_raw = (r.setor or "").strip()
+        new_resolved_code = ""
+        if new_raw:
+            vid_new = resolve_employee_id_by_seller_code(session, r.setor)
+            if vid_new:
+                emp_new = session.get(models.Employee, vid_new)
+                if emp_new:
+                    new_resolved_code = (emp_new.seller_code or "").strip()
+        new_effective = new_resolved_code or new_raw
+        seller_codes_differ = False
+        if c:
+            card = vendedor_card_for_client(session, c)
+            if card and (card.get("seller_code") or "").strip():
+                existing_seller_display = (card.get("seller_code") or "").strip()
+            else:
+                existing_seller_display = (c.setor or "").strip()
+            prev_eff = existing_seller_display or (c.setor or "").strip()
+            seller_codes_differ = _norm_seller_code_cmp(prev_eff) != _norm_seller_code_cmp(new_effective)
+            if has_merge and seller_codes_differ:
+                merge_vendor_diff += 1
+
+        out_rows.append(
+            {
+                "id": r.id,
+                "row_index": r.row_index,
+                "name": r.name or "",
+                "nome_fantasia": r.nome_fantasia or "",
+                "razao_social": r.razao_social or "",
+                "municipio": r.municipio or "",
+                "bairro": r.bairro or "",
+                "fone": r.fone or "",
+                "nb": r.nb or "",
+                "setor": r.setor or "",
+                "endereco": r.endereco or "",
+                "cnpj_cpf": r.cnpj_cpf or "",
+                "conflict_type": r.conflict_type,
+                "conflict_client_id": r.conflict_client_id,
+                "existing_client_id": c.id if c else None,
+                "existing_client_name": c.name if c else None,
+                "has_merge": has_merge,
+                "default_action": default_action,
+                "existing_seller_display": existing_seller_display or None,
+                "new_seller_raw": new_raw or None,
+                "new_seller_resolved": new_resolved_code or None,
+                "new_seller_effective": new_effective or None,
+                "seller_codes_differ": seller_codes_differ,
+            }
+        )
+    summary["merge_vendor_diff_defaults"] = merge_vendor_diff
+    return summary, out_rows
 
 
 @app.get("/clients/import/conflicts/{batch_id}", response_class=HTMLResponse)
@@ -13457,14 +14987,26 @@ async def clients_import_conflicts(request: Request, batch_id: int, session: Ses
             c = session.get(models.Client, r.conflict_client_id)
             if c:
                 conflict_map[r.id] = c
-    return templates.TemplateResponse("clients_import_conflicts.html", {
-        "request": request,
-        "user": request.session.get("username", ""),
-        "batch": batch,
-        "rows": rows,
-        "conflict_rows": conflict_rows,
-        "conflict_map": conflict_map,
-    })
+    conflict_summary, import_rows_payload = _client_import_conflicts_payload(session, rows, conflict_map)
+    import_conflicts_payload = {
+        "batch_id": batch.id,
+        "filename": batch.filename or "",
+        "confirm_path": f"/clients/import/confirm/{batch.id}",
+        "rows": import_rows_payload,
+    }
+    return templates.TemplateResponse(
+        "clients_import_conflicts.html",
+        {
+            "request": request,
+            "user": request.session.get("username", ""),
+            "batch": batch,
+            "rows": rows,
+            "conflict_rows": conflict_rows,
+            "conflict_map": conflict_map,
+            "conflict_summary": conflict_summary,
+            "import_conflicts_payload": import_conflicts_payload,
+        },
+    )
 
 
 @app.post("/clients/import/confirm/{batch_id}", response_class=RedirectResponse)
@@ -13492,21 +15034,7 @@ async def clients_import_confirm(
         if action == "merge" and row.conflict_client_id:
             client = session.get(models.Client, row.conflict_client_id)
             if client:
-                client.nb = row.nb or client.nb
-                client.setor = row.setor or client.setor
-                client.me = row.me or client.me
-                client.sa = row.sa or client.sa
-                client.visita = row.visita or client.visita
-                client.nome_fantasia = row.nome_fantasia or client.nome_fantasia
-                client.razao_social = row.razao_social or client.razao_social
-                client.municipio = row.municipio or client.municipio
-                client.bairro = row.bairro or client.bairro
-                client.endereco = row.endereco or client.endereco
-                client.endereco_normalizado = row.endereco_normalizado or client.endereco_normalizado
-                client.fone = row.fone or client.fone
-                client.fone_e164 = row.fone_e164 or client.fone_e164
-                client.segmento = row.segmento or client.segmento
-                client.status_cliente = row.status_cliente or client.status_cliente
+                _fill_client_from_import_staging(session, client, row)
                 session.add(client)
                 log_updated += 1
         elif action == "create":
@@ -13522,6 +15050,7 @@ async def clients_import_confirm(
                     visita=row.visita,
                     nome_fantasia=row.nome_fantasia,
                     razao_social=row.razao_social,
+                    cnpj_cpf=row.cnpj_cpf,
                     municipio=row.municipio,
                     bairro=row.bairro,
                     endereco=row.endereco,
@@ -13531,6 +15060,12 @@ async def clients_import_confirm(
                     segmento=row.segmento,
                     status_cliente=row.status_cliente,
                 )
+                session.add(c)
+                session.flush()
+                vid_nc = resolve_employee_id_by_seller_code(session, row.setor)
+                apply_vendedor_to_client(session, c, vid_nc)
+                if not vid_nc and row.setor:
+                    c.setor = (row.setor or "").strip() or None
                 session.add(c)
                 existing_names.add(row.name.lower())
                 log_created += 1
@@ -13549,6 +15084,408 @@ async def clients_import_confirm(
 
 
 # --- Vehicle (Frota) Routes ---
+
+def _vehicle_admin_return_url(raw: Optional[str], default: str) -> str:
+    s = (raw or "").strip()
+    if not s.startswith("/vehicles") or "\n" in s or ".." in s:
+        return default
+    return s
+
+
+class VehicleBulkBody(BaseModel):
+    action: Literal["workshop_on", "workshop_off", "activate", "deactivate"]
+    ids: List[int]
+
+
+def _service_order_return_url(raw: Optional[str], default: str = "/workshop/service-orders") -> str:
+    s = (raw or "").strip()
+    if not s.startswith("/workshop/service-orders") or "\n" in s or ".." in s:
+        return default
+    return s
+
+
+def _service_order_status_label(value: str) -> str:
+    labels = {
+        "open": "Aberta",
+        "triage": "Triagem",
+        "in_progress": "Em execução",
+        "waiting_parts": "Aguardando peça",
+        "done": "Concluída",
+        "closed": "Encerrada",
+    }
+    return labels.get((value or "").strip().lower(), value or "-")
+
+
+def _service_order_priority_label(value: str) -> str:
+    labels = {"low": "Baixa", "medium": "Média", "high": "Alta", "critical": "Crítica"}
+    return labels.get((value or "").strip().lower(), value or "-")
+
+
+def _parse_multiline_items(raw: Optional[str]) -> List[str]:
+    items: List[str] = []
+    for line in (raw or "").splitlines():
+        clean = (line or "").strip()
+        if clean:
+            items.append(clean)
+    return items
+
+
+def _parse_action_plan(raw_actions: Optional[str], fallback_issues: List[str]) -> List[dict]:
+    plan: List[dict] = []
+    # Formato por linha: acao | responsavel | prazo
+    for line in (raw_actions or "").splitlines():
+        clean = (line or "").strip()
+        if not clean:
+            continue
+        parts = [p.strip() for p in clean.split("|")]
+        action_desc = parts[0] if len(parts) > 0 else ""
+        owner = parts[1] if len(parts) > 1 else ""
+        due = parts[2] if len(parts) > 2 else ""
+        if not action_desc:
+            continue
+        plan.append(
+            {
+                "action": action_desc,
+                "owner": owner or "-",
+                "due": due or "-",
+                "response_status": "pending",
+                "response_note": "",
+                "responded_at": None,
+            }
+        )
+
+    # Regra: todo problema precisa de ação.
+    if len(plan) < len(fallback_issues):
+        for issue in fallback_issues[len(plan):]:
+            plan.append(
+                {
+                    "action": f"Tratar: {issue}",
+                    "owner": "-",
+                    "due": "-",
+                    "response_status": "pending",
+                    "response_note": "",
+                    "responded_at": None,
+                }
+            )
+    return plan
+
+
+def _build_service_order_title(order_id: int, plate: str, when: datetime) -> str:
+    order_code = f"{int(order_id):06d}"
+    plate_text = (plate or "SEM-PLACA").strip().upper()
+    date_br = when.strftime("%d/%m/%Y")
+    return f"OS Nº {order_code} - {plate_text} - {date_br}"
+
+
+@app.get("/workshop/service-orders", response_class=HTMLResponse)
+async def workshop_service_orders_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    qp = request.query_params
+    filter_status = (qp.get("status") or "").strip().lower()
+    filter_priority = (qp.get("priority") or "").strip().lower()
+    selected_vehicle_id = int(qp.get("vehicle_id") or 0) if str(qp.get("vehicle_id") or "").isdigit() else None
+    selected_checklist_id = int(qp.get("checklist_id") or 0) if str(qp.get("checklist_id") or "").isdigit() else None
+
+    vehicles = session.exec(select(models.Vehicle).order_by(models.Vehicle.placa)).all()
+    checklists = session.exec(
+        select(models.TranspalletChecklist).order_by(desc(models.TranspalletChecklist.id)).limit(250)
+    ).all()
+    employees = session.exec(select(models.Employee).order_by(models.Employee.name)).all()
+    employee_by_id = {e.id: e for e in employees}
+
+    orders_query = select(models.WorkshopServiceOrder).order_by(desc(models.WorkshopServiceOrder.created_at))
+    orders = session.exec(orders_query).all()
+    if filter_status:
+        orders = [o for o in orders if (o.status or "").lower() == filter_status]
+    if filter_priority:
+        orders = [o for o in orders if (o.priority or "").lower() == filter_priority]
+
+    vehicle_ids = {o.vehicle_id for o in orders if o.vehicle_id}
+    checklist_ids = {o.checklist_id for o in orders if o.checklist_id}
+    vehicles_map = {}
+    if vehicle_ids:
+        for v in session.exec(select(models.Vehicle).where(models.Vehicle.id.in_(vehicle_ids))).all():
+            vehicles_map[v.id] = v
+    checklist_map = {}
+    if checklist_ids:
+        for c in session.exec(select(models.TranspalletChecklist).where(models.TranspalletChecklist.id.in_(checklist_ids))).all():
+            checklist_map[c.id] = c
+
+    rows = []
+    for order in orders:
+        actions = list(order.action_plan_json or [])
+        actions_total = len(actions)
+        actions_done = sum(1 for a in actions if (a.get("response_status") or "").lower() == "done")
+        rows.append(
+            {
+                "order": order,
+                "vehicle": vehicles_map.get(order.vehicle_id),
+                "checklist": checklist_map.get(order.checklist_id),
+                "status_label": _service_order_status_label(order.status or ""),
+                "priority_label": _service_order_priority_label(order.priority or ""),
+                "actions_total": actions_total,
+                "actions_done": actions_done,
+                "actions_pct": int(round((actions_done * 100) / actions_total)) if actions_total else 0,
+                "driver_name": employee_by_id.get(order.driver_employee_id).name if order.driver_employee_id in employee_by_id else "-",
+            }
+        )
+
+    label_map = checklist_item_label_map()
+    prefill = {
+        "vehicle_id": selected_vehicle_id,
+        "checklist_id": selected_checklist_id,
+        "problem_description": "",
+        "issues_text": "",
+        "origin": "manual",
+        "order_type": "corretiva",
+        "driver_employee_id": None,
+    }
+
+    if selected_vehicle_id:
+        v = session.get(models.Vehicle, selected_vehicle_id)
+        if v:
+            prefill["problem_description"] = f"Ocorrência aberta pela oficina para o veículo {v.placa}."
+    if selected_checklist_id:
+        c = session.get(models.TranspalletChecklist, selected_checklist_id)
+        if c:
+            issues = [label_map.get(k, k) for k in (c.nonconforming_keys or [])]
+            prefill["origin"] = "checklist"
+            prefill["checklist_id"] = c.id
+            prefill["driver_employee_id"] = c.employee_id
+            prefill["problem_description"] = c.observations or "Checklist com não conformidades."
+            prefill["issues_text"] = "\n".join(issues)
+
+            if not prefill["vehicle_id"]:
+                plate_key = _norm_plate(c.equipment_code)
+                if plate_key:
+                    for v in vehicles:
+                        if _norm_plate(v.placa) == plate_key:
+                            prefill["vehicle_id"] = v.id
+                            break
+
+    summary = {
+        "total": len(rows),
+        "open": sum(1 for r in rows if (r["order"].status or "") in ("open", "triage", "in_progress", "waiting_parts")),
+        "done": sum(1 for r in rows if (r["order"].status or "") in ("done", "closed")),
+        "critical": sum(1 for r in rows if (r["order"].priority or "") == "critical"),
+        "preventive": sum(1 for r in rows if (r["order"].order_type or "") == "preventiva"),
+    }
+
+    return templates.TemplateResponse(
+        "workshop_service_orders.html",
+        {
+            "request": request,
+            "user": user,
+            "rows": rows,
+            "vehicles": vehicles,
+            "checklists": checklists,
+            "employees": employees,
+            "summary": summary,
+            "prefill": prefill,
+            "status_filter": filter_status,
+            "priority_filter": filter_priority,
+            "message": qp.get("message"),
+            "level": qp.get("level"),
+        },
+    )
+
+
+@app.get("/workshop/service-orders/{order_id}", response_class=HTMLResponse)
+async def workshop_service_order_detail_page(request: Request, order_id: int, session: Session = Depends(get_session)):
+    user = require_login(request)
+    qp = request.query_params
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(
+            url="/workshop/service-orders?" + urlencode({"message": "OS não encontrada.", "level": "error"}),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    vehicle = session.get(models.Vehicle, order.vehicle_id) if order.vehicle_id else None
+    checklist = session.get(models.TranspalletChecklist, order.checklist_id) if order.checklist_id else None
+    driver_name = "-"
+    if order.driver_employee_id:
+        emp = session.get(models.Employee, order.driver_employee_id)
+        if emp:
+            driver_name = emp.name
+    actions = list(order.action_plan_json or [])
+    actions_total = len(actions)
+    actions_done = sum(1 for a in actions if (a.get("response_status") or "").lower() == "done")
+    row = {
+        "order": order,
+        "vehicle": vehicle,
+        "checklist": checklist,
+        "status_label": _service_order_status_label(order.status or ""),
+        "priority_label": _service_order_priority_label(order.priority or ""),
+        "actions_total": actions_total,
+        "actions_done": actions_done,
+        "actions_pct": int(round((actions_done * 100) / actions_total)) if actions_total else 0,
+        "driver_name": driver_name,
+    }
+    return templates.TemplateResponse(
+        "workshop_service_order_detail.html",
+        {
+            "request": request,
+            "user": user,
+            "order": order,
+            "row": row,
+            "message": qp.get("message"),
+            "level": qp.get("level"),
+        },
+    )
+
+
+@app.post("/workshop/service-orders/create", response_class=RedirectResponse)
+async def workshop_service_order_create(
+    request: Request,
+    vehicle_id: Optional[int] = Form(default=None),
+    checklist_id: Optional[int] = Form(default=None),
+    driver_employee_id: Optional[int] = Form(default=None),
+    origin: str = Form(default="manual"),
+    order_type: str = Form(default="corretiva"),
+    priority: str = Form(default="medium"),
+    problem_description: str = Form(default=""),
+    issues_text: str = Form(default=""),
+    actions_text: str = Form(default=""),
+    preventive_note: Optional[str] = Form(default=None),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    if not vehicle_id:
+        return RedirectResponse(
+            url="/workshop/service-orders?"
+            + urlencode({"message": "É obrigatório informar o veículo (placa).", "level": "error"}),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    vehicle_for_os = session.get(models.Vehicle, int(vehicle_id))
+    if not vehicle_for_os:
+        return RedirectResponse(
+            url="/workshop/service-orders?"
+            + urlencode({"message": "Veículo inválido ou não encontrado.", "level": "error"}),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    issues = _parse_multiline_items(issues_text)
+    action_plan = _parse_action_plan(actions_text, issues)
+    if not action_plan:
+        return RedirectResponse(
+            url="/workshop/service-orders?message=Informe+ao+menos+uma+ação+para+a+OS.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    order = models.WorkshopServiceOrder(
+        vehicle_id=int(vehicle_id),
+        checklist_id=checklist_id or None,
+        driver_employee_id=driver_employee_id or None,
+        origin=(origin or "manual").strip().lower(),
+        order_type=(order_type or "corretiva").strip().lower(),
+        priority=(priority or "medium").strip().lower(),
+        title="Ordem de serviço",
+        problem_description=(problem_description or "").strip(),
+        preventive_note=(preventive_note or "").strip() or None,
+        issue_count=len(issues),
+        action_plan_json=action_plan,
+        opened_by=format_user_label(user),
+        status="open",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+    session.add(order)
+    session.flush()
+
+    plate_for_title = (vehicle_for_os.placa or "").strip()
+    order.title = _build_service_order_title(order.id or 0, plate_for_title, order.created_at)
+    session.add(order)
+    session.commit()
+
+    dest = _service_order_return_url(return_to, "/workshop/service-orders")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(
+        url=f"{dest}{sep}message=OS+criada+com+sucesso.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/workshop/service-orders/{order_id}/status", response_class=RedirectResponse)
+async def workshop_service_order_update_status(
+    request: Request,
+    order_id: int,
+    status_value: str = Form(default="open"),
+    resolution_notes: Optional[str] = Form(default=None),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(
+            url="/workshop/service-orders?message=OS+não+encontrada.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    allowed = {"open", "triage", "in_progress", "waiting_parts", "done", "closed"}
+    normalized = (status_value or "").strip().lower()
+    if normalized in allowed:
+        order.status = normalized
+    order.resolution_notes = (resolution_notes or "").strip() or order.resolution_notes
+    if order.status in {"done", "closed"}:
+        order.closed_at = datetime.now()
+    order.updated_at = datetime.now()
+    session.add(order)
+    session.commit()
+
+    dest = _service_order_return_url(return_to, "/workshop/service-orders")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(
+        url=f"{dest}{sep}message=Status+da+OS+atualizado.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/workshop/service-orders/{order_id}/actions/{action_index}/respond", response_class=RedirectResponse)
+async def workshop_service_order_respond_action(
+    request: Request,
+    order_id: int,
+    action_index: int,
+    response_status: str = Form(default="done"),
+    response_note: str = Form(default=""),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(
+            url="/workshop/service-orders?message=OS+não+encontrada.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    plan = list(order.action_plan_json or [])
+    if action_index < 0 or action_index >= len(plan):
+        return RedirectResponse(
+            url="/workshop/service-orders?message=Ação+inválida.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    action = dict(plan[action_index] or {})
+    action["response_status"] = "done" if (response_status or "").strip().lower() == "done" else "pending"
+    action["response_note"] = (response_note or "").strip()
+    action["responded_at"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+    plan[action_index] = action
+    order.action_plan_json = plan
+    order.updated_at = datetime.now()
+
+    if plan and all((a.get("response_status") or "").lower() == "done" for a in plan):
+        if order.status in {"open", "triage", "in_progress", "waiting_parts"}:
+            order.status = "done"
+            order.closed_at = datetime.now()
+
+    session.add(order)
+    session.commit()
+    dest = _service_order_return_url(return_to, "/workshop/service-orders")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(
+        url=f"{dest}{sep}message=Ação+respondida+com+sucesso.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 @app.get("/vehicles", response_class=HTMLResponse)
 async def vehicles_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
@@ -13562,6 +15499,13 @@ async def vehicles_page(request: Request, session: Session = Depends(get_session
     pct_c = round(100 * by_type["caminhao"] / total, 1) if total else 0
     pct_m = round(100 * by_type["moto"] / total, 1) if total else 0
     pct_r = round(100 * by_type["carro"] / total, 1) if total else 0
+    sold_n = sum(1 for v in vehicles if v.sold_at)
+    workshop_n = sum(1 for v in vehicles if v.in_workshop and not v.sold_at)
+    operating_n = sum(
+        1 for v in vehicles
+        if v.is_active and not v.sold_at and not v.in_workshop
+    )
+    inactive_n = sum(1 for v in vehicles if not v.is_active and not v.sold_at)
     stats = {
         "total": total,
         "caminhao_count": by_type["caminhao"],
@@ -13570,35 +15514,22 @@ async def vehicles_page(request: Request, session: Session = Depends(get_session
         "caminhao_pct": pct_c,
         "moto_pct": pct_m,
         "carro_pct": pct_r,
+        "operating": operating_n,
+        "workshop": workshop_n,
+        "sold": sold_n,
+        "inactive": inactive_n,
     }
-    # Segmentos do gráfico pizza (SVG) para tooltip no hover: ângulo começa no topo (-90°)
-    def deg2xy(deg):
-        rad = math.radians(deg - 90)
-        return (50 + 40 * math.cos(rad), 50 + 40 * math.sin(rad))
-    a0, a1 = 0, 360 * (by_type["caminhao"] / total) if total else 0
-    a2 = a1 + 360 * (by_type["moto"] / total) if total else 0
-    pie_slices = []
-    for (start, end, fill, label, count, pct) in [
-        (a0, a1, "#f59e0b", "Caminhões", by_type["caminhao"], pct_c),
-        (a1, a2, "#10b981", "Motos", by_type["moto"], pct_m),
-        (a2, 360, "#3b82f6", "Carros", by_type["carro"], pct_r),
-    ]:
-        x1, y1 = deg2xy(start)
-        x2, y2 = deg2xy(end)
-        large = 1 if (end - start) > 180 else 0
-        d = f"M 50 50 L {x1:.2f} {y1:.2f} A 40 40 0 {large} 1 {x2:.2f} {y2:.2f} Z"
-        pie_slices.append({"d": d, "fill": fill, "title": f"{label}: {count} ({pct}%)"})
     return templates.TemplateResponse(
         "vehicles.html",
-        {"request": request, "user": user, "vehicles": vehicles, "stats": stats, "pie_slices": pie_slices}
+        {"request": request, "user": user, "vehicles": vehicles, "stats": stats},
     )
 
 
 @app.get("/vehicles/odometer", response_class=HTMLResponse)
 async def vehicles_odometer_page(request: Request, session: Session = Depends(get_session)):
-    """Visão de frota focada em KM atual (somente leitura, acesso ao histórico)."""
+    """Painel de frota focado em hodômetro com UX espelhada de colaboradores."""
     user = require_login(request)
-    vehicles = session.exec(select(models.Vehicle).order_by(models.Vehicle.placa)).all()
+    vehicles = list(session.exec(select(models.Vehicle).order_by(models.Vehicle.placa)).all())
     total = len(vehicles)
     by_type = {"caminhao": 0, "moto": 0, "carro": 0}
     for v in vehicles:
@@ -13616,33 +15547,117 @@ async def vehicles_odometer_page(request: Request, session: Session = Depends(ge
         "caminhao_pct": pct_c,
         "moto_pct": pct_m,
         "carro_pct": pct_r,
+        "with_km": sum(1 for v in vehicles if v.odometer_km is not None),
+        "without_km": sum(1 for v in vehicles if v.odometer_km is None),
+        "updated_7d": sum(
+            1
+            for v in vehicles
+            if getattr(v, "updated_at", None) and v.updated_at >= (datetime.now() - timedelta(days=7))
+        ),
+        "high_km": sum(1 for v in vehicles if (v.odometer_km or 0) >= 300000),
+        "operating": sum(1 for v in vehicles if v.is_active and not v.sold_at and not v.in_workshop),
+        "workshop": sum(1 for v in vehicles if v.in_workshop and not v.sold_at),
+        "sold": sum(1 for v in vehicles if v.sold_at),
+        "inactive": sum(1 for v in vehicles if not v.is_active and not v.sold_at),
     }
-    def deg2xy(deg):
-        rad = math.radians(deg - 90)
-        return (50 + 40 * math.cos(rad), 50 + 40 * math.sin(rad))
-    a0, a1 = 0, 360 * (by_type["caminhao"] / total) if total else 0
-    a2 = a1 + 360 * (by_type["moto"] / total) if total else 0
-    pie_slices = []
-    for (start, end, fill, label, count, pct) in [
-        (a0, a1, "#f59e0b", "Caminhões", by_type["caminhao"], pct_c),
-        (a1, a2, "#10b981", "Motos", by_type["moto"], pct_m),
-        (a2, 360, "#3b82f6", "Carros", by_type["carro"], pct_r),
-    ]:
-        x1, y1 = deg2xy(start)
-        x2, y2 = deg2xy(end)
-        large = 1 if (end - start) > 180 else 0
-        d = f"M 50 50 L {x1:.2f} {y1:.2f} A 40 40 0 {large} 1 {x2:.2f} {y2:.2f} Z"
-        pie_slices.append({"d": d, "fill": fill, "title": f"{label}: {count} ({pct}%)"})
+
+    def _v_dict(v: models.Vehicle) -> dict:
+        return {
+            "id": v.id,
+            "placa": v.placa or "",
+            "vehicle_type": v.vehicle_type or "",
+            "marca": v.marca or "",
+            "modelo": v.modelo or "",
+            "ano": v.ano or "",
+            "renavam": v.renavam or "",
+            "crv_number": v.crv_number or "",
+            "chassi": v.chassi or "",
+            "is_active": bool(v.is_active),
+            "in_workshop": bool(v.in_workshop),
+            "sold_at": v.sold_at.strftime("%Y-%m-%d") if v.sold_at else None,
+            "sale_value": v.sale_value,
+            "odometer_km": v.odometer_km,
+            "updated_at": v.updated_at.strftime("%Y-%m-%d %H:%M:%S") if getattr(v, "updated_at", None) else None,
+            "updated_at_br": fmt_br_datetime(v.updated_at) if getattr(v, "updated_at", None) else "",
+        }
+
+    vehicles_json = json.dumps([_v_dict(v) for v in vehicles], ensure_ascii=False)
+    qp = request.query_params
     return templates.TemplateResponse(
         "vehicles_odometer.html",
-        {"request": request, "user": user, "vehicles": vehicles, "stats": stats, "pie_slices": pie_slices}
+        {
+            "request": request,
+            "user": user,
+            "vehicles": vehicles,
+            "stats": stats,
+            "vehicles_json": vehicles_json,
+            "error": qp.get("error"),
+            "success": qp.get("success"),
+            "message": qp.get("message"),
+            "imported": qp.get("imported"),
+            "skipped": qp.get("skipped"),
+        },
     )
 
 
 @app.get("/vehicles/new", response_class=HTMLResponse)
 async def vehicle_new_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
-    return templates.TemplateResponse("vehicle_detail.html", {"request": request, "user": user, "vehicle": None})
+    vehicles = list(session.exec(select(models.Vehicle).order_by(models.Vehicle.placa)).all())
+    by_type = {"caminhao": 0, "moto": 0, "carro": 0}
+    for v in vehicles:
+        t = (v.vehicle_type or "").lower()
+        if t in by_type:
+            by_type[t] += 1
+    operational_road = sum(1 for v in vehicles if v.is_active and not v.sold_at and not v.in_workshop)
+    workshop_n = sum(1 for v in vehicles if v.in_workshop)
+    sold_n = sum(1 for v in vehicles if v.sold_at)
+    inactive_n = sum(1 for v in vehicles if not v.is_active)
+    stats = {
+        "total": len(vehicles),
+        "operational_road": operational_road,
+        "workshop": workshop_n,
+        "sold": sold_n,
+        "inactive": inactive_n,
+        "caminhao": by_type["caminhao"],
+        "moto": by_type["moto"],
+        "carro": by_type["carro"],
+    }
+
+    def v_dict(v: models.Vehicle) -> dict:
+        return {
+            "id": v.id,
+            "placa": v.placa or "",
+            "vehicle_type": v.vehicle_type or "",
+            "marca": v.marca or "",
+            "modelo": v.modelo or "",
+            "ano": v.ano or "",
+            "renavam": v.renavam or "",
+            "crv_number": v.crv_number or "",
+            "chassi": v.chassi or "",
+            "is_active": bool(v.is_active),
+            "in_workshop": bool(v.in_workshop),
+            "sold_at": v.sold_at.strftime("%Y-%m-%d") if v.sold_at else None,
+            "sale_value": v.sale_value,
+            "odometer_km": v.odometer_km,
+        }
+
+    vehicles_json = json.dumps([v_dict(v) for v in vehicles], ensure_ascii=False)
+    qp = request.query_params
+    return templates.TemplateResponse(
+        "vehicles_new.html",
+        {
+            "request": request,
+            "user": user,
+            "stats": stats,
+            "vehicles_json": vehicles_json,
+            "error": qp.get("error"),
+            "success": qp.get("success"),
+            "message": qp.get("message"),
+            "imported": qp.get("imported"),
+            "skipped": qp.get("skipped"),
+        },
+    )
 
 
 @app.post("/vehicles/add", response_class=RedirectResponse)
@@ -13672,7 +15687,7 @@ async def add_vehicle(
     )
     session.add(new_vehicle)
     session.commit()
-    return RedirectResponse(url="/vehicles?message=vehicle_created", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/vehicles/new?success=Veículo cadastrado com sucesso", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/vehicles/template")
@@ -13730,11 +15745,13 @@ async def vehicles_import_get(request: Request):
 async def vehicles_import(
     request: Request,
     file: UploadFile = File(...),
+    return_to: Optional[str] = Form(default=None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
+    import_redirect = _vehicle_admin_return_url(return_to, "/vehicles/new")
     if not file.filename or (not file.filename.lower().endswith((".xlsx", ".xls"))):
-        return RedirectResponse(url="/vehicles?error=invalid_file", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url=f"{import_redirect}?error=invalid_file", status_code=status.HTTP_303_SEE_OTHER)
     try:
         import pandas as pd
         content = await file.read()
@@ -13787,7 +15804,7 @@ async def vehicles_import(
                 col_map = {ordem[i]: df.columns[i] for i in range(min(len(ordem), len(df.columns)))}
 
         if "placa" not in col_map or "veiculo" not in col_map or "marca" not in col_map or "modelo" not in col_map:
-            return RedirectResponse(url="/vehicles?error=missing_columns", status_code=status.HTTP_303_SEE_OTHER)
+            return RedirectResponse(url=f"{import_redirect}?error=missing_columns", status_code=status.HTTP_303_SEE_OTHER)
         def to_type(v):
             if pd.isna(v): return "carro"
             s = str(v).strip().lower()
@@ -13826,12 +15843,12 @@ async def vehicles_import(
             imported += 1
         session.commit()
         return RedirectResponse(
-            url=f"/vehicles?message=import_success&imported={imported}&skipped={skipped}",
+            url=f"{import_redirect}?message=import_success&imported={imported}&skipped={skipped}",
             status_code=status.HTTP_303_SEE_OTHER
         )
     except Exception as e:
         logger.exception(f"Vehicle import error: {e}")
-        return RedirectResponse(url="/vehicles?error=import_failed", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(url=f"{import_redirect}?error=import_failed", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/vehicles/{vehicle_id}", response_class=HTMLResponse)
@@ -14050,8 +16067,10 @@ async def update_vehicle(
     chassi: Optional[str] = Form(default=None),
     odometer_km: Optional[str] = Form(default=None),
     in_workshop: Optional[str] = Form(default=None),
+    is_active: str = Form(default="1"),
     sale_value: Optional[str] = Form(default=None),
     sold_at: Optional[str] = Form(default=None),
+    return_to: Optional[str] = Form(default=None),
     session: Session = Depends(get_session)
 ):
     require_login(request)
@@ -14074,6 +16093,7 @@ async def update_vehicle(
     vehicle.crv_number = _opt(crv_number)
     vehicle.chassi = _opt(chassi)
     vehicle.in_workshop = in_workshop == "on" or in_workshop == "1"
+    vehicle.is_active = (is_active or "1").strip() in ("1", "on", "true", "yes")
     try:
         val = (sale_value or "").strip().replace(".", "").replace(",", ".")
         vehicle.sale_value = float(val) if val else None
@@ -14096,11 +16116,21 @@ async def update_vehicle(
     vehicle.updated_at = datetime.now()
     session.add(vehicle)
     session.commit()
-    return RedirectResponse(url=f"/vehicles/{vehicle_id}?message=vehicle_updated", status_code=status.HTTP_303_SEE_OTHER)
+    rt = (return_to or "").strip()
+    if rt.startswith("/vehicles/new"):
+        dest = "/vehicles/new?success=Veículo atualizado com sucesso"
+    else:
+        dest = f"/vehicles/{vehicle_id}?message=vehicle_updated"
+    return RedirectResponse(url=dest, status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.post("/vehicles/{vehicle_id}/workshop", response_class=RedirectResponse)
-async def vehicle_toggle_workshop(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
+async def vehicle_toggle_workshop(
+    request: Request,
+    vehicle_id: int,
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
     """Alterna status 'na oficina' do veículo."""
     require_login(request)
     vehicle = session.get(models.Vehicle, vehicle_id)
@@ -14109,17 +16139,78 @@ async def vehicle_toggle_workshop(request: Request, vehicle_id: int, session: Se
         vehicle.updated_at = datetime.now()
         session.add(vehicle)
         session.commit()
-    return RedirectResponse(url=request.headers.get("referer", "/vehicles"), status_code=status.HTTP_303_SEE_OTHER)
+    dest = _vehicle_admin_return_url(return_to, request.headers.get("referer") or "/vehicles")
+    return RedirectResponse(url=dest, status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.post("/vehicles/{vehicle_id}/delete", response_class=RedirectResponse)
-async def delete_vehicle(request: Request, vehicle_id: int, session: Session = Depends(get_session)):
+async def delete_vehicle(
+    request: Request,
+    vehicle_id: int,
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
     require_login(request)
     vehicle = session.get(models.Vehicle, vehicle_id)
     if vehicle:
         session.delete(vehicle)
         session.commit()
-    return RedirectResponse(url="/vehicles", status_code=status.HTTP_303_SEE_OTHER)
+    dest = _vehicle_admin_return_url(return_to, "/vehicles")
+    return RedirectResponse(url=dest, status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/api/vehicles/bulk", response_class=JSONResponse)
+async def api_vehicles_bulk(
+    request: Request,
+    body: VehicleBulkBody,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    if not body.ids:
+        return JSONResponse(content={"success": False, "error": "Nenhum veículo selecionado"}, status_code=400)
+    updated = 0
+    for vid in body.ids:
+        v = session.get(models.Vehicle, vid)
+        if not v:
+            continue
+        if body.action == "workshop_on":
+            v.in_workshop = True
+        elif body.action == "workshop_off":
+            v.in_workshop = False
+        elif body.action == "activate":
+            v.is_active = True
+        elif body.action == "deactivate":
+            v.is_active = False
+        v.updated_at = datetime.now()
+        session.add(v)
+        updated += 1
+    session.commit()
+    return {"success": True, "updated": updated}
+
+
+@app.post("/vehicles/bulk-delete", response_class=RedirectResponse)
+async def vehicles_bulk_delete(
+    request: Request,
+    vehicle_ids: Optional[List[int]] = Form(None),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    if not vehicle_ids:
+        return RedirectResponse(
+            url="/vehicles?error=bulk_none",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    removed = 0
+    for vid in vehicle_ids:
+        vehicle = session.get(models.Vehicle, vid)
+        if vehicle:
+            session.delete(vehicle)
+            removed += 1
+    session.commit()
+    return RedirectResponse(
+        url=f"/vehicles?message=bulk_deleted&removed={removed}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
 
 
 # --- Route Management ---
@@ -15375,6 +17466,7 @@ async def comercial_entregas_page(
     status: str = "todos",
     motorista: str = "",
     cliente: str = "",
+    vendedor: str = "",
     session: Session = Depends(get_session),
 ):
     require_comercial_access(request)
@@ -15440,6 +17532,80 @@ async def comercial_entregas_page(
 
     helper_name_map = {hid: employee_map.get(hid, f"Ajudante #{hid}") for hid in helper_ids}
 
+    # Código do vendedor (seller_code no colaborador / setor no cliente) — matching numérico exige igualdade, não substring
+    # (evita "310" casar com matrícula "1310" ou "0310" no mesmo blob).
+    emp_norm_digit: dict[int, Optional[str]] = {}
+    for emp in employees:
+        emp_id = int(getattr(emp, "id", 0) or 0)
+        if not emp_id:
+            continue
+        sc = str(getattr(emp, "seller_code", None) or "").strip().casefold()
+        emp_norm_digit[emp_id] = (sc.lstrip("0") or "0") if sc.isdigit() else None
+
+    # Igual ao card de vendedor no mobile: setor costuma ser só o seller_code sem vendedor_id preenchido.
+    seller_code_to_emp_id: dict[str, int] = {}
+    for emp in employees:
+        sc = str(getattr(emp, "seller_code", None) or "").strip()
+        emp_id = int(getattr(emp, "id", 0) or 0)
+        if not sc or not emp_id:
+            continue
+        seller_code_to_emp_id[sc] = emp_id
+        if sc.isdigit():
+            nz = sc.lstrip("0") or "0"
+            if nz != sc:
+                seller_code_to_emp_id.setdefault(nz, emp_id)
+
+    def _emp_id_for_seller_code(code: str) -> Optional[int]:
+        c = (code or "").strip()
+        if not c:
+            return None
+        eid = seller_code_to_emp_id.get(c)
+        if eid is not None:
+            return eid
+        if c.isdigit():
+            return seller_code_to_emp_id.get(c.lstrip("0") or "0")
+        return None
+
+    clients_by_id: dict[int, models.Client] = {
+        int(getattr(c, "id", 0) or 0): c for c in clients if int(getattr(c, "id", 0) or 0)
+    }
+
+    client_vendedor_name_blob: dict[int, str] = {}
+    for c in clients:
+        c_id = int(getattr(c, "id", 0) or 0)
+        if not c_id:
+            continue
+        vid = int(getattr(c, "vendedor_id", None) or 0)
+        st = str(getattr(c, "setor", None) or "").strip()
+        nm_parts: list[str] = []
+        em_id = vid if vid else _emp_id_for_seller_code(st)
+        if em_id:
+            dn = employee_map.get(em_id, "")
+            if dn:
+                nm_parts.append(dn.casefold())
+        if st:
+            nm_parts.append(st.casefold())
+        client_vendedor_name_blob[c_id] = " ".join(p for p in nm_parts if p).casefold()
+
+    def _client_matches_vendedor_digit(c_id: int, fk: str) -> bool:
+        c = clients_by_id.get(c_id)
+        if not c:
+            return False
+        vid = int(getattr(c, "vendedor_id", None) or 0)
+        st = str(getattr(c, "setor", None) or "").strip()
+        st_cf = st.casefold()
+        if st_cf.isdigit() and (st_cf.lstrip("0") or "0") == fk:
+            return True
+        eid = vid if vid else 0
+        if not eid and st:
+            rid = _emp_id_for_seller_code(st)
+            eid = int(rid) if rid else 0
+        if eid:
+            nk = emp_norm_digit.get(eid)
+            if nk is not None and nk == fk:
+                return True
+        return False
+
     status_label_map = {
         "pendente": "Pendente",
         "iniciada": "Em rota",
@@ -15468,6 +17634,7 @@ async def comercial_entregas_page(
     }
     motorista_filter = (motorista or "").strip().casefold()
     cliente_filter = (cliente or "").strip().casefold()
+    vendedor_filter = (vendedor or "").strip().casefold()
 
     def _fmt_date_br(date_str: str) -> str:
         try:
@@ -15507,6 +17674,15 @@ async def comercial_entregas_page(
         client_blob = client_search_blob_map.get(client_id, client_name.casefold())
         if cliente_filter and cliente_filter not in client_blob:
             continue
+        if vendedor_filter:
+            if vendedor_filter.isdigit():
+                fk = vendedor_filter.lstrip("0") or "0"
+                if not _client_matches_vendedor_digit(client_id, fk):
+                    continue
+            else:
+                v_name_blob = client_vendedor_name_blob.get(client_id, "")
+                if vendedor_filter not in v_name_blob:
+                    continue
 
         wa_phone = employee_phone_map.get(driver_id, "")
         wa_text = (
@@ -15542,6 +17718,7 @@ async def comercial_entregas_page(
             "selected_status": selected_status,
             "motorista": motorista or "",
             "cliente": cliente or "",
+            "vendedor": vendedor or "",
             "summary_total": len(rows_view),
             "summary_total_fmt": f"{len(rows_view):,}".replace(",", "."),
             "status_totals": status_totals,
@@ -15585,6 +17762,7 @@ async def api_comercial_client_detail(
                 "visita": client.visita or "",
                 "nome_fantasia": client.nome_fantasia or "",
                 "razao_social": client.razao_social or "",
+                "cnpj_cpf": getattr(client, "cnpj_cpf", None) or "",
                 "municipio": client.municipio or "",
                 "bairro": client.bairro or "",
                 "endereco": client.endereco or "",
@@ -15615,6 +17793,12 @@ async def api_comercial_client_detail(
                     "id": e.id,
                     "name": (e.name or "").strip(),
                     "seller_code": ((e.seller_code or "").strip() or ""),
+                    **dict(
+                        zip(
+                            ("phone", "phone_display"),
+                            _employee_phone_display_pair(getattr(e, "phone", None)),
+                        )
+                    ),
                 }
                 for e in vendedores
                 if getattr(e, "id", None)
@@ -15633,6 +17817,46 @@ async def api_comercial_client_detail(
     )
 
 
+@app.post("/api/comercial/vendedores/{employee_id}/phone", response_class=JSONResponse)
+async def api_comercial_vendedor_phone_update(
+    request: Request,
+    employee_id: int,
+    phone: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    """Atualiza apenas o telefone do colaborador (cadastro RH)."""
+    require_comercial_access(request)
+    emp = session.get(models.Employee, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado")
+    if (emp.status or "").strip().lower() == "fired":
+        raise HTTPException(status_code=400, detail="Colaborador inativo.")
+    raw_in = (phone or "").strip()
+    if not raw_in:
+        emp.phone = None
+    else:
+        phone_e164, _ = normalize_phone_br(raw_in)
+        if not phone_e164 or len(str(phone_e164)) < 13:
+            raise HTTPException(status_code=400, detail="Telefone inválido. Informe DDD e número.")
+        emp.phone = phone_e164[3:]
+    session.add(emp)
+    actor = _client_audit_actor(request)
+    session.add(
+        models.Event(
+            timestamp=datetime.now(ZoneInfo("America/Sao_Paulo")),
+            text=f"Comercial ({actor}) atualizou telefone do vendedor {emp.name or employee_id}",
+            type="alteracao_cadastro",
+            category="pessoas",
+            sector="comercial",
+            impact="low",
+            employee_id=int(emp.id) if emp.id else None,
+        )
+    )
+    session.commit()
+    _raw, disp = _employee_phone_display_pair(getattr(emp, "phone", None))
+    return JSONResponse({"ok": True, "phone": emp.phone or "", "phone_display": disp})
+
+
 @app.post("/api/comercial/clients/{client_id}/update", response_class=JSONResponse)
 async def api_comercial_client_update(
     request: Request,
@@ -15645,6 +17869,7 @@ async def api_comercial_client_update(
     visita: Optional[str] = Form(None),
     nome_fantasia: Optional[str] = Form(None),
     razao_social: Optional[str] = Form(None),
+    cnpj_cpf: Optional[str] = Form(None),
     municipio: Optional[str] = Form(None),
     bairro: Optional[str] = Form(None),
     endereco: Optional[str] = Form(None),
@@ -15683,6 +17908,7 @@ async def api_comercial_client_update(
         visita=visita,
         nome_fantasia=nome_fantasia,
         razao_social=razao_social,
+        cnpj_cpf=cnpj_cpf,
         municipio=municipio,
         bairro=bairro,
         endereco=endereco,
@@ -17279,6 +19505,7 @@ async def separacao_delivery_session_start(
 
     emp_map = {e.id: e for e in session.exec(select(models.Employee)).all()}
     helper_names: List[str] = []
+    normalized_helper_ids: List[int] = []
     seen = set()
     for hid in helper_ids_list:
         try:
@@ -17288,6 +19515,7 @@ async def separacao_delivery_session_start(
         if h == employee_id or h in seen:
             continue
         seen.add(h)
+        normalized_helper_ids.append(h)
         emp = emp_map.get(h)
         if emp and (emp.name or "").strip():
             helper_names.append(emp.name.strip())
@@ -17302,6 +19530,13 @@ async def separacao_delivery_session_start(
         started_at=datetime.now(ZoneInfo("America/Sao_Paulo")),
     )
     session.add(new_session)
+    _sync_route_delivery_helpers_for_escala(
+        session,
+        employee_id=employee_id,
+        route_date=date,
+        vehicle_plate=plate_clean,
+        helper_ids=normalized_helper_ids,
+    )
     session.commit()
     try:
         mark_delivery_group_whatsapp_ready(
@@ -27301,6 +29536,16 @@ async def employee_detail(
         "replaced_employee": replaced_employee,
         "today_date": datetime.now(ZoneInfo("America/Sao_Paulo")).date()
     })
+
+
+@app.get("/employees/{employee_id}/status", include_in_schema=False)
+async def employee_status_redirect(employee_id: int):
+    return RedirectResponse(
+        url=f"/employees/{employee_id}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 @app.post("/employees/{emp_id}/status")
 async def update_employee_status(
     emp_id: int,
@@ -30158,10 +32403,10 @@ async def admin_checklists_test_email(
     user=Depends(require_leader)
 ):
     actor_label = user.get("email") if isinstance(user, dict) else str(user or "Sistema")
-    recipient = session.get(models.AbsenceAlertRecipient, recipient_id)
-    if not recipient:
-        return admin_checklists_settings_redirect("E-mail não encontrado.", "error")
-        
+    recipient = session.get(models.ChecklistEmailRecipient, recipient_id)
+    if not recipient or not recipient.is_active:
+        return admin_checklists_settings_redirect("E-mail não encontrado ou inativo.", "error")
+
     try:
         report = {
             "subject": "ALERTA DE MANUTENÇÃO - TESTE",

@@ -1,0 +1,18 @@
+/* Escala operacional — alinhado ao shell / employees (Gestão Avista) */
+.ga-employee-theme.employees-page.escala-page .escala-column__body {
+    max-height: min(52vh, 560px);
+}
+
+@media (min-width: 1024px) {
+    .ga-employee-theme.employees-page.escala-page .escala-column__body {
+        max-height: calc(100vh - 20rem);
+    }
+}
+
+.ga-employee-theme.employees-page.escala-page .escala-card:hover {
+    border-color: rgb(203 213 225);
+}
+
+html.dark .ga-employee-theme.employees-page.escala-page .escala-card:hover {
+    border-color: rgb(100 116 139 / 0.7);
+}

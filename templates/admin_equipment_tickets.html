@@ -1,214 +1,549 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Chamados de equipamento · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / Chamados de equipamento</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Chamados de equipamento</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Falhas de frota, severidade e encerramento — mesmo fluxo visual do cadastro de colaboradores</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/equipment-tickets.css">
+{% endblock %}
 
 {% block content %}
-<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-6">
-        <div>
-            <h1 class="text-2xl md:text-3xl font-bold text-white">Chamados de Equipamento</h1>
-            <p class="text-sm text-slate-400">Registro de falhas e acompanhamento de manutenção.</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <a href="/admin/routine/checklists/dashboard"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Painel
-            </a>
-            <a href="/admin/routine/checklists"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-                Checklists
-            </a>
-            <a href="/admin/routine/checklists/settings"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Configurações
-            </a>
-        </div>
-    </div>
 
-    {% if message %}
-    <div
-        class="mb-6 p-3 rounded-lg border text-sm {{ 'bg-emerald-500/20 border-emerald-500/40 text-emerald-100' if level != 'error' else 'bg-red-500/20 border-red-500/40 text-red-100' }}">
-        {{ message }}
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium equipment-tickets-page space-y-5 pt-2 md:pt-3">
+
+    {% if error %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="min-w-0 flex-1">{{ error }}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+    </div>
+    {% endif %}
+    {% if success %}
+    <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span class="min-w-0 flex-1">{{ success }}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
     </div>
     {% endif %}
 
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-xl">
-            <p class="text-xs text-slate-400">Total Chamados</p>
-            <p class="text-2xl font-bold text-white">{{ stats.total|default(0) }}</p>
-        </div>
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-xl">
-            <p class="text-xs text-slate-400">Em Aberto</p>
-            <p class="text-2xl font-bold text-amber-400">{{ stats.open|default(0) }}</p>
-        </div>
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-xl">
-            <p class="text-xs text-slate-400">Alta Severidade</p>
-            <p class="text-2xl font-bold text-red-400">{{ stats.high|default(0) }}</p>
-        </div>
-        <div class="bg-slate-800 border border-slate-700 p-4 rounded-xl">
-            <p class="text-xs text-slate-400">Últimos 7 dias</p>
-            <p class="text-2xl font-bold text-emerald-400">{{ stats.recent|default(0) }}</p>
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        Oficina
+                    </span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Central de chamados</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Priorize alta severidade, acompanhe aberturas por turno e feche chamados em lote sem sair do mesmo painel dos colaboradores.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-slate-400"></span>
+                            {{ stats.total }} chamados no histórico
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+                            {{ stats.open }} em aberto
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-amber-500"></span>
+                            {{ stats.high }} abertos em alta severidade
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        </span>
+                        <span class="employees-cta__label">Importar</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+                        <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importar e lote</p>
+                        <button type="button" onclick="eqTicketsOpenModal('importTicketsModal')" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Planilha (.xlsx / .csv)</span>
+                                <span class="employees-menu-item__hint">Matrícula, equipamento, descrição</span>
+                            </span>
+                        </button>
+                        <button type="button" onclick="eqTicketsOpenBulkCloseModal()" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Encerrar selecionados</span>
+                                <span class="employees-menu-item__hint">Usa as caixas da tabela</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <a href="/admin/routine/checklists/dashboard" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    </span>
+                    <span class="employees-cta__label">Painel checklists</span>
+                </a>
+
+                <button type="button" onclick="eqTicketsOpenModal('createTicketModal')" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </span>
+                    <span class="employees-cta__label">Novo chamado</span>
+                </button>
+            </div>
         </div>
     </div>
 
-    <form class="bg-slate-800 border border-slate-700 rounded-2xl p-4 mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
-        <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Status</label>
-            <select name="status"
-                class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
-                <option value="">Todos</option>
-                <option value="open" {{ "selected" if filters.status=="open" else "" }}>Aberto</option>
-                <option value="closed" {{ "selected" if filters.status=="closed" else "" }}>Fechado</option>
-            </select>
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de chamados">
+            <a href="/admin/equipment/tickets" class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Total</span>
+                            <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ stats.total }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Histórico completo</span></div>
+                </div>
+            </a>
+            <a href="/admin/equipment/tickets?status=open" class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Abertos</span>
+                            <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ stats.open }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Filtrar lista</span></div>
+                </div>
+            </a>
+            <a href="/admin/equipment/tickets?status=open&severity=high" class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-red-600 dark:text-red-300">Alta severidade</span>
+                            <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ stats.high }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Somente abertos</span></div>
+                </div>
+            </a>
+            <a href="/admin/equipment/tickets?days=7" class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Últimos 7 dias</span>
+                            <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ stats.recent }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Janela móvel</span></div>
+                </div>
+            </a>
         </div>
-        <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Severidade</label>
-            <select name="severity"
-                class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
-                <option value="">Todas</option>
-                <option value="low" {{ "selected" if filters.severity=="low" else "" }}>Baixa</option>
-                <option value="high" {{ "selected" if filters.severity=="high" else "" }}>Alta</option>
-            </select>
+    </div>
+
+    <div id="ticketsBulkBar" class="equipment-tickets-bulk-bar sys-card sys-card--surface hidden flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-sm employees-text-body m-0"><span id="ticketsBulkCount" class="font-bold tabular-nums">0</span> selecionado(s)</p>
+        <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="eqTicketsOpenBulkCloseModal()" class="sys-btn sys-btn--primary justify-center">Encerrar selecionados</button>
+            <button type="button" onclick="document.querySelectorAll('.ticket-row-select').forEach(cb=>cb.checked=false); document.getElementById('ticketSelectAll').checked=false; eqTicketsUpdateBulkBar();" class="sys-btn sys-btn--secondary justify-center">Limpar seleção</button>
         </div>
-        <div>
-            <label class="block text-xs font-semibold text-slate-400 mb-1">Equipamento</label>
-            <input type="text" name="equipment" value="{{ filters.equipment }}"
-                class="w-full rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                placeholder="TP-01">
-        </div>
-        <div class="flex items-end">
-            <button type="submit"
-                class="w-full rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 transition-colors">
-                Filtrar
-            </button>
+    </div>
+
+    <form id="ticketsFilterForm" method="get" action="/admin/equipment/tickets" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <input type="hidden" name="page" value="1">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div class="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-7">
+                    <div class="lg:col-span-2">
+                        <label class="employees-filter-bar__label employees-filter-bar__label--compact block">Busca</label>
+                        <div class="ops-toolbar-search employees-filter-bar__search mt-1">
+                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" name="q" id="ticketsSearchInput" value="{{ filters.q }}" placeholder="ID, placa, colaborador, matrícula…" class="ops-toolbar-search__input" autocomplete="off">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="employees-filter-bar__label employees-filter-bar__label--compact block">Status</label>
+                        <select name="status" class="sys-input mt-1 w-full">
+                            <option value="" {% if not filters.status %}selected{% endif %}>Todos</option>
+                            <option value="open" {% if filters.status == 'open' %}selected{% endif %}>Aberto</option>
+                            <option value="in_progress" {% if filters.status == 'in_progress' %}selected{% endif %}>Em andamento</option>
+                            <option value="resolved" {% if filters.status == 'resolved' %}selected{% endif %}>Resolvido</option>
+                            <option value="closed" {% if filters.status == 'closed' %}selected{% endif %}>Fechado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="employees-filter-bar__label employees-filter-bar__label--compact block">Severidade</label>
+                        <select name="severity" class="sys-input mt-1 w-full">
+                            <option value="" {% if not filters.severity %}selected{% endif %}>Todas</option>
+                            <option value="low" {% if filters.severity == 'low' %}selected{% endif %}>Baixa</option>
+                            <option value="high" {% if filters.severity == 'high' %}selected{% endif %}>Alta</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="employees-filter-bar__label employees-filter-bar__label--compact block">Turno</label>
+                        <select name="shift" class="sys-input mt-1 w-full">
+                            <option value="" {% if not filters.shift %}selected{% endif %}>Todos</option>
+                            {% for sh in shift_options %}
+                            <option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="employees-filter-bar__label employees-filter-bar__label--compact block">Período (dias)</label>
+                        <select name="days" class="sys-input mt-1 w-full">
+                            <option value="" {% if not filters.days %}selected{% endif %}>Todo o período</option>
+                            <option value="7" {% if filters.days == '7' %}selected{% endif %}>Últimos 7</option>
+                            <option value="30" {% if filters.days == '30' %}selected{% endif %}>Últimos 30</option>
+                            <option value="90" {% if filters.days == '90' %}selected{% endif %}>Últimos 90</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="employees-filter-bar__label employees-filter-bar__label--compact block">Equipamento</label>
+                        <input type="text" name="equipment" value="{{ filters.equipment }}" placeholder="Ex.: ABC1D23" class="sys-input mt-1 w-full uppercase">
+                    </div>
+                    <div>
+                        <label class="employees-filter-bar__label employees-filter-bar__label--compact block">Ordenação</label>
+                        <select name="sort" class="sys-input mt-1 w-full">
+                            <option value="created_desc" {% if filters.sort == 'created_desc' %}selected{% endif %}>Mais recentes</option>
+                            <option value="created_asc" {% if filters.sort == 'created_asc' %}selected{% endif %}>Mais antigos</option>
+                            <option value="severity_desc" {% if filters.sort == 'severity_desc' %}selected{% endif %}>Severidade (maior)</option>
+                            <option value="severity_asc" {% if filters.sort == 'severity_asc' %}selected{% endif %}>Severidade (menor)</option>
+                            <option value="status_asc" {% if filters.sort == 'status_asc' %}selected{% endif %}>Status (A-Z)</option>
+                            <option value="status_desc" {% if filters.sort == 'status_desc' %}selected{% endif %}>Status (Z-A)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <label class="flex items-center gap-2 text-xs employees-text-muted">
+                        <span>Por página</span>
+                        <select name="per_page" class="sys-input py-1.5 text-sm" onchange="var p=this.form.querySelector('input[name=page]'); if(p) p.value='1'; this.form.submit();">
+                            {% for n in [10, 25, 50, 100] %}
+                            <option value="{{ n }}" {% if pagination.per_page == n %}selected{% endif %}>{{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <button type="submit" id="ticketsApplyBtn" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active">Aplicar</button>
+                    <a href="/admin/equipment/tickets" class="sys-btn sys-btn--secondary justify-center">Limpar filtros</a>
+                </div>
+            </div>
         </div>
     </form>
 
-    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-4 overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="text-left text-slate-400 border-b border-slate-700">
-                    <th class="py-2 pr-4">Data/Hora</th>
-                    <th class="py-2 pr-4">Equipamento</th>
-                    <th class="py-2 pr-4">Colaborador</th>
-                    <th class="py-2 pr-4">Turno</th>
-                    <th class="py-2 pr-4">Severidade</th>
-                    <th class="py-2 pr-4">Status</th>
-                    <th class="py-2 pr-4">Descrição</th>
-                    <th class="py-2">Ações</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-700">
-                {% for row in tickets %}
-                <tr class="hover:bg-slate-700/30 transition-colors">
-                    <td class="py-3 pr-4 text-xs font-mono text-slate-400">{{ row.created_at_br }}</td>
-                    <td class="py-3 pr-4 font-bold text-white">{{ row.ticket.equipment_code }}</td>
-                    <td class="py-3 pr-4 text-xs text-slate-300">{{ row.employee.name|emp_name if row.employee else '-' }}</td>
-                    <td class="py-3 pr-4 text-xs">{{ row.ticket.shift or '-' }}</td>
-                    <td class="py-3 pr-4">
-                        <span
-                            class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-red-500/20 text-red-200' if row.ticket.severity == 'high' else 'bg-slate-600/20 text-slate-300' }}">
-                            {{ 'ALTA' if row.ticket.severity == 'high' else 'BAIXA' }}
-                        </span>
-                    </td>
-                    <td class="py-3 pr-4">
-                        <span
-                            class="text-[10px] font-bold px-2 py-0.5 rounded-full {{ 'bg-amber-500/20 text-amber-200' if row.ticket.status == 'open' else 'bg-emerald-500/20 text-emerald-200' }}">
-                            {{ 'ABERTO' if row.ticket.status == 'open' else 'FECHADO' }}
-                        </span>
-                    </td>
-                    <td class="py-3 pr-4 max-w-xs">
-                        <div class="text-slate-300 text-xs leading-snug truncate">
-                            {{ row.ticket.description[:80] }}{% if row.ticket.description|length > 80 %}...{% endif %}
-                        </div>
-                        {% if row.image_urls %}
-                        <div class="mt-1 flex items-center gap-1">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <span class="text-[10px] text-blue-400">{{ row.image_urls|length }} imagens</span>
-                        </div>
-                        {% endif %}
-                    </td>
-                    <td class="py-3 text-right">
-                        <div class="flex items-center justify-end gap-2">
-                            <a href="/admin/equipment/tickets/{{ row.ticket.id }}"
-                                class="text-xs text-blue-400 hover:text-blue-300 font-semibold px-2 py-1 rounded hover:bg-blue-500/10">Detalhes</a>
-
-                            {% if row.ticket.status == 'open' %}
-                            <form action="/admin/equipment/tickets/{{ row.ticket.id }}/close" method="POST">
-                                <button type="submit"
-                                    class="text-xs px-3 py-1.5 rounded-lg border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition-colors font-semibold">
-                                    Fechar
-                                </button>
-                            </form>
-                            {% else %}
-                            <span class="text-[10px] text-slate-500 px-2">Encerrado</span>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-                {% if not tickets %}
-                <tr>
-                    <td colspan="8" class="py-8 text-center text-slate-400">Nenhum chamado encontrado.</td>
-                </tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Danger Zone: Limpeza de Chamados -->
-    <div class="mt-8 bg-red-950/40 border border-red-800/60 rounded-2xl p-6">
-        <div class="flex items-start justify-between gap-4 mb-4">
-            <div>
-                <h2 class="text-lg font-bold text-red-200 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8v4m0 4h.01M5.07 19.07A10 10 0 1118.93 5.07 10 10 0 015.07 19.07z" />
-                    </svg>
-                    Zona de Risco – Chamados de Equipamento
-                </h2>
-                <p class="text-xs text-red-200/80 mt-1 max-w-xl">
-                    Esta ação remove <span class="font-bold">TODOS os chamados de equipamento</span> e seus eventos de
-                    histórico. Use apenas em ambiente de teste/homologação ou para reset completo.
+    <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Lista paginada</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Chamados</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">
+                    {% if pagination.total_count %}
+                    Mostrando {{ pagination.range_from }}–{{ pagination.range_to }} de {{ pagination.total_count }} registro(s) neste recorte.
+                    {% else %}
+                    Nenhum registro para os filtros atuais.
+                    {% endif %}
+                    Em telas menores, cada linha vira um card com ações rápidas.
                 </p>
             </div>
-        </div>
-
-        <form action="/admin/tools/cleanup/tickets" method="POST"
-            onsubmit="return confirm('Tem certeza absoluta que deseja APAGAR TODOS os chamados de equipamento? Esta ação não pode ser desfeita.');"
-            class="mt-2 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <div class="flex-1">
-                <label class="block text-[11px] font-semibold text-red-200 uppercase tracking-wide mb-1">
-                    Confirmação obrigatória
-                </label>
-                <input type="text" name="confirm_phrase" required
-                    placeholder="Digite APAGAR TODOS os CHAMADOS"
-                    class="w-full rounded-lg bg-slate-950/60 border border-red-500/40 px-3 py-2 text-sm text-red-100 placeholder:text-red-300/60 focus:border-red-400 focus:outline-none">
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span class="employees-text-caption">A busca usa debounce e recarrega o servidor com paginação — evita travar o navegador em listas grandes.</span>
             </div>
-            <button type="submit"
-                class="w-full sm:w-auto rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors shadow-lg shadow-red-900/40 border border-red-500/70">
-                Apagar TODOS os Chamados
-            </button>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1020px]" id="ticketsTable">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-2 py-2 pl-4 w-10">
+                            <input type="checkbox" id="ticketSelectAll" class="rounded border" title="Selecionar página" aria-label="Selecionar todos desta página">
+                        </th>
+                        <th class="employees-data-table__th px-2 py-2">ID</th>
+                        <th class="employees-data-table__th px-2 py-2">Data/Hora</th>
+                        <th class="employees-data-table__th px-2 py-2">Equipamento</th>
+                        <th class="employees-data-table__th px-2 py-2">Colaborador</th>
+                        <th class="employees-data-table__th px-2 py-2">Matrícula</th>
+                        <th class="employees-data-table__th px-2 py-2">Turno</th>
+                        <th class="employees-data-table__th px-2 py-2">Severidade</th>
+                        <th class="employees-data-table__th px-2 py-2">Status</th>
+                        <th class="employees-data-table__th px-2 py-2">Descrição</th>
+                        <th class="employees-data-table__th employees-data-table__th--static px-2 py-2 pr-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y">
+                    {% for row in tickets %}
+                    <tr class="ticket-row employees-data-table__row transition-colors" data-ticket-id="{{ row.ticket.id }}">
+                        <td class="employees-data-table__cell px-2 py-2 pl-4 align-middle" data-label="Selecionar">
+                            {% if row.ticket.status == 'open' %}
+                            <input type="checkbox" class="ticket-row-select rounded border" value="{{ row.ticket.id }}" aria-label="Selecionar chamado {{ row.ticket.id }}">
+                            {% else %}
+                            <span class="employees-text-muted text-xs">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle tabular-nums employees-text-body" data-label="ID">#{{ row.ticket.id }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap text-xs font-mono employees-text-muted" data-label="Data">{{ row.created_at_br }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-strong" data-label="Equipamento">{{ row.ticket.equipment_code }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Colaborador">{{ row.employee.name|emp_name if row.employee else '—' }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap" data-label="Matrícula">{{ row.employee.registration_id if row.employee else '—' }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Turno">{{ row.ticket.shift or '—' }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Severidade">
+                            {% if row.ticket.severity == 'high' %}
+                            <span class="sys-badge sys-badge--critical">Alta</span>
+                            {% else %}
+                            <span class="employees-pill employees-pill--neutral text-[10px]">Baixa</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__td--col-status px-2 py-2 align-middle" data-label="Status">
+                            {% set st = row.ticket.status or 'open' %}
+                            {% if st == 'open' %}
+                            <span class="sys-badge sys-badge--alert">Aberto</span>
+                            {% elif st == 'in_progress' %}
+                            <span class="employees-pill employees-pill--cyan text-[10px]">Em andamento</span>
+                            {% elif st == 'resolved' %}
+                            <span class="employees-pill employees-pill--emerald text-[10px]">Resolvido</span>
+                            {% elif st == 'closed' %}
+                            <span class="sys-badge sys-badge--ok">Fechado</span>
+                            {% else %}
+                            <span class="employees-pill employees-pill--pending text-[10px]">{{ st }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle max-w-[14rem]" data-label="Descrição">
+                            <span class="employees-text-body line-clamp-2 text-xs">{{ row.description_short }}</span>
+                            {% if row.image_urls and row.image_urls|length > 0 %}
+                            <span class="mt-0.5 block text-[10px] text-blue-600 dark:text-blue-400">{{ row.image_urls|length }} foto(s)</span>
+                            {% endif %}
+                        </td>
+                        <td class="employee-actions-cell employees-data-table__td--col-actions px-2 py-2 pr-4 align-middle" data-label="Ações">
+                            <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                                <a href="/admin/equipment/tickets/{{ row.ticket.id }}" class="employee-action-btn employee-action-btn--edit" title="Detalhes">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                </a>
+                                <button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar resumo" data-edit="{{ row.edit_payload | tojson | e }}" onclick="eqTicketsOpenEditModal(this.dataset.edit)">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                </button>
+                                {% if row.ticket.status == 'open' %}
+                                <form action="/admin/equipment/tickets/{{ row.ticket.id }}/close" method="POST" class="inline" onsubmit="return confirm('Encerrar o chamado #{{ row.ticket.id }}?');">
+                                    <button type="submit" class="employee-action-btn employee-action-btn--vacation" title="Encerrar">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not tickets %}
+                    <tr>
+                        <td colspan="11" class="p-10 text-center employees-text-muted text-sm">Nenhum chamado neste recorte. Ajuste filtros ou abra um novo chamado.</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        {% if pagination.total_pages > 1 %}
+        <div class="equipment-tickets-pagination flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 sm:px-6">
+            <p class="text-xs employees-text-muted m-0">Página {{ pagination.page }} de {{ pagination.total_pages }}</p>
+            <div class="flex items-center gap-2">
+                <a href="{{ pagination.prev_url }}" class="sys-btn sys-btn--secondary {% if not pagination.has_prev %}pointer-events-none opacity-40{% endif %}">Anterior</a>
+                <a href="{{ pagination.next_url }}" class="sys-btn sys-btn--secondary {% if not pagination.has_next %}pointer-events-none opacity-40{% endif %}">Próxima</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="equipment-tickets-danger-zone p-5 md:p-6">
+        <h3 class="sys-section-heading text-base text-red-700 dark:text-red-300">Zona de risco</h3>
+        <p class="mt-1 text-xs text-red-800/90 dark:text-red-200/90">Remover todos os chamados apaga histórico vinculado. Use só em homologação ou quando souber o impacto.</p>
+        <form action="/admin/tools/cleanup/tickets" method="POST" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" onsubmit="return confirm('Apagar TODOS os chamados de equipamento?');">
+            <div class="flex-1">
+                <label class="block text-[11px] font-semibold uppercase tracking-wide text-red-800 dark:text-red-200">Confirmação</label>
+                <input type="text" name="confirm_phrase" required placeholder="Digite APAGAR TODOS os CHAMADOS" class="sys-input mt-1 w-full border-red-300 dark:border-red-800">
+            </div>
+            <button type="submit" class="sys-btn shrink-0 border border-red-600 bg-red-600 text-white hover:bg-red-500">Apagar todos</button>
         </form>
     </div>
 </div>
+
+<!-- Novo chamado -->
+<div id="createTicketModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Novo chamado (oficina)</h3>
+            <button type="button" data-eq-modal-close="createTicketModal" class="emp-modal-close shrink-0" aria-label="Fechar"><svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
+        <p class="text-xs employees-text-muted">Informe a <strong>matrícula</strong> do colaborador solicitante, a placa/código do equipamento e a descrição. O turno padrão vem do cadastro se você deixar em branco.</p>
+        <form action="/admin/equipment/tickets/create" method="POST" class="mt-4 space-y-3">
+            <div>
+                <label class="sys-section__label sys-section__label--field">Matrícula</label>
+                <input type="text" name="registration_id" required class="sys-input mt-1 w-full" placeholder="Ex.: 12345">
+            </div>
+            <div>
+                <label class="sys-section__label sys-section__label--field">Equipamento</label>
+                <input type="text" name="equipment_code" required class="sys-input mt-1 w-full uppercase" placeholder="Placa ou código">
+            </div>
+            <div>
+                <label class="sys-section__label sys-section__label--field">Descrição</label>
+                <textarea name="description" required rows="3" class="sys-input mt-1 w-full"></textarea>
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Severidade</label>
+                    <select name="severity" class="sys-input mt-1 w-full">
+                        <option value="low">Baixa</option>
+                        <option value="high">Alta</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Turno (opcional)</label>
+                    <select name="shift" class="sys-input mt-1 w-full">
+                        <option value="">(usar cadastro)</option>
+                        {% for sh in shift_options %}<option value="{{ sh }}">{{ sh }}</option>{% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" data-eq-modal-close="createTicketModal" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Criar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Editar -->
+<div id="editTicketModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Editar chamado</h3>
+            <button type="button" data-eq-modal-close="editTicketModal" class="emp-modal-close shrink-0" aria-label="Fechar"><svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
+        <form id="editTicketForm" method="POST" class="space-y-3">
+            <input type="hidden" name="ticket_id" id="editTicketId" value="">
+            <div>
+                <label class="sys-section__label sys-section__label--field">Descrição</label>
+                <textarea name="description" id="editDescription" required rows="3" class="sys-input mt-1 w-full"></textarea>
+            </div>
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Severidade</label>
+                    <select name="severity" id="editSeverity" class="sys-input mt-1 w-full">
+                        <option value="low">Baixa</option>
+                        <option value="high">Alta</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Turno</label>
+                    <input type="text" name="shift" id="editShift" class="sys-input mt-1 w-full" placeholder="Manhã / Tarde / Noite">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" data-eq-modal-close="editTicketModal" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Importar -->
+<div id="importTicketsModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Importar chamados</h3>
+            <button type="button" data-eq-modal-close="importTicketsModal" class="emp-modal-close shrink-0" aria-label="Fechar"><svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
+        <form action="/admin/equipment/tickets/import" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <div class="emp-modal-dropzone">
+                <p class="mb-2 text-sm employees-text-muted">Arquivo .xlsx ou .csv</p>
+                <input type="file" name="file" accept=".xlsx,.csv" required class="text-sm file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white">
+            </div>
+            <div class="text-xs employees-text-muted">
+                <p class="m-0 font-semibold">Colunas esperadas (nomes flexíveis):</p>
+                <ul class="mt-1 list-disc pl-4">
+                    <li>Matrícula / registro</li>
+                    <li>Equipamento / placa</li>
+                    <li>Descrição</li>
+                    <li>Opcional: severidade, turno</li>
+                </ul>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" data-eq-modal-close="importTicketsModal" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Importar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Encerrar em lote -->
+<div id="bulkCloseTicketModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Encerrar em lote</h3>
+            <button type="button" data-eq-modal-close="bulkCloseTicketModal" class="emp-modal-close shrink-0" aria-label="Fechar"><svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
+        <p class="text-sm employees-text-body">Confirma o encerramento de todos os chamados <strong>abertos</strong> selecionados nesta página?</p>
+        <form action="/admin/equipment/tickets/bulk-close" method="POST" class="mt-4 flex flex-col gap-3">
+            <input type="hidden" name="ticket_ids" id="bulkTicketIds" value="">
+            <div class="flex justify-end gap-2">
+                <button type="button" data-eq-modal-close="bulkCloseTicketModal" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Encerrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block body_scripts %}
+<script src="/static/js/pages/equipment-tickets.js" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var editForm = document.getElementById('editTicketForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function (e) {
+            var idEl = document.getElementById('editTicketId');
+            var id = idEl && idEl.value;
+            if (!id) { e.preventDefault(); return; }
+            editForm.action = '/admin/equipment/tickets/' + encodeURIComponent(id) + '/update';
+        });
+    }
+});
+</script>
 {% endblock %}

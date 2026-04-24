@@ -1,228 +1,522 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Frota de veículos · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / Frota de veículos</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Frota de veículos</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Cadastro, importação, oficina e histórico operacional por placa</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-slate-950/50">
-<div class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto" x-data="vehiclePage()">
-        <!-- Header compacto -->
-        <header class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-                <h1 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Frota de Veículos</h1>
-                <p class="text-slate-400 text-sm mt-0.5">Checklist, oficina e histórico por veículo.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <a href="/vehicles/new" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold shadow-lg shadow-blue-900/30 transition-all hover:scale-[1.02] active:scale-[0.98]">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Novo veículo
-                </a>
-                <div class="flex items-center gap-1 rounded-xl border border-slate-600 bg-slate-800/80 overflow-hidden">
-                    <form action="/vehicles/import" method="post" enctype="multipart/form-data" class="flex items-center gap-1">
-                        <label class="inline-flex items-center gap-2 px-3 py-2 text-slate-200 hover:bg-slate-700 cursor-pointer text-sm transition-colors">
-                            <i data-lucide="upload" class="w-4 h-4"></i>
-                            <span class="hidden sm:inline">Excel</span>
-                            <input type="file" name="file" accept=".xlsx,.xls" required class="hidden" id="excel-file-input">
-                        </label>
-                        <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors">
-                            <i data-lucide="file-input" class="w-4 h-4"></i>
-                            <span class="hidden sm:inline">Importar</span>
-                        </button>
-                    </form>
-                    <span id="file-name" class="px-2 text-slate-500 text-xs max-w-[100px] truncate sm:max-w-[140px]"></span>
+{% set qp = request.query_params %}
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium vehicles-page space-y-5 pt-2 md:pt-3">
+
+    {% if qp.get('message') == 'vehicle_created' %}
+    <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span>Veículo cadastrado com sucesso.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:hover:bg-white/10" aria-label="Fechar">×</button>
+    </div>
+    {% elif qp.get('message') == 'import_success' %}
+    <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span>Importação concluída: {{ qp.get('imported', 0) }} veículo(s) cadastrado(s){% if qp.get('skipped', '0')|int > 0 %}; {{ qp.get('skipped') }} ignorado(s) (placa já existe){% endif %}.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5" aria-label="Fechar">×</button>
+    </div>
+    {% elif qp.get('message') == 'bulk_deleted' %}
+    <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span>{{ qp.get('removed', 0) }} veículo(s) removido(s) em lote.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5" aria-label="Fechar">×</button>
+    </div>
+    {% endif %}
+
+    {% if qp.get('error') == 'placa_exists' %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <span>Já existe um veículo com esta placa.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5" aria-label="Fechar">×</button>
+    </div>
+    {% elif qp.get('error') == 'invalid_file' %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <span>Arquivo inválido. Envie Excel (.xlsx ou .xls).</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5" aria-label="Fechar">×</button>
+    </div>
+    {% elif qp.get('error') == 'missing_columns' %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <span>O Excel precisa ter as colunas: <strong>Placa</strong>, <strong>Veículo</strong>, <strong>Marca</strong>, <strong>Modelo</strong>.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5" aria-label="Fechar">×</button>
+    </div>
+    {% elif qp.get('error') == 'import_failed' %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <span>Erro ao processar o arquivo. Verifique o formato.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5" aria-label="Fechar">×</button>
+    </div>
+    {% elif qp.get('error') == 'invalid_type' %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <span>Tipo de veículo inválido.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5" aria-label="Fechar">×</button>
+    </div>
+    {% elif qp.get('error') == 'bulk_none' %}
+    <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+        <span>Selecione ao menos um veículo para exclusão em lote.</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5" aria-label="Fechar">×</button>
+    </div>
+    {% endif %}
+
+    <div class="employees-hero sys-card sys-card--surface relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
                 </div>
-                <a href="/vehicles/template" class="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl border border-slate-600 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-colors" download="planilha_veiculos_modelo.xlsx" title="Baixar modelo Excel">
-                    <i data-lucide="download" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Modelo</span>
-                </a>
-            </div>
-        </header>
-
-        {% if request.query_params.get("message") == "vehicle_created" %}
-        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
-            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Veículo cadastrado com sucesso.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("message") == "import_success" %}
-        <div class="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
-            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Importação concluída: {{ request.query_params.get('imported', 0) }} veículo(s) cadastrado(s){% if request.query_params.get('skipped', 0)|int > 0 %}, {{ request.query_params.get('skipped') }} ignorado(s) (placa já existe){% endif %}.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("error") == "placa_exists" %}
-        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Já existe um veículo com esta placa.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("error") == "invalid_file" %}
-        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Arquivo inválido. Envie um arquivo Excel (.xlsx ou .xls).</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("error") == "missing_columns" %}
-        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>O Excel precisa ter as colunas: <strong>Placa</strong>, <strong>Veículo</strong>, <strong>Marca</strong>, <strong>Modelo</strong>.</span>
-        </div>
-        {% endif %}
-        {% if request.query_params.get("error") == "import_failed" %}
-        <div class="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 flex items-center gap-2">
-            <i data-lucide="alert-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span>Erro ao processar o arquivo. Verifique o formato do Excel.</span>
-        </div>
-        {% endif %}
-
-        <!-- Resumo e filtros -->
-        {% if stats and stats.total > 0 and pie_slices %}
-        <div class="mb-4 flex flex-wrap items-center gap-3">
-            <div class="flex items-center gap-2 rounded-xl bg-slate-800/80 border border-slate-700 px-3 py-2">
-                <svg class="w-10 h-10 flex-shrink-0" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    {% for s in pie_slices %}
-                    <path d="{{ s.d }}" fill="{{ s.fill }}"></path>
-                    {% endfor %}
-                    <circle cx="50" cy="50" r="22" fill="rgb(30 41 59)" stroke="rgb(51 65 85)" stroke-width="2"/>
-                    <text x="50" y="52" text-anchor="middle" fill="rgb(248 250 252)" font-size="12" font-weight="700">{{ stats.total }}</text>
-                </svg>
-                <div class="flex gap-3 text-xs text-slate-400">
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span>{{ stats.caminhao_count or 0 }} caminhões</span>
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>{{ stats.moto_count or 0 }} motos</span>
-                    <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span>{{ stats.carro_count or 0 }} carros</span>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Oficina &amp; frota</span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Painel da frota</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Mesmo esqueleto visual da página de colaboradores: resumo, filtros, tabela responsiva, importação e ações em lote com debounce e paginação local.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+                            {{ stats.operating }} em operação
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ stats.total }} cadastrados
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ stats.caminhao_count }} caminhões · {{ stats.moto_count }} motos · {{ stats.carro_count }} carros
+                        </span>
+                    </div>
                 </div>
             </div>
-            <div class="flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5" role="tablist">
-                <button type="button" @click="vehicleTypeFilter = ''" :class="!vehicleTypeFilter ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors">Todos</button>
-                <button type="button" @click="vehicleTypeFilter = 'caminhao'" :class="vehicleTypeFilter === 'caminhao' ? 'bg-amber-500/20 text-amber-300' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors">Caminhões</button>
-                <button type="button" @click="vehicleTypeFilter = 'moto'" :class="vehicleTypeFilter === 'moto' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors">Motos</button>
-                <button type="button" @click="vehicleTypeFilter = 'carro'" :class="vehicleTypeFilter === 'carro' ? 'bg-blue-500/20 text-blue-300' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors">Carros</button>
-            </div>
-        </div>
-        {% endif %}
 
-        <!-- Lista de veículos -->
-        <div class="rounded-2xl border border-slate-700/80 bg-slate-900/60 shadow-xl overflow-hidden">
-            <div class="flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4 border-b border-slate-700/80 bg-slate-800/40">
-                <div class="relative flex-1 min-w-0">
-                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"></i>
-                    <input type="text" x-model="vehicleSearch" placeholder="Placa, marca ou modelo..."
-                        class="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-950/80 border border-slate-600 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 text-sm">
-                    <button x-show="vehicleSearch" @click="vehicleSearch = ''" type="button" class="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors" title="Limpar busca" aria-label="Limpar busca">
-                        <i data-lucide="x" class="w-4 h-4"></i>
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-xl xl:flex-shrink-0 xl:justify-end">
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        </span>
+                        <span class="employees-cta__label">Importar</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
+                    <div x-show="open" @click.away="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+                        <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importar e lote</p>
+                        <button type="button" onclick="vehiclesOpenImportModal()" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Planilha Excel</span>
+                                <span class="employees-menu-item__hint">Colunas: Placa, Veículo, Marca, Modelo</span>
+                            </span>
+                        </button>
+                        <button type="button" onclick="vehiclesOpenBulkModal()" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Exclusão em lote</span>
+                                <span class="employees-menu-item__hint">Remover selecionados</span>
+                            </span>
+                        </button>
+                        <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
+                        <a href="/vehicles/template" class="employees-menu-item" download>
+                            <span class="employees-menu-item__icon employees-menu-item__icon--slate" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Baixar modelo</span>
+                                <span class="employees-menu-item__hint">planilha_veiculos_modelo.xlsx</span>
+                            </span>
+                        </a>
+                    </div>
                 </div>
-                <p class="text-slate-500 text-sm whitespace-nowrap" x-show="vehicleSearch" x-text="'Busca ativa'"></p>
-            </div>
 
-            {% if vehicles %}
-            <div class="overflow-x-auto overflow-y-auto max-h-[calc(100vh-320px)]">
-                <table id="vehicles-table" class="w-full text-left border-collapse">
-                    <thead class="sticky top-0 z-10 bg-slate-900 border-b border-slate-700 shadow-sm">
-                        <tr class="text-slate-400 text-xs uppercase font-semibold tracking-wider">
-                            <th class="px-4 py-3 text-left">Tipo</th>
-                            <th class="px-4 py-3 text-left">Placa</th>
-                            <th class="px-4 py-3 text-left">Marca / Modelo</th>
-                            <th class="px-4 py-3 text-left hidden sm:table-cell">Ano</th>
-                            <th class="px-4 py-3 text-left">Status</th>
-                            <th class="px-4 py-3 text-right">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800 text-sm">
-                        {% for v in vehicles %}
-                        <tr class="hover:bg-slate-800/80 transition-colors cursor-pointer group"
-                            data-search="{{ (v.placa ~ ' ' ~ (v.vehicle_type or '') ~ ' ' ~ (v.marca or '') ~ ' ' ~ (v.modelo or '') ~ ' ' ~ (v.ano or '') | lower) | e }}"
-                            data-type="{{ (v.vehicle_type or 'carro')|e }}"
-                            x-show="(!vehicleSearch || ($el.dataset.search || '').toLowerCase().includes(vehicleSearch.toLowerCase())) && (!vehicleTypeFilter || ($el.dataset.type || '') === vehicleTypeFilter)"
-                            @click="window.location.href='/vehicles/{{ v.id }}/history'"
-                            role="button" tabindex="0"
-                            @keydown.enter="window.location.href='/vehicles/{{ v.id }}/history'">
-                            <td class="px-4 py-3 align-middle">
-                                {% if v.vehicle_type == "caminhao" %}
-                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/15 text-amber-300 text-xs font-medium">
-                                    <i data-lucide="truck" class="w-4 h-4"></i>
-                                    Caminhão
-                                </span>
-                                {% elif v.vehicle_type == "moto" %}
-                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 text-xs font-medium">
-                                    <i data-lucide="motorbike" class="w-4 h-4"></i>
-                                    Moto
-                                </span>
-                                {% else %}
-                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-500/15 text-blue-300 text-xs font-medium">
-                                    <i data-lucide="car" class="w-4 h-4"></i>
-                                    Carro
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3 font-mono font-semibold text-white text-sm tracking-wide">{{ v.placa }}</td>
-                            <td class="px-4 py-3 text-slate-200 truncate max-w-[200px] sm:max-w-[280px]">{{ v.marca }} — {{ v.modelo }}</td>
-                            <td class="px-4 py-3 text-slate-400 hidden sm:table-cell">{{ v.ano or '–' }}</td>
-                            <td class="px-4 py-3">
-                                {% if v.sold_at %}
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-600/60 text-slate-400 text-xs">Vendido</span>
-                                {% elif v.in_workshop %}
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-xs">Oficina</span>
-                                {% else %}
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-xs">Ativo</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3 text-right" @click.stop>
-                                <div class="flex items-center justify-end gap-1">
-                                    <a href="/vehicles/{{ v.id }}/history" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white transition-colors" title="Histórico" aria-label="Ver histórico">
-                                        <i data-lucide="history" class="w-4 h-4"></i>
-                                    </a>
-                                    <a href="/vehicles/{{ v.id }}" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors" title="Editar" aria-label="Editar veículo">
-                                        <i data-lucide="pencil" class="w-4 h-4"></i>
-                                    </a>
-                                    <form action="/vehicles/{{ v.id }}/workshop" method="post" class="inline">
-                                        <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors {% if v.in_workshop %}bg-amber-500/25 text-amber-300 hover:bg-amber-500/35{% else %}bg-slate-800 text-slate-300 hover:bg-amber-500/20 hover:text-amber-300{% endif %}" title="{% if v.in_workshop %}Sair da oficina{% else %}Marcar na oficina{% endif %}" aria-label="{% if v.in_workshop %}Sair da oficina{% else %}Na oficina{% endif %}">
-                                            <i data-lucide="wrench" class="w-4 h-4"></i>
-                                        </button>
-                                    </form>
-                                    <form action="/vehicles/{{ v.id }}/delete" method="post" class="inline" onsubmit="return confirm('Excluir este veículo?');">
-                                        <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white transition-colors" title="Excluir" aria-label="Excluir veículo">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                        <tr x-show="(vehicleSearch || vehicleTypeFilter) && Array.from($el.parentElement.querySelectorAll('tr[data-search]')).every(r => r.offsetParent === null)"
-                            class="bg-slate-800/50">
-                            <td colspan="6" class="px-6 py-12 text-center text-slate-400">
-                                <i data-lucide="search-x" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
-                                <p class="text-sm">Nenhum veículo corresponde aos filtros.</p>
-                                <p class="text-xs mt-1 text-slate-500">Altere a busca ou o tipo acima.</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                <button type="button" onclick="vehiclesOpenCreateModal()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </span>
+                    <span class="employees-cta__label">Novo veículo</span>
+                </button>
+
+                <a href="/vehicles/odometer" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Hodômetro</a>
             </div>
-            {% else %}
-            <div class="p-10 md:p-12 text-center text-slate-500">
-                <i data-lucide="truck" class="w-12 h-12 mx-auto mb-4 opacity-40"></i>
-                <p class="mb-2 text-sm md:text-base">Nenhum veículo cadastrado ainda.</p>
-                <a href="/vehicles/new" class="inline-flex items-center justify-center gap-2 mt-1 px-4 py-2 rounded-xl bg-blue-600/90 hover:bg-blue-500 text-white text-sm font-semibold transition-all shadow-md hover:shadow-blue-900/40">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Cadastrar primeiro veículo
-                </a>
+        </div>
+    </div>
+
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo da frota">
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive group text-left" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);" data-veh-status-filter="all" onclick="vehiclesSetStatusFilter('all')" aria-pressed="true">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Total</span>
+                    <span class="employees-kpi__value tabular-nums">{{ stats.total }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Frota cadastrada</span>
+                </div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive group text-left" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);" data-veh-status-filter="active" onclick="vehiclesSetStatusFilter('active')" aria-pressed="false">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Em operação</span>
+                    <span class="employees-kpi__value tabular-nums">{{ stats.operating }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Ativos, sem oficina e não vendidos</span>
+                </div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive group text-left" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);" data-veh-status-filter="workshop" onclick="vehiclesSetStatusFilter('workshop')" aria-pressed="false">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Oficina</span>
+                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ stats.workshop }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Manutenção / indisponíveis</span>
+                </div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive group text-left" style="--employees-kpi-accent: rgba(148, 163, 184, 0.68);" data-veh-status-filter="inactive" onclick="vehiclesSetStatusFilter('inactive')" aria-pressed="false">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">Inativos</span>
+                    <span class="employees-kpi__value tabular-nums">{{ stats.inactive }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Cadastro desativado</span>
+                </div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive group text-left" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);" data-veh-status-filter="sold" onclick="vehiclesSetStatusFilter('sold')" aria-pressed="false">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-red-600 dark:text-red-300">Vendidos</span>
+                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ stats.sold }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Histórico comercial</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner">
+                <div class="employees-filter-bar__primary">
+                    <div class="employees-filter-bar__primary-scroll">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search">
+                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="vehiclesSearchInput" autocomplete="off" placeholder="Placa, marca, modelo ou tipo" class="ops-toolbar-search__input">
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 px-1">
+                        <span class="employees-text-caption text-[11px]">Tipo:</span>
+                        <button type="button" data-veh-type-filter="all" onclick="vehiclesSetTypeFilter('all')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" aria-pressed="true">Todos</button>
+                        <button type="button" data-veh-type-filter="caminhao" onclick="vehiclesSetTypeFilter('caminhao')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" aria-pressed="false">Caminhão</button>
+                        <button type="button" data-veh-type-filter="moto" onclick="vehiclesSetTypeFilter('moto')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" aria-pressed="false">Moto</button>
+                        <button type="button" data-veh-type-filter="carro" onclick="vehiclesSetTypeFilter('carro')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" aria-pressed="false">Carro</button>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+                <div class="employees-filter-bar__secondary">
+                    <button type="button" onclick="vehiclesClearFilters()" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar filtros</button>
+                </div>
             </div>
-            {% endif %}
+        </div>
+    </div>
+
+    <form id="bulkVehicleDeleteForm" action="/vehicles/bulk-delete" method="POST">
+    <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Cadastro de frota</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista de veículos</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No mobile as linhas viram cards (classes employees). Use os cabeçalhos para ordenar placa, tipo ou marca. Busca com debounce e páginas locais para listas grandes.</p>
+            </div>
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span class="employees-text-caption">Exclusão em lote exige confirmação.</span>
+                O ícone de informações abre a ficha completa; o lápis abre edição rápida nesta tela (mesmos campos principais da atualização).
+            </div>
+        </div>
+        <div class="sys-table-wrap">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[960px]" id="vehiclesTable">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-2 py-2 cursor-pointer select-none whitespace-nowrap" style="width:88px; min-width:88px;" onclick="vehiclesToggleSort('type')" title="Ordenar por tipo">Tipo</th>
+                        <th class="employees-data-table__th px-2 py-2 cursor-pointer select-none" onclick="vehiclesToggleSort('placa')" title="Ordenar por placa">Placa</th>
+                        <th class="employees-data-table__th px-2 py-2 cursor-pointer select-none" onclick="vehiclesToggleSort('brand')" title="Ordenar por marca/modelo">Marca / Modelo</th>
+                        <th class="employees-data-table__th px-2 py-2">Ano</th>
+                        <th class="employees-data-table__th px-2 py-2">KM</th>
+                        <th class="employees-data-table__th px-2 py-2">Status</th>
+                        <th class="employees-data-table__th px-2 py-2">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y" id="vehiclesTableBody">
+                    {% for v in vehicles %}
+                    {% set sold = 1 if v.sold_at else 0 %}
+                    {% set workshop = 1 if v.in_workshop else 0 %}
+                    {% set active_flag = 1 if v.is_active else 0 %}
+                    {% set search_blob = ((v.placa or '') ~ ' ' ~ (v.vehicle_type or '') ~ ' ' ~ (v.marca or '') ~ ' ' ~ (v.modelo or '') ~ ' ' ~ (v.ano or ''))|lower %}
+                    <tr class="vehicle-page-row employees-data-table__row transition-colors"
+                        data-placa="{{ v.placa|e }}"
+                        data-type="{{ (v.vehicle_type or 'carro')|e }}"
+                        data-marca="{{ (v.marca or '')|e }}"
+                        data-modelo="{{ (v.modelo or '')|e }}"
+                        data-search="{{ search_blob|e }}"
+                        data-sold="{{ sold }}"
+                        data-workshop="{{ workshop }}"
+                        data-active="{{ active_flag }}"
+                        data-vehicle="{{ v.model_dump_json() | forceescape }}">
+                        <td class="px-3 py-2 pl-5 align-middle" data-label="Sel">
+                            <input type="checkbox" class="vehicle-row-checkbox" name="vehicle_ids" value="{{ v.id }}">
+                        </td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap" style="width:88px; min-width:88px;" data-label="Tipo">
+                            {% if v.vehicle_type == 'caminhao' %}
+                            <span class="employees-pill employees-pill--status employees-pill--pending">Caminhão</span>
+                            {% elif v.vehicle_type == 'moto' %}
+                            <span class="sys-badge sys-badge--ok">Moto</span>
+                            {% else %}
+                            <span class="employees-pill employees-pill--neutral">Carro</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle font-mono font-semibold employees-text-strong whitespace-nowrap" data-label="Placa">{{ v.placa }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle max-w-[220px] truncate" data-label="Marca / Modelo" title="{{ v.marca }} — {{ v.modelo }}">{{ v.marca }} — {{ v.modelo }}</td>
+                        <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle whitespace-nowrap" data-label="Ano">{{ v.ano or '—' }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle tabular-nums whitespace-nowrap" data-label="KM">
+                            {% if v.vehicle_type == 'caminhao' and v.odometer_km is not none %}
+                            {{ (v.odometer_km|int) }}
+                            {% else %}
+                            <span class="employees-text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__td--col-status px-2 py-2 align-middle whitespace-nowrap" data-label="Status">
+                            {% if v.sold_at %}
+                            <span class="sys-badge sys-badge--critical">Vendido</span>
+                            {% elif not v.is_active %}
+                            <span class="employees-pill employees-pill--status employees-pill--pending">Inativo</span>
+                            {% elif v.in_workshop %}
+                            <span class="sys-badge sys-badge--alert">Oficina</span>
+                            {% else %}
+                            <span class="sys-badge sys-badge--ok">Ativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
+                            <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                                <a href="/vehicles/{{ v.id }}/history" class="employee-action-btn employee-action-btn--return" title="Histórico">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </a>
+                                <button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar"
+                                    onclick="vehiclesOpenEditModal(JSON.parse(this.closest('tr').getAttribute('data-vehicle')))">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                </button>
+                                <a href="/vehicles/{{ v.id }}" class="employee-action-btn employee-action-btn--vacation" title="Ficha completa">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </a>
+                                <form action="/vehicles/{{ v.id }}/workshop" method="POST" class="inline">
+                                    <button type="submit" class="employee-action-btn {% if v.in_workshop %}employee-action-btn--return{% else %}employee-action-btn--away{% endif %}" title="{% if v.in_workshop %}Sair da oficina{% else %}Marcar oficina{% endif %}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                    </button>
+                                </form>
+                                <form action="/vehicles/{{ v.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Excluir o veículo {{ v.placa|e }}? Esta ação é irreversível.');">
+                                    <button type="submit" class="employee-action-btn employee-action-btn--delete" title="Excluir">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr id="vehiclesEmptyFilterRow" class="hidden">
+                        <td colspan="8" class="py-10 text-center"><div class="sys-empty-state">Nenhum veículo corresponde aos filtros atuais.</div></td>
+                    </tr>
+                    {% if not vehicles %}
+                    <tr><td colspan="8" class="py-10 text-center"><div class="sys-empty-state">Nenhum veículo cadastrado. Use “Novo veículo” ou importe a planilha modelo.</div></td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+            <span><span id="vehiclesVisibleCount">0</span> veículo(s) no filtro · <span id="vehiclesPageLabel">Página 1 / 1</span></span>
+            <div class="flex items-center gap-2">
+                <button type="button" id="vehiclesPrevPage" onclick="vehiclesPrevPage()" class="sys-btn sys-btn--secondary">Anterior</button>
+                <button type="button" id="vehiclesNextPage" onclick="vehiclesNextPage()" class="sys-btn sys-btn--secondary">Próxima</button>
+                <button type="button" onclick="vehiclesOpenBulkModal()" class="sys-btn sys-btn--ghost-danger">Excluir selecionados</button>
+            </div>
+        </div>
+    </div>
+    </form>
+
+</div>
+
+{# --- Modais --- #}
+<div id="createVehicleModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Novo veículo</h3>
+            <button type="button" onclick="vehiclesCloseCreateModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <form action="/vehicles/add" method="POST" class="space-y-4">
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Placa *</label>
+                    <input type="text" name="placa" required maxlength="10" class="sys-input mt-1 w-full font-mono uppercase" placeholder="ABC1D23">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Tipo *</label>
+                    <select name="vehicle_type" required class="sys-select mt-1 w-full">
+                        <option value="caminhao">Caminhão</option>
+                        <option value="moto">Moto</option>
+                        <option value="carro">Carro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Marca *</label>
+                    <input type="text" name="marca" required class="sys-input mt-1 w-full" placeholder="FORD">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Modelo *</label>
+                    <input type="text" name="modelo" required class="sys-input mt-1 w-full" placeholder="CARGO 815">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Ano</label>
+                    <input type="text" name="ano" class="sys-input mt-1 w-full" placeholder="2019/2019">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Renavam</label>
+                    <input type="text" name="renavam" class="sys-input mt-1 w-full">
+                </div>
+            </div>
+            <div>
+                <label class="sys-section__label sys-section__label--field">Nº do CRV</label>
+                <input type="text" name="crv_number" class="sys-input mt-1 w-full">
+            </div>
+            <div>
+                <label class="sys-section__label sys-section__label--field">Chassi</label>
+                <input type="text" name="chassi" class="sys-input mt-1 w-full font-mono text-sm">
+            </div>
+            <p class="text-xs employees-text-muted">Campos opcionais podem ser completados depois na ficha do veículo.</p>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="vehiclesCloseCreateModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Cadastrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="importVehicleModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Importar veículos</h3>
+            <button type="button" onclick="vehiclesCloseImportModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <form action="/vehicles/import" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <div class="emp-modal-dropzone">
+                <p class="mb-2 text-sm employees-text-muted">Excel (.xlsx ou .xls)</p>
+                <input type="file" name="file" accept=".xlsx,.xls" required class="sys-input w-full text-sm">
+            </div>
+            <div class="text-xs employees-text-muted">
+                <p>Obrigatórias: <code class="font-mono">Placa</code>, <code class="font-mono">Veículo</code> (Caminhão/Moto/Carro), <code class="font-mono">Marca</code>, <code class="font-mono">Modelo</code>.</p>
+                <p class="mt-1">Opcionais: Renavam, Ano, Nº do CRV, CHASSI — conforme modelo oficial.</p>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="vehiclesCloseImportModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Importar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="bulkVehicleModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md border-2 border-red-200/80 dark:border-red-900/50">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg text-red-800 dark:text-red-200">Exclusão em lote</h3>
+            <button type="button" onclick="vehiclesCloseBulkModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <p class="text-sm employees-text-muted">Os veículos selecionados serão <strong>removidos permanentemente</strong> do cadastro. Confirme apenas se tiver certeza.</p>
+        <div class="mt-5 flex justify-end gap-3">
+            <button type="button" onclick="vehiclesCloseBulkModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+            <button type="button" onclick="vehiclesConfirmBulkDelete()" class="sys-btn sys-btn--ghost-danger">Excluir selecionados</button>
         </div>
     </div>
 </div>
-<script>
-    document.addEventListener('alpine:init', function() {
-        window.vehiclePage = function() {
-            return {
-                vehicleSearch: '',
-                vehicleTypeFilter: ''
-            };
-        };
-    });
-    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-    document.getElementById('excel-file-input')?.addEventListener('change', function(e) {
-        var name = e.target.files?.[0]?.name || '';
-        document.getElementById('file-name').textContent = name ? name : '';
-    });
-</script>
+
+<div id="editVehicleModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg max-h-[92vh] overflow-y-auto">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Editar veículo</h3>
+            <button type="button" onclick="vehiclesCloseEditModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <form id="editVehicleForm" method="POST" action="#" class="space-y-4">
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Placa *</label>
+                    <input type="text" name="placa" id="edit_placa" required class="sys-input mt-1 w-full font-mono uppercase">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Tipo *</label>
+                    <select name="vehicle_type" id="edit_vehicle_type" required class="sys-select mt-1 w-full"
+                        onchange="document.getElementById('edit_odometer_wrap').classList.toggle('hidden', this.value !== 'caminhao')">
+                        <option value="caminhao">Caminhão</option>
+                        <option value="moto">Moto</option>
+                        <option value="carro">Carro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Marca *</label>
+                    <input type="text" name="marca" id="edit_marca" required class="sys-input mt-1 w-full">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Modelo *</label>
+                    <input type="text" name="modelo" id="edit_modelo" required class="sys-input mt-1 w-full">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Ano</label>
+                    <input type="text" name="ano" id="edit_ano" class="sys-input mt-1 w-full">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Renavam</label>
+                    <input type="text" name="renavam" id="edit_renavam" class="sys-input mt-1 w-full">
+                </div>
+            </div>
+            <div>
+                <label class="sys-section__label sys-section__label--field">Nº do CRV</label>
+                <input type="text" name="crv_number" id="edit_crv" class="sys-input mt-1 w-full">
+            </div>
+            <div>
+                <label class="sys-section__label sys-section__label--field">Chassi</label>
+                <input type="text" name="chassi" id="edit_chassi" class="sys-input mt-1 w-full font-mono text-sm">
+            </div>
+            <div id="edit_odometer_wrap" class="hidden">
+                <label class="sys-section__label sys-section__label--field">Último KM (hodômetro)</label>
+                <input type="text" name="odometer_km" id="edit_odometer_km" class="sys-input mt-1 w-full font-mono" placeholder="Ex.: 150000">
+            </div>
+            <div class="flex items-center gap-3 border-t border-slate-200/80 pt-3 dark:border-slate-700">
+                <input type="checkbox" name="in_workshop" id="edit_in_workshop" value="1" class="h-4 w-4 rounded border-slate-400">
+                <label for="edit_in_workshop" class="text-sm employees-text-body">Na oficina</label>
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Valor da venda (R$)</label>
+                    <input type="text" name="sale_value" id="edit_sale_value" class="sys-input mt-1 w-full" placeholder="0,00">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Data da venda</label>
+                    <input type="date" name="sold_at" id="edit_sold_at" class="sys-input mt-1 w-full">
+                </div>
+            </div>
+            <p class="text-xs employees-text-muted">Valores de venda vazios removem a marcação de vendido, salvo regra do servidor ao salvar.</p>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="vehiclesCloseEditModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block body_scripts %}
+<script src="/static/js/vehicles_page.js" defer></script>
 {% endblock %}

@@ -17,6 +17,7 @@
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
 <link rel="stylesheet" href="/static/css/pages/clients.css">
+<link rel="stylesheet" href="/static/css/pages/comercial-modal.css">
 {% endblock %}
 
 {% block body_scripts %}
@@ -57,12 +58,131 @@
             });
         }
 
+        /** Mesma ideia do backend: código numérico compara ignorando zeros à esquerda. */
+        function normSellerCompare(s) {
+            const t = String(s || '').trim();
+            if (!t) return '';
+            if (/^\d+$/.test(t)) return t.replace(/^0+/, '') || '0';
+            return t.toLowerCase();
+        }
+
+        function findVendedorOptionBySellerCode(selectEl, typed) {
+            const want = normSellerCompare(typed);
+            if (!want || !selectEl) return null;
+            for (let i = 0; i < selectEl.options.length; i++) {
+                const opt = selectEl.options[i];
+                const sc = opt.getAttribute('data-seller-code');
+                if (sc == null || sc === '') continue;
+                if (normSellerCompare(sc) === want) return opt;
+            }
+            return null;
+        }
+
+        function findVendedorOptionById(selectEl, idStr) {
+            const v = String(idStr || '').trim();
+            if (!v || !selectEl) return null;
+            for (let i = 0; i < selectEl.options.length; i++) {
+                const opt = selectEl.options[i];
+                if (opt.value === v) return opt;
+            }
+            return null;
+        }
+
+        function bindSetorVendedorSync() {
+            const meIn = document.getElementById('edit-client-me');
+            const lookupSel = document.getElementById('edit-client-vendedor-lookup');
+            const hidVid = document.getElementById('edit-client-vendedor');
+            const disp = document.getElementById('edit-client-vendedor-display');
+            if (!meIn || !lookupSel || !hidVid || !disp || meIn.dataset.setorVendSync === '1') return;
+            meIn.dataset.setorVendSync = '1';
+
+            function updateDisplayFromOption(opt) {
+                if (!disp) return;
+                if (opt && opt.value) {
+                    const code = (opt.getAttribute('data-seller-code') || '').trim();
+                    const name = (opt.getAttribute('data-emp-name') || '').trim();
+                    if (name && code) disp.textContent = name + ' — código ' + code;
+                    else if (name) disp.textContent = name;
+                    else if (code) disp.textContent = 'Código ' + code;
+                    else disp.textContent = '—';
+                } else {
+                    disp.textContent = '— Digite o código no campo Setor';
+                }
+            }
+
+            function applyMatchedOption(opt) {
+                if (!opt) return;
+                hidVid.value = opt.value;
+                updateDisplayFromOption(opt);
+            }
+
+            function clearVendedor(msg) {
+                hidVid.value = '';
+                if (msg) disp.textContent = msg;
+                else updateDisplayFromOption(null);
+            }
+
+            function syncFromMeInputImmediate() {
+                const raw = (meIn.value || '').trim();
+                if (!raw) {
+                    clearVendedor('');
+                    return;
+                }
+                const opt = findVendedorOptionBySellerCode(lookupSel, raw);
+                if (opt) {
+                    applyMatchedOption(opt);
+                } else {
+                    const digits = raw.replace(/\D/g, '');
+                    if (digits.length > 0 && /^\d+$/.test(digits)) {
+                        clearVendedor('Nenhum colaborador com este código na lista.');
+                    } else {
+                        clearVendedor('');
+                    }
+                }
+            }
+
+            function hydrateFromSavedVendedor() {
+                const raw = (meIn.value || '').trim();
+                if (raw) {
+                    syncFromMeInputImmediate();
+                    return;
+                }
+                const vid = (hidVid.value || '').trim();
+                if (!vid) {
+                    updateDisplayFromOption(null);
+                    return;
+                }
+                const opt = findVendedorOptionById(lookupSel, vid);
+                if (opt) {
+                    updateDisplayFromOption(opt);
+                } else {
+                    hidVid.value = '';
+                    updateDisplayFromOption(null);
+                }
+            }
+
+            let deb;
+            meIn.addEventListener('input', function () {
+                clearTimeout(deb);
+                deb = setTimeout(syncFromMeInputImmediate, 150);
+            });
+            meIn.addEventListener('blur', function () {
+                clearTimeout(deb);
+                syncFromMeInputImmediate();
+            });
+
+            window.syncSetorVendedorFromForm = hydrateFromSavedVendedor;
+        }
+
+        bindSetorVendedorSync();
+
         window.openEditModal = function () {
             const modal = document.getElementById('editModalShell');
             if (!modal) return;
             modal.classList.remove('hidden');
             setBodyLock(true);
             bindWhatsappPhoneInputs(modal);
+            if (window.syncSetorVendedorFromForm) window.syncSetorVendedorFromForm();
         };
 
         window.closeEditModal = function () {
@@ -186,54 +306,183 @@
             {% if not (card_cadastro or card_local) %}
             <p class="text-slate-500 italic text-center py-4">Nenhum dado adicional cadastrado. Use <strong class="text-slate-400">Editar cadastro</strong> para preencher.</p>
             {% else %}
-            <div class="client-detail-fields-split grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-                {% if card_cadastro %}
-                <div class="client-detail-fields-card">
-                    <h4 class="client-detail-fields-card__title">Cadastro e comercial</h4>
-                    <div class="client-detail-fields grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 text-sm">
-                        {% if client.nb %}<div><span class="text-slate-500">NB:</span> <span class="text-white">{{ client.nb|fmt_nb_br }}</span></div>{% endif %}
-                        {% if client_vendedor_card %}
-                        <div class="sm:col-span-2">
-                            <span class="text-slate-500">Vendedor:</span>
-                            <a href="/employees/{{ client_vendedor_card.id }}" class="ml-1 font-medium text-white underline decoration-slate-500 underline-offset-2 hover:text-blue-300">{{ client_vendedor_card.name|emp_name }}</a>
-                            {% if client_vendedor_card.seller_code %}
-                            <span class="text-slate-400"> — código {{ client_vendedor_card.seller_code }}</span>
+            {% set me_cmp = (client.me or '')|string|trim %}
+            {% set sc_cmp = (client_vendedor_card.seller_code|string|trim) if client_vendedor_card and client_vendedor_card.seller_code else '' %}
+            {% set setor_vend_mismatch = client_vendedor_card and me_cmp and sc_cmp and me_cmp != sc_cmp %}
+            <div class="client-detail-fields-card client-detail-fields-card--unified">
+                <div class="client-detail-kv{% if card_cadastro and card_local %} client-detail-kv--split{% endif %}">
+                    {% if card_cadastro %}
+                    <section class="client-detail-kv__section" aria-label="Cadastro e comercial">
+                        <h4 class="client-detail-kv__heading">Cadastro e comercial</h4>
+                        <dl class="client-detail-kv__grid">
+                            {% if client.nb %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">NB</dt>
+                                <dd class="client-detail-kv__value">{{ client.nb|fmt_nb_br }}</dd>
+                            </div>
                             {% endif %}
-                        </div>
-                        {% elif client.setor %}
-                        <div class="sm:col-span-2"><span class="text-slate-500">Vendedor (legado):</span> <span class="text-white">código {{ client.setor }}</span> <span class="text-xs text-slate-500">(sem vínculo no cadastro de colaboradores)</span></div>
-                        {% endif %}
-                        {% if client.me %}<div><span class="text-slate-500">ME:</span> <span class="text-white">{{ client.me }}</span></div>{% endif %}
-                        {% if client.sa %}<div><span class="text-slate-500">SA:</span> <span class="text-white">{{ client.sa }}</span></div>{% endif %}
-                        {% if client.visita %}<div><span class="text-slate-500">Visita:</span> <span class="text-white">{{ client.visita }}</span></div>{% endif %}
-                        {% if client.nome_fantasia %}<div><span class="text-slate-500">Nome Fantasia:</span> <span class="text-white">{{ client.nome_fantasia }}</span></div>{% endif %}
-                        {% if client.razao_social %}<div><span class="text-slate-500">Razão Social:</span> <span class="text-white">{{ client.razao_social }}</span></div>{% endif %}
-                        {% if client.segmento %}<div><span class="text-slate-500">Segmento:</span> <span class="text-white">{{ client.segmento }}</span></div>{% endif %}
-                        {% if client.status_cliente %}<div><span class="text-slate-500">Status:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span></div>{% endif %}
-                        {% if client.status_operacional %}<div><span class="text-slate-500">Status Operacional:</span> <span class="px-2 py-0.5 rounded text-xs font-bold {% if client.status_operacional == 'ATIVO' %}bg-emerald-500/20 text-emerald-400{% elif client.status_operacional == 'FECHOU' %}bg-rose-500/20 text-rose-400{% elif client.status_operacional == 'INATIVO' %}bg-slate-500/20 text-slate-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">{{ client.status_operacional }}</span></div>{% endif %}
-                    </div>
+                            {% if client_vendedor_card %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <dt class="client-detail-kv__label">Vendedor</dt>
+                                <dd class="client-detail-kv__value">
+                                    <a href="/employees/{{ client_vendedor_card.id }}">{{ client_vendedor_card.name|emp_name }}</a>
+                                    {% if client_vendedor_card.seller_code %}<span class="client-detail-kv__suffix"> — código {{ client_vendedor_card.seller_code }}</span>{% endif %}
+                                </dd>
+                            </div>
+                            {% if setor_vend_mismatch %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <p class="client-detail-kv__hint">O <strong>Setor</strong> (campo ME, ex.: planilha) pode ser diferente do <strong>código do vendedor</strong> vinculado: o vínculo de venda segue o colaborador acima; o número no Setor é só o que está gravado em ME.</p>
+                            </div>
+                            {% endif %}
+                            {% elif client.setor %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <dt class="client-detail-kv__label">Vendedor (legado)</dt>
+                                <dd class="client-detail-kv__value">Código {{ client.setor }} <span class="client-detail-kv__suffix">(sem vínculo no cadastro de colaboradores)</span></dd>
+                            </div>
+                            {% endif %}
+                            {% if client.me %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Setor (ME)</dt>
+                                <dd class="client-detail-kv__value">{{ client.me }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.sa %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">MESA</dt>
+                                <dd class="client-detail-kv__value">{{ client.sa }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.cnpj_cpf %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">CNPJ/CPF</dt>
+                                <dd class="client-detail-kv__value">{{ client.cnpj_cpf }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.visita %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Visita</dt>
+                                <dd class="client-detail-kv__value">{{ client.visita }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.nome_fantasia %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <dt class="client-detail-kv__label">Nome fantasia</dt>
+                                <dd class="client-detail-kv__value">{{ client.nome_fantasia }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.razao_social %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <dt class="client-detail-kv__label">Razão social</dt>
+                                <dd class="client-detail-kv__value">{{ client.razao_social }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.segmento %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Segmento</dt>
+                                <dd class="client-detail-kv__value">{{ client.segmento }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.status_cliente %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Status</dt>
+                                <dd class="client-detail-kv__value"><span class="client-detail-kv__status bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span></dd>
+                            </div>
+                            {% endif %}
+                            {% if client.status_operacional %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Status operacional</dt>
+                                <dd class="client-detail-kv__value"><span class="client-detail-kv__status {% if client.status_operacional == 'ATIVO' %}bg-emerald-500/20 text-emerald-400{% elif client.status_operacional == 'FECHOU' %}bg-rose-500/20 text-rose-400{% elif client.status_operacional == 'INATIVO' %}bg-slate-500/20 text-slate-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">{{ client.status_operacional }}</span></dd>
+                            </div>
+                            {% endif %}
+                        </dl>
+                    </section>
+                    {% endif %}
+                    {% if card_local %}
+                    <section class="client-detail-kv__section client-detail-kv__section--contato" aria-label="Endereço e contato">
+                        <h4 class="client-detail-kv__heading">Endereço e contato</h4>
+                        <dl class="client-detail-kv__grid">
+                            {% if client.municipio %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Município</dt>
+                                <dd class="client-detail-kv__value">{{ client.municipio }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.bairro %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Bairro</dt>
+                                <dd class="client-detail-kv__value">{{ client.bairro }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if endereco_display or client.endereco %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <dt class="client-detail-kv__label">Endereço</dt>
+                                <dd class="client-detail-kv__value">{{ endereco_display or client.endereco }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.numero %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Número</dt>
+                                <dd class="client-detail-kv__value">{{ client.numero }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.complemento %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Complemento</dt>
+                                <dd class="client-detail-kv__value">{{ client.complemento }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.referencia %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <dt class="client-detail-kv__label">Referência</dt>
+                                <dd class="client-detail-kv__value">{{ client.referencia }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.observacoes_acesso %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <dt class="client-detail-kv__label">Observações de acesso</dt>
+                                <dd class="client-detail-kv__value">{{ client.observacoes_acesso }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client_phone_display %}
+                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                                <dt class="client-detail-kv__label">WhatsApp principal</dt>
+                                <dd class="client-detail-kv__value">{{ client_phone_display }}{% if client_phone_api_ready %}<span class="client-detail-kv__pill client-detail-kv__pill--ok">API pronta</span>{% endif %}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client_alt_phone_display %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Telefone alternativo</dt>
+                                <dd class="client-detail-kv__value">{{ client_alt_phone_display }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.janela_horario_inicio or client.janela_horario_fim %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Janela de recebimento</dt>
+                                <dd class="client-detail-kv__value">{{ client.janela_horario_inicio or '—' }} – {{ client.janela_horario_fim or '—' }}</dd>
+                            </div>
+                            {% endif %}
+                            {% if client.prioridade_logistica %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">Prioridade logística</dt>
+                                <dd class="client-detail-kv__value"><span class="client-detail-kv__status bg-blue-500/20 text-blue-400">{{ client.prioridade_logistica }}</span></dd>
+                            </div>
+                            {% endif %}
+                            {% if client.lgpd_nao_contatar %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">LGPD</dt>
+                                <dd class="client-detail-kv__value"><span class="text-amber-400 text-xs font-semibold">Não contatar</span></dd>
+                            </div>
+                            {% endif %}
+                            {% if client.lgpd_restricao_dados %}
+                            <div class="client-detail-kv__cell">
+                                <dt class="client-detail-kv__label">LGPD</dt>
+                                <dd class="client-detail-kv__value"><span class="text-amber-400 text-xs font-semibold">Restrição de dados</span></dd>
+                            </div>
+                            {% endif %}
+                        </dl>
+                    </section>
+                    {% endif %}
                 </div>
-                {% endif %}
-                {% if card_local %}
-                <div class="client-detail-fields-card">
-                    <h4 class="client-detail-fields-card__title">Localização, contato e logística</h4>
-                    <div class="client-detail-fields grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4 text-sm">
-                        {% if client.municipio %}<div><span class="text-slate-500">Município:</span> <span class="text-white">{{ client.municipio }}</span></div>{% endif %}
-                        {% if client.bairro %}<div><span class="text-slate-500">Bairro:</span> <span class="text-white">{{ client.bairro }}</span></div>{% endif %}
-                        {% if endereco_display or client.endereco %}<div class="sm:col-span-2"><span class="text-slate-500">Endereço:</span> <span class="text-white">{{ endereco_display or client.endereco }}</span></div>{% endif %}
-                        {% if client.numero %}<div><span class="text-slate-500">Nº:</span> <span class="text-white">{{ client.numero }}</span></div>{% endif %}
-                        {% if client.complemento %}<div><span class="text-slate-500">Complemento:</span> <span class="text-white">{{ client.complemento }}</span></div>{% endif %}
-                        {% if client.referencia %}<div class="sm:col-span-2"><span class="text-slate-500">Referência:</span> <span class="text-white">{{ client.referencia }}</span></div>{% endif %}
-                        {% if client.observacoes_acesso %}<div class="sm:col-span-2"><span class="text-slate-500">Observações de acesso:</span> <span class="text-white">{{ client.observacoes_acesso }}</span></div>{% endif %}
-                        {% if client_phone_display %}<div class="sm:col-span-2"><span class="text-slate-500">WhatsApp principal:</span> <span class="text-white">{{ client_phone_display }}</span>{% if client_phone_api_ready %}<span class="ml-2 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">API pronta</span>{% endif %}</div>{% endif %}
-                        {% if client_alt_phone_display %}<div><span class="text-slate-500">Fone alternativo:</span> <span class="text-white">{{ client_alt_phone_display }}</span></div>{% endif %}
-                        {% if client.janela_horario_inicio or client.janela_horario_fim %}<div><span class="text-slate-500">Janela recebimento:</span> <span class="text-white">{{ client.janela_horario_inicio or '-' }} - {{ client.janela_horario_fim or '-' }}</span></div>{% endif %}
-                        {% if client.prioridade_logistica %}<div><span class="text-slate-500">Prioridade logística:</span> <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400">{{ client.prioridade_logistica }}</span></div>{% endif %}
-                        {% if client.lgpd_nao_contatar %}<div><span class="text-slate-500">LGPD:</span> <span class="text-amber-400 text-xs">Não contatar</span></div>{% endif %}
-                        {% if client.lgpd_restricao_dados %}<div><span class="text-slate-500">LGPD:</span> <span class="text-amber-400 text-xs">Restrição de dados</span></div>{% endif %}
-                    </div>
-                </div>
-                {% endif %}
             </div>
             {% endif %}
             </div>
@@ -289,38 +538,38 @@
                 <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                 Raio-X e % devolução no ano
             </h3>
-            <div class="client-detail-ray-kpi-row mb-0 flex flex-nowrap gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
-            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+            <div class="client-detail-ray-kpi-row">
+            <div class="client-detail-kpi min-h-0">
                 <p class="client-detail-kpi__label">Total movimentado</p>
                 <p class="client-detail-kpi__value text-sm text-blue-600 dark:text-blue-400">{{ stats.total_tonnage_fmt }} <span class="client-detail-kpi__unit">kg</span></p>
             </div>
-            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+            <div class="client-detail-kpi min-h-0">
                 <p class="client-detail-kpi__label">Tempo médio (carga)</p>
                 <p class="client-detail-kpi__value text-sm text-emerald-600 dark:text-emerald-400">{{ stats.avg_duration_fmt }}</p>
             </div>
-            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+            <div class="client-detail-kpi min-h-0">
                 <p class="client-detail-kpi__label">Última operação</p>
                 <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.last_op_date }}</p>
                 <p class="client-detail-kpi__sub">{{ stats.last_op_days_ago|fmt_br_int }} dias atrás</p>
             </div>
-            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+            <div class="client-detail-kpi min-h-0">
                 <p class="client-detail-kpi__label">Top colaborador</p>
                 <p class="client-detail-kpi__value truncate text-sm text-slate-900 dark:text-white" title="{{ stats.top_employee|emp_name }}">{{ (stats.top_employee|emp_name) if stats.top_employee else '—' }}</p>
                 <p class="client-detail-kpi__sub">{{ stats.top_employee_count|fmt_br_int }} ops.</p>
             </div>
-            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+            <div class="client-detail-kpi min-h-0">
                 <p class="client-detail-kpi__label">Viagens (rotas)</p>
                 <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.total_routes|fmt_br_int }}</p>
             </div>
-            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+            <div class="client-detail-kpi min-h-0">
                 <p class="client-detail-kpi__label">Média peso / viagem</p>
                 <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.avg_tonnage_per_route_fmt }} <span class="client-detail-kpi__unit">kg</span></p>
             </div>
-            <div class="client-detail-kpi min-h-0 w-[min(100%,9.5rem)] shrink-0 py-3">
+            <div class="client-detail-kpi min-h-0">
                 <p class="client-detail-kpi__label">Produtividade média</p>
                 <p class="client-detail-kpi__value text-sm text-emerald-600 dark:text-emerald-400">{{ stats.avg_productivity_fmt }} <span class="client-detail-kpi__unit">kg/h</span></p>
             </div>
-            <div class="client-detail-kpi client-detail-kpi--devolucao min-h-0 w-[min(100%,13rem)] shrink-0 py-3">
+            <div class="client-detail-kpi client-detail-kpi--devolucao min-h-0">
                 <p class="client-detail-kpi__label">Devolução · volume (ano)</p>
                 <div class="client-detail-pct-bar relative mb-1.5 h-2 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-700" role="img" aria-label="Percentual devolvido por volume: {{ chart_devolucao.pct_volume }} por cento">
                     <div class="absolute left-0 top-0 h-full min-w-0 rounded-l-lg bg-rose-500/90 transition-[width] duration-300" style="width: {{ chart_devolucao.pct_volume }}%"></div>
@@ -328,7 +577,7 @@
                 <p class="client-detail-kpi__value text-sm text-rose-600 dark:text-rose-400">{{ chart_devolucao.pct_volume|fmt_br }}%</p>
                 <p class="client-detail-kpi__sub leading-snug">{{ chart_devolucao.ton_dev_ano_fmt }} kg dev. · base {{ chart_devolucao.ton_base_ano_fmt }} kg</p>
             </div>
-            <div class="client-detail-kpi client-detail-kpi--devolucao min-h-0 w-[min(100%,13rem)] shrink-0 py-3">
+            <div class="client-detail-kpi client-detail-kpi--devolucao min-h-0">
                 <p class="client-detail-kpi__label">Devolução · valor (ano)</p>
                 <div class="client-detail-pct-bar relative mb-1.5 h-2 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-700" role="img" aria-label="Percentual devolvido por valor: {{ chart_devolucao.pct_valor }} por cento">
                     <div class="absolute left-0 top-0 h-full min-w-0 rounded-l-lg bg-amber-500/90 transition-[width] duration-300" style="width: {{ chart_devolucao.pct_valor }}%"></div>
@@ -611,201 +860,287 @@
 {% endblock %}
 
 {% block layout_portal %}
-<div id="editModalShell" class="clients-modal hidden" aria-labelledby="edit-client-modal-title" role="dialog" aria-modal="true">
-    <div class="clients-modal__backdrop" onclick="closeEditModal()"></div>
-    <div class="clients-modal__dialog">
-        <div class="clients-modal__card sys-card sys-card--surface">
-            <div class="clients-modal__head">
-                <div>
-                    <p class="employees-text-section-label">Cadastro manual</p>
-                    <h3 class="sys-section-heading mt-1 text-xl" id="edit-client-modal-title">Editar Cliente</h3>
-                </div>
-                <button type="button" onclick="closeEditModal()" class="clients-modal-close" aria-label="Fechar">
+<div id="editModalShell" class="comercial-modal-backdrop hidden" aria-labelledby="edit-client-modal-title" role="dialog" aria-modal="true" onclick="if (event.target === this) closeEditModal()">
+    <div class="comercial-modal-card sys-card sys-card--surface sys-card--comfort relative w-full overflow-hidden shadow-xl" onclick="event.stopPropagation()">
+        <div class="comercial-modal-header flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <div class="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
+                <div class="comercial-modal-header__mark hidden sm:flex" aria-hidden="true">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                     </svg>
-                </button>
-            </div>
-
-            <form action="/clients/{{ client.id }}/update" method="post" class="clients-modal__form">
-                <div class="clients-contact-highlight mb-5">
-                    <p class="clients-contact-highlight__title">Contato operacional</p>
-                    <p class="clients-contact-highlight__text">Padronize o telefone principal no formato da API do WhatsApp para evitar falhas no envio.</p>
-                    <div class="clients-modal__grid mt-4">
-                        <div class="clients-filter-field clients-filter-field--span-2">
-                            <label for="edit-client-fone" class="clients-field-label">WhatsApp principal</label>
-                            <input id="edit-client-fone" type="text" name="fone" value="{{ client_phone_input or '' }}" placeholder="+5531999550189" inputmode="tel" autocomplete="tel" maxlength="14" data-whatsapp-phone="true" class="clients-control">
-                            <p class="clients-field-help">Padrao API: +55 + DDD + numero. Ex.: +5531999550189.</p>
-                        </div>
-                        <div class="clients-filter-field clients-filter-field--span-2">
-                            <label for="edit-client-fone-alt" class="clients-field-label">Fone alternativo</label>
-                            <input id="edit-client-fone-alt" type="text" name="fone_alternativo" value="{{ client_alt_phone_input or '' }}" placeholder="+553133334444" inputmode="tel" autocomplete="tel" maxlength="14" data-whatsapp-phone="true" class="clients-control">
-                            <p class="clients-field-help">Opcional. Se estiver valido, tambem sera normalizado para o padrao do envio.</p>
-                        </div>
+                </div>
+                <div class="min-w-0 flex-1 pr-1">
+                    <p class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Cadastro do cliente</p>
+                    <h3 class="sys-section-heading truncate text-xl leading-snug sm:text-2xl" id="edit-client-modal-title">{{ client.name }}</h3>
+                    <div class="comercial-modal-header__meta">
+                        <span><strong>NB</strong> {{ client.nb or '—' }}</span>
+                        <span class="hidden text-slate-300 sm:inline dark:text-slate-600" aria-hidden="true">·</span>
+                        <span class="sm:inline"><strong>Código</strong> {{ client.id }}</span>
                     </div>
                 </div>
-
-                <div class="clients-modal__grid">
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label class="clients-field-label">Nome *</label>
-                        <input type="text" name="name" value="{{ client.name }}" required class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">NB</label>
-                        <input type="text" name="nb" value="{{ client.nb or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label for="edit-client-vendedor" class="clients-field-label">Vendedor (cadastro de colaboradores)</label>
-                        <select id="edit-client-vendedor" name="vendedor_id" class="clients-control">
-                            <option value="">— Sem vendedor</option>
-                            {% for v in vendedores_list %}
-                            <option value="{{ v.id }}" {% if vendedor_select_id == v.id %}selected{% endif %}>{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
-                            {% endfor %}
-                        </select>
-                        <p class="clients-field-help">Somente colaboradores com cargo que contém &quot;VENDEDOR&quot;. O código segue o campo <strong>Código do Vendedor</strong> na ficha do colaborador.</p>
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">ME</label>
-                        <input type="text" name="me" value="{{ client.me or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">SA</label>
-                        <input type="text" name="sa" value="{{ client.sa or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Visita</label>
-                        <input type="text" name="visita" value="{{ client.visita or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">FANTAS</label>
-                        <input type="text" name="nome_fantasia" value="{{ client.nome_fantasia or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label class="clients-field-label">Razao social</label>
-                        <input type="text" name="razao_social" value="{{ client.razao_social or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Municipio</label>
-                        <input type="text" name="municipio" value="{{ client.municipio or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Bairro</label>
-                        <input type="text" name="bairro" value="{{ client.bairro or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label class="clients-field-label">Endereco</label>
-                        <input type="text" name="endereco" value="{{ client.endereco or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Status</label>
-                        <input type="text" name="status_cliente" value="{{ client.status_cliente or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Status operacional</label>
-                        <select name="status_operacional" class="clients-control">
-                            <option value="ATIVO" {% if (client.status_operacional or 'ATIVO') == 'ATIVO' %}selected{% endif %}>ATIVO</option>
-                            <option value="FECHOU" {% if client.status_operacional == 'FECHOU' %}selected{% endif %}>FECHOU</option>
-                            <option value="INATIVO" {% if client.status_operacional == 'INATIVO' %}selected{% endif %}>INATIVO</option>
-                            <option value="EM_VALIDACAO" {% if client.status_operacional == 'EM_VALIDACAO' %}selected{% endif %}>EM_VALIDACAO</option>
-                        </select>
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Segmento</label>
-                        <input type="text" name="segmento" value="{{ client.segmento or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Logradouro</label>
-                        <input type="text" name="logradouro" value="{{ client.logradouro or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Numero</label>
-                        <input type="text" name="numero" value="{{ client.numero or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Complemento</label>
-                        <input type="text" name="complemento" value="{{ client.complemento or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label class="clients-field-label">Referencia</label>
-                        <input type="text" name="referencia" value="{{ client.referencia or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label class="clients-field-label">Observacoes de acesso</label>
-                        <input type="text" name="observacoes_acesso" value="{{ client.observacoes_acesso or '' }}" placeholder="entrada lateral, doca..." class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label class="clients-field-label">Observacoes contato</label>
-                        <input type="text" name="observacoes_contato" value="{{ client.observacoes_contato or '' }}" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Janela inicio</label>
-                        <input type="text" name="janela_horario_inicio" value="{{ client.janela_horario_inicio or '' }}" placeholder="08:00" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Janela fim</label>
-                        <input type="text" name="janela_horario_fim" value="{{ client.janela_horario_fim or '' }}" placeholder="17:00" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label class="clients-field-label">Dias da semana</label>
-                        <input type="text" name="janela_dias_semana" value="{{ client.janela_dias_semana or '' }}" placeholder='["seg","ter","qua"]' class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label class="clients-field-label">Prioridade logistica</label>
-                        <select name="prioridade_logistica" class="clients-control">
-                            <option value="">-</option>
-                            <option value="A" {% if client.prioridade_logistica == 'A' %}selected{% endif %}>A</option>
-                            <option value="B" {% if client.prioridade_logistica == 'B' %}selected{% endif %}>B</option>
-                            <option value="C" {% if client.prioridade_logistica == 'C' %}selected{% endif %}>C</option>
-                        </select>
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <div class="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-600 dark:bg-slate-800/40">
-                            <p class="clients-field-label mb-2">LGPD</p>
-                            <div class="flex flex-wrap gap-4">
-                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                                    <input type="checkbox" name="lgpd_nao_contatar" {% if client.lgpd_nao_contatar %}checked{% endif %} class="rounded border-slate-300 text-amber-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700">
-                                    <span>Nao contatar</span>
+            </div>
+            <button type="button" class="comercial-modal-close mt-0.5 shrink-0" onclick="closeEditModal()" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="comercial-modal-body space-y-5 px-6 py-5">
+            <form action="/clients/{{ client.id }}/update" method="post" class="comercial-modal-form">
+                <div class="comercial-modal-stack">
+                    <section class="comercial-modal-section" aria-labelledby="client-edit-sec-wa">
+                        <h4 id="client-edit-sec-wa" class="comercial-modal-section__title">WhatsApp e contato</h4>
+                        <p class="mb-3 text-xs leading-relaxed text-slate-600 dark:text-slate-400">Padronize o telefone principal no formato da API do WhatsApp para evitar falhas no envio.</p>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-obs-duo">
+                                <div class="comercial-addr-cell">
+                                    <label for="edit-client-fone" class="sys-section__label sys-section__label--field">WhatsApp principal</label>
+                                    <input id="edit-client-fone" type="text" name="fone" value="{{ client_phone_input or '' }}" placeholder="+5531999550189" inputmode="tel" autocomplete="tel" maxlength="14" data-whatsapp-phone="true" class="sys-input w-full">
+                                    <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Padrão API: +55 + DDD + número. Ex.: +5531999550189.</p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label for="edit-client-fone-alt" class="sys-section__label sys-section__label--field">Telefone alternativo</label>
+                                    <input id="edit-client-fone-alt" type="text" name="fone_alternativo" value="{{ client_alt_phone_input or '' }}" placeholder="+553133334444" inputmode="tel" autocomplete="tel" maxlength="14" data-whatsapp-phone="true" class="sys-input w-full">
+                                    <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Opcional. Se estiver válido, também será normalizado.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="client-edit-sec-venda">
+                        <h4 id="client-edit-sec-venda" class="comercial-modal-section__title">Venda e cadastro</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-top">
+                                <div class="comercial-line-name">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-name">Nome (interno) *</label>
+                                    <input id="edit-client-name" type="text" name="name" value="{{ client.name }}" required maxlength="500" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-line-nb">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-nb">NB</label>
+                                    <input id="edit-client-nb" type="text" name="nb" value="{{ client.nb or '' }}" maxlength="80" class="sys-input w-full">
+                                </div>
+                            </div>
+                            <p class="span-2 text-[11px] text-slate-500 dark:text-slate-400">O <strong class="text-slate-700 dark:text-slate-300">Setor</strong> é o código do colaborador: ao digitar, o <strong class="text-slate-700 dark:text-slate-300">colaborador (venda)</strong> é localizado automaticamente. Não há lista para escolher manualmente. Colaboradores sem código no cadastro não aparecem por Setor.</p>
+                            <div class="comercial-modal-line comercial-line-venda-setor">
+                                <div class="comercial-venda-setor-card">
+                                    <div class="comercial-venda-setor-card__grid">
+                                        <div class="comercial-venda-setor-field">
+                                            <label class="sys-section__label sys-section__label--field" for="edit-client-me">Setor</label>
+                                            <input id="edit-client-me" type="text" name="me" value="{{ client.me or '' }}" class="sys-input w-full" placeholder="Ex.: 305" autocomplete="off">
+                                        </div>
+                                        <div class="comercial-venda-setor-field comercial-venda-setor-field--readout">
+                                            <span class="sys-section__label sys-section__label--field">Colaborador (venda)</span>
+                                            <div id="edit-client-vendedor-display" class="client-vend-readout client-vend-readout--in-card" role="status" aria-live="polite">{% if client_vendedor_card %}{{ client_vendedor_card.name|emp_name }}{% if client_vendedor_card.seller_code %} — código {{ client_vendedor_card.seller_code }}{% endif %}{% else %}— Digite o código no campo Setor{% endif %}</div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="vendedor_id" id="edit-client-vendedor" value="{% if vendedor_select_id %}{{ vendedor_select_id }}{% endif %}">
+                                    <select id="edit-client-vendedor-lookup" class="client-vendedor-lookup-select" aria-hidden="true" tabindex="-1">
+                                        <option value="">—</option>
+                                        {% for v in vendedores_list %}
+                                        <option value="{{ v.id }}"{% if v.seller_code %} data-seller-code="{{ v.seller_code|string|e }}"{% endif %} data-emp-name="{{ (v.name|emp_name)|e }}">{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="comercial-modal-line comercial-line-mev-fantasia">
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-sa">MESA</label>
+                                    <input id="edit-client-sa" type="text" name="sa" value="{{ client.sa or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-visita">Visita</label>
+                                    <input id="edit-client-visita" type="text" name="visita" value="{{ client.visita or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-fantasia">Nome fantasia</label>
+                                    <input id="edit-client-fantasia" type="text" name="nome_fantasia" value="{{ client.nome_fantasia or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-razao">Razão social</label>
+                                    <input id="edit-client-razao" type="text" name="razao_social" value="{{ client.razao_social or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-cnpj">CNPJ/CPF</label>
+                                    <input id="edit-client-cnpj" type="text" name="cnpj_cpf" value="{{ client.cnpj_cpf or '' }}" maxlength="32" class="sys-input w-full" placeholder="Somente números ou formatado">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="client-edit-sec-end">
+                        <h4 id="client-edit-sec-end" class="comercial-modal-section__title">Endereço</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-address">
+                                <div class="comercial-addr-cell comercial-addr-cell--endereco-livre">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-endereco">Endereço (livre)</label>
+                                    <input id="edit-client-endereco" type="text" name="endereco" value="{{ client.endereco or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-numero">Número</label>
+                                    <input id="edit-client-numero" type="text" name="numero" value="{{ client.numero or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-bairro">Bairro</label>
+                                    <input id="edit-client-bairro" type="text" name="bairro" value="{{ client.bairro or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-municipio">Cidade</label>
+                                    <input id="edit-client-municipio" type="text" name="municipio" value="{{ client.municipio or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-logradouro">Logradouro</label>
+                                    <input id="edit-client-logradouro" type="text" name="logradouro" value="{{ client.logradouro or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-complemento">Complemento</label>
+                                    <input id="edit-client-complemento" type="text" name="complemento" value="{{ client.complemento or '' }}" class="sys-input w-full">
+                                </div>
+                            </div>
+                            <div class="span-2">
+                                <label class="sys-section__label sys-section__label--field" for="edit-client-ref">Referência</label>
+                                <input id="edit-client-ref" type="text" name="referencia" value="{{ client.referencia or '' }}" class="sys-input w-full">
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="client-edit-sec-status">
+                        <h4 id="client-edit-sec-status" class="comercial-modal-section__title">Status e segmento</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-address">
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-status-cli">Status cliente</label>
+                                    <input id="edit-client-status-cli" type="text" name="status_cliente" value="{{ client.status_cliente or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-status-op">Status operacional</label>
+                                    <select id="edit-client-status-op" name="status_operacional" class="sys-input w-full">
+                                        <option value="ATIVO" {% if (client.status_operacional or 'ATIVO') == 'ATIVO' %}selected{% endif %}>ATIVO</option>
+                                        <option value="FECHOU" {% if client.status_operacional == 'FECHOU' %}selected{% endif %}>FECHOU</option>
+                                        <option value="INATIVO" {% if client.status_operacional == 'INATIVO' %}selected{% endif %}>INATIVO</option>
+                                        <option value="EM_VALIDACAO" {% if client.status_operacional == 'EM_VALIDACAO' %}selected{% endif %}>EM_VALIDACAO</option>
+                                    </select>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-segmento">Segmento</label>
+                                    <input id="edit-client-segmento" type="text" name="segmento" value="{{ client.segmento or '' }}" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-prio">Prioridade logística</label>
+                                    <select id="edit-client-prio" name="prioridade_logistica" class="sys-input w-full">
+                                        <option value="">-</option>
+                                        <option value="A" {% if client.prioridade_logistica == 'A' %}selected{% endif %}>A</option>
+                                        <option value="B" {% if client.prioridade_logistica == 'B' %}selected{% endif %}>B</option>
+                                        <option value="C" {% if client.prioridade_logistica == 'C' %}selected{% endif %}>C</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="client-edit-sec-janela">
+                        <h4 id="client-edit-sec-janela" class="comercial-modal-section__title">Janela de entrega</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-janela">
+                                <div class="comercial-addr-cell comercial-addr-cell--janela-dias">
+                                    <span id="edit-client-janela-dias-legend" class="sys-section__label sys-section__label--field">Dias da semana</span>
+                                    <input type="hidden" name="janela_dias_semana" id="edit-client-janela-dias-json" value="{{ client.janela_dias_semana or '' }}">
+                                    <div class="janela-dias-week" role="group" aria-labelledby="edit-client-janela-dias-legend">
+                                        {% set dias_opts = [('seg', 'Seg'), ('ter', 'Ter'), ('qua', 'Qua'), ('qui', 'Qui'), ('sex', 'Sex'), ('sab', 'Sáb'), ('dom', 'Dom')] %}
+                                        {% for key, lab in dias_opts %}
+                                        <label class="janela-dia-chip">
+                                            <input type="checkbox" class="janela-dia-chip__input js-janela-dia-cb" data-janela-dia="{{ key }}" {% if key in janela_dias_check %}checked{% endif %}>
+                                            <span class="janela-dia-chip__text">{{ lab }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                    <p class="janela-dias-hint">Toque ou clique para marcar os dias com janela de recebimento. A seleção é salva na ordem seg–dom.</p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-janela-ini">Janela início</label>
+                                    <input id="edit-client-janela-ini" type="text" name="janela_horario_inicio" value="{{ client.janela_horario_inicio or '' }}" placeholder="08:00" class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-janela-fim">Janela fim</label>
+                                    <input id="edit-client-janela-fim" type="text" name="janela_horario_fim" value="{{ client.janela_horario_fim or '' }}" placeholder="17:00" class="sys-input w-full">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="client-edit-sec-obs">
+                        <h4 id="client-edit-sec-obs" class="comercial-modal-section__title">Observações</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-obs-duo">
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-obs-acesso">Observações de acesso</label>
+                                    <input id="edit-client-obs-acesso" type="text" name="observacoes_acesso" value="{{ client.observacoes_acesso or '' }}" placeholder="entrada lateral, doca..." class="sys-input w-full">
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <label class="sys-section__label sys-section__label--field" for="edit-client-obs-contato">Observações de contato</label>
+                                    <input id="edit-client-obs-contato" type="text" name="observacoes_contato" value="{{ client.observacoes_contato or '' }}" class="sys-input w-full">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="client-edit-sec-lgpd">
+                        <h4 id="client-edit-sec-lgpd" class="comercial-modal-section__title">LGPD</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="span-2 flex flex-wrap gap-x-6 gap-y-2 pt-0.5">
+                                <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                    <input type="checkbox" name="lgpd_nao_contatar" {% if client.lgpd_nao_contatar %}checked{% endif %} class="rounded border-slate-300 dark:border-slate-500">
+                                    Não contatar
                                 </label>
-                                <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-                                    <input type="checkbox" name="lgpd_restricao_dados" {% if client.lgpd_restricao_dados %}checked{% endif %} class="rounded border-slate-300 text-amber-500 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700">
-                                    <span>Restricao de dados</span>
+                                <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                                    <input type="checkbox" name="lgpd_restricao_dados" {% if client.lgpd_restricao_dados %}checked{% endif %} class="rounded border-slate-300 dark:border-slate-500">
+                                    Restrição de dados
                                 </label>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
-
-                <div class="clients-modal__actions mt-6">
+                <div class="comercial-modal-toolbar mt-1 flex flex-wrap justify-end gap-3">
                     <button type="button" onclick="closeEditModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
-                    <button type="submit" class="sys-btn sys-btn--primary justify-center">Salvar alteracoes</button>
+                    <button type="submit" class="sys-btn sys-btn--primary justify-center">Salvar alterações</button>
                 </div>
+                <script>
+                (function () {
+                    var shell = document.getElementById('editModalShell');
+                    if (!shell) return;
+                    var form = shell.querySelector('form.comercial-modal-form');
+                    if (!form) return;
+                    var order = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
+                    form.addEventListener('submit', function () {
+                        var hid = document.getElementById('edit-client-janela-dias-json');
+                        if (!hid) return;
+                        var picked = [];
+                        form.querySelectorAll('.js-janela-dia-cb:checked').forEach(function (cb) {
+                            var k = (cb.getAttribute('data-janela-dia') || '').trim().toLowerCase();
+                            if (order.indexOf(k) >= 0 && picked.indexOf(k) < 0) picked.push(k);
+                        });
+                        picked.sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
+                        hid.value = picked.length ? JSON.stringify(picked) : '';
+                    });
+                })();
+                </script>
             </form>
         </div>
     </div>
 </div>
 
-<div id="deleteModalShell" class="clients-modal hidden" aria-labelledby="delete-client-modal-title" role="dialog" aria-modal="true">
-    <div class="clients-modal__backdrop" onclick="closeDeleteModal()"></div>
-    <div class="clients-modal__dialog">
-        <div class="clients-modal__card clients-modal__card--compact sys-card sys-card--surface">
-            <div class="clients-modal__head">
-                <div>
-                    <p class="employees-text-section-label">Acao irreversivel</p>
-                    <h3 class="sys-section-heading mt-1 text-lg" id="delete-client-modal-title">Excluir Cliente?</h3>
-                </div>
-                <button type="button" onclick="closeDeleteModal()" class="clients-modal-close" aria-label="Fechar">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
+<div id="deleteModalShell" class="comercial-modal-backdrop hidden" aria-labelledby="delete-client-modal-title" role="dialog" aria-modal="true" onclick="if (event.target === this) closeDeleteModal()">
+    <div class="comercial-modal-card sys-card sys-card--surface sys-card--comfort relative w-full max-w-lg overflow-hidden shadow-xl" onclick="event.stopPropagation()">
+        <div class="comercial-modal-header flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+            <div class="min-w-0 flex-1 pr-1">
+                <p class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-400">Ação irreversível</p>
+                <h3 class="sys-section-heading text-lg leading-snug" id="delete-client-modal-title">Excluir cliente?</h3>
             </div>
-            <div class="clients-modal__form">
-                <p class="text-sm text-slate-600 dark:text-slate-300">A exclusao remove permanentemente o cadastro e o historico operacional vinculado a este cliente.</p>
-                <form action="/clients/{{ client.id }}/delete" method="post" class="clients-modal__actions mt-6">
-                    <button type="button" onclick="closeDeleteModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
-                    <button type="submit" class="sys-btn justify-center border border-rose-600 bg-rose-600 text-white hover:bg-rose-700">Confirmar exclusao</button>
-                </form>
-            </div>
+            <button type="button" onclick="closeDeleteModal()" class="comercial-modal-close mt-0.5 shrink-0" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="comercial-modal-body px-6 py-5">
+            <p class="text-sm leading-relaxed text-slate-600 dark:text-slate-300">A exclusão remove permanentemente o cadastro e o histórico operacional vinculado a este cliente.</p>
+            <form action="/clients/{{ client.id }}/delete" method="post" class="comercial-modal-toolbar mt-4 flex flex-wrap justify-end gap-3 border-t-0 pt-0">
+                <button type="button" onclick="closeDeleteModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
+                <button type="submit" class="sys-btn justify-center border border-rose-600 bg-rose-600 text-white hover:bg-rose-700">Confirmar exclusão</button>
+            </form>
         </div>
     </div>
 </div>

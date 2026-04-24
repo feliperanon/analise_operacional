@@ -1,115 +1,515 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Configurações de checklists · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Rotinas / Configurações de checklists</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Configurações de checklists</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Frota, alertas por e-mail e parâmetros do checklist operacional</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+{% endblock %}
 
 {% block content %}
-<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Configurações de Checklist</h1>
-            <p class="text-sm text-slate-400">Gerenciamento de frota, alertas e monitoramento diário.</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <a href="/admin/routine/checklists"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-                Lista
-            </a>
-            <a href="/admin/routine/checklists/dashboard"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Painel
-            </a>
-            <a href="/admin/equipment/tickets"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                </svg>
-                Chamados
-            </a>
-        </div>
-    </div>
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium checklists-settings-page space-y-5 pt-2 md:pt-3">
 
     {% if message %}
-    <div
-        class="mb-8 p-4 rounded-xl border text-sm flex items-center gap-3 backdrop-blur-md shadow-lg animate-fade-in
-        {{ 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200' if level != 'error' else 'bg-red-500/10 border-red-500/30 text-red-200' }}">
-        {% if level != 'error' %}
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+    <div class="sys-alert {% if level == 'error' %}sys-alert--danger{% else %}sys-alert--success{% endif %} flex items-center gap-3" role="alert">
+        {% if level == 'error' %}
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
         {% else %}
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
         {% endif %}
-        {{ message }}
+        <span class="min-w-0 flex-1">{{ message }}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
     </div>
     {% endif %}
 
-    <!-- Danger Zone: Limpeza de Checklists -->
-    <div class="bg-red-950/40 border border-red-800/60 rounded-2xl p-6 mb-8">
-        <div class="flex items-start justify-between gap-4 mb-4">
-            <div>
-                <h2 class="text-lg font-bold text-red-200 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8v4m0 4h.01M5.07 19.07A10 10 0 1118.93 5.07 10 10 0 015.07 19.07z" />
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                     </svg>
-                    Zona de Risco – Checklists
-                </h2>
-                <p class="text-xs text-red-200/80 mt-1 max-w-xl">
-                    Esta ação remove <span class="font-bold">TODOS os checklists operacionais</span>, limpa o histórico
-                    em todas as páginas (admin e mobile) e remove automaticamente o XP já creditado aos colaboradores.
-                    Use apenas em ambiente de teste/homologação ou reset completo.
-                </p>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Parâmetros operacionais</span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Cadastro de equipamentos e notificações</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Centralize códigos de frota, destinatários de alertas e ações em lote com o mesmo padrão visual da página de colaboradores.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+                            {{ settings_stats.equipment_available }} disponíveis
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ settings_stats.equipment_total }} equipamentos
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ settings_stats.emails_active }} e-mails ativos
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-lg xl:flex-shrink-0 xl:justify-end">
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        </span>
+                        <span class="employees-cta__label">Importar</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+                        <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importar e operações em lote</p>
+                        <button type="button" onclick="chkSettingsOpenImportModal()" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Planilha Excel</span>
+                                <span class="employees-menu-item__hint">Códigos em massa (.xlsx)</span>
+                            </span>
+                        </button>
+                        <button type="button" onclick="chkSettingsOpenBulkModal()" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Remoção em lote</span>
+                                <span class="employees-menu-item__hint">Equipamentos sem histórico</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <button type="button" onclick="chkSettingsOpenCreateModal()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </span>
+                    <span class="employees-cta__label">Novo equipamento</span>
+                </button>
+
+                <a href="/admin/routine/checklists" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto sm:min-w-[8rem]">Lista</a>
+                <a href="/admin/routine/checklists/dashboard" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Painel</a>
+                <a href="/admin/equipment/tickets" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Chamados</a>
             </div>
         </div>
+    </div>
 
-        <form action="/admin/tools/cleanup/checklists" method="POST"
-            onsubmit="return confirm('Tem certeza absoluta que deseja APAGAR TODOS os checklists e remover o XP relacionado? Esta ação não pode ser desfeita.');"
-            class="mt-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <div class="flex-1">
-                <label class="block text-[11px] font-semibold text-red-200 uppercase tracking-wide mb-1">
-                    Confirmação obrigatória
-                </label>
-                <input type="text" name="confirm_phrase" required
-                    placeholder="Digite APAGAR TODOS os CHECKLISTS"
-                    class="w-full rounded-lg bg-slate-950/60 border border-red-500/40 px-3 py-2 text-sm text-red-100 placeholder:text-red-300/60 focus:border-red-400 focus:outline-none">
-            </div>
-            <button type="submit"
-                class="w-full sm:w-auto rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold px-4 py-2.5 text-sm transition-colors shadow-lg shadow-red-900/40 border border-red-500/70">
-                Apagar TODOS os Checklists
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de configurações">
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive group text-left" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);" data-equip-filter="all" onclick="chkSettingsSetFilter('all')" aria-pressed="true">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Total</span>
+                    <span class="employees-kpi__value tabular-nums">{{ settings_stats.equipment_total }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Equipamentos cadastrados</span>
+                </div>
             </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive group text-left" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);" data-equip-filter="available" onclick="chkSettingsSetFilter('available')" aria-pressed="false">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Disponíveis</span>
+                    <span class="employees-kpi__value tabular-nums">{{ settings_stats.equipment_available }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Liberados para uso</span>
+                </div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive group text-left" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);" data-equip-filter="blocked" onclick="chkSettingsSetFilter('blocked')" aria-pressed="false">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-red-600 dark:text-red-300">Bloqueados</span>
+                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ settings_stats.equipment_blocked }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Manutenção ou restrição</span>
+                </div>
+            </button>
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">Com histórico</span>
+                    <span class="employees-kpi__value tabular-nums">{{ settings_stats.equipment_with_checklists }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">Já possuem checklist</span>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">E-mails ativos</span>
+                    <span class="employees-kpi__value tabular-nums">{{ settings_stats.emails_active }}</span>
+                    <span class="employees-kpi__meta employees-text-muted">De {{ settings_stats.emails_total }} cadastrados</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner">
+                <div class="employees-filter-bar__primary">
+                    <div class="employees-filter-bar__primary-scroll">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search">
+                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="equipmentSearchInput" autocomplete="off" placeholder="Código do equipamento" class="ops-toolbar-search__input">
+                        </div>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+                <div class="employees-filter-bar__secondary">
+                    <button type="button" data-equip-filter="all" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" onclick="chkSettingsClearSearch()">Limpar busca / ver todos</button>
+                    <span class="employees-text-caption self-center text-[11px]">Filtro rápido pelos cards acima</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="bulkEquipmentDeleteForm" action="/admin/routine/checklists/settings/equipment/bulk-delete" method="POST">
+    <div id="equipment-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Frota cadastrada</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Equipamentos</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Em telas menores cada linha vira card. A busca e os filtros usam debounce e paginação local para manter a interface fluida.</p>
+            </div>
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span class="employees-text-caption">Somente itens sem checklists podem ser excluídos em lote.</span>
+                Equipamentos <span class="font-semibold text-red-600 dark:text-red-400">bloqueados</span> exigem fluxo individual com justificativa.
+            </div>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[720px]" id="equipmentTable">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-3 py-2 pl-5"><input type="checkbox" id="equipmentSelectAll" aria-label="Selecionar todos"></th>
+                        <th class="employees-data-table__th px-2 py-2">Código</th>
+                        <th class="employees-data-table__th px-2 py-2">Checklists</th>
+                        <th class="employees-data-table__th px-2 py-2">Status</th>
+                        <th class="employees-data-table__th px-2 py-2">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y" id="equipmentTableBody">
+                    {% for eq in equipment_list %}
+                    {% set usage = usage_by_code.get(eq.code, 0) %}
+                    <tr class="equipment-settings-row employees-data-table__row transition-colors"
+                        data-id="{{ eq.id }}"
+                        data-code="{{ eq.code }}"
+                        data-status="{{ eq.status }}"
+                        data-usage="{{ usage }}">
+                        <td class="px-3 py-2 pl-5 align-middle" data-label="Sel">
+                            {% if eq.status != 'blocked' and usage == 0 %}
+                            <input type="checkbox" class="equipment-row-checkbox" name="equipment_ids" value="{{ eq.id }}">
+                            {% else %}
+                            <span class="employees-text-muted text-xs">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle font-semibold employees-text-strong" data-label="Código">{{ eq.code }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle tabular-nums" data-label="Checklists">{{ usage }}</td>
+                        <td class="employees-data-table__td--col-status px-2 py-2 align-middle whitespace-nowrap" data-label="Status">
+                            {% if eq.status == 'available' %}
+                            <span class="sys-badge sys-badge--ok">Disponível</span>
+                            {% elif eq.status == 'blocked' %}
+                            <span class="sys-badge sys-badge--critical">Bloqueado</span>
+                            {% else %}
+                            <span class="employees-pill employees-pill--status employees-pill--pending">{{ eq.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
+                            <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                                <button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar código"
+                                    onclick="chkSettingsOpenEditModal({{ eq.id }}, {{ eq.code|tojson }}, {{ eq.status|tojson }}, {{ usage }})">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                </button>
+                                {% if eq.status == 'available' %}
+                                <button type="button" class="employee-action-btn employee-action-btn--away" title="Bloquear"
+                                    onclick="chkSettingsOpenBlockModal({{ eq.id }}, {{ eq.code|tojson }})">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                                </button>
+                                {% else %}
+                                <form action="/admin/routine/checklists/settings/equipment/{{ eq.id }}/release" method="POST" class="inline" onsubmit="return confirm('Liberar este equipamento para uso?');">
+                                    <button type="submit" class="employee-action-btn employee-action-btn--return" title="Liberar">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if eq.status != 'blocked' and usage == 0 %}
+                                <form action="/admin/routine/checklists/settings/equipment/{{ eq.id }}/delete" method="POST" class="inline"
+                                    onsubmit="return confirm('Remover o equipamento ' + {{ eq.code|tojson }} + '?');">
+                                    <button type="submit" class="employee-action-btn employee-action-btn--delete" title="Remover">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </form>
+                                {% elif eq.status == 'blocked' %}
+                                <button type="button" class="employee-action-btn employee-action-btn--fire" title="Remover bloqueado (auditoria)"
+                                    onclick="chkSettingsOpenForceDeleteModal({{ eq.id }}, {{ eq.code|tojson }})">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not equipment_list %}
+                    <tr><td colspan="5" class="py-10 text-center"><div class="sys-empty-state">Nenhum equipamento cadastrado. Use “Novo equipamento” ou importe uma planilha.</div></td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+            <span><span id="equipmentVisibleCount">0</span> equipamento(s) no filtro atual · <span id="equipmentPageLabel">Página 1 / 1</span></span>
+            <div class="flex items-center gap-2">
+                <button type="button" id="equipmentPrevPage" onclick="chkSettingsEquipmentPrev()" class="sys-btn sys-btn--secondary">Anterior</button>
+                <button type="button" id="equipmentNextPage" onclick="chkSettingsEquipmentNext()" class="sys-btn sys-btn--secondary">Próxima</button>
+                <button type="button" onclick="chkSettingsOpenBulkModal()" class="sys-btn sys-btn--ghost-danger">Excluir selecionados</button>
+            </div>
+        </div>
+    </div>
+    </form>
+
+    <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Notificações</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Destinatários de e-mail (manutenção / alertas)</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Recebem alertas de não conformidade e testes de envio. Remover apenas desativa o endereço.</p>
+            </div>
+            <button type="button" onclick="chkSettingsOpenAddEmailModal()" class="employees-cta sys-btn sys-btn--primary justify-center sm:min-w-[10rem]">Novo e-mail</button>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[560px]">
+                <thead class="employees-data-table__head border-b font-semibold">
+                    <tr>
+                        <th class="employees-data-table__th px-3 py-2 pl-5">E-mail</th>
+                        <th class="employees-data-table__th px-2 py-2">Status</th>
+                        <th class="employees-data-table__th px-2 py-2">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y">
+                    {% for r in email_recipients %}
+                    <tr class="employees-data-table__row">
+                        <td class="employees-data-table__cell px-3 py-2 pl-5 align-middle" data-label="E-mail">{{ r.email }}</td>
+                        <td class="px-2 py-2 align-middle" data-label="Status">
+                            {% if r.is_active %}
+                            <span class="sys-badge sys-badge--ok">Ativo</span>
+                            {% else %}
+                            <span class="employees-pill employees-pill--status employees-pill--pending">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
+                            <div class="employee-actions employees-action-strip flex flex-nowrap gap-1">
+                                {% if r.is_active %}
+                                <form action="/admin/routine/checklists/settings/emails/{{ r.id }}/test" method="POST" class="inline">
+                                    <button type="submit" class="employee-action-btn employee-action-btn--vacation" title="Testar envio">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                    </button>
+                                </form>
+                                <form action="/admin/routine/checklists/settings/emails/{{ r.id }}/delete" method="POST" class="inline"
+                                    onsubmit="return confirm('Desativar este e-mail?');">
+                                    <button type="submit" class="employee-action-btn employee-action-btn--delete" title="Desativar">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <span class="employees-text-muted text-xs px-2">—</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not email_recipients %}
+                    <tr><td colspan="3" class="py-8 text-center"><div class="sys-empty-state">Nenhum destinatário. Adicione e-mails para receber alertas de checklist.</div></td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <details class="sys-card sys-card--surface overflow-hidden rounded-xl border border-red-200/80 bg-red-50/40 dark:border-red-900/50 dark:bg-red-950/20">
+        <summary class="cursor-pointer list-none px-5 py-4 font-semibold text-red-800 dark:text-red-200 marker:content-none">
+            <span class="inline-flex items-center gap-2">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M5.07 19.07A10 10 0 1118.93 5.07 10 10 0 015.07 19.07z"></path></svg>
+                Zona de risco (limpeza e reset)
+            </span>
+        </summary>
+        <div class="space-y-6 border-t border-red-200/60 px-5 py-5 dark:border-red-900/40">
+            <p class="text-xs text-red-900/80 dark:text-red-200/90">Use apenas em homologação ou quando precisar resetar dados operacionais. As ações abaixo não podem ser desfeitas.</p>
+            <div class="rounded-xl border border-red-300/70 bg-white/60 p-4 dark:border-red-800/50 dark:bg-slate-900/40">
+                <h4 class="text-sm font-bold text-red-800 dark:text-red-200">Apagar todos os checklists</h4>
+                <p class="mt-1 text-xs text-red-900/80 dark:text-red-200/80">Remove histórico de checklists, impacta mobile/admin e XP vinculado.</p>
+                <form action="/admin/tools/cleanup/checklists" method="POST" class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end"
+                    onsubmit="return confirm('Tem certeza absoluta que deseja APAGAR TODOS os checklists e remover o XP relacionado? Esta ação não pode ser desfeita.');">
+                    <div class="flex-1">
+                        <label class="block text-[11px] font-semibold uppercase tracking-wide text-red-800 dark:text-red-300">Confirmação</label>
+                        <input type="text" name="confirm_phrase" required placeholder="Digite APAGAR TODOS os CHECKLISTS" class="sys-input mt-1 w-full">
+                    </div>
+                    <button type="submit" class="sys-btn shrink-0 border border-red-600 bg-red-600 text-white hover:bg-red-500">Apagar todos os checklists</button>
+                </form>
+            </div>
+            <div class="rounded-xl border border-red-300/70 bg-white/60 p-4 dark:border-red-800/50 dark:bg-slate-900/40">
+                <h4 class="text-sm font-bold text-red-800 dark:text-red-200">Resetar entregas e devoluções</h4>
+                <p class="mt-1 text-xs text-red-900/80 dark:text-red-200/80">Remove separação, entregas e devoluções; cadastros permanecem.</p>
+                <a href="/admin/tools/reset-delivery" class="sys-btn mt-3 inline-flex border border-red-600 bg-red-600 text-white hover:bg-red-500">Abrir ferramenta de reset</a>
+            </div>
+        </div>
+    </details>
+
+</div>
+
+{# --- Modais --- #}
+<div id="createEquipmentModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Novo equipamento</h3>
+            <button type="button" onclick="chkSettingsCloseCreateModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <form action="/admin/routine/checklists/settings/equipment" method="POST" class="space-y-4">
+            <div>
+                <label class="sys-section__label sys-section__label--field">Código</label>
+                <input type="text" name="code" required class="sys-input mt-1 w-full" placeholder="Ex.: TP-12">
+                <p class="mt-1 text-xs employees-text-muted">Código único exibido no checklist e nos chamados.</p>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="chkSettingsCloseCreateModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Cadastrar</button>
+            </div>
         </form>
     </div>
+</div>
 
-    <!-- Reset Entregas e Devoluções -->
-    <div class="bg-red-950/40 border border-red-800/60 rounded-2xl p-6 mb-8">
-        <h2 class="text-lg font-bold text-red-200 flex items-center gap-2 mb-2">
-            Resetar Entregas e Devoluções
-        </h2>
-        <p class="text-xs text-red-200/80 mb-4">
-            Remove todos os dados de separação, entregas e devoluções. Cadastros preservados.
-        </p>
-        <a href="/admin/tools/reset-delivery"
-            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-semibold text-sm transition-colors">
-            Abrir ferramenta de reset
-        </a>
+<div id="importEquipmentModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Importar equipamentos</h3>
+            <button type="button" onclick="chkSettingsCloseImportModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <form action="/admin/routine/checklists/settings/equipment/import" method="POST" enctype="multipart/form-data" class="space-y-4">
+            <div class="emp-modal-dropzone">
+                <p class="mb-2 text-sm employees-text-muted">Arquivo Excel (.xlsx)</p>
+                <input type="file" name="file" accept=".xlsx,.xls" required class="sys-input w-full text-sm">
+            </div>
+            <div class="text-xs employees-text-muted">
+                <p>Colunas aceitas no cabeçalho (primeira linha):</p>
+                <code class="mt-1 inline-block rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono dark:border-slate-600 dark:bg-slate-800">code</code>,
+                <code class="font-mono">código</code>,
+                <code class="font-mono">equipamento</code>,
+                <code class="font-mono">placa</code>…
+                <p class="mt-1">Linhas duplicadas ou códigos já existentes são ignoradas.</p>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="chkSettingsCloseImportModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Importar</button>
+            </div>
+        </form>
     </div>
 </div>
+
+<div id="bulkEquipmentModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Remoção em lote</h3>
+            <button type="button" onclick="chkSettingsCloseBulkModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <p class="text-sm employees-text-muted">Somente equipamentos selecionados, <strong>sem histórico de checklist</strong> e <strong>não bloqueados</strong>, serão removidos.</p>
+        <div class="mt-5 flex justify-end gap-3">
+            <button type="button" onclick="chkSettingsCloseBulkModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+            <button type="button" onclick="chkSettingsConfirmBulkDelete()" class="sys-btn sys-btn--ghost-danger">Excluir selecionados</button>
+        </div>
+    </div>
+</div>
+
+<div id="editEquipmentModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Editar equipamento</h3>
+            <button type="button" onclick="chkSettingsCloseEditModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <form id="editEquipmentForm" method="POST" class="space-y-3" action="#">
+            <input type="hidden" id="editEquipmentId" value="">
+            <div>
+                <label class="sys-section__label sys-section__label--field">Código</label>
+                <input type="text" name="new_code" id="editEquipmentCode" required class="sys-input mt-1 w-full">
+                <p id="editEquipmentUsageHint" class="mt-1 text-xs employees-text-muted"></p>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="chkSettingsCloseEditModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Salvar código</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="blockEquipmentModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Bloquear equipamento</h3>
+            <button type="button" onclick="chkSettingsCloseBlockModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <p class="text-sm employees-text-muted">Código: <strong id="blockEquipmentCodeLabel"></strong></p>
+        <form id="blockEquipmentForm" method="POST" class="mt-3 space-y-3" action="#">
+            <div>
+                <label class="sys-section__label sys-section__label--field">Motivo</label>
+                <textarea name="reason" id="blockEquipmentReason" required rows="3" class="sys-input mt-1 w-full" placeholder="Descreva o motivo do bloqueio operacional"></textarea>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="chkSettingsCloseBlockModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Bloquear</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="forceDeleteEquipmentModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md border-2 border-red-200 dark:border-red-900/60">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg text-red-700 dark:text-red-300">Remover equipamento bloqueado</h3>
+            <button type="button" class="emp-modal-close shrink-0" onclick="document.getElementById('forceDeleteEquipmentModal').classList.add('hidden')" aria-label="Fechar">×</button>
+        </div>
+        <p class="text-sm employees-text-muted">Registre o motivo para auditoria. Equipamento: <strong id="forceDeleteEquipmentCode"></strong></p>
+        <form id="forceDeleteEquipmentForm" method="POST" class="mt-3 space-y-3">
+            <input type="hidden" name="force_delete" value="true">
+            <div>
+                <label class="sys-section__label sys-section__label--field">Comentário obrigatório</label>
+                <textarea name="comment" required rows="3" class="sys-input mt-1 w-full"></textarea>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" class="sys-btn sys-btn--secondary" onclick="document.getElementById('forceDeleteEquipmentModal').classList.add('hidden')">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--ghost-danger">Remover com auditoria</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="addEmailModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Novo destinatário</h3>
+            <button type="button" onclick="chkSettingsCloseAddEmailModal()" class="emp-modal-close shrink-0" aria-label="Fechar">×</button>
+        </div>
+        <form action="/admin/routine/checklists/settings/emails" method="POST" class="space-y-4">
+            <div>
+                <label class="sys-section__label sys-section__label--field">E-mail</label>
+                <input type="email" name="email" required class="sys-input mt-1 w-full" placeholder="operacoes@empresa.com.br">
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="chkSettingsCloseAddEmailModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Adicionar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 
+{% block body_scripts %}
+<script src="/static/js/admin_routine_checklists_settings.js" defer></script>
+{% endblock %}

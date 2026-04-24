@@ -28,7 +28,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
         </svg>
         <span class="min-w-0 flex-1">
-            Importacao concluida: {{ request.query_params.get('created', 0) }} criado(s){% if request.query_params.get('rejected', 0)|int > 0 %}, {{ request.query_params.get('rejected') }} rejeitado(s){% endif %}.
+            Importacao concluida: {{ request.query_params.get('created', 0) }} criado(s){% if request.query_params.get('updated', 0)|int > 0 %}, {{ request.query_params.get('updated') }} atualizado(s){% endif %}{% if request.query_params.get('rejected', 0)|int > 0 %}, {{ request.query_params.get('rejected') }} rejeitado(s){% endif %}.
         </span>
         <button type="button" onclick="this.parentElement.remove()" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" aria-label="Fechar">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,125 +95,125 @@
     {% endif %}
 
     <div class="sys-card sys-card--surface clients-filter-card clients-toolbar-unified">
-        <div class="clients-unified-toolbar__top flex flex-col gap-3 border-b border-slate-200/80 py-4 dark:border-slate-700/60 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <p class="min-w-0 text-xs font-medium leading-relaxed text-slate-600 dark:text-slate-300">
+        <div class="clients-unified-toolbar__top border-b border-slate-200/50 px-4 py-1.5 dark:border-slate-700/40">
+            <p class="min-w-0 text-[11px] font-medium leading-snug text-slate-500 dark:text-slate-400 sm:text-xs">
                 <span class="tabular-nums text-slate-900 dark:text-slate-100">{{ clients_stats.total_filtered|fmt_br_int }}</span> na lista
                 <span class="text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
                 <span class="tabular-nums">{{ clients_stats.segment_count|fmt_br_int }}</span> segmentos
                 <span class="text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
                 <span class="tabular-nums">{{ clients_stats.group_count|fmt_br_int }}</span> grupos
             </p>
-            <div class="flex w-full flex-shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                <div x-data="{ open: false, fileName: '' }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[10rem]">
-                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
-                        <span class="employees-cta__icon" aria-hidden="true">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+        </div>
+
+        {# Form GET vazio: campos usam form="clients-list-filters" para evitar <form> dentro de <form> no import #}
+        <form id="clients-list-filters" method="get" action="/clients" class="clients-filter-form-anchor" aria-hidden="true" tabindex="-1"></form>
+        <input type="hidden" name="per_page" form="clients-list-filters" value="{{ clients_pagination.per_page if clients_pagination else 100 }}">
+        <div class="clients-filter-form clients-filter-form--stacked" aria-label="Filtros da lista de clientes">
+            <div class="clients-filter-form__row clients-filter-form__row--top">
+                <div class="clients-filter-field clients-filter-field--wide min-w-0">
+                    <label for="clients-search" class="clients-field-label">Busca</label>
+                    <input id="clients-search" type="text" name="q" form="clients-list-filters" value="{{ search or '' }}" placeholder="Nome, NB, cidade…" class="clients-control">
+                </div>
+                <div class="clients-filter-field clients-filter-field--status">
+                    <label for="clients-status" class="clients-field-label">Status</label>
+                    <select id="clients-status" name="status" form="clients-list-filters" class="clients-control">
+                        <option value="ativos" {% if status_filter == 'ativos' %}selected{% endif %}>Ativos</option>
+                        <option value="todos" {% if status_filter == 'todos' %}selected{% endif %}>Todos</option>
+                        <option value="precadastro" {% if status_filter == 'precadastro' %}selected{% endif %}>Pre-cadastro</option>
+                        <option value="fechou" {% if status_filter == 'fechou' %}selected{% endif %}>Fechados</option>
+                        <option value="inativo" {% if status_filter == 'inativo' %}selected{% endif %}>Inativos</option>
+                        <option value="em_validacao" {% if status_filter == 'em_validacao' %}selected{% endif %}>Em validacao</option>
+                    </select>
+                </div>
+                <div class="clients-filter-field clients-filter-field--segmento">
+                    <label for="clients-segmento" class="clients-field-label">Segmento</label>
+                    <select id="clients-segmento" name="segmento" form="clients-list-filters" class="clients-control">
+                        <option value="">Todos os segmentos</option>
+                        {% for seg in segmentos_opts %}
+                        <option value="{{ seg|e }}" {% if segmento_filter == seg %}selected{% endif %}>{{ seg }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="clients-filter-toolbar-cta" role="group" aria-label="Importar e novo cliente">
+                    <div x-data="{ open: false, fileName: '' }" class="employees-hero__import-wrap employees-hero__import-wrap--clients relative min-w-0 shrink">
+                        <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary inline-flex w-full min-w-0 max-w-full shrink justify-center whitespace-nowrap px-2.5 sm:px-3" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                            <span class="employees-cta__icon" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                                </svg>
+                            </span>
+                            <span class="employees-cta__label">Importar</span>
+                            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
-                        </span>
-                        <span class="employees-cta__label">Importar</span>
-                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div x-show="open" @click.outside="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,22rem)]">
-                        <form action="/clients/import" method="post" enctype="multipart/form-data" class="space-y-2">
-                            <label class="employees-menu-item cursor-pointer">
-                                <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                        </button>
+                        <div x-show="open" @click.outside="open = false" x-transition class="employees-hero__import-menu employees-hero__import-menu--clients absolute top-full right-0 z-50 mt-2 w-[min(100vw-2rem,22rem)] max-w-[calc(100vw-2rem)] py-1.5">
+                            <form action="/clients/import" method="post" enctype="multipart/form-data" class="clients-import-dropdown-form space-y-2">
+                                <label class="employees-menu-item employees-menu-item--block cursor-pointer">
+                                    <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"></path>
+                                        </svg>
+                                    </span>
+                                    <span class="employees-menu-item__text">
+                                        <span class="employees-menu-item__title">Planilha Excel ou CSV</span>
+                                        <span class="employees-menu-item__hint">Selecione um arquivo para importar em lote</span>
+                                    </span>
+                                    <input type="file" name="file" accept=".xlsx,.xls,.csv" required class="hidden" @change="fileName = $event.target.files.length ? $event.target.files[0].name : ''">
+                                </label>
+                                <p class="clients-import-file px-4 pb-1 break-words" x-show="fileName" x-text="fileName"></p>
+                                <div class="clients-import-actions px-4 pb-3">
+                                    <button type="submit" class="sys-btn sys-btn--primary w-full justify-center text-center">Importar agora</button>
+                                    <a href="/clients/template" class="sys-btn sys-btn--secondary w-full justify-center text-center" download="planilha_clientes_modelo.xlsx">Baixar modelo</a>
+                                </div>
+                            </form>
+                            <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
+                            <a href="/clients/import" class="employees-menu-item employees-menu-item--block">
+                                <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                     </svg>
                                 </span>
                                 <span class="employees-menu-item__text">
-                                    <span class="employees-menu-item__title">Planilha Excel ou CSV</span>
-                                    <span class="employees-menu-item__hint">Selecione um arquivo para importar em lote</span>
+                                    <span class="employees-menu-item__title">Tela de importacao</span>
+                                    <span class="employees-menu-item__hint">Acompanhe lotes e resolva conflitos</span>
                                 </span>
-                                <input type="file" name="file" accept=".xlsx,.xls,.csv" required class="hidden" @change="fileName = $event.target.files.length ? $event.target.files[0].name : ''">
-                            </label>
-                            <p class="clients-import-file px-4 pb-1" x-show="fileName" x-text="fileName"></p>
-                            <div class="clients-import-actions px-4 pb-3">
-                                <button type="submit" class="sys-btn sys-btn--primary justify-center">Importar agora</button>
-                                <a href="/clients/template" class="sys-btn sys-btn--secondary justify-center" download="planilha_clientes_modelo.xlsx">Baixar modelo</a>
-                            </div>
-                        </form>
-                        <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
-                        <a href="/clients/import" class="employees-menu-item">
-                            <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                            </span>
-                            <span class="employees-menu-item__text">
-                                <span class="employees-menu-item__title">Tela de importacao</span>
-                                <span class="employees-menu-item__hint">Acompanhe lotes e resolva conflitos</span>
-                            </span>
-                        </a>
+                            </a>
+                        </div>
                     </div>
+                    <button type="button" onclick="openNovoClienteModal()" class="employees-cta sys-btn sys-btn--success inline-flex min-w-0 max-w-full shrink justify-center whitespace-nowrap px-2.5 sm:px-3">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                        </span>
+                        <span class="employees-cta__label">Novo Cliente</span>
+                    </button>
                 </div>
-                <button type="button" onclick="openNovoClienteModal()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
-                    <span class="employees-cta__icon" aria-hidden="true">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                    </span>
-                    <span class="employees-cta__label">Novo Cliente</span>
-                </button>
-            </div>
-        </div>
-        <div class="clients-filter-card__head clients-toolbar-unified__filters-head flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 py-3 dark:border-slate-700/60">
-            <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Filtros</h3>
-            <a href="/clients" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar text-xs">Limpar</a>
-        </div>
-
-        <form action="/clients" method="get" class="clients-filter-form">
-            <div class="clients-filter-field">
-                <label for="clients-status" class="clients-field-label">Status</label>
-                <select id="clients-status" name="status" class="clients-control">
-                    <option value="ativos" {% if status_filter == 'ativos' %}selected{% endif %}>Ativos</option>
-                    <option value="todos" {% if status_filter == 'todos' %}selected{% endif %}>Todos</option>
-                    <option value="precadastro" {% if status_filter == 'precadastro' %}selected{% endif %}>Pre-cadastro</option>
-                    <option value="fechou" {% if status_filter == 'fechou' %}selected{% endif %}>Fechados</option>
-                    <option value="inativo" {% if status_filter == 'inativo' %}selected{% endif %}>Inativos</option>
-                    <option value="em_validacao" {% if status_filter == 'em_validacao' %}selected{% endif %}>Em validacao</option>
-                </select>
             </div>
 
-            <div class="clients-filter-field">
-                <label for="clients-segmento" class="clients-field-label">Segmento</label>
-                <select id="clients-segmento" name="segmento" class="clients-control">
-                    <option value="">Todos os segmentos</option>
-                    {% for seg in segmentos_opts %}
-                    <option value="{{ seg|e }}" {% if segmento_filter == seg %}selected{% endif %}>{{ seg }}</option>
-                    {% endfor %}
-                </select>
+            <div class="clients-filter-form__row clients-filter-form__row--bottom">
+            <div class="clients-filter-field clients-filter-field--date">
+                <label for="clients-mov-from" class="clients-field-label">Mov. de</label>
+                <input id="clients-mov-from" type="date" name="mov_from" form="clients-list-filters" value="{{ mov_from or '' }}" class="clients-control">
             </div>
 
-            <div class="clients-filter-field clients-filter-field--wide">
-                <label for="clients-search" class="clients-field-label">Busca</label>
-                <input id="clients-search" type="text" name="q" value="{{ search or '' }}" placeholder="Nome, razao social, NB ou municipio" class="clients-control">
+            <div class="clients-filter-field clients-filter-field--date">
+                <label for="clients-mov-to" class="clients-field-label">Mov. até</label>
+                <input id="clients-mov-to" type="date" name="mov_to" form="clients-list-filters" value="{{ mov_to or '' }}" class="clients-control">
             </div>
 
-            <div class="clients-filter-field">
-                <label for="clients-mov-from" class="clients-field-label">Ult. mov. de</label>
-                <input id="clients-mov-from" type="date" name="mov_from" value="{{ mov_from or '' }}" class="clients-control">
-            </div>
-
-            <div class="clients-filter-field">
-                <label for="clients-mov-to" class="clients-field-label">Ult. mov. ate</label>
-                <input id="clients-mov-to" type="date" name="mov_to" value="{{ mov_to or '' }}" class="clients-control">
-            </div>
-
-            <div class="clients-filter-field">
+            <div class="clients-filter-field clients-filter-field--precad">
                 <label for="clients-precadastro" class="clients-field-label">Pre-cadastro</label>
-                <select id="clients-precadastro" name="precadastro" class="clients-control">
+                <select id="clients-precadastro" name="precadastro" form="clients-list-filters" class="clients-control">
                     <option value="">Todos</option>
                     <option value="sim" {% if precadastro == 'sim' %}selected{% endif %}>So pre-cadastro</option>
                 </select>
             </div>
 
-            <div class="clients-filter-field">
-                <label for="clients-precadastro-idade" class="clients-field-label">Idade do pre-cadastro</label>
-                <select id="clients-precadastro-idade" name="precadastro_idade" class="clients-control">
+            <div class="clients-filter-field clients-filter-field--idade">
+                <label for="clients-precadastro-idade" class="clients-field-label">Idade pré-cad.</label>
+                <select id="clients-precadastro-idade" name="precadastro_idade" form="clients-list-filters" class="clients-control">
                     <option value="">Qualquer idade</option>
                     <option value="1m" {% if precadastro_idade == '1m' %}selected{% endif %}>1 mes</option>
                     <option value="3m" {% if precadastro_idade == '3m' %}selected{% endif %}>3 meses</option>
@@ -224,11 +224,11 @@
                 </select>
             </div>
 
-            <div class="clients-filter-field">
-                <label for="clients-sort" class="clients-field-label">Ordenacao</label>
-                <select id="clients-sort" name="sort" class="clients-control">
-                    <option value="mov_desc" {% if (sort_order or 'mov_desc') == 'mov_desc' %}selected{% endif %}>Ult. mov. mais recente</option>
-                    <option value="mov_asc" {% if sort_order == 'mov_asc' %}selected{% endif %}>Ult. mov. mais antiga</option>
+            <div class="clients-filter-field clients-filter-field--sort">
+                <label for="clients-sort" class="clients-field-label">Ordenar</label>
+                <select id="clients-sort" name="sort" form="clients-list-filters" class="clients-control">
+                    <option value="mov_desc" {% if (sort_order or 'mov_desc') == 'mov_desc' %}selected{% endif %}>Mov. mais recente</option>
+                    <option value="mov_asc" {% if sort_order == 'mov_asc' %}selected{% endif %}>Mov. mais antiga</option>
                     <option value="name_asc" {% if sort_order == 'name_asc' %}selected{% endif %}>Nome A-Z</option>
                     <option value="name_desc" {% if sort_order == 'name_desc' %}selected{% endif %}>Nome Z-A</option>
                     <option value="nb_asc" {% if sort_order == 'nb_asc' %}selected{% endif %}>NB crescente</option>
@@ -237,11 +237,11 @@
             </div>
 
             <div class="clients-filter-actions">
-                <button type="submit" class="sys-btn sys-btn--primary justify-center">Aplicar</button>
-                <a href="/clients" class="sys-btn sys-btn--secondary justify-center">Resetar</a>
-                <span class="employees-filter-counter">{{ clients_stats.total_filtered|fmt_br_int }} cliente(s)</span>
+                <a href="/clients" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar text-[11px] sm:text-xs">Limpar filtros</a>
+                <button type="submit" form="clients-list-filters" class="sys-btn sys-btn--primary clients-filter-apply-btn justify-center">Aplicar</button>
             </div>
-        </form>
+            </div>
+        </div>
     </div>
 
     <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel clients-table-panel overflow-hidden p-0">
@@ -274,19 +274,16 @@
 
         {% if clients %}
         <div class="sys-table-wrap sys-table-wrap--x-scroll">
-            <table class="employees-data-table employees-data-table--compact clients-data-table w-full min-w-full border-collapse text-left text-sm md:min-w-[1080px]" id="employeesTable">
+            <table class="employees-data-table employees-data-table--compact clients-data-table w-full min-w-full border-collapse text-left text-sm md:min-w-[800px]" id="employeesTable">
                 <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
                     <tr>
                         <th class="employees-data-table__th employees-data-table__th--static clients-data-table__th--select px-3 py-2 pl-5">
-                            <input type="checkbox" id="bulk-select-all" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" title="Marcar todos">
+                            <input type="checkbox" id="bulk-select-all" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" title="Marcar todos os clientes desta página">
                         </th>
                         <th class="employees-data-table__th clients-data-table__th--nb px-3 py-2">Cod. (NB)</th>
                         <th class="employees-data-table__th employees-data-table__th--col-name px-3 py-2">Cliente</th>
-                        <th class="employees-data-table__th clients-data-table__th--created px-3 py-2">Data cadastro</th>
                         <th class="employees-data-table__th clients-data-table__th--movement px-3 py-2">Ultima mov.</th>
-                        <th class="employees-data-table__th employees-data-table__th--col-center px-3 py-2">Vendedor</th>
-                        <th class="employees-data-table__th employees-data-table__th--col-schedule px-3 py-2">Municipio</th>
-                        <th class="employees-data-table__th employees-data-table__th--col-role px-3 py-2">Segmento</th>
+                        <th class="employees-data-table__th employees-data-table__th--col-center px-3 py-2">Nome do vendedor</th>
                         <th class="employees-data-table__th employees-data-table__th--col-status px-3 py-2">Status</th>
                         <th class="employees-data-table__th employees-data-table__th--static employees-data-table__th--col-actions px-3 py-2">Acoes</th>
                     </tr>
@@ -310,17 +307,7 @@
                                 <p class="clients-data-table__subline mt-1 truncate">{{ client.razao_social or client.nome_fantasia or 'Sem razao social informada' }}</p>
                             </div>
                         </td>
-                        <td class="employees-data-table__cell px-3 py-2 align-middle whitespace-nowrap" data-label="Cadastro">
-                            {% set data_cad = data_cadastro_by_client.get(client.id) %}
-                            {% if client.created_at %}
-                            {{ client.created_at|fmt_br_datetime }}
-                            {% elif data_cad %}
-                            {{ data_cad|fmt_br_date }}
-                            {% else %}
-                            -
-                            {% endif %}
-                        </td>
-                        <td class="employees-data-table__cell employees-data-table__cell--muted px-3 py-2 align-middle whitespace-nowrap" data-label="Ultima mov.">
+                        <td class="employees-data-table__cell employees-data-table__cell--muted clients-data-table__td--movement px-3 py-2 align-middle whitespace-nowrap" data-label="Ultima mov.">
                             {% set last_mov = last_movement_by_client.get(client.id) %}
                             {% if last_mov %}
                             <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ last_mov|fmt_br_date }}</span>
@@ -331,20 +318,12 @@
                             <div class="clients-data-table__meta-chip">{{ precadastro_buckets_labels.get(precadastro_bucket_by_client.get(client.id), precadastro_bucket_by_client.get(client.id)) }}</div>
                             {% endif %}
                         </td>
-                        <td class="employees-data-table__cell employees-data-table__td--col-center px-3 py-2 align-middle whitespace-nowrap" data-label="Vendedor">
+                        <td class="employees-data-table__cell employees-data-table__td--col-center px-3 py-2 align-middle whitespace-nowrap" data-label="Nome do vendedor">
                             {% set ve = vendedor_by_id.get(client.vendedor_id) if (vendedor_by_id and client.vendedor_id) else none %}
                             {% if ve %}
-                            <span class="employees-pill employees-pill--neutral" title="Colaborador #{{ ve.id }}">{{ ve.name|emp_name }}{% if ve.seller_code %} ({{ ve.seller_code }}){% endif %}</span>
+                            <span class="employees-pill employees-pill--neutral" title="{% if ve.seller_code %}Código vendedor {{ ve.seller_code }} · {% endif %}Colaborador #{{ ve.id }}">{{ ve.name|emp_name }}</span>
                             {% elif client.setor %}
                             <span class="employees-pill employees-pill--neutral" title="Legado: apenas código no cadastro">{{ client.setor }}</span>
-                            {% else %}
-                            <span class="clients-text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="employees-data-table__cell employees-data-table__td--col-schedule px-3 py-2 align-middle whitespace-nowrap" data-label="Municipio">{{ client.municipio or '-' }}</td>
-                        <td class="employees-data-table__cell employees-data-table__td--col-role px-3 py-2 align-middle" data-label="Segmento">
-                            {% if client.segmento %}
-                            <span class="employees-data-table__role-ellipsis">{{ client.segmento }}</span>
                             {% else %}
                             <span class="clients-text-muted">-</span>
                             {% endif %}
@@ -378,6 +357,36 @@
                 </tbody>
             </table>
         </div>
+        {% if clients_pagination and clients_pagination.total_filtered > 0 %}
+        <div class="clients-pagination flex flex-col gap-2 border-t border-slate-200/80 px-4 py-3 text-xs text-slate-600 dark:border-slate-700/60 dark:text-slate-300 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5">
+            <p class="min-w-0 tabular-nums">
+                Mostrando <strong class="text-slate-800 dark:text-slate-100">{{ clients_pagination.showing_from }}–{{ clients_pagination.showing_to }}</strong>
+                de <strong class="text-slate-800 dark:text-slate-100">{{ clients_stats.total_filtered|fmt_br_int }}</strong>
+                <span class="text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
+                página <strong class="text-slate-800 dark:text-slate-100">{{ clients_pagination.page }}</strong> de {{ clients_pagination.total_pages }}
+                <span class="hidden text-slate-400 sm:inline dark:text-slate-500" aria-hidden="true"> · </span>
+                <span class="mt-1 block text-[11px] font-normal text-slate-500 sm:mt-0 sm:inline dark:text-slate-400">Seleção em lote: só a página atual.</span>
+            </p>
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Por página</span>
+                {% for item in clients_pagination.per_page_links %}
+                <a href="/clients?{{ item.qs }}" class="rounded-md px-2 py-1 font-medium {% if clients_pagination.per_page == item.n %}bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200{% else %}text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800{% endif %}">{{ item.n }}</a>
+                {% endfor %}
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                {% if clients_pagination.prev_qs %}
+                <a href="/clients?{{ clients_pagination.prev_qs }}" class="sys-btn sys-btn--secondary px-3 py-1.5 text-xs">Anterior</a>
+                {% else %}
+                <span class="cursor-not-allowed rounded-md border border-slate-200/80 px-3 py-1.5 text-xs text-slate-400 dark:border-slate-600">Anterior</span>
+                {% endif %}
+                {% if clients_pagination.next_qs %}
+                <a href="/clients?{{ clients_pagination.next_qs }}" class="sys-btn sys-btn--secondary px-3 py-1.5 text-xs">Próxima</a>
+                {% else %}
+                <span class="cursor-not-allowed rounded-md border border-slate-200/80 px-3 py-1.5 text-xs text-slate-400 dark:border-slate-600">Próxima</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         {% else %}
         <div class="clients-empty-state">
             <svg class="mx-auto mb-4 h-12 w-12 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -422,22 +431,22 @@
                         <input id="new-client-nb" type="text" name="nb" placeholder="Codigo" class="clients-control">
                     </div>
                     <div class="clients-filter-field clients-filter-field--span-2">
-                        <label for="new-client-vendedor" class="clients-field-label">Vendedor (colaborador)</label>
+                        <label for="new-client-vendedor" class="clients-field-label">Colaborador (venda)</label>
                         <select id="new-client-vendedor" name="vendedor_id" class="clients-control">
-                            <option value="">— Sem vendedor</option>
+                            <option value="">— Sem colaborador</option>
                             {% for v in vendedores_list %}
                             <option value="{{ v.id }}">{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
                             {% endfor %}
                         </select>
-                        <p class="clients-field-help">Lista: colaboradores com cargo contendo &quot;VENDEDOR&quot;. O código é o da ficha do colaborador (Código do Vendedor).</p>
+                        <p class="clients-field-help">Lista de colaboradores ativos; o vínculo usa o código do vendedor na ficha do colaborador.</p>
                     </div>
                     <div class="clients-filter-field">
-                        <label for="new-client-me" class="clients-field-label">ME</label>
-                        <input id="new-client-me" type="text" name="me" placeholder="ME" class="clients-control">
+                        <label for="new-client-me" class="clients-field-label">Setor</label>
+                        <input id="new-client-me" type="text" name="me" placeholder="Setor" class="clients-control">
                     </div>
                     <div class="clients-filter-field">
-                        <label for="new-client-sa" class="clients-field-label">SA</label>
-                        <input id="new-client-sa" type="text" name="sa" placeholder="SA" class="clients-control">
+                        <label for="new-client-sa" class="clients-field-label">MESA</label>
+                        <input id="new-client-sa" type="text" name="sa" placeholder="MESA" class="clients-control">
                     </div>
                     <div class="clients-filter-field">
                         <label for="new-client-visita" class="clients-field-label">Visita</label>

@@ -1,0 +1,77 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}OS #{{ order.id }} · Oficina{% endblock %}
+{% block header_breadcrumb %}<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / <a href="/workshop/service-orders" class="hover:underline">Ordens de serviço</a> / #{{ order.id }}</p>{% endblock %}
+{% block header_title %}<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Ordem de serviço #{{ order.id }}</h1>{% endblock %}
+{% block header_subtitle %}<p class="text-xs text-gray-500 dark:text-gray-400">{{ row.priority_label }} · {{ row.status_label }}</p>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/pages/employees.css">{% endblock %}
+
+{% block content %}
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+  {% if message %}
+  <div class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center justify-between gap-3">
+    <span>{{ message }}</span>
+    <button type="button" onclick="this.parentElement.remove()" class="emp-modal-close" aria-label="Fechar">×</button>
+  </div>
+  {% endif %}
+
+  <div>
+    <a href="/workshop/service-orders" class="sys-btn sys-btn--secondary inline-flex items-center gap-2 text-sm">← Voltar à lista</a>
+  </div>
+
+  <div class="sys-card sys-card--surface p-5">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <p class="employees-text-section-label">OS #{{ order.id }} · {{ row.priority_label }}</p>
+        <h3 class="sys-section-heading mt-1">{{ order.title }}</h3>
+        <p class="employees-text-muted mt-1 text-xs">
+          Veículo: {{ row.vehicle.placa if row.vehicle else "-" }} · Motorista: {{ row.driver_name }} · Origem: {{ order.origin }}{% if row.checklist %} · Checklist <a class="underline" href="/admin/routine/checklists/{{ row.checklist.id }}">#{{ row.checklist.id }}</a>{% endif %}
+        </p>
+        <p class="employees-text-body mt-2 text-sm">{{ order.problem_description or "Sem descrição detalhada." }}</p>
+      </div>
+      <div class="flex min-w-[12rem] flex-col gap-2">
+        <span class="sys-badge {% if order.status in ['done','closed'] %}sys-badge--ok{% elif order.priority == 'critical' %}sys-badge--critical{% else %}sys-badge--alert{% endif %}">{{ row.status_label }}</span>
+        <span class="employees-text-muted text-xs">Ações: {{ row.actions_done }}/{{ row.actions_total }} ({{ row.actions_pct }}%)</span>
+      </div>
+    </div>
+
+    <div class="mt-4 grid gap-4 lg:grid-cols-2">
+      <form method="POST" action="/workshop/service-orders/{{ order.id }}/status" class="space-y-2 rounded-xl border p-3">
+        <label class="sys-section__label sys-section__label--field">Atualizar status da OS</label>
+        <select name="status_value" class="sys-select w-full">
+          <option value="open" {% if order.status == 'open' %}selected{% endif %}>Aberta</option>
+          <option value="triage" {% if order.status == 'triage' %}selected{% endif %}>Triagem</option>
+          <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>Em execução</option>
+          <option value="waiting_parts" {% if order.status == 'waiting_parts' %}selected{% endif %}>Aguardando peça</option>
+          <option value="done" {% if order.status == 'done' %}selected{% endif %}>Concluída</option>
+          <option value="closed" {% if order.status == 'closed' %}selected{% endif %}>Encerrada</option>
+        </select>
+        <textarea name="resolution_notes" class="sys-input w-full text-sm" rows="2" placeholder="Resumo da solução">{{ order.resolution_notes or '' }}</textarea>
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Salvar status</button>
+      </form>
+
+      <div class="rounded-xl border p-3">
+        <label class="sys-section__label sys-section__label--field">Plano de ação</label>
+        <div class="mt-2 space-y-2">
+          {% for action in order.action_plan_json %}
+          <form method="POST" action="/workshop/service-orders/{{ order.id }}/actions/{{ loop.index0 }}/respond" class="rounded-lg border p-2">
+            <p class="text-sm font-medium">{{ action.action }}</p>
+            <p class="employees-text-muted text-xs">Resp: {{ action.owner }} · Prazo: {{ action.due }}</p>
+            <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+              <select name="response_status" class="sys-select w-full sm:w-40">
+                <option value="pending" {% if action.response_status != 'done' %}selected{% endif %}>Pendente</option>
+                <option value="done" {% if action.response_status == 'done' %}selected{% endif %}>Respondida</option>
+              </select>
+              <input type="text" name="response_note" class="sys-input w-full" value="{{ action.response_note or '' }}" placeholder="Resposta/ação executada">
+              <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+              <button type="submit" class="sys-btn sys-btn--secondary">Atualizar</button>
+            </div>
+          </form>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

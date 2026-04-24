@@ -1,0 +1,67 @@
+/* Extensao da pele de employees para o painel de hodometro */
+.ga-employee-theme.employees-page #odometer-table-panel.employees-table-panel {
+  border: 1px solid var(--emp-border);
+  box-shadow: var(--emp-shadow-card), var(--emp-shadow-elevated);
+  border-radius: var(--emp-radius-lg);
+  background: var(--emp-surface);
+}
+
+.ga-employee-theme.employees-page #odometer-table-panel.employees-table-panel > .employees-table-panel__head {
+  border-color: var(--emp-border) !important;
+  background: linear-gradient(180deg, var(--emp-surface-subtle) 0%, var(--emp-surface) 55%);
+}
+
+.ga-employee-theme.employees-page .employees-data-table--vehicles .odo-col-plate { width: 9%; min-width: 5.2rem; }
+.ga-employee-theme.employees-page .employees-data-table--vehicles .odo-col-type { width: 9%; min-width: 5rem; }
+.ga-employee-theme.employees-page .employees-data-table--vehicles .odo-col-brand { width: 18%; }
+.ga-employee-theme.employees-page .employees-data-table--vehicles .odo-col-km { width: 9%; min-width: 6rem; }
+.ga-employee-theme.employees-page .employees-data-table--vehicles .odo-col-updated { width: 13%; min-width: 8rem; }
+.ga-employee-theme.employees-page .employees-data-table--vehicles .odo-col-status { width: 11%; min-width: 5rem; }
+.ga-employee-theme.employees-page .employees-data-table--vehicles .odo-col-actions { width: auto; min-width: 10rem; white-space: nowrap; }
+
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page #odometerTable thead { display: none; }
+  .ga-employee-theme.employees-page #odometerTable tbody { display: grid; gap: 0.9rem; padding: 0.95rem; }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-xl);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgb(241 245 249);
+    white-space: normal;
+  }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row td:first-child { border-top: 0; }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 6.2rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row td.odo-cell-primary { display: block; }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row td.odo-cell-primary::before { display: none; }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row td.odo-actions-cell { display: block; }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row td.odo-actions-cell::before { display: block; margin-bottom: 0.75rem; }
+  .ga-employee-theme.employees-page #odometerTable tr.odometer-row .odo-actions { justify-content: flex-start; flex-wrap: wrap; }
+}
+
+@media (max-width: 767px) {
+  html.dark .ga-employee-theme.employees-page #odometerTable tr.odometer-row {
+    background: linear-gradient(180deg, rgb(17 24 39) 0%, rgb(30 41 59) 100%);
+    border-color: rgb(55 65 81);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+  html.dark .ga-employee-theme.employees-page #odometerTable tr.odometer-row td { border-top-color: rgb(55 65 81); }
+  html.dark .ga-employee-theme.employees-page #odometerTable tr.odometer-row td[data-label]::before { color: rgb(148 163 184); }
+}

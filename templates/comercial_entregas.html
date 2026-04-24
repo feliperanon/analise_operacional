@@ -16,6 +16,7 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/comercial-modal.css">
 <style>
     .comercial-table-wrap {
         overflow-x: auto;
@@ -107,104 +108,6 @@
     .comercial-cliente-btn:hover {
         color: #0c4a6e;
     }
-    .comercial-modal-backdrop {
-        position: fixed;
-        inset: 0;
-        /* Acima do header (z-30), overlay do menu (z-40), drawer (z-50) e botão menu (z-60) — fora do stacking context do main */
-        z-index: 110;
-        display: flex;
-        align-items: flex-start;
-        justify-content: center;
-        padding: 10px 12px 16px;
-        background: rgba(15, 23, 42, 0.45);
-        /* Sem rolagem dentro do card branco: se não couber, rola só o backdrop (área escura) */
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    .comercial-modal-card {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        max-width: min(98vw, 1280px);
-        margin-top: 4px;
-        margin-bottom: auto;
-        max-height: none;
-        border-radius: var(--sys-radius-lg, 12px);
-        box-shadow: var(--sys-shadow-lg, 0 20px 40px rgba(0,0,0,.12));
-        background: var(--sys-surface-elevated, #fff);
-    }
-    html.dark .comercial-modal-card {
-        background: rgb(30 41 59);
-        border: 1px solid rgb(51 65 85);
-    }
-    .comercial-modal-body {
-        flex: none;
-        overflow: visible;
-        padding: 0.4rem 0.65rem 0.65rem;
-    }
-    .comercial-modal-grid {
-        display: grid;
-        gap: 0.3rem 0.55rem;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    @media (min-width: 720px) {
-        .comercial-modal-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    }
-    @media (min-width: 1100px) {
-        .comercial-modal-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    }
-    @media (max-width: 480px) {
-        .comercial-modal-grid { grid-template-columns: 1fr; }
-    }
-    .comercial-modal-grid .span-2 { grid-column: 1 / -1; }
-    .comercial-modal-form .sys-section__label--field {
-        font-size: 9px;
-        margin-bottom: 2px;
-    }
-    .comercial-modal-form .sys-input,
-    .comercial-modal-form select.sys-input {
-        font-size: 12px;
-        line-height: 1.25;
-        padding-top: 0.3rem;
-        padding-bottom: 0.3rem;
-        min-height: 0;
-    }
-    .comercial-kv-label {
-        display: block;
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: #64748b;
-        line-height: 1.15;
-    }
-    .comercial-kv-value {
-        margin: 0 0 0.15rem;
-        font-size: 12px;
-        line-height: 1.25;
-        color: #0f172a;
-        word-break: break-word;
-    }
-    html.dark .comercial-kv-value { color: #f1f5f9; }
-    .comercial-audit-table {
-        width: 100%;
-        font-size: 10px;
-        border-collapse: collapse;
-    }
-    .comercial-audit-table th,
-    .comercial-audit-table td {
-        border-bottom: 1px solid #e2e8f0;
-        padding: 4px 3px;
-        text-align: left;
-        vertical-align: top;
-    }
-    .comercial-audit-wrap {
-        overflow: visible;
-    }
-    html.dark .comercial-audit-table th,
-    html.dark .comercial-audit-table td {
-        border-color: #334155;
-    }
     .comercial-time {
         text-align: center;
         font-variant-numeric: tabular-nums;
@@ -253,7 +156,7 @@
     </div>
 
     <div class="sys-card sys-card--surface p-4">
-        <form action="/comercial/entregas" method="get" class="sys-filter-bar sys-filter-bar--end grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <form action="/comercial/entregas" method="get" class="sys-filter-bar sys-filter-bar--end grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <div>
                 <label class="sys-section__label sys-section__label--field">Data inicial</label>
                 <input type="date" name="date_from" value="{{ date_from }}" class="sys-input w-full">
@@ -282,7 +185,11 @@
                 <label class="sys-section__label sys-section__label--field">Cliente</label>
                 <input type="text" name="cliente" value="{{ cliente }}" class="sys-input w-full" placeholder="CNPJ, nome fantasia ou razão social">
             </div>
-            <div class="md:col-span-2 xl:col-span-5 flex justify-end gap-2 pt-1">
+            <div>
+                <label class="sys-section__label sys-section__label--field">Vendedor</label>
+                <input type="text" name="vendedor" value="{{ vendedor }}" class="sys-input w-full" placeholder="Código do vendedor ou nome">
+            </div>
+            <div class="md:col-span-2 xl:col-span-6 flex justify-end gap-2 pt-1">
                 <a href="/comercial/entregas" class="sys-btn sys-btn--secondary">Limpar</a>
                 <button type="submit" class="sys-btn sys-btn--primary">Atualizar consulta</button>
             </div>
@@ -356,118 +263,382 @@
         aria-modal="true"
         :aria-busy="loading || saving"
     >
-        <div class="comercial-modal-card sys-card sys-card--surface overflow-visible" @click.stop>
-            <div class="flex shrink-0 items-start justify-between gap-2 border-b border-slate-200 px-3 py-2.5 dark:border-slate-600">
-                <div class="min-w-0">
-                    <p class="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Cadastro do cliente</p>
-                    <h3 class="mt-0.5 truncate text-base font-semibold leading-tight text-slate-900 dark:text-white" x-text="clientRow.name || '—'"></h3>
+        <div class="comercial-modal-card sys-card sys-card--surface sys-card--comfort relative w-full overflow-hidden shadow-xl" @click.stop>
+            <div class="comercial-modal-header flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+                <div class="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
+                    <div class="comercial-modal-header__mark hidden sm:flex" aria-hidden="true">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                        </svg>
+                    </div>
+                    <div class="min-w-0 flex-1 pr-1">
+                        <p class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Cadastro do cliente</p>
+                        <h3 class="sys-section-heading truncate text-xl leading-snug sm:text-2xl" x-text="clientRow.name || '—'"></h3>
+                        <div class="comercial-modal-header__meta">
+                            <span><strong>NB</strong> <span x-text="clientRow.nb || '—'"></span></span>
+                            <span class="hidden text-slate-300 sm:inline dark:text-slate-600" aria-hidden="true">·</span>
+                            <span class="sm:inline"><strong>Código</strong> <span x-text="clientRow.id != null ? clientRow.id : '—'"></span></span>
+                        </div>
+                    </div>
                 </div>
-                <button type="button" class="sys-btn sys-btn--secondary shrink-0" @click="closeModal()">Fechar</button>
+                <button type="button" class="comercial-modal-close mt-0.5 shrink-0" @click="closeModal()" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
             </div>
-            <div class="comercial-modal-body">
+            <div class="comercial-modal-body space-y-5 px-6 py-5">
                 <p x-show="error" class="sys-alert sys-alert--danger mb-3 text-sm" x-text="error"></p>
                 <p x-show="successMsg" class="sys-alert sys-alert--success mb-3 text-sm" x-text="successMsg"></p>
 
-                <div x-show="!editMode && !loading && clientRow.id" x-cloak>
-                        <div class="comercial-modal-grid mb-2">
-                            <div><span class="comercial-kv-label">NB</span><p class="comercial-kv-value" x-text="clientRow.nb || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Nome (interno)</span><p class="comercial-kv-value" x-text="clientRow.name || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Nome fantasia</span><p class="comercial-kv-value" x-text="clientRow.nome_fantasia || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Razão social</span><p class="comercial-kv-value" x-text="clientRow.razao_social || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Vendedor</span><p class="comercial-kv-value" x-text="vendedorLabel()"></p></div>
-                            <div><span class="comercial-kv-label">ME / SA / Visita</span><p class="comercial-kv-value"><span x-text="clientRow.me || '—'"></span> / <span x-text="clientRow.sa || '—'"></span> / <span x-text="clientRow.visita || '—'"></span></p></div>
-                            <div><span class="comercial-kv-label">Município</span><p class="comercial-kv-value" x-text="clientRow.municipio || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Bairro</span><p class="comercial-kv-value" x-text="clientRow.bairro || '—'"></p></div>
-                            <div class="span-2"><span class="comercial-kv-label">Endereço (livre)</span><p class="comercial-kv-value" x-text="clientRow.endereco || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Logradouro</span><p class="comercial-kv-value" x-text="clientRow.logradouro || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Número</span><p class="comercial-kv-value" x-text="clientRow.numero || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Complemento</span><p class="comercial-kv-value" x-text="clientRow.complemento || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Referência</span><p class="comercial-kv-value" x-text="clientRow.referencia || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Telefone</span><p class="comercial-kv-value" x-text="clientRow.fone || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Telefone alternativo</span><p class="comercial-kv-value" x-text="clientRow.fone_alternativo || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Segmento</span><p class="comercial-kv-value" x-text="clientRow.segmento || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Status cliente</span><p class="comercial-kv-value" x-text="clientRow.status_cliente || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Status operacional</span><p class="comercial-kv-value" x-text="clientRow.status_operacional || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Prioridade logística</span><p class="comercial-kv-value" x-text="clientRow.prioridade_logistica || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Janela (dias)</span><p class="comercial-kv-value font-mono text-xs" x-text="clientRow.janela_dias_semana || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Janela horário</span><p class="comercial-kv-value"><span x-text="clientRow.janela_horario_inicio || '—'"></span> – <span x-text="clientRow.janela_horario_fim || '—'"></span></p></div>
-                            <div class="span-2"><span class="comercial-kv-label">Observações de acesso</span><p class="comercial-kv-value" x-text="clientRow.observacoes_acesso || '—'"></p></div>
-                            <div class="span-2"><span class="comercial-kv-label">Observações de contato</span><p class="comercial-kv-value" x-text="clientRow.observacoes_contato || '—'"></p></div>
-                            <div><span class="comercial-kv-label">LGPD não contatar</span><p class="comercial-kv-value" x-text="clientRow.lgpd_nao_contatar ? 'Sim' : 'Não'"></p></div>
-                            <div><span class="comercial-kv-label">LGPD restrição</span><p class="comercial-kv-value" x-text="clientRow.lgpd_restricao_dados ? 'Sim' : 'Não'"></p></div>
-                            <div><span class="comercial-kv-label">Geocodificação</span><p class="comercial-kv-value" x-text="clientRow.geocoding_status || '—'"></p></div>
-                            <div><span class="comercial-kv-label">Coordenadas</span><p class="comercial-kv-value"><span x-text="coordText()"></span></p></div>
+                <div class="comercial-v-phone-panel" x-show="vendedorPhonePanel && !loading && clientRow.id" x-cloak>
+                    <label class="sys-section__label sys-section__label--field">Telefone do vendedor (cadastro do colaborador)</label>
+                    <div class="mt-1 flex flex-wrap items-center gap-2">
+                        <input type="text" class="sys-input min-w-[200px] flex-1" x-model="vendedorPhoneInput" inputmode="tel" placeholder="DDD e número" autocomplete="tel">
+                        <button type="button" class="sys-btn sys-btn--primary" @click="saveVendedorPhone()" :disabled="vendedorPhoneSaving"><span x-show="!vendedorPhoneSaving">Salvar telefone</span><span x-show="vendedorPhoneSaving">Salvando…</span></button>
+                        <button type="button" class="sys-btn sys-btn--secondary" @click="closeVendedorPhoneEditor()" :disabled="vendedorPhoneSaving">Cancelar</button>
+                    </div>
+                </div>
+
+                <div x-show="!editMode && !loading && clientRow.id" x-cloak class="comercial-modal-stack">
+                    <section class="comercial-modal-section" aria-labelledby="comercial-sec-venda">
+                        <h4 id="comercial-sec-venda" class="comercial-modal-section__title">Venda e cadastro</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-top comercial-line-top--summary">
+                                <div class="comercial-line-nb">
+                                    <span class="comercial-kv-label">NB</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.nb || '—'"></p>
+                                </div>
+                                <div class="comercial-line-vend">
+                                    <span class="comercial-kv-label">Vendedor</span>
+                                    <p class="comercial-kv-value" x-text="vendedorLabel()"></p>
+                                </div>
+                                <button type="button" class="comercial-line-phone-btn sys-btn sys-btn--secondary whitespace-nowrap px-2 py-1.5 text-[11px] leading-tight" @click="openVendedorPhoneEditor()" :disabled="!clientRow.vendedor_select_id" title="Atualizar telefone no cadastro do colaborador">Editar nº vendedor</button>
+                            </div>
+                            <div class="comercial-modal-line comercial-line-mev-fantasia">
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">ME</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.me || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">SA</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.sa || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell comercial-visita-checks">
+                                    <span class="comercial-kv-label">Visita (dias)</span>
+                                    <p class="comercial-kv-value" x-text="visitaDisplayFromClient()"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Nome fantasia</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.nome_fantasia || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Razão social</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.razao_social || '—'"></p>
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex flex-wrap gap-2">
-                            <button type="button" class="sys-btn sys-btn--primary" @click="editMode = true">Editar cadastro</button>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="comercial-sec-endereco">
+                        <h4 id="comercial-sec-endereco" class="comercial-modal-section__title">Endereço</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-address">
+                                <div class="comercial-addr-cell comercial-addr-cell--endereco-livre">
+                                    <span class="comercial-kv-label">Endereço (livre)</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.endereco || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Número</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.numero || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Bairro</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.bairro || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Cidade</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.municipio || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Logradouro</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.logradouro || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Complemento</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.complemento || '—'"></p>
+                                </div>
+                            </div>
+                            <div class="span-2"><span class="comercial-kv-label">Referência</span><p class="comercial-kv-value" x-text="clientRow.referencia || '—'"></p></div>
                         </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="comercial-sec-contato">
+                        <h4 id="comercial-sec-contato" class="comercial-modal-section__title">Contato e status</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-address">
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Telefone</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.fone || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Telefone alternativo</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.fone_alternativo || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Segmento</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.segmento || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Status cliente</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.status_cliente || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Status operacional</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.status_operacional || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Prioridade</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.prioridade_logistica || '—'"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="comercial-sec-janela">
+                        <h4 id="comercial-sec-janela" class="comercial-modal-section__title">Janela de entrega</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-janela">
+                                <div class="comercial-addr-cell comercial-addr-cell--janela-dias">
+                                    <span class="comercial-kv-label">Janela (dias)</span>
+                                    <p class="comercial-kv-value font-mono text-[13px]" x-text="clientRow.janela_dias_semana || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Janela início</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.janela_horario_inicio || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Janela fim</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.janela_horario_fim || '—'"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="comercial-sec-obs">
+                        <h4 id="comercial-sec-obs" class="comercial-modal-section__title">Observações</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-obs-duo">
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Observações de acesso</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.observacoes_acesso || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Observações de contato</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.observacoes_contato || '—'"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="comercial-modal-section" aria-labelledby="comercial-sec-lgpd">
+                        <h4 id="comercial-sec-lgpd" class="comercial-modal-section__title">LGPD e geolocalização</h4>
+                        <div class="comercial-modal-grid">
+                            <div class="comercial-modal-line comercial-line-geo">
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">LGPD não contatar</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.lgpd_nao_contatar ? 'Sim' : 'Não'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">LGPD restrição</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.lgpd_restricao_dados ? 'Sim' : 'Não'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Geocodificação</span>
+                                    <p class="comercial-kv-value" x-text="clientRow.geocoding_status || '—'"></p>
+                                </div>
+                                <div class="comercial-addr-cell">
+                                    <span class="comercial-kv-label">Coordenadas</span>
+                                    <p class="comercial-kv-value"><span x-text="coordText()"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    <div class="comercial-modal-toolbar flex flex-wrap items-center justify-end gap-2">
+                        <button type="button" class="sys-btn sys-btn--primary" @click="editMode = true">Editar cadastro</button>
+                    </div>
                 </div>
 
                 <div x-show="editMode && !loading && clientRow.id" x-cloak>
-                    <form class="comercial-modal-form space-y-2" @submit.prevent="salvarCliente()">
-                        <div class="comercial-modal-grid">
-                            <div>
-                                <label class="sys-section__label sys-section__label--field">Nome (interno) *</label>
-                                <input type="text" class="sys-input w-full" name="name" x-model="form.name" required maxlength="500">
-                            </div>
-                            <div>
-                                <label class="sys-section__label sys-section__label--field">NB</label>
-                                <input type="text" class="sys-input w-full" name="nb" x-model="form.nb" maxlength="80">
-                            </div>
-                            <div class="span-2">
-                                <label class="sys-section__label sys-section__label--field">Vendedor</label>
-                                <select class="sys-input w-full" name="vendedor_id" x-model="form.vendedor_id">
-                                    <option value="">—</option>
-                                    <template x-for="v in vendedoresList" :key="v.id">
-                                        <option :value="String(v.id)" x-text="v.name + (v.seller_code ? ' (' + v.seller_code + ')' : '')"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div><label class="sys-section__label sys-section__label--field">ME</label><input type="text" class="sys-input w-full" x-model="form.me"></div>
-                            <div><label class="sys-section__label sys-section__label--field">SA</label><input type="text" class="sys-input w-full" x-model="form.sa"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Visita</label><input type="text" class="sys-input w-full" x-model="form.visita"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Nome fantasia</label><input type="text" class="sys-input w-full" x-model="form.nome_fantasia"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Razão social</label><input type="text" class="sys-input w-full" x-model="form.razao_social"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Município</label><input type="text" class="sys-input w-full" x-model="form.municipio"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Bairro</label><input type="text" class="sys-input w-full" x-model="form.bairro"></div>
-                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Endereço (livre)</label><input type="text" class="sys-input w-full" x-model="form.endereco"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Logradouro</label><input type="text" class="sys-input w-full" x-model="form.logradouro"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Número</label><input type="text" class="sys-input w-full" x-model="form.numero"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Complemento</label><input type="text" class="sys-input w-full" x-model="form.complemento"></div>
-                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Referência</label><input type="text" class="sys-input w-full" x-model="form.referencia"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Telefone</label><input type="text" class="sys-input w-full" x-model="form.fone" inputmode="tel"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Telefone alternativo</label><input type="text" class="sys-input w-full" x-model="form.fone_alternativo" inputmode="tel"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Segmento</label><input type="text" class="sys-input w-full" x-model="form.segmento"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Status cliente</label><input type="text" class="sys-input w-full" x-model="form.status_cliente"></div>
-                            <div>
-                                <label class="sys-section__label sys-section__label--field">Status operacional</label>
-                                <select class="sys-input w-full" x-model="form.status_operacional">
-                                    <option value="ATIVO">ATIVO</option>
-                                    <option value="FECHOU">FECHOU</option>
-                                    <option value="INATIVO">INATIVO</option>
-                                    <option value="EM_VALIDACAO">EM_VALIDACAO</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="sys-section__label sys-section__label--field">Prioridade</label>
-                                <select class="sys-input w-full" x-model="form.prioridade_logistica">
-                                    <option value="">—</option>
-                                    <option value="A">A</option>
-                                    <option value="B">B</option>
-                                    <option value="C">C</option>
-                                </select>
-                            </div>
-                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Janela dias (JSON)</label><input type="text" class="sys-input w-full font-mono text-xs" x-model="form.janela_dias_semana"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Janela início</label><input type="text" class="sys-input w-full" x-model="form.janela_horario_inicio" placeholder="08:00"></div>
-                            <div><label class="sys-section__label sys-section__label--field">Janela fim</label><input type="text" class="sys-input w-full" x-model="form.janela_horario_fim" placeholder="17:00"></div>
-                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Observações de acesso</label><input type="text" class="sys-input w-full" x-model="form.observacoes_acesso"></div>
-                            <div class="span-2"><label class="sys-section__label sys-section__label--field">Observações de contato</label><input type="text" class="sys-input w-full" x-model="form.observacoes_contato"></div>
-                            <div class="span-2 flex flex-wrap gap-4 pt-1">
-                                <label class="flex items-center gap-2 text-sm"><input type="checkbox" x-model="form.lgpd_nao_contatar" class="rounded border-slate-300"> LGPD não contatar</label>
-                                <label class="flex items-center gap-2 text-sm"><input type="checkbox" x-model="form.lgpd_restricao_dados" class="rounded border-slate-300"> LGPD restrição de dados</label>
-                            </div>
+                    <form class="comercial-modal-form" @submit.prevent="salvarCliente()">
+                        <div class="comercial-modal-stack">
+                            <section class="comercial-modal-section" aria-labelledby="comercial-edit-sec-id">
+                                <h4 id="comercial-edit-sec-id" class="comercial-modal-section__title">Venda e cadastro</h4>
+                                <div class="comercial-modal-grid">
+                                    <div class="comercial-modal-line comercial-line-top">
+                                        <div class="comercial-line-name">
+                                            <label class="sys-section__label sys-section__label--field">Nome (interno) *</label>
+                                            <input type="text" class="sys-input w-full" name="name" x-model="form.name" required maxlength="500">
+                                        </div>
+                                        <div class="comercial-line-nb">
+                                            <label class="sys-section__label sys-section__label--field">NB</label>
+                                            <input type="text" class="sys-input w-full" name="nb" x-model="form.nb" maxlength="80">
+                                        </div>
+                                        <div class="comercial-line-vend">
+                                            <label class="sys-section__label sys-section__label--field">Vendedor</label>
+                                            <select class="sys-input w-full" name="vendedor_id" x-model="form.vendedor_id" @change="onVendedorSelectChange()">
+                                                <option value="">—</option>
+                                                <template x-for="v in vendedoresList" :key="v.id">
+                                                    <option :value="String(v.id)" x-text="v.name + (v.seller_code ? ' (' + v.seller_code + ')' : '')"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <button type="button" class="comercial-line-phone-btn sys-btn sys-btn--secondary whitespace-nowrap px-2 py-1.5 text-[11px] leading-tight" @click="openVendedorPhoneEditor()" :disabled="!form.vendedor_id" title="Atualizar telefone no cadastro do colaborador">Editar nº vendedor</button>
+                                    </div>
+                                    <div class="comercial-modal-line comercial-line-mev-fantasia">
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">ME</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.me">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">SA</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.sa">
+                                        </div>
+                                        <div class="comercial-addr-cell comercial-visita-checks">
+                                            <label class="sys-section__label sys-section__label--field">Visita (dias da semana)</label>
+                                            <div class="comercial-visita-checks-inner">
+                                                <template x-for="d in visitaDiaDef" :key="d.key">
+                                                    <label>
+                                                        <input type="checkbox" x-model="visitaDias[d.key]">
+                                                        <span x-text="d.label"></span>
+                                                    </label>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Nome fantasia</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.nome_fantasia">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Razão social</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.razao_social">
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            <section class="comercial-modal-section" aria-labelledby="comercial-edit-sec-end">
+                                <h4 id="comercial-edit-sec-end" class="comercial-modal-section__title">Endereço</h4>
+                                <div class="comercial-modal-grid">
+                                    <div class="comercial-modal-line comercial-line-address">
+                                        <div class="comercial-addr-cell comercial-addr-cell--endereco-livre">
+                                            <label class="sys-section__label sys-section__label--field">Endereço (livre)</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.endereco">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Número</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.numero">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Bairro</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.bairro">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Cidade</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.municipio">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Logradouro</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.logradouro">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Complemento</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.complemento">
+                                        </div>
+                                    </div>
+                                    <div class="span-2"><label class="sys-section__label sys-section__label--field">Referência</label><input type="text" class="sys-input w-full" x-model="form.referencia"></div>
+                                </div>
+                            </section>
+                            <section class="comercial-modal-section" aria-labelledby="comercial-edit-sec-cont">
+                                <h4 id="comercial-edit-sec-cont" class="comercial-modal-section__title">Contato e status</h4>
+                                <div class="comercial-modal-grid">
+                                    <div class="comercial-modal-line comercial-line-address">
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Telefone</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.fone" inputmode="tel">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Telefone alternativo</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.fone_alternativo" inputmode="tel">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Segmento</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.segmento">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Status cliente</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.status_cliente">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Status operacional</label>
+                                            <select class="sys-input w-full" x-model="form.status_operacional">
+                                                <option value="ATIVO">ATIVO</option>
+                                                <option value="FECHOU">FECHOU</option>
+                                                <option value="INATIVO">INATIVO</option>
+                                                <option value="EM_VALIDACAO">EM_VALIDACAO</option>
+                                            </select>
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Prioridade</label>
+                                            <select class="sys-input w-full" x-model="form.prioridade_logistica">
+                                                <option value="">—</option>
+                                                <option value="A">A</option>
+                                                <option value="B">B</option>
+                                                <option value="C">C</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            <section class="comercial-modal-section" aria-labelledby="comercial-edit-sec-jan">
+                                <h4 id="comercial-edit-sec-jan" class="comercial-modal-section__title">Janela de entrega</h4>
+                                <div class="comercial-modal-grid">
+                                    <div class="comercial-modal-line comercial-line-janela">
+                                        <div class="comercial-addr-cell comercial-addr-cell--janela-dias">
+                                            <label class="sys-section__label sys-section__label--field">Janela dias (JSON)</label>
+                                            <input type="text" class="sys-input w-full font-mono text-[13px]" x-model="form.janela_dias_semana">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Janela início</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.janela_horario_inicio" placeholder="08:00">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Janela fim</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.janela_horario_fim" placeholder="17:00">
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            <section class="comercial-modal-section" aria-labelledby="comercial-edit-sec-obs">
+                                <h4 id="comercial-edit-sec-obs" class="comercial-modal-section__title">Observações</h4>
+                                <div class="comercial-modal-grid">
+                                    <div class="comercial-modal-line comercial-line-obs-duo">
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Observações de acesso</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.observacoes_acesso">
+                                        </div>
+                                        <div class="comercial-addr-cell">
+                                            <label class="sys-section__label sys-section__label--field">Observações de contato</label>
+                                            <input type="text" class="sys-input w-full" x-model="form.observacoes_contato">
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                            <section class="comercial-modal-section" aria-labelledby="comercial-edit-sec-lgpd">
+                                <h4 id="comercial-edit-sec-lgpd" class="comercial-modal-section__title">LGPD</h4>
+                                <div class="comercial-modal-grid">
+                                    <div class="span-2 flex flex-wrap gap-x-6 gap-y-2 pt-0.5">
+                                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200"><input type="checkbox" x-model="form.lgpd_nao_contatar" class="rounded border-slate-300 dark:border-slate-500"> LGPD não contatar</label>
+                                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200"><input type="checkbox" x-model="form.lgpd_restricao_dados" class="rounded border-slate-300 dark:border-slate-500"> LGPD restrição de dados</label>
+                                    </div>
+                                </div>
+                            </section>
                         </div>
-                        <div class="flex flex-wrap gap-2 border-t border-slate-200 pt-2 dark:border-slate-600">
+                        <div class="comercial-modal-toolbar mt-1 flex flex-wrap justify-end gap-3">
                             <button type="button" class="sys-btn sys-btn--secondary" @click="cancelarEdicao()" :disabled="saving">Voltar</button>
                             <button type="submit" class="sys-btn sys-btn--primary" :disabled="saving"><span x-show="!saving">Salvar</span><span x-show="saving">Salvando…</span></button>
                         </div>
@@ -476,9 +647,9 @@
 
                 <div x-show="loading" class="py-10 text-center text-sm text-slate-500">Carregando cadastro…</div>
 
-                <details class="mt-2 rounded-lg border border-slate-200 dark:border-slate-600" x-show="auditList.length">
-                    <summary class="cursor-pointer px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Histórico de alterações</summary>
-                    <div class="comercial-audit-wrap px-1.5 pb-1.5">
+                <details class="mt-4 rounded-lg border border-slate-200 bg-slate-50/80 dark:border-slate-600 dark:bg-slate-800/40" x-show="auditList.length">
+                    <summary class="cursor-pointer px-4 py-2.5 text-[12px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Histórico de alterações</summary>
+                    <div class="comercial-audit-wrap border-t border-slate-200 px-3 pb-3 pt-2 dark:border-slate-600">
                         <table class="comercial-audit-table">
                             <thead>
                                 <tr>
@@ -524,11 +695,26 @@ function comercialClientePanel() {
         vendedoresList: [],
         auditList: [],
         form: {},
+        visitaDiaDef: [
+            { key: 'seg', label: 'Seg' },
+            { key: 'ter', label: 'Ter' },
+            { key: 'qua', label: 'Qua' },
+            { key: 'qui', label: 'Qui' },
+            { key: 'sex', label: 'Sex' },
+            { key: 'sab', label: 'Sáb' },
+            { key: 'dom', label: 'Dom' },
+        ],
+        visitaDias: { seg: false, ter: false, qua: false, qui: false, sex: false, sab: false, dom: false },
+        _visitaHadStructuredOnOpen: false,
+        vendedorPhonePanel: false,
+        vendedorPhoneInput: '',
+        vendedorPhoneSaving: false,
         openCliente(id) {
             this.modalOpen = true;
             this.editMode = false;
             this.error = '';
             this.successMsg = '';
+            this.closeVendedorPhoneEditor();
             this.fetchCliente(id);
         },
         closeModal() {
@@ -540,13 +726,121 @@ function comercialClientePanel() {
             this.vendedoresList = [];
             this.auditList = [];
             this.form = {};
+            this.visitaDias = { seg: false, ter: false, qua: false, qui: false, sex: false, sab: false, dom: false };
+            this._visitaHadStructuredOnOpen = false;
+            this.closeVendedorPhoneEditor();
+        },
+        emptyVisitaDias() {
+            return { seg: false, ter: false, qua: false, qui: false, sex: false, sab: false, dom: false };
+        },
+        parseVisitaStrToDias(raw) {
+            const out = this.emptyVisitaDias();
+            const keys = Object.keys(out);
+            const s = String(raw || '').trim();
+            if (!s) return out;
+            try {
+                const j = JSON.parse(s);
+                if (Array.isArray(j)) {
+                    j.forEach(function (x) {
+                        const k = String(x || '').toLowerCase().trim();
+                        if (keys.indexOf(k) >= 0) out[k] = true;
+                    });
+                    return out;
+                }
+            } catch (e) { /* não é JSON */ }
+            const map3 = { SEG: 'seg', TER: 'ter', QUA: 'qua', QUI: 'qui', SEX: 'sex', SAB: 'sab', 'SÁB': 'sab', DOM: 'dom' };
+            const tokens = s.split(/[,;/|]+/).map(function (t) { return String(t || '').trim().toUpperCase(); }).filter(Boolean);
+            tokens.forEach(function (t) {
+                const k = map3[t];
+                if (k) out[k] = true;
+            });
+            if (tokens.length && tokens.some(function (t) { return !!map3[t]; })) return out;
+            const one = s.toUpperCase().replace(/\s/g, '');
+            if (map3[one]) {
+                out[map3[one]] = true;
+                return out;
+            }
+            return out;
+        },
+        visitaDisplayFromStr(s) {
+            const d = this.parseVisitaStrToDias(s);
+            const order = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
+            const labels = { seg: 'Seg', ter: 'Ter', qua: 'Qua', qui: 'Qui', sex: 'Sex', sab: 'Sáb', dom: 'Dom' };
+            const parts = order.filter(function (k) { return d[k]; }).map(function (k) { return labels[k]; });
+            if (parts.length) return parts.join(', ');
+            const raw = String(s || '').trim();
+            return raw || '—';
+        },
+        visitaDisplayFromClient() {
+            return this.visitaDisplayFromStr(this.clientRow && this.clientRow.visita != null ? this.clientRow.visita : '');
+        },
+        closeVendedorPhoneEditor() {
+            this.vendedorPhonePanel = false;
+            this.vendedorPhoneInput = '';
+            this.vendedorPhoneSaving = false;
+        },
+        currentVendedorIdForPhone() {
+            if (this.editMode && this.form && this.form.vendedor_id) return String(this.form.vendedor_id);
+            if (this.clientRow && this.clientRow.vendedor_select_id != null && this.clientRow.vendedor_select_id !== '') {
+                return String(this.clientRow.vendedor_select_id);
+            }
+            return '';
+        },
+        onVendedorSelectChange() {
+            if (this.vendedorPhonePanel) this.openVendedorPhoneEditor();
+        },
+        openVendedorPhoneEditor() {
+            const vid = this.currentVendedorIdForPhone();
+            if (!vid) return;
+            const v = (this.vendedoresList || []).find(function (x) { return String(x.id) === String(vid); });
+            this.vendedorPhoneInput = v ? String(v.phone_display || v.phone || '').trim() : '';
+            this.vendedorPhonePanel = true;
+        },
+        async saveVendedorPhone() {
+            const vid = this.currentVendedorIdForPhone();
+            if (!vid) return;
+            this.vendedorPhoneSaving = true;
+            this.error = '';
+            const body = new URLSearchParams();
+            body.set('phone', this.vendedorPhoneInput != null ? String(this.vendedorPhoneInput) : '');
+            try {
+                const r = await fetch('/api/comercial/vendedores/' + encodeURIComponent(vid) + '/phone', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString(),
+                });
+                if (!r.ok) {
+                    let msg = 'Não foi possível salvar o telefone.';
+                    try {
+                        const err = await r.json();
+                        if (err.detail) msg = typeof err.detail === 'string' ? err.detail : msg;
+                    } catch (e2) { /* ignore */ }
+                    this.error = msg;
+                    this.vendedorPhoneSaving = false;
+                    return;
+                }
+                const data = await r.json();
+                const v = (this.vendedoresList || []).find(function (x) { return String(x.id) === String(vid); });
+                if (v) {
+                    v.phone = data.phone != null ? String(data.phone) : '';
+                    v.phone_display = data.phone_display != null ? String(data.phone_display) : '';
+                }
+                this.successMsg = 'Telefone do vendedor atualizado no cadastro do colaborador.';
+                this.closeVendedorPhoneEditor();
+            } catch (e) {
+                this.error = 'Erro de rede ao salvar o telefone.';
+            }
+            this.vendedorPhoneSaving = false;
         },
         vendedorLabel() {
             const vid = this.clientRow.vendedor_select_id;
             if (!vid) return '—';
             const v = (this.vendedoresList || []).find(function (x) { return String(x.id) === String(vid); });
             if (!v) return '#' + vid;
-            return (v.name || '') + (v.seller_code ? ' (' + v.seller_code + ')' : '');
+            const base = (v.name || '') + (v.seller_code ? ' (' + v.seller_code + ')' : '');
+            const ph = String(v.phone_display || '').trim();
+            return ph ? (base + ' · ' + ph) : base;
         },
         coordText() {
             const la = this.clientRow.latitude;
@@ -585,6 +879,11 @@ function comercialClientePanel() {
                 lgpd_nao_contatar: !!c.lgpd_nao_contatar,
                 lgpd_restricao_dados: !!c.lgpd_restricao_dados,
             };
+            const vd = this.parseVisitaStrToDias(this.form.visita);
+            this.visitaDias = vd;
+            this._visitaHadStructuredOnOpen = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'].some(function (k) {
+                return vd[k];
+            });
         },
         async fetchCliente(id) {
             this.loading = true;
@@ -615,6 +914,7 @@ function comercialClientePanel() {
             this.editMode = false;
             this.error = '';
             this.successMsg = '';
+            this.closeVendedorPhoneEditor();
             this.syncFormFromClient(this.clientRow);
         },
         async salvarCliente() {
@@ -625,6 +925,13 @@ function comercialClientePanel() {
             this.successMsg = '';
             const body = new URLSearchParams();
             const f = this.form;
+            const diasOrder = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
+            const picked = diasOrder.filter(function (k) { return this.visitaDias[k]; }.bind(this));
+            if (picked.length) {
+                f.visita = JSON.stringify(picked);
+            } else if (this._visitaHadStructuredOnOpen) {
+                f.visita = '';
+            }
             const keys = [
                 'name', 'nb', 'vendedor_id', 'me', 'sa', 'visita', 'nome_fantasia', 'razao_social',
                 'municipio', 'bairro', 'endereco', 'fone', 'segmento', 'status_cliente', 'status_operacional',

@@ -10,13 +10,31 @@
     function escalaApp() {
         return {
             filters: { date: init.date, shift: init.shift },
-            summary: { total: 0, completas: 0, pendentes: 0 },
+            summary: {
+                total: 0,
+                completas: 0,
+                pendentes: 0,
+                motoristas: 0,
+                ajudantes: 0,
+                escalados: 0,
+                sem_escala: 0,
+            },
             escalas: [],
             apiData: {},
             loading: true,
             columns: [
-                { id: 'escalado', label: 'Escalados', headerClass: 'bg-emerald-100/70 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' },
-                { id: 'nao_escalado', label: 'Não escalados', headerClass: 'bg-amber-100/70 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200' }
+                {
+                    id: 'escalado',
+                    label: 'Escalados',
+                    headerClass:
+                        'border-emerald-200/90 bg-emerald-50 text-emerald-900 dark:border-emerald-800/50 dark:bg-emerald-950/50 dark:text-emerald-100',
+                },
+                {
+                    id: 'nao_escalado',
+                    label: 'Não escalados',
+                    headerClass:
+                        'border-amber-200/90 bg-amber-50 text-amber-950 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-100',
+                },
             ],
             quickChange: { open: false, campo: '', escala: null, ajudantesSelected: [] },
             toast: { show: false, ok: true, message: '' },
@@ -124,11 +142,13 @@
                         sem_escala: motoristasDisponiveis.length + ajudantesDisponiveis.length
                     };
                     this.escalas = data.escalas || [];
-                    if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
                 } catch (err) {
                     this.showToast('Erro ao carregar dados.', false);
                 } finally {
                     this.loading = false;
+                    if (typeof lucide !== 'undefined') {
+                        setTimeout(() => lucide.createIcons(), 50);
+                    }
                 }
             },
 

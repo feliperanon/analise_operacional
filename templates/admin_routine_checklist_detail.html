@@ -1,273 +1,279 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Checklist #{{ checklist.id }} · Gestão Avista{% endblock %}
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Rotinas / <a href="/admin/routine/checklists" class="hover:underline">Checklists</a> / #{{ checklist.id }}</p>
+{% endblock %}
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Checklist #{{ checklist.id }}</h1>
+{% endblock %}
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Detalhes, itens, evidências e fluxo de revisão</p>
+{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/pages/employees.css">{% endblock %}
 
 {% block content %}
-<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-        <div>
-            <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">Checklist #{{ checklist.id }}</h1>
-            <p class="text-sm text-slate-400">Detalhes e revisão do checklist.</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <a href="/admin/routine/checklists/dashboard"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Painel
-            </a>
-            <a href="/admin/routine/checklists"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                Lista
-            </a>
-            <a href="/admin/equipment/tickets"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                </svg>
-                Chamados
-            </a>
-            <a href="/admin/routine/checklists/settings"
-                class="px-4 py-2 text-sm rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Configurações
-            </a>
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+    {% if flash_message %}
+    <div class="sys-alert {% if flash_level == 'success' %}sys-alert--success{% elif flash_level == 'error' %}sys-alert--danger{% else %}sys-alert--info{% endif %} flex items-center justify-between gap-3">
+        <span>{{ flash_message }}</span>
+        <button type="button" onclick="this.parentElement.remove()" class="emp-modal-close" aria-label="Fechar">×</button>
+    </div>
+    {% endif %}
+
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9v2m0 4h.01"></path>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Revisão operacional</span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">{{ checklist.equipment_code }} · {{ date_br }}</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        {{ employee_name|emp_name }} · Matrícula {{ employee_registration_id }} · Turno {{ checklist.shift }}{% if time_br %} · Envio {{ time_br }}{% endif %}
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        {% if checklist.status == 'approved' %}
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ status_label }}</span>
+                        {% elif checklist.status == 'rejected' %}
+                        <span class="employees-hero__chip inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-red-800 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-200">{{ status_label }}</span>
+                        {% else %}
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ status_label }}</span>
+                        {% endif %}
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ equipment_status_label }}</span>
+                        {% if nonconforming_count > 0 %}
+                        <span class="employees-hero__chip inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">{{ nonconforming_count }} não conforme(s)</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch xl:ml-auto xl:w-auto xl:justify-end">
+                <a href="/admin/routine/checklists" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto sm:min-w-[9rem]">Voltar à lista</a>
+                <a href="/admin/routine/checklists/dashboard" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Painel</a>
+                <a href="/admin/equipment/tickets" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Chamados</a>
+                <a href="/workshop/service-orders?checklist_id={{ checklist.id }}" class="employees-cta sys-btn sys-btn--primary w-full justify-center sm:w-auto">Gerar OS</a>
+                <a href="/admin/routine/checklists/settings" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Configurações</a>
+            </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 space-y-6">
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <p class="text-xs text-slate-400">Colaborador</p>
-                        <p class="text-sm font-semibold text-white">{{ employee_name or (employee.name|emp_name if employee else 'Desconhecido') }}</p>
-                        <p class="text-xs text-slate-500">{{ employee_registration_id or (employee.registration_id if employee else '-') }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-400">Equipamento</p>
-                        <p class="text-sm font-semibold text-white">{{ checklist.equipment_code }}</p>
-                        <p
-                            class="text-xs {{ 'text-red-300' if equipment and equipment.status == 'blocked' else 'text-emerald-300' }}">
-                            {{ equipment_status_label }}
-                        </p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-slate-400">Data / Turno</p>
-                        <p class="text-sm font-semibold text-white">{{ date_br }}</p>
-                        <p class="text-xs text-slate-500">{{ checklist.shift }}</p>
-                    </div>
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row">
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">Data</span>
+                    <span class="employees-kpi__value tabular-nums text-base sm:text-lg">{{ date_br }}</span>
+                    <span class="employees-kpi__meta">{{ checklist.shift }}</span>
                 </div>
-                {% if odometer_km_br %}
-                <div class="mt-3 pt-3 border-t border-slate-700">
-                    <p class="text-xs text-slate-400">KM hodômetro</p>
-                    <p class="text-sm font-semibold text-white font-mono">{{ odometer_km_br }}</p>
+            </div>
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">Equipamento</span>
+                    <span class="employees-kpi__value tabular-nums text-base sm:text-lg">{{ checklist.equipment_code }}</span>
+                    <span class="employees-kpi__meta {% if equipment and equipment.status == 'blocked' %}employees-text-danger{% endif %}">{{ equipment_status_label }}</span>
                 </div>
-                {% endif %}
-                <div class="mt-4">
-                    <p class="text-xs text-slate-400">Status</p>
-                    <span
-                        class="inline-flex text-xs px-2 py-1 rounded-full {{ 'bg-emerald-500/20 text-emerald-200' if checklist.status == 'approved' else 'bg-amber-500/20 text-amber-200' if checklist.status in ['submitted','reviewed'] else 'bg-red-500/20 text-red-200' }}">
-                        {{ status_label }}
+            </div>
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">Não conformes</span>
+                    <span class="employees-kpi__value employees-kpi__value--state {% if nonconforming_count > 0 %}employees-kpi__value--amber{% endif %} tabular-nums">{{ nonconforming_count }}</span>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">Status</span>
+                    <span class="mt-1 inline-flex">
+                        {% if checklist.status == 'approved' %}
+                        <span class="sys-badge sys-badge--ok">{{ status_label }}</span>
+                        {% elif checklist.status == 'rejected' %}
+                        <span class="sys-badge sys-badge--critical">{{ status_label }}</span>
+                        {% else %}
+                        <span class="sys-badge sys-badge--alert">{{ status_label }}</span>
+                        {% endif %}
                     </span>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-                <h2 class="text-base font-semibold text-white mb-3">Itens do checklist</h2>
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div class="space-y-5 lg:col-span-2">
+            <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+                <div class="employees-table-panel__head border-b px-5 py-4 sm:px-6">
+                    <p class="employees-table-panel__kicker">Resumo</p>
+                    <h3 class="sys-section-heading employees-table-panel__title mt-1 text-base sm:text-lg">Identificação</h3>
+                </div>
+                <div class="grid gap-4 p-5 sm:grid-cols-3 sm:px-6">
+                    <div>
+                        <p class="employees-text-section-label mb-1">Colaborador</p>
+                        <p class="employees-text-strong text-sm font-semibold">{{ employee_name|emp_name }}</p>
+                        <p class="employees-text-muted text-xs">{{ employee_registration_id }}</p>
+                    </div>
+                    <div>
+                        <p class="employees-text-section-label mb-1">Equipamento</p>
+                        <p class="employees-text-strong text-sm font-semibold">{{ checklist.equipment_code }}</p>
+                        <p class="text-xs {% if equipment and equipment.status == 'blocked' %}employees-text-danger{% else %}employees-text-muted{% endif %}">{{ equipment_status_label }}</p>
+                    </div>
+                    <div>
+                        <p class="employees-text-section-label mb-1">Data / turno</p>
+                        <p class="employees-text-strong text-sm font-semibold">{{ date_br }}</p>
+                        <p class="employees-text-muted text-xs">{{ checklist.shift }}{% if time_br %} · {{ time_br }}{% endif %}</p>
+                    </div>
+                </div>
+                {% if odometer_km_br %}
+                <div class="border-t px-5 py-3 sm:px-6">
+                    <p class="employees-text-section-label mb-1">KM hodômetro</p>
+                    <p class="employees-text-strong font-mono text-sm">{{ odometer_km_br }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="sys-card sys-card--surface p-5 sm:p-6">
+                <h3 class="sys-section-heading text-base sm:text-lg">Itens do checklist</h3>
+                <p class="employees-table-panel__lede mt-1 text-sm">Conformidade por item configurado no fluxo operacional.</p>
                 {% set checklist_values = checklist.items if checklist.items is mapping else {} %}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {% for item in items %}
                     {% set ok = checklist_values.get(item.key, False) %}
-                    <div
-                        class="flex items-center justify-between rounded-xl border {{ 'border-emerald-500/40' if ok else 'border-red-500/40' }} bg-slate-900 px-3 py-2">
-                        <span class="text-sm text-slate-200">{{ item.label }}</span>
-                        <span class="text-xs {{ 'text-emerald-300' if ok else 'text-red-300' }}">{{ 'Conforme' if ok
-                            else 'Não Conforme' }}</span>
+                    <div class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 {% if ok %}border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-950/20{% else %}border-red-200 bg-red-50/40 dark:border-red-500/25 dark:bg-red-950/20{% endif %}">
+                        <span class="employees-text-body text-sm">{{ item.label }}</span>
+                        {% if ok %}<span class="sys-badge sys-badge--ok">Conforme</span>{% else %}<span class="sys-badge sys-badge--critical">Não conforme</span>{% endif %}
                     </div>
                     {% endfor %}
                 </div>
             </div>
 
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-                <h2 class="text-base font-semibold text-white mb-3">Observações</h2>
-                <p class="text-sm text-slate-200">{{ checklist.observations or 'Sem observações.' }}</p>
+            <div class="sys-card sys-card--surface p-5 sm:p-6">
+                <h3 class="sys-section-heading text-base sm:text-lg">Observações</h3>
+                <p class="employees-text-body mt-2 text-sm">{{ checklist.observations or 'Sem observações.' }}</p>
                 {% if reviewed_by_display %}
-                <div class="mt-4 border-t border-slate-700 pt-3">
-                    <p class="text-xs text-slate-400">Revisado por</p>
-                    <p class="text-sm text-slate-200">{{ reviewed_by_display }}</p>
+                <div class="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <p class="employees-text-section-label mb-1">Revisado por</p>
+                    <p class="employees-text-body text-sm">{{ reviewed_by_display }}</p>
                     {% if checklist.reviewed_at %}
-                    <p class="text-xs text-slate-500">{{ checklist.reviewed_at.strftime("%d/%m/%Y %H:%M") }}</p>
+                    <p class="employees-text-muted mt-1 text-xs">{{ checklist.reviewed_at.strftime("%d/%m/%Y %H:%M") }}</p>
                     {% endif %}
                 </div>
                 {% endif %}
             </div>
 
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5">
-                <h2 class="text-base font-semibold text-white mb-3">Evidências</h2>
+            <div class="sys-card sys-card--surface p-5 sm:p-6">
+                <h3 class="sys-section-heading text-base sm:text-lg">Evidências</h3>
                 {% if checklist.images %}
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {% for img in checklist.images %}
-                    <a href="/static/uploads/checklists/{{ img }}" target="_blank"
-                        class="block rounded-xl overflow-hidden border border-slate-700 relative group">
+                    <a href="/static/uploads/checklists/{{ img }}" target="_blank" rel="noopener noreferrer"
+                        class="group block overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600">
                         <img src="/static/uploads/checklists/{{ img }}" alt="Evidência"
-                            class="w-full h-24 object-cover"
-                            onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23334155\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%2394a3b8\' font-family=\'sans-serif\' font-size=\'12\'%3EImagem não encontrada%3C/text%3E%3C/svg%3E'; this.parentElement.classList.add('opacity-50');">
-                        <div class="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span class="text-xs text-white">Clique para ampliar</span>
-                        </div>
+                            class="h-24 w-full object-cover transition group-hover:opacity-90"
+                            onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23e2e8f0\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%2364758b\' font-family=\'sans-serif\' font-size=\'11\'%3EImagem%3C/text%3E%3C/svg%3E';">
+                        <p class="employees-text-caption px-2 py-1 text-center text-[10px]">Ampliar</p>
                     </a>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-sm text-slate-400">Nenhuma imagem enviada.</p>
+                <p class="employees-text-muted mt-2 text-sm">Nenhuma imagem enviada.</p>
                 {% endif %}
             </div>
         </div>
 
-        <div class="space-y-6">
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
-                <h2 class="text-base font-semibold text-white">Revisão</h2>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/review" method="POST" class="space-y-3">
-                    <textarea name="comment" rows="3"
-                        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                        placeholder="Comentário do revisor (opcional)">{{ checklist.review_comment or '' }}</textarea>
-                    <button type="submit"
-                        class="w-full py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold">
-                        Marcar como revisado
-                    </button>
+        <div class="space-y-5">
+            <div class="sys-card sys-card--surface sys-card--comfort p-5">
+                <h3 class="sys-section-heading text-base">Revisão</h3>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/review" method="POST" class="mt-4 space-y-3">
+                    <label class="sys-section__label sys-section__label--field text-xs" for="review-comment">Comentário do revisor</label>
+                    <textarea id="review-comment" name="comment" rows="3" class="sys-input w-full text-sm" placeholder="Opcional">{{ checklist.review_comment or '' }}</textarea>
+                    <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Marcar como revisado</button>
                 </form>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/approve" method="POST" class="space-y-3">
-                    <textarea name="comment" rows="3"
-                        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
-                        placeholder="Comentário obrigatório se houver não conformidade"></textarea>
-                    <button type="submit"
-                        class="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
-                        Aprovar checklist
-                    </button>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/approve" method="POST" class="mt-4 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <label class="sys-section__label sys-section__label--field text-xs" for="approve-comment">Comentário (obrigatório se houver não conformidade)</label>
+                    <textarea id="approve-comment" name="comment" rows="3" class="sys-input w-full text-sm" placeholder="Observações da aprovação"></textarea>
+                    <button type="submit" class="sys-btn sys-btn--success w-full justify-center">Aprovar checklist</button>
                 </form>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/reject" method="POST" class="space-y-3">
-                    <textarea name="comment" rows="3" required
-                        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-red-500 focus:outline-none"
-                        placeholder="Comentário obrigatório"></textarea>
-                    <button type="submit"
-                        class="w-full py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-semibold">
-                        Rejeitar checklist
-                    </button>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/reject" method="POST" class="mt-4 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+                    <label class="sys-section__label sys-section__label--field text-xs" for="reject-comment">Comentário</label>
+                    <textarea id="reject-comment" name="comment" rows="3" required class="sys-input w-full text-sm" placeholder="Obrigatório para rejeição"></textarea>
+                    <button type="submit" class="sys-btn sys-btn--ghost-danger w-full justify-center border border-red-200 bg-red-50 text-red-800 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-200">Rejeitar checklist</button>
                 </form>
             </div>
 
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-4">
-                <h2 class="text-base font-semibold text-white">Correção (Admin)</h2>
+            <div class="sys-card sys-card--surface sys-card--comfort p-5">
+                <h3 class="sys-section-heading text-base">Correção (admin)</h3>
                 {% if checklist.edited_at %}
-                <div class="text-xs text-slate-400 space-y-1">
-                    <p><span class="text-slate-500">Editado por:</span> {{ checklist.edited_by }}</p>
-                    <p><span class="text-slate-500">Em:</span> {{ checklist.edited_at.strftime("%d/%m/%Y %H:%M") }}</p>
-                    <p><span class="text-slate-500">Motivo:</span> {{ checklist.edit_comment }}</p>
+                <div class="employees-text-muted mt-3 space-y-1 text-xs">
+                    <p><span class="employees-text-section-label">Editado por:</span> {{ checklist.edited_by }}</p>
+                    <p><span class="employees-text-section-label">Em:</span> {{ checklist.edited_at.strftime("%d/%m/%Y %H:%M") }}</p>
+                    <p><span class="employees-text-section-label">Motivo:</span> {{ checklist.edit_comment }}</p>
                     {% if checklist.previous_equipment_code %}
-                    <p><span class="text-slate-500">Equipamento anterior:</span> {{ checklist.previous_equipment_code }}</p>
+                    <p><span class="employees-text-section-label">Equip. anterior:</span> {{ checklist.previous_equipment_code }}</p>
                     {% endif %}
                     {% if checklist.previous_observations %}
-                    <p><span class="text-slate-500">Observações anteriores:</span> {{ checklist.previous_observations }}</p>
+                    <p><span class="employees-text-section-label">Obs. anteriores:</span> {{ checklist.previous_observations }}</p>
                     {% endif %}
                 </div>
                 {% endif %}
-                <form action="/admin/routine/checklists/{{ checklist.id }}/edit" method="POST" enctype="multipart/form-data"
-                    class="space-y-3">
+                <form action="/admin/routine/checklists/{{ checklist.id }}/edit" method="POST" enctype="multipart/form-data" class="mt-4 space-y-3">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Equipamento</label>
-                        <input type="text" name="equipment_code" value="{{ checklist.equipment_code }}" required
-                            class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none">
+                        <label class="sys-section__label sys-section__label--field text-xs" for="edit-equipment">Equipamento</label>
+                        <input id="edit-equipment" type="text" name="equipment_code" value="{{ checklist.equipment_code }}" required class="sys-input w-full text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Observações</label>
-                        <textarea name="observations" rows="3"
-                            class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-                            placeholder="Complemento ou correção">{{ checklist.observations or '' }}</textarea>
+                        <label class="sys-section__label sys-section__label--field text-xs" for="edit-obs">Observações</label>
+                        <textarea id="edit-obs" name="observations" rows="3" class="sys-input w-full text-sm" placeholder="Complemento ou correção">{{ checklist.observations or '' }}</textarea>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Evidências adicionais</label>
-                        <input type="file" name="files" multiple accept="image/*"
-                            class="w-full text-xs text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-700 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-600">
+                        <label class="sys-section__label sys-section__label--field text-xs" for="edit-files">Evidências adicionais</label>
+                        <input id="edit-files" type="file" name="files" multiple accept="image/*" class="sys-input w-full text-sm">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-400 mb-1">Motivo da correção</label>
-                        <textarea name="edit_comment" rows="2" required
-                            class="w-full rounded-xl bg-slate-900 border border-red-500/40 px-3 py-2 text-sm text-white focus:border-red-500 focus:outline-none"
-                            placeholder="Explique a correção"></textarea>
+                        <label class="sys-section__label sys-section__label--field text-xs" for="edit-reason">Motivo da correção</label>
+                        <textarea id="edit-reason" name="edit_comment" rows="2" required class="sys-input w-full text-sm" placeholder="Explique a correção"></textarea>
                     </div>
-                    <button type="submit"
-                        class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">
-                        Salvar correção
-                    </button>
+                    <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Salvar correção</button>
                 </form>
             </div>
 
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 space-y-3">
-                <h2 class="text-base font-semibold text-white">E-mail de Manutenção</h2>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full {{ 'bg-emerald-400' if checklist.maintenance_email_sent_at else 'bg-amber-400' }}"></span>
-                    <p class="text-sm text-slate-300">
-                        Status: {{ 'Enviado' if checklist.maintenance_email_sent_at else 'Não enviado' }}
-                    </p>
+            <div class="sys-card sys-card--surface p-5">
+                <h3 class="sys-section-heading text-base">E-mail de manutenção</h3>
+                <div class="mt-3 flex items-center gap-2">
+                    <span class="h-2 w-2 shrink-0 rounded-full {% if checklist.maintenance_email_sent_at %}bg-emerald-500{% else %}bg-amber-500{% endif %}"></span>
+                    <p class="employees-text-body text-sm">{{ 'Enviado' if checklist.maintenance_email_sent_at else 'Não enviado' }}</p>
                 </div>
                 {% if checklist.maintenance_email_sent_at %}
-                <p class="text-xs text-slate-400">
-                    Enviado em: {{ checklist.maintenance_email_sent_at.strftime("%d/%m/%Y %H:%M") }}
-                </p>
+                <p class="employees-text-muted mt-2 text-xs">Enviado em: {{ checklist.maintenance_email_sent_at.strftime("%d/%m/%Y %H:%M") }}</p>
                 {% endif %}
                 {% if checklist.maintenance_email_error %}
-                <p class="text-xs text-red-300 bg-red-500/10 p-2 rounded-lg">
-                    {{ checklist.maintenance_email_error }}
-                </p>
+                <div class="sys-alert sys-alert--danger mt-3 text-xs">{{ checklist.maintenance_email_error }}</div>
                 {% endif %}
-                <form action="/admin/routine/checklists/{{ checklist.id }}/resend-email" method="POST" class="pt-2">
-                    <button type="submit"
-                        class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        {{ 'Reenviar E-mail' if checklist.maintenance_email_sent_at else 'Enviar E-mail' }}
-                    </button>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/resend-email" method="POST" class="mt-4">
+                    <button type="submit" class="sys-btn sys-btn--sky w-full justify-center">{{ 'Reenviar e-mail' if checklist.maintenance_email_sent_at else 'Enviar e-mail' }}</button>
                 </form>
             </div>
 
             {% if equipment and equipment.status == 'blocked' %}
-            <div class="bg-slate-800 border border-red-500/40 rounded-2xl p-5 space-y-3">
-                <h2 class="text-base font-semibold text-red-200">Equipamento bloqueado</h2>
-                <p class="text-sm text-red-200">{{ equipment.blocked_reason or 'Aguardando liberação.' }}</p>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/release" method="POST">
-                    <button type="submit"
-                        class="w-full py-2 rounded-lg bg-red-500/20 border border-red-500/40 text-red-100 hover:bg-red-500/30 text-sm font-semibold">
-                        Liberar equipamento
-                    </button>
+            <div class="sys-card sys-card--surface border-red-200 p-5 dark:border-red-500/30">
+                <h3 class="sys-section-heading text-base text-red-800 dark:text-red-200">Equipamento bloqueado</h3>
+                <p class="employees-text-body mt-2 text-sm text-red-900 dark:text-red-100">{{ equipment.blocked_reason or 'Aguardando liberação.' }}</p>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/release" method="POST" class="mt-4">
+                    <button type="submit" class="sys-btn sys-btn--ghost-danger w-full justify-center">Liberar equipamento</button>
                 </form>
             </div>
             {% endif %}
 
-            <div class="bg-slate-800 border border-red-900/40 rounded-2xl p-5 space-y-3">
-                <h2 class="text-base font-semibold text-red-400">Zona de Perigo</h2>
-                <p class="text-xs text-slate-400">A exclusão é permanente e remove o histórico.</p>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/delete" method="POST"
-                    onsubmit="return confirm('Tem certeza que deseja excluir este checklist permanentemente?');">
-                    <button type="submit"
-                        class="w-full py-2 rounded-lg bg-red-900/20 border border-red-900/40 text-red-400 hover:bg-red-900/40 text-sm font-semibold transition-colors">
-                        Excluir Checklist
-                    </button>
+            <div class="sys-card sys-card--surface border-red-200 p-5 dark:border-red-900/40">
+                <h3 class="sys-section-heading text-base text-red-700 dark:text-red-300">Zona de perigo</h3>
+                <p class="employees-text-muted mt-1 text-xs">A exclusão é permanente. Checklists aprovados exigem confirmação explícita no servidor.</p>
+                <form action="/admin/routine/checklists/{{ checklist.id }}/delete" method="POST" class="mt-4"
+                    onsubmit="return confirm('Excluir este checklist permanentemente?');">
+                    {% if checklist.status == 'approved' %}
+                    <input type="hidden" name="confirm_delete" value="true">
+                    {% endif %}
+                    <button type="submit" class="sys-btn sys-btn--ghost-danger w-full justify-center">Excluir checklist</button>
                 </form>
             </div>
         </div>

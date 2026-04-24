@@ -13,14 +13,62 @@
 }
 
 .ga-employee-theme.employees-page.clients-page .clients-import-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-import-actions .sys-btn {
+  width: 100%;
+  max-width: none;
+  white-space: normal;
+  line-height: 1.3;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  overflow-wrap: break-word;
+}
+
+/* Dropdown importar: largura fixa em relação à viewport — não herdar a coluna estreita do toolbar */
+.ga-employee-theme.employees-page.clients-page .employees-hero__import-menu--clients {
+  left: auto;
+  box-sizing: border-box;
+}
+
+.ga-employee-theme.employees-page.clients-page .employees-hero__import-menu--clients .clients-import-dropdown-form {
+  width: 100%;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .employees-hero__import-menu--clients
+  .employees-menu-item--block
+  .employees-menu-item__text {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .employees-hero__import-menu--clients
+  .employees-menu-item--block
+  .employees-menu-item__title,
+.ga-employee-theme.employees-page.clients-page
+  .employees-hero__import-menu--clients
+  .employees-menu-item--block
+  .employees-menu-item__hint {
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: manual;
 }
 
 .ga-employee-theme.employees-page.clients-page .clients-filter-card {
   border: 1px solid var(--emp-border);
-  box-shadow: var(--emp-shadow-card);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-toolbar-unified.clients-filter-card {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
 }
 
 /* Hero + filtros no mesmo cartão: sem padding duplo do sys-card--surface */
@@ -30,28 +78,266 @@
 }
 
 .ga-employee-theme.employees-page.clients-page .clients-toolbar-unified .clients-unified-toolbar__top {
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
-.ga-employee-theme.employees-page.clients-page .clients-toolbar-unified .clients-filter-card__head {
-  padding-left: 1.25rem;
-  padding-right: 1.25rem;
+.ga-employee-theme.employees-page.clients-page .clients-toolbar-unified .clients-filter-form-anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
-.ga-employee-theme.employees-page.clients-page .clients-toolbar-unified .clients-filter-form {
-  padding: 1rem 1.25rem 1.25rem;
-}
-
-.ga-employee-theme.employees-page.clients-page .clients-filter-card__head {
+.ga-employee-theme.employees-page.clients-page .clients-toolbar-unified .clients-filter-form.clients-filter-form--stacked {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.35rem 0.85rem 0.45rem;
+  overflow: visible;
 }
 
-.ga-employee-theme.employees-page.clients-page .clients-filter-form,
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-field {
+  grid-column: unset;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--top {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(0, 2fr);
+  gap: 0.35rem 0.45rem;
+  align-items: end;
+  width: 100%;
+  overflow: visible;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--top
+  .clients-field-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-toolbar-cta {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-toolbar-cta
+  .employees-hero__import-wrap {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 50%;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-toolbar-cta
+  .employees-cta.sys-btn--success {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 50%;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.3rem 0.4rem;
+  width: 100%;
+  padding-top: 0.25rem;
+  margin-top: 0.1rem;
+  border-top: 1px solid rgb(226 232 240 / 0.45);
+}
+
+html.dark
+  .ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom {
+  border-top-color: rgb(51 65 85 / 0.75);
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom
+  .clients-filter-field {
+  grid-column: auto;
+  flex-shrink: 0;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom
+  .clients-filter-field--date {
+  flex: 0 0 8.65rem;
+  width: 8.65rem;
+  max-width: 9rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom
+  .clients-filter-field--date
+  .clients-control {
+  padding: 0.38rem 0.35rem;
+  font-size: 0.78rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom
+  .clients-filter-field--precad {
+  flex: 0 0 6.85rem;
+  width: 6.85rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom
+  .clients-filter-field--idade {
+  flex: 0 0 7.75rem;
+  width: 7.75rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom
+  .clients-filter-field--sort {
+  flex: 0 1 9.75rem;
+  min-width: 8.25rem;
+  max-width: 12rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom
+  .clients-filter-actions {
+  grid-column: unset;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 0.35rem;
+  gap: 0.35rem 0.5rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-form__row--bottom
+  .clients-field-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+/* Controles mais baixos e borda suave só na barra de filtros da lista */
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-field {
+  gap: 0.18rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-control {
+  min-height: 2.3rem;
+  padding: 0.38rem 0.55rem;
+  font-size: 0.8125rem;
+  border-color: rgb(226 232 240);
+  box-shadow: none;
+}
+
+html.dark
+  .ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-control {
+  border-color: rgb(51 65 85);
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-control:focus {
+  box-shadow: 0 0 0 2px rgb(79 70 229 / 0.12);
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-actions {
+  gap: 0.25rem 0.45rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-apply-btn {
+  min-height: 2.3rem;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.78rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-toolbar-cta
+  .employees-cta {
+  min-height: 2.3rem;
+  padding-top: 0.32rem;
+  padding-bottom: 0.32rem;
+  font-size: 0.75rem;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-toolbar-cta
+  .employees-cta__label {
+  font-size: 0.75rem;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-filter-form:not(.clients-filter-form--stacked),
 .ga-employee-theme.employees-page.clients-page .clients-bulk-form,
 .clients-modal__grid,
 .ga-employee-theme.employees-page.clients-page .clients-modal__grid {
@@ -59,7 +345,7 @@
   gap: 1rem;
 }
 
-.ga-employee-theme.employees-page.clients-page .clients-filter-form {
+.ga-employee-theme.employees-page.clients-page .clients-filter-form:not(.clients-filter-form--stacked) {
   grid-template-columns: repeat(12, minmax(0, 1fr));
   padding: 1rem 1rem 1.25rem;
 }
@@ -91,6 +377,13 @@
 .clients-modal .clients-filter-field--span-2,
 .ga-employee-theme.employees-page.clients-page .clients-filter-field--span-2 {
   grid-column: span 6;
+}
+
+.ga-employee-theme.employees-page.clients-page
+  .clients-toolbar-unified
+  .clients-filter-form.clients-filter-form--stacked
+  .clients-filter-field--wide {
+  grid-column: unset;
 }
 
 .ga-employee-theme.employees-page.clients-page .clients-field-label,
@@ -187,6 +480,84 @@
 .ga-employee-theme.employees-page.clients-page .clients-status-badge--validation { background: rgb(254 243 199); color: rgb(180 83 9); }
 .ga-employee-theme.employees-page.clients-page .clients-status-badge--inactive { background: rgb(226 232 240); color: rgb(71 85 105); }
 .ga-employee-theme.employees-page.clients-page .clients-status-badge--closed { background: rgb(255 228 230); color: rgb(190 24 93); }
+
+/*
+ * Lista de clientes: a tabela compacta de colaboradores fixa "Ações" em min-width 16rem e %s nas
+ * outras colunas — com muitas colunas, Data cadastro / Última mov. / Status ficam estreitas e o
+ * texto (e o botão amarelo de editar) parecem "misturar". Larguras dedicadas + overflow contido.
+ */
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__th--col-name,
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__td--col-name {
+  width: 26%;
+  min-width: 9rem;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .clients-data-table__th--nb,
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .clients-data-table__cell--nb {
+  width: 5.25rem;
+  min-width: 4.75rem;
+  max-width: 6rem;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .clients-data-table__th--movement,
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .clients-data-table__td--movement {
+  width: 9.5rem;
+  min-width: 8.75rem;
+  max-width: 11rem;
+  overflow: hidden;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .clients-data-table__td--movement .clients-data-table__meta-chip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__th--col-center,
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__td--col-center {
+  width: 14%;
+  min-width: 7.5rem;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__th--col-status,
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__td--col-status {
+  width: 9.5%;
+  min-width: 7.75rem;
+  max-width: 10rem;
+  overflow: hidden;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__td--col-status .clients-status-badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__th--col-actions,
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__td--col-actions {
+  width: 3.25rem;
+  min-width: 3.25rem;
+  max-width: 3.5rem;
+  padding-inline: 0.35rem;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .employees-data-table__td--col-actions .employee-actions {
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .clients-data-table__th--select,
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .clients-cell-select {
+  width: 2.75rem;
+  min-width: 2.75rem;
+  max-width: 3rem;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-data-table.employees-data-table--compact .clients-cell-select {
+  padding-right: 0.35rem;
+}
 
 .ga-employee-theme.employees-page.clients-page .clients-empty-state {
   padding: 3rem 1.5rem;
@@ -285,7 +656,13 @@
 }
 
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-ray-kpi-row {
-  scrollbar-width: thin;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.25rem), 1fr));
+  gap: 0.5rem 0.55rem;
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0;
+  align-items: stretch;
 }
 
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-panel {
@@ -345,6 +722,10 @@
   align-items: stretch;
 }
 
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-fields-card--unified {
+  width: 100%;
+}
+
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-fields-card {
   display: flex;
   flex-direction: column;
@@ -356,6 +737,10 @@
   box-shadow: var(--emp-shadow-card);
 }
 
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-fields-card--unified.client-detail-fields-card {
+  padding: 0.7rem 0.85rem 0.8rem;
+}
+
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-fields-card__title {
   margin: 0 0 0.85rem;
   font-size: 0.65rem;
@@ -365,25 +750,163 @@
   color: var(--emp-text-muted);
 }
 
-.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-fields > div {
+/* Ficha unificada — grade estável (sem col-span quebrando entre breakpoints) */
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.42;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv--split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem 0;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv--split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 1rem;
+  }
+
+  .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv--split .client-detail-kv__section--contato {
+    padding-left: 1rem;
+    border-left: 1px solid var(--emp-border);
+  }
+}
+
+@media (max-width: 899px) {
+  .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv--split .client-detail-kv__section--contato {
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--emp-border);
+  }
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__section {
   min-width: 0;
 }
 
-.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-fields > div .text-slate-500:first-child {
-  display: block;
-  margin-bottom: 0.2rem;
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__heading {
+  margin: 0 0 0.45rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--emp-border);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.25rem, 1fr));
+  gap: 0.85rem 1.1rem;
+  margin: 0;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv--split .client-detail-kv__grid {
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: 0.5rem 0.65rem;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__cell {
+  margin: 0;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__cell--wide {
+  grid-column: 1 / -1;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__hint {
+  margin: 0;
   font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__hint strong {
+  font-weight: 700;
+  color: var(--emp-text-body);
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__label {
+  display: block;
+  margin: 0 0 0.15rem;
+  font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--emp-text-muted);
 }
 
-.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-fields > div .text-white,
-.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-fields > div .text-slate-300 {
-  line-height: 1.4;
-  word-break: break-word;
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__value {
+  margin: 0;
+  font-weight: 600;
   color: var(--emp-text-strong);
+  word-break: break-word;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__value a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(148, 163, 184, 0.55);
+  text-underline-offset: 3px;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__value a:hover {
+  color: #38bdf8;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__suffix {
+  font-weight: 500;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__divider {
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--emp-border) 15%,
+    var(--emp-border) 85%,
+    transparent 100%
+  );
+  opacity: 0.85;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__pill {
+  display: inline-block;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__pill--ok {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__status {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kpi {
@@ -401,7 +924,9 @@
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-ray-kpi-row .client-detail-kpi {
   min-height: 0;
   min-width: 0;
-  padding: 0.65rem 0.5rem;
+  width: 100%;
+  max-width: none;
+  padding: 0.55rem 0.45rem;
 }
 
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-ray-kpi-row .client-detail-kpi__label {
@@ -417,6 +942,12 @@
   font-size: 0.65rem;
   line-height: 1.25;
   color: var(--emp-text-muted);
+  word-break: break-word;
+}
+
+.ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-ray-kpi-row .client-detail-kpi--devolucao .client-detail-kpi__label {
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kpi__label {
@@ -597,7 +1128,7 @@ html.dark .ga-employee-theme.employees-page.clients-page.clients-detail-page .cl
 }
 
 @media (max-width: 1024px) {
-  .ga-employee-theme.employees-page.clients-page .clients-filter-form,
+  .ga-employee-theme.employees-page.clients-page .clients-filter-form:not(.clients-filter-form--stacked),
   .ga-employee-theme.employees-page.clients-page .clients-bulk-form,
   .clients-modal__grid,
   .ga-employee-theme.employees-page.clients-page .clients-modal__grid {
@@ -611,15 +1142,40 @@ html.dark .ga-employee-theme.employees-page.clients-page.clients-detail-page .cl
   .ga-employee-theme.employees-page.clients-page .clients-filter-field--span-2 {
     grid-column: span 1;
   }
+}
 
-  .ga-employee-theme.employees-page.clients-page .clients-filter-card__head {
-    flex-direction: column;
-    align-items: flex-start;
+@media (max-width: 900px) {
+  .ga-employee-theme.employees-page.clients-page
+    .clients-toolbar-unified
+    .clients-filter-form.clients-filter-form--stacked
+    .clients-filter-form__row--top {
+    grid-template-columns: 1fr;
+  }
+
+  .ga-employee-theme.employees-page.clients-page
+    .clients-toolbar-unified
+    .clients-filter-form.clients-filter-form--stacked
+    .clients-filter-toolbar-cta {
+    justify-content: stretch;
+  }
+
+  .ga-employee-theme.employees-page.clients-page
+    .clients-toolbar-unified
+    .clients-filter-form.clients-filter-form--stacked
+    .clients-filter-toolbar-cta
+    .employees-hero__import-wrap,
+  .ga-employee-theme.employees-page.clients-page
+    .clients-toolbar-unified
+    .clients-filter-form.clients-filter-form--stacked
+    .clients-filter-toolbar-cta
+    .employees-cta.sys-btn--success {
+    flex: 1 1 auto;
+    max-width: none;
   }
 }
 
 @media (max-width: 640px) {
-  .ga-employee-theme.employees-page.clients-page .clients-filter-form,
+  .ga-employee-theme.employees-page.clients-page .clients-filter-form:not(.clients-filter-form--stacked),
   .ga-employee-theme.employees-page.clients-page .clients-bulk-form,
   .clients-modal__grid,
   .ga-employee-theme.employees-page.clients-page .clients-modal__grid {
@@ -634,9 +1190,35 @@ html.dark .ga-employee-theme.employees-page.clients-page.clients-detail-page .cl
     grid-column: span 1;
   }
 
-  .ga-employee-theme.employees-page.clients-page .clients-import-actions {
-    grid-template-columns: 1fr;
+  .ga-employee-theme.employees-page.clients-page
+    .clients-toolbar-unified
+    .clients-filter-form.clients-filter-form--stacked
+    .clients-filter-form__row--bottom
+    .clients-filter-field,
+  .ga-employee-theme.employees-page.clients-page
+    .clients-toolbar-unified
+    .clients-filter-form.clients-filter-form--stacked
+    .clients-filter-form__row--bottom
+    .clients-filter-field--sort {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
   }
+
+  .ga-employee-theme.employees-page.clients-page
+    .clients-toolbar-unified
+    .clients-filter-form.clients-filter-form--stacked
+    .clients-filter-form__row--bottom
+    .clients-filter-actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    padding-left: 0;
+    padding-top: 0.25rem;
+  }
+
 }
 
 html.dark .clients-modal__card {
@@ -673,4 +1255,96 @@ html.dark .clients-modal .clients-contact-highlight__title {
 html.dark .ga-employee-theme.employees-page.clients-page .clients-contact-highlight__text,
 html.dark .clients-modal .clients-contact-highlight__text {
   color: rgb(226 232 240);
+}
+
+/* ----- /clients/import/conflicts — tabela responsiva (paridade com #employeesTable) ----- */
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable thead {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tbody {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-xl);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgb(241 245 249);
+    white-space: normal;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td:first-child {
+    border-top: 0;
+    padding-bottom: 1rem;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 5.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td.employee-cell-primary {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td.employee-cell-primary::before {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td.employee-actions-cell {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td.employee-actions-cell::before {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row .employee-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row .employee-action-btn {
+    height: 2.55rem;
+    width: 2.55rem;
+  }
+}
+
+html.dark .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row {
+  background: linear-gradient(180deg, rgb(30 41 59) 0%, rgb(15 23 42) 100%);
+  border-color: rgb(51 65 85);
+}
+
+html.dark .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td {
+  border-top-color: rgb(51 65 85 / 0.85);
+}
+
+html.dark .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td[data-label]::before {
+  color: rgb(148 163 184);
 }

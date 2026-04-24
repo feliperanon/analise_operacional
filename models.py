@@ -173,6 +173,7 @@ class Client(SQLModel, table=True):
     visita: Optional[str] = Field(default=None)
     nome_fantasia: Optional[str] = Field(default=None, index=True)  # FANTAS
     razao_social: Optional[str] = Field(default=None, index=True)
+    cnpj_cpf: Optional[str] = Field(default=None, index=True)
     municipio: Optional[str] = Field(default=None, index=True)
     bairro: Optional[str] = Field(default=None)
     endereco: Optional[str] = Field(default=None)
@@ -272,6 +273,7 @@ class ClientImportStaging(SQLModel, table=True):
     visita: Optional[str] = None
     nome_fantasia: Optional[str] = None
     razao_social: Optional[str] = None
+    cnpj_cpf: Optional[str] = None
     municipio: Optional[str] = None
     bairro: Optional[str] = None
     endereco: Optional[str] = None
@@ -307,6 +309,29 @@ class Vehicle(SQLModel, table=True):
     odometer_km: Optional[float] = Field(default=None, index=True)  # Último KM (atualizado pelo checklist ou edição)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class WorkshopServiceOrder(SQLModel, table=True):
+    """OS da oficina, com origem manual/checklist/preventiva e plano de ação obrigatório."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    vehicle_id: Optional[int] = Field(default=None, foreign_key="vehicle.id", index=True)
+    checklist_id: Optional[int] = Field(default=None, foreign_key="transpalletchecklist.id", index=True)
+    driver_employee_id: Optional[int] = Field(default=None, foreign_key="employee.id", index=True)
+    origin: str = Field(default="manual", index=True)  # manual | checklist | preventiva
+    order_type: str = Field(default="corretiva", index=True)  # corretiva | preventiva
+    priority: str = Field(default="medium", index=True)  # low | medium | high | critical
+    status: str = Field(default="open", index=True)  # open | triage | in_progress | waiting_parts | done | closed
+    title: str = Field(default="Ordem de serviço")
+    problem_description: str = Field(default="")
+    preventive_note: Optional[str] = None
+    due_date: Optional[datetime] = None
+    resolution_notes: Optional[str] = None
+    closed_at: Optional[datetime] = None
+    issue_count: int = Field(default=0)
+    action_plan_json: List[dict] = Field(default=[], sa_column=Column(JSON))
+    opened_by: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+    updated_at: datetime = Field(default_factory=datetime.now, index=True)
 
 
 class Route(SQLModel, table=True):

@@ -1,76 +1,411 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Conflitos de importação · Clientes · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Cadastros / Conflitos de importação</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Conflitos de importação</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Revise duplicidades, decida criar, mesclar ou ignorar antes de confirmar o lote</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/clients.css">
+{% endblock %}
 
 {% block content %}
-<div class="p-8">
-    <div class="max-w-6xl mx-auto">
-        <div class="mb-8">
-            <a href="/clients" class="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-4">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Voltar para Clientes
-            </a>
-            <h1 class="text-3xl font-bold text-white mb-2">Conflitos de Duplicidade</h1>
-            <p class="text-slate-400">Arquivo: <strong>{{ batch.filename or 'Importação' }}</strong>. Revise os possíveis duplicados e escolha a ação.</p>
-        </div>
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium clients-page import-conflicts-page space-y-5 pt-2 md:pt-3">
 
-        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-6 text-amber-200">
-            <p class="text-sm"><strong>Regras de deduplicação:</strong> Mesmo telefone (E.164) • Mesma razão social + mesmo bairro • Mesmo endereço normalizado</p>
-        </div>
-
-        <form action="/clients/import/confirm/{{ batch.id }}" method="post" class="space-y-6">
-            {% for row in rows %}
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 {% if row.conflict_type %}border-amber-500/50{% endif %}">
-                <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div class="flex-1 min-w-0">
-                        <div class="font-semibold text-white mb-1">{{ row.name }}</div>
-                        <div class="text-sm text-slate-400 space-y-0.5">
-                            {% if row.nome_fantasia %}<span>Fantasia: {{ row.nome_fantasia }}</span>{% endif %}
-                            {% if row.razao_social %} • <span>Razão: {{ row.razao_social }}</span>{% endif %}
-                            {% if row.municipio %} • <span>{{ row.municipio }}{% if row.bairro %} / {{ row.bairro }}{% endif %}</span>{% endif %}
-                            {% if row.fone %} • <span>{{ row.fone }}</span>{% endif %}
-                            {% if row.endereco %} • <span class="block truncate">{{ row.endereco }}</span>{% endif %}
-                        </div>
-                        {% if row.conflict_type %}
-                        <div class="mt-2 flex items-center gap-2">
-                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400">
-                                {% if row.conflict_type == "fone" %}Conflito: mesmo telefone
-                                {% elif row.conflict_type == "razao_bairro" %}Conflito: razão social + bairro
-                                {% elif row.conflict_type == "endereco" %}Conflito: mesmo endereço
-                                {% elif row.conflict_type == "nome" %}Conflito: nome já existe
-                                {% else %}Possível duplicado{% endif %}
-                            </span>
-                            {% if conflict_map.get(row.id) %}
-                            <a href="/clients/{{ conflict_map[row.id].id }}" target="_blank" class="text-xs text-blue-400 hover:underline">
-                                Cliente existente #{{ conflict_map[row.id].id }} →
-                            </a>
-                            {% endif %}
-                        </div>
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        Importação · Lote #{{ batch.id }}
+                    </span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Resolver conflitos do arquivo</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
+                        Arquivo: <strong class="employees-text-strong">{{ batch.filename or "Importação" }}</strong>.
+                        Use filtros e ações em lote para decidir mais rápido; a confirmação final mostra um resumo das decisões.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ conflict_summary.total|fmt_br_int }} linhas no lote
+                        </span>
+                        {% if conflict_summary.conflicts %}
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ conflict_summary.conflicts|fmt_br_int }} com alerta de duplicidade
+                        </span>
                         {% endif %}
-                    </div>
-                    <div class="flex-shrink-0">
-                        {% if row.conflict_type %}
-                        <select name="action_{{ row.id }}" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-blue-500">
-                            <option value="create">Criar novo</option>
-                            {% if conflict_map.get(row.id) %}
-                            <option value="merge" selected>Mesclar com existente</option>
-                            {% endif %}
-                            <option value="skip">Ignorar</option>
-                        </select>
-                        {% else %}
-                        <input type="hidden" name="action_{{ row.id }}" value="create">
-                        <span class="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-sm font-medium">Será criado</span>
+                        {% if conflict_summary.mergeable %}
+                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            {{ conflict_summary.mergeable|fmt_br_int }} podem mesclar com cadastro existente
+                        </span>
                         {% endif %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
 
-            <div class="flex flex-wrap items-center justify-between gap-4 pt-4">
-                <a href="/clients" class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</a>
-                <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors">
-                    Confirmar importação
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                            </svg>
+                        </span>
+                        <span class="employees-cta__label">Importar</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div x-show="open" @click.away="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+                        <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importar clientes</p>
+                        <button type="button" onclick="document.getElementById('cicImportModal').classList.remove('hidden')" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Planilha Excel ou CSV</span>
+                                <span class="employees-menu-item__hint">Novo arquivo em outro lote</span>
+                            </span>
+                        </button>
+                        <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
+                        <a href="/clients/import" class="employees-menu-item employees-menu-item--block">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Central de importação</span>
+                                <span class="employees-menu-item__hint">Modelo e histórico de lotes</span>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+
+                <button type="button" onclick="document.getElementById('cicNovoClienteModal').classList.remove('hidden')" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                    </span>
+                    <span class="employees-cta__label">Novo cliente</span>
                 </button>
             </div>
+        </div>
+    </div>
+
+    <div class="sys-alert sys-alert--info flex flex-col gap-2 sm:flex-row sm:items-start" role="region" aria-label="Regras de deduplicação">
+        <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div class="min-w-0 text-sm leading-relaxed">
+            <strong class="employees-text-strong">Regras de deduplicação:</strong>
+            mesmo telefone (E.164); mesma razão social + mesmo bairro; mesmo endereço normalizado; reenvio com mesmo NB ou CNPJ/CPF:
+            atualização só quando a coluna <strong>Setor</strong> da planilha difere da cadastrada; vínculo pelo código em SETOR quando houver alteração.
+        </div>
+    </div>
+
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo do lote">
+            <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);" data-summary-filter="all" role="button" tabindex="0">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Total</span>
+                            <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ conflict_summary.total|fmt_br_int }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Todas as linhas do arquivo</span></div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);" data-summary-filter="conflicts" role="button" tabindex="0">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Com conflito</span>
+                            <div class="mt-1"><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ conflict_summary.conflicts|fmt_br_int }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Exigem decisão</span></div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);" data-summary-filter="clean" role="button" tabindex="0">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Sem conflito</span>
+                            <div class="mt-1"><span class="employees-kpi__value tabular-nums text-emerald-600 dark:text-emerald-400">{{ conflict_summary.clean|fmt_br_int }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Serão criados por padrão</span></div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(96, 165, 250, 0.72);" data-summary-filter="mergeable" role="button" tabindex="0">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Mesclagem possível</span>
+                            <div class="mt-1"><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--blue tabular-nums">{{ conflict_summary.mergeable|fmt_br_int }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Com cliente existente vinculado</span></div>
+                </div>
+            </div>
+            {% if conflict_summary.merge_vendor_diff_defaults %}
+            <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);" data-summary-filter="merge_vendor_diff" role="button" tabindex="0">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Troca de vendedor</span>
+                            <div class="mt-1"><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ conflict_summary.merge_vendor_diff_defaults|fmt_br_int }}</span></div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Na mescla, código antigo ≠ novo</span></div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner">
+                <div class="employees-filter-bar__primary">
+                    <div class="employees-filter-bar__primary-scroll">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search">
+                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="search" id="importConflictSearch" autocomplete="off" placeholder="Nome, razão, cidade, telefone, NB…" class="ops-toolbar-search__input">
+                        </div>
+                    </div>
+                    <div class="flex flex-shrink-0 flex-col gap-1 sm:min-w-[10rem]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Tipo de conflito</span>
+                        <select id="importConflictTypeFilter" class="sys-input min-h-[var(--sys-control-height)] w-full py-1.5 text-sm">
+                            <option value="">Todos</option>
+                            <option value="fone">Mesmo telefone</option>
+                            <option value="razao_bairro">Razão + bairro</option>
+                            <option value="endereco">Mesmo endereço</option>
+                            <option value="nome">Nome já existe</option>
+                        </select>
+                    </div>
+                    <label class="mt-6 flex cursor-pointer items-center gap-2 text-xs font-medium employees-text-body sm:mt-7">
+                        <input type="checkbox" id="importConflictMergeableOnly" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                        <span>Apenas com mesclagem possível</span>
+                    </label>
+                    <div class="mt-2 flex w-full min-w-0 flex-col gap-1 sm:mt-0 sm:min-w-[14rem]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Resultado esperado (decisão atual)</span>
+                        <select id="importOutcomeFilter" class="sys-input min-h-[var(--sys-control-height)] w-full py-1.5 text-sm">
+                            <option value="">Todos os resultados</option>
+                            <option value="conflict">Só com alerta de duplicidade</option>
+                            <option value="create">Novos cadastros (criar novo)</option>
+                            <option value="merge">Atualizar cadastro (mesclar)</option>
+                            <option value="skip">Não atualizar (ignorar linha)</option>
+                            <option value="merge_vendor_change">Mesclar: código do vendedor muda</option>
+                            <option value="merge_vendor_same">Mesclar: mesmo código de vendedor</option>
+                        </select>
+                        {% if conflict_summary.merge_vendor_diff_defaults %}
+                        <p class="text-[10px] leading-snug employees-text-muted">Neste lote, <strong class="employees-text-strong">{{ conflict_summary.merge_vendor_diff_defaults|fmt_br_int }}</strong> mesclagem(ões) com alteração de vendedor (comparativo na coluna).</p>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+                <div class="employees-filter-bar__secondary flex flex-wrap items-center gap-2">
+                    <button type="button" data-conflict-scope-btn data-scope="all" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" aria-pressed="true">Ver todos</button>
+                    <button type="button" data-conflict-scope-btn data-scope="conflicts" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" aria-pressed="false">Só conflitos</button>
+                    <button type="button" data-conflict-scope-btn data-scope="clean" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" aria-pressed="false">Só sem conflito</button>
+                    <button type="button" onclick="importConflictsClearFilters()" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar">Limpar filtros</button>
+                    <button type="button" onclick="importConflictsOpenBulkModal()" class="sys-btn sys-btn--secondary text-xs">Ação em lote…</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="import-confirm-form" action="/clients/import/confirm/{{ batch.id }}" method="post" class="space-y-4">
+        <div id="import-conflicts-synced-actions" class="sr-only" aria-hidden="true"></div>
+
+        <div id="import-conflicts-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+            <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+                <div class="min-w-0 flex-1">
+                    <p class="employees-table-panel__kicker">Lote pendente</p>
+                    <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Linhas da importação</h3>
+                    <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Em telas menores, cada linha vira um card com rótulos e ações. A lista é paginada no navegador para manter a interface fluida em lotes grandes.</p>
+                </div>
+                <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                    <span class="employees-text-caption">Colunas esperadas na planilha incluem FANTAS ou Razão social, além de campos de endereço e contato.</span>
+                    Decisões de <strong class="employees-text-strong">mesclar</strong> atualizam o cliente existente com os dados da linha.
+                </div>
+            </div>
+
+            <div id="import-conflicts-empty" class="hidden px-5 py-14 text-center">
+                <p class="text-base font-semibold employees-text-strong">Nenhuma linha neste recorte</p>
+                <p class="mt-2 text-sm employees-text-muted">Ajuste a busca ou os filtros e tente novamente.</p>
+            </div>
+
+            <div class="sys-table-wrap sys-table-wrap--x-scroll">
+                <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1080px]" id="importConflictsTable">
+                    <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                        <tr>
+                            <th class="employees-data-table__th group cursor-pointer select-none px-3 py-2 pl-5 transition-colors" onclick="importConflictsSetSort('name')">
+                                <div class="flex items-center gap-1.5">Cliente <svg id="import-sort-icon-name" class="employees-data-table__sort-icon w-3 h-3 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg></div>
+                            </th>
+                            <th class="employees-data-table__th group cursor-pointer select-none px-2 py-2 transition-colors" onclick="importConflictsSetSort('row_index')">
+                                <div class="flex items-center gap-1.5">Linha <svg id="import-sort-icon-row_index" class="employees-data-table__sort-icon w-3 h-3 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg></div>
+                            </th>
+                            <th class="employees-data-table__th px-2 py-2">Local</th>
+                            <th class="employees-data-table__th group cursor-pointer select-none px-2 py-2 transition-colors" onclick="importConflictsSetSort('conflict_type')">
+                                <div class="flex items-center gap-1.5">Conflito <svg id="import-sort-icon-conflict_type" class="employees-data-table__sort-icon w-3 h-3 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg></div>
+                            </th>
+                            <th class="employees-data-table__th px-2 py-2 min-w-[10rem]">Cadastro existente</th>
+                            <th class="employees-data-table__th px-2 py-2 min-w-[11rem]">Vendedor (antigo → novo)</th>
+                            <th class="employees-data-table__th px-2 py-2">Decisão</th>
+                            <th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="employees-data-table__body divide-y" id="importConflictsTbody"></tbody>
+                </table>
+            </div>
+
+            <div id="import-conflicts-pager" class="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 sm:px-5">
+                <p id="import-conflicts-pager-meta" class="text-xs employees-text-muted"></p>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="import-conflicts-prev" class="sys-btn sys-btn--secondary px-3 py-1.5 text-xs">Anterior</button>
+                    <button type="button" id="import-conflicts-next" class="sys-btn sys-btn--secondary px-3 py-1.5 text-xs">Próxima</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-4 border-t border-slate-200/80 pt-4 dark:border-slate-700/60">
+            <a href="/clients" class="sys-btn sys-btn--secondary justify-center">Voltar para clientes</a>
+            <button type="submit" class="sys-btn sys-btn--primary justify-center">Confirmar importação…</button>
+        </div>
+    </form>
+</div>
+
+<script type="application/json" id="import-conflicts-bootstrap">{{ import_conflicts_payload | tojson }}</script>
+{% endblock %}
+
+{% block body_scripts %}
+<script src="/static/js/pages/clients-import-conflicts.js"></script>
+{% endblock %}
+
+{% block layout_portal %}
+<div id="cicImportModal" class="emp-modal-shell fixed inset-0 z-[80] hidden flex items-center justify-center p-4" onclick="importConflictsModalBackdrop(event, 'cicImportModal')">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md" onclick="event.stopPropagation()">
+        <div class="mb-6 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Importar clientes</h3>
+            <button type="button" onclick="document.getElementById('cicImportModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <form action="/clients/import" method="post" enctype="multipart/form-data" class="space-y-4">
+            <div class="emp-modal-dropzone">
+                <p class="mb-2 text-sm employees-text-muted">Selecione Excel (.xlsx, .xls) ou CSV.</p>
+                <input type="file" name="file" accept=".xlsx,.xls,.csv" required class="text-sm file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700">
+            </div>
+            <div class="text-xs employees-text-muted">
+                <p class="m-0">Colunas mínimas: <strong>FANTAS</strong> ou <strong>Razão social</strong>. Inclua setor, endereço e telefone quando possível.</p>
+                <p class="mt-2 m-0"><a href="/clients/template" class="font-medium text-blue-600 hover:underline dark:text-blue-400" download>Baixar modelo</a></p>
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('cicImportModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary">Enviar arquivo</button>
+            </div>
         </form>
+    </div>
+</div>
+
+<div id="cicNovoClienteModal" class="emp-modal-shell fixed inset-0 z-[80] hidden flex items-center justify-center p-4" onclick="importConflictsModalBackdrop(event, 'cicNovoClienteModal')">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md" onclick="event.stopPropagation()">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Novo cliente</h3>
+            <button type="button" onclick="document.getElementById('cicNovoClienteModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p class="text-sm employees-text-body">O cadastro completo com vendedor, setores e validações fica na lista de clientes. Você pode abrir em nova aba sem perder este lote.</p>
+        <div class="mt-6 flex flex-wrap justify-end gap-3">
+            <button type="button" onclick="document.getElementById('cicNovoClienteModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Fechar</button>
+            <a href="/clients" target="_blank" rel="noopener" class="sys-btn sys-btn--primary justify-center">Abrir cadastro de clientes</a>
+        </div>
+    </div>
+</div>
+
+<div id="cicBulkModal" class="emp-modal-shell fixed inset-0 z-[80] hidden flex items-center justify-center p-4" onclick="importConflictsModalBackdrop(event, 'cicBulkModal')">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md" onclick="event.stopPropagation()">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Ação em lote</h3>
+            <button type="button" onclick="importConflictsCloseBulkModal()" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p class="text-sm employees-text-muted mb-4">Aplica a decisão escolhida a <strong class="employees-text-strong">todas as linhas do recorte atual</strong> (filtros + busca). Linhas sem opção (ex.: mesclar sem cadastro vinculado) são ignoradas.</p>
+        <label class="block text-xs font-semibold uppercase tracking-wide employees-text-section-label mb-1.5">Decisão</label>
+        <select id="importBulkAction" class="sys-input mb-6 w-full py-2 text-sm">
+            <option value="create">Criar novo</option>
+            <option value="merge">Mesclar com existente</option>
+            <option value="skip">Ignorar</option>
+        </select>
+        <div class="flex justify-end gap-3">
+            <button type="button" onclick="importConflictsCloseBulkModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+            <button type="button" onclick="importConflictsApplyBulk()" class="sys-btn sys-btn--primary">Aplicar</button>
+        </div>
+    </div>
+</div>
+
+<div id="cicEditRowModal" class="emp-modal-shell fixed inset-0 z-[80] hidden flex items-center justify-center p-4" onclick="importConflictsModalBackdrop(event, 'cicEditRowModal')">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md" onclick="event.stopPropagation()">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Editar decisão</h3>
+            <button type="button" onclick="importConflictsCloseEditModal()" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p id="importEditModalTitle" class="text-sm font-medium employees-text-strong mb-3"></p>
+        <label class="block text-xs font-semibold employees-text-section-label mb-1.5">Ação</label>
+        <select id="importEditModalSelect" class="sys-input mb-6 w-full py-2 text-sm"></select>
+        <div class="flex justify-end gap-3">
+            <button type="button" onclick="importConflictsCloseEditModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+            <button type="button" onclick="importConflictsSaveEditModal()" class="sys-btn sys-btn--primary">Salvar</button>
+        </div>
+    </div>
+</div>
+
+<div id="cicConfirmSubmitModal" class="emp-modal-shell fixed inset-0 z-[80] hidden flex items-center justify-center p-4" onclick="importConflictsModalBackdrop(event, 'cicConfirmSubmitModal')">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md" onclick="event.stopPropagation()">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Confirmar importação</h3>
+            <button type="button" onclick="document.getElementById('cicConfirmSubmitModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <p class="text-sm employees-text-muted mb-3">Resumo das decisões neste lote:</p>
+        <div id="import-confirm-submit-body" class="mb-6"></div>
+        <p class="text-xs employees-text-muted mb-4">Após confirmar, o lote será processado e você será redirecionado para a lista de clientes.</p>
+        <div class="flex justify-end gap-3">
+            <button type="button" onclick="document.getElementById('cicConfirmSubmitModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Voltar</button>
+            <button type="button" onclick="importConflictsFinalizeSubmit()" class="sys-btn sys-btn--primary">Confirmar e processar</button>
+        </div>
     </div>
 </div>
 {% endblock %}
