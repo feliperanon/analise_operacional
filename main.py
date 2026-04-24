@@ -810,6 +810,8 @@ def _path_bypasses_db_readiness(path: str) -> bool:
     """Recursos sem DB: health, assets estáticos, ícones (browser pede em paralelo ao HTML)."""
     if path == "/healthz" or path.startswith("/static/"):
         return True
+    if path == "/service-worker.js":
+        return True
     if path in (
         "/favicon.ico",
         "/favicon-16x16.png",
@@ -880,16 +882,16 @@ async def lifespan(app: FastAPI):
             logger.exception("Falha na validação de ambiente antes do DB")
             app.state.db_startup_failed = True
         else:
-            timeout_s = 120.0
+            timeout_s = 300.0
             try:
-                raw = (os.environ.get("STARTUP_DB_TIMEOUT") or "120").strip()
-                timeout_s = float(raw or "120")
+                raw = (os.environ.get("STARTUP_DB_TIMEOUT") or "300").strip()
+                timeout_s = float(raw or "300")
                 if timeout_s < 15.0:
                     timeout_s = 15.0
                 if timeout_s > 600.0:
                     timeout_s = 600.0
             except (TypeError, ValueError):
-                timeout_s = 120.0
+                timeout_s = 300.0
             try:
                 await asyncio.wait_for(
                     asyncio.to_thread(_lifespan_blocking_db_work),
