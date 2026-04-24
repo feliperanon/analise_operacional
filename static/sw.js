@@ -1,6 +1,6 @@
 /**
  * Service Worker — Souza Pinto PWA Offline
- * Versão: 1.1.5 (my-routes sem cache SW — evita JSON obsoleto vs API nova)
+ * Versão: 1.1.6 (503 do servidor não é tratado como offline)
  *
  * Estratégias:
  * - Cache First → assets estáticos (CSS, JS) e CDN (Alpine, Lucide, fontes)
@@ -9,7 +9,7 @@
  * - Background Sync → fila de ações offline (IndexedDB)
  */
 
-const SW_VERSION = 'nl-entregas-v1.1.5';
+const SW_VERSION = 'nl-entregas-v1.1.6';
 const ASSETS_CACHE = `${SW_VERSION}-assets`;
 const DATA_CACHE = `${SW_VERSION}-data`;
 const CDN_CACHE = `${SW_VERSION}-cdn`;
@@ -66,6 +66,37 @@ const OFFLINE_HTML = `<!DOCTYPE html>
   <p>Conecte-se à internet para usar o app. Páginas que você já visitou podem funcionar com dados em cache.</p>
   <button class="retry" onclick="window.location.reload()">Tentar novamente</button>
   <p style="margin-top: 24px;"><a href="/mobile/dashboard">Abrir início (quando online)</a></p>
+</body>
+</html>`;
+
+// HTML exibido quando o servidor está online, mas temporariamente indisponível (ex.: DB iniciando).
+const SERVER_UNAVAILABLE_HTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serviço a iniciar - Souza Pinto</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 24px;
+      background: #0f172a; color: #e2e8f0; text-align: center;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    p { color: #94a3b8; margin-bottom: 24px; }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .retry { margin-top: 16px; padding: 10px 20px; background: #3b82f6; color: white; border-radius: 8px; border: none; font-size: 1rem; cursor: pointer; }
+    .retry:hover { background: #2563eb; }
+  </style>
+</head>
+<body>
+  <h1>Serviço a iniciar</h1>
+  <p>Você está online, mas o servidor ainda está preparando a base de dados. Tente novamente em instantes.</p>
+  <button class="retry" onclick="window.location.reload()">Tentar novamente</button>
+  <p style="margin-top: 24px;"><a href="/mobile/dashboard">Abrir início</a></p>
 </body>
 </html>`;
 
@@ -180,8 +211,8 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           if (request.mode !== 'navigate') return response;
           if (response && response.status === 503) {
-            return new Response(OFFLINE_HTML, {
-              status: 200,
+            return new Response(SERVER_UNAVAILABLE_HTML, {
+              status: 503,
               headers: { 'Content-Type': 'text/html; charset=utf-8' },
             });
           }
