@@ -58,3 +58,57 @@ def test_clients_import_confirm_keeps_reimport_rows_as_merge_when_stale_form_pos
     assert batch.status == "completed"
     assert batch.log_updated == 1
     assert batch.log_created == 0
+
+
+def test_client_import_row_has_changes_detects_seller_code_change():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        old_seller = models.Employee(name="Vendedor 101", seller_code="101", status="active")
+        new_seller = models.Employee(name="Vendedor 305", seller_code="305", status="active")
+        client = models.Client(name="Cliente", nb="19267", setor="101", me="100")
+        session.add(old_seller)
+        session.add(new_seller)
+        session.add(client)
+        session.commit()
+        session.refresh(old_seller)
+        session.refresh(client)
+        client.vendedor_id = old_seller.id
+        session.add(client)
+        session.commit()
+        session.refresh(client)
+
+        row = models.ClientImportStaging(
+            batch_id=1,
+            row_index=0,
+            name="Cliente",
+            nb="19267",
+            setor="305",
+            me="100",
+        )
+
+        assert main._client_import_row_has_changes(session, client, row) is True
+
+
+def test_client_import_row_has_changes_detects_non_seller_data_change():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        client = models.Client(name="Cliente", nb="19267", setor="305", me="100", visita="QUA")
+        session.add(client)
+        session.commit()
+        session.refresh(client)
+
+        row = models.ClientImportStaging(
+            batch_id=1,
+            row_index=0,
+            name="Cliente",
+            nb="19267",
+            setor="305",
+            me="100",
+            visita="QUI",
+        )
+
+        assert main._client_import_row_has_changes(session, client, row) is True

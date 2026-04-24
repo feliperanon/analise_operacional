@@ -70,7 +70,6 @@ from client_import_utils import (
     find_col_map as find_client_col_map,
     norm_nb_key,
     norm_cnpj_digits,
-    norm_me_sheet_compare,
     normalize_import_phone_br,
 )
 from client_vendedor import (
@@ -14517,6 +14516,54 @@ def _fill_client_from_import_staging(session: Session, client: models.Client, ro
         client.setor = (row.setor or "").strip() or None
 
 
+def _client_import_value_cmp(value: Optional[str]) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _client_import_row_has_changes(session: Session, client: models.Client, row: models.ClientImportStaging) -> bool:
+    """Retorna True quando a reimportação muda cadastro ou vínculo de vendedor."""
+    fields = (
+        "name",
+        "nb",
+        "me",
+        "sa",
+        "visita",
+        "nome_fantasia",
+        "razao_social",
+        "cnpj_cpf",
+        "municipio",
+        "bairro",
+        "endereco",
+        "endereco_normalizado",
+        "fone",
+        "fone_e164",
+        "segmento",
+        "status_cliente",
+    )
+    for field in fields:
+        if _client_import_value_cmp(getattr(client, field, None)) != _client_import_value_cmp(getattr(row, field, None)):
+            return True
+
+    new_raw = _client_import_value_cmp(row.setor)
+    vid_new = resolve_employee_id_by_seller_code(session, new_raw)
+    new_effective = new_raw
+    if vid_new:
+        emp_new = session.get(models.Employee, vid_new)
+        if emp_new and _client_import_value_cmp(emp_new.seller_code):
+            new_effective = _client_import_value_cmp(emp_new.seller_code)
+
+    current_card = vendedor_card_for_client(session, client)
+    current_effective = ""
+    if current_card and _client_import_value_cmp(current_card.get("seller_code")):
+        current_effective = _client_import_value_cmp(current_card.get("seller_code"))
+    else:
+        current_effective = _client_import_value_cmp(client.setor)
+
+    return _norm_seller_code_cmp(current_effective) != _norm_seller_code_cmp(new_effective)
+
+
 @app.post("/clients/{client_id}/update", response_class=RedirectResponse)
 async def update_client(
     request: Request,
@@ -14766,15 +14813,32 @@ async def clients_import(
                 if cj and cj in existing_by_cnpj:
                     reimport_id = existing_by_cnpj[cj]
 
-            # Reimportação: atualiza só se setor/código da planilha ≠ cadastro (planilha: coluna SETOR e/ou ME; sistema: setor espelhado ou me).
-            if reimport_id and ("setor" in col_map or "me" in col_map):
+            # Reimportação: ignora apenas linhas sem mudança real; outros campos também precisam atualizar.
+            if reimport_id:
                 prev_c = clients_by_id.get(reimport_id)
                 if prev_c is not None:
-                    sheet_key = norm_me_sheet_compare(setor) or norm_me_sheet_compare(me)
-                    db_key = norm_me_sheet_compare(getattr(prev_c, "setor", None)) or norm_me_sheet_compare(
-                        getattr(prev_c, "me", None)
+                    probe_row = models.ClientImportStaging(
+                        batch_id=batch.id,
+                        row_index=int(idx),
+                        name=name,
+                        nb=nb,
+                        setor=setor,
+                        me=me,
+                        sa=sa,
+                        visita=visita,
+                        nome_fantasia=nome_fantasia,
+                        razao_social=razao_social,
+                        cnpj_cpf=cnpj_cpf,
+                        municipio=municipio,
+                        bairro=bairro,
+                        endereco=endereco or endereco_raw,
+                        endereco_normalizado=endereco_norm,
+                        fone=fone,
+                        fone_e164=fone_e164,
+                        segmento=segmento,
+                        status_cliente=status_cliente,
                     )
-                    if sheet_key == db_key:
+                    if not _client_import_row_has_changes(session, prev_c, probe_row):
                         continue
 
             conflict_type = None
