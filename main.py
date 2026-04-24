@@ -872,9 +872,10 @@ async def lifespan(app: FastAPI):
     app.state.db_ready = False
     app.state.db_startup_failed = False
     app.state.delivery_autoclose_task = None
+    defer_db_readiness = _defer_db_readiness_until_after_lifespan_yield()
 
     async def _background_startup() -> None:
-        """Nunca deixa db_ready=False para sempre: exceção/timeout libera tráfego com db_startup_failed."""
+        """Prepara o DB sem prender o bind TCP; timeout no Render não vira falha permanente."""
         db_work_ok = False
         try:
             await asyncio.to_thread(_validate_render_env_sync)
@@ -893,18 +894,22 @@ async def lifespan(app: FastAPI):
             except (TypeError, ValueError):
                 timeout_s = 300.0
             try:
-                await asyncio.wait_for(
-                    asyncio.to_thread(_lifespan_blocking_db_work),
-                    timeout=timeout_s,
-                )
+                db_work_task = asyncio.create_task(asyncio.to_thread(_lifespan_blocking_db_work))
+                done, pending = await asyncio.wait({db_work_task}, timeout=timeout_s)
+                if pending:
+                    logger.warning(
+                        "Startup da base ainda em execução após %ss; mantendo serviço em modo de inicialização.",
+                        int(timeout_s),
+                    )
+                    if defer_db_readiness:
+                        await db_work_task
+                    else:
+                        app.state.db_startup_failed = True
+                        db_work_task.cancel()
+                        return
+                else:
+                    await next(iter(done))
                 db_work_ok = True
-            except asyncio.TimeoutError:
-                logger.error(
-                    "Timeout (%ss) no arranque da base (migrações/create_all). "
-                    "Verifique DATABASE_URL, SSL e se o Postgres aceita ligações externas.",
-                    int(timeout_s),
-                )
-                app.state.db_startup_failed = True
             except Exception:
                 logger.exception("Falha no startup em background (migrações/DB)")
                 app.state.db_startup_failed = True
@@ -927,7 +932,7 @@ async def lifespan(app: FastAPI):
     print("analise-operacional: yield lifespan (porta TCP pode abrir)", flush=True)
     # Sem adiar: espera migrações/DB antes do yield → sem 503 no --reload (sync-token, /separacao).
     # Adiar só em serviço real no Render (RENDER + APP_BASE_URL público), para o bind TCP cedo.
-    if not _defer_db_readiness_until_after_lifespan_yield():
+    if not defer_db_readiness:
         try:
             await startup_task
         except Exception:
