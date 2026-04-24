@@ -65,8 +65,20 @@ def test_client_import_row_has_changes_detects_seller_code_change():
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
-        old_seller = models.Employee(name="Vendedor 101", seller_code="101", status="active")
-        new_seller = models.Employee(name="Vendedor 305", seller_code="305", status="active")
+        old_seller = models.Employee(
+            registration_id="101",
+            name="Vendedor 101",
+            role="VENDEDOR",
+            seller_code="101",
+            status="active",
+        )
+        new_seller = models.Employee(
+            registration_id="305",
+            name="Vendedor 305",
+            role="VENDEDOR",
+            seller_code="305",
+            status="active",
+        )
         client = models.Client(name="Cliente", nb="19267", setor="101", me="100")
         session.add(old_seller)
         session.add(new_seller)
