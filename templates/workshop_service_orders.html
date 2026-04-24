@@ -39,7 +39,7 @@
               <select name="vehicle_id" class="sys-select mt-1 w-full min-w-0" required aria-required="true">
                 <option value="">Selecione a placa…</option>
                 {% for v in vehicles %}
-                <option value="{{ v.id }}" {% if prefill.vehicle_id == v.id %}selected{% endif %}>{{ v.placa }} · {{ v.marca }} {{ v.modelo }}</option>
+                <option value="{{ v.id }}" data-plate="{{ v.placa|e }}" {% if prefill.vehicle_id == v.id %}selected{% endif %}>{{ v.placa }} · {{ v.marca }} {{ v.modelo }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -64,7 +64,7 @@
               <select name="checklist_id" class="sys-select w-full min-w-0">
                 <option value="">Nenhum</option>
                 {% for c in checklists %}
-                <option value="{{ c.id }}" {% if prefill.checklist_id == c.id %}selected{% endif %}>#{{ c.id }} · {{ c.equipment_code }} · {{ c.date }}</option>
+                <option value="{{ c.id }}" data-equipment="{{ c.equipment_code|e }}" {% if prefill.checklist_id == c.id %}selected{% endif %}>#{{ c.id }} · {{ c.equipment_code }} · {{ c.date }}</option>
                 {% endfor %}
               </select>
             </div>
@@ -166,4 +166,57 @@
     </div>
   </div>
 </div>
+
+<script>
+  (function () {
+    const vehicleSelect = document.querySelector('select[name="vehicle_id"]');
+    const checklistSelect = document.querySelector('select[name="checklist_id"]');
+    if (!vehicleSelect || !checklistSelect) return;
+
+    const normPlate = (value) => String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const selectedVehiclePlate = () => {
+      const option = vehicleSelect.options[vehicleSelect.selectedIndex];
+      return normPlate(option ? option.dataset.plate : "");
+    };
+
+    const filterChecklistsByVehicle = () => {
+      const plate = selectedVehiclePlate();
+      Array.from(checklistSelect.options).forEach((option) => {
+        if (!option.value) {
+          option.hidden = false;
+          option.disabled = false;
+          return;
+        }
+        const matches = !plate || normPlate(option.dataset.equipment) === plate;
+        option.hidden = !matches;
+        option.disabled = !matches;
+      });
+      if (checklistSelect.selectedOptions[0] && checklistSelect.selectedOptions[0].disabled) {
+        checklistSelect.value = "";
+      }
+    };
+
+    const syncVehicleFromChecklist = () => {
+      const option = checklistSelect.options[checklistSelect.selectedIndex];
+      const checklistPlate = normPlate(option ? option.dataset.equipment : "");
+      if (!checklistPlate) {
+        filterChecklistsByVehicle();
+        return;
+      }
+      const vehicleOption = Array.from(vehicleSelect.options).find((item) => normPlate(item.dataset.plate) === checklistPlate);
+      if (vehicleOption) {
+        vehicleSelect.value = vehicleOption.value;
+      }
+      filterChecklistsByVehicle();
+    };
+
+    vehicleSelect.addEventListener("change", filterChecklistsByVehicle);
+    checklistSelect.addEventListener("change", syncVehicleFromChecklist);
+    if (checklistSelect.value) {
+      syncVehicleFromChecklist();
+    } else {
+      filterChecklistsByVehicle();
+    }
+  })();
+</script>
 {% endblock %}

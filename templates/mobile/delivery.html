@@ -650,9 +650,10 @@
     </div><!-- /delivery-content -->
 
     <!-- Fixed bottom "Encerrar Rota" button (oculto para ajudantes) -->
-    <div class="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-4 pt-3 delivery-footer-bar" x-show="deliverySessionOpen && !isHelperView" x-cloak>
+    <template x-teleport="body">
+    <div class="fixed bottom-0 left-0 right-0 z-30 flex justify-center pb-4 pt-3 delivery-footer-bar" style="z-index: 2147482000;" x-show="deliverySessionOpen && !isHelperView" x-cloak>
         <div class="container-mobile w-full">
-        <button @click="showDeliveryEndModal = true"
+        <button type="button" @click="showDeliveryEndModal = true"
             class="w-full min-h-[56px] rounded-2xl font-bold text-white flex items-center justify-center gap-3 interactive touch-target
                 shadow-lg border border-emerald-400/30 active:scale-[0.98] transition-all duration-200"
             style="background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
@@ -665,6 +666,7 @@
         </button>
         </div>
     </div>
+    </template>
 
     <!-- Modal: Encerrar (teleport para ficar acima do botão Encerrar Rota) -->
     <template x-teleport="body">
@@ -761,9 +763,16 @@
                     </label>
                 </div>
                 <div x-show="mobileReturn.notified_commercial === 'sim'">
-                    <label class="sys-section__label sys-section__label--field mb-1 block">Nome da pessoa do Comercial</label>
-                    <input type="text" x-model="mobileReturn.notified_commercial_name" placeholder="Quem foi avisado?"
-                        class="sys-input text-body">
+                    <label class="sys-section__label sys-section__label--field mb-1 block">Vendedor avisado</label>
+                    <select x-model="mobileReturn.notified_commercial_employee_id" @change="syncMobileReturnCommercialSeller()" class="sys-select w-full text-body">
+                        <option value="">Selecione quem foi avisado</option>
+                        <template x-for="seller in commercialSellers" :key="seller.id">
+                            <option :value="String(seller.id)" x-text="`${seller.name}${seller.seller_code ? ' — código ' + seller.seller_code : ''}`"></option>
+                        </template>
+                    </select>
+                    <p class="mt-1 text-caption text-amber-700" x-show="!commercialSellers.length">
+                        Nenhum vendedor com código cadastrado foi encontrado.
+                    </p>
                 </div>
             </div>
             <div class="space-y-2">
@@ -968,13 +977,14 @@
     }
 </style>
 <script id="delivery-page-data" type="application/json">
-{"employees": {{ employees_json | safe }}, "returnsAlert": {{ returns_alert_json | safe }}, "driverName": {{ employee.name | tojson }}, "employeeId": {{ employee.id }}}
+{"employees": {{ employees_json | safe }}, "commercialSellers": {{ commercial_sellers_json | safe }}, "returnsAlert": {{ returns_alert_json | safe }}, "driverName": {{ employee.name | tojson }}, "employeeId": {{ employee.id }}}
 </script>
 <script>
     function deliveryPageController() {
         const payload = JSON.parse(document.getElementById('delivery-page-data').textContent || '{"employees":[],"returnsAlert":{}}');
         return {
             employees: Array.isArray(payload.employees) ? payload.employees : [],
+            commercialSellers: Array.isArray(payload.commercialSellers) ? payload.commercialSellers : [],
             returnsAlert: payload.returnsAlert || {},
             employeeId: Number(payload.employeeId) || 0,
             deliveryDataLoading: true,
@@ -1011,6 +1021,7 @@
                 weight: '',
                 value: '',
                 notified_commercial: '',
+                notified_commercial_employee_id: '',
                 notified_commercial_name: '',
                 notified_logistics: '',
                 notified_logistics_name: '',
@@ -1788,6 +1799,7 @@
                     weight: '',
                     value: '',
                     notified_commercial: '',
+                    notified_commercial_employee_id: '',
                     notified_commercial_name: '',
                     notified_logistics: '',
                     notified_logistics_name: '',
@@ -1834,15 +1846,28 @@
                     this.mobileReturn.photo_uploading = false;
                 }
             },
+            findMobileReturnCommercialSeller() {
+                const selectedId = String(this.mobileReturn.notified_commercial_employee_id || '');
+                return (this.commercialSellers || []).find(seller => String(seller.id) === selectedId) || null;
+            },
+            syncMobileReturnCommercialSeller() {
+                const seller = this.findMobileReturnCommercialSeller();
+                this.mobileReturn.notified_commercial_name = seller ? (seller.name || '').trim() : '';
+            },
             async confirmMobileReturn() {
                 if (!this.mobileReturnRoute || this.actionLoading) return;
                 const notifiedCommercial = this.mobileReturn.notified_commercial;
                 const notifiedLogistics = this.mobileReturn.notified_logistics;
-                const commercialName = (this.mobileReturn.notified_commercial_name || '').trim();
+                let commercialName = '';
                 const logisticsName = (this.mobileReturn.notified_logistics_name || '').trim();
                 if (!['sim', 'nao'].includes(notifiedCommercial)) return alert('Informe se avisou o Comercial.');
                 if (!['sim', 'nao'].includes(notifiedLogistics)) return alert('Informe se avisou a Logística.');
-                if (notifiedCommercial === 'sim' && !commercialName) return alert('Informe o nome da pessoa do Comercial avisada.');
+                if (notifiedCommercial === 'sim') {
+                    const commercialSeller = this.findMobileReturnCommercialSeller();
+                    if (!commercialSeller) return alert('Selecione o vendedor do Comercial avisado.');
+                    commercialName = (commercialSeller.name || '').trim();
+                    this.mobileReturn.notified_commercial_name = commercialName;
+                }
                 if (notifiedLogistics === 'sim' && !logisticsName) return alert('Informe o nome da pessoa da Logística avisada.');
                 const route = this.mobileReturnRoute;
                 const needPhoto = this.requiresClosedStorePhoto(this.mobileReturn.reason);
@@ -1872,6 +1897,7 @@
                     return_partial_weight: this.mobileReturn.is_partial ? Number(this.mobileReturn.weight || 0) : null,
                     return_partial_value: this.mobileReturn.is_partial ? Number(this.mobileReturn.value || 0) : null,
                     return_notified_commercial: notifiedCommercial === 'sim',
+                    return_notified_commercial_employee_id: notifiedCommercial === 'sim' ? Number(this.mobileReturn.notified_commercial_employee_id || 0) : null,
                     return_notified_commercial_name: notifiedCommercial === 'sim' ? commercialName : null,
                     return_notified_logistics: notifiedLogistics === 'sim',
                     return_notified_logistics_name: notifiedLogistics === 'sim' ? logisticsName : null,

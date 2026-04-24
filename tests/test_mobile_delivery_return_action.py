@@ -28,9 +28,17 @@ def _seed_mobile_delivery_return_context(session: Session):
         status="active",
         mobile_access_separation=True,
     )
+    seller = models.Employee(
+        registration_id="SELL-RET-1",
+        seller_code="201",
+        name="Maria Comercial",
+        role="Vendedor",
+        status="active",
+    )
     client = models.Client(name="Cliente Retorno")
     responsabilidade = models.DevolucaoResponsabilidade(nome="COMERCIAL")
     session.add(employee)
+    session.add(seller)
     session.add(client)
     session.add(responsabilidade)
     session.commit()
@@ -120,7 +128,7 @@ def test_api_mobile_delivery_return_requires_contact_name_when_answer_is_yes():
 
     payload = json.loads(response.body)
     assert response.status_code == 400
-    assert payload["error"] == "Informe o nome da pessoa do Comercial avisada."
+    assert payload["error"] == "Selecione um vendedor do Comercial com código de vendedor cadastrado."
 
 
 def test_api_mobile_delivery_return_requires_photo_for_closed_store_reason():
@@ -156,6 +164,7 @@ def test_api_mobile_delivery_return_saves_required_observations_and_syncs_devolu
 
     with Session(engine) as session:
         employee, _, route, motivo_nome = _seed_mobile_delivery_return_context(session)
+        seller = session.exec(select(models.Employee).where(models.Employee.seller_code == "201")).first()
 
         response = asyncio.run(
             main.api_mobile_delivery_route_action(
@@ -165,6 +174,7 @@ def test_api_mobile_delivery_return_saves_required_observations_and_syncs_devolu
                     action="devolucao",
                     return_reason=motivo_nome,
                     return_notified_commercial=True,
+                    return_notified_commercial_employee_id=seller.id,
                     return_notified_commercial_name="Maria Comercial",
                     return_notified_logistics=False,
                 ),

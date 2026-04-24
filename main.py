@@ -6681,6 +6681,7 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
         month_end = now_sp_delivery.strftime("%Y-%m-%d")
         returns_metrics_delivery = _compute_employee_returns_metrics(session=session, user_id=int(employee.id), date_from=month_start, date_to=month_end)
         returns_alert = _build_returns_alert_payload(returns_metrics_delivery, target_percent=2.0, period_label="Mês atual")
+        commercial_sellers_json = json.dumps(_delivery_commercial_sellers_payload(session), ensure_ascii=False)
         _delivery_flags = _build_mobile_hub_access_flags(employee)
         has_delivery_driver_access = bool(_delivery_flags.get("delivery_driver"))
         return templates.TemplateResponse(
@@ -6690,6 +6691,7 @@ async def mobile_delivery_page(request: Request, session: Session = Depends(get_
                 "employee": employee,
                 "employees_json": employees_json,
                 "returns_alert_json": json.dumps(returns_alert, ensure_ascii=False),
+                "commercial_sellers_json": commercial_sellers_json,
                 "has_delivery_driver_access": has_delivery_driver_access,
             },
         )
@@ -7688,6 +7690,7 @@ class MobileDeliveryActionPayload(BaseModel):
     return_partial_weight: Optional[float] = None
     return_partial_value: Optional[float] = None
     return_notified_commercial: Optional[bool] = None
+    return_notified_commercial_employee_id: Optional[int] = None
     return_notified_commercial_name: Optional[str] = None
     return_notified_logistics: Optional[bool] = None
     return_notified_logistics_name: Optional[str] = None
@@ -9085,10 +9088,18 @@ async def api_mobile_delivery_route_action(
                 return JSONResponse({"error": "Informe se avisou o Comercial."}, status_code=400)
             if payload.return_notified_logistics is None:
                 return JSONResponse({"error": "Informe se avisou a Logística."}, status_code=400)
-            commercial_name = _clean_delivery_contact_name(payload.return_notified_commercial_name)
+            commercial_seller = None
+            commercial_name = None
+            if payload.return_notified_commercial:
+                commercial_seller = _resolve_delivery_commercial_seller(
+                    session,
+                    payload.return_notified_commercial_employee_id,
+                    payload.return_notified_commercial_name,
+                )
+                if not commercial_seller:
+                    return JSONResponse({"error": "Selecione um vendedor do Comercial com código de vendedor cadastrado."}, status_code=400)
+                commercial_name = _clean_delivery_contact_name(commercial_seller.name)
             logistics_name = _clean_delivery_contact_name(payload.return_notified_logistics_name)
-            if payload.return_notified_commercial and not commercial_name:
-                return JSONResponse({"error": "Informe o nome da pessoa do Comercial avisada."}, status_code=400)
             if payload.return_notified_logistics and not logistics_name:
                 return JSONResponse({"error": "Informe o nome da pessoa da Logística avisada."}, status_code=400)
             if _requires_closed_store_photo(payload.return_reason) and not (payload.return_photo_url or "").strip():
@@ -9277,6 +9288,7 @@ async def api_mobile_delivery_sync_batch(
                     return_partial_weight=a.get("return_partial_weight"),
                     return_partial_value=a.get("return_partial_value"),
                     return_notified_commercial=a.get("return_notified_commercial"),
+                    return_notified_commercial_employee_id=a.get("return_notified_commercial_employee_id"),
                     return_notified_commercial_name=a.get("return_notified_commercial_name"),
                     return_notified_logistics=a.get("return_notified_logistics"),
                     return_notified_logistics_name=a.get("return_notified_logistics_name"),
@@ -9318,7 +9330,18 @@ async def api_mobile_delivery_sync_batch(
                     if _requires_closed_store_photo(payload.return_reason) and not (payload.return_photo_url or "").strip():
                         results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Para cliente fechado, anexe a foto do estabelecimento."})
                         continue
-                    commercial_name = _clean_delivery_contact_name(payload.return_notified_commercial_name)
+                    commercial_seller = None
+                    commercial_name = None
+                    if payload.return_notified_commercial:
+                        commercial_seller = _resolve_delivery_commercial_seller(
+                            session,
+                            payload.return_notified_commercial_employee_id,
+                            payload.return_notified_commercial_name,
+                        )
+                        if not commercial_seller:
+                            results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Selecione um vendedor do Comercial com código de vendedor cadastrado."})
+                            continue
+                        commercial_name = _clean_delivery_contact_name(commercial_seller.name)
                     logistics_name = _clean_delivery_contact_name(payload.return_notified_logistics_name)
                     route.delivery_status = "devolucao"
                     route.status = "completed"
@@ -14909,10 +14932,10 @@ def _client_import_conflicts_payload(
     for r in rows:
         c = conflict_map.get(r.id)
         has_merge = bool(r.conflict_client_id and c)
-        if not r.conflict_type:
-            default_action = "create"
-        elif has_merge:
+        if has_merge:
             default_action = "merge"
+        elif not r.conflict_type:
+            default_action = "create"
         else:
             default_action = "create"
 
@@ -15028,6 +15051,12 @@ async def clients_import_confirm(
     ).all()
     for row in rows:
         action = form_actions.get(str(row.id), row.action)
+        if action == "create" and row.action == "merge" and row.conflict_client_id and not row.conflict_type:
+            # Páginas abertas antes da correção enviavam reimportações como "create".
+            # No servidor, a fonte da verdade para esses casos é atualizar o cliente vinculado.
+            action = "merge"
+        if action not in {"create", "merge", "skip"}:
+            action = row.action if row.action in {"create", "merge", "skip"} else "skip"
         if action == "skip":
             log_skipped += 1
             continue
@@ -15177,6 +15206,70 @@ def _build_service_order_title(order_id: int, plate: str, when: datetime) -> str
     return f"OS Nº {order_code} - {plate_text} - {date_br}"
 
 
+def _find_vehicle_for_checklist(
+    checklist: Optional[models.TranspalletChecklist],
+    vehicles: List[models.Vehicle],
+) -> Optional[models.Vehicle]:
+    if not checklist:
+        return None
+    checklist_plate = _norm_plate(checklist.equipment_code)
+    if not checklist_plate:
+        return None
+    return next((v for v in vehicles if _norm_plate(v.placa) == checklist_plate), None)
+
+
+def _filter_checklists_for_vehicle(
+    checklists: List[models.TranspalletChecklist],
+    vehicle: Optional[models.Vehicle],
+) -> List[models.TranspalletChecklist]:
+    if not vehicle:
+        return checklists
+    vehicle_plate = _norm_plate(vehicle.placa)
+    return [c for c in checklists if _norm_plate(c.equipment_code) == vehicle_plate]
+
+
+def _service_order_checklist_issues(
+    checklist: Optional[models.TranspalletChecklist],
+    label_map: dict,
+) -> List[str]:
+    if not checklist:
+        return []
+    return [label_map.get(key, key) for key in (checklist.nonconforming_keys or [])]
+
+
+def _build_service_order_checklist_problem(
+    checklist: Optional[models.TranspalletChecklist],
+    label_map: dict,
+) -> str:
+    if not checklist:
+        return ""
+
+    lines = [
+        f"Checklist #{checklist.id} - veículo {checklist.equipment_code} - {checklist.date} - turno {checklist.shift}.",
+    ]
+    issues = _service_order_checklist_issues(checklist, label_map)
+    if issues:
+        lines.append("Problemas apresentados no checklist:")
+        lines.extend(f"- {issue}" for issue in issues)
+    else:
+        lines.append("Nenhum item não conforme registrado no checklist.")
+    if (checklist.observations or "").strip():
+        lines.append(f"Observações do checklist: {checklist.observations.strip()}")
+    return "\n".join(lines)
+
+
+def _merge_service_order_problem_description(raw: Optional[str], checklist_problem: str) -> str:
+    description = (raw or "").strip()
+    checklist_problem = (checklist_problem or "").strip()
+    if not checklist_problem:
+        return description
+    if checklist_problem in description or "Problemas apresentados no checklist:" in description:
+        return description
+    if not description or description == "Checklist com não conformidades.":
+        return checklist_problem
+    return f"{description}\n\n{checklist_problem}"
+
+
 @app.get("/workshop/service-orders", response_class=HTMLResponse)
 async def workshop_service_orders_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
@@ -15187,7 +15280,7 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
     selected_checklist_id = int(qp.get("checklist_id") or 0) if str(qp.get("checklist_id") or "").isdigit() else None
 
     vehicles = session.exec(select(models.Vehicle).order_by(models.Vehicle.placa)).all()
-    checklists = session.exec(
+    checklists_all = session.exec(
         select(models.TranspalletChecklist).order_by(desc(models.TranspalletChecklist.id)).limit(250)
     ).all()
     employees = session.exec(select(models.Employee).order_by(models.Employee.name)).all()
@@ -15241,27 +15334,30 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
         "driver_employee_id": None,
     }
 
-    if selected_vehicle_id:
-        v = session.get(models.Vehicle, selected_vehicle_id)
-        if v:
-            prefill["problem_description"] = f"Ocorrência aberta pela oficina para o veículo {v.placa}."
+    selected_vehicle = session.get(models.Vehicle, selected_vehicle_id) if selected_vehicle_id else None
+    selected_checklist = session.get(models.TranspalletChecklist, selected_checklist_id) if selected_checklist_id else None
+    if selected_checklist and selected_checklist.id not in {c.id for c in checklists_all}:
+        checklists_all.insert(0, selected_checklist)
+
+    if selected_vehicle:
+        prefill["problem_description"] = f"Ocorrência aberta pela oficina para o veículo {selected_vehicle.placa}."
     if selected_checklist_id:
-        c = session.get(models.TranspalletChecklist, selected_checklist_id)
+        c = selected_checklist
         if c:
-            issues = [label_map.get(k, k) for k in (c.nonconforming_keys or [])]
+            checklist_vehicle = _find_vehicle_for_checklist(c, vehicles)
+            if checklist_vehicle:
+                selected_vehicle = checklist_vehicle
+                prefill["vehicle_id"] = checklist_vehicle.id
+            issues = _service_order_checklist_issues(c, label_map)
             prefill["origin"] = "checklist"
             prefill["checklist_id"] = c.id
             prefill["driver_employee_id"] = c.employee_id
-            prefill["problem_description"] = c.observations or "Checklist com não conformidades."
+            prefill["problem_description"] = _build_service_order_checklist_problem(c, label_map)
             prefill["issues_text"] = "\n".join(issues)
 
-            if not prefill["vehicle_id"]:
-                plate_key = _norm_plate(c.equipment_code)
-                if plate_key:
-                    for v in vehicles:
-                        if _norm_plate(v.placa) == plate_key:
-                            prefill["vehicle_id"] = v.id
-                            break
+    if not selected_vehicle and prefill["vehicle_id"]:
+        selected_vehicle = session.get(models.Vehicle, prefill["vehicle_id"])
+    checklists = _filter_checklists_for_vehicle(checklists_all, selected_vehicle)
 
     summary = {
         "total": len(rows),
@@ -15364,23 +15460,52 @@ async def workshop_service_order_create(
             + urlencode({"message": "Veículo inválido ou não encontrado.", "level": "error"}),
             status_code=status.HTTP_303_SEE_OTHER,
         )
+    checklist_for_os = session.get(models.TranspalletChecklist, int(checklist_id)) if checklist_id else None
+    if checklist_id and not checklist_for_os:
+        return RedirectResponse(
+            url="/workshop/service-orders?"
+            + urlencode({"message": "Checklist inválido ou não encontrado.", "level": "error"}),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    if checklist_for_os and _norm_plate(checklist_for_os.equipment_code) != _norm_plate(vehicle_for_os.placa):
+        return RedirectResponse(
+            url="/workshop/service-orders?"
+            + urlencode(
+                {
+                    "message": (
+                        f"O checklist #{checklist_for_os.id} pertence ao veículo "
+                        f"{checklist_for_os.equipment_code}. Selecione o mesmo veículo para criar a OS."
+                    ),
+                    "level": "error",
+                    "checklist_id": str(checklist_for_os.id),
+                }
+            ),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    label_map = checklist_item_label_map()
+    checklist_problem = _build_service_order_checklist_problem(checklist_for_os, label_map)
+    checklist_issues = _service_order_checklist_issues(checklist_for_os, label_map)
     issues = _parse_multiline_items(issues_text)
+    for checklist_issue in checklist_issues:
+        if checklist_issue.lower() not in {issue.lower() for issue in issues}:
+            issues.append(checklist_issue)
     action_plan = _parse_action_plan(actions_text, issues)
     if not action_plan:
         return RedirectResponse(
             url="/workshop/service-orders?message=Informe+ao+menos+uma+ação+para+a+OS.&level=error",
             status_code=status.HTTP_303_SEE_OTHER,
         )
+    problem_description_for_os = _merge_service_order_problem_description(problem_description, checklist_problem)
 
     order = models.WorkshopServiceOrder(
         vehicle_id=int(vehicle_id),
-        checklist_id=checklist_id or None,
-        driver_employee_id=driver_employee_id or None,
+        checklist_id=checklist_for_os.id if checklist_for_os else None,
+        driver_employee_id=driver_employee_id or (checklist_for_os.employee_id if checklist_for_os else None),
         origin=(origin or "manual").strip().lower(),
         order_type=(order_type or "corretiva").strip().lower(),
         priority=(priority or "medium").strip().lower(),
         title="Ordem de serviço",
-        problem_description=(problem_description or "").strip(),
+        problem_description=problem_description_for_os,
         preventive_note=(preventive_note or "").strip() or None,
         issue_count=len(issues),
         action_plan_json=action_plan,
@@ -16516,6 +16641,56 @@ def _append_delivery_event(route: models.Route, event_type: str, time_str: str, 
 def _clean_delivery_contact_name(value: Optional[str]) -> Optional[str]:
     text = " ".join(str(value or "").strip().split())
     return text or None
+
+
+def _employee_has_seller_code(emp: Optional[models.Employee]) -> bool:
+    if not emp:
+        return False
+    if (getattr(emp, "status", "") or "").strip().lower() == "fired":
+        return False
+    return bool((getattr(emp, "seller_code", "") or "").strip())
+
+
+def _delivery_commercial_sellers_payload(session: Session) -> List[Dict[str, Any]]:
+    rows = session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.seller_code.is_not(None))
+        .where(func.trim(models.Employee.seller_code) != "")
+        .order_by(models.Employee.name)
+    ).all()
+    return [
+        {
+            "id": emp.id,
+            "name": _emp_name_upper(emp.name),
+            "seller_code": (emp.seller_code or "").strip(),
+        }
+        for emp in rows
+        if emp.id is not None
+    ]
+
+
+def _resolve_delivery_commercial_seller(
+    session: Session,
+    employee_id: Optional[int],
+    fallback_name: Optional[str] = None,
+) -> Optional[models.Employee]:
+    if employee_id:
+        emp = session.get(models.Employee, int(employee_id))
+        if _employee_has_seller_code(emp):
+            return emp
+
+    clean_name = _clean_delivery_contact_name(fallback_name)
+    if not clean_name:
+        return None
+    return session.exec(
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.seller_code.is_not(None))
+        .where(func.trim(models.Employee.seller_code) != "")
+        .where(func.lower(func.trim(models.Employee.name)) == clean_name.lower())
+        .order_by(models.Employee.name)
+    ).first()
 
 
 def _format_delivery_contact_status(notified: Optional[bool], name: Optional[str]) -> str:

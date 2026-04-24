@@ -151,11 +151,13 @@
   function actionOptionsHtml(r) {
     var cur = currentAction(r);
     var parts = [];
-    parts.push('<option value="create"' + (cur === "create" ? " selected" : "") + ">Criar novo</option>");
     if (r.has_merge) {
       parts.push('<option value="merge"' + (cur === "merge" ? " selected" : "") + ">Mesclar com existente</option>");
     }
-    if (r.conflict_type) {
+    if (!r.has_merge || r.conflict_type) {
+      parts.push('<option value="create"' + (cur === "create" ? " selected" : "") + ">Criar novo</option>");
+    }
+    if (r.conflict_type || r.has_merge) {
       parts.push('<option value="skip"' + (cur === "skip" ? " selected" : "") + ">Ignorar</option>");
     }
     return parts.join("");
