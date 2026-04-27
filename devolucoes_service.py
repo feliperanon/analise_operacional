@@ -496,6 +496,7 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
                 client_by_name[_norm_text(f)] = c
 
     vendedor_by_code = {}
+    vendedor_by_code_candidates: Dict[str, List[Any]] = {}
     vendedor_by_name_exact: Dict[str, List[Any]] = {}
     employees_with_seller_code = 0
     seller_code_collisions: Dict[str, List[int]] = {}
@@ -505,11 +506,13 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
             sc = normalize_code(e.seller_code)
             if sc:
                 seller_code_collisions.setdefault(sc, []).append(e.id)
+                vendedor_by_code_candidates.setdefault(sc, []).append(e)
                 vendedor_by_code[sc] = e
                 vendedor_by_code[sc.lstrip("0") or "0"] = e
                 digits_only = re.sub(r"\D", "", sc)
                 if digits_only:
                     vendedor_by_code[digits_only] = e
+                    vendedor_by_code_candidates.setdefault(digits_only, []).append(e)
         nn = normalize_name(e.name)
         if nn:
             if nn not in vendedor_by_name_exact:
@@ -559,6 +562,7 @@ def _load_cadastros(session: Session) -> Dict[str, Any]:
         "employees_with_seller_code": employees_with_seller_code,
         "seller_code_collisions": seller_code_collisions,
         "vendedor_by_code": vendedor_by_code,
+        "vendedor_by_code_candidates": vendedor_by_code_candidates,
         "vendedor_by_name_exact": vendedor_by_name_exact,
         "motorista_by_name": motorista_by_name,
         "motivo_by_norm": motivo_by_norm,
@@ -617,11 +621,8 @@ def get_cadastro_health(cad: Dict) -> Tuple[Dict[str, Any], List[str]]:
                 "Verifique preenchimento do seller_code nos colaboradores."
             )
 
-    if collision_count > 0:
-        global_errors.append(
-            f"seller_code duplicado em {collision_count} código(s). "
-            f"Detalhes: {collision_details}. Cada vendedor deve ter código único."
-        )
+    # seller_code duplicado não deve bloquear toda importação:
+    # a ambiguidade é tratada por linha em resolve_vendedor().
 
     if len(motivos) == 0:
         global_errors.append("Cadastro de motivos de devolução vazio (motivos_total=0). Execute o seed de motivos.")
@@ -705,6 +706,13 @@ def resolve_vendedor(
 
     code = normalize_code(value_from_excel)
     if code:
+        candidates = cad.get("vendedor_by_code_candidates", {}).get(code) or []
+        if len(candidates) > 1:
+            ids = [c.id for c in candidates]
+            return None, (
+                f"Vendedor ambíguo para código '{code}': {len(candidates)} cadastros encontrados "
+                f"(ids={ids}). Ajuste seller_code para ser único."
+            )
         emp = (
             cad["vendedor_by_code"].get(code)
             or cad["vendedor_by_code"].get(code.lstrip("0") or "0")
@@ -1528,6 +1536,8 @@ def sync_route_to_devolucao(
     if not motivo or not resp:
         return None
     motorista_id = route.employee_id
+    client = session.get(Client, route.client_id) if route.client_id else None
+    vendedor_id = int(getattr(client, "vendedor_id", 0) or 0) or motorista_id
     helper_ids = _parse_route_helper_ids(getattr(route, "delivery_helpers_json", None))
     ajudante_id = (helper_ids[0] if helper_ids else None)
     if ajudante_id and ajudante_id == motorista_id and len(helper_ids) > 1:
@@ -1559,7 +1569,7 @@ def sync_route_to_devolucao(
         dt = datetime.strptime(route.date, "%Y-%m-%d") if isinstance(route.date, str) else datetime.now()
     except (ValueError, TypeError):
         dt = datetime.now()
-    h = make_idempotency_hash(route.date, route.client_id, motorista_id, motorista_id, valor, motivo.id)
+    h = make_idempotency_hash(route.date, route.client_id, vendedor_id, motorista_id, valor, motivo.id)
     if session.exec(select(Devolucao).where(Devolucao.idempotency_hash == h)).first():
         return None
     dev = Devolucao(
@@ -1567,7 +1577,7 @@ def sync_route_to_devolucao(
         data_romaneio=route.date,
         data_entrega=route.date,
         client_id=route.client_id,
-        vendedor_id=motorista_id,
+        vendedor_id=vendedor_id,
         motorista_id=motorista_id,
         ajudante_id=ajudante_id,
         valor=valor,

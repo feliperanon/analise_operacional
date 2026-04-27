@@ -27,7 +27,7 @@ import statistics
 from email.message import EmailMessage
 from starlette.middleware.sessions import SessionMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-from sqlmodel import Session, select, col, delete, text, or_, desc, asc
+from sqlmodel import SQLModel, Session, select, col, delete, text, or_, desc, asc
 from sqlalchemy import func, inspect, not_, and_, cast
 from sqlalchemy.types import String, DateTime
 from sqlalchemy.exc import IntegrityError, OperationalError
@@ -744,6 +744,7 @@ def _lifespan_blocking_db_work() -> None:
     create_db_and_tables()
     try:
         ensure_vehicle_schema()
+        ensure_workshop_service_order_schema()
         ensure_checklist_odometer_schema()
         ensure_client_schema()
         ensure_column(engine, "client", "cnpj_cpf", "VARCHAR(32)")
@@ -3152,16 +3153,9 @@ def _dashboard_data_source_caption() -> str:
     """Texto curto para o /dashboard: de onde vêm os dados (evita confusão SQLite vazio vs Postgres)."""
     src = (os.environ.get("ACTIVE_DATABASE_SOURCE") or "").strip().lower()
     if src in ("local", "local_forced"):
-        return (
-            "Fonte dos dados: SQLite local (arquivo database.db nesta pasta). "
-            "Se o arquivo estiver vazio ou sem as mesmas tabelas do servidor, o painel aparece zerado. "
-            "Para apontar ao PostgreSQL do .env, defina FORCE_LOCAL_DB=false antes de subir o app."
-        )
+        return ""
     if src == "render":
-        return (
-            "Fonte dos dados: PostgreSQL no Render (DATABASE_URL do .env ou do painel do serviço). "
-            "Se o painel estiver vazio, confira data do filtro, centro de custo e se o banco do Render está ativo."
-        )
+        return ""
     return ""
 
 
@@ -7778,6 +7772,52 @@ def ensure_checklist_odometer_schema():
         logger.error(f"ensure_checklist_odometer_schema: {e}")
 
 
+def ensure_workshop_service_order_schema():
+    """Compatibilidade incremental do módulo de OS da oficina."""
+    try:
+        SQLModel.metadata.create_all(engine, tables=[
+            models.WorkshopServiceOrderEvent.__table__,
+            models.WorkshopServiceOrderAttachment.__table__,
+        ])
+    except Exception as e:
+        logger.error(f"Erro ao criar tabelas de OS (eventos/anexos): {e}")
+    try:
+        inspector = inspect(engine)
+        if "workshopserviceorder" not in inspector.get_table_names():
+            return
+        ensure_column(engine, "workshopserviceorder", "responsible_user_id", "INTEGER")
+        ensure_column(engine, "workshopserviceorder", "origin_type", "VARCHAR(80)")
+        ensure_column(engine, "workshopserviceorder", "problem_category", "VARCHAR(80)")
+        ensure_column(engine, "workshopserviceorder", "operational_impact", "VARCHAR(80)")
+        ensure_column(engine, "workshopserviceorder", "vehicle_block_status", "VARCHAR(24) DEFAULT 'none'")
+        ensure_column(engine, "workshopserviceorder", "vehicle_block_reason", "TEXT")
+        ensure_column(engine, "workshopserviceorder", "vehicle_blocked_at", "TIMESTAMP")
+        ensure_column(engine, "workshopserviceorder", "vehicle_blocked_by", "VARCHAR(255)")
+        ensure_column(engine, "workshopserviceorder", "vehicle_released_at", "TIMESTAMP")
+        ensure_column(engine, "workshopserviceorder", "vehicle_released_by", "VARCHAR(255)")
+        ensure_column(engine, "workshopserviceorder", "external_supplier_required", "BOOLEAN DEFAULT FALSE")
+        ensure_column(engine, "workshopserviceorder", "supplier_name", "VARCHAR(255)")
+        ensure_column(engine, "workshopserviceorder", "supplier_contact", "VARCHAR(255)")
+        ensure_column(engine, "workshopserviceorder", "supplier_service_type", "VARCHAR(255)")
+        ensure_column(engine, "workshopserviceorder", "supplier_sent_at", "TIMESTAMP")
+        ensure_column(engine, "workshopserviceorder", "supplier_expected_return_at", "TIMESTAMP")
+        ensure_column(engine, "workshopserviceorder", "supplier_status", "VARCHAR(32) DEFAULT 'not_sent'")
+        ensure_column(engine, "workshopserviceorder", "quoted_amount", "REAL")
+        ensure_column(engine, "workshopserviceorder", "approved_amount", "REAL")
+        ensure_column(engine, "workshopserviceorder", "final_amount", "REAL")
+        ensure_column(engine, "workshopserviceorder", "parts_cost", "REAL")
+        ensure_column(engine, "workshopserviceorder", "labor_cost", "REAL")
+        ensure_column(engine, "workshopserviceorder", "third_party_cost", "REAL")
+        ensure_column(engine, "workshopserviceorder", "total_cost", "REAL")
+        ensure_column(engine, "workshopserviceorder", "invoice_number", "VARCHAR(120)")
+        ensure_column(engine, "workshopserviceorder", "warranty_notes", "TEXT")
+        ensure_column(engine, "workshopserviceorder", "odometer_km", "REAL")
+        ensure_column(engine, "workshopserviceorder", "latest_pdf_path", "VARCHAR(512)")
+        ensure_column(engine, "workshopserviceorder", "latest_pdf_generated_at", "TIMESTAMP")
+    except Exception as e:
+        logger.error(f"Erro no ensure_workshop_service_order_schema: {e}")
+
+
 def ensure_vehicle_schema():
     """Adiciona colunas in_workshop, sale_value, sold_at à tabela vehicle se não existirem."""
     try:
@@ -11091,7 +11131,7 @@ async def admin_equipment_tickets_import(
     session: Session = Depends(get_session),
     user=Depends(require_leader),
 ):
-    require_login(request)
+    user = require_login(request)
     import pandas as pd
 
     def norm_header(s: str) -> str:
@@ -13276,7 +13316,7 @@ async def api_get_checklist(
     request: Request,
     session: Session = Depends(get_session)
 ):
-    require_login(request)
+    user = require_login(request)
     current_user = get_current_user(request)
     checklist = session.get(models.TranspalletChecklist, checklist_id)
     if not checklist:
@@ -14225,10 +14265,13 @@ async def client_details(request: Request, client_id: int, session: Session = De
             prod_kg_h = round(t / hours, 2) if hours > 0 else 0.0
 
         # History Row (peso em kg; produtividade kg/h)
+        status_raw = (getattr(r, "delivery_status", "") or "").strip().lower()
+        operation_type = "devolucao" if status_raw == "devolucao" else "entrega"
         history.append({
             "date_fmt": r_date.strftime("%d/%m/%Y"),
             "shift": r.shift,
             "employee_name": emp_map.get(r.employee_id, "Desconhecido"),
+            "operation_type": operation_type,
             "tonnage_kg_fmt": fmt_br_2(t),
             "duration_fmt": dur_str,
             "productivity": prod_kg_h,
@@ -14311,6 +14354,8 @@ async def client_details(request: Request, client_id: int, session: Session = De
                 emp_ids.add(d.vendedor_id)
             if d.ajudante_id:
                 emp_ids.add(d.ajudante_id)
+        if getattr(client, "vendedor_id", None):
+            emp_ids.add(client.vendedor_id)
         emp_map = {}
         if emp_ids:
             for e in session.exec(select(models.Employee).where(models.Employee.id.in_(list(emp_ids)))).all():
@@ -14321,6 +14366,20 @@ async def client_details(request: Request, client_id: int, session: Session = De
                     return "-"
                 parts = str(s)[:10].split("-")
                 return f"{parts[2]}/{parts[1]}/{parts[0]}" if len(parts) == 3 else s
+
+            source_norm = (getattr(d, "source", None) or "").strip().upper()
+            vendedor_name = emp_map.get(d.vendedor_id, "-") if d.vendedor_id else "-"
+            # Legado: alguns registros mobile/web herdaram vendedor_id = motorista_id.
+            # Na ficha do cliente, preferimos o vendedor vinculado ao cadastro do cliente.
+            if (
+                d.vendedor_id
+                and d.motorista_id
+                and d.vendedor_id == d.motorista_id
+                and source_norm in ("MOBILE", "WEB", "ROTA")
+                and getattr(client, "vendedor_id", None)
+                and client.vendedor_id != d.motorista_id
+            ):
+                vendedor_name = emp_map.get(client.vendedor_id, vendedor_name)
 
             devolucoes_list.append({
                 "id": d.id,
@@ -14333,7 +14392,7 @@ async def client_details(request: Request, client_id: int, session: Session = De
                 "motivo": motivos.get(d.motivo_id, "-"),
                 "responsabilidade": resps.get(d.responsabilidade_id, "-"),
                 "motorista": emp_map.get(d.motorista_id, "-") if d.motorista_id else "-",
-                "vendedor": emp_map.get(d.vendedor_id, "-") if d.vendedor_id else "-",
+                "vendedor": vendedor_name,
                 "ajudante": emp_map.get(d.ajudante_id, "-") if d.ajudante_id else "-",
                 "acima_300": (d.acima_300 or "NAO").upper() == "SIM",
             })
@@ -15221,6 +15280,136 @@ def _service_order_priority_label(value: str) -> str:
     return labels.get((value or "").strip().lower(), value or "-")
 
 
+def _service_order_origin_label(value: Optional[str]) -> str:
+    labels = {
+        "checklist": "Checklist",
+        "motorista": "Motorista",
+        "lideranca": "Liderança",
+        "oficina": "Oficina",
+        "patio": "Conferência de pátio",
+        "retorno_rota": "Retorno de rota",
+        "preventiva_programada": "Preventiva programada",
+        "acidente_avaria": "Acidente/Avaria",
+        "manual": "Manual/Outro",
+    }
+    key = (value or "manual").strip().lower()
+    return labels.get(key, value or "Manual/Outro")
+
+
+def _service_order_category_label(value: Optional[str]) -> str:
+    labels = {
+        "freio": "Freio",
+        "pneus": "Pneus",
+        "eletrica": "Elétrica",
+        "motor": "Motor",
+        "suspensao": "Suspensão",
+        "bau_carroceria": "Baú/Carroceria",
+        "documentacao": "Documentação",
+        "higiene_conservacao": "Higiene/Conservação",
+        "equipamento_acessorio": "Equipamento/Acessório",
+        "outro": "Outro",
+    }
+    key = (value or "outro").strip().lower()
+    return labels.get(key, value or "Outro")
+
+
+def _service_order_operational_impact_label(value: Optional[str]) -> str:
+    labels = {
+        "no_route_block": "Não impede rota",
+        "drive_with_attention": "Pode rodar com atenção",
+        "maintenance_before_route": "Requer manutenção antes da rota",
+        "vehicle_stopped": "Veículo parado",
+    }
+    key = (value or "no_route_block").strip().lower()
+    return labels.get(key, value or "Não impede rota")
+
+
+def _service_order_block_status_label(value: Optional[str]) -> str:
+    labels = {"none": "Não bloqueado", "preventive": "Bloqueio preventivo", "critical": "Bloqueio crítico"}
+    key = (value or "none").strip().lower()
+    return labels.get(key, value or "Não bloqueado")
+
+
+def _service_order_supplier_status_label(value: Optional[str]) -> str:
+    labels = {
+        "not_sent": "Não enviado",
+        "sent": "Enviado",
+        "waiting_quote": "Aguardando orçamento",
+        "quote_received": "Orçamento recebido",
+        "approved": "Aprovado",
+        "in_service": "Em serviço",
+        "finalized": "Finalizado",
+        "canceled": "Cancelado",
+    }
+    key = (value or "not_sent").strip().lower()
+    return labels.get(key, value or "Não enviado")
+
+
+def _service_order_due_date(priority: str, order_type: str, requested_due_date: Optional[str]) -> Optional[datetime]:
+    raw = (requested_due_date or "").strip()
+    if raw:
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+            try:
+                parsed = datetime.strptime(raw, fmt)
+                return datetime(parsed.year, parsed.month, parsed.day, 23, 59, 59)
+            except Exception:
+                continue
+    now = datetime.now()
+    if (order_type or "").strip().lower() == "preventiva":
+        return None
+    days_by_priority = {"critical": 1, "high": 2, "medium": 5, "low": 10}
+    days = days_by_priority.get((priority or "medium").strip().lower(), 5)
+    return now + timedelta(days=days)
+
+
+def _service_order_sla_badge(order: models.WorkshopServiceOrder) -> Dict[str, str]:
+    due = getattr(order, "due_date", None)
+    if not due:
+        return {"state": "no_due_date", "label": "Sem prazo"}
+    if (order.status or "").strip().lower() in {"done", "closed"}:
+        return {"state": "finished", "label": "Finalizada no SLA"}
+    today = datetime.now().date()
+    due_date = due.date()
+    if due_date > today:
+        return {"state": "on_time", "label": "Dentro do prazo"}
+    if due_date == today:
+        return {"state": "due_today", "label": "Vence hoje"}
+    overdue_days = (today - due_date).days
+    suffix = "dia" if overdue_days == 1 else "dias"
+    return {"state": "overdue", "label": f"Atrasada há {overdue_days} {suffix}"}
+
+
+def _service_order_days_open(order: models.WorkshopServiceOrder) -> int:
+    created = getattr(order, "created_at", None)
+    if not created:
+        return 0
+    return max((datetime.now().date() - created.date()).days, 0)
+
+
+def _register_service_order_event(
+    session: Session,
+    order: models.WorkshopServiceOrder,
+    event_type: str,
+    title: str,
+    description: Optional[str] = None,
+    old_value: Optional[str] = None,
+    new_value: Optional[str] = None,
+    created_by: Optional[str] = None,
+) -> None:
+    event = models.WorkshopServiceOrderEvent(
+        service_order_id=order.id,
+        vehicle_id=order.vehicle_id,
+        event_type=event_type,
+        event_title=title,
+        event_description=description,
+        old_value=old_value,
+        new_value=new_value,
+        created_by=created_by,
+        created_at=datetime.now(),
+    )
+    session.add(event)
+
+
 def _parse_multiline_items(raw: Optional[str]) -> List[str]:
     items: List[str] = []
     for line in (raw or "").splitlines():
@@ -15228,6 +15417,22 @@ def _parse_multiline_items(raw: Optional[str]) -> List[str]:
         if clean:
             items.append(clean)
     return items
+
+
+def _safe_form_text(value: Any, default: str = "") -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if value is None:
+        return default
+    return default
+
+
+def _safe_form_int(value: Any) -> Optional[int]:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    return None
 
 
 def _parse_action_plan(raw_actions: Optional[str], fallback_issues: List[str]) -> List[dict]:
@@ -15347,6 +15552,15 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
     qp = request.query_params
     filter_status = (qp.get("status") or "").strip().lower()
     filter_priority = (qp.get("priority") or "").strip().lower()
+    filter_type = (qp.get("order_type") or "").strip().lower()
+    filter_category = (qp.get("problem_category") or "").strip().lower()
+    filter_origin = (qp.get("origin_type") or "").strip().lower()
+    filter_blocked = (qp.get("blocked_only") or "").strip().lower() in {"1", "true", "yes", "on"}
+    filter_overdue = (qp.get("overdue_only") or "").strip().lower() in {"1", "true", "yes", "on"}
+    filter_supplier_only = (qp.get("supplier_only") or "").strip().lower() in {"1", "true", "yes", "on"}
+    filter_supplier_status = (qp.get("supplier_status") or "").strip().lower()
+    cost_min = _as_float((qp.get("cost_min") or "").strip())
+    cost_max = _as_float((qp.get("cost_max") or "").strip())
     selected_vehicle_id = int(qp.get("vehicle_id") or 0) if str(qp.get("vehicle_id") or "").isdigit() else None
     selected_checklist_id = int(qp.get("checklist_id") or 0) if str(qp.get("checklist_id") or "").isdigit() else None
 
@@ -15363,6 +15577,24 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
         orders = [o for o in orders if (o.status or "").lower() == filter_status]
     if filter_priority:
         orders = [o for o in orders if (o.priority or "").lower() == filter_priority]
+    if filter_type:
+        orders = [o for o in orders if (o.order_type or "").lower() == filter_type]
+    if filter_category:
+        orders = [o for o in orders if (o.problem_category or "").lower() == filter_category]
+    if filter_origin:
+        orders = [o for o in orders if (o.origin_type or o.origin or "").lower() == filter_origin]
+    if filter_blocked:
+        orders = [o for o in orders if (o.vehicle_block_status or "none").lower() in {"preventive", "critical"}]
+    if filter_overdue:
+        orders = [o for o in orders if _service_order_sla_badge(o).get("state") == "overdue"]
+    if filter_supplier_only:
+        orders = [o for o in orders if bool(o.external_supplier_required) or bool((o.supplier_name or "").strip())]
+    if filter_supplier_status:
+        orders = [o for o in orders if (o.supplier_status or "").lower() == filter_supplier_status]
+    if cost_min > 0:
+        orders = [o for o in orders if _safe_float(o.total_cost) >= cost_min]
+    if cost_max > 0:
+        orders = [o for o in orders if _safe_float(o.total_cost) <= cost_max]
 
     vehicle_ids = {o.vehicle_id for o in orders if o.vehicle_id}
     checklist_ids = {o.checklist_id for o in orders if o.checklist_id}
@@ -15391,6 +15623,14 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
                 "actions_done": actions_done,
                 "actions_pct": int(round((actions_done * 100) / actions_total)) if actions_total else 0,
                 "driver_name": employee_by_id.get(order.driver_employee_id).name if order.driver_employee_id in employee_by_id else "-",
+                "days_open": _service_order_days_open(order),
+                "sla": _service_order_sla_badge(order),
+                "origin_label": _service_order_origin_label(order.origin_type or order.origin),
+                "category_label": _service_order_category_label(order.problem_category),
+                "impact_label": _service_order_operational_impact_label(order.operational_impact),
+                "block_status_label": _service_order_block_status_label(order.vehicle_block_status),
+                "is_blocked": (order.vehicle_block_status or "none").lower() in {"preventive", "critical"},
+                "supplier_status_label": _service_order_supplier_status_label(order.supplier_status),
             }
         )
 
@@ -15436,6 +15676,10 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
         "done": sum(1 for r in rows if (r["order"].status or "") in ("done", "closed")),
         "critical": sum(1 for r in rows if (r["order"].priority or "") == "critical"),
         "preventive": sum(1 for r in rows if (r["order"].order_type or "") == "preventiva"),
+        "overdue": sum(1 for r in rows if r["sla"]["state"] == "overdue"),
+        "blocked": sum(1 for r in rows if r["is_blocked"]),
+        "waiting_parts": sum(1 for r in rows if (r["order"].status or "") == "waiting_parts"),
+        "with_supplier": sum(1 for r in rows if bool(r["order"].external_supplier_required) or bool((r["order"].supplier_name or "").strip())),
     }
 
     return templates.TemplateResponse(
@@ -15451,8 +15695,138 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
             "prefill": prefill,
             "status_filter": filter_status,
             "priority_filter": filter_priority,
+            "order_type_filter": filter_type,
+            "category_filter": filter_category,
+            "origin_filter": filter_origin,
+            "blocked_only_filter": filter_blocked,
+            "overdue_only_filter": filter_overdue,
+            "supplier_only_filter": filter_supplier_only,
+            "supplier_status_filter": filter_supplier_status,
+            "cost_min_filter": (qp.get("cost_min") or "").strip(),
+            "cost_max_filter": (qp.get("cost_max") or "").strip(),
             "message": qp.get("message"),
             "level": qp.get("level"),
+        },
+    )
+
+
+@app.get("/workshop/service-orders/dashboard", response_class=HTMLResponse)
+async def workshop_service_orders_dashboard_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    qp = request.query_params
+    period_days = int((qp.get("days") or "30").strip()) if (qp.get("days") or "").strip().isdigit() else 30
+    if period_days not in {7, 15, 30, 60, 90}:
+        period_days = 30
+    since = datetime.now() - timedelta(days=period_days)
+
+    orders = session.exec(select(models.WorkshopServiceOrder).order_by(desc(models.WorkshopServiceOrder.created_at))).all()
+    orders_period = [o for o in orders if (o.created_at or datetime.now()) >= since]
+    vehicle_ids = [o.vehicle_id for o in orders_period if o.vehicle_id]
+    vehicles_map: Dict[int, models.Vehicle] = {}
+    if vehicle_ids:
+        for v in session.exec(select(models.Vehicle).where(models.Vehicle.id.in_(vehicle_ids))).all():
+            vehicles_map[v.id] = v
+    users_map: Dict[int, models.User] = {}
+    user_ids = [o.responsible_user_id for o in orders_period if o.responsible_user_id]
+    if user_ids:
+        for u in session.exec(select(models.User).where(models.User.id.in_(user_ids))).all():
+            users_map[u.id] = u
+
+    total = len(orders_period)
+    open_orders = sum(1 for o in orders_period if (o.status or "").lower() in {"open", "triage", "in_progress", "waiting_parts"})
+    overdue = sum(1 for o in orders_period if _service_order_sla_badge(o)["state"] == "overdue")
+    critical = sum(1 for o in orders_period if (o.priority or "").lower() == "critical")
+    waiting_supplier = sum(1 for o in orders_period if (o.supplier_status or "").lower() in {"sent", "waiting_quote", "quote_received", "approved", "in_service"})
+    blocked = sum(1 for o in orders_period if (o.vehicle_block_status or "none").lower() in {"preventive", "critical"})
+    preventive_due = sum(
+        1
+        for o in orders_period
+        if (o.order_type or "").lower() == "preventiva" and _service_order_sla_badge(o)["state"] in {"overdue", "due_today"}
+    )
+    avg_close_days_items = []
+    for o in orders_period:
+        if (o.status or "").lower() in {"done", "closed"} and o.created_at and o.updated_at:
+            avg_close_days_items.append(max((o.updated_at.date() - o.created_at.date()).days, 0))
+    avg_close_days = round(sum(avg_close_days_items) / len(avg_close_days_items), 1) if avg_close_days_items else 0.0
+    total_cost_month = sum(_safe_float(o.total_cost) for o in orders_period)
+
+    by_status: Dict[str, int] = {}
+    by_supplier: Dict[str, int] = {}
+    by_category: Dict[str, int] = {}
+    by_vehicle: Dict[str, int] = {}
+    by_responsible: Dict[str, int] = {}
+    cost_by_vehicle: Dict[str, float] = {}
+    for o in orders_period:
+        status_key = (o.status or "open").lower()
+        by_status[status_key] = by_status.get(status_key, 0) + 1
+        supplier_key = (o.supplier_name or "-").strip() or "-"
+        by_supplier[supplier_key] = by_supplier.get(supplier_key, 0) + (1 if o.external_supplier_required or (o.supplier_name or "").strip() else 0)
+        category_key = (o.problem_category or "outro").strip().lower()
+        by_category[category_key] = by_category.get(category_key, 0) + 1
+        if o.vehicle_id:
+            vehicle_label = vehicles_map.get(o.vehicle_id).placa if o.vehicle_id in vehicles_map else f"#{o.vehicle_id}"
+            by_vehicle[vehicle_label] = by_vehicle.get(vehicle_label, 0) + 1
+            cost_by_vehicle[vehicle_label] = cost_by_vehicle.get(vehicle_label, 0.0) + _safe_float(o.total_cost)
+        if o.responsible_user_id:
+            responsible_label = users_map.get(o.responsible_user_id).username if o.responsible_user_id in users_map else f"#{o.responsible_user_id}"
+            by_responsible[responsible_label] = by_responsible.get(responsible_label, 0) + 1
+
+    def _top_items(data: Dict[str, Any], limit: int = 5, label_map: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
+        ordered = sorted(data.items(), key=lambda item: item[1], reverse=True)[:limit]
+        items: List[Dict[str, Any]] = []
+        for code, value in ordered:
+            items.append({"code": code, "label": (label_map or {}).get(code, code), "value": value})
+        return items
+
+    return templates.TemplateResponse(
+        "workshop_service_orders_dashboard.html",
+        {
+            "request": request,
+            "user": user,
+            "period_days": period_days,
+            "summary": {
+                "total": total,
+                "open": open_orders,
+                "overdue": overdue,
+                "critical": critical,
+                "waiting_supplier": waiting_supplier,
+                "blocked": blocked,
+                "preventive_due": preventive_due,
+                "avg_close_days": avg_close_days,
+                "total_cost_month": total_cost_month,
+            },
+            "status_rows": _top_items(
+                by_status,
+                10,
+                {
+                    "open": "Aberta",
+                    "triage": "Triagem",
+                    "in_progress": "Em execução",
+                    "waiting_parts": "Aguardando peça",
+                    "done": "Concluída",
+                    "closed": "Encerrada",
+                },
+            ),
+            "supplier_rows": _top_items(by_supplier, 10),
+            "category_rows": _top_items(
+                by_category,
+                10,
+                {
+                    "freio": "Freio",
+                    "pneus": "Pneus",
+                    "eletrica": "Elétrica",
+                    "motor": "Motor",
+                    "suspensao": "Suspensão",
+                    "bau_carroceria": "Baú/Carroceria",
+                    "documentacao": "Documentação",
+                    "higiene_conservacao": "Higiene/Conservação",
+                    "equipamento_acessorio": "Equipamento/Acessório",
+                    "outro": "Outro",
+                },
+            ),
+            "vehicle_rows": _top_items(by_vehicle, 10),
+            "responsible_rows": _top_items(by_responsible, 10),
+            "cost_vehicle_rows": _top_items(cost_by_vehicle, 10),
         },
     )
 
@@ -15477,6 +15851,16 @@ async def workshop_service_order_detail_page(request: Request, order_id: int, se
     actions = list(order.action_plan_json or [])
     actions_total = len(actions)
     actions_done = sum(1 for a in actions if (a.get("response_status") or "").lower() == "done")
+    attachments = session.exec(
+        select(models.WorkshopServiceOrderAttachment)
+        .where(models.WorkshopServiceOrderAttachment.service_order_id == order.id)
+        .order_by(desc(models.WorkshopServiceOrderAttachment.created_at), desc(models.WorkshopServiceOrderAttachment.id))
+    ).all()
+    events = session.exec(
+        select(models.WorkshopServiceOrderEvent)
+        .where(models.WorkshopServiceOrderEvent.service_order_id == order.id)
+        .order_by(desc(models.WorkshopServiceOrderEvent.created_at), desc(models.WorkshopServiceOrderEvent.id))
+    ).all()
     row = {
         "order": order,
         "vehicle": vehicle,
@@ -15487,6 +15871,12 @@ async def workshop_service_order_detail_page(request: Request, order_id: int, se
         "actions_done": actions_done,
         "actions_pct": int(round((actions_done * 100) / actions_total)) if actions_total else 0,
         "driver_name": driver_name,
+        "days_open": _service_order_days_open(order),
+        "sla": _service_order_sla_badge(order),
+        "origin_label": _service_order_origin_label(order.origin_type or order.origin),
+        "category_label": _service_order_category_label(order.problem_category),
+        "impact_label": _service_order_operational_impact_label(order.operational_impact),
+        "block_status_label": _service_order_block_status_label(order.vehicle_block_status),
     }
     return templates.TemplateResponse(
         "workshop_service_order_detail.html",
@@ -15495,6 +15885,8 @@ async def workshop_service_order_detail_page(request: Request, order_id: int, se
             "user": user,
             "order": order,
             "row": row,
+            "events": events,
+            "attachments": attachments,
             "message": qp.get("message"),
             "level": qp.get("level"),
         },
@@ -15510,6 +15902,13 @@ async def workshop_service_order_create(
     origin: str = Form(default="manual"),
     order_type: str = Form(default="corretiva"),
     priority: str = Form(default="medium"),
+    due_date: Optional[str] = Form(default=None),
+    responsible_user_id: Optional[int] = Form(default=None),
+    origin_type: Optional[str] = Form(default=None),
+    problem_category: Optional[str] = Form(default=None),
+    operational_impact: Optional[str] = Form(default=None),
+    vehicle_block_status: Optional[str] = Form(default=None),
+    vehicle_block_reason: Optional[str] = Form(default=None),
     problem_description: str = Form(default=""),
     issues_text: str = Form(default=""),
     actions_text: str = Form(default=""),
@@ -15518,6 +15917,21 @@ async def workshop_service_order_create(
     session: Session = Depends(get_session),
 ):
     user = require_login(request)
+    normalized_origin = _safe_form_text(origin, "manual") or "manual"
+    normalized_order_type = _safe_form_text(order_type, "corretiva") or "corretiva"
+    normalized_priority = _safe_form_text(priority, "medium") or "medium"
+    normalized_origin_type = _safe_form_text(origin_type) or normalized_origin
+    normalized_problem_category = _safe_form_text(problem_category) or "outro"
+    normalized_operational_impact = _safe_form_text(operational_impact) or "no_route_block"
+    normalized_block_status = _safe_form_text(vehicle_block_status) or ("critical" if normalized_priority == "critical" else "none")
+    normalized_block_reason = _safe_form_text(vehicle_block_reason)
+    normalized_due_date = _safe_form_text(due_date)
+    normalized_problem_description = _safe_form_text(problem_description)
+    normalized_issues_text = _safe_form_text(issues_text)
+    normalized_actions_text = _safe_form_text(actions_text)
+    normalized_preventive_note = _safe_form_text(preventive_note)
+    normalized_driver_employee_id = _safe_form_int(driver_employee_id)
+    normalized_responsible_user_id = _safe_form_int(responsible_user_id)
     if not vehicle_id:
         return RedirectResponse(
             url="/workshop/service-orders?"
@@ -15556,28 +15970,37 @@ async def workshop_service_order_create(
     label_map = checklist_item_label_map()
     checklist_problem = _build_service_order_checklist_problem(checklist_for_os, label_map)
     checklist_issues = _service_order_checklist_issues(checklist_for_os, label_map)
-    issues = _parse_multiline_items(issues_text)
+    issues = _parse_multiline_items(normalized_issues_text)
     for checklist_issue in checklist_issues:
         if checklist_issue.lower() not in {issue.lower() for issue in issues}:
             issues.append(checklist_issue)
-    action_plan = _parse_action_plan(actions_text, issues)
+    action_plan = _parse_action_plan(normalized_actions_text, issues)
     if not action_plan:
         return RedirectResponse(
             url="/workshop/service-orders?message=Informe+ao+menos+uma+ação+para+a+OS.&level=error",
             status_code=status.HTTP_303_SEE_OTHER,
         )
-    problem_description_for_os = _merge_service_order_problem_description(problem_description, checklist_problem)
+    problem_description_for_os = _merge_service_order_problem_description(normalized_problem_description, checklist_problem)
 
     order = models.WorkshopServiceOrder(
         vehicle_id=int(vehicle_id),
         checklist_id=checklist_for_os.id if checklist_for_os else None,
-        driver_employee_id=driver_employee_id or (checklist_for_os.employee_id if checklist_for_os else None),
-        origin=(origin or "manual").strip().lower(),
-        order_type=(order_type or "corretiva").strip().lower(),
-        priority=(priority or "medium").strip().lower(),
+        driver_employee_id=normalized_driver_employee_id or (checklist_for_os.employee_id if checklist_for_os else None),
+        origin=normalized_origin.lower(),
+        origin_type=normalized_origin_type.lower(),
+        order_type=normalized_order_type.lower(),
+        priority=normalized_priority.lower(),
+        due_date=_service_order_due_date(normalized_priority, normalized_order_type, normalized_due_date),
+        responsible_user_id=normalized_responsible_user_id,
+        problem_category=normalized_problem_category.lower(),
+        operational_impact=normalized_operational_impact.lower(),
+        vehicle_block_status=normalized_block_status.lower(),
+        vehicle_block_reason=normalized_block_reason or None,
+        vehicle_blocked_at=datetime.now() if normalized_block_status.lower() in {"preventive", "critical"} else None,
+        vehicle_blocked_by=format_user_label(user) if normalized_block_status.lower() in {"preventive", "critical"} else None,
         title="Ordem de serviço",
         problem_description=problem_description_for_os,
-        preventive_note=(preventive_note or "").strip() or None,
+        preventive_note=normalized_preventive_note or None,
         issue_count=len(issues),
         action_plan_json=action_plan,
         opened_by=format_user_label(user),
@@ -15591,6 +16014,24 @@ async def workshop_service_order_create(
     plate_for_title = (vehicle_for_os.placa or "").strip()
     order.title = _build_service_order_title(order.id or 0, plate_for_title, order.created_at)
     session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="created",
+        title="OS criada",
+        description=f"Ordem de serviço criada para o veículo {plate_for_title or '-'}",
+        created_by=format_user_label(user),
+    )
+    if (order.vehicle_block_status or "none") in {"preventive", "critical"}:
+        _register_service_order_event(
+            session,
+            order,
+            event_type="vehicle_blocked",
+            title="Veículo bloqueado",
+            description=order.vehicle_block_reason or "Bloqueio registrado na abertura da OS.",
+            new_value=order.vehicle_block_status,
+            created_by=format_user_label(user),
+        )
     session.commit()
 
     dest = _service_order_return_url(return_to, "/workshop/service-orders")
@@ -15610,7 +16051,7 @@ async def workshop_service_order_update_status(
     return_to: Optional[str] = Form(default=None),
     session: Session = Depends(get_session),
 ):
-    require_login(request)
+    user = require_login(request)
     order = session.get(models.WorkshopServiceOrder, order_id)
     if not order:
         return RedirectResponse(
@@ -15619,13 +16060,51 @@ async def workshop_service_order_update_status(
         )
     allowed = {"open", "triage", "in_progress", "waiting_parts", "done", "closed"}
     normalized = (status_value or "").strip().lower()
+    old_status = (order.status or "").strip().lower()
+    notes_candidate = (resolution_notes or "").strip() or (order.resolution_notes or "").strip()
+    if normalized == "closed" and not notes_candidate:
+        dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+        sep = "&" if "?" in dest else "?"
+        return RedirectResponse(
+            url=f"{dest}{sep}message=Para+encerrar+a+OS%2C+informe+uma+nota+de+conclusão.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     if normalized in allowed:
         order.status = normalized
     order.resolution_notes = (resolution_notes or "").strip() or order.resolution_notes
-    if order.status in {"done", "closed"}:
+    if order.status == "closed":
         order.closed_at = datetime.now()
     order.updated_at = datetime.now()
     session.add(order)
+    if old_status != order.status:
+        _register_service_order_event(
+            session,
+            order,
+            event_type="status_changed",
+            title="Status alterado",
+            description=f"Status alterado de {_service_order_status_label(old_status)} para {_service_order_status_label(order.status)}.",
+            old_value=old_status,
+            new_value=order.status,
+            created_by=format_user_label(user),
+        )
+        if order.status == "done":
+            _register_service_order_event(
+                session,
+                order,
+                event_type="done",
+                title="OS concluída",
+                description="Serviço marcado como concluído.",
+                created_by=format_user_label(user),
+            )
+        if order.status == "closed":
+            _register_service_order_event(
+                session,
+                order,
+                event_type="closed",
+                title="OS encerrada",
+                description="Encerramento manual com validação final.",
+                created_by=format_user_label(user),
+            )
     session.commit()
 
     dest = _service_order_return_url(return_to, "/workshop/service-orders")
@@ -15646,7 +16125,7 @@ async def workshop_service_order_respond_action(
     return_to: Optional[str] = Form(default=None),
     session: Session = Depends(get_session),
 ):
-    require_login(request)
+    user = require_login(request)
     order = session.get(models.WorkshopServiceOrder, order_id)
     if not order:
         return RedirectResponse(
@@ -15660,17 +16139,37 @@ async def workshop_service_order_respond_action(
             status_code=status.HTTP_303_SEE_OTHER,
         )
     action = dict(plan[action_index] or {})
-    action["response_status"] = "done" if (response_status or "").strip().lower() == "done" else "pending"
+    normalized_response = (response_status or "").strip().lower()
+    if normalized_response not in {"pending", "in_progress", "done"}:
+        normalized_response = "pending"
+    action["response_status"] = normalized_response
     action["response_note"] = (response_note or "").strip()
     action["responded_at"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+    action["responded_by"] = format_user_label(user)
     plan[action_index] = action
     order.action_plan_json = plan
     order.updated_at = datetime.now()
+    _register_service_order_event(
+        session,
+        order,
+        event_type="action_updated",
+        title="Ação atualizada",
+        description=f"Ação {action_index + 1} atualizada para {normalized_response}.",
+        new_value=normalized_response,
+        created_by=format_user_label(user),
+    )
 
     if plan and all((a.get("response_status") or "").lower() == "done" for a in plan):
         if order.status in {"open", "triage", "in_progress", "waiting_parts"}:
             order.status = "done"
-            order.closed_at = datetime.now()
+            _register_service_order_event(
+                session,
+                order,
+                event_type="done",
+                title="OS concluída automaticamente",
+                description="Todas as ações do plano foram concluídas. OS marcada como concluída.",
+                created_by=format_user_label(user),
+            )
 
     session.add(order)
     session.commit()
@@ -15680,6 +16179,463 @@ async def workshop_service_order_respond_action(
         url=f"{dest}{sep}message=Ação+respondida+com+sucesso.&level=success",
         status_code=status.HTTP_303_SEE_OTHER,
     )
+
+
+def _service_order_pdf_storage_dir() -> Path:
+    path = BASE_DIR / "static" / "uploads" / "workshop_service_orders"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _service_order_attachment_storage_dir(order_id: int) -> Path:
+    path = BASE_DIR / "static" / "uploads" / "workshop_service_orders" / str(order_id) / "attachments"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def build_workshop_service_order_pdf(order: models.WorkshopServiceOrder, row: dict, events: List[models.WorkshopServiceOrderEvent]) -> bytes:
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except Exception as exc:
+        raise RuntimeError("ReportLab não disponível para gerar PDF da OS.") from exc
+
+    buffer = io.BytesIO()
+    _, page_height = A4
+    c = canvas.Canvas(buffer, pagesize=A4)
+    y = page_height - 40
+    line_height = 14
+
+    def draw_line(text: str, bold: bool = False):
+        nonlocal y
+        if y < 40:
+            c.showPage()
+            y = page_height - 40
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", 10)
+        c.drawString(40, y, (text or "-")[:150])
+        y -= line_height
+
+    draw_line("Ordem de Serviço", True)
+    draw_line(f"Número: #{order.id}")
+    draw_line(f"Abertura: {fmt_br_datetime(order.created_at)}")
+    draw_line(f"Emissão PDF: {fmt_br_datetime(datetime.now())}")
+    draw_line(f"Veículo: {(row.get('vehicle').placa if row.get('vehicle') else '-')}")
+    draw_line(f"Modelo: {((row.get('vehicle').marca + ' ' + row.get('vehicle').modelo).strip() if row.get('vehicle') else '-')}")
+    draw_line(f"Tipo: {order.order_type}")
+    draw_line(f"Origem: {row.get('origin_label')}")
+    draw_line(f"Prioridade: {row.get('priority_label')}")
+    draw_line(f"Status: {row.get('status_label')}")
+    draw_line(f"Categoria: {row.get('category_label')}")
+    draw_line(f"Impacto operacional: {row.get('impact_label')}")
+    draw_line(f"Responsável principal: {order.responsible_user_id or '-'}")
+    draw_line("")
+    draw_line("Descrição do problema:", True)
+    for part in (order.problem_description or "-").splitlines():
+        draw_line(part)
+    draw_line("")
+    draw_line("Problemas identificados / plano de ação:", True)
+    for idx, action in enumerate(list(order.action_plan_json or []), start=1):
+        draw_line(f"{idx}. {action.get('action') or '-'} | Resp: {action.get('owner') or '-'} | Status: {action.get('response_status') or 'pending'}")
+    draw_line("")
+    draw_line("Fornecedor externo:", True)
+    draw_line(f"Necessário: {'Sim' if order.external_supplier_required else 'Não'}")
+    draw_line(f"Fornecedor: {order.supplier_name or '-'}")
+    draw_line(f"Contato: {order.supplier_contact or '-'}")
+    draw_line(f"Status fornecedor: {order.supplier_status or '-'}")
+    draw_line("")
+    draw_line("Anexos cadastrados:", True)
+    for att in row.get("attachments", [])[:15]:
+        draw_line(f"- [{att.get('attachment_type')}] {att.get('file_name')}")
+    draw_line("")
+    draw_line("Conclusão:", True)
+    draw_line(f"Resumo: {order.resolution_notes or '-'}")
+    draw_line(f"Custo total: {order.total_cost if order.total_cost is not None else '-'}")
+    draw_line("")
+    draw_line("Histórico resumido:", True)
+    for event in events[:10]:
+        draw_line(f"- {fmt_br_datetime(event.created_at)} | {event.event_title}")
+    draw_line("")
+    draw_line("Assinatura/validação: _______________________________")
+
+    c.save()
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+@app.post("/workshop/service-orders/{order_id}/generate-pdf", response_class=RedirectResponse)
+async def workshop_service_order_generate_pdf(
+    request: Request,
+    order_id: int,
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(url="/workshop/service-orders?message=OS+não+encontrada.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    vehicle = session.get(models.Vehicle, order.vehicle_id) if order.vehicle_id else None
+    checklist = session.get(models.TranspalletChecklist, order.checklist_id) if order.checklist_id else None
+    events = session.exec(
+        select(models.WorkshopServiceOrderEvent)
+        .where(models.WorkshopServiceOrderEvent.service_order_id == order.id)
+        .order_by(desc(models.WorkshopServiceOrderEvent.created_at), desc(models.WorkshopServiceOrderEvent.id))
+    ).all()
+    row = {
+        "vehicle": vehicle,
+        "checklist": checklist,
+        "status_label": _service_order_status_label(order.status or ""),
+        "priority_label": _service_order_priority_label(order.priority or ""),
+        "origin_label": _service_order_origin_label(order.origin_type or order.origin),
+        "category_label": _service_order_category_label(order.problem_category),
+        "impact_label": _service_order_operational_impact_label(order.operational_impact),
+        "attachments": [
+            {
+                "attachment_type": a.attachment_type,
+                "file_name": a.file_name,
+            }
+            for a in session.exec(
+                select(models.WorkshopServiceOrderAttachment)
+                .where(models.WorkshopServiceOrderAttachment.service_order_id == order.id)
+                .order_by(desc(models.WorkshopServiceOrderAttachment.created_at), desc(models.WorkshopServiceOrderAttachment.id))
+            ).all()
+        ],
+    }
+    pdf_bytes = build_workshop_service_order_pdf(order, row, events)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_name = f"os_{order.id}_{stamp}.pdf"
+    storage = _service_order_pdf_storage_dir() / file_name
+    storage.write_bytes(pdf_bytes)
+    order.latest_pdf_path = f"/static/uploads/workshop_service_orders/{file_name}"
+    order.latest_pdf_generated_at = datetime.now()
+    order.updated_at = datetime.now()
+    session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="pdf_generated",
+        title="PDF gerado",
+        description=f"PDF da OS gerado: {file_name}",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(url=f"{dest}{sep}message=PDF+gerado+com+sucesso.&level=success", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/workshop/service-orders/{order_id}/pdf")
+async def workshop_service_order_download_pdf(request: Request, order_id: int, session: Session = Depends(get_session)):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order or not order.latest_pdf_path:
+        return RedirectResponse(url=f"/workshop/service-orders/{order_id}?message=PDF+não+encontrado.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    file_path = BASE_DIR / order.latest_pdf_path.strip("/").replace("/", os.sep)
+    if not file_path.exists():
+        return RedirectResponse(url=f"/workshop/service-orders/{order_id}?message=Arquivo+PDF+indisponível.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="pdf_downloaded",
+        title="PDF baixado",
+        description="Download do PDF da OS realizado.",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    return FileResponse(path=str(file_path), media_type="application/pdf", filename=file_path.name)
+
+
+@app.post("/workshop/service-orders/{order_id}/supplier/send-register", response_class=RedirectResponse)
+async def workshop_service_order_supplier_send_register(
+    request: Request,
+    order_id: int,
+    supplier_name: Optional[str] = Form(default=None),
+    supplier_contact: Optional[str] = Form(default=None),
+    send_channel: Optional[str] = Form(default=None),
+    send_notes: Optional[str] = Form(default=None),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(url="/workshop/service-orders?message=OS+não+encontrada.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    order.external_supplier_required = True
+    order.supplier_name = (supplier_name or order.supplier_name or "").strip() or None
+    order.supplier_contact = (supplier_contact or order.supplier_contact or "").strip() or None
+    order.supplier_sent_at = datetime.now()
+    order.supplier_status = "sent"
+    order.updated_at = datetime.now()
+    session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="supplier_sent",
+        title="Envio ao fornecedor registrado",
+        description=f"Meio: {(send_channel or 'não informado')}. Obs: {(send_notes or '-').strip()}",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(url=f"{dest}{sep}message=Envio+ao+fornecedor+registrado.&level=success", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/workshop/service-orders/{order_id}/supplier", response_class=RedirectResponse)
+async def workshop_service_order_supplier_update(
+    request: Request,
+    order_id: int,
+    external_supplier_required: Optional[str] = Form(default=None),
+    supplier_name: Optional[str] = Form(default=None),
+    supplier_contact: Optional[str] = Form(default=None),
+    supplier_service_type: Optional[str] = Form(default=None),
+    supplier_status: Optional[str] = Form(default=None),
+    supplier_expected_return_at: Optional[str] = Form(default=None),
+    quoted_amount: Optional[str] = Form(default=None),
+    approved_amount: Optional[str] = Form(default=None),
+    final_amount: Optional[str] = Form(default=None),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(url="/workshop/service-orders?message=OS+não+encontrada.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+
+    order.external_supplier_required = str(external_supplier_required or "").lower() in {"1", "true", "on", "yes"}
+    order.supplier_name = _safe_form_text(supplier_name) or None
+    order.supplier_contact = _safe_form_text(supplier_contact) or None
+    order.supplier_service_type = _safe_form_text(supplier_service_type) or None
+    status_candidate = _safe_form_text(supplier_status, order.supplier_status or "not_sent").lower()
+    allowed = {"not_sent", "sent", "waiting_quote", "quote_received", "approved", "in_service", "finalized", "canceled"}
+    order.supplier_status = status_candidate if status_candidate in allowed else (order.supplier_status or "not_sent")
+    if _safe_form_text(quoted_amount):
+        order.quoted_amount = _as_float(_safe_form_text(quoted_amount))
+    if _safe_form_text(approved_amount):
+        order.approved_amount = _as_float(_safe_form_text(approved_amount))
+    if _safe_form_text(final_amount):
+        order.final_amount = _as_float(_safe_form_text(final_amount))
+    expected_return_raw = _safe_form_text(supplier_expected_return_at)
+    if expected_return_raw:
+        try:
+            order.supplier_expected_return_at = datetime.strptime(expected_return_raw, "%Y-%m-%d")
+        except Exception:
+            pass
+    order.updated_at = datetime.now()
+    session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="supplier_updated",
+        title="Fornecedor atualizado",
+        description=f"Status fornecedor: {_service_order_supplier_status_label(order.supplier_status)}",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(url=f"{dest}{sep}message=Fornecedor+atualizado+com+sucesso.&level=success", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/workshop/service-orders/{order_id}/attachments", response_class=RedirectResponse)
+async def workshop_service_order_upload_attachment(
+    request: Request,
+    order_id: int,
+    attachment_type: str = Form(default="other"),
+    file: UploadFile = File(...),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(url="/workshop/service-orders?message=OS+não+encontrada.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+
+    file_name = (file.filename or "").strip()
+    if not file_name:
+        return RedirectResponse(url=f"/workshop/service-orders/{order_id}?message=Arquivo+inválido.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    ext = os.path.splitext(file_name)[1].lower()
+    allowed_ext = {".jpg", ".jpeg", ".png", ".webp", ".pdf", ".doc", ".docx", ".xls", ".xlsx"}
+    if ext not in allowed_ext:
+        return RedirectResponse(url=f"/workshop/service-orders/{order_id}?message=Extensão+de+arquivo+não+permitida.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    content = await file.read()
+    max_size = 15 * 1024 * 1024
+    if len(content) > max_size:
+        return RedirectResponse(url=f"/workshop/service-orders/{order_id}?message=Arquivo+muito+grande+(máx+15MB).&level=error", status_code=status.HTTP_303_SEE_OTHER)
+
+    safe_name = f"{secrets.token_hex(12)}{ext}"
+    storage_dir = _service_order_attachment_storage_dir(order_id)
+    local_path = storage_dir / safe_name
+    local_path.write_bytes(content)
+    web_path = f"/static/uploads/workshop_service_orders/{order_id}/attachments/{safe_name}"
+
+    attachment = models.WorkshopServiceOrderAttachment(
+        service_order_id=order.id,
+        vehicle_id=order.vehicle_id,
+        attachment_type=(attachment_type or "other").strip().lower(),
+        file_name=file_name,
+        file_path=web_path,
+        mime_type=(file.content_type or "").strip() or None,
+        size_bytes=len(content),
+        uploaded_by=format_user_label(user),
+        created_at=datetime.now(),
+    )
+    session.add(attachment)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="attachment_uploaded",
+        title="Anexo incluído",
+        description=f"Anexo '{file_name}' ({attachment.attachment_type}) foi adicionado.",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(url=f"{dest}{sep}message=Anexo+enviado+com+sucesso.&level=success", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/workshop/service-orders/{order_id}/block-vehicle", response_class=RedirectResponse)
+async def workshop_service_order_block_vehicle(
+    request: Request,
+    order_id: int,
+    block_status: str = Form(default="preventive"),
+    block_reason: Optional[str] = Form(default=None),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(url="/workshop/service-orders?message=OS+não+encontrada.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    normalized = (block_status or "preventive").strip().lower()
+    if normalized not in {"preventive", "critical"}:
+        normalized = "preventive"
+    order.vehicle_block_status = normalized
+    order.vehicle_block_reason = (block_reason or "").strip() or None
+    order.vehicle_blocked_at = datetime.now()
+    order.vehicle_blocked_by = format_user_label(user)
+    order.updated_at = datetime.now()
+    session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="vehicle_blocked",
+        title="Veículo bloqueado",
+        description=order.vehicle_block_reason or "Bloqueio operacional registrado.",
+        new_value=order.vehicle_block_status,
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(url=f"{dest}{sep}message=Bloqueio+do+veículo+registrado.&level=success", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/workshop/service-orders/{order_id}/release-vehicle", response_class=RedirectResponse)
+async def workshop_service_order_release_vehicle(
+    request: Request,
+    order_id: int,
+    release_notes: str = Form(default=""),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(url="/workshop/service-orders?message=OS+não+encontrada.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    if not (release_notes or "").strip():
+        dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+        sep = "&" if "?" in dest else "?"
+        return RedirectResponse(url=f"{dest}{sep}message=Informe+observação+de+liberação+do+veículo.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    order.vehicle_block_status = "none"
+    order.vehicle_released_at = datetime.now()
+    order.vehicle_released_by = format_user_label(user)
+    order.updated_at = datetime.now()
+    session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="vehicle_released",
+        title="Veículo liberado",
+        description=(release_notes or "").strip(),
+        new_value="none",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(url=f"{dest}{sep}message=Liberação+do+veículo+registrada.&level=success", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.post("/workshop/service-orders/{order_id}/close", response_class=RedirectResponse)
+async def workshop_service_order_close(
+    request: Request,
+    order_id: int,
+    resolution_notes: str = Form(default=""),
+    parts_cost: Optional[str] = Form(default=None),
+    labor_cost: Optional[str] = Form(default=None),
+    third_party_cost: Optional[str] = Form(default=None),
+    quoted_amount: Optional[str] = Form(default=None),
+    approved_amount: Optional[str] = Form(default=None),
+    final_amount: Optional[str] = Form(default=None),
+    invoice_number: Optional[str] = Form(default=None),
+    warranty_notes: Optional[str] = Form(default=None),
+    odometer_km: Optional[str] = Form(default=None),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(url="/workshop/service-orders?message=OS+não+encontrada.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    notes = (resolution_notes or "").strip() or (order.resolution_notes or "").strip()
+    if not notes:
+        dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+        sep = "&" if "?" in dest else "?"
+        return RedirectResponse(url=f"{dest}{sep}message=Para+encerrar+a+OS%2C+informe+nota+de+conclusão.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    order.resolution_notes = notes
+    parts_cost_val = _as_float(_safe_form_text(parts_cost))
+    labor_cost_val = _as_float(_safe_form_text(labor_cost))
+    third_party_cost_val = _as_float(_safe_form_text(third_party_cost))
+    order.parts_cost = parts_cost_val if parts_cost_val > 0 else order.parts_cost
+    order.labor_cost = labor_cost_val if labor_cost_val > 0 else order.labor_cost
+    order.third_party_cost = third_party_cost_val if third_party_cost_val > 0 else order.third_party_cost
+    if _safe_form_text(quoted_amount):
+        order.quoted_amount = _as_float(_safe_form_text(quoted_amount))
+    if _safe_form_text(approved_amount):
+        order.approved_amount = _as_float(_safe_form_text(approved_amount))
+    if _safe_form_text(final_amount):
+        order.final_amount = _as_float(_safe_form_text(final_amount))
+    invoice_value = _safe_form_text(invoice_number)
+    if invoice_value:
+        order.invoice_number = invoice_value
+    warranty_value = _safe_form_text(warranty_notes)
+    if warranty_value:
+        order.warranty_notes = warranty_value
+    odometer_value = _safe_form_text(odometer_km)
+    if odometer_value:
+        order.odometer_km = _as_float(odometer_value)
+    total_cost_calc = _safe_float(order.parts_cost) + _safe_float(order.labor_cost) + _safe_float(order.third_party_cost)
+    order.total_cost = total_cost_calc if total_cost_calc > 0 else order.total_cost
+    old_status = order.status
+    order.status = "closed"
+    order.closed_at = datetime.now()
+    order.updated_at = datetime.now()
+    session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="closed",
+        title="OS encerrada",
+        description="Encerramento validado manualmente pela liderança.",
+        old_value=old_status,
+        new_value="closed",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(url=f"{dest}{sep}message=OS+encerrada+com+sucesso.&level=success", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.get("/vehicles", response_class=HTMLResponse)
@@ -16235,6 +17191,45 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
     if last_km is None and rows:
         last_km = rows[0].get("odometer_km")
     last_km_fmt = f"{last_km:,.0f}".replace(",", ".") if last_km is not None else None
+    service_orders = session.exec(
+        select(models.WorkshopServiceOrder)
+        .where(models.WorkshopServiceOrder.vehicle_id == vehicle.id)
+        .order_by(desc(models.WorkshopServiceOrder.created_at), desc(models.WorkshopServiceOrder.id))
+    ).all()
+    attachment_count_map: Dict[int, int] = {}
+    if service_orders:
+        so_ids = [so.id for so in service_orders if so.id]
+        if so_ids:
+            attachment_rows = session.exec(
+                select(
+                    models.WorkshopServiceOrderAttachment.service_order_id,
+                    func.count(models.WorkshopServiceOrderAttachment.id),
+                )
+                .where(models.WorkshopServiceOrderAttachment.service_order_id.in_(so_ids))
+                .group_by(models.WorkshopServiceOrderAttachment.service_order_id)
+            ).all()
+            for service_order_id, count_value in attachment_rows:
+                attachment_count_map[int(service_order_id)] = int(count_value or 0)
+    so_rows = []
+    for so in service_orders:
+        so_rows.append(
+            {
+                "id": so.id,
+                "created_at_fmt": fmt_br_datetime(so.created_at) if so.created_at else "-",
+                "closed_at_fmt": fmt_br_datetime(so.closed_at) if so.closed_at else "-",
+                "status_label": _service_order_status_label(so.status or ""),
+                "priority_label": _service_order_priority_label(so.priority or ""),
+                "order_type": so.order_type or "-",
+                "category_label": _service_order_category_label(so.problem_category),
+                "origin_label": _service_order_origin_label(so.origin_type or so.origin),
+                "issues_count": so.issue_count or 0,
+                "supplier_name": so.supplier_name or "-",
+                "total_cost": so.total_cost,
+                "total_cost_fmt": f"R$ {float(so.total_cost):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if so.total_cost is not None else "-",
+                "pdf_path": so.latest_pdf_path,
+                "attachment_count": attachment_count_map.get(int(so.id or 0), 0),
+            }
+        )
     return templates.TemplateResponse(
         "vehicle_history.html",
         {
@@ -16243,6 +17238,7 @@ async def vehicle_history_page(request: Request, vehicle_id: int, session: Sessi
             "vehicle": vehicle,
             "checklists": rows,
             "delivery_history": delivery_history,
+            "service_orders": so_rows,
             "last_km": last_km,
             "last_km_fmt": last_km_fmt,
         }
@@ -17142,6 +18138,15 @@ async def separacao_page(
     cli_map = {c.id: c.name for c in clients}
     cli_display_map = {}
     cli_secondary_map = {}
+    seller_contact_by_code: Dict[str, Tuple[str, str]] = {}
+    for emp in all_employees:
+        code_norm = _norm_seller_code_cmp(getattr(emp, "seller_code", None))
+        if code_norm and code_norm not in seller_contact_by_code:
+            seller_name = (getattr(emp, "name", "") or "").strip()
+            seller_phone = "".join(ch for ch in str(getattr(emp, "phone", "") or "") if ch.isdigit())
+            seller_contact_by_code[code_norm] = (seller_name, seller_phone)
+    cli_seller_map = {}
+    cli_seller_phone_map = {}
     for c in clients:
         primary = c.razao_social or c.name or c.nome_fantasia or "Cliente"
         secondary_candidates = [c.nome_fantasia, c.name]
@@ -17152,6 +18157,12 @@ async def separacao_page(
                 break
         cli_display_map[c.id] = primary
         cli_secondary_map[c.id] = secondary
+        seller_name, seller_phone = seller_contact_by_code.get(
+            _norm_seller_code_cmp(getattr(c, "setor", None)),
+            ("", ""),
+        )
+        cli_seller_map[c.id] = seller_name
+        cli_seller_phone_map[c.id] = seller_phone
 
     # 4. Fetch Routes
     query = (
@@ -17438,12 +18449,53 @@ async def separacao_page(
             except Exception:
                 _inserted_at = str(route.created_at)[:16] if route.created_at else ""
 
+        row_client_name = cli_display_map.get(route.client_id, cli_map.get(route.client_id, "Cliente não cadastrado"))
+        row_seller_phone_wa = cli_seller_phone_map.get(route.client_id, "")
+        row_seller_reagendamento_url = ""
+        row_seller_comunicacao_url = ""
+        if row_seller_phone_wa:
+            valor_devolucao = _safe_float(route.valor_devolucao if route.valor_devolucao is not None else route.valor_financeiro)
+            valor_devolucao_br = f"R$ {valor_devolucao:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            nb_devolucao = (route.delivery_client_code or "").strip() or "-"
+            motivo_devolucao = (
+                (route.delivery_return_reason or "").strip()
+                or (route.delivery_return_category or "").strip()
+                or "Nao informado"
+            )
+            data_devolucao = "-"
+            try:
+                data_devolucao = datetime.strptime(route.date, "%Y-%m-%d").strftime("%d/%m/%Y") if route.date else "-"
+            except Exception:
+                data_devolucao = route.date or "-"
+            msg_reagendamento = (
+                "Olá!\n\n"
+                f"A entrega desse cliente ({row_client_name}) não será realizada hoje. "
+                "Vamos reprogramar e, assim que tivermos a nova previsão, informamos para alinhamento com o cliente.\n\n"
+                "Obrigado."
+            )
+            msg_comunicacao = (
+                "Olá, tudo bem?\n\n"
+                "Segue informação de devolução:\n\n"
+                f"Cliente: {row_client_name}\n"
+                f"NB: {nb_devolucao}\n"
+                f"Valor: {valor_devolucao_br}\n"
+                f"Motivo: {motivo_devolucao}\n"
+                f"Data: {data_devolucao}\n\n"
+                "Por gentileza, verificar o caso e alinhar com o cliente, se necessário.\n\n"
+                "Obrigado."
+            )
+            row_seller_reagendamento_url = f"https://wa.me/{row_seller_phone_wa}?{urlencode({'text': msg_reagendamento})}"
+            row_seller_comunicacao_url = f"https://wa.me/{row_seller_phone_wa}?{urlencode({'text': msg_comunicacao})}"
+
         delivery_by_employee[key]["rows"].append({
             "id": route.id,
             "route_code": route.delivery_route_code or "-",
             "order_number": route.delivery_order_number or "-",
-            "client_name": cli_display_map.get(route.client_id, cli_map.get(route.client_id, "Cliente não cadastrado")),
+            "client_name": row_client_name,
             "client_secondary": cli_secondary_map.get(route.client_id),
+            "seller_name": cli_seller_map.get(route.client_id, ""),
+            "seller_reagendamento_url": row_seller_reagendamento_url,
+            "seller_comunicacao_url": row_seller_comunicacao_url,
             "client_code": route.delivery_client_code or "-",
             "address": route.delivery_address or "-",
             "bairro": route.delivery_neighborhood or "-",
@@ -17817,6 +18869,7 @@ async def comercial_entregas_page(
     }
 
     client_vendedor_name_blob: dict[int, str] = {}
+    client_vendedor_display_map: dict[int, str] = {}
     for c in clients:
         c_id = int(getattr(c, "id", 0) or 0)
         if not c_id:
@@ -17832,6 +18885,14 @@ async def comercial_entregas_page(
         if st:
             nm_parts.append(st.casefold())
         client_vendedor_name_blob[c_id] = " ".join(p for p in nm_parts if p).casefold()
+        vend_label = ""
+        if em_id:
+            vend_label = str(employee_map.get(em_id, "") or "").strip()
+        if not vend_label and st:
+            vend_label = f"Cód. {st}"
+        elif vend_label and st:
+            vend_label = f"{vend_label} ({st})"
+        client_vendedor_display_map[c_id] = vend_label
 
     def _client_matches_vendedor_digit(c_id: int, fk: str) -> bool:
         c = clients_by_id.get(c_id)
@@ -17948,6 +19009,7 @@ async def comercial_entregas_page(
                 "driver_whatsapp_url": wa_url,
                 "team_members": equipe,
                 "client_name": client_name,
+                "seller_name": client_vendedor_display_map.get(client_id, ""),
                 "started_at": _fmt_time_br(row.delivery_started_at or row.start_time),
                 "finished_at": _fmt_time_br(row.delivery_finished_at or row.end_time),
                 "client_id": client_id,

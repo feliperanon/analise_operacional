@@ -267,7 +267,7 @@
     <!-- Modal troca rápida -->
     <div x-show="quickChange.open" x-cloak x-transition class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
         <div class="absolute inset-0 bg-black/70" @click="quickChange.open = false"></div>
-        <div class="relative w-full max-w-md max-h-[85vh] rounded-t-2xl sm:rounded-xl overflow-hidden flex flex-col" style="background: var(--color-surface); border: 1px solid var(--color-border);">
+        <div class="relative w-full max-w-2xl max-h-[88vh] rounded-t-2xl sm:rounded-xl overflow-hidden flex flex-col" style="background: var(--color-surface); border: 1px solid var(--color-border);">
             <div class="px-4 py-3 border-b flex justify-between items-center shrink-0" style="border-color: var(--color-border);">
                 <h4 class="text-sm font-semibold" style="color: var(--color-text);" x-text="'Trocar ' + quickChange.campo"></h4>
                 <button @click="quickChange.open = false" class="p-2 rounded-lg touch-target" style="color: var(--color-text-muted);"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -284,14 +284,28 @@
                     </template>
                 </template>
                 <template x-if="quickChange.campo === 'ajudante'">
-                    <div class="space-y-2">
+                    <div class="space-y-3">
                         <p class="text-xs mb-2" style="color: var(--color-text-muted);">Selecione ajudantes (múltipla escolha)</p>
-                        <template x-for="a in (apiData.ajudantes_todos || apiData.ajudantes_disponiveis || [])" :key="a.id">
-                            <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer touch-target"><input type="checkbox" :value="a.id" x-model="quickChange.ajudantesSelected"><span class="text-sm" style="color: var(--color-text);" x-text="a.name"></span></label>
-                        </template>
-                        <button @click="applyQuickChange(null, null, quickChange.ajudantesSelected)" class="mt-3 w-full py-2 rounded-lg bg-amber-600 text-white text-sm font-semibold touch-target">Aplicar</button>
+                        <div class="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                            <template x-for="a in (apiData.ajudantes_todos || apiData.ajudantes_disponiveis || [])" :key="a.id">
+                                <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer touch-target"><input type="checkbox" :value="a.id" x-model="quickChange.ajudantesSelected"><span class="text-sm" style="color: var(--color-text);" x-text="a.name"></span></label>
+                            </template>
+                        </div>
+                        <div x-show="hasSelectedHelperConflicts" class="rounded-lg border p-3 text-xs" style="border-color: rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.12); color: #92400e;">
+                            <p class="font-semibold">Atenção: colaborador já em rota</p>
+                            <template x-for="c in selectedHelperConflicts" :key="c.helperId">
+                                <p class="mt-1">• <span x-text="c.name"></span> já está na rota <span class="font-semibold" x-text="c.vehiclePlate"></span>.</p>
+                            </template>
+                        </div>
                     </div>
                 </template>
+            </div>
+            <div x-show="quickChange.campo === 'ajudante'" class="shrink-0 p-4 border-t" style="border-color: var(--color-border);">
+                <button @click="applyQuickChange(null, null, quickChange.ajudantesSelected)"
+                        :disabled="hasSelectedHelperConflicts"
+                        class="w-full py-2.5 rounded-lg bg-amber-600 text-white text-sm font-semibold touch-target disabled:opacity-60 disabled:cursor-not-allowed">
+                    Aplicar
+                </button>
             </div>
         </div>
     </div>

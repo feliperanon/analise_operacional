@@ -819,6 +819,7 @@
                         <tr class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                             <th class="px-6 py-4">Data</th>
                             <th class="px-6 py-4">Colaborador</th>
+                            <th class="px-6 py-4 text-center">Tipo</th>
                             <th class="px-6 py-4 text-right">Peso (kg)</th>
                             <th class="px-6 py-4 text-center">Duração</th>
                             <th class="px-6 py-4 text-center">Produtividade</th>
@@ -829,6 +830,13 @@
                         <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
                             <td class="px-6 py-4 font-mono font-medium text-slate-900 dark:text-white">{{ route.date_fmt }}</td>
                             <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ route.employee_name|emp_name }}</td>
+                            <td class="px-6 py-4 text-center">
+                                {% if route.operation_type == 'devolucao' %}
+                                <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">Devolução</span>
+                                {% else %}
+                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Entrega</span>
+                                {% endif %}
+                            </td>
                             <td class="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">{{ route.tonnage_kg_fmt }}</td>
                             <td class="px-6 py-4 text-center font-mono text-slate-500 dark:text-slate-400">{{ route.duration_fmt or '-' }}
                             </td>
@@ -843,7 +851,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400">Nenhum registro encontrado.
+                            <td colspan="6" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400">Nenhum registro encontrado.
                             </td>
                         </tr>
                         {% endfor %}

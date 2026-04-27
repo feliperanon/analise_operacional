@@ -16,7 +16,16 @@
   {% endif %}
 
   <div>
-    <a href="/workshop/service-orders" class="sys-btn sys-btn--secondary inline-flex items-center gap-2 text-sm">← Voltar à lista</a>
+    <div class="flex flex-wrap gap-2">
+      <a href="/workshop/service-orders" class="sys-btn sys-btn--secondary inline-flex items-center gap-2 text-sm">← Voltar à lista</a>
+      <form method="POST" action="/workshop/service-orders/{{ order.id }}/generate-pdf" class="inline-flex">
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <button type="submit" class="sys-btn sys-btn--secondary text-sm">Gerar PDF</button>
+      </form>
+      {% if order.latest_pdf_path %}
+      <a href="/workshop/service-orders/{{ order.id }}/pdf" class="sys-btn sys-btn--secondary inline-flex items-center gap-2 text-sm">Baixar PDF</a>
+      {% endif %}
+    </div>
   </div>
 
   <div class="sys-card sys-card--surface p-5">
@@ -25,14 +34,26 @@
         <p class="employees-text-section-label">OS #{{ order.id }} · {{ row.priority_label }}</p>
         <h3 class="sys-section-heading mt-1">{{ order.title }}</h3>
         <p class="employees-text-muted mt-1 text-xs">
-          Veículo: {{ row.vehicle.placa if row.vehicle else "-" }} · Motorista: {{ row.driver_name }} · Origem: {{ order.origin }}{% if row.checklist %} · Checklist <a class="underline" href="/admin/routine/checklists/{{ row.checklist.id }}">#{{ row.checklist.id }}</a>{% endif %}
+          Veículo: {{ row.vehicle.placa if row.vehicle else "-" }}{% if row.vehicle %} · {{ row.vehicle.marca }} {{ row.vehicle.modelo }}{% endif %} · Motorista: {{ row.driver_name }} · Origem: {{ row.origin_label }} · Categoria: {{ row.category_label }}{% if row.checklist %} · Checklist <a class="underline" href="/admin/routine/checklists/{{ row.checklist.id }}">#{{ row.checklist.id }}</a>{% endif %}
         </p>
         <p class="employees-text-body mt-2 text-sm">{{ order.problem_description or "Sem descrição detalhada." }}</p>
+        <p class="employees-text-muted mt-2 text-xs">Impacto: {{ row.impact_label }} · Dias aberta: {{ row.days_open }} · SLA: {{ row.sla.label }} · Bloqueio: {{ row.block_status_label }}</p>
       </div>
       <div class="flex min-w-[12rem] flex-col gap-2">
         <span class="sys-badge {% if order.status in ['done','closed'] %}sys-badge--ok{% elif order.priority == 'critical' %}sys-badge--critical{% else %}sys-badge--alert{% endif %}">{{ row.status_label }}</span>
         <span class="employees-text-muted text-xs">Ações: {{ row.actions_done }}/{{ row.actions_total }} ({{ row.actions_pct }}%)</span>
+        {% if row.sla.state == 'overdue' %}
+        <span class="sys-badge sys-badge--critical">{{ row.sla.label }}</span>
+        {% endif %}
+        {% if (order.vehicle_block_status or 'none') in ['preventive', 'critical'] %}
+        <span class="sys-badge sys-badge--critical">Veículo bloqueado</span>
+        {% endif %}
       </div>
+    </div>
+
+    <div class="mt-4 rounded-xl border p-3">
+      <p class="sys-section__label sys-section__label--field">Fluxo da OS</p>
+      <p class="employees-text-muted text-xs mt-1">Aberta → Triagem → Em execução → Aguardando peça → Concluída → Encerrada</p>
     </div>
 
     <div class="mt-4 grid gap-4 lg:grid-cols-2">
@@ -60,8 +81,9 @@
             <p class="employees-text-muted text-xs">Resp: {{ action.owner }} · Prazo: {{ action.due }}</p>
             <div class="mt-2 flex flex-col gap-2 sm:flex-row">
               <select name="response_status" class="sys-select w-full sm:w-40">
-                <option value="pending" {% if action.response_status != 'done' %}selected{% endif %}>Pendente</option>
-                <option value="done" {% if action.response_status == 'done' %}selected{% endif %}>Respondida</option>
+                <option value="pending" {% if action.response_status == 'pending' %}selected{% endif %}>Pendente</option>
+                <option value="in_progress" {% if action.response_status == 'in_progress' %}selected{% endif %}>Em execução</option>
+                <option value="done" {% if action.response_status == 'done' %}selected{% endif %}>Concluída</option>
               </select>
               <input type="text" name="response_note" class="sys-input w-full" value="{{ action.response_note or '' }}" placeholder="Resposta/ação executada">
               <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
@@ -70,6 +92,132 @@
           </form>
           {% endfor %}
         </div>
+      </div>
+    </div>
+
+    <div class="mt-4 grid gap-4 lg:grid-cols-3">
+      <form method="POST" action="/workshop/service-orders/{{ order.id }}/block-vehicle" class="space-y-2 rounded-xl border p-3">
+        <label class="sys-section__label sys-section__label--field">Bloquear veículo para rota</label>
+        <select name="block_status" class="sys-select w-full">
+          <option value="preventive">Bloqueio preventivo</option>
+          <option value="critical">Bloqueio crítico</option>
+        </select>
+        <textarea name="block_reason" class="sys-input w-full text-sm" rows="2" placeholder="Motivo do bloqueio"></textarea>
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Registrar bloqueio</button>
+      </form>
+      <form method="POST" action="/workshop/service-orders/{{ order.id }}/release-vehicle" class="space-y-2 rounded-xl border p-3">
+        <label class="sys-section__label sys-section__label--field">Liberar veículo</label>
+        <textarea name="release_notes" class="sys-input w-full text-sm" rows="2" placeholder="Observação obrigatória de liberação"></textarea>
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Registrar liberação</button>
+      </form>
+      <form method="POST" action="/workshop/service-orders/{{ order.id }}/supplier/send-register" class="space-y-2 rounded-xl border p-3">
+        <label class="sys-section__label sys-section__label--field">Registrar envio ao fornecedor</label>
+        <input type="text" name="supplier_name" class="sys-input w-full text-sm" value="{{ order.supplier_name or '' }}" placeholder="Fornecedor">
+        <input type="text" name="supplier_contact" class="sys-input w-full text-sm" value="{{ order.supplier_contact or '' }}" placeholder="Contato">
+        <input type="text" name="send_channel" class="sys-input w-full text-sm" placeholder="Meio de envio (WhatsApp, e-mail, etc.)">
+        <textarea name="send_notes" class="sys-input w-full text-sm" rows="2" placeholder="Observações"></textarea>
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Registrar envio</button>
+      </form>
+    </div>
+
+    <div class="mt-4 rounded-xl border p-3">
+      <label class="sys-section__label sys-section__label--field">Fornecedor externo (gestão)</label>
+      <form method="POST" action="/workshop/service-orders/{{ order.id }}/supplier" class="mt-2 grid gap-2 md:grid-cols-4">
+        <label class="inline-flex items-center gap-2 text-xs md:col-span-4">
+          <input type="checkbox" name="external_supplier_required" value="1" {% if order.external_supplier_required %}checked{% endif %}>
+          Necessita fornecedor externo
+        </label>
+        <input type="text" name="supplier_name" class="sys-input text-sm" value="{{ order.supplier_name or '' }}" placeholder="Nome do fornecedor">
+        <input type="text" name="supplier_contact" class="sys-input text-sm" value="{{ order.supplier_contact or '' }}" placeholder="Contato">
+        <input type="text" name="supplier_service_type" class="sys-input text-sm" value="{{ order.supplier_service_type or '' }}" placeholder="Tipo de serviço">
+        <input type="date" name="supplier_expected_return_at" class="sys-input text-sm" value="{{ order.supplier_expected_return_at.strftime('%Y-%m-%d') if order.supplier_expected_return_at else '' }}">
+        <select name="supplier_status" class="sys-select text-sm">
+          <option value="not_sent" {% if (order.supplier_status or 'not_sent') == 'not_sent' %}selected{% endif %}>Não enviado</option>
+          <option value="sent" {% if order.supplier_status == 'sent' %}selected{% endif %}>Enviado</option>
+          <option value="waiting_quote" {% if order.supplier_status == 'waiting_quote' %}selected{% endif %}>Aguardando orçamento</option>
+          <option value="quote_received" {% if order.supplier_status == 'quote_received' %}selected{% endif %}>Orçamento recebido</option>
+          <option value="approved" {% if order.supplier_status == 'approved' %}selected{% endif %}>Aprovado</option>
+          <option value="in_service" {% if order.supplier_status == 'in_service' %}selected{% endif %}>Em serviço</option>
+          <option value="finalized" {% if order.supplier_status == 'finalized' %}selected{% endif %}>Finalizado</option>
+          <option value="canceled" {% if order.supplier_status == 'canceled' %}selected{% endif %}>Cancelado</option>
+        </select>
+        <input type="text" name="quoted_amount" class="sys-input text-sm" value="{{ order.quoted_amount or '' }}" placeholder="Valor orçado (R$)">
+        <input type="text" name="approved_amount" class="sys-input text-sm" value="{{ order.approved_amount or '' }}" placeholder="Valor aprovado (R$)">
+        <input type="text" name="final_amount" class="sys-input text-sm" value="{{ order.final_amount or '' }}" placeholder="Valor final (R$)">
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <div class="md:col-span-4">
+          <button type="submit" class="sys-btn sys-btn--secondary">Salvar fornecedor</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="mt-4 rounded-xl border p-3">
+      <label class="sys-section__label sys-section__label--field">Anexos e evidências</label>
+      <form method="POST" action="/workshop/service-orders/{{ order.id }}/attachments" enctype="multipart/form-data" class="mt-2 grid gap-2 md:grid-cols-4">
+        <select name="attachment_type" class="sys-select">
+          <option value="other">Outro</option>
+          <option value="problem">Problema</option>
+          <option value="quote">Orçamento</option>
+          <option value="invoice">Nota fiscal</option>
+          <option value="completed_service">Serviço concluído</option>
+          <option value="receipt">Comprovante</option>
+        </select>
+        <input type="file" name="file" class="sys-input md:col-span-2" required>
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <button type="submit" class="sys-btn sys-btn--secondary">Enviar anexo</button>
+      </form>
+      <div class="mt-2 space-y-2">
+        {% for att in attachments %}
+        <div class="rounded-lg border p-2 flex items-center justify-between gap-2">
+          <div>
+            <p class="text-sm font-medium">{{ att.file_name }}</p>
+            <p class="employees-text-muted text-xs">{{ att.attachment_type }} · {{ att.created_at.strftime("%d/%m/%Y %H:%M") if att.created_at else "-" }} · {{ att.uploaded_by or "-" }}</p>
+          </div>
+          <a href="{{ att.file_path }}" target="_blank" class="sys-btn sys-btn--secondary text-xs">Abrir</a>
+        </div>
+        {% endfor %}
+        {% if not attachments %}
+        <p class="employees-text-muted text-sm">Nenhum anexo cadastrado.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="mt-4 rounded-xl border p-3">
+      <label class="sys-section__label sys-section__label--field">Encerramento manual</label>
+      <form method="POST" action="/workshop/service-orders/{{ order.id }}/close" class="mt-2 flex flex-col gap-2">
+        <textarea name="resolution_notes" class="sys-input w-full text-sm" rows="3" placeholder="Resumo obrigatório para encerramento">{{ order.resolution_notes or '' }}</textarea>
+        <div class="grid gap-2 md:grid-cols-3">
+          <input type="text" name="parts_cost" class="sys-input text-sm" placeholder="Custo de peças (R$)">
+          <input type="text" name="labor_cost" class="sys-input text-sm" placeholder="Custo mão de obra (R$)">
+          <input type="text" name="third_party_cost" class="sys-input text-sm" placeholder="Custo terceiro (R$)">
+          <input type="text" name="quoted_amount" class="sys-input text-sm" placeholder="Valor orçado (R$)">
+          <input type="text" name="approved_amount" class="sys-input text-sm" placeholder="Valor aprovado (R$)">
+          <input type="text" name="final_amount" class="sys-input text-sm" placeholder="Valor final (R$)">
+          <input type="text" name="invoice_number" class="sys-input text-sm" placeholder="Número da nota fiscal">
+          <input type="text" name="odometer_km" class="sys-input text-sm" placeholder="Quilometragem no atendimento">
+          <input type="text" name="warranty_notes" class="sys-input text-sm" placeholder="Garantia (observações)">
+        </div>
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <button type="submit" class="sys-btn sys-btn--primary w-full sm:w-auto">Encerrar OS (validação manual)</button>
+      </form>
+    </div>
+
+    <div class="mt-4 rounded-xl border p-3">
+      <label class="sys-section__label sys-section__label--field">Histórico da OS</label>
+      <div class="mt-2 space-y-2">
+        {% for ev in events %}
+        <div class="rounded-lg border p-2">
+          <p class="text-sm font-medium">{{ ev.event_title }}</p>
+          <p class="employees-text-muted text-xs">{{ ev.created_at.strftime("%d/%m/%Y %H:%M") if ev.created_at else "-" }} · {{ ev.created_by or "-" }}</p>
+          {% if ev.event_description %}<p class="text-sm mt-1">{{ ev.event_description }}</p>{% endif %}
+        </div>
+        {% endfor %}
+        {% if not events %}
+        <p class="employees-text-muted text-sm">Sem eventos registrados até o momento.</p>
+        {% endif %}
       </div>
     </div>
   </div>

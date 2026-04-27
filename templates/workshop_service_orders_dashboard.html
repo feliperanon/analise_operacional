@@ -1,0 +1,90 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Dashboard OS · Oficina{% endblock %}
+{% block header_breadcrumb %}<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / Ordens de serviço / Dashboard</p>{% endblock %}
+{% block header_title %}<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Dashboard gerencial da oficina</h1>{% endblock %}
+{% block header_subtitle %}<p class="text-xs text-gray-500 dark:text-gray-400">Visão consolidada para gestão de manutenção da frota</p>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/pages/employees.css">{% endblock %}
+
+{% block content %}
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+  <div class="flex flex-wrap items-center gap-2">
+    <a href="/workshop/service-orders" class="sys-btn sys-btn--secondary text-sm">← Voltar para OS</a>
+    <form method="GET" class="inline-flex items-center gap-2">
+      <select name="days" class="sys-select text-sm">
+        <option value="7" {{ "selected" if period_days == 7 else "" }}>7 dias</option>
+        <option value="15" {{ "selected" if period_days == 15 else "" }}>15 dias</option>
+        <option value="30" {{ "selected" if period_days == 30 else "" }}>30 dias</option>
+        <option value="60" {{ "selected" if period_days == 60 else "" }}>60 dias</option>
+        <option value="90" {{ "selected" if period_days == 90 else "" }}>90 dias</option>
+      </select>
+      <button class="sys-btn sys-btn--secondary text-sm" type="submit">Aplicar período</button>
+    </form>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row">
+      <a href="/workshop/service-orders" class="sys-kpi-card employees-kpi no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Total OS</span><span class="employees-kpi__value tabular-nums">{{ summary.total }}</span></div></a>
+      <a href="/workshop/service-orders?status=open" class="sys-kpi-card employees-kpi no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Abertas</span><span class="employees-kpi__value tabular-nums">{{ summary.open }}</span></div></a>
+      <a href="/workshop/service-orders?overdue_only=1" class="sys-kpi-card employees-kpi no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Atrasadas</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ summary.overdue }}</span></div></a>
+      <a href="/workshop/service-orders?priority=critical" class="sys-kpi-card employees-kpi no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Críticas</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ summary.critical }}</span></div></a>
+      <a href="/workshop/service-orders?supplier_only=1" class="sys-kpi-card employees-kpi no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Aguardando fornecedor</span><span class="employees-kpi__value tabular-nums">{{ summary.waiting_supplier }}</span></div></a>
+      <a href="/workshop/service-orders?blocked_only=1" class="sys-kpi-card employees-kpi no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Bloqueados</span><span class="employees-kpi__value tabular-nums">{{ summary.blocked }}</span></div></a>
+      <a href="/workshop/service-orders?order_type=preventiva" class="sys-kpi-card employees-kpi no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Preventivas vencidas/próximas</span><span class="employees-kpi__value tabular-nums">{{ summary.preventive_due }}</span></div></a>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Tempo médio conclusão (dias)</span><span class="employees-kpi__value tabular-nums">{{ summary.avg_close_days }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Custo total período</span><span class="employees-kpi__value tabular-nums">R$ {{ "{:,.2f}".format(summary.total_cost_month).replace(",", "X").replace(".", ",").replace("X", ".") }}</span></div></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-5 xl:grid-cols-2">
+    <div class="sys-card sys-card--surface p-4">
+      <h3 class="sys-section-heading">OS por status</h3>
+      <div class="mt-3 space-y-2">
+        {% for item in status_rows %}
+        <a href="/workshop/service-orders?status={{ item.code }}" class="flex items-center justify-between rounded-lg border p-2 no-underline"><span>{{ item.label }}</span><span class="font-semibold">{{ item.value }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="sys-card sys-card--surface p-4">
+      <h3 class="sys-section-heading">OS por fornecedor</h3>
+      <div class="mt-3 space-y-2">
+        {% for item in supplier_rows %}
+        <a href="/workshop/service-orders?supplier_only=1" class="flex items-center justify-between rounded-lg border p-2 no-underline"><span>{{ item.label }}</span><span class="font-semibold">{{ item.value }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="sys-card sys-card--surface p-4">
+      <h3 class="sys-section-heading">Ranking veículos com mais OS</h3>
+      <div class="mt-3 space-y-2">
+        {% for item in vehicle_rows %}
+        <a href="/workshop/service-orders" class="flex items-center justify-between rounded-lg border p-2 no-underline"><span>{{ item.label }}</span><span class="font-semibold">{{ item.value }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="sys-card sys-card--surface p-4">
+      <h3 class="sys-section-heading">Ranking por categoria de problema</h3>
+      <div class="mt-3 space-y-2">
+        {% for item in category_rows %}
+        <a href="/workshop/service-orders?problem_category={{ item.code }}" class="flex items-center justify-between rounded-lg border p-2 no-underline"><span>{{ item.label }}</span><span class="font-semibold">{{ item.value }}</span></a>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="sys-card sys-card--surface p-4">
+      <h3 class="sys-section-heading">OS por responsável</h3>
+      <div class="mt-3 space-y-2">
+        {% for item in responsible_rows %}
+        <div class="flex items-center justify-between rounded-lg border p-2"><span>{{ item.label }}</span><span class="font-semibold">{{ item.value }}</span></div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="sys-card sys-card--surface p-4">
+      <h3 class="sys-section-heading">Custo por veículo</h3>
+      <div class="mt-3 space-y-2">
+        {% for item in cost_vehicle_rows %}
+        <div class="flex items-center justify-between rounded-lg border p-2"><span>{{ item.label }}</span><span class="font-semibold">R$ {{ "{:,.2f}".format(item.value).replace(",", "X").replace(".", ",").replace("X", ".") }}</span></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -7,6 +7,7 @@ from calendar import monthrange
 from typing import Optional, List, Any, Callable, Dict
 import io
 import json
+from urllib.parse import urlencode
 from fastapi import Request, Depends, UploadFile, File, APIRouter, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlmodel import Session, select, func, delete
@@ -74,6 +75,112 @@ def _fmt_data_hora_pt_br(s: Optional[str]) -> str:
 def _fmt_moeda_br(v: float) -> str:
     s = f"{float(v):,.2f}"
     return "R$ " + s.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _fmt_int_br(value: Any) -> str:
+    try:
+        return f"{int(value):,}".replace(",", ".")
+    except Exception:
+        return "0"
+
+
+def _fmt_month_year_pt_br(year: int, month: int) -> str:
+    meses = [
+        "janeiro",
+        "fevereiro",
+        "março",
+        "abril",
+        "maio",
+        "junho",
+        "julho",
+        "agosto",
+        "setembro",
+        "outubro",
+        "novembro",
+        "dezembro",
+    ]
+    if 1 <= int(month) <= 12:
+        return f"{meses[int(month) - 1].capitalize()} de {int(year):04d}"
+    return f"{int(month):02d}/{int(year):04d}"
+
+
+def _fmt_nb_br(value: Any) -> str:
+    if value is None:
+        return "-"
+    raw = str(value).strip()
+    if not raw:
+        return "-"
+    if raw.replace(".", "").replace(",", "").isdigit():
+        digits = raw.replace(".", "").replace(",", "")
+        try:
+            return f"{int(digits):,}".replace(",", ".")
+        except Exception:
+            return raw
+    return raw
+
+
+def _normalize_devolucao_source(value: Optional[str]) -> str:
+    normalized = (value or "").strip().upper()
+    if not normalized:
+        return "EXCEL"
+    if normalized == "ROTA":
+        return "WEB"
+    return normalized
+
+
+def _best_client_name(client: Optional[models.Client]) -> str:
+    if not client:
+        return "-"
+    razao = (getattr(client, "razao_social", None) or "").strip()
+    nome = (getattr(client, "name", None) or "").strip()
+    fantasia = (getattr(client, "nome_fantasia", None) or "").strip()
+    longest = razao if len(razao) >= len(nome) else nome
+    return longest or razao or nome or fantasia or "-"
+
+
+def _devolucao_status_meta(duplicate_of_id: Optional[int], validation_status: Optional[str]) -> Dict[str, str]:
+    vstat = (validation_status or "").strip().upper()
+    if duplicate_of_id:
+        return {
+            "key": "duplicata",
+            "label": "Duplicata",
+            "tone": "critical",
+            "hint": "Registro importado em planilha que conflita com um lançamento já existente.",
+        }
+    if vstat == "ORPHAN_ROUTE":
+        return {
+            "key": "orfao",
+            "label": "Sem rota",
+            "tone": "alert",
+            "hint": "Ocorrência sem vínculo automático com rota no dia.",
+        }
+    if vstat == "DUPLICATE_EXCEL":
+        return {
+            "key": "aguardando",
+            "label": "Aguardando",
+            "tone": "pending",
+            "hint": "Registro aguardando validação administrativa.",
+        }
+    return {
+        "key": "validado",
+        "label": "Validado",
+        "tone": "ok",
+        "hint": "Registro consolidado e liberado para uso nas demais visões.",
+    }
+
+
+def _build_devolucoes_href(params: Dict[str, Any]) -> str:
+    clean: Dict[str, Any] = {}
+    for key, value in (params or {}).items():
+        if value is None:
+            continue
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                continue
+        clean[key] = value
+    qs = urlencode(clean, doseq=True)
+    return "/devolucoes" + (f"?{qs}" if qs else "")
 
 
 def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
@@ -426,6 +533,12 @@ def init_devolucoes_router(
         date_from: Optional[str] = None,
         date_to: Optional[str] = None,
         hoje: Optional[str] = Query(None),
+        q: Optional[str] = None,
+        source: Optional[str] = None,
+        status_view: str = Query(default="all"),
+        motorista_id: Optional[int] = None,
+        sort: str = Query(default="data"),
+        dir: str = Query(default="desc"),
         page: int = 1,
         per_page: Optional[int] = None,
         session: Session = Depends(get_session),
@@ -433,6 +546,7 @@ def init_devolucoes_router(
         require_login(request)
         now = datetime.now()
         today = now.date()
+        today_active = False
         start_date: str
         end_date: str
         period_label: Optional[str] = None
@@ -452,7 +566,8 @@ def init_devolucoes_router(
 
         if (hoje or "").strip().lower() in ("1", "true", "sim", "s", "hoje"):
             start_date = end_date = today.strftime("%Y-%m-%d")
-            period_label = "Hoje"
+            period_label = f"Hoje · {_fmt_data_hora_pt_br(start_date)}"
+            today_active = True
         elif date_from and date_to:
             d1 = parse_ymd(date_from)
             d2 = parse_ymd(date_to)
@@ -461,18 +576,35 @@ def init_devolucoes_router(
                     d1, d2 = d2, d1
                 start_date = d1.strftime("%Y-%m-%d")
                 end_date = d2.strftime("%Y-%m-%d")
-                period_label = f"Período {start_date} a {end_date}"
+                period_label = f"Período {_fmt_data_hora_pt_br(start_date)} a {_fmt_data_hora_pt_br(end_date)}"
             else:
                 start_date = today.strftime("%Y-%m-%d")
                 end_date = start_date
-                period_label = "Hoje"
+                period_label = f"Hoje · {_fmt_data_hora_pt_br(start_date)}"
+                today_active = True
         else:
             year = now.year
             month = now.month
             _, last_day = monthrange(year, month)
             start_date = f"{year:04d}-{month:02d}-01"
             end_date = f"{year:04d}-{month:02d}-{last_day:02d}"
-            period_label = f"{year:04d}-{month:02d}"
+            period_label = _fmt_month_year_pt_br(year, month)
+
+        search_term = (q or "").strip()
+        source_filter = _normalize_devolucao_source(source) if source and str(source).strip() else ""
+        if source_filter not in {"EXCEL", "MOBILE", "WEB", "MANUAL"}:
+            source_filter = ""
+        status_view = (status_view or "all").strip().lower()
+        if status_view not in {"all", "aguardando", "duplicata", "orfao", "validado"}:
+            status_view = "all"
+        sort_key = (sort or "data").strip().lower()
+        if sort_key not in {"data", "client", "motorista", "valor", "source", "status"}:
+            sort_key = "data"
+        sort_dir = (dir or "").strip().lower()
+        if sort_dir not in {"asc", "desc"}:
+            sort_dir = "desc" if sort_key in {"data", "valor"} else "asc"
+        page = max(1, int(page or 1))
+        per_page_effective = min(max(25, int(per_page or 100)), 200)
 
         # Só colunas usadas nos selects (menos tráfego Redis/Postgres que ORM completo)
         er = session.exec(
@@ -482,6 +614,7 @@ def init_devolucoes_router(
         ).all()
         employees = [SimpleNamespace(id=a, name=b, seller_code=c) for a, b, c in er]
         motivos = session.exec(select(models.DevolucaoMotivo).where(models.DevolucaoMotivo.is_active == True)).all()
+        motivo_map = {int(m.id): (m.nome or "").strip() for m in motivos if getattr(m, "id", None) is not None}
         responsabilidades = session.exec(
             select(models.DevolucaoResponsabilidade).where(models.DevolucaoResponsabilidade.is_active == True)
         ).all()
@@ -551,6 +684,13 @@ def init_devolucoes_router(
             .where(models.Devolucao.duplicate_of_id.isnot(None))
         )
         period_duplicate_excel_count = session.exec(dup_period_q).one()
+        orphan_period_q = (
+            select(func.count(models.Devolucao.id))
+            .where(rom_in_period)
+            .where(func.upper(func.coalesce(func.trim(models.Devolucao.validation_status), literal(""))) == "ORPHAN_ROUTE")
+        )
+        period_orphan_count = session.exec(orphan_period_q).one()
+        period_validated_count = max(0, int(total_count or 0) - int(period_aguardando_count or 0))
 
         # Referência operacional: mesma janela de datas, mas por data efetiva (pode divergir do Excel).
         eff_count_q = select(func.count(models.Devolucao.id)).where(eff_date >= start_date).where(eff_date <= end_date)
@@ -583,6 +723,7 @@ def init_devolucoes_router(
             sv = float(row.sv or 0.0)
             by_source[label] = {
                 "count": int(row.cnt),
+                "count_fmt": _fmt_int_br(int(row.cnt)),
                 "valor": sv,
                 "valor_fmt": _fmt_moeda_br(sv),
             }
@@ -602,20 +743,114 @@ def init_devolucoes_router(
                 "batch_id": latest_import_batch.id,
                 "filename": latest_import_batch.filename or "import.xlsx",
                 "total_rows": total_rows,
+                "total_rows_fmt": _fmt_int_br(total_rows),
                 "invalid_count": invalid_count,
+                "invalid_count_fmt": _fmt_int_br(invalid_count),
                 "created_count": created_count,
+                "created_count_fmt": _fmt_int_br(created_count),
                 "skipped_count": skipped_count,
+                "skipped_count_fmt": _fmt_int_br(skipped_count),
                 "committed_at": latest_import_batch.committed_at.isoformat() if latest_import_batch.committed_at else None,
+                "committed_at_fmt": _fmt_data_hora_pt_br(latest_import_batch.committed_at.isoformat()) if latest_import_batch.committed_at else "",
             }
 
-        base_q = (
-            select(models.Devolucao)
-            .where(rom_in_period)
-            .order_by(models.Devolucao.data_romaneio.desc(), models.Devolucao.created_at.desc())
+        source_expr = func.upper(func.coalesce(func.trim(models.Devolucao.source), literal("")))
+        source_label_expr = case(
+            (source_expr == literal(""), literal("EXCEL")),
+            (source_expr == literal("ROTA"), literal("WEB")),
+            else_=source_expr,
         )
-        per_page_effective = min(max(1, per_page or 100), 10000)
+        validation_expr = func.upper(func.coalesce(func.trim(models.Devolucao.validation_status), literal("")))
+        effective_date_expr = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
+        client_name_expr = func.upper(
+            func.coalesce(models.Client.razao_social, models.Client.name, models.Client.nome_fantasia, literal(""))
+        )
+        motorista_name_expr = func.upper(func.coalesce(models.Employee.name, literal("")))
+        plate_expr = func.upper(func.coalesce(models.Route.delivery_vehicle_plate, literal("")))
+        status_rank_expr = case(
+            (models.Devolucao.duplicate_of_id.isnot(None), 0),
+            (validation_expr == literal("ORPHAN_ROUTE"), 1),
+            (validation_expr == literal("DUPLICATE_EXCEL"), 2),
+            else_=3,
+        )
+        aguardando_expr = or_(
+            models.Devolucao.duplicate_of_id.isnot(None),
+            validation_expr.in_(["DUPLICATE_EXCEL", "ORPHAN_ROUTE"]),
+        )
+
+        def apply_list_filters(stmt):
+            stmt = stmt.where(rom_in_period)
+            if motorista_id:
+                stmt = stmt.where(models.Devolucao.motorista_id == motorista_id)
+            if source_filter:
+                stmt = stmt.where(source_label_expr == source_filter)
+            if status_view == "aguardando":
+                stmt = stmt.where(aguardando_expr)
+            elif status_view == "duplicata":
+                stmt = stmt.where(models.Devolucao.duplicate_of_id.isnot(None))
+            elif status_view == "orfao":
+                stmt = stmt.where(validation_expr == "ORPHAN_ROUTE")
+            elif status_view == "validado":
+                stmt = stmt.where(and_(models.Devolucao.duplicate_of_id.is_(None), ~validation_expr.in_(["DUPLICATE_EXCEL", "ORPHAN_ROUTE"])))
+            if search_term:
+                like = f"%{search_term.lower()}%"
+                stmt = stmt.where(
+                    or_(
+                        func.lower(func.coalesce(models.Client.razao_social, literal(""))).like(like),
+                        func.lower(func.coalesce(models.Client.name, literal(""))).like(like),
+                        func.lower(func.coalesce(models.Client.nome_fantasia, literal(""))).like(like),
+                        func.lower(func.coalesce(models.Client.nb, literal(""))).like(like),
+                        func.lower(func.coalesce(models.Employee.name, literal(""))).like(like),
+                        func.lower(func.coalesce(models.Route.delivery_vehicle_plate, literal(""))).like(like),
+                        func.lower(source_label_expr).like(like),
+                        func.lower(func.coalesce(models.Devolucao.observacao, literal(""))).like(like),
+                        func.lower(func.coalesce(models.Devolucao.data_romaneio, literal(""))).like(like),
+                        func.lower(func.coalesce(models.Devolucao.data_entrega, literal(""))).like(like),
+                    )
+                )
+            return stmt
+
+        def apply_list_sort(stmt):
+            expr = effective_date_expr
+            if sort_key == "client":
+                expr = client_name_expr
+            elif sort_key == "motorista":
+                expr = motorista_name_expr
+            elif sort_key == "valor":
+                expr = models.Devolucao.valor
+            elif sort_key == "source":
+                expr = source_label_expr
+            elif sort_key == "status":
+                expr = status_rank_expr
+
+            ordered = expr.desc() if sort_dir == "desc" else expr.asc()
+            secondary = effective_date_expr.desc()
+            if sort_key == "data":
+                secondary = models.Devolucao.created_at.desc()
+            return stmt.order_by(ordered, secondary, models.Devolucao.id.desc())
+
+        joins = (
+            select(models.Devolucao)
+            .outerjoin(models.Client, models.Client.id == models.Devolucao.client_id)
+            .outerjoin(models.Employee, models.Employee.id == models.Devolucao.motorista_id)
+            .outerjoin(models.Route, models.Route.id == models.Devolucao.route_id)
+        )
+        count_joins = (
+            select(func.count(models.Devolucao.id))
+            .select_from(models.Devolucao)
+            .outerjoin(models.Client, models.Client.id == models.Devolucao.client_id)
+            .outerjoin(models.Employee, models.Employee.id == models.Devolucao.motorista_id)
+            .outerjoin(models.Route, models.Route.id == models.Devolucao.route_id)
+        )
+
+        filtered_total_count = int(session.exec(apply_list_filters(count_joins)).one() or 0)
+        total_pages = max(1, (filtered_total_count + per_page_effective - 1) // per_page_effective) if filtered_total_count else 1
+        if page > total_pages:
+            page = total_pages
         offset = max(0, (page - 1) * per_page_effective)
-        devolucoes = session.exec(base_q.offset(offset).limit(per_page_effective)).all()
+        devolucoes = session.exec(
+            apply_list_sort(apply_list_filters(joins)).offset(offset).limit(per_page_effective)
+        ).all()
 
         client_ids = {d.client_id for d in devolucoes}
         motorista_ids = {d.motorista_id for d in devolucoes}
@@ -637,44 +872,116 @@ def init_devolucoes_router(
                 plate = (route_map[dev.route_id].delivery_vehicle_plate or "").strip()
             if not plate:
                 plate = plate_by_cmd.get((dev.client_id, dev.motorista_id, data_efetiva), "")
-            aguardando = bool(dup_of) or vstat in ("DUPLICATE_EXCEL", "ORPHAN_ROUTE")
-            # Nome do cliente: preferir o mais completo (razao_social ou name, o que for mais longo)
-            cname = "-"
-            client_code = ""
-            client_fantasia = ""
-            client_razao_social = ""
-            if c:
-                rs = (getattr(c, "razao_social", None) or "").strip()
-                nm = (getattr(c, "name", None) or "").strip()
-                cname = (rs if len(rs) >= len(nm) else nm) or rs or nm or "-"
-                client_code = getattr(c, "nb", None) or ""
-                client_fantasia = (getattr(c, "nome_fantasia", None) or "").strip()
-                client_razao_social = (getattr(c, "razao_social", None) or "").strip()
+            status_meta = _devolucao_status_meta(dup_of, vstat)
+            cname = _best_client_name(c)
+            motivo_label = motivo_map.get(int(dev.motivo_id), "Sem motivo informado") if getattr(dev, "motivo_id", None) else "Sem motivo informado"
+            client_code = getattr(c, "nb", None) or ""
+            client_fantasia = (getattr(c, "nome_fantasia", None) or "").strip() if c else ""
+            client_razao_social = (getattr(c, "razao_social", None) or "").strip() if c else ""
+            secondary_parts = []
+            if client_code:
+                secondary_parts.append(f"NB {_fmt_nb_br(client_code)}")
+            if client_fantasia:
+                secondary_parts.append(client_fantasia)
+            row_payload = {
+                "id": dev.id,
+                "client_id": dev.client_id,
+                "vendedor_id": dev.vendedor_id,
+                "ajudante_id": dev.ajudante_id,
+                "motivo_id": dev.motivo_id,
+                "responsabilidade_id": dev.responsabilidade_id,
+                "data_romaneio": str(dev.data_romaneio)[:10] if dev.data_romaneio else "",
+                "data_entrega": str(dev.data_entrega)[:10] if dev.data_entrega else "",
+                "data_efetiva": data_efetiva,
+                "valor": float(dev.valor) if dev.valor is not None else 0.0,
+                "source": _normalize_devolucao_source(dev.source),
+                "observacao": dev.observacao or "",
+                "client_name": cname,
+                "client_code": client_code,
+                "client_fantasia": client_fantasia,
+                "client_razao_social": client_razao_social,
+                "motorista_id": dev.motorista_id,
+                "motorista_name": (m.name if m else "-") or "",
+                "vehicle_plate": plate or "—",
+            }
             rows.append(
                 {
                     "id": dev.id,
-                    "data_romaneio": str(dev.data_romaneio)[:10] if dev.data_romaneio else "",
-                    "data_entrega": str(dev.data_entrega)[:10] if dev.data_entrega else "",
-                    "data_efetiva": data_efetiva,
-                    "valor": float(dev.valor) if dev.valor is not None else 0.0,
-                    "cluster": (dev.cluster or "") or "",
-                    "acima_300": ("SIM" if dev.acima_300 in (True, "SIM", "sim", "Sim") else "NAO"),
-                    "source": (dev.source or "").strip().upper() or "EXCEL",
+                    "data_display": _fmt_data_hora_pt_br(data_efetiva) or data_efetiva or "-",
                     "client_name": cname,
-                    "client_code": client_code,
-                    "client_fantasia": client_fantasia,
-                    "client_razao_social": client_razao_social,
-                    "motorista_id": dev.motorista_id,
-                    "motorista_name": (m.name if m else "-") or "",
+                    "client_secondary": " · ".join(secondary_parts) if secondary_parts else "Sem complemento cadastrado",
+                    "motorista_name": (m.name if m else "-") or "-",
+                    "motivo_label": motivo_label,
                     "vehicle_plate": plate or "—",
-                    "is_duplicate_excel": bool(dup_of),
-                    "validation_status": vstat,
-                    "aguardando": aguardando,
-                    "can_delete_aguardando": bool(dup_of) or vstat in ("ORPHAN_ROUTE", "DUPLICATE_EXCEL"),
+                    "valor": float(dev.valor) if dev.valor is not None else 0.0,
+                    "valor_fmt": _fmt_moeda_br(float(dev.valor or 0.0)),
+                    "source_label": _normalize_devolucao_source(dev.source),
+                    "status_key": status_meta["key"],
+                    "status_label": status_meta["label"],
+                    "status_tone": status_meta["tone"],
+                    "status_hint": status_meta["hint"],
+                    "can_approve": status_meta["key"] in {"aguardando", "duplicata", "orfao"},
+                    "can_delete": True,
+                    "payload_json": json.dumps(row_payload, ensure_ascii=False),
                 }
             )
 
-        total_pages = (total_count + per_page_effective - 1) // per_page_effective if total_count > 0 else 1
+        query_state = {
+            "date_from": start_date,
+            "date_to": end_date,
+            "q": search_term,
+            "source": source_filter,
+            "status_view": status_view if status_view != "all" else None,
+            "motorista_id": motorista_id or None,
+            "sort": sort_key,
+            "dir": sort_dir,
+            "per_page": per_page_effective,
+        }
+
+        def build_href(**overrides):
+            merged = dict(query_state)
+            for key, value in overrides.items():
+                if value is None:
+                    merged.pop(key, None)
+                else:
+                    merged[key] = value
+            return _build_devolucoes_href(merged)
+
+        links = {
+            "clear": "/devolucoes",
+            "today": _build_devolucoes_href(
+                {
+                    "hoje": "1",
+                    "q": search_term,
+                    "source": source_filter,
+                    "status_view": status_view if status_view != "all" else None,
+                    "motorista_id": motorista_id or None,
+                    "sort": sort_key,
+                    "dir": sort_dir,
+                    "per_page": per_page_effective,
+                }
+            ),
+            "all": build_href(status_view=None, page=1),
+            "aguardando": build_href(status_view="aguardando", page=1),
+            "duplicata": build_href(status_view="duplicata", page=1),
+            "orfao": build_href(status_view="orfao", page=1),
+            "validado": build_href(status_view="validado", page=1),
+            "mobile": build_href(source="MOBILE", page=1),
+            "excel": build_href(source="EXCEL", page=1),
+            "manual": build_href(source="MANUAL", page=1),
+            "web": build_href(source="WEB", page=1),
+        }
+
+        sort_links = {}
+        for key in ["data", "client", "motorista", "valor", "source", "status"]:
+            default_dir = "desc" if key in {"data", "valor"} else "asc"
+            next_dir = default_dir
+            if sort_key == key:
+                next_dir = "asc" if sort_dir == "desc" else "desc"
+            sort_links[key] = build_href(sort=key, dir=next_dir, page=1)
+
+        page_start = offset + 1 if filtered_total_count else 0
+        page_end = offset + len(rows) if filtered_total_count else 0
 
         return templates.TemplateResponse(
             "devolucoes.html",
@@ -686,35 +993,61 @@ def init_devolucoes_router(
                 "devolucoes": rows,
                 "import_result": getattr(request.state, "devolucoes_import_result", None),
                 "filters": {
-                    "date_from": date_from or start_date,
-                    "date_to": date_to or end_date,
+                    "date_from": start_date,
+                    "date_to": end_date,
                     "start_date": start_date,
                     "end_date": end_date,
                     "period_label": period_label,
+                    "today_active": today_active,
+                    "q": search_term,
+                    "source": source_filter,
+                    "status_view": status_view,
+                    "motorista_id": motorista_id,
+                    "sort": sort_key,
+                    "dir": sort_dir,
                 },
                 "pagination": {
                     "page": page,
                     "per_page": per_page_effective,
-                    "total_count": total_count,
+                    "total_count": filtered_total_count,
+                    "total_count_fmt": _fmt_int_br(filtered_total_count),
                     "total_pages": total_pages,
                     "has_prev": page > 1,
                     "has_next": page < total_pages,
                     "prev_page": page - 1 if page > 1 else 1,
                     "next_page": page + 1 if page < total_pages else total_pages,
+                    "page_start": page_start,
+                    "page_start_fmt": _fmt_int_br(page_start),
+                    "page_end": page_end,
+                    "page_end_fmt": _fmt_int_br(page_end),
+                    "prev_href": build_href(page=(page - 1 if page > 1 else 1)),
+                    "next_href": build_href(page=(page + 1 if page < total_pages else total_pages)),
                 },
                 "period_stats": {
                     "total_count": total_count,
+                    "total_count_fmt": _fmt_int_br(total_count),
                     "total_valor": period_total_valor,
                     "total_valor_fmt": _fmt_moeda_br(period_total_valor),
                     "aguardando_count": period_aguardando_count,
+                    "aguardando_count_fmt": _fmt_int_br(period_aguardando_count),
                     "duplicate_excel_count": period_duplicate_excel_count,
+                    "duplicate_excel_count_fmt": _fmt_int_br(period_duplicate_excel_count),
+                    "orphan_count": period_orphan_count,
+                    "orphan_count_fmt": _fmt_int_br(period_orphan_count),
+                    "validated_count": period_validated_count,
+                    "validated_count_fmt": _fmt_int_br(period_validated_count),
                     "effetiva_count": period_effetiva_count,
+                    "effetiva_count_fmt": _fmt_int_br(period_effetiva_count),
                     "effetiva_valor": period_effetiva_valor,
                     "effetiva_valor_fmt": _fmt_moeda_br(period_effetiva_valor),
                     "by_source": by_source,
                 },
                 "last_import_summary": last_import_summary,
-                "devolucoes_table_rows": rows,
+                "links": links,
+                "sort_links": sort_links,
+                "page_size_options": [50, 100, 200],
+                "message": request.query_params.get("message"),
+                "level": request.query_params.get("level"),
             },
         )
 
@@ -898,23 +1231,51 @@ def init_devolucoes_router(
             valid_rows = body.get("valid_rows", [])
             batch_id = body.get("batch_id")
             filename = body.get("filename", "import.xlsx")
-            if not valid_rows:
-                return JSONResponse({"ok": False, "error": "Nenhuma linha valida para gravar."}, status_code=400)
             created_by = None
             if request.session.get("user_id"):
                 u = session.get(models.User, request.session["user_id"])
                 if u:
                     created_by = u.username
-            created, skipped = devolucoes_save_batch(
-                session,
-                valid_rows,
-                {"filename": filename, "batch_id": batch_id},
-                source="EXCEL",
-                created_by=created_by,
-            )
+            created, skipped = 0, []
+            if valid_rows:
+                created, skipped = devolucoes_save_batch(
+                    session,
+                    valid_rows,
+                    {"filename": filename, "batch_id": batch_id},
+                    source="EXCEL",
+                    created_by=created_by,
+                )
+            else:
+                # Permite confirmar a importação mesmo sem linhas válidas:
+                # inválidas já ficam registradas para revisão/download no batch.
+                b = None
+                try:
+                    b = session.get(models.DevolucaoImportBatch, int(batch_id)) if batch_id is not None else None
+                except Exception:
+                    b = None
+                if b:
+                    b.status = "committed"
+                    b.committed_at = datetime.now()
+                    b.valid_count = 0
+                    b.pending_count = int(b.invalid_count or 0)
+                    session.add(b)
             session.commit()
-            _devolucoes_backfill_span(session, valid_rows)
-            return JSONResponse({"ok": True, "batch_id": batch_id, "created": created, "skipped": len(skipped)})
+            if valid_rows:
+                _devolucoes_backfill_span(session, valid_rows)
+            return JSONResponse(
+                {
+                    "ok": True,
+                    "batch_id": batch_id,
+                    "created": created,
+                    "skipped": len(skipped),
+                    "invalid_count": 0 if valid_rows else (int(getattr(b, "invalid_count", 0) or 0) if b else 0),
+                    "message": (
+                        "Importação confirmada com registros válidos gravados."
+                        if valid_rows
+                        else "Importação confirmada sem linhas válidas. As inválidas foram separadas para revisão."
+                    ),
+                }
+            )
         except ValueError as e:
             try:
                 session.rollback()

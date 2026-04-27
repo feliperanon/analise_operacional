@@ -23,7 +23,7 @@
     }
     .comercial-table {
         width: 100%;
-        min-width: 920px;
+        min-width: 1080px;
         table-layout: fixed;
     }
     .comercial-table th,
@@ -44,13 +44,15 @@
     }
     .comercial-col-data { width: 110px; }
     .comercial-col-status { width: 110px; }
-    .comercial-col-equipe { width: 320px; }
-    .comercial-col-cliente { width: 280px; }
+    .comercial-col-equipe { width: 360px; }
+    .comercial-col-cliente { width: 260px; }
+    .comercial-col-vendedor { width: 190px; }
     .comercial-col-hora { width: 90px; text-align: center; }
     .comercial-table thead .comercial-col-data { text-align: center !important; }
     .comercial-table thead .comercial-col-status { text-align: center !important; }
     .comercial-table thead .comercial-col-equipe { text-align: center !important; }
     .comercial-table thead .comercial-col-cliente { text-align: center !important; }
+    .comercial-table thead .comercial-col-vendedor { text-align: center !important; }
     .comercial-table thead .comercial-col-hora { text-align: center !important; }
     .comercial-table tbody .comercial-col-data { text-align: center !important; }
     .comercial-table tbody .comercial-col-hora { text-align: center !important; }
@@ -92,6 +94,15 @@
         word-break: break-word;
         line-height: 1.35;
     }
+    .comercial-seller {
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.3;
+        word-break: break-word;
+    }
+    html.dark .comercial-seller {
+        color: #94a3b8;
+    }
     .comercial-cliente-btn {
         display: inline;
         padding: 0;
@@ -115,6 +126,184 @@
     }
     .comercial-table tbody tr:hover {
         background: rgba(59, 130, 246, 0.04);
+    }
+    .comercial-mobile-list {
+        display: grid;
+        gap: 0.75rem;
+        padding: 0.75rem;
+    }
+    .comercial-mobile-only {
+        display: block;
+    }
+    .comercial-desktop-only {
+        display: none;
+    }
+    .comercial-mobile-card {
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #fff;
+        padding: 0.75rem;
+        display: grid;
+        gap: 0.65rem;
+    }
+    .comercial-mobile-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .comercial-mobile-date {
+        font-size: 12px;
+        font-weight: 700;
+        color: #475569;
+    }
+    .comercial-mobile-row {
+        display: grid;
+        gap: 0.15rem;
+    }
+    .comercial-mobile-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: #64748b;
+    }
+    .comercial-mobile-value {
+        font-size: 13px;
+        color: #0f172a;
+        line-height: 1.35;
+        word-break: break-word;
+    }
+    .comercial-mobile-times {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        width: fit-content;
+        border: 1px solid #cbd5e1;
+        border-radius: 999px;
+        padding: 0.24rem 0.58rem;
+        background: #f8fafc;
+        font-size: 12px;
+        font-weight: 600;
+        color: #334155;
+    }
+    .comercial-mobile-times-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+    }
+    .comercial-mobile-times-sep {
+        color: #64748b;
+    }
+    html.dark .comercial-mobile-card {
+        border-color: #334155;
+        background: rgba(15, 23, 42, 0.5);
+    }
+    html.dark .comercial-mobile-date {
+        color: #cbd5e1;
+    }
+    html.dark .comercial-mobile-label {
+        color: #94a3b8;
+    }
+    html.dark .comercial-mobile-value {
+        color: #f1f5f9;
+    }
+    html.dark .comercial-mobile-times {
+        border-color: #475569;
+        background: rgba(30, 41, 59, 0.55);
+        color: #e2e8f0;
+    }
+    html.dark .comercial-mobile-times-label,
+    html.dark .comercial-mobile-times-sep {
+        color: #94a3b8;
+    }
+    @media (max-width: 767px) {
+        .employees-hero__chips {
+            width: 100%;
+        }
+        .employees-hero__chip {
+            width: 100%;
+            justify-content: center;
+        }
+        .sys-filter-bar .sys-section__label--field {
+            margin-bottom: 0.2rem;
+        }
+    }
+    @media (min-width: 768px) {
+        .comercial-mobile-only {
+            display: none !important;
+        }
+        .comercial-desktop-only {
+            display: block !important;
+        }
+    }
+    .comercial-filters {
+        gap: 0.5rem !important;
+    }
+    .comercial-filters .sys-section__label--field {
+        font-size: 10px;
+        margin-bottom: 0.12rem;
+        line-height: 1.2;
+    }
+    .comercial-filters .sys-input {
+        min-height: 2.2rem;
+        padding-top: 0.32rem;
+        padding-bottom: 0.32rem;
+        font-size: 13px;
+    }
+    .comercial-filters-actions {
+        padding-top: 0.15rem !important;
+        gap: 0.4rem !important;
+    }
+    .comercial-filters-actions .sys-btn {
+        min-height: 2.2rem;
+        padding-top: 0.4rem;
+        padding-bottom: 0.4rem;
+    }
+    .comercial-filters-inline-top {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+    .comercial-filters-inline-duo {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+    .comercial-filters-inline-vendedor-actions {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.5rem;
+        align-items: end;
+    }
+    .comercial-filters > *,
+    .comercial-filters-inline-top > *,
+    .comercial-filters-inline-duo > *,
+    .comercial-filters-inline-vendedor-actions > * {
+        min-width: 0;
+    }
+    @media (max-width: 640px) {
+        .comercial-filters-inline-top {
+            grid-template-columns: 1fr;
+        }
+        .comercial-filters-inline-duo {
+            grid-template-columns: 1fr;
+        }
+        .comercial-filters-inline-vendedor-actions {
+            grid-template-columns: 1fr;
+        }
+        .comercial-filters-actions {
+            justify-content: stretch !important;
+        }
+        .comercial-filters-actions .sys-btn {
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
@@ -155,50 +344,105 @@
         </div>
     </div>
 
-    <div class="sys-card sys-card--surface p-4">
-        <form action="/comercial/entregas" method="get" class="sys-filter-bar sys-filter-bar--end grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <div>
-                <label class="sys-section__label sys-section__label--field">Data inicial</label>
-                <input type="date" name="date_from" value="{{ date_from }}" class="sys-input w-full">
+    <div class="sys-card sys-card--surface p-3 md:p-4">
+        <form action="/comercial/entregas" method="get" class="sys-filter-bar sys-filter-bar--end comercial-filters grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+            <div class="comercial-filters-inline-top">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Data inicial</label>
+                    <input type="date" name="date_from" value="{{ date_from }}" class="sys-input w-full">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Data final</label>
+                    <input type="date" name="date_to" value="{{ date_to }}" class="sys-input w-full">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Status</label>
+                    <select name="status" class="sys-input w-full">
+                        <option value="todos" {% if selected_status == "todos" %}selected{% endif %}>Todos</option>
+                        <option value="pendente" {% if selected_status == "pendente" %}selected{% endif %}>Pendente</option>
+                        <option value="iniciada" {% if selected_status == "iniciada" %}selected{% endif %}>Em rota</option>
+                        <option value="reaberta" {% if selected_status == "reaberta" %}selected{% endif %}>Reaberta</option>
+                        <option value="entregue" {% if selected_status == "entregue" %}selected{% endif %}>Entregue</option>
+                        <option value="devolucao" {% if selected_status == "devolucao" %}selected{% endif %}>Devolução</option>
+                        <option value="cancelada" {% if selected_status == "cancelada" %}selected{% endif %}>Cancelada</option>
+                    </select>
+                </div>
             </div>
-            <div>
-                <label class="sys-section__label sys-section__label--field">Data final</label>
-                <input type="date" name="date_to" value="{{ date_to }}" class="sys-input w-full">
+            <div class="comercial-filters-inline-duo">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Motorista</label>
+                    <input type="text" name="motorista" value="{{ motorista }}" class="sys-input w-full" placeholder="Filtrar por nome">
+                </div>
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Cliente</label>
+                    <input type="text" name="cliente" value="{{ cliente }}" class="sys-input w-full" placeholder="CNPJ, nome fantasia ou razão social">
+                </div>
             </div>
-            <div>
-                <label class="sys-section__label sys-section__label--field">Status</label>
-                <select name="status" class="sys-input w-full">
-                    <option value="todos" {% if selected_status == "todos" %}selected{% endif %}>Todos</option>
-                    <option value="pendente" {% if selected_status == "pendente" %}selected{% endif %}>Pendente</option>
-                    <option value="iniciada" {% if selected_status == "iniciada" %}selected{% endif %}>Em rota</option>
-                    <option value="reaberta" {% if selected_status == "reaberta" %}selected{% endif %}>Reaberta</option>
-                    <option value="entregue" {% if selected_status == "entregue" %}selected{% endif %}>Entregue</option>
-                    <option value="devolucao" {% if selected_status == "devolucao" %}selected{% endif %}>Devolução</option>
-                    <option value="cancelada" {% if selected_status == "cancelada" %}selected{% endif %}>Cancelada</option>
-                </select>
-            </div>
-            <div>
-                <label class="sys-section__label sys-section__label--field">Motorista</label>
-                <input type="text" name="motorista" value="{{ motorista }}" class="sys-input w-full" placeholder="Filtrar por nome">
-            </div>
-            <div>
-                <label class="sys-section__label sys-section__label--field">Cliente</label>
-                <input type="text" name="cliente" value="{{ cliente }}" class="sys-input w-full" placeholder="CNPJ, nome fantasia ou razão social">
-            </div>
-            <div>
-                <label class="sys-section__label sys-section__label--field">Vendedor</label>
-                <input type="text" name="vendedor" value="{{ vendedor }}" class="sys-input w-full" placeholder="Código do vendedor ou nome">
-            </div>
-            <div class="md:col-span-2 xl:col-span-6 flex justify-end gap-2 pt-1">
-                <a href="/comercial/entregas" class="sys-btn sys-btn--secondary">Limpar</a>
-                <button type="submit" class="sys-btn sys-btn--primary">Atualizar consulta</button>
+            <div class="comercial-filters-inline-vendedor-actions">
+                <div>
+                    <label class="sys-section__label sys-section__label--field">Vendedor</label>
+                    <input type="text" name="vendedor" value="{{ vendedor }}" class="sys-input w-full" placeholder="Código do vendedor ou nome">
+                </div>
+                <div class="comercial-filters-actions flex flex-row justify-end">
+                    <a href="/comercial/entregas" class="sys-btn sys-btn--secondary text-center">Limpar</a>
+                    <button type="submit" class="sys-btn sys-btn--primary">Atualizar</button>
+                </div>
             </div>
         </form>
     </div>
 
     <div class="sys-card sys-card--surface p-0 overflow-hidden">
         {% if rows %}
-        <div class="sys-table-wrap sys-table-wrap--x-scroll comercial-table-wrap">
+        <div class="comercial-mobile-list comercial-mobile-only">
+            {% for row in rows %}
+            <article class="comercial-mobile-card">
+                <div class="comercial-mobile-head">
+                    <span class="comercial-mobile-date">{{ row.date_br }}</span>
+                    <span class="comercial-status" style="{{ row.status_style }}">
+                        {{ row.status_label }}
+                    </span>
+                </div>
+                <div class="comercial-mobile-row">
+                    <span class="comercial-mobile-label">Equipe</span>
+                    <div class="comercial-mobile-value">
+                        {% if row.driver_whatsapp_url %}
+                        <a href="{{ row.driver_whatsapp_url }}" target="_blank" rel="noopener noreferrer" class="comercial-equipe-driver">
+                            {{ row.team_members[0] }}
+                        </a>
+                        {% else %}
+                        <span class="comercial-equipe-driver">{{ row.team_members[0] }}</span>
+                        {% endif %}
+                        {% if row.team_members|length > 1 %}
+                        <span class="comercial-equipe-helper">{{ row.team_members[1:]|join(', ') }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="comercial-mobile-row">
+                    <span class="comercial-mobile-label">Cliente</span>
+                    <div class="comercial-mobile-value comercial-cliente">
+                        {% if row.client_id %}
+                        <button type="button" class="comercial-cliente-btn" @click="openCliente({{ row.client_id }})">{{ row.client_name }}</button>
+                        {% else %}
+                        {{ row.client_name }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% if row.seller_name %}
+                <div class="comercial-mobile-row">
+                    <span class="comercial-mobile-label">Vendedor</span>
+                    <div class="comercial-mobile-value comercial-seller">{{ row.seller_name }}</div>
+                </div>
+                {% endif %}
+                <div class="comercial-mobile-times" aria-label="Horários da entrega">
+                    <span class="comercial-mobile-times-label">Horário</span>
+                    <span>{{ row.started_at }}</span>
+                    <span class="comercial-mobile-times-sep">→</span>
+                    <span>{{ row.finished_at }}</span>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll comercial-table-wrap comercial-desktop-only">
             <table class="sys-table comercial-table">
                 <thead>
                     <tr>
@@ -206,6 +450,7 @@
                         <th class="comercial-col-status">Status</th>
                         <th class="comercial-col-equipe">Equipe</th>
                         <th class="comercial-col-cliente">Cliente</th>
+                        <th class="comercial-col-vendedor">Vendedor</th>
                         <th class="comercial-col-hora">Início</th>
                         <th class="comercial-col-hora">Fim</th>
                     </tr>
@@ -238,6 +483,7 @@
                             {{ row.client_name }}
                             {% endif %}
                         </td>
+                        <td class="comercial-col-vendedor comercial-seller">{{ row.seller_name or "-" }}</td>
                         <td class="comercial-col-hora comercial-time">{{ row.started_at }}</td>
                         <td class="comercial-col-hora comercial-time">{{ row.finished_at }}</td>
                     </tr>

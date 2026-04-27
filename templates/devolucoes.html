@@ -1,976 +1,734 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Devoluções · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Operação / Devoluções</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Devoluções</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Registro, validação e importação de ocorrências de entrega</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/devolucoes.css">
+<script src="/static/js/pages/devolucoes-page.js" defer></script>
+{% endblock %}
 
 {% block content %}
 {% set _filters = filters or {} %}
 {% set _pagination = pagination or {} %}
-{% set _period_stats = period_stats or {} %}
+{% set _stats = period_stats or {} %}
+{% set _links = links or {} %}
+{% set _sort_links = sort_links or {} %}
 {% set _last_import = last_import_summary or {} %}
-<script>
-window.__DEVOLUCOES_TABLE_ROWS = {{ devolucoes_table_rows|tojson }};
-window.__DEVOLUCOES_PERIOD = {{ {'start_date': _filters.get('start_date'), 'end_date': _filters.get('end_date')}|tojson }};
-window.__DEVOLUCOES_PERIOD_STATS = {{ _period_stats|tojson }};
-</script>
-<div class="p-8" x-data="devolucoesTable({ rows: window.__DEVOLUCOES_TABLE_ROWS || [], periodStats: window.__DEVOLUCOES_PERIOD_STATS || {} })">
-    <div class="max-w-7xl mx-auto">
-        <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div>
-                <h1 class="text-3xl font-bold text-white mb-2">Devoluções</h1>
-                <p class="text-slate-400">Registro de devoluções. <span class="text-amber-400/90">Duplicata de planilha</span> quando o motorista já registrou no app — a linha oficial é a do mobile; exclua a duplicata na aba Aguardando.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                <button type="button" onclick="openManualModal()"
-                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Lançamento Manual
-                </button>
-                <label class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer transition-colors border border-slate-600 text-sm font-medium">
-                    <i data-lucide="upload" class="w-4 h-4 text-slate-400"></i>
-                    <span>Importar Excel</span>
-                    <input type="file" id="devolucoes-excel-input" accept=".xlsx,.xls,.xlsm" class="hidden">
-                </label>
-            </div>
-        </div>
+{% set _by_source = _stats.get('by_source') or {} %}
+{% set _status_view = _filters.get('status_view') or 'all' %}
+{% set _sort_key = _filters.get('sort') or 'data' %}
+{% set _sort_dir = _filters.get('dir') or 'desc' %}
+{% set _motorista_filter = _filters.get('motorista_id') %}
+{% set _last_has_gap = (_last_import.get('invalid_count', 0) | int) > 0 or (_last_import.get('skipped_count', 0) | int) > 0 %}
 
-        <div id="import-preview-box" class="hidden mb-6 p-4 rounded-xl bg-slate-800 border border-slate-600">
-            <h3 class="text-white font-semibold mb-2">Prévia da importação</h3>
-            <p class="text-slate-400 text-sm mb-3"><span id="import-valid-count">0</span> válida(s), <span id="import-invalid-count">0</span> inválida(s)</p>
-            <p id="import-precadastro-msg" class="hidden text-amber-400/90 text-sm mb-3"><i data-lucide="user-plus" class="w-4 h-4 inline-block align-middle"></i> <span id="import-precadastro-text"></span></p>
-            <div id="import-errors" class="text-rose-400 text-sm mb-3 max-h-32 overflow-y-auto"></div>
-            <div class="flex gap-2">
-                <button type="button" id="import-commit-btn" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors">
-                    Confirmar e gravar
-                </button>
-                <button type="button" id="import-cancel-btn" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm transition-colors">
-                    Cancelar
-                </button>
-            </div>
-        </div>
+<div
+  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3"
+  data-page="devolucoes"
+  lang="pt-BR"
+  data-reconnect-start="{{ _filters.get('start_date') or '' }}"
+  data-reconnect-end="{{ _filters.get('end_date') or '' }}"
+>
+  {% if message %}
+  <div id="page-alert" class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center gap-3" role="alert">
+    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      {% if level == 'success' %}
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      {% else %}
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      {% endif %}
+    </svg>
+    <span class="min-w-0 flex-1">{{ message }}</span>
+    <button type="button" class="emp-modal-close shrink-0" data-dismiss-alert aria-label="Fechar">x</button>
+  </div>
+  {% else %}
+  <div id="page-alert" class="hidden"></div>
+  {% endif %}
 
-        <div id="import-success-msg" class="hidden mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center gap-2">
-            <i data-lucide="check-circle" class="w-5 h-5 flex-shrink-0"></i>
-            <span id="import-success-text"></span>
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"></path>
+          </svg>
         </div>
-        {% if _last_import %}
-        {% set _last_has_gap = (_last_import.get('invalid_count', 0) | int) > 0 or (_last_import.get('skipped_count', 0) | int) > 0 %}
-        <div class="mb-6 rounded-xl border p-4 text-sm {{ 'border-amber-500/30 bg-amber-500/10 text-amber-100' if _last_has_gap else 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' }}">
-            <div class="flex items-start justify-between gap-4">
-                <div>
-                    <div class="font-semibold">{{ 'Última importação com diferença entre arquivo e base' if _last_has_gap else 'Última importação concluída' }}</div>
-                    <div class="mt-1 font-medium text-slate-100">{{ _last_import.get('filename') }}</div>
-                    <div class="mt-1 text-xs text-slate-200">
-                        {{ _last_import.get('total_rows', 0) }} linha(s) no arquivo ·
-                        {{ _last_import.get('created_count', 0) }} gravada(s) ·
-                        {{ _last_import.get('invalid_count', 0) }} inválida(s) ·
-                        {{ _last_import.get('skipped_count', 0) }} duplicada(s) ignorada(s)
-                    </div>
-                </div>
-                {% if _last_import.get('invalid_count', 0) %}
-                <a href="/api/devolucoes/import/{{ _last_import.get('batch_id') }}/errors.xlsx" class="text-xs font-semibold text-amber-200 underline underline-offset-2 hover:text-white">Baixar inválidas</a>
-                {% endif %}
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+            Painel operacional
+          </span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Controle de devoluções</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
+            Fluxo unificado para registrar devoluções, revisar duplicidades de planilha e validar ocorrências sem perder o padrão visual da gestão.
+          </p>
+          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+              {{ _stats.get('validated_count_fmt', '0') }} validados
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              {{ _stats.get('total_valor_fmt', 'R$ 0,00') }}
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              {{ _filters.get('period_label') or 'Período atual' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <details class="employees-hero__import-wrap devolucoes-hero-menu relative w-full sm:w-auto sm:min-w-[11rem]">
+          <summary class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+            <span class="employees-cta__icon" aria-hidden="true">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+              </svg>
+            </span>
+            <span class="employees-cta__label">Importar</span>
+            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </summary>
+          <div class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+            <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importação e operações</p>
+            <button type="button" class="employees-menu-item" data-open-modal="importModal">
+              <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Planilha Excel</span>
+                <span class="employees-menu-item__hint">Prévia, validação e gravação em lote</span>
+              </span>
+            </button>
+            <button type="button" class="employees-menu-item" data-open-modal="batchOperationsModal">
+              <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 12h6m-6 4h6"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Operações em lote</span>
+                <span class="employees-menu-item__hint">Excluir, aprovar e revisar seleções</span>
+              </span>
+            </button>
+            <button type="button" class="employees-menu-item" data-confirm-action="reconnect">
+              <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.172 15a4 4 0 015.656 0l.586.586a4 4 0 005.656-5.656l-1.757-1.757a4 4 0 00-5.656 0L12 8m0 8l-1.757 1.757a4 4 0 01-5.656-5.656L5.172 10a4 4 0 015.656 0L12 12"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Reconectar órfãos</span>
+                <span class="employees-menu-item__hint">Tenta vincular ocorrências sem rota ao período atual</span>
+              </span>
+            </button>
+          </div>
+        </details>
+
+        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" data-open-modal="manualDevolucaoModal" data-modal-mode="create">
+          <span class="employees-cta__icon" aria-hidden="true">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+          </span>
+          <span class="employees-cta__label">Nova Devolução</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de devoluções">
+      <a href="{{ _links.get('all', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'all' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Período</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value tabular-nums">{{ _stats.get('total_count_fmt', '0') }}</span>
+                <span class="employees-kpi__denom text-sm">{{ _stats.get('total_valor_fmt', 'R$ 0,00') }}</span>
+              </div>
             </div>
+            <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="employees-kpi__meta">
+            <span class="employees-text-muted">Visão principal por data do romaneio</span>
+          </div>
         </div>
+      </a>
+
+      <a href="{{ _links.get('aguardando', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'aguardando' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Aguardando</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ _stats.get('aguardando_count_fmt', '0') }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-amber-500 transition group-hover:scale-110 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M10.29 3.86l-7.5 13A1 1 0 003.66 18h16.68a1 1 0 00.87-1.5l-7.5-13a1 1 0 00-1.74 0z"></path>
+            </svg>
+          </div>
+          <div class="employees-kpi__meta">
+            <span class="employees-text-muted">Duplicatas e sem rota na fila</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('validado', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'validado' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Validados</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value tabular-nums">{{ _stats.get('validated_count_fmt', '0') }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+          </div>
+          <div class="employees-kpi__meta">
+            <span class="employees-text-muted">Base consolidada para o restante do sistema</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('duplicata', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'duplicata' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(248, 113, 113, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-rose-600 dark:text-rose-300">Duplicatas</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ _stats.get('duplicate_excel_count_fmt', '0') }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-rose-500 transition group-hover:scale-110 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636L5.636 18.364M5.636 5.636l12.728 12.728"></path>
+            </svg>
+          </div>
+          <div class="employees-kpi__meta">
+            <span class="employees-text-muted">Planilha conflitando com outros lançamentos</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('orfao', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'orfao' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(56, 189, 248, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-sky-600 dark:text-sky-300">Sem rota</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value tabular-nums">{{ _stats.get('orphan_count_fmt', '0') }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-sky-500 transition group-hover:scale-110 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14L21 3m0 0h-6m6 0v6M14 10L3 21m0 0h6m-6 0v-6"></path>
+            </svg>
+          </div>
+          <div class="employees-kpi__meta">
+            <span class="employees-text-muted">Pontos que ainda exigem reconciliação</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <div class="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(18rem,0.95fr)]">
+    <div class="sys-card sys-card--surface sys-card--comfort space-y-3">
+      <div>
+        <p class="employees-text-section-label">Visão operacional</p>
+        <h3 class="sys-section-heading mt-1 text-base">Resumo do período</h3>
+        <p class="employees-text-muted mt-1 text-sm">Os indicadores principais seguem a data do romaneio, mantendo consistência com a planilha oficial. A leitura operacional abaixo mostra o contexto complementar.</p>
+      </div>
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40">
+          <p class="employees-text-section-label">Data efetiva no período</p>
+          <p class="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">{{ _stats.get('effetiva_count_fmt', '0') }}</p>
+          <p class="mt-1 text-sm font-medium text-sky-600 dark:text-sky-300">{{ _stats.get('effetiva_valor_fmt', 'R$ 0,00') }}</p>
+          <p class="employees-text-muted mt-2 text-xs">Entrega no mês com romaneio fora do mês aparece aqui, mas não infla o KPI principal.</p>
+        </div>
+        <div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40">
+          <p class="employees-text-section-label">Origem no período</p>
+          <div class="mt-2 space-y-1.5 text-sm">
+            {% for key in ['EXCEL', 'MOBILE', 'WEB', 'MANUAL'] %}
+              {% if key in _by_source %}
+              <div class="flex items-center justify-between gap-3">
+                <span class="employees-text-body">{{ key }}</span>
+                <span class="employees-text-muted font-mono">{{ _by_source[key].get('count_fmt', '0') }} &middot; {{ _by_source[key].get('valor_fmt', '') }}</span>
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sys-card sys-card--surface sys-card--comfort devolucoes-last-import-card">
+      <div class="devolucoes-last-import-card__head">
+        <div class="min-w-0">
+          <p class="employees-text-section-label">Última importação</p>
+          <h3 class="sys-section-heading mt-1 text-base">{{ 'Com diferença entre arquivo e base' if _last_has_gap else 'Concluída sem pendências visíveis' }}</h3>
+        </div>
+        <span class="employees-pill employees-pill--neutral devolucoes-last-import-card__stamp">Último lote</span>
+      </div>
+      {% if _last_import %}
+      <div class="devolucoes-last-import-card__file">
+        <p class="devolucoes-last-import-card__filename">{{ _last_import.get('filename') }}</p>
+        <p class="devolucoes-last-import-card__meta">
+          {% if _last_import.get('committed_at_fmt') %}
+          Importado em {{ _last_import.get('committed_at_fmt') }}
+          {% else %}
+          Horário da última importação indisponível
+          {% endif %}
+        </p>
+      </div>
+      <div class="devolucoes-last-import-card__stats">
+        <div class="devolucoes-last-import-stat">
+          <span class="devolucoes-last-import-stat__label">Linhas no arquivo</span>
+          <strong class="devolucoes-last-import-stat__value">{{ _last_import.get('total_rows_fmt', '0') }}</strong>
+        </div>
+        <div class="devolucoes-last-import-stat">
+          <span class="devolucoes-last-import-stat__label">Gravadas</span>
+          <strong class="devolucoes-last-import-stat__value">{{ _last_import.get('created_count_fmt', '0') }}</strong>
+        </div>
+        <div class="devolucoes-last-import-stat">
+          <span class="devolucoes-last-import-stat__label">Inválidas</span>
+          <strong class="devolucoes-last-import-stat__value">{{ _last_import.get('invalid_count_fmt', '0') }}</strong>
+        </div>
+        <div class="devolucoes-last-import-stat">
+          <span class="devolucoes-last-import-stat__label">Ignoradas</span>
+          <strong class="devolucoes-last-import-stat__value">{{ _last_import.get('skipped_count_fmt', '0') }}</strong>
+        </div>
+      </div>
+      <div class="devolucoes-last-import-card__footer">
+        <span class="employees-text-muted text-xs">Resumo compacto do último arquivo consolidado.</span>
+        {% if _last_import.get('invalid_count', 0) %}
+        <a href="/api/devolucoes/import/{{ _last_import.get('batch_id') }}/errors.xlsx" class="text-sm font-semibold text-amber-600 underline underline-offset-2 hover:text-amber-500 dark:text-amber-300 dark:hover:text-amber-200">Baixar linhas inválidas</a>
         {% endif %}
-        <div id="last-import-summary-msg" class="hidden mb-6 rounded-xl border p-4 text-sm"></div>
+      </div>
+      {% else %}
+      <p class="employees-text-muted mt-2 text-sm">Nenhuma importação consolidada registrada ainda.</p>
+      {% endif %}
+    </div>
+  </div>
 
-        <div class="mb-4 flex flex-wrap items-center gap-4">
-            <div class="flex flex-wrap items-center gap-2">
-                <a href="/devolucoes?hoje=1&page=1&per_page={{ _pagination.get('per_page', 100) }}" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ 'bg-sky-600 text-white' if _filters.get('period_label') == 'Hoje' else 'bg-slate-700 text-slate-300 hover:bg-slate-600' }}">Hoje</a>
-                <form method="get" action="/devolucoes" class="flex items-center gap-2 flex-wrap" id="devolucoes-filter-form">
-                    <input type="hidden" name="per_page" value="{{ _pagination.get('per_page', 100) }}">
-                    <input type="hidden" name="page" value="1">
-                    <label class="text-slate-400 text-sm">De</label>
-                    <input type="date" name="date_from" value="{{ _filters.get('date_from') or '' }}" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
-                    <label class="text-slate-400 text-sm">até</label>
-                    <input type="date" name="date_to" value="{{ _filters.get('date_to') or '' }}" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
-                    <button type="submit" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm font-medium">Filtrar</button>
-                </form>
+  <form id="devolucoesFilterForm" method="GET" action="/devolucoes" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+    <input type="hidden" name="page" value="1">
+    <input type="hidden" name="sort" value="{{ _sort_key }}">
+    <input type="hidden" name="dir" value="{{ _sort_dir }}">
+    <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+      <div class="employees-filter-bar__inner">
+        <div class="employees-filter-bar__primary">
+          <div class="employees-filter-bar__primary-scroll">
+            <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+            <div class="ops-toolbar-search employees-filter-bar__search">
+              <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+              <input type="search" name="q" value="{{ _filters.get('q') or '' }}" placeholder="Cliente, NB, motorista ou placa" class="ops-toolbar-search__input" data-debounce-submit="true">
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-slate-500 text-sm">Motorista(s):</span>
-                <div class="relative">
-                    <button type="button" @click="openMotoristaDropdown = !openMotoristaDropdown" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800 border border-slate-600 text-slate-200 text-sm hover:bg-slate-700 min-w-[180px] justify-between">
-                        <span x-text="motoristaFilterIds.length === 0 ? 'Todos' : motoristaFilterIds.length + ' selecionado(s)'"></span>
-                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-500"></i>
-                    </button>
-                    <div x-show="openMotoristaDropdown" @click.outside="openMotoristaDropdown = false" x-transition class="absolute left-0 top-full mt-1 z-20 py-2 w-64 max-h-60 overflow-y-auto rounded-lg border border-slate-600 bg-slate-800 shadow-xl" x-cloak style="display: none;">
-                        <template x-for="m in uniqueMotoristas" :key="m.id">
-                            <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-slate-700 cursor-pointer text-sm text-slate-200">
-                                <input type="checkbox" :checked="motoristaFilterIds.includes(m.id)" @change="toggleMotoristaFilter(m.id)" class="rounded border-slate-500 bg-slate-800 text-blue-500 focus:ring-blue-500">
-                                <span x-text="m.name"></span>
-                            </label>
-                        </template>
-                        <button type="button" @click="motoristaFilterIds = []; openMotoristaDropdown = false" class="w-full mt-2 pt-2 border-t border-slate-600 text-center text-sky-400 hover:text-sky-300 text-xs">Limpar</button>
-                    </div>
-                </div>
-            </div>
-            <div class="flex-1 min-w-[200px] max-w-[280px]">
-                <div class="relative flex items-center">
-                    <i data-lucide="search" class="w-4 h-4 absolute left-3 pointer-events-none text-slate-500 shrink-0"></i>
-                    <input type="search" x-model="searchQ" placeholder="Pesquisar: placa, cliente, motorista…" class="w-full min-w-0 bg-slate-900 border border-slate-600 rounded-lg pl-9 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 box-border">
-                </div>
-            </div>
+            <input type="date" name="date_from" value="{{ _filters.get('date_from') or '' }}" class="ops-toolbar-control px-3">
+            <input type="date" name="date_to" value="{{ _filters.get('date_to') or '' }}" class="ops-toolbar-control px-3">
+            <select name="source" class="ops-toolbar-control px-3">
+              <option value="">Todas origens</option>
+              <option value="EXCEL" {% if _filters.get('source') == 'EXCEL' %}selected{% endif %}>Excel</option>
+              <option value="MOBILE" {% if _filters.get('source') == 'MOBILE' %}selected{% endif %}>Mobile</option>
+              <option value="WEB" {% if _filters.get('source') == 'WEB' %}selected{% endif %}>Web</option>
+              <option value="MANUAL" {% if _filters.get('source') == 'MANUAL' %}selected{% endif %}>Manual</option>
+            </select>
+            <select name="motorista_id" class="ops-toolbar-control px-3">
+              <option value="">Todos motoristas</option>
+              {% for emp in employees %}
+              <option value="{{ emp.id }}" {% if _motorista_filter == emp.id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
+              {% endfor %}
+            </select>
+            <select name="per_page" class="ops-toolbar-control px-3">
+              {% for option in page_size_options %}
+              <option value="{{ option }}" {% if _pagination.get('per_page') == option %}selected{% endif %}>{{ option }} por página</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
+        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+        <div class="employees-filter-bar__secondary">
+          <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
+          <a href="{{ _links.get('today', '/devolucoes?hoje=1') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('today_active') %}filter-btn--active{% endif %}">Hoje</a>
+          <a href="{{ _links.get('clear', '/devolucoes') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar</a>
+        </div>
+      </div>
+    </div>
+  </form>
 
-        <div class="flex flex-wrap items-center gap-3 mb-4 border-b border-slate-700 pb-2">
-            <span class="text-slate-500 text-sm mr-1">Aba:</span>
-            <button type="button" @click="tab = 'todas'" :class="tab === 'todas' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors">Todas</button>
-            <button type="button" @click="tab = 'aguardando'" :class="tab === 'aguardando' ? 'bg-amber-600/30 text-amber-200 border border-amber-500/40' : 'text-slate-400 hover:text-white'" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent">
-                Aguardando validação <span class="text-amber-400 font-bold">({{ _period_stats.get('aguardando_count', 0) }})</span>
-            </button>
-            <span class="text-slate-600 mx-2">|</span>
-            <span class="text-slate-500 text-sm">Origem:</span>
-            <button type="button" @click="sourceFilter = ''" :class="!sourceFilter ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Todas</button>
-            <button type="button" @click="sourceFilter = 'MOBILE'" :class="sourceFilter === 'MOBILE' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Mobile</button>
-            <button type="button" @click="sourceFilter = 'WEB'" :class="sourceFilter === 'WEB' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Web</button>
-            <button type="button" @click="sourceFilter = 'EXCEL'" :class="sourceFilter === 'EXCEL' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Excel</button>
-            <button type="button" @click="sourceFilter = 'MANUAL'" :class="sourceFilter === 'MANUAL' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'" class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors">Manual</button>
-        </div>
+  <div class="sys-card sys-card--surface sys-card--comfort devolucoes-selection-toolbar">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+          <input id="devolucao-bulk-select-all" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+          <span>Selecionar visíveis</span>
+        </label>
+        <span class="employees-filter-counter employees-filter-counter--toolbar">Selecionados: <strong id="bulk-selected-count" class="ml-1">0</strong></span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="{{ _links.get('all', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'all' %}filter-btn--active{% endif %}">Ver todos</a>
+        <a href="{{ _links.get('aguardando', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'aguardando' %}filter-btn--active{% endif %}">Aguardando</a>
+        <a href="{{ _links.get('duplicata', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'duplicata' %}filter-btn--active{% endif %}">Duplicatas</a>
+        <a href="{{ _links.get('orfao', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'orfao' %}filter-btn--active{% endif %}">Sem rota</a>
+        <button type="button" class="sys-btn sys-btn--secondary employees-filter-bar__btn" data-open-modal="batchOperationsModal">Operações em lote</button>
+      </div>
+    </div>
+  </div>
 
-        <div class="mb-2 text-xs text-slate-500">Indicadores principais: período <span class="text-slate-400">{{ _filters.get('date_from') or _filters.get('start_date') }}</span>–<span class="text-slate-400">{{ _filters.get('date_to') or _filters.get('end_date') }}</span>, pela <span class="text-slate-300">data do romaneio</span> (mesmo critério da coluna DATA ROMANEIO no Excel após a linha de cabeçalho) — todas as páginas.</div>
-        <div class="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div class="rounded-xl border border-slate-700 bg-slate-800/60 p-3">
-                <p class="text-[11px] text-slate-500 uppercase tracking-wide">Total de devoluções</p>
-                <p class="text-xl font-bold text-white" x-text="totalDevolucoes"></p>
-            </div>
-            <div class="rounded-xl border border-slate-700 bg-slate-800/60 p-3">
-                <p class="text-[11px] text-slate-500 uppercase tracking-wide">Valor total</p>
-                <p class="text-xl font-bold text-sky-400" x-text="fmtValor(totalValorDevolucoes)"></p>
-            </div>
-            <div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-                <p class="text-[11px] text-amber-300/80 uppercase tracking-wide">Aguardando</p>
-                <p class="text-xl font-bold text-amber-300" x-text="totalAguardando"></p>
-            </div>
-            <div class="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3">
-                <p class="text-[11px] text-rose-300/80 uppercase tracking-wide">Duplicata planilha</p>
-                <p class="text-xl font-bold text-rose-300" x-text="totalDuplicatas"></p>
-            </div>
+  <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+      <div class="min-w-0 flex-1">
+        <p class="employees-table-panel__kicker">Gestão de ocorrências</p>
+        <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista de devoluções</h3>
+        <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">A listagem foi enxugada para usar filtro, ordenação e paginação no servidor. No mobile, cada linha vira card com atalhos de revisão.</p>
+      </div>
+      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+        {% if _pagination.get('total_count', 0) %}
+          Exibindo <strong>{{ _pagination.get('page_start_fmt', '0') }}</strong>–<strong>{{ _pagination.get('page_end_fmt', '0') }}</strong> de <strong>{{ _pagination.get('total_count_fmt', '0') }}</strong> resultado(s).
+        {% else %}
+          Nenhum registro encontrado para o filtro atual.
+        {% endif %}
+        <div class="mt-2 flex flex-wrap justify-end gap-2">
+          <a href="{{ _pagination.get('prev_href', '#') }}" class="sys-btn sys-btn--secondary {% if not _pagination.get('has_prev') %}pointer-events-none opacity-50{% endif %}">Anterior</a>
+          <span class="employees-text-caption inline-flex items-center px-1.5">Pág. {{ _pagination.get('page', 1) }} / {{ _pagination.get('total_pages', 1) }}</span>
+          <a href="{{ _pagination.get('next_href', '#') }}" class="sys-btn sys-btn--secondary {% if not _pagination.get('has_next') %}pointer-events-none opacity-50{% endif %}">Próxima</a>
         </div>
-        {% set _ps = period_stats or {} %}
-        {% set _bs = _ps.get('by_source') or {} %}
-        <div class="mb-4 rounded-xl border border-slate-600 bg-slate-900/40 p-4 text-sm text-slate-300 space-y-2">
-            <p class="text-slate-200 font-medium">Visão operacional (opcional)</p>
-            <p class="text-slate-400">Quando a <strong class="text-slate-200">data de entrega</strong> cai no mês mas o <strong class="text-slate-200">romaneio</strong> é de outro mês, o critério acima (romaneio) bate com a planilha; o critério abaixo inclui essas entregas pelo mês da entrega.</p>
-            <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                <div class="rounded-lg border border-slate-700/80 bg-slate-800/40 p-3">
-                    <p class="text-[11px] text-slate-500 uppercase tracking-wide">Data efetiva no período (entrega, senão romaneio)</p>
-                    <p class="text-lg font-semibold text-white">{{ _ps.get('effetiva_count', 0) }} <span class="text-slate-500 text-sm font-normal">linhas</span></p>
-                    <p class="text-sky-400 font-semibold">{{ _ps.get('effetiva_valor_fmt', 'R$ 0,00') }}</p>
-                    <p class="text-[11px] text-slate-500 mt-1">Pode ser maior que o total principal se houver entregas no mês com romaneio em outro mês.</p>
-                </div>
-                <div class="rounded-lg border border-slate-700/80 bg-slate-800/40 p-3">
-                    <p class="text-[11px] text-slate-500 uppercase tracking-wide">Por origem (data do romaneio no período)</p>
-                    <ul class="mt-1 space-y-1 text-xs text-slate-200">
-                        {% for key in ['EXCEL', 'MOBILE', 'WEB', 'MANUAL'] %}
-                            {% if key in _bs %}
-                                <li class="flex justify-between gap-2"><span>{{ key }}</span><span class="font-mono text-slate-300">{{ _bs[key].count }} · {{ _bs[key].get('valor_fmt', '') }}</span></li>
-                            {% endif %}
-                        {% endfor %}
-                        {% for k, v in _bs.items() %}
-                            {% if k not in ['EXCEL', 'MOBILE', 'WEB', 'MANUAL'] %}
-                                <li class="flex justify-between gap-2"><span>{{ k }}</span><span class="font-mono text-slate-300">{{ v.count }} · {{ v.get('valor_fmt', '') }}</span></li>
-                            {% endif %}
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-        </div>
-        <p class="mb-4 text-xs text-slate-500" x-show="hasLocalFilters" x-cloak>Lista filtrada nesta página: <span class="text-slate-300 font-medium" x-text="filtered.length"></span> visível(is). Os números acima são do período completo.</p>
+      </div>
+    </div>
 
-        <div class="mb-4 flex flex-wrap items-center gap-3" x-show="filtered.length > 0">
-            <label class="inline-flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white text-sm">
-                <input type="checkbox" :checked="filtered.length > 0 && selectedIds.length === filtered.length" :indeterminate.prop="selectedIds.length > 0 && selectedIds.length < filtered.length" @change="toggleSelectAll()" class="rounded border-slate-500 bg-slate-800 text-blue-500 focus:ring-blue-500">
-                <span>Selecionar todas</span>
-            </label>
-            <button type="button" @click="bulkDelete()" :disabled="selectedIds.length === 0" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                Excluir selecionados (<span x-text="selectedIds.length"></span>)
-            </button>
-            <template x-if="tab === 'aguardando'">
-                <button type="button" @click="bulkApprove()" :disabled="selectedIds.length === 0" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors">
-                    <i data-lucide="check-circle" class="w-4 h-4"></i>
-                    Aprovar selecionados (<span x-text="selectedIds.length"></span>)
+    {% if devolucoes %}
+    <div class="sys-table-wrap sys-table-wrap--x-scroll">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1120px]" id="employeesTable">
+        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+          <tr>
+            <th class="employees-data-table__th employees-data-table__th--static w-10 whitespace-nowrap px-2 py-2 pl-3 text-xs">Sel.</th>
+            <th class="employees-data-table__th group px-2 py-2">
+              <a href="{{ _sort_links.get('data', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
+                Data
+                <span class="employees-data-table__sort-icon {% if _sort_key == 'data' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'data' and _sort_dir == 'asc' else '↓' if _sort_key == 'data' else '↕' }}</span>
+              </a>
+            </th>
+            <th class="employees-data-table__th group px-2 py-2">
+              <a href="{{ _sort_links.get('client', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
+                Cliente
+                <span class="employees-data-table__sort-icon {% if _sort_key == 'client' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'client' and _sort_dir == 'asc' else '↓' if _sort_key == 'client' else '↕' }}</span>
+              </a>
+            </th>
+            <th class="employees-data-table__th group px-2 py-2">
+              <a href="{{ _sort_links.get('motorista', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
+                Motorista
+                <span class="employees-data-table__sort-icon {% if _sort_key == 'motorista' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'motorista' and _sort_dir == 'asc' else '↓' if _sort_key == 'motorista' else '↕' }}</span>
+              </a>
+            </th>
+            <th class="employees-data-table__th px-2 py-2">Placa</th>
+            <th class="employees-data-table__th group px-2 py-2">
+              <a href="{{ _sort_links.get('valor', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
+                Valor
+                <span class="employees-data-table__sort-icon {% if _sort_key == 'valor' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'valor' and _sort_dir == 'asc' else '↓' if _sort_key == 'valor' else '↕' }}</span>
+              </a>
+            </th>
+            <th class="employees-data-table__th group px-2 py-2">
+              <a href="{{ _sort_links.get('source', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
+                Origem
+                <span class="employees-data-table__sort-icon {% if _sort_key == 'source' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'source' and _sort_dir == 'asc' else '↓' if _sort_key == 'source' else '↕' }}</span>
+              </a>
+            </th>
+            <th class="employees-data-table__th group px-2 py-2">
+              <a href="{{ _sort_links.get('status', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
+                Status
+                <span class="employees-data-table__sort-icon {% if _sort_key == 'status' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'status' and _sort_dir == 'asc' else '↓' if _sort_key == 'status' else '↕' }}</span>
+              </a>
+            </th>
+            <th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="employees-data-table__body divide-y" id="tableBody">
+          {% for row in devolucoes %}
+          <tr class="group employee-row employees-data-table__row transition-colors" id="devolucao-row-{{ row.id }}">
+            <td class="employees-data-table__cell w-10 px-2 py-2 pl-3 align-middle" data-label="Selecionar">
+              <input
+                type="checkbox"
+                class="devolucao-bulk-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                value="{{ row.id }}"
+                data-id="{{ row.id }}"
+                data-label="{{ row.client_name|e }}"
+                data-can-approve="{{ 'true' if row.can_approve else 'false' }}"
+              >
+            </td>
+            <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle whitespace-nowrap" data-label="Data">{{ row.data_display }}</td>
+            <td class="employee-cell-primary px-2 py-2 align-middle" data-label="Cliente">
+              <div class="employee-primary-content min-w-0">
+                <span class="employee-name block truncate font-medium employees-text-strong">{{ row.client_name }}</span>
+                <span class="employees-text-caption block truncate text-xs">{{ row.client_secondary }}</span>
+              </div>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motorista">
+              <span class="block">{{ row.motorista_name }}</span>
+              <span class="employees-text-caption block text-[10px] leading-tight opacity-60">{{ row.motivo_label }}</span>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap employees-text-body" data-label="Placa">{{ row.vehicle_plate }}</td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap font-semibold text-sky-600 dark:text-sky-300" data-label="Valor">{{ row.valor_fmt }}</td>
+            <td class="px-2 py-2 align-middle whitespace-nowrap" data-label="Origem">
+              <span class="employees-pill employees-pill--neutral">{{ row.source_label }}</span>
+            </td>
+            <td class="px-2 py-2 align-middle whitespace-nowrap" data-label="Status" title="{{ row.status_hint }}">
+              {% if row.status_tone == 'ok' %}
+              <span class="sys-badge sys-badge--ok">{{ row.status_label }}</span>
+              {% elif row.status_tone == 'critical' %}
+              <span class="sys-badge sys-badge--critical">{{ row.status_label }}</span>
+              {% elif row.status_tone == 'alert' %}
+              <span class="sys-badge sys-badge--alert">{{ row.status_label }}</span>
+              {% else %}
+              <span class="employees-pill employees-pill--status employees-pill--pending">{{ row.status_label }}</span>
+              {% endif %}
+            </td>
+            <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
+              <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                <button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar" data-action="edit" data-row="{{ row.payload_json | forceescape }}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5a2.121 2.121 0 10-3-3L5 17v3z"></path></svg>
                 </button>
-            </template>
-            <button type="button" @click="reconnectOrphans()" :disabled="reconnecting" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors" title="Vincula devoluções 'Sem rota no dia' às rotas existentes (data_entrega) e tira da fila.">
-                <i data-lucide="link" class="w-4 h-4"></i>
-                <span x-text="reconnecting ? 'Reconectando…' : 'Reconectar órfãos'"></span>
-            </button>
-            <span class="text-slate-500 text-sm">Excluir: duplicata, órfão ou origem Excel/Web/Mobile. Aprovar: marca como validado. Reconectar: vincula órfãos às rotas.</span>
-        </div>
-
-        <div class="rounded-2xl border border-slate-700 overflow-hidden">
-            <div class="px-4 py-3 bg-slate-800/50 border-b border-slate-700 flex flex-wrap items-center justify-between gap-2">
-                <h3 class="text-slate-300 font-medium" x-text="tab === 'aguardando' ? 'Itens para revisar (duplicata planilha ou sem rota)' : 'Registros de devolução'"></h3>
-                {% if _pagination and _pagination.get('total_pages', 1) > 1 %}
-                {% set _date_q = 'hoje=1' if _filters.get('period_label') == 'Hoje' else ('date_from=' + (_filters.get('date_from') or '') + '&date_to=' + (_filters.get('date_to') or '')) %}
-                <nav class="flex items-center gap-1">
-                    <a href="/devolucoes?{{ _date_q }}&page={{ _pagination.get('prev_page', 1) }}&per_page={{ _pagination.get('per_page', 100) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_prev') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">← Anterior</a>
-                    <span class="px-2 text-slate-400 text-sm">Pág. {{ _pagination.get('page', 1) }} / {{ _pagination.get('total_pages', 1) }}</span>
-                    <a href="/devolucoes?{{ _date_q }}&page={{ _pagination.get('next_page', 1) }}&per_page={{ _pagination.get('per_page', 100) }}" class="px-3 py-1 rounded text-sm {% if _pagination.get('has_next') %}text-sky-400 hover:bg-slate-700{% else %}text-slate-600 cursor-not-allowed{% endif %}">Próxima →</a>
-                </nav>
+                {% if row.can_approve %}
+                <button type="button" class="employee-action-btn employee-action-btn--return" title="Aprovar" data-action="approve" data-id="{{ row.id }}" data-label="{{ row.client_name|e }}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                </button>
                 {% endif %}
-            </div>
-            <template x-if="rows.length === 0">
-                <div class="p-12 text-center text-slate-500">
-                    <p>Nenhuma devolução no período desta página.</p>
-                </div>
-            </template>
-            <p x-show="rows.length && filtered.length === 0" class="p-8 text-center text-slate-500 text-sm">Nenhum resultado para a pesquisa ou aba vazia.</p>
-            <div x-show="filtered.length > 0" class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <template x-for="d in filtered" :key="d.id">
-                    <div class="rounded-xl border border-slate-600 bg-slate-800/80 hover:border-slate-500 transition-colors flex flex-col min-h-[180px]"
-                        :class="d.is_duplicate_excel ? 'ring-1 ring-rose-500/30' : ''">
-                        <div class="p-4 flex-1 flex flex-col gap-2">
-                            <div class="flex items-start justify-between gap-2">
-                                <label class="flex items-center gap-2 cursor-pointer shrink-0">
-                                    <input type="checkbox" :checked="selectedIds.includes(d.id)" @change="toggleSelect(d.id)" class="rounded border-slate-500 bg-slate-800 text-blue-500 focus:ring-blue-500">
-                                    <span class="text-slate-400 text-xs" :title="d.can_delete_aguardando ? 'Pode ser excluído' : 'Só duplicata/órfão é excluída'">Excluir</span>
-                                </label>
-                                <span class="text-slate-400 font-mono text-xs" x-text="d.data_efetiva || d.data_entrega || d.data_romaneio" :title="(d.data_romaneio && d.data_entrega && d.data_romaneio !== d.data_entrega) ? ('Romaneio: ' + d.data_romaneio + ' · Entrega: ' + d.data_entrega) : ''"></span>
-                            </div>
-                            <h4 class="text-white font-medium text-sm leading-tight line-clamp-2" x-text="clientDisplayName(d)"></h4>
-                            <div class="text-slate-400 text-xs space-y-0.5 bg-slate-900/40 border border-slate-700/70 rounded-lg p-2">
-                                <p><span class="text-slate-500">Cód.:</span> <span class="font-mono" x-text="fmtNbBr(d.client_code)"></span></p>
-                                <p><span class="text-slate-500">Fantasia:</span> <span class="truncate inline-block max-w-full align-bottom" x-text="d.client_fantasia || '-'"></span></p>
-                                <p><span class="text-slate-500">Razão:</span> <span class="truncate inline-block max-w-full align-bottom" x-text="d.client_razao_social || '-'"></span></p>
-                                <p><span class="text-slate-500">Motorista:</span> <span x-text="d.motorista_name"></span></p>
-                                <p><span class="text-slate-500">Placa:</span> <span class="font-mono" x-text="d.vehicle_plate || '-'"></span></p>
-                            </div>
-                            <div class="flex flex-wrap items-center justify-between gap-2 mt-auto pt-2 border-t border-slate-700">
-                                <span class="text-sky-400 font-semibold text-sm" x-text="fmtValor(d.valor)"></span>
-                            </div>
-                            <p x-show="d.is_duplicate_excel" class="text-[10px] text-rose-400 font-semibold">Duplicata planilha — válido: mobile/rota</p>
-                            <p x-show="d.validation_status === 'ORPHAN_ROUTE' && !d.is_duplicate_excel" class="text-[10px] text-amber-400">Sem rota no dia — validar</p>
-                            <div class="flex justify-end gap-2 mt-1" x-show="tab === 'aguardando'">
-                                <button type="button" @click="aprovar(d)" class="text-emerald-400 hover:text-emerald-300 text-xs font-semibold">Aprovar</button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
+                <button type="button" class="employee-action-btn employee-action-btn--delete" title="Excluir" data-action="delete" data-id="{{ row.id }}" data-label="{{ row.client_name|e }}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16"></path></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-</div>
+    {% else %}
+    <div class="sys-empty-state m-6">Nenhuma devolução encontrada para o filtro atual.</div>
+    {% endif %}
+  </div>
 
-<!-- Modal Lançamento Manual -->
-<div id="manualDevolucaoModal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 backdrop-blur-sm overflow-y-auto py-8">
-    <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-2xl mx-4">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg font-semibold text-white">Nova Devolução</h2>
-            <button type="button" onclick="closeManualModal()" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition">×</button>
+  <div id="importModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-6 pt-24 md:pt-20" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-2xl devolucoes-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <p class="employees-text-section-label">Importação</p>
+          <h3 id="import-modal-title" class="sys-section-heading mt-1 text-lg">Planilha de devoluções</h3>
         </div>
-        <form id="manual-devolucao-form" class="space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Data Romaneio *</label>
-                    <input type="date" name="data_romaneio" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Data Entrega *</label>
-                    <input type="date" name="data_entrega" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Cliente *</label>
-                    <input type="hidden" name="client_id" id="manual-client-id" required>
-                    <div id="manual-client-selected" class="hidden mb-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
-                        <div id="manual-client-selected-name" class="font-medium"></div>
-                        <div id="manual-client-selected-detail" class="text-xs text-emerald-100/80"></div>
-                        <button type="button" id="manual-client-clear" class="mt-2 text-xs font-semibold text-emerald-300 hover:text-emerald-200">Remover e buscar outro</button>
-                    </div>
-                    <div class="relative">
-                        <input type="search" id="manual-client-search" autocomplete="off" placeholder="Digite nome, NB, fantasia ou endereço" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                        <div id="manual-client-suggestions" class="hidden absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl"></div>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Vendedor *</label>
-                    <select name="vendedor_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">Selecione</option>
-                        {% for e in employees %}
-                        <option value="{{ e.id }}">{{ e.name|emp_name }}{% if e.seller_code %} ({{ e.seller_code }}){% endif %}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Motorista *</label>
-                    <select name="motorista_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">Selecione</option>
-                        {% for e in employees %}
-                        <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Valor (R$) *</label>
-                    <input type="text" name="valor" required placeholder="0,00" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Responsabilidade *</label>
-                    <select name="responsabilidade_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">Selecione</option>
-                        {% for r in responsabilidades %}
-                        <option value="{{ r.id }}">{{ r.nome }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Motivo *</label>
-                    <select name="motivo_id" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">Selecione</option>
-                        {% for m in motivos %}
-                        <option value="{{ m.id }}" data-resp="{{ m.responsabilidade_id }}">{{ m.nome }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Ajudante (opcional)</label>
-                    <select name="ajudante_id" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">—</option>
-                        {% for e in employees %}
-                        <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Observação</label>
-                    <input type="text" name="observacao" placeholder="Opcional" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-blue-500">
-                </div>
+        <button type="button" class="emp-modal-close shrink-0" data-close-modal="importModal" aria-label="Fechar">&times;</button>
+      </div>
+
+      <div class="grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(16rem,0.9fr)]">
+        <form id="devolucoes-import-form" class="space-y-4" novalidate>
+          <label class="emp-modal-dropzone block cursor-pointer">
+            <input type="file" id="devolucoes-import-file" accept=".xlsx,.xls,.xlsm" class="hidden">
+            <span class="emp-modal-icon-ring emp-modal-icon-ring--lg mx-auto mb-3">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            </span>
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">Selecionar arquivo Excel</p>
+            <p class="employees-text-muted mt-1 text-xs">Pré-visualização antes de gravar. Aceita .xlsx, .xls e .xlsm.</p>
+            <p id="devolucoes-import-file-name" class="mt-3 text-xs font-medium text-sky-600 dark:text-sky-300"></p>
+          </label>
+
+          <div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 text-xs leading-relaxed dark:border-slate-700/80 dark:bg-slate-900/40">
+            <p class="font-semibold text-slate-900 dark:text-white">Colunas esperadas</p>
+            <code class="mt-2 block rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-200">DATA ROMANEIO, DATA ENTREGA, CODIGO, NOME DO CLIENTE, VENDEDOR, MOTORISTA, VALOR, MOTIVO, OBSERVACAO, RESPONSABILIDADE</code>
+            <p class="employees-text-muted mt-2">A prévia valida datas, vínculos de cadastro e duplicidades antes da gravação.</p>
+            <a href="/devolucoes/template" class="mt-3 inline-flex text-xs font-semibold text-sky-600 underline underline-offset-2 hover:text-sky-500 dark:text-sky-300 dark:hover:text-sky-200">Baixar modelo de planilha</a>
+          </div>
+
+          <div id="devolucoes-import-preview" class="hidden rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40">
+            <div class="flex flex-wrap items-center gap-3 text-sm">
+              <span class="employees-pill employees-pill--emerald">Válidas: <strong id="import-valid-count">0</strong></span>
+              <span class="employees-pill employees-pill--pending">Inválidas: <strong id="import-invalid-count">0</strong></span>
             </div>
-            <div class="flex justify-end gap-2 pt-4 border-t border-slate-700">
-                <button type="button" onclick="closeManualModal()" class="px-4 py-2 text-slate-400 hover:text-white transition">Cancelar</button>
-                <button type="submit" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-semibold transition-colors">Salvar</button>
-            </div>
+            <p id="import-precadastro-text" class="mt-3 hidden text-sm font-medium text-amber-600 dark:text-amber-300"></p>
+            <div id="import-errors" class="mt-3 max-h-[55vh] overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-300"></div>
+          </div>
+
+          <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+            <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="importModal">Cancelar</button>
+            <button type="button" id="devolucoes-import-preview-btn" class="sys-btn sys-btn--secondary">Gerar prévia</button>
+            <button type="button" id="devolucoes-import-commit-btn" class="sys-btn sys-btn--primary" disabled>Confirmar e gravar</button>
+          </div>
+          <p id="devolucoes-import-commit-hint" class="text-xs text-slate-500 dark:text-slate-400">
+            Gere a prévia para habilitar a gravação.
+          </p>
         </form>
-    </div>
-</div>
 
-<script>
-function devolucoesTable(cfg) {
-    const ps = cfg.periodStats && typeof cfg.periodStats === 'object' ? cfg.periodStats : (typeof window !== 'undefined' && window.__DEVOLUCOES_PERIOD_STATS) || {};
-    return {
-        rows: Array.isArray(cfg.rows) ? cfg.rows : [],
-        periodStats: ps,
-        selectedIds: [],
-        searchQ: '',
-        sourceFilter: '',
-        motoristaFilterIds: [],
-        openMotoristaDropdown: false,
-        tab: 'todas',
-        sortKey: 'data_efetiva',
-        sortDir: -1,
-        reconnecting: false,
-        get uniqueMotoristas() {
-            const seen = new Set();
-            const out = [];
-            for (const d of this.rows) {
-                const id = d.motorista_id;
-                if (id != null && id !== '' && !seen.has(id)) {
-                    seen.add(id);
-                    out.push({ id: id, name: d.motorista_name || 'Sem nome' });
-                }
-            }
-            out.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-            return out;
-        },
-        get filtered() {
-            let r = this.rows;
-            if (this.tab === 'aguardando') r = r.filter(x => x.aguardando);
-            if (this.sourceFilter) {
-                const s = String(this.sourceFilter).toUpperCase();
-                r = r.filter(d => {
-                    const src = (d.source || '').toUpperCase();
-                    if (s === 'WEB') return src === 'WEB' || src === 'ROTA';
-                    return src === s;
-                });
-            }
-            if (this.motoristaFilterIds && this.motoristaFilterIds.length > 0) {
-                const ids = new Set(this.motoristaFilterIds);
-                r = r.filter(d => ids.has(d.motorista_id));
-            }
-            const q = (this.searchQ || '').trim().toLowerCase();
-            if (q) {
-                r = r.filter(d => {
-                    const blob = [
-                        d.data_romaneio, d.data_entrega, d.data_efetiva, d.client_name, d.motorista_name, d.vehicle_plate,
-                        d.cluster, d.acima_300, d.source, String(d.valor),
-                        d.validation_status || ''
-                    ].join(' ').toLowerCase();
-                    return blob.includes(q);
-                });
-            }
-            const k = this.sortKey;
-            const dir = this.sortDir;
-            const num = (x) => {
-                if (k === 'valor') return parseFloat(x.valor) || 0;
-                return 0;
-            };
-            return [...r].sort((a, b) => {
-                let va, vb;
-                if (k === 'valor') { va = num(a); vb = num(b); return dir * (va - vb); }
-                va = String(a[k] || '').toLowerCase();
-                vb = String(b[k] || '').toLowerCase();
-                if (va < vb) return -1 * dir;
-                if (va > vb) return 1 * dir;
-                return (b.id - a.id) * dir;
-            });
-        },
-        get hasLocalFilters() {
-            if (this.tab !== 'todas') return true;
-            if (this.sourceFilter) return true;
-            if (this.motoristaFilterIds && this.motoristaFilterIds.length > 0) return true;
-            return !!(this.searchQ || '').trim();
-        },
-        get deletableFiltered() {
-            return this.filtered.filter(d => d.can_delete_aguardando);
-        },
-            get totalDevolucoes() {
-                const n = this.periodStats && this.periodStats.total_count;
-                return n != null ? Number(n) : this.filtered.length;
-            },
-            get totalValorDevolucoes() {
-                const v = this.periodStats && this.periodStats.total_valor;
-                return v != null ? Number(v) : this.filtered.reduce((acc, d) => acc + Number(d.valor || 0), 0);
-            },
-            get totalAguardando() {
-                const n = this.periodStats && this.periodStats.aguardando_count;
-                return n != null ? Number(n) : this.filtered.filter(d => d.aguardando).length;
-            },
-            get totalDuplicatas() {
-                const n = this.periodStats && this.periodStats.duplicate_excel_count;
-                return n != null ? Number(n) : this.filtered.filter(d => d.is_duplicate_excel).length;
-            },
-        toggleSelect(id) {
-            const i = this.selectedIds.indexOf(id);
-            if (i === -1) this.selectedIds.push(id);
-            else this.selectedIds.splice(i, 1);
-        },
-        toggleSelectAll() {
-            const all = this.filtered.map(d => d.id);
-            const allSelected = all.length > 0 && this.selectedIds.length === all.length;
-            this.selectedIds = allSelected ? [] : all;
-        },
-        toggleMotoristaFilter(id) {
-            if (this.motoristaFilterIds.includes(id)) {
-                this.motoristaFilterIds = this.motoristaFilterIds.filter(x => x !== id);
-            } else {
-                this.motoristaFilterIds = [...this.motoristaFilterIds, id];
-            }
-        },
-        async bulkDelete() {
-            if (this.selectedIds.length === 0) return;
-            if (!confirm('Excluir ' + this.selectedIds.length + ' registro(s) selecionado(s)? A alteração será refletida em todo o sistema (web e mobile).')) return;
-            if (this.sourceFilter === 'MOBILE' && !confirm('Excluir Mobile? Confirma que deseja realmente excluir os registros de origem Mobile? Esta ação não pode ser desfeita.')) return;
-            try {
-                const r = await fetch('/api/devolucoes/bulk-delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ ids: this.selectedIds })
-                });
-                const j = await r.json().catch(function() { return {}; });
-                if (r.status === 401) {
-                    alert('Sessão expirada ou bloqueada (ex.: Prevenção de Rastreamento). Faça login novamente em ' + window.location.origin + ' ou desative a prevenção de rastreamento para este site.');
-                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-                    return;
-                }
-                if (j.ok) {
-                    const deleted = j.deleted || [];
-                    const skipped = j.skipped || [];
-                    this.rows = this.rows.filter(x => !deleted.includes(x.id));
-                    this.selectedIds = [];
-                    if (skipped.length > 0) {
-                        alert('Excluídos: ' + deleted.length + '. Não foi possível excluir ' + skipped.length + ' (apenas duplicata de planilha, órfão ou devoluções com origem Excel/Web/Mobile podem ser excluídos).');
-                    }
-                    window.location.reload();
-                } else {
-                    alert(j.error || 'Erro ao excluir');
-                }
-            } catch (e) {
-                alert('Erro de rede ou sessão. Se o navegador bloqueou cookies (Prevenção de Rastreamento), permita este site ou faça login de novo.');
-            }
-        },
-        sortBy(key) {
-            if (this.sortKey === key) this.sortDir *= -1;
-            else { this.sortKey = key; this.sortDir = key === 'valor' ? -1 : 1; }
-        },
-        sortHint(key) {
-            if (this.sortKey !== key) return '⇅';
-            return this.sortDir > 0 ? '↑' : '↓';
-        },
-        clientDisplayName(d) {
-            const ra = (d && d.client_razao_social ? String(d.client_razao_social) : '').trim();
-            const fa = (d && d.client_fantasia ? String(d.client_fantasia) : '').trim();
-            const fallback = (d && d.client_name ? String(d.client_name) : '').trim() || '-';
-            if (ra && fa) return ra.length >= fa.length ? ra : fa;
-            return ra || fa || fallback;
-        },
-        fmtNbBr(v) {
-            if (v === null || v === undefined) return '—';
-            const s = String(v).trim();
-            if (!s) return '—';
-            // Se for numérico no estilo Excel (ex.: "11373", "11.373", "11.373,00"), formatar pt-BR.
-            if (/^[0-9.,]+$/.test(s)) {
-                const digits = s.replace(/[.,]/g, '');
-                if (/^\d+$/.test(digits) && digits.length <= 12) {
-                    const n = parseInt(digits, 10);
-                    if (!Number.isNaN(n)) return n.toLocaleString('pt-BR');
-                }
-            }
-            // Alfanumérico (ex.: "61/50") ou formato inesperado: manter como veio.
-            return s;
-        },
-        fmtValor(v) {
-            return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        },
-        async aprovar(d) {
-            try {
-                const r = await fetch('/api/devolucoes/' + d.id + '/approve', { method: 'POST', credentials: 'same-origin' });
-                const j = await r.json().catch(function() { return {}; });
-                if (r.status === 401) {
-                    alert('Sessão expirada. Faça login novamente.');
-                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-                    return;
-                }
-                if (j.ok) {
-                    const idx = this.rows.findIndex(x => x.id === d.id);
-                    if (idx >= 0) {
-                        this.rows[idx] = { ...this.rows[idx], aguardando: false, is_duplicate_excel: false, validation_status: '', can_delete_aguardando: false };
-                    }
-                    this.selectedIds = this.selectedIds.filter(id => id !== d.id);
-                    window.location.reload();
-                } else alert(j.error || 'Erro ao aprovar');
-            } catch (e) {
-                alert('Erro de rede: ' + (e.message || 'Erro desconhecido'));
-            }
-        },
-        async reconnectOrphans() {
-            const period = window.__DEVOLUCOES_PERIOD || {};
-            const start = period.start_date || '';
-            const end = period.end_date || '';
-            if (!start || !end) {
-                alert('Defina o período (De/até) antes de reconectar.');
-                return;
-            }
-            if (!confirm('Reconectar devoluções "Sem rota no dia" às rotas existentes no período ' + start + ' a ' + end + '? Isso vincula route_id e tira da fila (não altera o status da rota).')) return;
-            this.reconnecting = true;
-            try {
-                const r = await fetch('/api/devolucoes/reconnect-orphans', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ start_date: start, end_date: end })
-                });
-                const j = await r.json().catch(function() { return {}; });
-                if (r.status === 401) {
-                    alert('Sessão expirada. Faça login novamente.');
-                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-                    return;
-                }
-                if (j.ok) {
-                    const recon = j.reconnected || 0;
-                    const dup = j.duplicates_linked || 0;
-                    const nf = j.not_found || [];
-                    let msg = 'Reconectados: ' + recon;
-                    if (dup > 0) msg += '. Duplicatas ligadas: ' + dup;
-                    msg += '.';
-                    if (nf.length > 0) {
-                        msg += '\n\nNão encontrados (' + nf.length + '):';
-                        nf.slice(0, 10).forEach(function(x) {
-                            msg += '\n• ' + (x.client_name || '-') + ' | ' + (x.data_efetiva || '') + ' | R$ ' + (x.valor || 0).toFixed(2) + ' — ' + (x.reason || '');
-                        });
-                        if (nf.length > 10) msg += '\n... e mais ' + (nf.length - 10);
-                    }
-                    alert(msg);
-                    window.location.reload();
-                } else {
-                    alert(j.error || 'Erro ao reconectar');
-                }
-            } catch (e) {
-                alert('Erro de rede: ' + (e.message || 'Erro desconhecido'));
-            } finally {
-                this.reconnecting = false;
-            }
-        },
-        async bulkApprove() {
-            if (this.selectedIds.length === 0) return;
-            if (!confirm('Aprovar ' + this.selectedIds.length + ' registro(s)? Eles sairão da aba Aguardando.')) return;
-            try {
-                const r = await fetch('/api/devolucoes/bulk-approve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ ids: this.selectedIds })
-                });
-                const j = await r.json().catch(function() { return {}; });
-                if (r.status === 401) {
-                    alert('Sessão expirada. Faça login novamente.');
-                    window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
-                    return;
-                }
-                if (j.ok) {
-                    const approved = j.approved || [];
-                    const skipped = j.skipped || [];
-                    approved.forEach(id => {
-                        const idx = this.rows.findIndex(x => x.id === id);
-                        if (idx >= 0) this.rows[idx] = { ...this.rows[idx], aguardando: false, is_duplicate_excel: false, validation_status: '', can_delete_aguardando: false };
-                    });
-                    this.selectedIds = [];
-                    if (skipped.length > 0) {
-                        alert('Aprovados: ' + approved.length + '. Não foi possível aprovar ' + skipped.length + ' (apenas itens em aguardando podem ser aprovados).');
-                    }
-                    window.location.reload();
-                } else alert(j.error || 'Erro ao aprovar');
-            } catch (e) {
-                alert('Erro de rede: ' + (e.message || 'Erro desconhecido'));
-            }
-        }
-    };
-}
-
-let _importValidRows = [];
-let _importFilename = '';
-let manualClientSearchTimer = null;
-let _lastImportPreview = null;
-
-document.getElementById('devolucoes-excel-input')?.addEventListener('change', async function() {
-    const file = this.files?.[0];
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('file', file);
-    try {
-        const r = await fetch('/api/devolucoes/import', { method: 'POST', body: fd, credentials: 'same-origin' });
-        const j = await r.json().catch(function() { return { ok: false, error: (r.status === 500 ? 'Erro 500 no servidor. Verifique os logs ou tente novamente.' : 'Resposta inválida do servidor') }; });
-        if (!r.ok || !j.ok) {
-            document.getElementById('import-preview-box').classList.remove('hidden');
-            document.getElementById('import-preview-box').classList.add('block');
-            document.getElementById('import-valid-count').textContent = '0';
-            document.getElementById('import-invalid-count').textContent = '0';
-            document.getElementById('import-errors').innerHTML = '<p class="text-rose-400 font-semibold">' + (j.error || 'Erro ' + r.status + ' ao processar arquivo') + '</p>';
-            document.getElementById('import-commit-btn').style.display = 'none';
-            return;
-        }
-        _importValidRows = j.valid_rows || [];
-        _importFilename = file.name;
-        _lastImportPreview = {
-            filename: file.name,
-            batch_id: j.batch_id || null,
-            total: Number(j.total || 0),
-            valid_count: Number(j.valid_count || 0),
-            invalid_count: Number(j.invalid_count || 0),
-        };
-        document.getElementById('import-commit-btn').style.display = '';
-        document.getElementById('import-valid-count').textContent = j.valid_count;
-        document.getElementById('import-invalid-count').textContent = j.invalid_count;
-        const precadMsg = document.getElementById('import-precadastro-msg');
-        if (j.precadastrados && j.precadastrados.length > 0) {
-            precadMsg.classList.remove('hidden');
-            document.getElementById('import-precadastro-text').textContent = 'Vendedores pré-cadastrados automaticamente: ' + j.precadastrados.join(', ') + '. Complete o cadastro em Colaboradores se necessário.';
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        } else {
-            precadMsg.classList.add('hidden');
-        }
-        const errDiv = document.getElementById('import-errors');
-        errDiv.innerHTML = '';
-        if (j.invalid_details && j.invalid_details.length) {
-            j.invalid_details.slice(0, 15).forEach(function(e) {
-                const p = document.createElement('p');
-                p.textContent = 'Linha ' + e.row_index + ': ' + (e.errors && e.errors[0] ? e.errors[0].reason : JSON.stringify(e));
-                errDiv.appendChild(p);
-            });
-        }
-        document.getElementById('import-preview-box').classList.remove('hidden');
-        document.getElementById('import-preview-box').classList.add('block');
-    } catch (e) {
-        alert('Erro: ' + e.message);
-    }
-    this.value = '';
-});
-
-document.getElementById('import-commit-btn')?.addEventListener('click', async function() {
-    if (_importValidRows.length === 0) {
-        alert('Nenhuma linha válida para gravar.');
-        return;
-    }
-    try {
-        const r = await fetch('/api/devolucoes/import/commit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                valid_rows: _importValidRows,
-                filename: _importFilename,
-                batch_id: (_lastImportPreview && _lastImportPreview.batch_id) || null,
-            })
-        });
-        const j = await r.json();
-        if (j.ok) {
-            const importSummary = {
-                filename: _importFilename || (_lastImportPreview && _lastImportPreview.filename) || '',
-                batch_id: (_lastImportPreview && _lastImportPreview.batch_id) || j.batch_id || null,
-                total: _lastImportPreview ? _lastImportPreview.total : _importValidRows.length,
-                valid_count: _lastImportPreview ? _lastImportPreview.valid_count : _importValidRows.length,
-                invalid_count: _lastImportPreview ? _lastImportPreview.invalid_count : 0,
-                created: Number(j.created || 0),
-                skipped: Number(j.skipped || 0),
-                when: new Date().toISOString(),
-            };
-            try {
-                localStorage.setItem('devolucoesLastImportSummary', JSON.stringify(importSummary));
-            } catch (_err) {}
-            document.getElementById('import-preview-box').classList.add('hidden');
-            document.getElementById('import-success-text').textContent = 'Importação concluída: ' + j.created + ' registrado(s)' + (j.skipped ? ', ' + j.skipped + ' duplicado(s) ignorado(s)' : '') + '.';
-            document.getElementById('import-success-msg').classList.remove('hidden');
-            document.getElementById('import-success-msg').classList.add('flex');
-            setTimeout(function() { window.location.reload(); }, 1500);
-        } else {
-            alert(j.error || 'Erro ao gravar');
-        }
-    } catch (e) {
-        alert('Erro: ' + e.message);
-    }
-});
-
-document.getElementById('import-cancel-btn')?.addEventListener('click', function() {
-    document.getElementById('import-preview-box').classList.add('hidden');
-});
-
-function openManualModal() {
-    const modal = document.getElementById('manualDevolucaoModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    const today = new Date().toISOString().slice(0, 10);
-    modal.querySelector('input[name="data_romaneio"]').value = today;
-    modal.querySelector('input[name="data_entrega"]').value = today;
-    modal.querySelector('#manual-client-search')?.focus();
-}
-function closeManualModal() {
-    const modal = document.getElementById('manualDevolucaoModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    document.getElementById('manual-devolucao-form')?.reset();
-    clearManualClient();
-}
-
-function formatImportSummary(summary) {
-    const parts = [];
-    if (summary.total != null) parts.push(summary.total + ' linha(s) no arquivo');
-    if (summary.valid_count != null) parts.push(summary.valid_count + ' válida(s)');
-    if (summary.invalid_count != null) parts.push(summary.invalid_count + ' inválida(s)');
-    if (summary.created != null) parts.push(summary.created + ' gravada(s)');
-    if (summary.skipped != null) parts.push(summary.skipped + ' duplicada(s) ignorada(s)');
-    return parts.join(' · ');
-}
-
-function renderLastImportSummary() {
-    const box = document.getElementById('last-import-summary-msg');
-    if (!box) return;
-    let raw = null;
-    try {
-        raw = localStorage.getItem('devolucoesLastImportSummary');
-    } catch (_err) {
-        return;
-    }
-    if (!raw) return;
-
-    let summary = null;
-    try {
-        summary = JSON.parse(raw);
-    } catch (_err) {
-        return;
-    }
-    if (!summary || !summary.when) return;
-
-    const importedAt = new Date(summary.when);
-    if (Number.isNaN(importedAt.getTime())) return;
-    if (Date.now() - importedAt.getTime() > 24 * 60 * 60 * 1000) {
-        try {
-            localStorage.removeItem('devolucoesLastImportSummary');
-        } catch (_err) {}
-        return;
-    }
-
-    const hasGap = Number(summary.invalid_count || 0) > 0 || Number(summary.skipped || 0) > 0;
-    box.className = 'mb-6 rounded-xl border p-4 text-sm ' + (hasGap
-        ? 'border-amber-500/30 bg-amber-500/10 text-amber-100'
-        : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100');
-    const title = hasGap ? 'Última importação com diferença entre arquivo e base' : 'Última importação concluída';
-    const fileLabel = summary.filename ? `<div class="mt-1 font-medium text-slate-100">${summary.filename}</div>` : '';
-    const details = formatImportSummary(summary);
-    const errorsLink = summary.batch_id && Number(summary.invalid_count || 0) > 0
-        ? `<a href="/api/devolucoes/import/${summary.batch_id}/errors.xlsx" class="mt-2 inline-flex text-xs font-semibold text-amber-200 underline underline-offset-2 hover:text-white">Baixar linhas inválidas</a>`
-        : '';
-
-    box.innerHTML = `
-        <div class="flex items-start justify-between gap-4">
-            <div>
-                <div class="font-semibold">${title}</div>
-                ${fileLabel}
-                <div class="mt-1 text-xs text-slate-200">${details}</div>
-            </div>
-            <button type="button" id="dismiss-last-import-summary" class="text-xs font-semibold text-slate-200 hover:text-white">Fechar</button>
+        <div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40">
+          <p class="employees-text-section-label">Orientações</p>
+          <ul class="mt-2 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+            <li>A prévia não grava nada. Ela apenas valida, prepara pré-cadastros e mostra erros das linhas.</li>
+            <li>Duplicidade de planilha não apaga o registro oficial. A confirmação só consolida o que foi validado.</li>
+            <li>Se vendedores forem pré-cadastrados automaticamente, finalize o cadastro em Colaboradores depois.</li>
+          </ul>
         </div>
-        ${errorsLink}
-    `;
-    box.classList.remove('hidden');
-    document.getElementById('dismiss-last-import-summary')?.addEventListener('click', function() {
-        box.classList.add('hidden');
-        try {
-            localStorage.removeItem('devolucoesLastImportSummary');
-        } catch (_err) {}
-    });
-}
+      </div>
+    </div>
+  </div>
 
-function clearManualClient() {
-    const selectedBox = document.getElementById('manual-client-selected');
-    const suggestionsEl = document.getElementById('manual-client-suggestions');
-    const searchEl = document.getElementById('manual-client-search');
-    const clientIdEl = document.getElementById('manual-client-id');
-    if (clientIdEl) clientIdEl.value = '';
-    document.getElementById('manual-client-selected-name').textContent = '';
-    document.getElementById('manual-client-selected-detail').textContent = '';
-    if (searchEl) {
-        searchEl.value = '';
-        searchEl.placeholder = 'Digite nome, NB, fantasia ou endereço';
-    }
-    if (selectedBox) selectedBox.classList.add('hidden');
-    if (suggestionsEl) {
-        suggestionsEl.classList.add('hidden');
-        suggestionsEl.innerHTML = '';
-    }
-}
+  <div id="manualDevolucaoModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="manual-devolucao-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-3xl devolucoes-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <p class="employees-text-section-label">Lançamento manual</p>
+          <h3 id="manual-devolucao-title" class="sys-section-heading mt-1 text-lg">Nova Devolução</h3>
+        </div>
+        <button type="button" class="emp-modal-close shrink-0" data-close-modal="manualDevolucaoModal" aria-label="Fechar">&times;</button>
+      </div>
 
-function selectManualClient(client) {
-    const selectedBox = document.getElementById('manual-client-selected');
-    const suggestionsEl = document.getElementById('manual-client-suggestions');
-    const searchEl = document.getElementById('manual-client-search');
-    const clientIdEl = document.getElementById('manual-client-id');
-    if (!clientIdEl || !selectedBox || !searchEl || !suggestionsEl) return;
-    clientIdEl.value = client.id || '';
-    document.getElementById('manual-client-selected-name').textContent = client.name || 'Cliente selecionado';
-    document.getElementById('manual-client-selected-detail').textContent = [client.nb ? 'NB: ' + client.nb : '', client.nome_fantasia || '', client.endereco || ''].filter(Boolean).join(' | ');
-    selectedBox.classList.remove('hidden');
-    searchEl.value = '';
-    searchEl.placeholder = 'Cliente selecionado';
-    suggestionsEl.classList.add('hidden');
-    suggestionsEl.innerHTML = '';
-}
+      <form id="manual-devolucao-form" class="space-y-5" novalidate>
+        <input type="hidden" id="manual-devolucao-id" value="">
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="sys-section__label sys-section__label--field" for="manual-data-romaneio">Data do romaneio</label>
+            <input id="manual-data-romaneio" name="data_romaneio" type="date" required class="sys-input mt-1 w-full">
+          </div>
+          <div>
+            <label class="sys-section__label sys-section__label--field" for="manual-data-entrega">Data da entrega</label>
+            <input id="manual-data-entrega" name="data_entrega" type="date" required class="sys-input mt-1 w-full">
+          </div>
 
-function initManualClientSearch() {
-    const searchEl = document.getElementById('manual-client-search');
-    const suggestionsEl = document.getElementById('manual-client-suggestions');
-    const clearBtn = document.getElementById('manual-client-clear');
-    if (!searchEl || !suggestionsEl) return;
+          <div class="md:col-span-2">
+            <label class="sys-section__label sys-section__label--field" for="manual-client-search">Cliente</label>
+            <p class="employees-text-muted mt-0.5 text-[11px] leading-snug">Busque por nome, NB, fantasia ou endereço.</p>
+            <input type="hidden" name="client_id" id="manual-client-id" required>
+            <div id="manual-client-selected" class="hidden mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm dark:border-emerald-500/30 dark:bg-emerald-500/10">
+              <div id="manual-client-selected-name" class="font-medium text-emerald-900 dark:text-emerald-200"></div>
+              <div id="manual-client-selected-detail" class="mt-1 text-xs text-emerald-700 dark:text-emerald-300"></div>
+              <button type="button" id="manual-client-clear" class="mt-2 text-xs font-semibold text-emerald-700 hover:text-emerald-600 dark:text-emerald-300 dark:hover:text-emerald-200">Remover e buscar outro</button>
+            </div>
+            <div class="relative mt-2">
+              <input id="manual-client-search" type="search" autocomplete="off" placeholder="Digite ao menos 2 caracteres" class="sys-input w-full pr-10" data-autofocus>
+              <div id="manual-client-suggestions" class="hidden absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-950/95"></div>
+            </div>
+          </div>
 
-    clearBtn?.addEventListener('click', function() {
-        clearManualClient();
-        searchEl.focus();
-    });
+          <div>
+            <label class="sys-section__label sys-section__label--field" for="manual-vendedor">Vendedor</label>
+            <select id="manual-vendedor" name="vendedor_id" required class="sys-select mt-1 w-full">
+              <option value="">Selecione</option>
+              {% for emp in employees %}
+              <option value="{{ emp.id }}">{{ emp.name|emp_name }}{% if emp.seller_code %} ({{ emp.seller_code }}){% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="sys-section__label sys-section__label--field" for="manual-motorista">Motorista</label>
+            <select id="manual-motorista" name="motorista_id" required class="sys-select mt-1 w-full">
+              <option value="">Selecione</option>
+              {% for emp in employees %}
+              <option value="{{ emp.id }}">{{ emp.name|emp_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="sys-section__label sys-section__label--field" for="manual-valor">Valor</label>
+            <input id="manual-valor" name="valor" type="text" required placeholder="0,00" class="sys-input mt-1 w-full" inputmode="decimal">
+          </div>
+          <div>
+            <label class="sys-section__label sys-section__label--field" for="manual-responsabilidade">Responsabilidade</label>
+            <select id="manual-responsabilidade" name="responsabilidade_id" required class="sys-select mt-1 w-full">
+              <option value="">Selecione</option>
+              {% for item in responsabilidades %}
+              <option value="{{ item.id }}">{{ item.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-    searchEl.addEventListener('input', function() {
-        const q = this.value.trim();
-        if (document.getElementById('manual-client-id')?.value) {
-            document.getElementById('manual-client-id').value = '';
-            document.getElementById('manual-client-selected')?.classList.add('hidden');
-        }
-        if (q.length < 2) {
-            suggestionsEl.classList.add('hidden');
-            suggestionsEl.innerHTML = '';
-            return;
-        }
+          <div class="md:col-span-2">
+            <label class="sys-section__label sys-section__label--field" for="manual-motivo">Motivo</label>
+            <select id="manual-motivo" name="motivo_id" required class="sys-select mt-1 w-full">
+              <option value="">Selecione</option>
+              {% for item in motivos %}
+              <option value="{{ item.id }}" data-responsabilidade="{{ item.responsabilidade_id }}">{{ item.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-        clearTimeout(manualClientSearchTimer);
-        manualClientSearchTimer = setTimeout(async function() {
-            try {
-                const response = await fetch('/api/delivery/clients/search?q=' + encodeURIComponent(q));
-                const data = await response.json();
-                if (!Array.isArray(data) || data.length === 0) {
-                    suggestionsEl.innerHTML = '<div class="px-3 py-4 text-sm text-slate-500">Nenhum cliente encontrado.</div>';
-                } else {
-                    suggestionsEl.innerHTML = data.map(function(client, index) {
-                        const line1 = (client.name || 'Cliente').replace(/[&<>"]/g, function(ch) {
-                            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch];
-                        });
-                        const detail = [client.nb ? 'NB: ' + client.nb : '', client.nome_fantasia || '', client.endereco || ''].filter(Boolean).join(' | ');
-                        const safeDetail = detail.replace(/[&<>"]/g, function(ch) {
-                            return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch];
-                        });
-                        return `
-                            <button type="button" class="manual-client-suggestion block w-full border-b border-slate-800 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-800 last:border-0" data-index="${index}">
-                                <div class="font-medium">${line1}</div>
-                                <div class="mt-0.5 text-xs text-slate-400">${safeDetail || 'Sem detalhes'}</div>
-                            </button>
-                        `;
-                    }).join('');
-                    suggestionsEl.querySelectorAll('.manual-client-suggestion').forEach(function(btn) {
-                        btn.addEventListener('mousedown', function(event) {
-                            event.preventDefault();
-                            const client = data[Number(btn.dataset.index)];
-                            if (client) selectManualClient(client);
-                        });
-                    });
-                }
-                suggestionsEl.classList.remove('hidden');
-            } catch (_err) {
-                suggestionsEl.innerHTML = '<div class="px-3 py-4 text-sm text-rose-400">Erro ao buscar clientes.</div>';
-                suggestionsEl.classList.remove('hidden');
-            }
-        }, 250);
-    });
+          <div class="md:col-span-2">
+            <label class="sys-section__label sys-section__label--field" for="manual-ajudante">Ajudante</label>
+            <select id="manual-ajudante" name="ajudante_id" class="sys-select mt-1 w-full">
+              <option value="">Não informado</option>
+              {% for emp in employees %}
+              <option value="{{ emp.id }}">{{ emp.name|emp_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
 
-    searchEl.addEventListener('blur', function() {
-        setTimeout(function() {
-            suggestionsEl.classList.add('hidden');
-        }, 120);
-    });
+          <div class="md:col-span-2">
+            <label class="sys-section__label sys-section__label--field" for="manual-observacao">Observação</label>
+            <textarea id="manual-observacao" name="observacao" rows="3" class="sys-input mt-1 w-full resize-y" placeholder="Detalhes adicionais da ocorrência"></textarea>
+          </div>
+        </div>
 
-    searchEl.addEventListener('focus', function() {
-        if (suggestionsEl.innerHTML.trim()) {
-            suggestionsEl.classList.remove('hidden');
-        }
-    });
-}
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+          <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="manualDevolucaoModal">Cancelar</button>
+          <button type="submit" id="manual-devolucao-submit" class="sys-btn sys-btn--primary">Salvar devolução</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-document.getElementById('manual-devolucao-form')?.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const fd = new FormData(this);
-    let valorStr = fd.get('valor').toString().replace(/\./g, '').replace(',', '.');
-    const payload = {
-        data_romaneio: fd.get('data_romaneio'),
-        data_entrega: fd.get('data_entrega'),
-        client_id: parseInt(fd.get('client_id')),
-        vendedor_id: parseInt(fd.get('vendedor_id')),
-        motorista_id: parseInt(fd.get('motorista_id')),
-        valor: parseFloat(valorStr) || 0,
-        motivo_id: parseInt(fd.get('motivo_id')),
-        responsabilidade_id: parseInt(fd.get('responsabilidade_id')),
-        observacao: fd.get('observacao') || null,
-        ajudante_id: fd.get('ajudante_id') ? parseInt(fd.get('ajudante_id')) : null
-    };
-    if (!Number.isFinite(payload.client_id)) {
-        alert('Selecione um cliente para continuar.');
-        document.getElementById('manual-client-search')?.focus();
-        return;
-    }
-    try {
-        const r = await fetch('/api/devolucoes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const j = await r.json();
-        if (j.ok) {
-            closeManualModal();
-            window.location.reload();
-        } else {
-            alert(j.error || 'Erro ao salvar');
-        }
-    } catch (err) {
-        alert('Erro: ' + err.message);
-    }
-});
+  <div id="batchOperationsModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="batch-operations-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-lg devolucoes-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <p class="employees-text-section-label">Operações em lote</p>
+          <h3 id="batch-operations-title" class="sys-section-heading mt-1 text-lg">Ações sobre os itens selecionados</h3>
+        </div>
+        <button type="button" class="emp-modal-close shrink-0" data-close-modal="batchOperationsModal" aria-label="Fechar">&times;</button>
+      </div>
 
-initManualClientSearch();
-renderLastImportSummary();
-if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-document.addEventListener('alpine:initialized', () => { if (typeof lucide !== 'undefined') lucide.createIcons(); });
-</script>
+      <div class="space-y-4">
+        <div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40">
+          <p class="text-sm font-medium text-slate-900 dark:text-white">Selecionados agora</p>
+          <p class="mt-1 text-3xl font-semibold text-slate-900 dark:text-white" id="batch-modal-selected-count">0</p>
+          <p class="employees-text-muted mt-2 text-xs">Aprovação atua apenas sobre itens em aguardando. Exclusão é administrativa e afeta web, BI e mobile.</p>
+        </div>
+
+        <div class="grid gap-3">
+          <button type="button" class="sys-btn sys-btn--secondary justify-center" data-batch-action="approve">Aprovar selecionados</button>
+          <button type="button" class="sys-btn sys-btn--danger justify-center" data-batch-action="delete">Excluir selecionados</button>
+          <button type="button" class="sys-btn sys-btn--secondary justify-center" data-batch-action="reconnect">Reconectar órfãos do período</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmActionModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-md devolucoes-modal-card">
+      <div class="mb-4 flex items-start gap-3">
+        <span class="emp-modal-icon-ring emp-modal-icon-ring--lg">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </span>
+        <div class="min-w-0 flex-1">
+          <h3 id="confirm-action-title" class="sys-section-heading text-lg">Confirmar ação</h3>
+          <p id="confirm-action-text" class="employees-text-muted mt-2 text-sm">Deseja continuar?</p>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="confirmActionModal">Cancelar</button>
+        <button type="button" id="confirm-action-submit" class="sys-btn sys-btn--primary">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

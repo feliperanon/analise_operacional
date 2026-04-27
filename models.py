@@ -325,6 +325,35 @@ class WorkshopServiceOrder(SQLModel, table=True):
     problem_description: str = Field(default="")
     preventive_note: Optional[str] = None
     due_date: Optional[datetime] = None
+    responsible_user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    origin_type: Optional[str] = Field(default=None, index=True)
+    problem_category: Optional[str] = Field(default=None, index=True)
+    operational_impact: Optional[str] = Field(default=None, index=True)
+    vehicle_block_status: str = Field(default="none", index=True)  # none | preventive | critical
+    vehicle_block_reason: Optional[str] = None
+    vehicle_blocked_at: Optional[datetime] = None
+    vehicle_blocked_by: Optional[str] = None
+    vehicle_released_at: Optional[datetime] = None
+    vehicle_released_by: Optional[str] = None
+    external_supplier_required: bool = Field(default=False, index=True)
+    supplier_name: Optional[str] = None
+    supplier_contact: Optional[str] = None
+    supplier_service_type: Optional[str] = None
+    supplier_sent_at: Optional[datetime] = None
+    supplier_expected_return_at: Optional[datetime] = None
+    supplier_status: str = Field(default="not_sent", index=True)  # not_sent | sent | waiting_quote | quote_received | approved | in_service | finalized | canceled
+    quoted_amount: Optional[float] = None
+    approved_amount: Optional[float] = None
+    final_amount: Optional[float] = None
+    parts_cost: Optional[float] = None
+    labor_cost: Optional[float] = None
+    third_party_cost: Optional[float] = None
+    total_cost: Optional[float] = None
+    invoice_number: Optional[str] = None
+    warranty_notes: Optional[str] = None
+    odometer_km: Optional[float] = Field(default=None, index=True)
+    latest_pdf_path: Optional[str] = None
+    latest_pdf_generated_at: Optional[datetime] = None
     resolution_notes: Optional[str] = None
     closed_at: Optional[datetime] = None
     issue_count: int = Field(default=0)
@@ -332,6 +361,32 @@ class WorkshopServiceOrder(SQLModel, table=True):
     opened_by: Optional[str] = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=datetime.now, index=True)
     updated_at: datetime = Field(default_factory=datetime.now, index=True)
+
+
+class WorkshopServiceOrderEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    service_order_id: int = Field(foreign_key="workshopserviceorder.id", index=True)
+    vehicle_id: Optional[int] = Field(default=None, foreign_key="vehicle.id", index=True)
+    event_type: str = Field(index=True)
+    event_title: str
+    event_description: Optional[str] = None
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    created_by: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+
+
+class WorkshopServiceOrderAttachment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    service_order_id: int = Field(foreign_key="workshopserviceorder.id", index=True)
+    vehicle_id: Optional[int] = Field(default=None, foreign_key="vehicle.id", index=True)
+    attachment_type: str = Field(default="other", index=True)
+    file_name: str
+    file_path: str
+    mime_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    uploaded_by: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
 
 
 class Route(SQLModel, table=True):

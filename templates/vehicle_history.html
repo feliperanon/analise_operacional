@@ -65,6 +65,7 @@
                     <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" data-history-panel-filter="all">Ver tudo</button>
                     <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-history-panel-filter="delivery">Entregas</button>
                     <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-history-panel-filter="checklists">Checklists</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-history-panel-filter="service-orders">Ordens de serviço</button>
                     <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" id="vehicleHistoryClearFilters">Limpar filtros</button>
                 </div>
             </div>
@@ -173,6 +174,60 @@
                 <button type="button" class="sys-btn sys-btn--secondary" id="checklistPrevBtn">Anterior</button>
                 <button type="button" class="sys-btn sys-btn--secondary" id="checklistNextBtn">Próxima</button>
             </div>
+        </div>
+    </div>
+
+    <div id="vehicle-service-orders-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Manutenção da frota</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Ordens de serviço</h3>
+            </div>
+        </div>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[980px]">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-3 py-2">OS</th>
+                        <th class="employees-data-table__th px-2 py-2">Abertura</th>
+                        <th class="employees-data-table__th px-2 py-2">Conclusão</th>
+                        <th class="employees-data-table__th px-2 py-2">Status</th>
+                        <th class="employees-data-table__th px-2 py-2">Prioridade</th>
+                        <th class="employees-data-table__th px-2 py-2">Tipo</th>
+                        <th class="employees-data-table__th px-2 py-2">Categoria</th>
+                        <th class="employees-data-table__th px-2 py-2">Origem</th>
+                        <th class="employees-data-table__th px-2 py-2">Fornecedor</th>
+                        <th class="employees-data-table__th px-2 py-2">Custo final</th>
+                        <th class="employees-data-table__th px-2 py-2">Anexos</th>
+                        <th class="employees-data-table__th px-2 py-2">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y">
+                    {% for so in service_orders %}
+                    <tr class="vehicle-row employees-data-table__row vehicle-history-row" data-history-panel="service-orders" data-search="{{ ('os ' ~ so.id ~ ' ' ~ so.status_label ~ ' ' ~ so.priority_label ~ ' ' ~ so.category_label ~ ' ' ~ so.origin_label ~ ' ' ~ so.supplier_name)|lower }}">
+                        <td class="employees-data-table__cell px-3 py-2">#{{ so.id }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.created_at_fmt }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.closed_at_fmt }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.status_label }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.priority_label }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.order_type }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.category_label }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.origin_label }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.supplier_name }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.total_cost_fmt }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">{{ so.attachment_count }}</td>
+                        <td class="employees-data-table__cell px-2 py-2">
+                            <div class="flex items-center gap-1">
+                                <a href="/workshop/service-orders/{{ so.id }}" class="employee-action-btn employee-action-btn--edit" title="Ver OS">OS</a>
+                                {% if so.pdf_path %}
+                                <a href="/workshop/service-orders/{{ so.id }}/pdf" class="employee-action-btn employee-action-btn--vacation" title="Baixar PDF">PDF</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

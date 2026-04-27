@@ -114,6 +114,56 @@
                 return helperNames.map((name) => this.abbreviatePersonName(name)).join(', ');
             },
 
+            normalizeId(value) {
+                const n = Number(value);
+                return Number.isFinite(n) ? n : null;
+            },
+
+            get selectedHelperConflicts() {
+                if (this.quickChange.campo !== 'ajudante' || !this.quickChange.escala) return [];
+                const selectedIds = (this.quickChange.ajudantesSelected || [])
+                    .map((id) => this.normalizeId(id))
+                    .filter((id) => id != null);
+                if (!selectedIds.length) return [];
+
+                const currentEscalaId = this.normalizeId(this.quickChange.escala.id);
+                const selectedSet = new Set(selectedIds);
+                const conflictsByHelperId = new Map();
+
+                for (const esc of this.escalas || []) {
+                    const escId = this.normalizeId(esc && esc.id);
+                    if (currentEscalaId != null && escId === currentEscalaId) continue;
+                    if ((esc && esc.escala_status) === 'nao_escalado') continue;
+
+                    const helperIds = Array.isArray(esc && esc.helper_ids) ? esc.helper_ids : [];
+                    for (const rawId of helperIds) {
+                        const helperId = this.normalizeId(rawId);
+                        if (helperId == null || !selectedSet.has(helperId) || conflictsByHelperId.has(helperId)) continue;
+                        conflictsByHelperId.set(helperId, {
+                            helperId,
+                            vehiclePlate: esc && esc.vehicle_plate ? esc.vehicle_plate : 'Sem caminhão'
+                        });
+                    }
+                }
+
+                if (!conflictsByHelperId.size) return [];
+                const helperList = Array.isArray(this.apiData && this.apiData.ajudantes_todos) ? this.apiData.ajudantes_todos : [];
+                const helperById = new Map(
+                    helperList
+                        .map((h) => [this.normalizeId(h && h.id), h && h.name])
+                        .filter(([id]) => id != null)
+                );
+
+                return Array.from(conflictsByHelperId.values()).map((c) => ({
+                    ...c,
+                    name: helperById.get(c.helperId) || `ID ${c.helperId}`
+                }));
+            },
+
+            get hasSelectedHelperConflicts() {
+                return this.selectedHelperConflicts.length > 0;
+            },
+
             init() {
                 this.loadData();
             },
@@ -233,6 +283,10 @@
             async applyQuickChange(novoMotoristaId, novoCaminhaoPlaca, novosAjudantesIds) {
                 const esc = this.quickChange.escala;
                 if (!esc) return;
+                if (novosAjudantesIds != null && this.hasSelectedHelperConflicts) {
+                    this.showToast('Há ajudante já em outra rota. Ajuste a seleção antes de aplicar.', false);
+                    return;
+                }
 
                 const payload = {
                     date: this.filters.date,
@@ -241,7 +295,12 @@
                 };
                 if (novoMotoristaId != null) payload.novo_motorista_id = novoMotoristaId;
                 if (novoCaminhaoPlaca != null) payload.novo_caminhao_placa = novoCaminhaoPlaca;
-                if (novosAjudantesIds != null) payload.novos_ajudantes_ids = Array.isArray(novosAjudantesIds) ? novosAjudantesIds : [novosAjudantesIds];
+                if (novosAjudantesIds != null) {
+                    const normalizedIds = (Array.isArray(novosAjudantesIds) ? novosAjudantesIds : [novosAjudantesIds])
+                        .map((id) => this.normalizeId(id))
+                        .filter((id) => id != null);
+                    payload.novos_ajudantes_ids = normalizedIds;
+                }
 
                 try {
                     const r = await fetch('/escala/api/atualizar', {

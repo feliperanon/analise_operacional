@@ -8,6 +8,9 @@
 
 {% block content %}
 <div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+  <div class="flex justify-end">
+    <a href="/workshop/service-orders/dashboard" class="sys-btn sys-btn--secondary text-sm">Dashboard gerencial</a>
+  </div>
   {% if message %}
   <div class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center justify-between gap-3">
     <span>{{ message }}</span>
@@ -22,6 +25,10 @@
       <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Concluídas</span><span class="employees-kpi__value tabular-nums">{{ summary.done }}</span></div></div>
       <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Críticas</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ summary.critical }}</span></div></div>
       <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Preventivas</span><span class="employees-kpi__value tabular-nums">{{ summary.preventive }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Atrasadas</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ summary.overdue }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Bloqueados</span><span class="employees-kpi__value tabular-nums">{{ summary.blocked }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Aguardando peça</span><span class="employees-kpi__value tabular-nums">{{ summary.waiting_parts }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Com fornecedor</span><span class="employees-kpi__value tabular-nums">{{ summary.with_supplier }}</span></div></div>
     </div>
   </div>
 
@@ -59,6 +66,10 @@
                 <option value="low">Baixa</option>
               </select>
             </div>
+            <div class="w-[11rem] flex-shrink-0">
+              <label class="sys-section__label sys-section__label--field">Prazo (SLA)</label>
+              <input type="date" name="due_date" class="sys-input w-full">
+            </div>
             <div class="min-w-[12rem] flex-[1.15] flex-shrink-0">
               <label class="sys-section__label sys-section__label--field">Checklist (opcional)</label>
               <select name="checklist_id" class="sys-select w-full min-w-0">
@@ -79,6 +90,52 @@
                 <textarea id="os-problem-description" name="problem_description" class="sys-input mt-1.5 w-full min-h-[5.5rem] resize-y leading-relaxed" rows="3" placeholder="Ex.: Ruído ao frear, luz de injeção acesa…">{{ prefill.problem_description }}</textarea>
               </div>
               <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+                <div>
+                  <label class="sys-section__label sys-section__label--field">Origem da OS</label>
+                  <select name="origin_type" class="sys-select mt-1.5 w-full">
+                    <option value="manual">Manual/Outro</option>
+                    <option value="checklist">Checklist</option>
+                    <option value="motorista">Motorista</option>
+                    <option value="lideranca">Liderança</option>
+                    <option value="oficina">Oficina</option>
+                    <option value="patio">Conferência de pátio</option>
+                    <option value="retorno_rota">Retorno de rota</option>
+                    <option value="preventiva_programada">Preventiva programada</option>
+                    <option value="acidente_avaria">Acidente/Avaria</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="sys-section__label sys-section__label--field">Categoria do problema</label>
+                  <select name="problem_category" class="sys-select mt-1.5 w-full">
+                    <option value="outro">Outro</option>
+                    <option value="freio">Freio</option>
+                    <option value="pneus">Pneus</option>
+                    <option value="eletrica">Elétrica</option>
+                    <option value="motor">Motor</option>
+                    <option value="suspensao">Suspensão</option>
+                    <option value="bau_carroceria">Baú/Carroceria</option>
+                    <option value="documentacao">Documentação</option>
+                    <option value="higiene_conservacao">Higiene/Conservação</option>
+                    <option value="equipamento_acessorio">Equipamento/Acessório</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="sys-section__label sys-section__label--field">Impacto operacional</label>
+                  <select name="operational_impact" class="sys-select mt-1.5 w-full">
+                    <option value="no_route_block">Não impede rota</option>
+                    <option value="drive_with_attention">Pode rodar com atenção</option>
+                    <option value="maintenance_before_route">Requer manutenção antes da rota</option>
+                    <option value="vehicle_stopped">Veículo parado</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="sys-section__label sys-section__label--field">Bloqueio do veículo</label>
+                  <select name="vehicle_block_status" class="sys-select mt-1.5 w-full">
+                    <option value="none">Não bloqueado</option>
+                    <option value="preventive">Bloqueio preventivo</option>
+                    <option value="critical">Bloqueio crítico</option>
+                  </select>
+                </div>
                 <div class="flex min-h-0 flex-col">
                   <label class="sys-section__label sys-section__label--field" for="os-issues-text">Problemas identificados</label>
                   <p class="employees-text-muted mt-0.5 text-[11px] leading-snug">Um item por linha (lista objetiva).</p>
@@ -126,6 +183,51 @@
                   <option value="medium" {{ "selected" if priority_filter == "medium" else "" }}>Média</option>
                   <option value="low" {{ "selected" if priority_filter == "low" else "" }}>Baixa</option>
                 </select>
+                <select name="order_type" class="ops-toolbar-control px-3">
+                  <option value="">Todos tipos</option>
+                  <option value="corretiva" {{ "selected" if order_type_filter == "corretiva" else "" }}>Corretiva</option>
+                  <option value="preventiva" {{ "selected" if order_type_filter == "preventiva" else "" }}>Preventiva</option>
+                </select>
+                <select name="problem_category" class="ops-toolbar-control px-3">
+                  <option value="">Todas categorias</option>
+                  <option value="freio" {{ "selected" if category_filter == "freio" else "" }}>Freio</option>
+                  <option value="pneus" {{ "selected" if category_filter == "pneus" else "" }}>Pneus</option>
+                  <option value="eletrica" {{ "selected" if category_filter == "eletrica" else "" }}>Elétrica</option>
+                  <option value="motor" {{ "selected" if category_filter == "motor" else "" }}>Motor</option>
+                  <option value="outro" {{ "selected" if category_filter == "outro" else "" }}>Outro</option>
+                </select>
+                <select name="origin_type" class="ops-toolbar-control px-3">
+                  <option value="">Todas origens</option>
+                  <option value="checklist" {{ "selected" if origin_filter == "checklist" else "" }}>Checklist</option>
+                  <option value="motorista" {{ "selected" if origin_filter == "motorista" else "" }}>Motorista</option>
+                  <option value="lideranca" {{ "selected" if origin_filter == "lideranca" else "" }}>Liderança</option>
+                  <option value="manual" {{ "selected" if origin_filter == "manual" else "" }}>Manual/Outro</option>
+                </select>
+                <label class="ops-toolbar-control inline-flex items-center gap-2 px-3 text-xs">
+                  <input type="checkbox" name="overdue_only" value="1" {% if overdue_only_filter %}checked{% endif %}>
+                  Atrasadas
+                </label>
+                <label class="ops-toolbar-control inline-flex items-center gap-2 px-3 text-xs">
+                  <input type="checkbox" name="blocked_only" value="1" {% if blocked_only_filter %}checked{% endif %}>
+                  Veículos bloqueados
+                </label>
+                <label class="ops-toolbar-control inline-flex items-center gap-2 px-3 text-xs">
+                  <input type="checkbox" name="supplier_only" value="1" {% if supplier_only_filter %}checked{% endif %}>
+                  Com fornecedor externo
+                </label>
+                <select name="supplier_status" class="ops-toolbar-control px-3">
+                  <option value="">Status fornecedor</option>
+                  <option value="not_sent" {{ "selected" if supplier_status_filter == "not_sent" else "" }}>Não enviado</option>
+                  <option value="sent" {{ "selected" if supplier_status_filter == "sent" else "" }}>Enviado</option>
+                  <option value="waiting_quote" {{ "selected" if supplier_status_filter == "waiting_quote" else "" }}>Aguardando orçamento</option>
+                  <option value="quote_received" {{ "selected" if supplier_status_filter == "quote_received" else "" }}>Orçamento recebido</option>
+                  <option value="approved" {{ "selected" if supplier_status_filter == "approved" else "" }}>Aprovado</option>
+                  <option value="in_service" {{ "selected" if supplier_status_filter == "in_service" else "" }}>Em serviço</option>
+                  <option value="finalized" {{ "selected" if supplier_status_filter == "finalized" else "" }}>Finalizado</option>
+                  <option value="canceled" {{ "selected" if supplier_status_filter == "canceled" else "" }}>Cancelado</option>
+                </select>
+                <input type="text" name="cost_min" class="ops-toolbar-control px-3" value="{{ cost_min_filter }}" placeholder="Custo min (R$)">
+                <input type="text" name="cost_max" class="ops-toolbar-control px-3" value="{{ cost_max_filter }}" placeholder="Custo max (R$)">
               </div>
             </div>
             <div class="employees-filter-bar__divider"></div>
@@ -145,12 +247,24 @@
             <p class="employees-text-section-label">OS #{{ order.id }} · {{ row.priority_label }}</p>
             <h3 class="sys-section-heading mt-1 text-gray-900 dark:text-white">{{ order.title }}</h3>
             <p class="employees-text-muted mt-1 text-xs">
-              Veículo: {{ row.vehicle.placa if row.vehicle else "-" }} · Motorista: {{ row.driver_name }} · Origem: {{ order.origin }}{% if row.checklist %} · Checklist #{{ row.checklist.id }}{% endif %}
+              Veículo: {{ row.vehicle.placa if row.vehicle else "-" }}{% if row.vehicle %} · {{ row.vehicle.marca }} {{ row.vehicle.modelo }}{% endif %} · Origem: {{ row.origin_label }} · Categoria: {{ row.category_label }}{% if row.checklist %} · Checklist #{{ row.checklist.id }}{% endif %}
             </p>
             <p class="employees-text-body mt-2 line-clamp-2 text-sm">{{ order.problem_description or "Sem descrição detalhada." }}</p>
+            <p class="employees-text-muted mt-2 text-xs">Dias aberta: {{ row.days_open }} · SLA: {{ row.sla.label }} · Tipo: {{ order.order_type }} · Impacto: {{ row.impact_label }}</p>
           </div>
           <div class="flex shrink-0 flex-col items-end gap-2 sm:min-w-[12rem]">
             <span class="sys-badge {% if order.status in ['done','closed'] %}sys-badge--ok{% elif order.priority == 'critical' %}sys-badge--critical{% else %}sys-badge--alert{% endif %}">{{ row.status_label }}</span>
+            {% if row.sla.state == 'overdue' %}
+            <span class="sys-badge sys-badge--critical">{{ row.sla.label }}</span>
+            {% elif row.sla.state == 'due_today' %}
+            <span class="sys-badge sys-badge--alert">{{ row.sla.label }}</span>
+            {% endif %}
+            {% if row.is_blocked %}
+            <span class="sys-badge sys-badge--critical">{{ row.block_status_label }}</span>
+            {% endif %}
+            {% if order.external_supplier_required %}
+            <span class="sys-badge">Fornecedor externo · {{ row.supplier_status_label }}</span>
+            {% endif %}
             <span class="employees-text-muted text-right text-xs">Ações: {{ row.actions_done }}/{{ row.actions_total }} ({{ row.actions_pct }}%)</span>
             <span class="text-xs font-medium text-amber-600 dark:text-amber-400">Abrir detalhes →</span>
           </div>

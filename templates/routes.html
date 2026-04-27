@@ -864,6 +864,33 @@
                                                 {% if row.client_secondary %}
                                                 <div class="text-[10px] employees-text-muted">Fantasia: {{ row.client_secondary }}</div>
                                                 {% endif %}
+                                                {% if row.seller_name %}
+                                                <div class="text-[10px] employees-text-muted">Vend.: {{ row.seller_name }}</div>
+                                                {% if row.seller_reagendamento_url or row.seller_comunicacao_url %}
+                                                <div class="mt-1 flex flex-wrap gap-1 text-[10px]">
+                                                    {% if row.seller_reagendamento_url %}
+                                                    <a
+                                                        href="{{ row.seller_reagendamento_url }}"
+                                                        target="_blank"
+                                                        rel="noopener"
+                                                        class="rounded border border-emerald-500/30 bg-emerald-900/20 px-1.5 py-0.5 text-emerald-300 hover:bg-emerald-800/30 hover:underline"
+                                                    >
+                                                        Avisar Reagedamento
+                                                    </a>
+                                                    {% endif %}
+                                                    {% if row.seller_comunicacao_url %}
+                                                    <a
+                                                        href="{{ row.seller_comunicacao_url }}"
+                                                        target="_blank"
+                                                        rel="noopener"
+                                                        class="rounded border border-sky-500/30 bg-sky-900/20 px-1.5 py-0.5 text-sky-300 hover:bg-sky-800/30 hover:underline"
+                                                    >
+                                                        Devolução
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                                {% endif %}
                                                 <div class="employees-text-muted">Cod {{ row.client_code }} • Pedido {{ row.order_number }}</div>
                                             </td>
 
