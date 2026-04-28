@@ -1,0 +1,81 @@
+{% extends "dashboard_tv.html" %}
+
+{% block title %}Painel TV Fire · Gestão Avista{% endblock %}
+
+{% block body_scripts %}
+<script>
+// Polyfills para compatibilidade com navegadores embarcados (ex.: Fire TV Stick/Silk antigo).
+(function() {
+    if (!String.prototype.padStart) {
+        String.prototype.padStart = function padStart(targetLength, padString) {
+            var str = String(this);
+            targetLength = targetLength >> 0;
+            padString = String(typeof padString !== 'undefined' ? padString : ' ');
+            if (str.length >= targetLength) return str;
+            targetLength = targetLength - str.length;
+            if (targetLength > padString.length) {
+                padString += new Array(Math.ceil(targetLength / padString.length) + 1).join(padString);
+            }
+            return padString.slice(0, targetLength) + str;
+        };
+    }
+
+    if (typeof window.CustomEvent !== 'function') {
+        function CustomEvent(event, params) {
+            params = params || { bubbles: false, cancelable: false, detail: null };
+            var evt = document.createEvent('CustomEvent');
+            evt.initCustomEvent(event, params.bubbles, params.cancelable, params.detail);
+            return evt;
+        }
+        CustomEvent.prototype = window.Event ? window.Event.prototype : {};
+        window.CustomEvent = CustomEvent;
+    }
+
+    if (window.Element && !Element.prototype.matches) {
+        Element.prototype.matches = Element.prototype.msMatchesSelector || Element.prototype.webkitMatchesSelector;
+    }
+
+    if (window.Element && !Element.prototype.closest) {
+        Element.prototype.closest = function(selector) {
+            var el = this;
+            while (el && el.nodeType === 1) {
+                if (el.matches(selector)) return el;
+                el = el.parentElement || el.parentNode;
+            }
+            return null;
+        };
+    }
+
+    if (!window.fetch) {
+        window.fetch = function(url, options) {
+            options = options || {};
+            return new Promise(function(resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                xhr.open(options.method || 'GET', url, true);
+                xhr.withCredentials = options.credentials === 'include' || options.credentials === 'same-origin';
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState !== 4) return;
+                    var response = {
+                        ok: xhr.status >= 200 && xhr.status < 300,
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        text: function() { return Promise.resolve(xhr.responseText); },
+                        json: function() {
+                            try {
+                                return Promise.resolve(JSON.parse(xhr.responseText));
+                            } catch (e) {
+                                return Promise.reject(e);
+                            }
+                        }
+                    };
+                    resolve(response);
+                };
+                xhr.onerror = function() { reject(new TypeError('Network request failed')); };
+                xhr.send(options.body || null);
+            });
+        };
+    }
+})();
+</script>
+{{ super() }}
+{% endblock %}

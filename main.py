@@ -3440,6 +3440,7 @@ def _infer_shift_name(now_br: datetime) -> str:
 
 @app.get("/dashboard", response_class=HTMLResponse)
 @app.get("/dashboard/tv", response_class=HTMLResponse)
+@app.get("/dashboard/tv-fire", response_class=HTMLResponse)
 async def dashboard_entry(
     request: Request,
     cost_center: Optional[str] = None,
@@ -3452,8 +3453,11 @@ async def dashboard_entry(
     if isinstance(user, dict) and user.get("type") == "employee":
         return RedirectResponse(url="/mobile/dashboard", status_code=303)
 
-    is_tv = request.url.path.rstrip("/").endswith("/tv")
-    if is_tv:
+    request_path = request.url.path.rstrip("/")
+    is_tv = request_path.endswith("/tv")
+    is_tv_fire = request_path.endswith("/tv-fire")
+    is_tv_like = is_tv or is_tv_fire
+    if is_tv_like:
         cost_center = cost_center or "Todos"
 
     now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -3916,7 +3920,7 @@ async def dashboard_entry(
         },
         "live_separation": live_separation,
     }
-    if is_tv:
+    if is_tv_like:
         dashboard_payload["clientes_alto_indice_devolucao"] = clientes_alto_indice
         dashboard_payload["tv_shift_alerts"] = {
             "atencao": _tv_shift_kv["atencao"],
@@ -3925,7 +3929,7 @@ async def dashboard_entry(
         dashboard_payload["operational_shift"] = _tv_shift_kv["operational_shift"]
 
     informativo_ctx: Optional[Dict[str, Any]] = None
-    if not is_tv:
+    if not is_tv_like:
         informativo_ctx = _build_informativo_extras(
             session,
             selected_date,
@@ -3939,7 +3943,11 @@ async def dashboard_entry(
             motorista_ids_scope=employee_id_list if employee_id_list else None,
         )
 
-    template_name = "dashboard_tv.html" if is_tv else "dashboard_informativo.html"
+    template_name = "dashboard_informativo.html"
+    if is_tv_fire:
+        template_name = "dashboard_tv_fire.html"
+    elif is_tv:
+        template_name = "dashboard_tv.html"
     return templates.TemplateResponse(
         template_name,
         {
@@ -3949,7 +3957,7 @@ async def dashboard_entry(
             "current_cost_center": selected_cost_center or "Todos",
             "cost_center_options": cost_center_options,
             "current_date": selected_date_str,
-            "data_source_caption": _dashboard_data_source_caption() if not is_tv else "",
+            "data_source_caption": _dashboard_data_source_caption() if not is_tv_like else "",
         },
     )
 
