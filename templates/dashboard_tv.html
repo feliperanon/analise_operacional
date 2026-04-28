@@ -213,9 +213,7 @@
 
     <!-- Painel principal: motoristas / rotas (sem card externo — ganha altura) -->
     <div class="tv-live-panel tv-live-panel--bare flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden gap-1 sm:gap-1.5">
-        <div class="tv-live-panel__head employees-table-panel__head flex flex-col px-0 py-0">
-            <p class="employees-table-panel__kicker">Operação ao vivo</p>
-        </div>
+        <div class="tv-live-panel__head employees-table-panel__head flex flex-col px-0 py-0"></div>
         <div class="tv-live-panel__body tv-live-split flex min-h-0 flex-1 flex-col gap-2 px-0 lg:flex-row lg:items-stretch lg:gap-3">
             {% set _nl = (dashboard.live_separation or [])|length %}
             {% set ns_grid_slow = namespace(v=false) %}
