@@ -9,27 +9,35 @@
 .tv-dashboard-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row.tv-kpi-mega-grid {
     display: grid;
     grid-template-columns: repeat(11, minmax(0, 1fr)) !important;
-    gap: 0.25rem !important;
+    gap: 0.3rem !important;
     overflow: hidden !important;
 }
 
-.tv-dashboard-page .tv-kpi-mega-grid .sys-kpi-card {
+.tv-dashboard-page .tv-kpi-mega-grid > .sys-kpi-card {
     min-width: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    min-height: 4.2rem !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid > .sys-kpi-card .sys-kpi-cell-inner {
+    padding: 0.42rem 0.5rem !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid .employees-kpi__head {
+    gap: 0.25rem !important;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid .sys-kpi-label {
-    font-size: 0.6rem !important;
-    line-height: 1.1 !important;
+    font-size: 0.54rem !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0.01em !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid .employees-kpi__value {
-    font-size: 0.8rem !important;
-    line-height: 1.1 !important;
+    font-size: 0.72rem !important;
+    line-height: 1.05 !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -37,11 +45,21 @@
 
 .tv-dashboard-page .tv-kpi-mega-grid #dash-time,
 .tv-dashboard-page .tv-kpi-mega-grid #tv-kpi-day-pct {
-    font-size: 0.95rem !important;
+    font-size: 0.86rem !important;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid #dash-date {
-    font-size: 0.62rem !important;
+    font-size: 0.56rem !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid svg.h-4.w-4 {
+    width: 0.75rem !important;
+    height: 0.75rem !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid .employees-text-section-label {
+    font-size: 0.5rem !important;
+    line-height: 1 !important;
 }
 
 /* Força painel principal em duas colunas no Fire TV. */
@@ -58,23 +76,23 @@
 }
 
 .tv-dashboard-page #tv-exceptions-panel.tv-exceptions-static--sidebar {
-    flex: 0 0 17.5rem !important;
-    width: 17.5rem !important;
-    max-width: 17.5rem !important;
-    min-width: 17.5rem !important;
+    flex: 0 0 15.75rem !important;
+    width: 15.75rem !important;
+    max-width: 15.75rem !important;
+    min-width: 15.75rem !important;
     min-height: 0 !important;
     overflow: hidden !important;
 }
 
 .tv-dashboard-page #tv-exceptions-panel .tv-exc-unified-title {
-    font-size: 0.62rem !important;
+    font-size: 0.58rem !important;
 }
 
 .tv-dashboard-page #tv-exceptions-panel .tv-exc-unified-body,
 .tv-dashboard-page #tv-exceptions-panel .tv-parado-client,
 .tv-dashboard-page #tv-exceptions-panel .tv-alto-client {
-    font-size: 0.62rem !important;
-    line-height: 1.15 !important;
+    font-size: 0.58rem !important;
+    line-height: 1.1 !important;
 }
 
 .tv-dashboard-page .driver-grid {
