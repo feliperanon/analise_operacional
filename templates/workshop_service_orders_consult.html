@@ -1,0 +1,176 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Consulta de OS · Oficina{% endblock %}
+{% block header_breadcrumb %}<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / Ordens de serviço / Consulta</p>{% endblock %}
+{% block header_title %}<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Consulta de ordens de serviço</h1>{% endblock %}
+{% block header_subtitle %}<p class="text-xs text-gray-500 dark:text-gray-400">Página dedicada para localizar OS rapidamente com filtros e visualização tabular</p>{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/css/pages/employees.css">{% endblock %}
+
+{% block content %}
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="flex flex-wrap gap-2">
+      <a href="/workshop/service-orders" class="sys-btn sys-btn--secondary text-sm">Voltar para gestão completa</a>
+      <a href="/workshop/service-orders/dashboard" class="sys-btn sys-btn--secondary text-sm">Dashboard gerencial</a>
+    </div>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row">
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Total filtrado</span><span class="employees-kpi__value tabular-nums">{{ summary.total }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Em aberto</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ summary.open }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Concluídas</span><span class="employees-kpi__value tabular-nums">{{ summary.done }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Atrasadas</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ summary.overdue }}</span></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Críticas</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ summary.critical }}</span></div></div>
+    </div>
+  </div>
+
+  <form method="GET" class="sys-card sys-card--surface p-4 sm:p-5">
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div class="xl:col-span-2">
+        <label class="sys-section__label sys-section__label--field">Busca rápida</label>
+        <input type="text" name="q" class="sys-input mt-1.5 w-full" value="{{ q_filter }}" placeholder="OS, placa, descrição, fornecedor...">
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Status</label>
+        <select name="status" class="sys-select mt-1.5 w-full">
+          <option value="">Todos status</option>
+          <option value="open" {{ "selected" if status_filter == "open" else "" }}>Aberta</option>
+          <option value="triage" {{ "selected" if status_filter == "triage" else "" }}>Triagem</option>
+          <option value="in_progress" {{ "selected" if status_filter == "in_progress" else "" }}>Em execução</option>
+          <option value="waiting_parts" {{ "selected" if status_filter == "waiting_parts" else "" }}>Aguardando peça</option>
+          <option value="done" {{ "selected" if status_filter == "done" else "" }}>Concluída</option>
+          <option value="closed" {{ "selected" if status_filter == "closed" else "" }}>Encerrada</option>
+        </select>
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Prioridade</label>
+        <select name="priority" class="sys-select mt-1.5 w-full">
+          <option value="">Todas prioridades</option>
+          <option value="critical" {{ "selected" if priority_filter == "critical" else "" }}>Crítica</option>
+          <option value="high" {{ "selected" if priority_filter == "high" else "" }}>Alta</option>
+          <option value="medium" {{ "selected" if priority_filter == "medium" else "" }}>Média</option>
+          <option value="low" {{ "selected" if priority_filter == "low" else "" }}>Baixa</option>
+        </select>
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Tipo</label>
+        <select name="order_type" class="sys-select mt-1.5 w-full">
+          <option value="">Todos tipos</option>
+          <option value="corretiva" {{ "selected" if order_type_filter == "corretiva" else "" }}>Corretiva</option>
+          <option value="preventiva" {{ "selected" if order_type_filter == "preventiva" else "" }}>Preventiva</option>
+        </select>
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Categoria</label>
+        <select name="problem_category" class="sys-select mt-1.5 w-full">
+          <option value="">Todas categorias</option>
+          <option value="freio" {{ "selected" if category_filter == "freio" else "" }}>Freio</option>
+          <option value="pneus" {{ "selected" if category_filter == "pneus" else "" }}>Pneus</option>
+          <option value="eletrica" {{ "selected" if category_filter == "eletrica" else "" }}>Elétrica</option>
+          <option value="motor" {{ "selected" if category_filter == "motor" else "" }}>Motor</option>
+          <option value="outro" {{ "selected" if category_filter == "outro" else "" }}>Outro</option>
+        </select>
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Origem</label>
+        <select name="origin_type" class="sys-select mt-1.5 w-full">
+          <option value="">Todas origens</option>
+          <option value="checklist" {{ "selected" if origin_filter == "checklist" else "" }}>Checklist</option>
+          <option value="motorista" {{ "selected" if origin_filter == "motorista" else "" }}>Motorista</option>
+          <option value="lideranca" {{ "selected" if origin_filter == "lideranca" else "" }}>Liderança</option>
+          <option value="manual" {{ "selected" if origin_filter == "manual" else "" }}>Manual/Outro</option>
+        </select>
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Custo min (R$)</label>
+        <input type="text" name="cost_min" class="sys-input mt-1.5 w-full" value="{{ cost_min_filter }}">
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Custo max (R$)</label>
+        <input type="text" name="cost_max" class="sys-input mt-1.5 w-full" value="{{ cost_max_filter }}">
+      </div>
+    </div>
+
+    <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+        <input type="checkbox" name="overdue_only" value="1" {% if overdue_only_filter %}checked{% endif %}>
+        Apenas atrasadas
+      </label>
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+        <input type="checkbox" name="blocked_only" value="1" {% if blocked_only_filter %}checked{% endif %}>
+        Veículo bloqueado
+      </label>
+      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+        <input type="checkbox" name="supplier_only" value="1" {% if supplier_only_filter %}checked{% endif %}>
+        Com fornecedor externo
+      </label>
+      <div>
+        <select name="supplier_status" class="sys-select w-full">
+          <option value="">Status fornecedor</option>
+          <option value="not_sent" {{ "selected" if supplier_status_filter == "not_sent" else "" }}>Não enviado</option>
+          <option value="sent" {{ "selected" if supplier_status_filter == "sent" else "" }}>Enviado</option>
+          <option value="waiting_quote" {{ "selected" if supplier_status_filter == "waiting_quote" else "" }}>Aguardando orçamento</option>
+          <option value="quote_received" {{ "selected" if supplier_status_filter == "quote_received" else "" }}>Orçamento recebido</option>
+          <option value="approved" {{ "selected" if supplier_status_filter == "approved" else "" }}>Aprovado</option>
+          <option value="in_service" {{ "selected" if supplier_status_filter == "in_service" else "" }}>Em serviço</option>
+          <option value="finalized" {{ "selected" if supplier_status_filter == "finalized" else "" }}>Finalizado</option>
+          <option value="canceled" {{ "selected" if supplier_status_filter == "canceled" else "" }}>Cancelado</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-2">
+      <button type="submit" class="sys-btn sys-btn--primary text-sm">Aplicar filtros</button>
+      <a href="/workshop/service-orders/consult" class="sys-btn sys-btn--secondary text-sm">Limpar filtros</a>
+    </div>
+  </form>
+
+  <div class="sys-card sys-card--surface overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-left text-sm">
+        <thead class="bg-slate-100/90 text-[11px] uppercase tracking-wide text-slate-600 dark:bg-slate-800/70 dark:text-slate-300">
+          <tr>
+            <th class="px-3 py-2.5">OS</th>
+            <th class="px-3 py-2.5">Veículo</th>
+            <th class="px-3 py-2.5">Status</th>
+            <th class="px-3 py-2.5">SLA</th>
+            <th class="px-3 py-2.5">Prioridade</th>
+            <th class="px-3 py-2.5">Tipo</th>
+            <th class="px-3 py-2.5">Ações</th>
+            <th class="px-3 py-2.5">Detalhes</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200/80 dark:divide-slate-700/80">
+          {% for row in rows %}
+          {% set order = row.order %}
+          <tr class="align-top hover:bg-amber-50/40 dark:hover:bg-amber-500/5">
+            <td class="px-3 py-3">
+              <div class="font-semibold text-gray-900 dark:text-white">#{{ order.id }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ order.title }}</div>
+            </td>
+            <td class="px-3 py-3">
+              <div>{{ row.vehicle.placa if row.vehicle else "-" }}</div>
+              <div class="text-xs text-gray-500 dark:text-gray-400">{{ row.vehicle.marca if row.vehicle else "-" }} {{ row.vehicle.modelo if row.vehicle else "" }}</div>
+            </td>
+            <td class="px-3 py-3"><span class="sys-badge {% if order.status in ['done','closed'] %}sys-badge--ok{% elif order.priority == 'critical' %}sys-badge--critical{% else %}sys-badge--alert{% endif %}">{{ row.status_label }}</span></td>
+            <td class="px-3 py-3 text-xs">{{ row.sla.label }}</td>
+            <td class="px-3 py-3">{{ row.priority_label }}</td>
+            <td class="px-3 py-3">{{ order.order_type }}</td>
+            <td class="px-3 py-3 text-xs">{{ row.actions_done }}/{{ row.actions_total }} ({{ row.actions_pct }}%)</td>
+            <td class="px-3 py-3">
+              <a href="/workshop/service-orders/{{ order.id }}" class="font-medium text-amber-700 hover:underline dark:text-amber-400">Abrir</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if not rows %}
+    <div class="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+      Nenhuma ordem de serviço encontrada para os filtros informados.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

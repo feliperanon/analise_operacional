@@ -413,7 +413,11 @@
                         <span class="comercial-equipe-driver">{{ row.team_members[0] }}</span>
                         {% endif %}
                         {% if row.team_members|length > 1 %}
-                        <span class="comercial-equipe-helper">{{ row.team_members[1:]|join(', ') }}</span>
+                        <span class="comercial-equipe-helper">
+                            {% for helper_name in row.team_members[1:] %}
+                            <span class="block">{{ helper_name }}</span>
+                            {% endfor %}
+                        </span>
                         {% endif %}
                     </div>
                 </div>
@@ -473,7 +477,11 @@
                             <span class="comercial-equipe-driver">{{ row.team_members[0] }}</span>
                             {% endif %}
                             {% if row.team_members|length > 1 %}
-                            <span class="comercial-equipe-helper">{{ row.team_members[1:]|join(', ') }}</span>
+                            <span class="comercial-equipe-helper">
+                                {% for helper_name in row.team_members[1:] %}
+                                <span class="block">{{ helper_name }}</span>
+                                {% endfor %}
+                            </span>
                             {% endif %}
                         </td>
                         <td class="comercial-col-cliente comercial-cliente">

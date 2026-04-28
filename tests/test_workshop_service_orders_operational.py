@@ -41,6 +41,7 @@ def test_close_requires_resolution_notes():
                 request=_admin_request(f"/workshop/service-orders/{order.id}"),
                 order_id=order.id,
                 resolution_notes="",
+                release_notes=None,
                 return_to=f"/workshop/service-orders/{order.id}",
                 session=session,
             )
@@ -134,6 +135,7 @@ def test_close_calculates_total_cost():
                 parts_cost="100",
                 labor_cost="50",
                 third_party_cost="25",
+                release_notes=None,
                 return_to=f"/workshop/service-orders/{order.id}",
                 session=session,
             )
@@ -212,4 +214,92 @@ def test_supplier_update_changes_status_and_values():
         assert order.supplier_status == "quote_received"
         assert order.supplier_name == "Oficina XPTO"
         assert order.quoted_amount == 1234.56
+
+
+def test_add_action_appends_to_plan():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        vehicle = _seed_vehicle(session)
+        order = models.WorkshopServiceOrder(
+            vehicle_id=vehicle.id,
+            status="open",
+            action_plan_json=[{"action": "Existente", "owner": "-", "due": "-", "response_status": "pending"}],
+        )
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+
+        response = asyncio.run(
+            main.workshop_service_order_add_action(
+                request=_admin_request(f"/workshop/service-orders/{order.id}"),
+                order_id=order.id,
+                action_text="Nova tarefa",
+                owner="Oficina",
+                due="Hoje",
+                return_to=f"/workshop/service-orders/{order.id}",
+                session=session,
+            )
+        )
+        session.refresh(order)
+        assert response.status_code == 303
+        assert len(order.action_plan_json) == 2
+        assert order.action_plan_json[1]["action"] == "Nova tarefa"
+
+
+def test_update_summary_changes_description():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        vehicle = _seed_vehicle(session)
+        order = models.WorkshopServiceOrder(vehicle_id=vehicle.id, status="open", problem_description="Antigo")
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+
+        response = asyncio.run(
+            main.workshop_service_order_update_summary(
+                request=_admin_request(f"/workshop/service-orders/{order.id}"),
+                order_id=order.id,
+                problem_description="Atualizado",
+                preventive_note="Obs",
+                return_to=f"/workshop/service-orders/{order.id}",
+                session=session,
+            )
+        )
+        session.refresh(order)
+        assert response.status_code == 303
+        assert order.problem_description == "Atualizado"
+        assert order.preventive_note == "Obs"
+
+
+def test_close_with_release_notes_clears_block():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        vehicle = _seed_vehicle(session)
+        order = models.WorkshopServiceOrder(
+            vehicle_id=vehicle.id,
+            status="done",
+            vehicle_block_status="critical",
+            vehicle_block_reason="Freio",
+        )
+        session.add(order)
+        session.commit()
+        session.refresh(order)
+
+        response = asyncio.run(
+            main.workshop_service_order_close(
+                request=_admin_request(f"/workshop/service-orders/{order.id}"),
+                order_id=order.id,
+                resolution_notes="Serviço validado.",
+                release_notes="Liberação após revisão.",
+                return_to=f"/workshop/service-orders/{order.id}",
+                session=session,
+            )
+        )
+        session.refresh(order)
+        assert response.status_code == 303
+        assert order.status == "closed"
+        assert (order.vehicle_block_status or "none") == "none"
 

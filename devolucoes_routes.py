@@ -4,6 +4,7 @@ Rotas e lógica de inicialização do módulo Devoluções.
 """
 from datetime import datetime, timedelta
 from calendar import monthrange
+import unicodedata
 from typing import Optional, List, Any, Callable, Dict
 import io
 import json
@@ -45,6 +46,24 @@ from devolucoes_service import (
 )
 from devolucoes_service import _load_cadastros as devolucoes_load_cadastros
 from devolucoes_consolidado import consolidado_avaliar_resumo
+
+
+def _normalized_employee_role_text(role: Optional[str]) -> str:
+    """Alinha a `main._normalized_employee_role` / cargo motorista vs ajudante."""
+    role_value = str(role or "").strip()
+    if not role_value:
+        return ""
+    return (
+        unicodedata.normalize("NFKD", role_value)
+        .encode("ascii", "ignore")
+        .decode()
+        .upper()
+    )
+
+
+def _is_motorista_cargo(role: Optional[str]) -> bool:
+    r = _normalized_employee_role_text(role)
+    return ("MOTORISTA" in r) and ("AJUDANTE" not in r)
 
 
 def _fmt_data_hora_pt_br(s: Optional[str]) -> str:
@@ -608,11 +627,18 @@ def init_devolucoes_router(
 
         # Só colunas usadas nos selects (menos tráfego Redis/Postgres que ORM completo)
         er = session.exec(
-            select(models.Employee.id, models.Employee.name, models.Employee.seller_code)
+            select(models.Employee.id, models.Employee.name, models.Employee.seller_code, models.Employee.role)
             .where(models.Employee.status != "fired")
             .order_by(models.Employee.name)
         ).all()
-        employees = [SimpleNamespace(id=a, name=b, seller_code=c) for a, b, c in er]
+        employees = [SimpleNamespace(id=a, name=b, seller_code=c, role=d) for a, b, c, d in er]
+        motoristas = [e for e in employees if _is_motorista_cargo(getattr(e, "role", None))]
+        if motorista_id:
+            mid = int(motorista_id)
+            if not any(e.id == mid for e in motoristas):
+                extra = next((e for e in employees if e.id == mid), None)
+                if extra:
+                    motoristas = sorted(motoristas + [extra], key=lambda x: (x.name or "").upper())
         motivos = session.exec(select(models.DevolucaoMotivo).where(models.DevolucaoMotivo.is_active == True)).all()
         motivo_map = {int(m.id): (m.nome or "").strip() for m in motivos if getattr(m, "id", None) is not None}
         responsabilidades = session.exec(
@@ -988,6 +1014,7 @@ def init_devolucoes_router(
             {
                 "request": request,
                 "employees": employees,
+                "motoristas": motoristas,
                 "motivos": motivos,
                 "responsabilidades": responsabilidades,
                 "devolucoes": rows,
@@ -1738,7 +1765,11 @@ def init_devolucoes_router(
         responsabilidades = session.exec(
             select(models.DevolucaoResponsabilidade).where(models.DevolucaoResponsabilidade.is_active == True)
         ).all()
-        avaliar_employees = [{"id": e.id, "name": getattr(e, "name", "") or ""} for e in employees]
+        avaliar_employees = [
+            {"id": e.id, "name": getattr(e, "name", "") or ""}
+            for e in employees
+            if _is_motorista_cargo(getattr(e, "role", None))
+        ]
         avaliar_clients = [{"id": c.id, "name": getattr(c, "name", "") or "", "razao_social": getattr(c, "razao_social", "") or ""} for c in clients]
         return templates.TemplateResponse(
             "devolucoes_avaliar.html",

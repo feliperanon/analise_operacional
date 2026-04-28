@@ -15710,6 +15710,135 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
     )
 
 
+@app.get("/workshop/service-orders/consult", response_class=HTMLResponse)
+async def workshop_service_orders_consult_page(request: Request, session: Session = Depends(get_session)):
+    user = require_login(request)
+    qp = request.query_params
+    search_text = (qp.get("q") or "").strip().lower()
+    filter_status = (qp.get("status") or "").strip().lower()
+    filter_priority = (qp.get("priority") or "").strip().lower()
+    filter_type = (qp.get("order_type") or "").strip().lower()
+    filter_category = (qp.get("problem_category") or "").strip().lower()
+    filter_origin = (qp.get("origin_type") or "").strip().lower()
+    filter_blocked = (qp.get("blocked_only") or "").strip().lower() in {"1", "true", "yes", "on"}
+    filter_overdue = (qp.get("overdue_only") or "").strip().lower() in {"1", "true", "yes", "on"}
+    filter_supplier_only = (qp.get("supplier_only") or "").strip().lower() in {"1", "true", "yes", "on"}
+    filter_supplier_status = (qp.get("supplier_status") or "").strip().lower()
+    cost_min = _as_float((qp.get("cost_min") or "").strip())
+    cost_max = _as_float((qp.get("cost_max") or "").strip())
+
+    employees = session.exec(select(models.Employee).order_by(models.Employee.name)).all()
+    employee_by_id = {e.id: e for e in employees}
+
+    orders = session.exec(
+        select(models.WorkshopServiceOrder).order_by(desc(models.WorkshopServiceOrder.created_at))
+    ).all()
+    if filter_status:
+        orders = [o for o in orders if (o.status or "").lower() == filter_status]
+    if filter_priority:
+        orders = [o for o in orders if (o.priority or "").lower() == filter_priority]
+    if filter_type:
+        orders = [o for o in orders if (o.order_type or "").lower() == filter_type]
+    if filter_category:
+        orders = [o for o in orders if (o.problem_category or "").lower() == filter_category]
+    if filter_origin:
+        orders = [o for o in orders if (o.origin_type or o.origin or "").lower() == filter_origin]
+    if filter_blocked:
+        orders = [o for o in orders if (o.vehicle_block_status or "none").lower() in {"preventive", "critical"}]
+    if filter_overdue:
+        orders = [o for o in orders if _service_order_sla_badge(o).get("state") == "overdue"]
+    if filter_supplier_only:
+        orders = [o for o in orders if bool(o.external_supplier_required) or bool((o.supplier_name or "").strip())]
+    if filter_supplier_status:
+        orders = [o for o in orders if (o.supplier_status or "").lower() == filter_supplier_status]
+    if cost_min > 0:
+        orders = [o for o in orders if _safe_float(o.total_cost) >= cost_min]
+    if cost_max > 0:
+        orders = [o for o in orders if _safe_float(o.total_cost) <= cost_max]
+
+    vehicle_ids = {o.vehicle_id for o in orders if o.vehicle_id}
+    checklist_ids = {o.checklist_id for o in orders if o.checklist_id}
+    vehicles_map: Dict[int, models.Vehicle] = {}
+    if vehicle_ids:
+        for v in session.exec(select(models.Vehicle).where(models.Vehicle.id.in_(vehicle_ids))).all():
+            vehicles_map[v.id] = v
+    checklist_map: Dict[int, models.TranspalletChecklist] = {}
+    if checklist_ids:
+        for c in session.exec(select(models.TranspalletChecklist).where(models.TranspalletChecklist.id.in_(checklist_ids))).all():
+            checklist_map[c.id] = c
+
+    rows = []
+    for order in orders:
+        actions = list(order.action_plan_json or [])
+        actions_total = len(actions)
+        actions_done = sum(1 for a in actions if (a.get("response_status") or "").lower() == "done")
+        vehicle = vehicles_map.get(order.vehicle_id)
+        searchable_text = " ".join(
+            [
+                str(order.id or ""),
+                order.title or "",
+                order.problem_description or "",
+                vehicle.placa if vehicle else "",
+                vehicle.modelo if vehicle else "",
+                vehicle.marca if vehicle else "",
+                order.supplier_name or "",
+            ]
+        ).lower()
+        if search_text and search_text not in searchable_text:
+            continue
+        rows.append(
+            {
+                "order": order,
+                "vehicle": vehicle,
+                "checklist": checklist_map.get(order.checklist_id),
+                "status_label": _service_order_status_label(order.status or ""),
+                "priority_label": _service_order_priority_label(order.priority or ""),
+                "actions_total": actions_total,
+                "actions_done": actions_done,
+                "actions_pct": int(round((actions_done * 100) / actions_total)) if actions_total else 0,
+                "driver_name": employee_by_id.get(order.driver_employee_id).name if order.driver_employee_id in employee_by_id else "-",
+                "days_open": _service_order_days_open(order),
+                "sla": _service_order_sla_badge(order),
+                "origin_label": _service_order_origin_label(order.origin_type or order.origin),
+                "category_label": _service_order_category_label(order.problem_category),
+                "impact_label": _service_order_operational_impact_label(order.operational_impact),
+                "block_status_label": _service_order_block_status_label(order.vehicle_block_status),
+                "is_blocked": (order.vehicle_block_status or "none").lower() in {"preventive", "critical"},
+                "supplier_status_label": _service_order_supplier_status_label(order.supplier_status),
+            }
+        )
+
+    summary = {
+        "total": len(rows),
+        "open": sum(1 for r in rows if (r["order"].status or "") in ("open", "triage", "in_progress", "waiting_parts")),
+        "done": sum(1 for r in rows if (r["order"].status or "") in ("done", "closed")),
+        "overdue": sum(1 for r in rows if r["sla"]["state"] == "overdue"),
+        "critical": sum(1 for r in rows if (r["order"].priority or "") == "critical"),
+    }
+
+    return templates.TemplateResponse(
+        "workshop_service_orders_consult.html",
+        {
+            "request": request,
+            "user": user,
+            "rows": rows,
+            "summary": summary,
+            "q_filter": qp.get("q") or "",
+            "status_filter": filter_status,
+            "priority_filter": filter_priority,
+            "order_type_filter": filter_type,
+            "category_filter": filter_category,
+            "origin_filter": filter_origin,
+            "blocked_only_filter": filter_blocked,
+            "overdue_only_filter": filter_overdue,
+            "supplier_only_filter": filter_supplier_only,
+            "supplier_status_filter": filter_supplier_status,
+            "cost_min_filter": (qp.get("cost_min") or "").strip(),
+            "cost_max_filter": (qp.get("cost_max") or "").strip(),
+        },
+    )
+
+
 @app.get("/workshop/service-orders/dashboard", response_class=HTMLResponse)
 async def workshop_service_orders_dashboard_page(request: Request, session: Session = Depends(get_session)):
     user = require_login(request)
@@ -15831,6 +15960,23 @@ async def workshop_service_orders_dashboard_page(request: Request, session: Sess
     )
 
 
+def _service_order_summary_issue_lines(description: Optional[str]) -> List[str]:
+    lines: List[str] = []
+    for line in (description or "").splitlines():
+        s = (line or "").strip()
+        if s.startswith("- "):
+            lines.append(s[2:].strip())
+        elif s.startswith("• "):
+            lines.append(s[1:].strip())
+    return lines[:16]
+
+
+def _service_order_allowed_detail_tab(raw: Optional[str]) -> str:
+    allowed = {"resumo", "acoes", "anexos", "historico", "avancado"}
+    key = (raw or "").strip().lower()
+    return key if key in allowed else "resumo"
+
+
 @app.get("/workshop/service-orders/{order_id}", response_class=HTMLResponse)
 async def workshop_service_order_detail_page(request: Request, order_id: int, session: Session = Depends(get_session)):
     user = require_login(request)
@@ -15861,6 +16007,15 @@ async def workshop_service_order_detail_page(request: Request, order_id: int, se
         .where(models.WorkshopServiceOrderEvent.service_order_id == order.id)
         .order_by(desc(models.WorkshopServiceOrderEvent.created_at), desc(models.WorkshopServiceOrderEvent.id))
     ).all()
+    active_tab = _service_order_allowed_detail_tab(qp.get("tab"))
+    summary_issue_lines = _service_order_summary_issue_lines(order.problem_description)
+    last_event = events[0] if events else None
+    st = (order.status or "").strip().lower()
+    if st in {"done", "closed"}:
+        days_open_label = "Encerrada" if st == "closed" else "Concluída"
+    else:
+        d = _service_order_days_open(order)
+        days_open_label = f"Aberta há {d} dia" + ("s" if d != 1 else "")
     row = {
         "order": order,
         "vehicle": vehicle,
@@ -15877,6 +16032,7 @@ async def workshop_service_order_detail_page(request: Request, order_id: int, se
         "category_label": _service_order_category_label(order.problem_category),
         "impact_label": _service_order_operational_impact_label(order.operational_impact),
         "block_status_label": _service_order_block_status_label(order.vehicle_block_status),
+        "days_open_label": days_open_label,
     }
     return templates.TemplateResponse(
         "workshop_service_order_detail.html",
@@ -15889,6 +16045,9 @@ async def workshop_service_order_detail_page(request: Request, order_id: int, se
             "attachments": attachments,
             "message": qp.get("message"),
             "level": qp.get("level"),
+            "active_tab": active_tab,
+            "summary_issue_lines": summary_issue_lines,
+            "last_event": last_event,
         },
     )
 
@@ -16048,6 +16207,7 @@ async def workshop_service_order_update_status(
     order_id: int,
     status_value: str = Form(default="open"),
     resolution_notes: Optional[str] = Form(default=None),
+    status_change_note: Optional[str] = Form(default=None),
     return_to: Optional[str] = Form(default=None),
     session: Session = Depends(get_session),
 ):
@@ -16077,12 +16237,16 @@ async def workshop_service_order_update_status(
     order.updated_at = datetime.now()
     session.add(order)
     if old_status != order.status:
+        note_extra = (status_change_note or "").strip()
+        desc = f"Status alterado de {_service_order_status_label(old_status)} para {_service_order_status_label(order.status)}."
+        if note_extra:
+            desc = f"{desc} Observação: {note_extra}"
         _register_service_order_event(
             session,
             order,
             event_type="status_changed",
             title="Status alterado",
-            description=f"Status alterado de {_service_order_status_label(old_status)} para {_service_order_status_label(order.status)}.",
+            description=desc,
             old_value=old_status,
             new_value=order.status,
             created_by=format_user_label(user),
@@ -16177,6 +16341,100 @@ async def workshop_service_order_respond_action(
     sep = "&" if "?" in dest else "?"
     return RedirectResponse(
         url=f"{dest}{sep}message=Ação+respondida+com+sucesso.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/workshop/service-orders/{order_id}/actions/add", response_class=RedirectResponse)
+async def workshop_service_order_add_action(
+    request: Request,
+    order_id: int,
+    action_text: str = Form(default=""),
+    owner: str = Form(default=""),
+    due: str = Form(default=""),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(
+            url="/workshop/service-orders?message=OS+não+encontrada.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    action_desc = _safe_form_text(action_text)
+    if not action_desc:
+        dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+        sep = "&" if "?" in dest else "?"
+        return RedirectResponse(
+            url=f"{dest}{sep}message=Descreva+a+ação+antes+de+salvar.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    plan = list(order.action_plan_json or [])
+    plan.append(
+        {
+            "action": action_desc,
+            "owner": _safe_form_text(owner) or "-",
+            "due": _safe_form_text(due) or "-",
+            "response_status": "pending",
+            "response_note": "",
+            "responded_at": None,
+        }
+    )
+    order.action_plan_json = plan
+    order.updated_at = datetime.now()
+    session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="action_added",
+        title="Ação incluída",
+        description=f"Nova ação: {action_desc}",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(
+        url=f"{dest}{sep}message=Ação+adicionada.&level=success",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@app.post("/workshop/service-orders/{order_id}/summary", response_class=RedirectResponse)
+async def workshop_service_order_update_summary(
+    request: Request,
+    order_id: int,
+    problem_description: str = Form(default=""),
+    preventive_note: Optional[str] = Form(default=None),
+    return_to: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    user = require_login(request)
+    order = session.get(models.WorkshopServiceOrder, order_id)
+    if not order:
+        return RedirectResponse(
+            url="/workshop/service-orders?message=OS+não+encontrada.&level=error",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+    order.problem_description = (problem_description or "").strip()
+    pn = (preventive_note or "").strip()
+    order.preventive_note = pn or None
+    order.updated_at = datetime.now()
+    session.add(order)
+    _register_service_order_event(
+        session,
+        order,
+        event_type="summary_updated",
+        title="Resumo atualizado",
+        description="Descrição ou observações da OS foram editadas.",
+        created_by=format_user_label(user),
+    )
+    session.commit()
+    dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
+    sep = "&" if "?" in dest else "?"
+    return RedirectResponse(
+        url=f"{dest}{sep}message=Resumo+salvo.&level=success",
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -16581,6 +16839,7 @@ async def workshop_service_order_close(
     invoice_number: Optional[str] = Form(default=None),
     warranty_notes: Optional[str] = Form(default=None),
     odometer_km: Optional[str] = Form(default=None),
+    release_notes: Optional[str] = Form(default=None),
     return_to: Optional[str] = Form(default=None),
     session: Session = Depends(get_session),
 ):
@@ -16593,6 +16852,21 @@ async def workshop_service_order_close(
         dest = _service_order_return_url(return_to, f"/workshop/service-orders/{order_id}")
         sep = "&" if "?" in dest else "?"
         return RedirectResponse(url=f"{dest}{sep}message=Para+encerrar+a+OS%2C+informe+nota+de+conclusão.&level=error", status_code=status.HTTP_303_SEE_OTHER)
+    block_state = (order.vehicle_block_status or "none").strip().lower()
+    release_clean = (release_notes or "").strip()
+    if block_state in {"preventive", "critical"} and release_clean:
+        order.vehicle_block_status = "none"
+        order.vehicle_released_at = datetime.now()
+        order.vehicle_released_by = format_user_label(user)
+        _register_service_order_event(
+            session,
+            order,
+            event_type="vehicle_released",
+            title="Veículo liberado",
+            description=release_clean,
+            new_value="none",
+            created_by=format_user_label(user),
+        )
     order.resolution_notes = notes
     parts_cost_val = _as_float(_safe_form_text(parts_cost))
     labor_cost_val = _as_float(_safe_form_text(labor_cost))
@@ -19558,17 +19832,37 @@ async def import_entregas_separacao(
         imported_route_codes = list({row["route_code"] for row in parsed_rows if row["route_code"] and row["route_code"] != "-"})
         employee_ids_in_import = list({row["employee_id"] for row in parsed_rows})
         rows_deleted_prior = 0
+        rows_locked_preserved = 0
+        locked_row_keys = set()
         if imported_route_codes and employee_ids_in_import:
             # Só remove entregas do(s) motorista(s) deste arquivo — mesmo Nº ROTA em outro motorista não pode apagar o outro.
-            existing = session.exec(
+            # Importante: rotas já concluídas (entregue/devolucao) não devem ser sobrescritas por nova importação.
+            base_existing_stmt = (
                 select(models.Route)
                 .where(models.Route.date == date)
                 .where(models.Route.shift == shift)
                 .where(models.Route.type == "delivery")
                 .where(models.Route.delivery_route_code.in_(imported_route_codes))
                 .where(models.Route.employee_id.in_(employee_ids_in_import))
+            )
+            replaceable_status_expr = func.lower(func.coalesce(models.Route.delivery_status, ""))
+            existing = session.exec(
+                base_existing_stmt.where(replaceable_status_expr.in_(["", "pendente", "iniciada", "reaberta"]))
+            ).all()
+            locked_existing = session.exec(
+                base_existing_stmt.where(~replaceable_status_expr.in_(["", "pendente", "iniciada", "reaberta"]))
             ).all()
             rows_deleted_prior = len(existing)
+            rows_locked_preserved = len(locked_existing)
+            for locked in locked_existing:
+                locked_row_keys.add(
+                    (
+                        int(getattr(locked, "employee_id", 0) or 0),
+                        int(getattr(locked, "client_id", 0) or 0),
+                        str(getattr(locked, "delivery_route_code", "") or "").strip().upper(),
+                        str(getattr(locked, "delivery_order_number", "") or "").strip().upper(),
+                    )
+                )
             existing_route_ids = [row.id for row in existing if row.id]
             if existing_route_ids:
                 # Evita violação de FK: routeinsertlog.route_id -> route.id
@@ -19580,7 +19874,17 @@ async def import_entregas_separacao(
             session.flush()
 
         routes_created: List[models.Route] = []
+        skipped_locked_duplicates = 0
         for row in parsed_rows:
+            row_key = (
+                int(row.get("employee_id") or 0),
+                int(row.get("client_id") or 0),
+                str(row.get("route_code") or "").strip().upper(),
+                str(row.get("order_number") or "").strip().upper(),
+            )
+            if row_key in locked_row_keys:
+                skipped_locked_duplicates += 1
+                continue
             route = models.Route(
                 date=date,
                 shift=shift,
@@ -19645,7 +19949,23 @@ async def import_entregas_separacao(
         )
         session.commit()
         import_result["ok"] = True
-        import_result["created"] = len(parsed_rows)
+        import_result["created"] = len(routes_created)
+        if skipped_locked_duplicates:
+            import_result["warnings"].append({
+                "route": "-",
+                "reason": (
+                    f"{skipped_locked_duplicates} linha(s) do arquivo foram ignoradas porque já existia entrega "
+                    "concluída para o mesmo motorista/cliente/rota."
+                ),
+            })
+        if rows_locked_preserved:
+            import_result["warnings"].append({
+                "route": "-",
+                "reason": (
+                    f"{rows_locked_preserved} entrega(s) já concluída(s) foram preservadas e não foram substituídas "
+                    "pela importação."
+                ),
+            })
         logger.info("info log")
         
         date_br = _fmt_br_date(date)

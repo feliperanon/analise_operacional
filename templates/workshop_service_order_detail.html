@@ -1,13 +1,81 @@
 {% extends "base_gestao_avista.html" %}
 
-{% block title %}OS #{{ order.id }} · Oficina{% endblock %}
-{% block header_breadcrumb %}<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / <a href="/workshop/service-orders" class="hover:underline">Ordens de serviço</a> / #{{ order.id }}</p>{% endblock %}
-{% block header_title %}<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Ordem de serviço #{{ order.id }}</h1>{% endblock %}
-{% block header_subtitle %}<p class="text-xs text-gray-500 dark:text-gray-400">{{ row.priority_label }} · {{ row.status_label }}</p>{% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/css/pages/employees.css">{% endblock %}
+{% set os_code = (order.id|string).rjust(6, '0') %}
+{% set placa_disp = ((row.vehicle.placa if row.vehicle else '') or '').strip() or 'SEM PLACA' %}
+{% set modelo_disp = (((row.vehicle.marca if row.vehicle else '') ~ ' ' ~ (row.vehicle.modelo if row.vehicle else ''))|trim) or '—' %}
+{% set veh_blocked = (order.vehicle_block_status or 'none') in ['preventive', 'critical'] %}
+{% set att_types = {
+  'other': 'Outro',
+  'problem': 'Problema',
+  'quote': 'Orçamento',
+  'invoice': 'Nota fiscal',
+  'completed_service': 'Serviço concluído',
+  'receipt': 'Comprovante',
+} %}
+
+{% block title %}OS {{ os_code }} · Oficina{% endblock %}
+{% block header_breadcrumb %}<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Oficina / <a href="/workshop/service-orders" class="hover:underline">Ordens de serviço</a> / OS {{ os_code }}</p>{% endblock %}
+{% block header_title %}<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">OS {{ os_code }} — {{ placa_disp }}</h1>{% endblock %}
+{% block header_subtitle %}<p class="text-xs text-gray-500 dark:text-gray-400">{{ row.status_label }} · {{ row.priority_label }} · {{ row.days_open_label }} · Ações {{ row.actions_done }}/{{ row.actions_total }}</p>{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<style>
+  .wos-tabs { display:flex; gap:0.25rem; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:thin; padding-bottom:2px; }
+  .wos-tabs::-webkit-scrollbar { height:4px; }
+  .wos-tab { flex:0 0 auto; border:none; background:transparent; padding:0.5rem 0.85rem; font-size:0.8125rem; font-weight:600; color:rgb(100 116 139); border-radius:0.5rem; cursor:pointer; white-space:nowrap; }
+  .wos-tab:hover { color:rgb(30 41 59); background:rgb(241 245 249 / 0.8); }
+  html.dark .wos-tab { color:rgb(148 163 184); }
+  html.dark .wos-tab:hover { color:rgb(226 232 240); background:rgb(30 41 59 / 0.5); }
+  .wos-tab--on { color:rgb(180 83 9); background:rgb(254 243 199 / 0.55); }
+  html.dark .wos-tab--on { color:rgb(251 191 36); background:rgb(120 53 15 / 0.25); }
+  .wos-kpi { padding:0.75rem 0.85rem; border-radius:0.75rem; background:rgb(248 250 252 / 0.9); }
+  html.dark .wos-kpi { background:rgb(15 23 42 / 0.45); }
+  .wos-dialog { max-width:26rem; width:calc(100vw - 2rem); border:none; border-radius:0.75rem; padding:0; box-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25); }
+  .wos-dialog::backdrop { background:rgb(15 23 42 / 0.45); }
+  .wos-dialog__inner { padding:1.1rem 1.15rem 1rem; }
+  .wos-action-row { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:0.5rem 0.75rem; padding:0.65rem 0; border-bottom:1px solid rgb(226 232 240 / 0.85); }
+  html.dark .wos-action-row { border-color:rgb(51 65 85 / 0.6); }
+  .wos-action-row:last-child { border-bottom:none; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+<div
+  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-4 pt-2 md:pt-3"
+  x-data="{
+    tab: '{{ active_tab }}',
+    serverStatus: {{ (order.status or 'open')|tojson }},
+    setTab(t) {
+      this.tab = t;
+      const u = new URL(window.location.href);
+      u.searchParams.set('tab', t);
+      u.searchParams.delete('message');
+      u.searchParams.delete('level');
+      history.replaceState({}, '', u);
+    },
+    openDlg(id) { document.getElementById(id)?.showModal(); },
+    closeDlg(id) { document.getElementById(id)?.close(); },
+    resetStatusSelect(el) { if (el) el.value = this.serverStatus; },
+    onStatusPick(ev) {
+      const sel = ev.target;
+      const v = sel.value;
+      const old = this.serverStatus;
+      if (v === old) return;
+      if (v === 'done') {
+        this.resetStatusSelect(sel);
+        this.openDlg('dlgStatusDone');
+        return;
+      }
+      if (v === 'waiting_parts') {
+        this.resetStatusSelect(sel);
+        this.openDlg('dlgStatusParts');
+        return;
+      }
+      document.getElementById('frmStatusQuick').querySelector('[name=status_value]').value = v;
+      document.getElementById('frmStatusQuick').requestSubmit();
+    },
+  }"
+>
   {% if message %}
   <div class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center justify-between gap-3">
     <span>{{ message }}</span>
@@ -15,211 +83,538 @@
   </div>
   {% endif %}
 
-  <div>
-    <div class="flex flex-wrap gap-2">
-      <a href="/workshop/service-orders" class="sys-btn sys-btn--secondary inline-flex items-center gap-2 text-sm">← Voltar à lista</a>
+  {# —— Cabeçalho operacional —— #}
+  <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div class="min-w-0 flex-1">
+      <p class="employees-text-section-label text-[11px]">OS Nº {{ os_code }} — {{ placa_disp }}</p>
+      <h2 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white sm:text-xl">
+        {% if modelo_disp != '—' %}<span class="text-slate-600 dark:text-slate-300">{{ modelo_disp }}</span>
+        {% else %}<span class="employees-text-muted font-normal">Sem modelo cadastrado</span>{% endif %}
+      </h2>
+      <div class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
+        <span class="sys-badge {% if order.status in ['done','closed'] %}sys-badge--ok{% elif order.priority == 'critical' %}sys-badge--critical{% else %}sys-badge--alert{% endif %}">{{ row.status_label }}</span>
+        <span>·</span>
+        <span>{{ row.priority_label }}</span>
+        <span>·</span>
+        <span>{{ row.days_open_label }}</span>
+        <span>·</span>
+        <span>Ações {{ row.actions_done }}/{{ row.actions_total }}</span>
+        {% if veh_blocked %}
+        <span>·</span>
+        <span class="font-semibold text-rose-600 dark:text-rose-400">Veículo bloqueado</span>
+        {% else %}
+        <span>·</span>
+        <span class="font-medium text-emerald-600 dark:text-emerald-400">Veículo liberado</span>
+        {% endif %}
+      </div>
+      {% if veh_blocked and order.vehicle_block_reason %}
+      <p class="mt-1 text-xs text-rose-700 dark:text-rose-300">Motivo: {{ order.vehicle_block_reason }}</p>
+      {% endif %}
+      <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+        {% if row.vehicle %}
+        <a href="/vehicles/{{ row.vehicle.id }}/history" class="text-amber-700 underline hover:no-underline dark:text-amber-400">Histórico do veículo</a>
+        {% endif %}
+        {% if order.status != 'closed' %}
+          {% if veh_blocked %}
+          <button type="button" class="text-slate-500 underline hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200" @click="openDlg('dlgRelease')">Liberar veículo</button>
+          {% else %}
+          <button type="button" class="text-slate-500 underline hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200" @click="openDlg('dlgBlock')">Bloquear veículo</button>
+          {% endif %}
+        {% endif %}
+      </p>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        {% if order.status == 'closed' %}
+        <p class="text-xs font-medium text-slate-600 dark:text-slate-300">Status: <span class="sys-badge sys-badge--ok">{{ row.status_label }}</span> (OS encerrada)</p>
+        {% else %}
+        <label class="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
+          <span>Status</span>
+          <select class="sys-select py-1.5 text-sm min-w-[11rem]" data-server-status="{{ order.status or 'open' }}" @change="onStatusPick($event)">
+            <option value="open" {% if order.status == 'open' %}selected{% endif %}>Aberta</option>
+            <option value="triage" {% if order.status == 'triage' %}selected{% endif %}>Triagem</option>
+            <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>Em execução</option>
+            <option value="waiting_parts" {% if order.status == 'waiting_parts' %}selected{% endif %}>Aguardando peça</option>
+            <option value="done" {% if order.status == 'done' %}selected{% endif %}>Concluída</option>
+          </select>
+        </label>
+        {% endif %}
+      </div>
+    </div>
+    <div class="flex flex-shrink-0 flex-wrap items-center gap-2">
+      <a href="/workshop/service-orders/consult" class="sys-btn sys-btn--secondary text-sm">Voltar</a>
       <form method="POST" action="/workshop/service-orders/{{ order.id }}/generate-pdf" class="inline-flex">
-        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
+        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=resumo">
         <button type="submit" class="sys-btn sys-btn--secondary text-sm">Gerar PDF</button>
       </form>
       {% if order.latest_pdf_path %}
-      <a href="/workshop/service-orders/{{ order.id }}/pdf" class="sys-btn sys-btn--secondary inline-flex items-center gap-2 text-sm">Baixar PDF</a>
+      <a href="/workshop/service-orders/{{ order.id }}/pdf" class="sys-btn sys-btn--secondary text-sm">Baixar PDF</a>
+      {% endif %}
+      {% if order.status != 'closed' %}
+      <button type="button" class="sys-btn sys-btn--primary text-sm" @click="openDlg('dlgCloseOs')">Encerrar OS</button>
       {% endif %}
     </div>
   </div>
 
-  <div class="sys-card sys-card--surface p-5">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <p class="employees-text-section-label">OS #{{ order.id }} · {{ row.priority_label }}</p>
-        <h3 class="sys-section-heading mt-1">{{ order.title }}</h3>
-        <p class="employees-text-muted mt-1 text-xs">
-          Veículo: {{ row.vehicle.placa if row.vehicle else "-" }}{% if row.vehicle %} · {{ row.vehicle.marca }} {{ row.vehicle.modelo }}{% endif %} · Motorista: {{ row.driver_name }} · Origem: {{ row.origin_label }} · Categoria: {{ row.category_label }}{% if row.checklist %} · Checklist <a class="underline" href="/admin/routine/checklists/{{ row.checklist.id }}">#{{ row.checklist.id }}</a>{% endif %}
-        </p>
-        <p class="employees-text-body mt-2 text-sm">{{ order.problem_description or "Sem descrição detalhada." }}</p>
-        <p class="employees-text-muted mt-2 text-xs">Impacto: {{ row.impact_label }} · Dias aberta: {{ row.days_open }} · SLA: {{ row.sla.label }} · Bloqueio: {{ row.block_status_label }}</p>
-      </div>
-      <div class="flex min-w-[12rem] flex-col gap-2">
-        <span class="sys-badge {% if order.status in ['done','closed'] %}sys-badge--ok{% elif order.priority == 'critical' %}sys-badge--critical{% else %}sys-badge--alert{% endif %}">{{ row.status_label }}</span>
-        <span class="employees-text-muted text-xs">Ações: {{ row.actions_done }}/{{ row.actions_total }} ({{ row.actions_pct }}%)</span>
-        {% if row.sla.state == 'overdue' %}
-        <span class="sys-badge sys-badge--critical">{{ row.sla.label }}</span>
-        {% endif %}
-        {% if (order.vehicle_block_status or 'none') in ['preventive', 'critical'] %}
-        <span class="sys-badge sys-badge--critical">Veículo bloqueado</span>
-        {% endif %}
+  <form id="frmStatusQuick" method="POST" action="/workshop/service-orders/{{ order.id }}/status" class="hidden" aria-hidden="true">
+    <input type="hidden" name="status_value" value="">
+    <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=resumo">
+  </form>
+
+  {# —— Cards rápidos —— #}
+  <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="wos-kpi">
+      <p class="sys-section-title text-[10px] text-slate-500 dark:text-slate-400">Veículo</p>
+      <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white tabular-nums">{{ placa_disp }}</p>
+      <p class="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">{{ modelo_disp }}</p>
+      <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Motorista: {{ row.driver_name }}</p>
+    </div>
+    <div class="wos-kpi">
+      <p class="sys-section-title text-[10px] text-slate-500 dark:text-slate-400">Problema</p>
+      <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{{ row.category_label }}</p>
+      <p class="text-xs text-slate-600 dark:text-slate-300">{{ row.origin_label }}</p>
+    </div>
+    <div class="wos-kpi">
+      <p class="sys-section-title text-[10px] text-slate-500 dark:text-slate-400">Impacto</p>
+      <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{{ row.impact_label }}</p>
+      {% if veh_blocked %}
+      <p class="mt-1 text-[11px] font-medium text-rose-600 dark:text-rose-400">Bloqueado na rota</p>
+      {% else %}
+      <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Sem bloqueio ativo</p>
+      {% endif %}
+    </div>
+    <div class="wos-kpi">
+      <p class="sys-section-title text-[10px] text-slate-500 dark:text-slate-400">Prazo</p>
+      <p class="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{{ row.sla.label }}</p>
+    </div>
+  </div>
+
+  {# —— Abas —— #}
+  <div class="sys-card sys-card--surface overflow-hidden p-0">
+    <div class="border-b border-slate-200/80 px-2 pt-2 dark:border-slate-700/80 sm:px-3">
+      <div class="wos-tabs" role="tablist" aria-label="Seções da OS">
+        <button type="button" role="tab" class="wos-tab" :class="{ 'wos-tab--on': tab === 'resumo' }" :aria-selected="tab === 'resumo'" @click="setTab('resumo')">Resumo</button>
+        <button type="button" role="tab" class="wos-tab" :class="{ 'wos-tab--on': tab === 'acoes' }" :aria-selected="tab === 'acoes'" @click="setTab('acoes')">Ações</button>
+        <button type="button" role="tab" class="wos-tab" :class="{ 'wos-tab--on': tab === 'anexos' }" :aria-selected="tab === 'anexos'" @click="setTab('anexos')">Anexos</button>
+        <button type="button" role="tab" class="wos-tab" :class="{ 'wos-tab--on': tab === 'historico' }" :aria-selected="tab === 'historico'" @click="setTab('historico')">Histórico</button>
+        <button type="button" role="tab" class="wos-tab" :class="{ 'wos-tab--on': tab === 'avancado' }" :aria-selected="tab === 'avancado'" @click="setTab('avancado')">Avançado</button>
       </div>
     </div>
 
-    <div class="mt-4 rounded-xl border p-3">
-      <p class="sys-section__label sys-section__label--field">Fluxo da OS</p>
-      <p class="employees-text-muted text-xs mt-1">Aberta → Triagem → Em execução → Aguardando peça → Concluída → Encerrada</p>
-    </div>
+    <div class="p-4 sm:p-5">
+      {# —— Aba Resumo —— #}
+      <div x-show="tab === 'resumo'" x-cloak>
+        <div class="space-y-4 text-sm">
+          <div>
+            <h3 class="sys-section-heading text-base">Ocorrência</h3>
+            <p class="employees-text-body mt-2 whitespace-pre-wrap text-slate-700 dark:text-slate-200">{{ order.problem_description or "Sem descrição detalhada." }}</p>
+          </div>
+          <div>
+            <h3 class="sys-section-heading text-base">Problemas identificados</h3>
+            {% if summary_issue_lines %}
+            <ul class="mt-2 list-inside list-disc space-y-1 text-slate-700 dark:text-slate-200">
+              {% for line in summary_issue_lines %}
+              <li>{{ line }}</li>
+              {% endfor %}
+            </ul>
+            {% elif order.issue_count %}
+            <p class="employees-text-muted mt-2 text-sm">{{ order.issue_count }} item(ns) vinculado(s) à OS.</p>
+            {% else %}
+            <p class="employees-text-muted mt-2 text-sm">Nenhum item em lista estruturada.</p>
+            {% endif %}
+          </div>
+          {% if row.checklist %}
+          <div>
+            <h3 class="sys-section-heading text-base">Checklist</h3>
+            <p class="mt-2"><a class="sys-btn sys-btn--secondary text-xs" href="/admin/routine/checklists/{{ row.checklist.id }}">Abrir checklist #{{ row.checklist.id }}</a></p>
+          </div>
+          {% endif %}
+          {% if order.preventive_note %}
+          <div>
+            <h3 class="sys-section-heading text-base">Observações</h3>
+            <p class="employees-text-body mt-2 whitespace-pre-wrap">{{ order.preventive_note }}</p>
+          </div>
+          {% endif %}
+          <div class="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-3 dark:border-slate-700/70">
+            <p class="employees-text-muted text-xs">
+              {% if last_event %}Última atualização: {{ last_event.created_at.strftime('%d/%m/%Y %H:%M') if last_event.created_at else '-' }} — {{ last_event.event_title }}{% else %}Sem eventos ainda.{% endif %}
+            </p>
+            <button type="button" class="sys-btn sys-btn--secondary text-xs" @click="openDlg('dlgEditSummary')">Editar resumo</button>
+          </div>
+        </div>
+      </div>
 
-    <div class="mt-4 grid gap-4 lg:grid-cols-2">
-      <form method="POST" action="/workshop/service-orders/{{ order.id }}/status" class="space-y-2 rounded-xl border p-3">
-        <label class="sys-section__label sys-section__label--field">Atualizar status da OS</label>
-        <select name="status_value" class="sys-select w-full">
-          <option value="open" {% if order.status == 'open' %}selected{% endif %}>Aberta</option>
-          <option value="triage" {% if order.status == 'triage' %}selected{% endif %}>Triagem</option>
-          <option value="in_progress" {% if order.status == 'in_progress' %}selected{% endif %}>Em execução</option>
-          <option value="waiting_parts" {% if order.status == 'waiting_parts' %}selected{% endif %}>Aguardando peça</option>
-          <option value="done" {% if order.status == 'done' %}selected{% endif %}>Concluída</option>
-          <option value="closed" {% if order.status == 'closed' %}selected{% endif %}>Encerrada</option>
-        </select>
-        <textarea name="resolution_notes" class="sys-input w-full text-sm" rows="2" placeholder="Resumo da solução">{{ order.resolution_notes or '' }}</textarea>
-        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
-        <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Salvar status</button>
-      </form>
-
-      <div class="rounded-xl border p-3">
-        <label class="sys-section__label sys-section__label--field">Plano de ação</label>
-        <div class="mt-2 space-y-2">
+      {# —— Aba Ações —— #}
+      <div x-show="tab === 'acoes'" x-cloak>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h3 class="sys-section-heading text-base m-0">Plano de ação</h3>
+          <button type="button" class="sys-btn sys-btn--secondary text-sm" @click="openDlg('dlgAddAction')">+ Adicionar ação</button>
+        </div>
+        {% if order.action_plan_json %}
           {% for action in order.action_plan_json %}
-          <form method="POST" action="/workshop/service-orders/{{ order.id }}/actions/{{ loop.index0 }}/respond" class="rounded-lg border p-2">
-            <p class="text-sm font-medium">{{ action.action }}</p>
-            <p class="employees-text-muted text-xs">Resp: {{ action.owner }} · Prazo: {{ action.due }}</p>
-            <div class="mt-2 flex flex-col gap-2 sm:flex-row">
-              <select name="response_status" class="sys-select w-full sm:w-40">
-                <option value="pending" {% if action.response_status == 'pending' %}selected{% endif %}>Pendente</option>
-                <option value="in_progress" {% if action.response_status == 'in_progress' %}selected{% endif %}>Em execução</option>
-                <option value="done" {% if action.response_status == 'done' %}selected{% endif %}>Concluída</option>
-              </select>
-              <input type="text" name="response_note" class="sys-input w-full" value="{{ action.response_note or '' }}" placeholder="Resposta/ação executada">
-              <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
-              <button type="submit" class="sys-btn sys-btn--secondary">Atualizar</button>
+          {% set rs = (action.response_status or 'pending')|lower %}
+          <div class="wos-action-row">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-start gap-2">
+                <span class="mt-0.5 text-lg leading-none {% if rs == 'done' %}text-emerald-500{% elif rs == 'in_progress' %}text-amber-500{% else %}text-slate-300 dark:text-slate-600{% endif %}" aria-hidden="true">{% if rs == 'done' %}●{% elif rs == 'in_progress' %}◐{% else %}○{% endif %}</span>
+                <div class="min-w-0">
+                  <p class="font-medium text-slate-900 dark:text-white">{{ action.action }}</p>
+                  <p class="employees-text-muted text-xs">Resp.: {{ action.owner }} · Prazo: {{ action.due }}</p>
+                  {% if rs == 'done' and action.responded_at %}
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400">Concluída em {{ action.responded_at }}{% if action.responded_by %} · {{ action.responded_by }}{% endif %}</p>
+                  {% endif %}
+                </div>
+              </div>
+              <span class="mt-1 inline-flex">
+                {% if rs == 'pending' %}
+                <span class="sys-badge sys-badge--alert text-[10px]">Pendente</span>
+                {% elif rs == 'in_progress' %}
+                <span class="sys-badge sys-badge--alert text-[10px]">Em execução</span>
+                {% else %}
+                <span class="sys-badge sys-badge--ok text-[10px]">Concluída</span>
+                {% endif %}
+              </span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1.5">
+              {% if rs != 'in_progress' and rs != 'done' %}
+              <form method="POST" action="/workshop/service-orders/{{ order.id }}/actions/{{ loop.index0 }}/respond" class="inline">
+                <input type="hidden" name="response_status" value="in_progress">
+                <input type="hidden" name="response_note" value="{{ action.response_note or '' }}">
+                <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=acoes">
+                <button type="submit" class="sys-btn sys-btn--secondary text-xs py-1">Iniciar</button>
+              </form>
+              {% endif %}
+              {% if rs != 'done' %}
+              <form method="POST" action="/workshop/service-orders/{{ order.id }}/actions/{{ loop.index0 }}/respond" class="inline">
+                <input type="hidden" name="response_status" value="done">
+                <input type="hidden" name="response_note" value="{{ action.response_note or '' }}">
+                <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=acoes">
+                <button type="submit" class="sys-btn sys-btn--primary text-xs py-1">Concluir</button>
+              </form>
+              {% endif %}
+              <details class="group relative">
+                <summary class="sys-btn sys-btn--secondary cursor-pointer list-none text-xs py-1 marker:content-none [&::-webkit-details-marker]:hidden">Observação</summary>
+                <div class="absolute right-0 z-20 mt-1 w-[min(100vw-2rem,20rem)] rounded-lg border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-600 dark:bg-slate-900">
+                  <form method="POST" action="/workshop/service-orders/{{ order.id }}/actions/{{ loop.index0 }}/respond" class="flex flex-col gap-2">
+                    <input type="hidden" name="response_status" value="{{ rs or 'pending' }}">
+                    <textarea name="response_note" class="sys-input text-xs" rows="2" placeholder="Nota curta">{{ action.response_note or '' }}</textarea>
+                    <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=acoes">
+                    <button type="submit" class="sys-btn sys-btn--secondary text-xs">Salvar</button>
+                  </form>
+                </div>
+              </details>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <p class="employees-text-muted text-sm">Sem ações cadastradas.</p>
+        <button type="button" class="sys-btn sys-btn--secondary mt-2 text-sm" @click="openDlg('dlgAddAction')">+ Adicionar ação</button>
+        {% endif %}
+      </div>
+
+      {# —— Aba Anexos —— #}
+      <div x-show="tab === 'anexos'" x-cloak>
+        <div class="mb-3 flex items-center justify-between gap-2">
+          <h3 class="sys-section-heading text-base m-0">Anexos</h3>
+          <button type="button" class="sys-btn sys-btn--secondary text-sm" @click="openDlg('dlgUpload')">Adicionar anexo</button>
+        </div>
+        {% if attachments %}
+        <ul class="divide-y divide-slate-200/80 dark:divide-slate-700/80">
+          {% for att in attachments %}
+          <li class="flex flex-wrap items-center justify-between gap-2 py-2.5">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{{ att.file_name }}</p>
+              <p class="employees-text-muted text-xs">{{ att_types.get(att.attachment_type, att.attachment_type) }} · {{ att.created_at.strftime('%d/%m/%Y %H:%M') if att.created_at else '-' }} · {{ att.uploaded_by or '-' }}</p>
+            </div>
+            <a href="{{ att.file_path }}" target="_blank" rel="noopener" class="sys-btn sys-btn--secondary text-xs shrink-0">Ver / baixar</a>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="employees-text-muted text-sm">Nenhum anexo.</p>
+        {% endif %}
+      </div>
+
+      {# —— Aba Histórico —— #}
+      <div x-show="tab === 'historico'" x-cloak>
+        <h3 class="sys-section-heading text-base">Linha do tempo</h3>
+        <ol class="mt-4 space-y-0 border-l border-slate-200 pl-4 dark:border-slate-600">
+          {% for ev in events|reverse %}
+          <li class="relative pb-4 pl-2 before:absolute before:left-[-5px] before:top-1.5 before:h-2 before:w-2 before:rounded-full before:bg-amber-500 last:pb-0">
+            <p class="text-xs text-slate-500 dark:text-slate-400">{{ ev.created_at.strftime('%d/%m/%Y %H:%M') if ev.created_at else '-' }}{% if ev.created_by %} · {{ ev.created_by }}{% endif %}</p>
+            <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ ev.event_title }}</p>
+            {% if ev.event_description %}<p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">{{ ev.event_description }}</p>{% endif %}
+          </li>
+          {% else %}
+          <li class="employees-text-muted text-sm">Sem eventos registrados.</li>
+          {% endfor %}
+        </ol>
+      </div>
+
+      {# —— Aba Avançado —— #}
+      <div x-show="tab === 'avancado'" x-cloak class="space-y-4">
+        <details class="group rounded-lg bg-slate-50/80 px-3 py-2 dark:bg-slate-900/40" open>
+          <summary class="cursor-pointer text-sm font-semibold text-slate-800 dark:text-slate-100">Custos e valores</summary>
+          <div class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+            <p><span class="text-slate-500">Peças:</span> {% if order.parts_cost is not none %}R$ {{ '%.2f'|format(order.parts_cost) }}{% else %}—{% endif %}</p>
+            <p><span class="text-slate-500">Mão de obra:</span> {% if order.labor_cost is not none %}R$ {{ '%.2f'|format(order.labor_cost) }}{% else %}—{% endif %}</p>
+            <p><span class="text-slate-500">Terceiros:</span> {% if order.third_party_cost is not none %}R$ {{ '%.2f'|format(order.third_party_cost) }}{% else %}—{% endif %}</p>
+            <p><span class="text-slate-500">Total:</span> {% if order.total_cost is not none %}R$ {{ '%.2f'|format(order.total_cost) }}{% else %}—{% endif %}</p>
+            <p class="sm:col-span-2"><span class="text-slate-500">NF:</span> {{ order.invoice_number or '—' }}</p>
+            <p class="sm:col-span-2"><span class="text-slate-500">KM registrado:</span> {% if order.odometer_km is not none %}{{ order.odometer_km|int }}{% else %}—{% endif %}</p>
+            <p class="sm:col-span-2"><span class="text-slate-500">Garantia:</span> {{ order.warranty_notes or '—' }}</p>
+          </div>
+        </details>
+
+        <details class="group rounded-lg bg-slate-50/80 px-3 py-2 dark:bg-slate-900/40">
+          <summary class="cursor-pointer text-sm font-semibold text-slate-800 dark:text-slate-100">Bloqueio / liberação do veículo</summary>
+          <div class="mt-3 space-y-3 text-sm">
+            {% if veh_blocked %}
+            <p class="text-rose-700 dark:text-rose-300 font-medium">Veículo bloqueado ({{ row.block_status_label }}).</p>
+            {% else %}
+            <p class="text-emerald-700 dark:text-emerald-300 font-medium">Veículo liberado.</p>
+            {% endif %}
+            <div class="flex flex-wrap gap-2">
+              {% if not veh_blocked %}
+              <button type="button" class="sys-btn sys-btn--secondary text-xs" @click="openDlg('dlgBlock')">Bloquear veículo</button>
+              {% else %}
+              <button type="button" class="sys-btn sys-btn--secondary text-xs" @click="openDlg('dlgRelease')">Liberar veículo</button>
+              {% endif %}
+            </div>
+          </div>
+        </details>
+
+        <details class="group rounded-lg bg-slate-50/80 px-3 py-2 dark:bg-slate-900/40">
+          <summary class="cursor-pointer text-sm font-semibold text-slate-800 dark:text-slate-100">Fornecedor externo</summary>
+          <form method="POST" action="/workshop/service-orders/{{ order.id }}/supplier" class="mt-3 grid gap-2 md:grid-cols-2">
+            <label class="inline-flex items-center gap-2 text-xs md:col-span-2">
+              <input type="checkbox" name="external_supplier_required" value="1" {% if order.external_supplier_required %}checked{% endif %} class="h-4 w-4 rounded border-slate-400">
+              Necessita fornecedor externo
+            </label>
+            <input type="text" name="supplier_name" class="sys-input text-sm" value="{{ order.supplier_name or '' }}" placeholder="Nome do fornecedor">
+            <input type="text" name="supplier_contact" class="sys-input text-sm" value="{{ order.supplier_contact or '' }}" placeholder="Contato">
+            <input type="text" name="supplier_service_type" class="sys-input text-sm" value="{{ order.supplier_service_type or '' }}" placeholder="Tipo de serviço">
+            <input type="date" name="supplier_expected_return_at" class="sys-input text-sm" value="{{ order.supplier_expected_return_at.strftime('%Y-%m-%d') if order.supplier_expected_return_at else '' }}">
+            <select name="supplier_status" class="sys-select text-sm md:col-span-2">
+              <option value="not_sent" {% if (order.supplier_status or 'not_sent') == 'not_sent' %}selected{% endif %}>Não enviado</option>
+              <option value="sent" {% if order.supplier_status == 'sent' %}selected{% endif %}>Enviado</option>
+              <option value="waiting_quote" {% if order.supplier_status == 'waiting_quote' %}selected{% endif %}>Aguardando orçamento</option>
+              <option value="quote_received" {% if order.supplier_status == 'quote_received' %}selected{% endif %}>Orçamento recebido</option>
+              <option value="approved" {% if order.supplier_status == 'approved' %}selected{% endif %}>Aprovado</option>
+              <option value="in_service" {% if order.supplier_status == 'in_service' %}selected{% endif %}>Em serviço</option>
+              <option value="finalized" {% if order.supplier_status == 'finalized' %}selected{% endif %}>Finalizado</option>
+              <option value="canceled" {% if order.supplier_status == 'canceled' %}selected{% endif %}>Cancelado</option>
+            </select>
+            <input type="text" name="quoted_amount" class="sys-input text-sm" value="{% if order.quoted_amount is not none %}{{ order.quoted_amount }}{% endif %}" placeholder="Valor orçado (R$)">
+            <input type="text" name="approved_amount" class="sys-input text-sm" value="{% if order.approved_amount is not none %}{{ order.approved_amount }}{% endif %}" placeholder="Valor aprovado (R$)">
+            <input type="text" name="final_amount" class="sys-input text-sm" value="{% if order.final_amount is not none %}{{ order.final_amount }}{% endif %}" placeholder="Valor final (R$)">
+            <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=avancado">
+            <div class="md:col-span-2">
+              <button type="submit" class="sys-btn sys-btn--secondary text-sm">Salvar fornecedor</button>
             </div>
           </form>
-          {% endfor %}
-        </div>
+        </details>
       </div>
     </div>
+  </div>
+</div>
+{% endblock %}
 
-    <div class="mt-4 grid gap-4 lg:grid-cols-3">
-      <form method="POST" action="/workshop/service-orders/{{ order.id }}/block-vehicle" class="space-y-2 rounded-xl border p-3">
-        <label class="sys-section__label sys-section__label--field">Bloquear veículo para rota</label>
-        <select name="block_status" class="sys-select w-full">
-          <option value="preventive">Bloqueio preventivo</option>
-          <option value="critical">Bloqueio crítico</option>
-        </select>
-        <textarea name="block_reason" class="sys-input w-full text-sm" rows="2" placeholder="Motivo do bloqueio"></textarea>
-        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
-        <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Registrar bloqueio</button>
-      </form>
-      <form method="POST" action="/workshop/service-orders/{{ order.id }}/release-vehicle" class="space-y-2 rounded-xl border p-3">
-        <label class="sys-section__label sys-section__label--field">Liberar veículo</label>
-        <textarea name="release_notes" class="sys-input w-full text-sm" rows="2" placeholder="Observação obrigatória de liberação"></textarea>
-        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
-        <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Registrar liberação</button>
-      </form>
-      <form method="POST" action="/workshop/service-orders/{{ order.id }}/supplier/send-register" class="space-y-2 rounded-xl border p-3">
-        <label class="sys-section__label sys-section__label--field">Registrar envio ao fornecedor</label>
-        <input type="text" name="supplier_name" class="sys-input w-full text-sm" value="{{ order.supplier_name or '' }}" placeholder="Fornecedor">
-        <input type="text" name="supplier_contact" class="sys-input w-full text-sm" value="{{ order.supplier_contact or '' }}" placeholder="Contato">
-        <input type="text" name="send_channel" class="sys-input w-full text-sm" placeholder="Meio de envio (WhatsApp, e-mail, etc.)">
-        <textarea name="send_notes" class="sys-input w-full text-sm" rows="2" placeholder="Observações"></textarea>
-        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
-        <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Registrar envio</button>
-      </form>
+{% block layout_portal %}
+{# Modais fora do fluxo principal #}
+<dialog id="dlgEditSummary" class="wos-dialog">
+  <div class="wos-dialog__inner">
+    <div class="flex items-start justify-between gap-2">
+      <h3 class="sys-section-heading text-base">Editar resumo</h3>
+      <button type="button" class="emp-modal-close" onclick="document.getElementById('dlgEditSummary').close()" aria-label="Fechar">×</button>
     </div>
-
-    <div class="mt-4 rounded-xl border p-3">
-      <label class="sys-section__label sys-section__label--field">Fornecedor externo (gestão)</label>
-      <form method="POST" action="/workshop/service-orders/{{ order.id }}/supplier" class="mt-2 grid gap-2 md:grid-cols-4">
-        <label class="inline-flex items-center gap-2 text-xs md:col-span-4">
-          <input type="checkbox" name="external_supplier_required" value="1" {% if order.external_supplier_required %}checked{% endif %}>
-          Necessita fornecedor externo
-        </label>
-        <input type="text" name="supplier_name" class="sys-input text-sm" value="{{ order.supplier_name or '' }}" placeholder="Nome do fornecedor">
-        <input type="text" name="supplier_contact" class="sys-input text-sm" value="{{ order.supplier_contact or '' }}" placeholder="Contato">
-        <input type="text" name="supplier_service_type" class="sys-input text-sm" value="{{ order.supplier_service_type or '' }}" placeholder="Tipo de serviço">
-        <input type="date" name="supplier_expected_return_at" class="sys-input text-sm" value="{{ order.supplier_expected_return_at.strftime('%Y-%m-%d') if order.supplier_expected_return_at else '' }}">
-        <select name="supplier_status" class="sys-select text-sm">
-          <option value="not_sent" {% if (order.supplier_status or 'not_sent') == 'not_sent' %}selected{% endif %}>Não enviado</option>
-          <option value="sent" {% if order.supplier_status == 'sent' %}selected{% endif %}>Enviado</option>
-          <option value="waiting_quote" {% if order.supplier_status == 'waiting_quote' %}selected{% endif %}>Aguardando orçamento</option>
-          <option value="quote_received" {% if order.supplier_status == 'quote_received' %}selected{% endif %}>Orçamento recebido</option>
-          <option value="approved" {% if order.supplier_status == 'approved' %}selected{% endif %}>Aprovado</option>
-          <option value="in_service" {% if order.supplier_status == 'in_service' %}selected{% endif %}>Em serviço</option>
-          <option value="finalized" {% if order.supplier_status == 'finalized' %}selected{% endif %}>Finalizado</option>
-          <option value="canceled" {% if order.supplier_status == 'canceled' %}selected{% endif %}>Cancelado</option>
-        </select>
-        <input type="text" name="quoted_amount" class="sys-input text-sm" value="{{ order.quoted_amount or '' }}" placeholder="Valor orçado (R$)">
-        <input type="text" name="approved_amount" class="sys-input text-sm" value="{{ order.approved_amount or '' }}" placeholder="Valor aprovado (R$)">
-        <input type="text" name="final_amount" class="sys-input text-sm" value="{{ order.final_amount or '' }}" placeholder="Valor final (R$)">
-        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
-        <div class="md:col-span-4">
-          <button type="submit" class="sys-btn sys-btn--secondary">Salvar fornecedor</button>
-        </div>
-      </form>
-    </div>
-
-    <div class="mt-4 rounded-xl border p-3">
-      <label class="sys-section__label sys-section__label--field">Anexos e evidências</label>
-      <form method="POST" action="/workshop/service-orders/{{ order.id }}/attachments" enctype="multipart/form-data" class="mt-2 grid gap-2 md:grid-cols-4">
-        <select name="attachment_type" class="sys-select">
-          <option value="other">Outro</option>
-          <option value="problem">Problema</option>
-          <option value="quote">Orçamento</option>
-          <option value="invoice">Nota fiscal</option>
-          <option value="completed_service">Serviço concluído</option>
-          <option value="receipt">Comprovante</option>
-        </select>
-        <input type="file" name="file" class="sys-input md:col-span-2" required>
-        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
-        <button type="submit" class="sys-btn sys-btn--secondary">Enviar anexo</button>
-      </form>
-      <div class="mt-2 space-y-2">
-        {% for att in attachments %}
-        <div class="rounded-lg border p-2 flex items-center justify-between gap-2">
-          <div>
-            <p class="text-sm font-medium">{{ att.file_name }}</p>
-            <p class="employees-text-muted text-xs">{{ att.attachment_type }} · {{ att.created_at.strftime("%d/%m/%Y %H:%M") if att.created_at else "-" }} · {{ att.uploaded_by or "-" }}</p>
-          </div>
-          <a href="{{ att.file_path }}" target="_blank" class="sys-btn sys-btn--secondary text-xs">Abrir</a>
-        </div>
-        {% endfor %}
-        {% if not attachments %}
-        <p class="employees-text-muted text-sm">Nenhum anexo cadastrado.</p>
-        {% endif %}
+    <form method="POST" action="/workshop/service-orders/{{ order.id }}/summary" class="mt-3 space-y-3">
+      <div>
+        <label class="sys-section__label sys-section__label--field">Descrição da ocorrência</label>
+        <textarea name="problem_description" class="sys-input mt-1 w-full text-sm" rows="5">{{ order.problem_description or '' }}</textarea>
       </div>
-    </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Observações (preventiva / gerais)</label>
+        <textarea name="preventive_note" class="sys-input mt-1 w-full text-sm" rows="2" placeholder="Opcional">{{ order.preventive_note or '' }}</textarea>
+      </div>
+      <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=resumo">
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="sys-btn sys-btn--secondary text-sm" onclick="document.getElementById('dlgEditSummary').close()">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary text-sm">Salvar</button>
+      </div>
+    </form>
+  </div>
+</dialog>
 
-    <div class="mt-4 rounded-xl border p-3">
-      <label class="sys-section__label sys-section__label--field">Encerramento manual</label>
-      <form method="POST" action="/workshop/service-orders/{{ order.id }}/close" class="mt-2 flex flex-col gap-2">
-        <textarea name="resolution_notes" class="sys-input w-full text-sm" rows="3" placeholder="Resumo obrigatório para encerramento">{{ order.resolution_notes or '' }}</textarea>
-        <div class="grid gap-2 md:grid-cols-3">
-          <input type="text" name="parts_cost" class="sys-input text-sm" placeholder="Custo de peças (R$)">
+<dialog id="dlgAddAction" class="wos-dialog">
+  <div class="wos-dialog__inner">
+    <div class="flex items-start justify-between gap-2">
+      <h3 class="sys-section-heading text-base">Nova ação</h3>
+      <button type="button" class="emp-modal-close" onclick="document.getElementById('dlgAddAction').close()" aria-label="Fechar">×</button>
+    </div>
+    <form method="POST" action="/workshop/service-orders/{{ order.id }}/actions/add" class="mt-3 space-y-3">
+      <div>
+        <label class="sys-section__label sys-section__label--field">Descrição</label>
+        <input type="text" name="action_text" class="sys-input mt-1 w-full text-sm" required placeholder="Ex.: Trocar pastilha">
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Responsável</label>
+        <input type="text" name="owner" class="sys-input mt-1 w-full text-sm" placeholder="Oficina">
+      </div>
+      <div>
+        <label class="sys-section__label sys-section__label--field">Prazo</label>
+        <input type="text" name="due" class="sys-input mt-1 w-full text-sm" placeholder="Ex.: Hoje / 30/04">
+      </div>
+      <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=acoes">
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="sys-btn sys-btn--secondary text-sm" onclick="document.getElementById('dlgAddAction').close()">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary text-sm">Incluir</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgUpload" class="wos-dialog">
+  <div class="wos-dialog__inner">
+    <div class="flex items-start justify-between gap-2">
+      <h3 class="sys-section-heading text-base">Enviar anexo</h3>
+      <button type="button" class="emp-modal-close" onclick="document.getElementById('dlgUpload').close()" aria-label="Fechar">×</button>
+    </div>
+    <form method="POST" action="/workshop/service-orders/{{ order.id }}/attachments" enctype="multipart/form-data" class="mt-3 space-y-3">
+      <select name="attachment_type" class="sys-select w-full text-sm">
+        <option value="other">Outro</option>
+        <option value="problem">Problema</option>
+        <option value="quote">Orçamento</option>
+        <option value="invoice">Nota fiscal</option>
+        <option value="completed_service">Serviço concluído</option>
+        <option value="receipt">Comprovante</option>
+      </select>
+      <input type="file" name="file" class="sys-input w-full text-sm" required>
+      <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=anexos">
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="sys-btn sys-btn--secondary text-sm" onclick="document.getElementById('dlgUpload').close()">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary text-sm">Enviar</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgStatusDone" class="wos-dialog">
+  <div class="wos-dialog__inner">
+    <div class="flex items-start justify-between gap-2">
+      <h3 class="sys-section-heading text-base">Marcar como concluída</h3>
+      <button type="button" class="emp-modal-close" onclick="document.getElementById('dlgStatusDone').close()" aria-label="Fechar">×</button>
+    </div>
+    <form id="frmStatusDone" method="POST" action="/workshop/service-orders/{{ order.id }}/status" class="mt-3 space-y-3">
+      <input type="hidden" name="status_value" value="done">
+      <div>
+        <label class="sys-section__label sys-section__label--field">Resumo da solução</label>
+        <textarea name="resolution_notes" class="sys-input mt-1 w-full text-sm" rows="3" required placeholder="Breve descrição do que foi feito">{{ order.resolution_notes or '' }}</textarea>
+      </div>
+      <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=resumo">
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="sys-btn sys-btn--secondary text-sm" onclick="document.getElementById('dlgStatusDone').close()">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary text-sm">Confirmar</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgStatusParts" class="wos-dialog">
+  <div class="wos-dialog__inner">
+    <div class="flex items-start justify-between gap-2">
+      <h3 class="sys-section-heading text-base">Aguardando peça</h3>
+      <button type="button" class="emp-modal-close" onclick="document.getElementById('dlgStatusParts').close()" aria-label="Fechar">×</button>
+    </div>
+    <form id="frmStatusParts" method="POST" action="/workshop/service-orders/{{ order.id }}/status" class="mt-3 space-y-3">
+      <input type="hidden" name="status_value" value="waiting_parts">
+      <div>
+        <label class="sys-section__label sys-section__label--field">Observação (opcional)</label>
+        <textarea name="status_change_note" class="sys-input mt-1 w-full text-sm" rows="2" placeholder="Peça, fornecedor, previsão…"></textarea>
+      </div>
+      <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=acoes">
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="sys-btn sys-btn--secondary text-sm" onclick="document.getElementById('dlgStatusParts').close()">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary text-sm">Salvar</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgBlock" class="wos-dialog">
+  <div class="wos-dialog__inner">
+    <div class="flex items-start justify-between gap-2">
+      <h3 class="sys-section-heading text-base">Bloquear veículo</h3>
+      <button type="button" class="emp-modal-close" onclick="document.getElementById('dlgBlock').close()" aria-label="Fechar">×</button>
+    </div>
+    <form method="POST" action="/workshop/service-orders/{{ order.id }}/block-vehicle" class="mt-3 space-y-3">
+      <select name="block_status" class="sys-select w-full text-sm">
+        <option value="preventive">Bloqueio preventivo</option>
+        <option value="critical">Bloqueio crítico</option>
+      </select>
+      <textarea name="block_reason" class="sys-input w-full text-sm" rows="2" required placeholder="Motivo do bloqueio"></textarea>
+      <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=avancado">
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="sys-btn sys-btn--secondary text-sm" onclick="document.getElementById('dlgBlock').close()">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary text-sm">Registrar</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgRelease" class="wos-dialog">
+  <div class="wos-dialog__inner">
+    <div class="flex items-start justify-between gap-2">
+      <h3 class="sys-section-heading text-base">Liberar veículo</h3>
+      <button type="button" class="emp-modal-close" onclick="document.getElementById('dlgRelease').close()" aria-label="Fechar">×</button>
+    </div>
+    <form method="POST" action="/workshop/service-orders/{{ order.id }}/release-vehicle" class="mt-3 space-y-3">
+      <textarea name="release_notes" class="sys-input w-full text-sm" rows="3" required placeholder="Observação obrigatória de liberação"></textarea>
+      <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=avancado">
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="sys-btn sys-btn--secondary text-sm" onclick="document.getElementById('dlgRelease').close()">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary text-sm">Liberar</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dlgCloseOs" class="wos-dialog" style="max-width:32rem;">
+  <div class="wos-dialog__inner">
+    <div class="flex items-start justify-between gap-2">
+      <h3 class="sys-section-heading text-base">Encerrar OS</h3>
+      <button type="button" class="emp-modal-close" onclick="document.getElementById('dlgCloseOs').close()" aria-label="Fechar">×</button>
+    </div>
+    <form method="POST" action="/workshop/service-orders/{{ order.id }}/close" class="mt-3 space-y-3">
+      <div>
+        <label class="sys-section__label sys-section__label--field">Resumo da solução</label>
+        <textarea name="resolution_notes" class="sys-input mt-1 w-full text-sm" rows="3" required placeholder="Obrigatório">{{ order.resolution_notes or '' }}</textarea>
+      </div>
+      {% if veh_blocked %}
+      <div>
+        <label class="sys-section__label sys-section__label--field">Observação de liberação</label>
+        <p class="employees-text-muted mb-1 text-[11px]">Opcional: se preenchida, o veículo será liberado ao encerrar.</p>
+        <textarea name="release_notes" class="sys-input w-full text-sm" rows="2" placeholder="Liberação documentada"></textarea>
+      </div>
+      {% endif %}
+      <details class="rounded-md bg-slate-50 px-2 py-1.5 text-xs dark:bg-slate-800/60">
+        <summary class="cursor-pointer font-semibold">Mostrar campos avançados</summary>
+        <div class="mt-2 grid gap-2 sm:grid-cols-3">
+          <input type="text" name="parts_cost" class="sys-input text-sm" placeholder="Custo peças (R$)">
           <input type="text" name="labor_cost" class="sys-input text-sm" placeholder="Custo mão de obra (R$)">
           <input type="text" name="third_party_cost" class="sys-input text-sm" placeholder="Custo terceiro (R$)">
           <input type="text" name="quoted_amount" class="sys-input text-sm" placeholder="Valor orçado (R$)">
           <input type="text" name="approved_amount" class="sys-input text-sm" placeholder="Valor aprovado (R$)">
           <input type="text" name="final_amount" class="sys-input text-sm" placeholder="Valor final (R$)">
-          <input type="text" name="invoice_number" class="sys-input text-sm" placeholder="Número da nota fiscal">
-          <input type="text" name="odometer_km" class="sys-input text-sm" placeholder="Quilometragem no atendimento">
-          <input type="text" name="warranty_notes" class="sys-input text-sm" placeholder="Garantia (observações)">
+          <input type="text" name="invoice_number" class="sys-input text-sm sm:col-span-2" placeholder="Número da nota fiscal">
+          <input type="text" name="odometer_km" class="sys-input text-sm" placeholder="Quilometragem">
+          <input type="text" name="warranty_notes" class="sys-input text-sm sm:col-span-3" placeholder="Garantia (observações)">
         </div>
-        <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}">
-        <button type="submit" class="sys-btn sys-btn--primary w-full sm:w-auto">Encerrar OS (validação manual)</button>
-      </form>
-    </div>
-
-    <div class="mt-4 rounded-xl border p-3">
-      <label class="sys-section__label sys-section__label--field">Histórico da OS</label>
-      <div class="mt-2 space-y-2">
-        {% for ev in events %}
-        <div class="rounded-lg border p-2">
-          <p class="text-sm font-medium">{{ ev.event_title }}</p>
-          <p class="employees-text-muted text-xs">{{ ev.created_at.strftime("%d/%m/%Y %H:%M") if ev.created_at else "-" }} · {{ ev.created_by or "-" }}</p>
-          {% if ev.event_description %}<p class="text-sm mt-1">{{ ev.event_description }}</p>{% endif %}
-        </div>
-        {% endfor %}
-        {% if not events %}
-        <p class="employees-text-muted text-sm">Sem eventos registrados até o momento.</p>
-        {% endif %}
+      </details>
+      <input type="hidden" name="return_to" value="/workshop/service-orders/{{ order.id }}?tab=resumo">
+      <div class="flex justify-end gap-2 pt-1">
+        <button type="button" class="sys-btn sys-btn--secondary text-sm" onclick="document.getElementById('dlgCloseOs').close()">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary text-sm">Encerrar OS</button>
       </div>
-    </div>
+    </form>
   </div>
-</div>
+</dialog>
 {% endblock %}

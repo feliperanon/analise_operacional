@@ -26,73 +26,10 @@
   border: 1px solid var(--dev-border);
 }
 
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card {
-  display: grid;
-  gap: 0.9rem;
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__head,
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__footer {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__stamp {
-  white-space: nowrap;
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__file {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--dev-border);
-  border-radius: 1rem;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.98));
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__filename {
-  margin: 0;
-  color: var(--dev-text-strong);
-  font-size: 0.98rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__meta {
-  margin: 0;
-  color: var(--dev-text-muted);
-  font-size: 0.76rem;
-  line-height: 1.45;
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.7rem;
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-stat {
-  display: grid;
-  gap: 0.18rem;
-  padding: 0.8rem 0.9rem;
-  border: 1px solid var(--dev-border);
-  border-radius: 0.95rem;
-  background: var(--dev-bg-soft);
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-stat__label {
-  color: var(--dev-text-muted);
-  font-size: 0.72rem;
-  line-height: 1.35;
-}
-
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-stat__value {
-  color: var(--dev-text-strong);
-  font-size: 1.12rem;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
+/* Faixa única: complemento ao romaneio + última importação */
+.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-context-strip {
+  border-color: var(--dev-border);
+  box-shadow: none;
 }
 
 .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucao-row--selected {
@@ -228,22 +165,10 @@
     justify-content: center;
   }
 
-  .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__head,
-  .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__footer {
-    flex-direction: column;
-  }
-
-  .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__stats {
-    grid-template-columns: 1fr;
-  }
 }
 
 html.dark .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucao-row--selected {
   background: rgb(30 58 138 / 0.18);
-}
-
-html.dark .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-last-import-card__file {
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.98));
 }
 
 html.dark .ga-employee-theme.employees-page[data-page="devolucoes"] .sys-btn.sys-btn--danger {

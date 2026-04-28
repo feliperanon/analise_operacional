@@ -697,7 +697,7 @@
   async function handleImportCommit() {
     hidePageAlert();
     var commitButton = byId("devolucoes-import-commit-btn");
-    if (!state.importPreview || !state.importPreview.valid_rows || !state.importPreview.valid_rows.length) {
+    if (!state.importPreview) {
       showPageAlert("Gere uma prévia válida antes de confirmar a importação.", "error");
       return;
     }
