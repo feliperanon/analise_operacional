@@ -2,6 +2,87 @@
 
 {% block title %}Painel TV Fire · Gestão Avista{% endblock %}
 
+{% block head_extra %}
+{{ super() }}
+<style>
+/* Ajustes exclusivos para Fire TV: layout fixo e previsível. */
+.tv-dashboard-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row.tv-kpi-mega-grid {
+    display: grid;
+    grid-template-columns: repeat(11, minmax(0, 1fr)) !important;
+    gap: 0.25rem !important;
+    overflow: hidden !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid .sys-kpi-card {
+    min-width: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid .sys-kpi-label {
+    font-size: 0.6rem !important;
+    line-height: 1.1 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid .employees-kpi__value {
+    font-size: 0.8rem !important;
+    line-height: 1.1 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid #dash-time,
+.tv-dashboard-page .tv-kpi-mega-grid #tv-kpi-day-pct {
+    font-size: 0.95rem !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid #dash-date {
+    font-size: 0.62rem !important;
+}
+
+/* Força painel principal em duas colunas no Fire TV. */
+.tv-dashboard-page .tv-live-panel__body.tv-live-split {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    gap: 0.4rem !important;
+}
+
+.tv-dashboard-page .tv-live-split__main {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+.tv-dashboard-page #tv-exceptions-panel.tv-exceptions-static--sidebar {
+    flex: 0 0 17.5rem !important;
+    width: 17.5rem !important;
+    max-width: 17.5rem !important;
+    min-width: 17.5rem !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+.tv-dashboard-page #tv-exceptions-panel .tv-exc-unified-title {
+    font-size: 0.62rem !important;
+}
+
+.tv-dashboard-page #tv-exceptions-panel .tv-exc-unified-body,
+.tv-dashboard-page #tv-exceptions-panel .tv-parado-client,
+.tv-dashboard-page #tv-exceptions-panel .tv-alto-client {
+    font-size: 0.62rem !important;
+    line-height: 1.15 !important;
+}
+
+.tv-dashboard-page .driver-grid {
+    overflow: hidden !important;
+}
+</style>
+{% endblock %}
+
 {% block body_scripts %}
 <script>
 // Polyfills para compatibilidade com navegadores embarcados (ex.: Fire TV Stick/Silk antigo).
