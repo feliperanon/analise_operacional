@@ -15,28 +15,33 @@
 
 .tv-dashboard-page .tv-kpi-mega-grid > .sys-kpi-card {
     min-width: 0 !important;
-    min-height: 4.2rem !important;
+    min-height: 4.55rem !important;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid > .sys-kpi-card .sys-kpi-cell-inner {
-    padding: 0.42rem 0.5rem !important;
+    padding: 0.38rem 0.45rem !important;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid .employees-kpi__head {
     gap: 0.25rem !important;
+    align-items: flex-start !important;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid .sys-kpi-label {
-    font-size: 0.54rem !important;
-    line-height: 1.05 !important;
+    font-size: 0.5rem !important;
+    line-height: 1.08 !important;
     letter-spacing: 0.01em !important;
-    white-space: nowrap;
+    white-space: normal !important;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
     overflow: hidden;
-    text-overflow: ellipsis;
+    text-overflow: clip;
+    min-height: 1.08rem;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid .employees-kpi__value {
-    font-size: 0.72rem !important;
+    font-size: 0.68rem !important;
     line-height: 1.05 !important;
     white-space: nowrap;
     overflow: hidden;
@@ -45,20 +50,24 @@
 
 .tv-dashboard-page .tv-kpi-mega-grid #dash-time,
 .tv-dashboard-page .tv-kpi-mega-grid #tv-kpi-day-pct {
-    font-size: 0.86rem !important;
+    font-size: 0.8rem !important;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid #dash-date {
-    font-size: 0.56rem !important;
+    font-size: 0.52rem !important;
 }
 
+.tv-dashboard-page .tv-kpi-mega-grid .employees-kpi__head > svg,
 .tv-dashboard-page .tv-kpi-mega-grid svg.h-4.w-4 {
-    width: 0.75rem !important;
-    height: 0.75rem !important;
+    width: 0.68rem !important;
+    height: 0.68rem !important;
+    min-width: 0.68rem !important;
+    min-height: 0.68rem !important;
+    margin-top: 0.02rem;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid .employees-text-section-label {
-    font-size: 0.5rem !important;
+    font-size: 0.46rem !important;
     line-height: 1 !important;
 }
 
@@ -97,6 +106,76 @@
 
 .tv-dashboard-page .driver-grid {
     overflow: hidden !important;
+    gap: 0.28rem !important;
+    padding: 0 !important;
+}
+
+/* Compacta os balões de motorista para Fire TV (sem cortar campos importantes). */
+.tv-dashboard-page .tv-balloon-driver {
+    border-radius: 0.55rem !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-hero {
+    padding: 0.2rem 0.38rem !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-hero-line {
+    font-size: 0.5rem !important;
+    line-height: 1.05 !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-body {
+    padding: 0.25rem 0.36rem 0.28rem !important;
+    gap: 0.18rem !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-title-line {
+    font-size: 0.54rem !important;
+    line-height: 1.08 !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-title-head > strong {
+    display: block;
+    font-size: 0.58rem !important;
+    line-height: 1.08 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-progress-inline {
+    font-size: 0.5rem !important;
+    gap: 0.18rem !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-meta,
+.tv-dashboard-page .tv-balloon-driver .tv-meta-placa,
+.tv-dashboard-page .tv-balloon-driver .tv-ajud-line {
+    font-size: 0.48rem !important;
+    line-height: 1.05 !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-activity-strip {
+    padding: 0.14rem 0.24rem !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-activity-client,
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-activity-times,
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-eta {
+    font-size: 0.5rem !important;
+    line-height: 1.05 !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-eta {
+    gap: 0.2rem !important;
+}
+
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-list-row,
+.tv-dashboard-page .tv-balloon-driver .tv-balloon-idle-pill {
+    min-height: 1rem !important;
+    padding-top: 0.06rem !important;
+    padding-bottom: 0.06rem !important;
 }
 </style>
 {% endblock %}
