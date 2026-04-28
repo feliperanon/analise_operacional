@@ -78,12 +78,13 @@
 
         * { box-sizing: border-box; }
 
-        html { height: 100%; overflow: hidden; }
+        html { height: 100%; overflow-x: hidden; }
         body {
             margin: 0;
             height: 100vh;
             min-height: 100%;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
             font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
             color: var(--text-primary);
             display: flex;
@@ -498,15 +499,26 @@
         }
 
         @media (max-width: 960px) {
-            body { padding: 14px; }
+            html, body {
+                height: auto;
+                min-height: 100%;
+            }
+            body {
+                display: block;
+                padding: 12px;
+                overflow-y: auto;
+            }
             .login-shell {
                 grid-template-columns: 1fr;
+                width: 100%;
+                min-height: calc(100dvh - 24px);
                 max-height: none;
                 border-radius: var(--radius-xl);
             }
             .brand-side {
                 border-right: 0;
                 padding: 28px 24px;
+                overflow: visible;
             }
             .brand-logo { max-height: 84px; }
             .brand-logo-panel { max-width: 340px; min-width: 220px; padding: 12px 22px; }
@@ -514,14 +526,43 @@
                 border-left: 0;
                 border-top: 1px solid var(--border-soft);
                 padding: 32px 28px;
+                overflow: visible;
             }
             .metrics { grid-template-columns: 1fr 1fr; }
         }
 
         @media (max-width: 480px) {
+            body {
+                padding: 0;
+                background: var(--surface-ice);
+            }
+            .login-shell {
+                min-height: 100dvh;
+                border-radius: 0;
+                box-shadow: none;
+            }
+            .brand-side,
+            .form-side {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
             .metrics { grid-template-columns: 1fr; }
+            .brand-logo-panel {
+                width: 100%;
+                min-width: 0;
+                max-width: 100%;
+            }
+            .brand-logo {
+                max-height: 72px;
+            }
             .form-header h2 { font-size: 24px; }
             .form-row { flex-wrap: wrap; }
+            .forgot {
+                width: 100%;
+            }
+            .btn-submit {
+                height: 52px;
+            }
         }
     </style>
 </head>
