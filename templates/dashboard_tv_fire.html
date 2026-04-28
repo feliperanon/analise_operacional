@@ -6,6 +6,66 @@
 <script>
 // Polyfills para compatibilidade com navegadores embarcados (ex.: Fire TV Stick/Silk antigo).
 (function() {
+    if (typeof window.Promise !== 'function') {
+        var PENDING = 0, FULFILLED = 1, REJECTED = 2;
+        function SimplePromise(executor) {
+            var self = this;
+            self.state = PENDING;
+            self.value = undefined;
+            self.handlers = [];
+            function fulfill(value) {
+                if (self.state !== PENDING) return;
+                self.state = FULFILLED;
+                self.value = value;
+                process();
+            }
+            function reject(reason) {
+                if (self.state !== PENDING) return;
+                self.state = REJECTED;
+                self.value = reason;
+                process();
+            }
+            function process() {
+                setTimeout(function() {
+                    while (self.handlers.length) {
+                        handle(self.handlers.shift());
+                    }
+                }, 0);
+            }
+            function handle(handler) {
+                var cb = self.state === FULFILLED ? handler.onFulfilled : handler.onRejected;
+                if (typeof cb !== 'function') {
+                    (self.state === FULFILLED ? handler.resolve : handler.reject)(self.value);
+                    return;
+                }
+                try {
+                    handler.resolve(cb(self.value));
+                } catch (e) {
+                    handler.reject(e);
+                }
+            }
+            self.then = function(onFulfilled, onRejected) {
+                return new SimplePromise(function(resolve, reject) {
+                    var handler = { onFulfilled: onFulfilled, onRejected: onRejected, resolve: resolve, reject: reject };
+                    if (self.state === PENDING) self.handlers.push(handler);
+                    else setTimeout(function() { handle(handler); }, 0);
+                });
+            };
+            self.catch = function(onRejected) { return self.then(null, onRejected); };
+            try { executor(fulfill, reject); } catch (e) { reject(e); }
+        }
+        SimplePromise.resolve = function(value) { return new SimplePromise(function(resolve) { resolve(value); }); };
+        SimplePromise.reject = function(reason) { return new SimplePromise(function(_, reject) { reject(reason); }); };
+        window.Promise = SimplePromise;
+    }
+
+    if (window.NodeList && !NodeList.prototype.forEach) {
+        NodeList.prototype.forEach = function(callback, thisArg) {
+            thisArg = thisArg || window;
+            for (var i = 0; i < this.length; i++) callback.call(thisArg, this[i], i, this);
+        };
+    }
+
     if (!String.prototype.padStart) {
         String.prototype.padStart = function padStart(targetLength, padString) {
             var str = String(this);
