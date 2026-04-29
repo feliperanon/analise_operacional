@@ -1969,7 +1969,8 @@ def init_devolucoes_router(
                     if route:
                         data = json.dumps(clean_helper_ids, ensure_ascii=False)
                         route.delivery_helpers_json = data
-                        route.helpers_json = data
+                        # `Route` não possui campo `helpers_json` no modelo atual.
+                        # Mantemos a sincronização no campo oficial de entrega.
                         session.add(route)
             elif payload.ajudante_id is not None:
                 dev.ajudante_id = payload.ajudante_id if payload.ajudante_id else None

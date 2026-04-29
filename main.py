@@ -1152,11 +1152,12 @@ async def global_exception_handler(request: Request, call_next):
         response = await call_next(request)
         return response
     except Exception as e:
-        # If it is a Starlette/FastAPI HTTPException, let it propagate (handles redirects/404s)
+        # HTTPException não pode ser re-lançada aqui: o ASGI pode transformar em 500.
+        # Usar o handler oficial (303 com Location, 404, etc.).
         from starlette.exceptions import HTTPException as StarletteHTTPException
-        from fastapi import HTTPException as FastAPIHTTPException
-        if isinstance(e, (StarletteHTTPException, FastAPIHTTPException)):
-            raise e
+        if isinstance(e, StarletteHTTPException):
+            from fastapi.exception_handlers import http_exception_handler
+            return await http_exception_handler(request, e)
 
         # Banco indisponível (offline, DNS, Render pausado) → 503 em vez de 500
         oe = e if isinstance(e, OperationalError) else (e.__cause__ if hasattr(e, "__cause__") and e.__cause__ else None)
@@ -9160,7 +9161,9 @@ async def api_mobile_delivery_route_action(
             logistics_name = _clean_delivery_contact_name(payload.return_notified_logistics_name)
             if payload.return_notified_logistics and not logistics_name:
                 return JSONResponse({"error": "Informe o nome da pessoa da Logística avisada."}, status_code=400)
-            if _requires_closed_store_photo(payload.return_reason) and not (payload.return_photo_url or "").strip():
+            if _requires_closed_store_photo(payload.return_reason) and not _normalize_delivery_return_photo_url(
+                (payload.return_photo_url or "").strip()
+            ):
                 return JSONResponse({"error": "Para cliente fechado, anexe a foto do estabelecimento."}, status_code=400)
             route.delivery_status = "devolucao"
             route.status = "completed"
@@ -9173,7 +9176,9 @@ async def api_mobile_delivery_route_action(
                 payload.return_reason, "COMERCIAL"
             )
             route.delivery_return_reason = payload.return_reason
-            route.delivery_return_photo_url = (payload.return_photo_url or "").strip() or None
+            route.delivery_return_photo_url = _normalize_delivery_return_photo_url(
+                (payload.return_photo_url or "").strip()
+            )
             if payload.latitude is not None and payload.longitude is not None:
                 route.driver_lat_end = payload.latitude
                 route.driver_lon_end = payload.longitude
@@ -9385,7 +9390,9 @@ async def api_mobile_delivery_sync_batch(
                     if not payload.return_reason or payload.return_reason not in DELIVERY_RETURN_REASONS_FLAT:
                         results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Motivo de devolução inválido."})
                         continue
-                    if _requires_closed_store_photo(payload.return_reason) and not (payload.return_photo_url or "").strip():
+                    if _requires_closed_store_photo(payload.return_reason) and not _normalize_delivery_return_photo_url(
+                        (payload.return_photo_url or "").strip()
+                    ):
                         results.append({"queue_id": qid, "success": False, "already_done": False, "error": "Para cliente fechado, anexe a foto do estabelecimento."})
                         continue
                     commercial_seller = None
@@ -9410,7 +9417,9 @@ async def api_mobile_delivery_sync_batch(
                         route.delivery_finished_at = now
                     route.delivery_return_category = DELIVERY_RETURN_REASON_TO_CATEGORY.get(payload.return_reason, "COMERCIAL")
                     route.delivery_return_reason = payload.return_reason
-                    route.delivery_return_photo_url = (payload.return_photo_url or "").strip() or None
+                    route.delivery_return_photo_url = _normalize_delivery_return_photo_url(
+                        (payload.return_photo_url or "").strip()
+                    )
                     if payload.latitude is not None and payload.longitude is not None:
                         route.driver_lat_end = payload.latitude
                         route.driver_lon_end = payload.longitude
@@ -18105,6 +18114,23 @@ def _requires_closed_store_photo(return_reason: Optional[str]) -> bool:
     return "FECHADO" in reason
 
 
+def _normalize_delivery_return_photo_url(raw: Optional[str]) -> Optional[str]:
+    """Garante URL absoluta em /static/uploads/delivery_returns/ quando só o nome do ficheiro foi gravado."""
+    s = (raw or "").strip()
+    if not s:
+        return None
+    if s.startswith(("http://", "https://")):
+        return s
+    if s.startswith("/static/uploads/delivery_returns/"):
+        return s
+    if s.startswith("static/uploads/delivery_returns/"):
+        return "/" + s
+    norm = s.replace("\\", "/")
+    if "/" not in norm and norm.lower().startswith("ret_"):
+        return f"/static/uploads/delivery_returns/{norm.lstrip('/')}"
+    return s
+
+
 async def _save_delivery_return_photo(file: UploadFile, route_id: int, user_id: int) -> str:
     os.makedirs(DELIVERY_RETURN_IMAGE_DIR, exist_ok=True)
     raw_name = (file.filename or "").strip().lower()
@@ -18827,7 +18853,7 @@ async def separacao_page(
             "status_label": status_map.get(status_raw, status_raw.title()),
             "return_category": route.delivery_return_category or "",
             "return_reason": route.delivery_return_reason or "",
-            "return_photo_url": route.delivery_return_photo_url or "",
+            "return_photo_url": _normalize_delivery_return_photo_url(route.delivery_return_photo_url) or "",
             "planning_date": route.date,
             "started_at": route.delivery_started_at or route.start_time or "",
             "finished_at": route.delivery_finished_at or (route.end_time or ""),
@@ -20531,7 +20557,22 @@ async def update_delivery_planning_date_stops(
         redirect_base = f"/separacao?date={date}&shift={shift}"
 
     form = await request.form()
-    route_ids = [int(x) for x in form.getlist("route_ids") if str(x).strip().isdigit()]
+    # Compatibilidade defensiva:
+    # - formato esperado: route_ids=1&route_ids=2&...
+    # - fallback: route_ids="1,2,3" (alguns browsers/caches podem enviar assim)
+    raw_route_ids = form.getlist("route_ids")
+    route_ids: List[int] = []
+    seen_route_ids: set[int] = set()
+    for raw in raw_route_ids:
+        for token in str(raw or "").replace(";", ",").split(","):
+            t = token.strip()
+            if not t or not t.isdigit():
+                continue
+            rid = int(t)
+            if rid in seen_route_ids:
+                continue
+            seen_route_ids.add(rid)
+            route_ids.append(rid)
     if not route_ids:
         feedback_encoded = urlencode({
             "delivery_feedback": "Nenhuma parada selecionada.",
@@ -30803,6 +30844,17 @@ async def add_employee(
         return RedirectResponse(url=f"/employees?error=Erro ao adicionar colaborador: {str(e)}", status_code=status.HTTP_303_SEE_OTHER)
     
     return RedirectResponse(url="/employees?success=Colaborador adicionado com sucesso", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.get("/employees/{employee_id}/status", include_in_schema=False)
+async def employee_status_redirect(employee_id: int):
+    """Compat: links antigos / bookmark GET /employees/{id}/status → ficha do colaborador."""
+    return RedirectResponse(
+        url=f"/employees/{employee_id}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 @app.get("/employees/{employee_id}", response_class=HTMLResponse)
 async def employee_detail(
     request: Request,
@@ -31208,14 +31260,6 @@ async def employee_detail(
         "replaced_employee": replaced_employee,
         "today_date": datetime.now(ZoneInfo("America/Sao_Paulo")).date()
     })
-
-
-@app.get("/employees/{employee_id}/status", include_in_schema=False)
-async def employee_status_redirect(employee_id: int):
-    return RedirectResponse(
-        url=f"/employees/{employee_id}",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
 
 
 @app.post("/employees/{emp_id}/status")
