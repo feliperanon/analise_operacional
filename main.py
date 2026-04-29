@@ -34757,6 +34757,12 @@ async def api_list_admin_routes(
     session: Session = Depends(get_session)
 ):
     """API para listar rotas ativas e colaboradores sem rota"""
+    def _safe_s(v: Any) -> str:
+        return str(v or "").strip()
+
+    def _safe_l(v: Any) -> str:
+        return _safe_s(v).lower()
+
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
@@ -34817,7 +34823,7 @@ async def api_list_admin_routes(
             live_buckets[emp_id] = {"employee_name": emp.name, "routes": []}
         
         for r in all_routes_today:
-            st = (r.delivery_status or "").lower()
+            st = _safe_l(getattr(r, "delivery_status", None))
             if st not in {"iniciada", "entregue", "devolucao", "pendente"}:
                 continue
             bucket = live_buckets.get(r.employee_id)
@@ -34836,21 +34842,21 @@ async def api_list_admin_routes(
                 "delivery_status": st,
             })
         
-        session_closed_by_emp = {s.employee_id: (s.status or "").lower() == "closed" for s in sessions_today}
-        session_open_by_emp = {s.employee_id for s in sessions_today if (s.status or "").lower() == "open"}
+        session_closed_by_emp = {s.employee_id: _safe_l(getattr(s, "status", None)) == "closed" for s in sessions_today}
+        session_open_by_emp = {s.employee_id for s in sessions_today if _safe_l(getattr(s, "status", None)) == "open"}
         session_plate_by_emp = {}
         for s in sessions_today:
-            if s.employee_id and (getattr(s, "vehicle_plate", None) or "").strip():
-                session_plate_by_emp.setdefault(s.employee_id, (s.vehicle_plate or "").strip())
+            if s.employee_id and _safe_s(getattr(s, "vehicle_plate", None)):
+                session_plate_by_emp.setdefault(s.employee_id, _safe_s(getattr(s, "vehicle_plate", None)))
         session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json) for s in sessions_today if getattr(s, "helpers_json", None)}
         
         now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
         alerts_over_20min = []
         for r in all_routes_today:
-            if (r.delivery_status or "").lower() != "iniciada":
+            if _safe_l(getattr(r, "delivery_status", None)) != "iniciada":
                 continue
             started_at_str = r.delivery_started_at or r.start_time
-            if not started_at_str or (started_at_str or "").strip() in ("", "00:00"):
+            if not started_at_str or _safe_s(started_at_str) in ("", "00:00"):
                 continue
             try:
                 parts = str(started_at_str).strip().split(":")
@@ -34878,15 +34884,15 @@ async def api_list_admin_routes(
             bucket["employee_id"] = emp_id
             operational_emp_routes = [
                 r for r in emp_routes
-                if (r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao", "pendente")
+                if _safe_l(getattr(r, "delivery_status", None)) in ("iniciada", "entregue", "devolucao", "pendente")
             ]
             # Mantém o contador coerente com os clientes exibidos no card.
             bucket["total_deliveries"] = len(operational_emp_routes)
             bucket["completed_deliveries"] = len([
                 r for r in operational_emp_routes
-                if (r.delivery_status or "").lower() in ("entregue", "devolucao")
+                if _safe_l(getattr(r, "delivery_status", None)) in ("entregue", "devolucao")
             ])
-            bucket["plate"] = next(((r.delivery_vehicle_plate or "").strip() or None for r in emp_routes if (r.delivery_vehicle_plate or "").strip()), None) if emp_routes else None
+            bucket["plate"] = next((_safe_s(getattr(r, "delivery_vehicle_plate", None)) or None for r in emp_routes if _safe_s(getattr(r, "delivery_vehicle_plate", None))), None) if emp_routes else None
             if not bucket["plate"] and session_plate_by_emp.get(emp_id):
                 bucket["plate"] = session_plate_by_emp[emp_id]
             helper_ids = []
@@ -34905,11 +34911,11 @@ async def api_list_admin_routes(
             bucket["helper_count"] = len(all_helper_names)
             bucket["helper_names"] = all_helper_names[:3]
             bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in operational_emp_routes), 2)
-            open_routes_count = len([r for r in bucket["routes"] if (r.get("delivery_status") or "").lower() == "iniciada"])
+            open_routes_count = len([r for r in bucket["routes"] if _safe_l(r.get("delivery_status")) == "iniciada"])
             bucket["open_routes_count"] = open_routes_count
             finished_times = [
                 rt["finished_at"] for rt in bucket["routes"]
-                if (rt.get("delivery_status") or "").lower() in ("entregue", "devolucao") and rt.get("finished_at")
+                if _safe_l(rt.get("delivery_status")) in ("entregue", "devolucao") and rt.get("finished_at")
             ]
             last_finished_at = max(finished_times, key=lambda t: (t or "00:00")) if finished_times else None
             minutes_without_open = 0
@@ -34922,7 +34928,7 @@ async def api_list_admin_routes(
                 except Exception:
                     pass
             bucket["minutes_without_open_client"] = minutes_without_open
-            has_delivery_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+            has_delivery_started = any(_safe_l(getattr(r, "delivery_status", None)) in ("iniciada", "entregue", "devolucao") for r in emp_routes)
             session_started = emp_id in session_open_by_emp
             has_started = has_delivery_started or session_started
             all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
@@ -35029,7 +35035,7 @@ async def api_list_admin_routes(
                 for r in all_routes_today
                 if r.client_id is not None
                 and r.employee_id is not None
-                and (r.delivery_status or "").strip().lower() not in ("entregue", "devolucao")
+                and _safe_l(getattr(r, "delivery_status", None)) not in ("entregue", "devolucao")
             ]
             client_name_today = {
                 c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}")
@@ -35104,7 +35110,11 @@ async def api_list_admin_routes(
     except Exception as e:
         logger.exception("api_list_admin_routes error: %s", e)
         return JSONResponse(
-            {"success": False, "error": "Erro interno ao carregar rotas do painel mobile."},
+            {
+                "success": False,
+                "error": "Erro interno ao carregar rotas do painel mobile.",
+                "detail": _safe_s(e),
+            },
             status_code=500,
             headers={
                 "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
