@@ -20874,21 +20874,11 @@ async def reassign_delivery_group(
     new_employee_id: int = Form(...),
     new_vehicle_plate: str = Form(...),
     helper_ids: Optional[List[int]] = Form(None),
-    planning_date: str = Form(...),
     date: str = Form(...),
     shift: str = Form("Manhã"),
     session: Session = Depends(get_session),
 ):
     require_login(request)
-    planning_date = (planning_date or "").strip()
-    if not planning_date:
-        planning_date = date
-    try:
-        datetime.strptime(planning_date, "%Y-%m-%d")
-    except Exception:
-        feedback_encoded = urlencode({"delivery_feedback": "Data de planejamento inválida.", "delivery_feedback_level": "error"})
-        return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
-    
     # Buscar nomes para logs mais legíveis
     source_emp = session.get(models.Employee, source_employee_id)
     new_emp = session.get(models.Employee, new_employee_id)
@@ -20906,10 +20896,7 @@ async def reassign_delivery_group(
         normalized_helper_ids.append(helper_id)
     helpers_json = json.dumps(normalized_helper_ids) if normalized_helper_ids else None
     
-    logger.info(
-        f"ðŸâ€â€ž Tentativa de troca de motorista: {source_name} → {new_name}, "
-        f"Caminhão: {new_vehicle_plate}, Data origem: {date}, Data destino: {planning_date}"
-    )
+    logger.info(f"ðŸâ€â€ž Tentativa de troca de motorista: {source_name} → {new_name}, Caminhão: {new_vehicle_plate}, Data: {date}")
     
     source_plate_norm = _norm_plate(source_vehicle_plate)
     rows = session.exec(
@@ -20929,7 +20916,7 @@ async def reassign_delivery_group(
 
     err = _validate_delivery_assignment(
         session=session,
-        date=planning_date,
+        date=date,
         employee_id=new_employee_id,
         vehicle_plate=new_vehicle_plate,
         ignore_employee_id=source_employee_id,
@@ -20944,14 +20931,13 @@ async def reassign_delivery_group(
         r.employee_id = new_employee_id
         r.delivery_vehicle_plate = new_vehicle_plate
         r.delivery_helpers_json = helpers_json
-        r.date = planning_date
         _transfer_route_xp_on_driver_change(session, r, old_eid, new_employee_id)
         session.add(r)
     session.commit()
 
     logger.info("info log")
     feedback_encoded = urlencode({"delivery_feedback": f"Transferência concluída em {len(rows)} parada(s).", "delivery_feedback_level": "success"})
-    return RedirectResponse(url=f"/separacao?date={planning_date}&shift={shift}&{feedback_encoded}", status_code=303)
+    return RedirectResponse(url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}", status_code=303)
 
 
 @app.post("/separacao/delivery/reopen", response_class=RedirectResponse)

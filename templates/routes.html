@@ -484,8 +484,9 @@
                 <!-- Modo: paradas -->
                 <div id="bulk-stop-panel" class="hidden flex flex-wrap items-center gap-2 lg:gap-2.5">
                     <span class="text-xs font-semibold text-violet-700 dark:text-violet-200">
-                        <span id="bulk-stops-count">0</span> selecionado(s)
+                        <span id="bulk-stops-count">0</span> cliente(s) na tabela
                     </span>
+                    <span class="employees-text-caption hidden sm:inline text-[10px] text-slate-500 dark:text-slate-400">Mover só os marcados — não usa “Aplicar” em Ajustar rota.</span>
 
                     <form
                         id="bulk-stops-move-form"
@@ -701,16 +702,15 @@
                                     <div class="delivery-admin-layout">
                                         <section class="delivery-admin-segment delivery-admin-segment--reassign" aria-labelledby="reassign-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">
                                             <h4 class="delivery-admin-segment__title" id="reassign-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Reatribuir equipe</h4>
-                                            <form action="/separacao/delivery/reassign-group" method="post" class="delivery-admin-form delivery-admin-form--reassign">
-                                                <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
-                                                <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
-                                                <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
-                                                {% set _route_date = group.group_date or selected_date_from %}
-                                                <input type="hidden" name="current_date" value="{{ _route_date }}">
-                                                <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                            {% set _route_date = group.group_date or selected_date_from %}
+                                            {# Dois formulários: Aplicar só reatribui equipe (mesma data). Data nova + "Mover rota inteira" é fluxo separado. Paradas avulsas: barra "Mover selecionados". #}
+                                            <div class="delivery-admin-row delivery-admin-row--team-one-line">
+                                                <form action="/separacao/delivery/reassign-group" method="post" class="delivery-admin-form delivery-admin-form--reassign" style="display: contents">
+                                                    <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
+                                                    <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
+                                                    <input type="hidden" name="date" value="{{ _route_date }}">
+                                                    <input type="hidden" name="shift" value="{{ selected_shift }}">
 
-                                                {# Uma linha: motorista | caminhão | ajudantes | ações (quebra só em telas estreitas) #}
-                                                <div class="delivery-admin-row delivery-admin-row--team-one-line">
                                                     <div class="delivery-admin-field delivery-admin-field--driver">
                                                         <label class="delivery-admin-label" for="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Motorista</label>
                                                         <select id="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" name="new_employee_id" class="delivery-mini-select delivery-admin-select--driver">
@@ -742,25 +742,26 @@
                                                             <div class="delivery-helper-selected delivery-admin-helper-chips"></div>
                                                         </div>
                                                     </div>
-                                                    <div class="delivery-admin-field delivery-admin-field--planning-date">
-                                                        <label class="delivery-admin-label" for="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Nova data</label>
-                                                        <input id="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" type="date" name="planning_date" value="{{ _route_date }}" required class="delivery-mini-input delivery-admin-input--date">
-                                                    </div>
                                                     <div class="delivery-admin-actions delivery-admin-actions--segment">
                                                         <button type="reset" class="sys-btn sys-btn--secondary delivery-admin-btn">Limpar</button>
                                                         <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn">Aplicar</button>
-                                                        <button
-                                                            type="submit"
-                                                            formaction="/separacao/delivery/planning-date/group"
-                                                            formmethod="post"
-                                                            class="sys-btn sys-btn--secondary delivery-admin-btn"
-                                                            onclick="return confirm('Mover rota inteira para a nova data?');"
-                                                        >
-                                                            Mover rota inteira
-                                                        </button>
                                                     </div>
-                                                </div>
-                                            </form>
+                                                </form>
+
+                                                <form action="/separacao/delivery/planning-date/group" method="post" class="delivery-admin-form" style="display: contents" onsubmit="return confirm('Mover rota inteira para a nova data?');">
+                                                    <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
+                                                    <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
+                                                    <input type="hidden" name="current_date" value="{{ _route_date }}">
+                                                    <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                                    <div class="delivery-admin-field delivery-admin-field--planning-date">
+                                                        <label class="delivery-admin-label" for="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Nova data (rota inteira)</label>
+                                                        <input id="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" type="date" name="planning_date" value="{{ _route_date }}" required class="delivery-mini-input delivery-admin-input--date">
+                                                    </div>
+                                                    <div class="delivery-admin-actions delivery-admin-actions--segment">
+                                                        <button type="submit" class="sys-btn sys-btn--secondary delivery-admin-btn">Mover rota inteira</button>
+                                                    </div>
+                                                </form>
+                                            </div>
                                         </section>
 
                                         {% if not group.session_started %}
