@@ -209,8 +209,9 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
     motorista = session.get(models.Employee, d.motorista_id)
     motorista_id = d.motorista_id or (getattr(route, "employee_id", None) if route else None)
     motorista_name = (motorista.name if motorista else "").strip().lower()
-    # Lista de nomes de ajudantes (sem duplicata, ordem preservada)
+    # Lista de ajudantes (sem duplicata, ordem preservada)
     ajudantes_names: List[str] = []
+    ajudantes_ids: List[int] = []
     def _add_ajudante_name(name: Optional[str]) -> None:
         if not name or not str(name).strip():
             return
@@ -219,10 +220,22 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
             return
         if n not in ajudantes_names:
             ajudantes_names.append(n)
+    def _add_ajudante_id(emp_id: Optional[int]) -> None:
+        try:
+            i = int(emp_id) if emp_id is not None else 0
+        except Exception:
+            i = 0
+        if not i:
+            return
+        if motorista_id and i == motorista_id:
+            return
+        if i not in ajudantes_ids:
+            ajudantes_ids.append(i)
 
     ajudante = session.get(models.Employee, d.ajudante_id) if d.ajudante_id else None
     effective_ajudante_id = d.ajudante_id
     if ajudante:
+        _add_ajudante_id(d.ajudante_id)
         _add_ajudante_name(ajudante.name)
     # Ajudantes da rota (delivery_helpers_json, helpers_json)
     if route:
@@ -237,6 +250,7 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
                     if hid != motorista_id:
                         emp = session.get(models.Employee, hid)
                         if emp:
+                            _add_ajudante_id(hid)
                             _add_ajudante_name(emp.name)
                             if not ajudante:
                                 ajudante = emp
@@ -264,6 +278,7 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
                                     if aid != motorista_id:
                                         emp = session.get(models.Employee, aid)
                                         if emp:
+                                            _add_ajudante_id(aid)
                                             _add_ajudante_name(emp.name)
                                             if not ajudante:
                                                 ajudante = emp
@@ -345,6 +360,7 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
         "motorista_id": d.motorista_id,
         "motorista_name": motorista.name if motorista else "-",
         "ajudante_id": effective_ajudante_id,
+        "ajudante_ids": ajudantes_ids,
         "ajudante_name": ajudantes_names[0] if ajudantes_names else "-",
         "ajudantes_display": ", ".join(ajudantes_names) if ajudantes_names else "-",
         "vehicle_plate": vehicle_plate,
@@ -1877,9 +1893,18 @@ def init_devolucoes_router(
                 except ValueError:
                     pass
         if ajudante_id_list:
-            cards = [c for c in cards if (c.get("ajudante_id") or 0) in ajudante_id_list]
+            cards = [
+                c for c in cards
+                if ((c.get("ajudante_id") or 0) in ajudante_id_list)
+                or any((hid in ajudante_id_list) for hid in (c.get("ajudante_ids") or []))
+            ]
         if colaborador_id_list:
-            cards = [c for c in cards if (c.get("motorista_id") in colaborador_id_list) or (c.get("ajudante_id") in colaborador_id_list)]
+            cards = [
+                c for c in cards
+                if (c.get("motorista_id") in colaborador_id_list)
+                or (c.get("ajudante_id") in colaborador_id_list)
+                or any((hid in colaborador_id_list) for hid in (c.get("ajudante_ids") or []))
+            ]
         for c in cards:
             pair = ajustes.get(c["id"], (True, True))
             c["responsavel_motorista"] = pair[0] if isinstance(pair, tuple) else pair
@@ -1891,6 +1916,7 @@ def init_devolucoes_router(
         motivo_id: Optional[int] = None
         motorista_id: Optional[int] = None
         ajudante_id: Optional[int] = None
+        ajudante_ids: Optional[List[int]] = None
         valor: Optional[float] = None
         peso_kg: Optional[float] = None
         observacao_gestor: Optional[str] = None  # Observação do gestor (quem alterou fica em edited_by/edited_at)
@@ -1923,7 +1949,29 @@ def init_devolucoes_router(
                     if route:
                         route.employee_id = payload.motorista_id
                         session.add(route)
-            if payload.ajudante_id is not None:
+            if payload.ajudante_ids is not None:
+                motorista_ref = payload.motorista_id if payload.motorista_id is not None else dev.motorista_id
+                clean_helper_ids: List[int] = []
+                for raw in payload.ajudante_ids:
+                    try:
+                        hid = int(raw)
+                    except Exception:
+                        continue
+                    if hid <= 0:
+                        continue
+                    if motorista_ref and hid == motorista_ref:
+                        continue
+                    if hid not in clean_helper_ids:
+                        clean_helper_ids.append(hid)
+                dev.ajudante_id = clean_helper_ids[0] if clean_helper_ids else None
+                if dev.route_id:
+                    route = session.get(models.Route, dev.route_id)
+                    if route:
+                        data = json.dumps(clean_helper_ids, ensure_ascii=False)
+                        route.delivery_helpers_json = data
+                        route.helpers_json = data
+                        session.add(route)
+            elif payload.ajudante_id is not None:
                 dev.ajudante_id = payload.ajudante_id if payload.ajudante_id else None
             if payload.observacao_gestor is not None:
                 dev.observacao_gestor = (payload.observacao_gestor or "").strip() or None

@@ -40,7 +40,7 @@
     <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
         <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
         <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+        <div class="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
             <div class="flex min-w-0 items-start gap-4">
                 <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
                     <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,11 +65,11 @@
                     </div>
                 </div>
             </div>
-            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-xl xl:flex-shrink-0 xl:justify-end">
-                <a href="/vehicles" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Ver todos</a>
-                <button type="button" onclick="document.getElementById('vehicle-edit-modal').classList.remove('hidden')" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">Editar veículo</button>
-                <a href="/vehicles/{{ vehicle.id }}/history" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Histórico</a>
-                <a href="/workshop/service-orders?vehicle_id={{ vehicle.id }}" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Abrir OS</a>
+            <div class="employees-hero__toolbar flex w-full flex-wrap items-center gap-2 lg:ml-auto lg:w-auto lg:max-w-none lg:flex-shrink-0 lg:justify-end">
+                <a href="/vehicles" class="employees-cta employees-cta--import sys-btn sys-btn--secondary flex-1 justify-center sm:flex-none">Ver todos</a>
+                <button type="button" onclick="document.getElementById('vehicle-edit-modal').classList.remove('hidden')" class="employees-cta employees-cta--primary sys-btn sys-btn--primary flex-1 justify-center sm:flex-none">Editar veículo</button>
+                <a href="/vehicles/{{ vehicle.id }}/history" class="employees-cta sys-btn sys-btn--secondary flex-1 justify-center sm:flex-none">Histórico</a>
+                <a href="/workshop/service-orders?vehicle_id={{ vehicle.id }}" class="employees-cta sys-btn sys-btn--secondary flex-1 justify-center sm:flex-none">Abrir OS</a>
             </div>
         </div>
     </div>

@@ -20,7 +20,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="ga-employee-theme employees-shell employees-page employees-page--premium escala-page space-y-5 pt-2 md:pt-3" x-data="escalaApp()" x-init="init()">
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium escala-page space-y-5 pt-2 md:pt-3"
+     x-data="escalaApp()" x-init="init()">
 
     <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
         <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
@@ -109,6 +110,17 @@
                                     </template>
                                 </div>
                             </div>
+                            <div x-show="(escalasByCol.nao_escalado || []).length">
+                                <p class="mb-1.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                                    <i data-lucide="truck" class="h-3 w-3"></i> Caminhões não escalados
+                                </p>
+                                <div class="flex flex-wrap gap-1">
+                                    <template x-for="escNaoEscalado in (escalasByCol.nao_escalado || [])" :key="'naoesc-' + escNaoEscalado.id">
+                                        <span class="inline-flex items-center rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-900 dark:border-amber-500/35 dark:bg-amber-950/40 dark:text-amber-100"
+                                              x-text="escNaoEscalado.vehicle_plate && escNaoEscalado.vehicle_plate !== '-' ? escNaoEscalado.vehicle_plate : 'Sem caminhão'"></span>
+                                    </template>
+                                </div>
+                            </div>
                             <div x-show="!(apiData.motoristas_disponiveis || []).length && !(apiData.ajudantes_disponiveis || []).length && (apiData.motoristas_todos || []).length + (apiData.ajudantes_todos || []).length > 0" class="text-[11px] text-slate-500 dark:text-slate-400">
                                 Todos os colaboradores já estão escalados.
                             </div>
@@ -143,13 +155,13 @@
                                 <span class="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700 dark:bg-slate-700/80 dark:text-slate-200" x-text="formatMoeda(esc.total_value)"></span>
                                 <span class="rounded bg-slate-100 px-1.5 py-0.5 font-medium text-slate-700 dark:bg-slate-700/80 dark:text-slate-200" x-text="(esc.total_qty || 0) + ' paradas'"></span>
                             </div>
-                            <div class="space-y-1.5">
-                                <div class="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 dark:border-emerald-500/30 dark:bg-emerald-950/35">
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <div class="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 dark:border-emerald-500/30 dark:bg-emerald-950/35">
                                     <i data-lucide="user" class="h-3 w-3 shrink-0 text-emerald-600 dark:text-emerald-400"></i>
                                     <span class="truncate text-xs font-medium text-emerald-900 dark:text-emerald-100" x-text="esc.driver_name || '—'"></span>
                                 </div>
                                 <template x-for="(hname, i) in getFilteredHelperNames(esc)" :key="i">
-                                    <div class="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 dark:border-blue-500/30 dark:bg-blue-950/35">
+                                    <div class="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 dark:border-blue-500/30 dark:bg-blue-950/35">
                                         <i data-lucide="users" class="h-3 w-3 shrink-0 text-blue-600 dark:text-blue-400"></i>
                                         <span class="truncate text-xs font-medium text-blue-900 dark:text-blue-100" x-text="hname"></span>
                                     </div>
@@ -163,18 +175,21 @@
     </div>
 
     <!-- Modal troca rápida -->
-    <div x-show="quickChange.open" x-cloak x-transition
-         class="fixed inset-0 z-[110] flex items-end justify-center p-0 sm:items-center sm:p-4"
-         role="dialog" aria-modal="true">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/50" @click="quickChange.open = false"></div>
-        <div class="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-600 dark:bg-slate-900 sm:max-h-[84vh] sm:rounded-xl">
-            <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
-                <h4 class="text-sm font-semibold text-slate-900 dark:text-white" x-text="'Trocar ' + quickChange.campo"></h4>
-                <button type="button" @click="quickChange.open = false" class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Fechar">
-                    <i data-lucide="x" class="h-5 w-5"></i>
-                </button>
-            </div>
-            <div class="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
+    <template x-teleport="body">
+        <div x-show="quickChange.open" x-cloak x-transition
+             class="fixed inset-0 z-[2147483647] flex items-end justify-center p-2 sm:items-center sm:p-4"
+             style="z-index:2147483647;"
+             role="dialog" aria-modal="true">
+            <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/50" @click="quickChange.open = false"></div>
+            <div class="relative z-[2147483647] flex max-h-[calc(100dvh-1rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-600 dark:bg-slate-900 sm:max-h-[90vh]"
+                 style="z-index:2147483647;">
+                <div class="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+                    <h4 class="text-sm font-semibold text-slate-900 dark:text-white" x-text="'Trocar ' + quickChange.campo"></h4>
+                    <button type="button" @click="quickChange.open = false" class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Fechar">
+                        <i data-lucide="x" class="h-5 w-5"></i>
+                    </button>
+                </div>
+                <div class="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
                 <template x-if="quickChange.campo === 'motorista'">
                     <template x-for="m in (apiData.motoristas_todos || apiData.motoristas_disponiveis || [])" :key="m.id">
                         <button type="button" @click="applyQuickChange(m.id, null, null)"
@@ -185,15 +200,21 @@
                     </template>
                 </template>
                 <template x-if="quickChange.campo === 'caminhao'">
-                    <template x-for="v in (apiData.vehicles || [])" :key="v.id">
-                        <button type="button" @click="applyQuickChange(null, v.placa, null)"
-                                class="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-slate-800 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800/80">
-                            <i data-lucide="truck" class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"></i>
-                            <span x-text="v.placa || '—'"></span>
-                        </button>
-                    </template>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <template x-for="(group, gi) in splitInTwo(apiData.vehicles || [])" :key="'veh-group-' + gi">
+                            <div class="rounded-xl border border-slate-200 p-1 dark:border-slate-700">
+                                <template x-for="v in group" :key="v.id">
+                                    <button type="button" @click="applyQuickChange(null, v.placa, null)"
+                                            class="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm text-slate-800 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800/80">
+                                        <i data-lucide="truck" class="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400"></i>
+                                        <span x-text="v.placa || '—'"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
                 </template>
-                <template x-if="quickChange.campo === 'ajudante'">
+                <template x-if="isHelperQuickChange()">
                     <div class="space-y-3">
                         <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">Selecione ajudantes (múltipla escolha)</p>
                         <div class="grid grid-cols-1 gap-1.5 md:grid-cols-2">
@@ -212,16 +233,18 @@
                         </div>
                     </div>
                 </template>
-            </div>
-            <div x-show="quickChange.campo === 'ajudante'" class="shrink-0 border-t border-slate-200 p-4 dark:border-slate-700">
-                <button type="button" @click="applyQuickChange(null, null, quickChange.ajudantesSelected)"
-                        :disabled="hasSelectedHelperConflicts"
-                        class="w-full rounded-lg bg-amber-600 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60">
-                    Aplicar
-                </button>
+                </div>
+                <div x-show="isHelperQuickChange()" class="shrink-0 border-t border-slate-200 p-4 dark:border-slate-700">
+                    <button type="button" @click="applyQuickChange(null, null, quickChange.ajudantesSelected)"
+                            :disabled="hasSelectedHelperConflicts"
+                            :style="hasSelectedHelperConflicts ? 'background-color:#f59e0b;color:#ffffff;opacity:1;' : 'background-color:#d97706;color:#ffffff;opacity:1;'"
+                            class="w-full rounded-lg py-2.5 text-sm font-semibold transition hover:bg-amber-700 disabled:cursor-not-allowed">
+                        Aplicar
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
+    </template>
 
     <!-- Toast feedback -->
     <div x-show="toast.show" x-cloak x-transition

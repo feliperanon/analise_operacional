@@ -118,12 +118,12 @@
                 <div class="dashboard-stats-strip">
                     <div class="dashboard-stats-grid">
                         <div class="dashboard-stat-cell">
-                            <p class="text-caption">Abertas</p>
-                            <p class="text-title mt-1" x-text="kpi.abertas || 0"></p>
+                            <p class="text-caption">Clientes em aberto</p>
+                            <p class="text-title mt-1" x-text="kpi.entregas_pendentes ?? kpi.abertas ?? 0"></p>
                         </div>
                         <div class="dashboard-stat-cell">
-                            <p class="text-caption">Concluídas</p>
-                            <p class="text-title mt-1 dashboard-stat-value--success" x-text="kpi.rotas_concluidas || 0"></p>
+                            <p class="text-caption">Entregues</p>
+                            <p class="text-title mt-1 dashboard-stat-value--success" x-text="kpi.entregas_concluidas ?? 0"></p>
                         </div>
                         <div class="dashboard-stat-cell">
                             <p class="text-caption">Devoluções</p>
@@ -165,7 +165,7 @@
 
             <div class="space-y-3">
                 <template x-for="card in liveSeparation" :key="card.employee_id">
-                    <div class="admin-route-card overflow-hidden touch-target" :class="statusCardClass(card)">
+                    <div class="admin-route-card overflow-hidden touch-target cursor-pointer" :class="statusCardClass(card)" @click.prevent="toggleCardExpand(card)">
                         <div class="p-4 flex items-start gap-3">
                             <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 font-bold text-body status-avatar" :class="statusAvatarClass(card)" x-text="(card.employee_name || '?')[0]"></div>
                             <div class="min-w-0 flex-1">
@@ -176,17 +176,25 @@
                                     Placa: <span x-text="card.plate || '—'"></span>
                                     <span x-show="card.total_kg" class="ml-1">· <span x-text="(card.total_kg || 0) + ' kg'"></span></span>
                                 </p>
-                                <!-- Cliente ativo visível sempre -->
-                                <template x-if="getOpenRoutes(card).length > 0">
+                                <div class="mt-2 flex items-center justify-between gap-2">
+                                    <span class="text-caption font-semibold" style="color: var(--color-text-muted);"
+                                          x-text="isCardExpanded(card) ? 'Todos os clientes' : 'Clientes ativos'"></span>
+                                </div>
+                                <template x-if="getVisibleRoutes(card).length > 0">
                                     <div class="mt-2 flex flex-wrap gap-1.5">
-                                        <template x-for="r in getOpenRoutes(card).slice(0, 2)" :key="r.client + r.start_time">
+                                        <template x-for="r in getVisibleRoutes(card)" :key="(r.client || '-') + '-' + (r.start_time || '-') + '-' + (r.delivery_status || '-')">
                                             <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-caption" :class="clientCardClass(r)">
                                                 <span class="truncate max-w-[120px] font-medium" :class="clientCardTextClass(r)" x-text="r.client"></span>
                                                 <span class="font-mono shrink-0 text-slate-500" x-text="r.start_time"></span>
-                                                <span class="shrink-0 font-mono" :class="clientCardMinutesClass(r)" x-text="elapsedMinutes(r) + ' min'"></span>
+                                                <span class="shrink-0 px-1.5 py-0.5 rounded border text-[10px] font-semibold uppercase tracking-wide"
+                                                      :class="routeStatusClass(r)"
+                                                      x-text="routeStatusLabel(r)"></span>
+                                                <span class="shrink-0 font-mono" :class="clientCardMinutesClass(r)" x-text="routeMinutesLabel(r)"></span>
                                             </div>
                                         </template>
-                                        <span x-show="getOpenRoutes(card).length > 2" class="text-caption text-slate-500 self-center" x-text="'+' + (getOpenRoutes(card).length - 2) + ' mais'"></span>
+                                        <span x-show="!isCardExpanded(card) && hiddenRoutesCount(card) > 0"
+                                              class="text-caption text-slate-500 self-center"
+                                              x-text="'+' + hiddenRoutesCount(card) + ' mais'"></span>
                                     </div>
                                 </template>
                                 <template x-if="getOpenRoutes(card).length === 0 && ((card.completed_deliveries || 0) > 0 || ['all_delivered','closed','in_progress','route_started'].includes(card.route_state))">
@@ -304,6 +312,7 @@
             clientesAltoIndice: [],
             kpi: { abertas: 0, rotas_concluidas: 0, rotas_paradas: 0, rotas_ativas: 0 },
             liveTick: 0,
+            expandedCards: {},
 
             init() {
                 this.loadRoutes();
@@ -324,24 +333,92 @@
                 return Math.max(0, Math.floor((now - started) / 60000));
             },
             clientCardClass(r) {
-                const mins = this.elapsedMinutes(r);
-                if (mins >= 20) return 'bg-amber-500/20 border border-amber-400/60';
-                return 'bg-slate-700/25 border border-slate-500/40';
+                // Mantém padrão visual neutro no card; destaque fica no badge de status.
+                return 'bg-white border border-slate-300';
             },
             clientCardTextClass(r) {
-                const mins = this.elapsedMinutes(r);
-                if (mins >= 20) return 'text-amber-100';
-                return 'text-slate-100';
+                return 'text-slate-900';
             },
             clientCardMinutesClass(r) {
-                const mins = this.elapsedMinutes(r);
-                if (mins >= 20) return 'text-amber-300 font-semibold';
-                return 'text-slate-300 font-semibold';
+                return 'text-slate-700 font-semibold';
+            },
+
+            routeMinutesLabel(r) {
+                const st = this.normalizeDeliveryStatus(r);
+                const duration = Number((r && r.duration_mins) || 0);
+                if (st === 'entregue' || st === 'devolucao' || st === 'cancelada') {
+                    return (Number.isFinite(duration) && duration > 0) ? `${duration} min` : '—';
+                }
+                return `${this.elapsedMinutes(r)} min`;
+            },
+
+            normalizeDeliveryStatus(r) {
+                return String((r && r.delivery_status) || '').trim().toLowerCase();
+            },
+
+            routeSortKey(r) {
+                const st = this.normalizeDeliveryStatus(r);
+                if (st === 'iniciada') return 0;
+                if (st === 'pendente') return 1;
+                if (st === 'route_started') return 2;
+                if (st === 'entregue') return 10;
+                if (st === 'devolucao') return 11;
+                if (st === 'cancelada' || st === 'closed' || st === 'all_delivered') return 12;
+                return 5;
+            },
+
+            routeStatusLabel(r) {
+                const st = this.normalizeDeliveryStatus(r);
+                if (st === 'iniciada') return 'Iniciada';
+                if (st === 'entregue') return 'Entregue';
+                if (st === 'devolucao') return 'Devolução';
+                if (st === 'pendente') return 'Pendente';
+                if (st === 'cancelada') return 'Cancelada';
+                return st ? st.charAt(0).toUpperCase() + st.slice(1) : 'Sem status';
+            },
+
+            routeStatusClass(r) {
+                const st = this.normalizeDeliveryStatus(r);
+                if (st === 'iniciada') return 'border-amber-300 bg-amber-100 text-amber-800';
+                if (st === 'entregue') return 'border-emerald-300 bg-emerald-100 text-emerald-800';
+                if (st === 'devolucao') return 'border-red-300 bg-red-100 text-red-800';
+                if (st === 'pendente') return 'border-slate-300 bg-slate-100 text-slate-700';
+                if (st === 'cancelada') return 'border-rose-300 bg-rose-100 text-rose-800';
+                return 'border-slate-300 bg-slate-100 text-slate-700';
             },
 
             getOpenRoutes(card) {
                 const routes = card.routes || [];
                 return routes.filter(r => (r.delivery_status || '').toLowerCase() === 'iniciada');
+            },
+
+            cardKey(card) {
+                return String((card && (card.employee_id ?? card.employee_name ?? card.plate)) || '');
+            },
+
+            isCardExpanded(card) {
+                return !!this.expandedCards[this.cardKey(card)];
+            },
+
+            toggleCardExpand(card) {
+                const key = this.cardKey(card);
+                if (!key) return;
+                this.expandedCards[key] = !this.expandedCards[key];
+            },
+
+            getVisibleRoutes(card) {
+                const allRoutes = Array.isArray(card && card.routes) ? card.routes : [];
+                const sortedRoutes = [...allRoutes].sort((a, b) => this.routeSortKey(a) - this.routeSortKey(b));
+                const openRoutes = sortedRoutes.filter(r => this.normalizeDeliveryStatus(r) === 'iniciada');
+                return this.isCardExpanded(card) ? sortedRoutes : openRoutes.slice(0, 2);
+            },
+
+            hiddenRoutesCount(card) {
+                const allRoutes = Array.isArray(card && card.routes) ? card.routes : [];
+                const sortedRoutes = [...allRoutes].sort((a, b) => this.routeSortKey(a) - this.routeSortKey(b));
+                const openRoutes = sortedRoutes.filter(r => this.normalizeDeliveryStatus(r) === 'iniciada');
+                if (this.isCardExpanded(card)) return 0;
+                return Math.max(0, allRoutes.length - Math.min(2, openRoutes.length));
             },
 
             getDriverAlerts(card) {
@@ -376,6 +453,7 @@
                         this.alerts = data.alerts || { clients_over_20min: [] };
                         this.clientesAltoIndice = data.clientes_alto_indice_devolucao || [];
                         this.kpi = data.kpi || { abertas: 0, rotas_concluidas: 0, rotas_paradas: 0, rotas_ativas: 0 };
+                        this.expandedCards = {};
                     } else {
                         alert('Erro: ' + (data.error || ''));
                     }

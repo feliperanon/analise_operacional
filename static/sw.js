@@ -1,6 +1,6 @@
 /**
  * Service Worker — Souza Pinto PWA Offline
- * Versão: 1.1.6 (503 do servidor não é tratado como offline)
+ * Versão: 1.1.7 (sem cache para admin routes)
  *
  * Estratégias:
  * - Cache First → assets estáticos (CSS, JS) e CDN (Alpine, Lucide, fontes)
@@ -9,7 +9,7 @@
  * - Background Sync → fila de ações offline (IndexedDB)
  */
 
-const SW_VERSION = 'nl-entregas-v1.1.6';
+const SW_VERSION = 'nl-entregas-v1.1.7';
 const ASSETS_CACHE = `${SW_VERSION}-assets`;
 const DATA_CACHE = `${SW_VERSION}-data`;
 const CDN_CACHE = `${SW_VERSION}-cdn`;
@@ -33,9 +33,8 @@ const PRECACHE_CDN = [
   'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700&display=swap',
 ];
 
-// APIs com cache SW (offline). Não incluir my-routes: evita 200 com JSON antigo após POST/ações.
+// APIs com cache SW (offline). Admin routes não entra aqui para evitar dado stale.
 const CACHEABLE_API_ROUTES = [
-  '/api/mobile/admin/routes',
 ];
 
 // HTML mínimo exibido quando o usuário está offline e a página não está em cache
@@ -182,9 +181,23 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin !== self.location.origin) return;
 
-  // API de rotas: Network First com fallback em cache
+  // API com cache permitido: Network First com fallback em cache
   if (CACHEABLE_API_ROUTES.some((r) => url.pathname === r)) {
     event.respondWith(networkFirstWithCache(request, DATA_CACHE));
+    return;
+  }
+
+  // Admin Routes precisa SEMPRE vir da rede (sem cache SW), para evitar divergência
+  // entre ambiente local e Render quando houver HTML/JSON antigo em cache.
+  if (url.pathname === '/api/mobile/admin/routes' || url.pathname === '/mobile/admin/routes') {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        if (request.mode === 'navigate') {
+          return tryCacheThenOffline(request, ASSETS_CACHE);
+        }
+        return new Response('Sem conexão.', { status: 503 });
+      })
+    );
     return;
   }
 

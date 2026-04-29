@@ -8,8 +8,11 @@
 
 {% block content %}
 <div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
-  <div class="flex flex-wrap items-center gap-2">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <div class="flex flex-wrap items-center gap-2">
     <a href="/workshop/service-orders" class="sys-btn sys-btn--secondary text-sm">← Voltar para OS</a>
+    <a href="/workshop/service-orders/consult" class="sys-btn sys-btn--secondary text-sm">Consulta rápida</a>
+    </div>
     <form method="GET" class="inline-flex items-center gap-2">
       <select name="days" class="sys-select text-sm">
         <option value="7" {{ "selected" if period_days == 7 else "" }}>7 dias</option>

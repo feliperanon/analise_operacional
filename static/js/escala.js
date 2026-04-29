@@ -119,6 +119,13 @@
                 return Number.isFinite(n) ? n : null;
             },
 
+            splitInTwo(list) {
+                const items = Array.isArray(list) ? list : [];
+                if (!items.length) return [[], []];
+                const middle = Math.ceil(items.length / 2);
+                return [items.slice(0, middle), items.slice(middle)];
+            },
+
             get selectedHelperConflicts() {
                 if (this.quickChange.campo !== 'ajudante' || !this.quickChange.escala) return [];
                 const selectedIds = (this.quickChange.ajudantesSelected || [])
@@ -162,6 +169,13 @@
 
             get hasSelectedHelperConflicts() {
                 return this.selectedHelperConflicts.length > 0;
+            },
+
+            isHelperQuickChange() {
+                return String(this.quickChange && this.quickChange.campo ? this.quickChange.campo : '')
+                    .trim()
+                    .toLowerCase()
+                    .startsWith('ajud');
             },
 
             init() {
@@ -276,7 +290,8 @@
             },
 
             openQuickChange(esc, campo) {
-                this.quickChange = { open: true, campo, escala: esc, ajudantesSelected: [...(esc.helper_ids || [])] };
+                const campoNormalizado = campo === 'ajudantes' ? 'ajudante' : campo;
+                this.quickChange = { open: true, campo: campoNormalizado, escala: esc, ajudantesSelected: [...(esc.helper_ids || [])] };
                 if (typeof lucide !== 'undefined') setTimeout(() => lucide.createIcons(), 50);
             },
 

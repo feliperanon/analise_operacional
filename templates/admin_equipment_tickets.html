@@ -46,10 +46,12 @@
     </div>
     {% endif %}
 
+    {% include "_ops_cross_nav.html" %}
+
     <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
         <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
         <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+        <div class="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
             <div class="flex min-w-0 items-start gap-4">
                 <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
                     <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -58,13 +60,9 @@
                     </svg>
                 </div>
                 <div class="min-w-0">
-                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-                        Oficina
-                    </span>
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Frota e oficina</span>
                     <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Central de chamados</h2>
-                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
-                        Priorize alta severidade, acompanhe aberturas por turno e feche chamados em lote sem sair do mesmo painel dos colaboradores.
-                    </p>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">Chamados em padrão único de navegação, com priorização simples e ações rápidas.</p>
                     <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
                         <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
                             <span class="h-2 w-2 shrink-0 rounded-full bg-slate-400"></span>
@@ -82,9 +80,9 @@
                 </div>
             </div>
 
-            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
-                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
-                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+            <div class="employees-hero__toolbar flex w-full flex-wrap items-center gap-2 lg:ml-auto lg:w-auto lg:max-w-none lg:flex-shrink-0 lg:justify-end">
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary justify-center" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
                         <span class="employees-cta__icon" aria-hidden="true">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                         </span>
@@ -114,14 +112,14 @@
                     </div>
                 </div>
 
-                <a href="/admin/routine/checklists/dashboard" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                <a href="/admin/routine/checklists/dashboard" class="employees-cta sys-btn sys-btn--secondary justify-center">
                     <span class="employees-cta__icon" aria-hidden="true">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                     </span>
                     <span class="employees-cta__label">Painel checklists</span>
                 </a>
 
-                <button type="button" onclick="eqTicketsOpenModal('createTicketModal')" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                <button type="button" onclick="eqTicketsOpenModal('createTicketModal')" class="employees-cta employees-cta--primary sys-btn sys-btn--primary justify-center">
                     <span class="employees-cta__icon" aria-hidden="true">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     </span>

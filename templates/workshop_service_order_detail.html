@@ -43,8 +43,8 @@
 <div
   class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-4 pt-2 md:pt-3"
   x-data="{
-    tab: '{{ active_tab }}',
-    serverStatus: {{ (order.status or 'open')|tojson }},
+    tab: '{{ (active_tab or "resumo")|replace("\\", "\\\\")|replace("'", "\\'") }}',
+    serverStatus: '{{ (order.status or "open")|replace("\\", "\\\\")|replace("'", "\\'") }}',
     setTab(t) {
       this.tab = t;
       const u = new URL(window.location.href);
@@ -53,8 +53,14 @@
       u.searchParams.delete('level');
       history.replaceState({}, '', u);
     },
-    openDlg(id) { document.getElementById(id)?.showModal(); },
-    closeDlg(id) { document.getElementById(id)?.close(); },
+    openDlg(id) {
+      const el = document.getElementById(id);
+      if (el && typeof el.showModal === 'function') el.showModal();
+    },
+    closeDlg(id) {
+      const el = document.getElementById(id);
+      if (el && typeof el.close === 'function') el.close();
+    },
     resetStatusSelect(el) { if (el) el.value = this.serverStatus; },
     onStatusPick(ev) {
       const sel = ev.target;
@@ -73,7 +79,7 @@
       }
       document.getElementById('frmStatusQuick').querySelector('[name=status_value]').value = v;
       document.getElementById('frmStatusQuick').requestSubmit();
-    },
+    }
   }"
 >
   {% if message %}

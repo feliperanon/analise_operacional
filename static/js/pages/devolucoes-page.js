@@ -11,6 +11,8 @@
     debounceTimer: 0,
     clientSearchTimer: 0,
     clientSearchController: null,
+    bulkCountRaf: 0,
+    manualElementsCache: null,
   };
 
   var currencyFormatter = new Intl.NumberFormat("pt-BR", {
@@ -215,26 +217,33 @@
   }
 
   function updateBulkCount() {
-    var boxes = getBulkCheckboxes();
-    var checked = boxes.filter(function (box) {
-      return !!box.checked;
-    });
-    var count = checked.length;
-    var master = byId("devolucao-bulk-select-all");
-    var countEl = byId("bulk-selected-count");
-    var modalCountEl = byId("batch-modal-selected-count");
-
-    boxes.forEach(function (box) {
-      var row = box.closest(".employee-row");
-      if (row) row.classList.toggle("devolucao-row--selected", !!box.checked);
-    });
-
-    if (countEl) countEl.textContent = String(count);
-    if (modalCountEl) modalCountEl.textContent = String(count);
-    if (master) {
-      master.checked = boxes.length > 0 && count === boxes.length;
-      master.indeterminate = count > 0 && count < boxes.length;
+    if (state.bulkCountRaf) {
+      window.cancelAnimationFrame(state.bulkCountRaf);
+      state.bulkCountRaf = 0;
     }
+    state.bulkCountRaf = window.requestAnimationFrame(function () {
+      state.bulkCountRaf = 0;
+      var boxes = getBulkCheckboxes();
+      var checked = boxes.filter(function (box) {
+        return !!box.checked;
+      });
+      var count = checked.length;
+      var master = byId("devolucao-bulk-select-all");
+      var countEl = byId("bulk-selected-count");
+      var modalCountEl = byId("batch-modal-selected-count");
+
+      boxes.forEach(function (box) {
+        var row = box.closest(".employee-row");
+        if (row) row.classList.toggle("devolucao-row--selected", !!box.checked);
+      });
+
+      if (countEl) countEl.textContent = String(count);
+      if (modalCountEl) modalCountEl.textContent = String(count);
+      if (master) {
+        master.checked = boxes.length > 0 && count === boxes.length;
+        master.indeterminate = count > 0 && count < boxes.length;
+      }
+    });
   }
 
   function getSelectedIds(approvableOnly) {
@@ -295,7 +304,8 @@
   }
 
   function getManualElements() {
-    return {
+    if (state.manualElementsCache) return state.manualElementsCache;
+    state.manualElementsCache = {
       form: byId("manual-devolucao-form"),
       id: byId("manual-devolucao-id"),
       title: byId("manual-devolucao-title"),
@@ -316,6 +326,7 @@
       observacao: byId("manual-observacao"),
       responsabilidade: byId("manual-responsabilidade"),
     };
+    return state.manualElementsCache;
   }
 
   function clearClientSuggestions() {
@@ -627,44 +638,55 @@
 
     var list = document.createElement("ul");
     list.className = "space-y-2";
-    payload.invalid_details.slice(0, 30).forEach(function (item) {
-      var row = document.createElement("li");
-      row.className = "rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50";
-      var title = document.createElement("p");
-      title.className = "font-semibold text-slate-800 dark:text-slate-100";
-      title.textContent = "Linha " + (item.row_index || "-");
-      row.appendChild(title);
-      var errors = document.createElement("div");
-      errors.className = "mt-1 space-y-1";
-      (item.errors || []).slice(0, 3).forEach(function (err) {
-        var msg = document.createElement("p");
-        msg.className = "text-xs text-slate-600 dark:text-slate-300";
-        msg.textContent =
-          (err.column ? err.column + ": " : "") +
-          (err.reason || "Erro de validação.");
-        errors.appendChild(msg);
-      });
-      row.appendChild(errors);
-      list.appendChild(row);
-    });
     errorsBox.appendChild(list);
-
-    if (payload.invalid_count > 30) {
-      var extra = document.createElement("p");
-      extra.className = "mt-3 text-xs font-medium text-amber-600 dark:text-amber-300";
-      extra.textContent =
-        "Mostrando os 30 primeiros erros. Baixe a planilha de erros para revisar tudo.";
-      errorsBox.appendChild(extra);
+    var details = payload.invalid_details.slice(0, 30);
+    var index = 0;
+    function appendChunk() {
+      var fragment = document.createDocumentFragment();
+      var limit = Math.min(index + 10, details.length);
+      for (; index < limit; index += 1) {
+        var item = details[index];
+        var row = document.createElement("li");
+        row.className = "rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-900/50";
+        var title = document.createElement("p");
+        title.className = "font-semibold text-slate-800 dark:text-slate-100";
+        title.textContent = "Linha " + (item.row_index || "-");
+        row.appendChild(title);
+        var errors = document.createElement("div");
+        errors.className = "mt-1 space-y-1";
+        (item.errors || []).slice(0, 3).forEach(function (err) {
+          var msg = document.createElement("p");
+          msg.className = "text-xs text-slate-600 dark:text-slate-300";
+          msg.textContent =
+            (err.column ? err.column + ": " : "") +
+            (err.reason || "Erro de validação.");
+          errors.appendChild(msg);
+        });
+        row.appendChild(errors);
+        fragment.appendChild(row);
+      }
+      list.appendChild(fragment);
+      if (index < details.length) {
+        window.requestAnimationFrame(appendChunk);
+        return;
+      }
+      if (payload.invalid_count > 30) {
+        var extra = document.createElement("p");
+        extra.className = "mt-3 text-xs font-medium text-amber-600 dark:text-amber-300";
+        extra.textContent =
+          "Mostrando os 30 primeiros erros. Baixe a planilha de erros para revisar tudo.";
+        errorsBox.appendChild(extra);
+      }
+      if (payload.batch_id) {
+        var download = document.createElement("a");
+        download.href = "/api/devolucoes/import/" + encodeURIComponent(payload.batch_id) + "/errors.xlsx";
+        download.className =
+          "mt-3 inline-flex text-xs font-semibold text-sky-600 underline underline-offset-2 hover:text-sky-500 dark:text-sky-300 dark:hover:text-sky-200";
+        download.textContent = "Baixar planilha de erros";
+        errorsBox.appendChild(download);
+      }
     }
-
-    if (payload.batch_id) {
-      var download = document.createElement("a");
-      download.href = "/api/devolucoes/import/" + encodeURIComponent(payload.batch_id) + "/errors.xlsx";
-      download.className =
-        "mt-3 inline-flex text-xs font-semibold text-sky-600 underline underline-offset-2 hover:text-sky-500 dark:text-sky-300 dark:hover:text-sky-200";
-      download.textContent = "Baixar planilha de erros";
-      errorsBox.appendChild(download);
-    }
+    window.requestAnimationFrame(appendChunk);
   }
 
   async function handleImportPreview() {

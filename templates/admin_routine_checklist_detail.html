@@ -1,6 +1,6 @@
 {% extends "base_gestao_avista.html" %}
 
-{% block title %}Checklist #{{ checklist.id }} · Gestão Avista{% endblock %}
+{% block title %}Checklist #{{ checklist.id }} | Gest&atilde;o Avista{% endblock %}
 {% block header_breadcrumb %}
 <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Rotinas / <a href="/admin/routine/checklists" class="hover:underline">Checklists</a> / #{{ checklist.id }}</p>
 {% endblock %}
@@ -8,275 +8,418 @@
 <h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Checklist #{{ checklist.id }}</h1>
 {% endblock %}
 {% block header_subtitle %}
-<p class="text-xs text-gray-500 dark:text-gray-400">Detalhes, itens, evidências e fluxo de revisão</p>
+<p class="text-xs text-gray-500 dark:text-gray-400">Revis&atilde;o, evid&ecirc;ncias e a&ccedil;&otilde;es do checklist operacional.</p>
 {% endblock %}
-{% block head_extra %}<link rel="stylesheet" href="/static/css/pages/employees.css">{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/checklist-detail.css">
+<script src="/static/js/pages/admin_routine_checklist_detail.js" defer></script>
+{% endblock %}
 
 {% block content %}
-<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+{% set checklist_values = checklist.items if checklist.items is mapping else {} %}
+{% set total_items = items|length %}
+{% set conforming_count = total_items - nonconforming_count %}
+<div class="checklist-detail-page space-y-4 pt-2 md:pt-3">
     {% if flash_message %}
     <div class="sys-alert {% if flash_level == 'success' %}sys-alert--success{% elif flash_level == 'error' %}sys-alert--danger{% else %}sys-alert--info{% endif %} flex items-center justify-between gap-3">
         <span>{{ flash_message }}</span>
-        <button type="button" onclick="this.parentElement.remove()" class="emp-modal-close" aria-label="Fechar">×</button>
+        <button type="button" onclick="this.parentElement.remove()" class="checklist-detail-close" aria-label="Fechar">&times;</button>
     </div>
     {% endif %}
 
-    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
-        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
-        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
-            <div class="flex min-w-0 items-start gap-4">
-                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
-                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9v2m0 4h.01"></path>
-                    </svg>
+    <section class="sys-card sys-card--surface checklist-detail-hero">
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div class="space-y-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="checklist-detail-pill checklist-detail-pill--neutral">Checklist operacional</span>
+                    <span class="checklist-detail-pill checklist-detail-pill--neutral">ID #{{ checklist.id }}</span>
+                    {% if checklist.status == "approved" %}
+                    <span class="checklist-detail-pill checklist-detail-pill--ok">{{ status_label }}</span>
+                    {% elif checklist.status == "rejected" %}
+                    <span class="checklist-detail-pill checklist-detail-pill--danger">{{ status_label }}</span>
+                    {% else %}
+                    <span class="checklist-detail-pill checklist-detail-pill--warn">{{ status_label }}</span>
+                    {% endif %}
+                    {% if equipment and equipment.status == "blocked" %}
+                    <span class="checklist-detail-pill checklist-detail-pill--danger">{{ equipment_status_label }}</span>
+                    {% else %}
+                    <span class="checklist-detail-pill checklist-detail-pill--neutral">{{ equipment_status_label }}</span>
+                    {% endif %}
+                    {% if checklist.critical_flag %}
+                    <span class="checklist-detail-pill checklist-detail-pill--danger">Cr&iacute;tico</span>
+                    {% endif %}
                 </div>
-                <div class="min-w-0">
-                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Revisão operacional</span>
-                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">{{ checklist.equipment_code }} · {{ date_br }}</h2>
-                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
-                        {{ employee_name|emp_name }} · Matrícula {{ employee_registration_id }} · Turno {{ checklist.shift }}{% if time_br %} · Envio {{ time_br }}{% endif %}
+
+                <div class="space-y-2">
+                    <p class="checklist-detail-eyebrow">Leitura r&aacute;pida</p>
+                    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+                        <h2 class="checklist-detail-title">{{ checklist.equipment_code }}</h2>
+                        <span class="checklist-detail-title-note">{{ date_br }} &middot; {{ checklist.shift }}</span>
+                    </div>
+                    <p class="checklist-detail-subtitle">
+                        {{ employee_name|emp_name }} &middot; Matr&iacute;cula {{ employee_registration_id }}
+                        {% if time_br %}&middot; Enviado &agrave;s {{ time_br }}{% endif %}
                     </p>
-                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
-                        {% if checklist.status == 'approved' %}
-                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ status_label }}</span>
-                        {% elif checklist.status == 'rejected' %}
-                        <span class="employees-hero__chip inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-red-800 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-200">{{ status_label }}</span>
-                        {% else %}
-                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ status_label }}</span>
-                        {% endif %}
-                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ equipment_status_label }}</span>
-                        {% if nonconforming_count > 0 %}
-                        <span class="employees-hero__chip inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-900 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200">{{ nonconforming_count }} não conforme(s)</span>
-                        {% endif %}
-                    </div>
                 </div>
             </div>
-            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch xl:ml-auto xl:w-auto xl:justify-end">
-                <a href="/admin/routine/checklists" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto sm:min-w-[9rem]">Voltar à lista</a>
-                <a href="/admin/routine/checklists/dashboard" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Painel</a>
-                <a href="/admin/equipment/tickets" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Chamados</a>
-                <a href="/workshop/service-orders?checklist_id={{ checklist.id }}" class="employees-cta sys-btn sys-btn--primary w-full justify-center sm:w-auto">Gerar OS</a>
-                <a href="/admin/routine/checklists/settings" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Configurações</a>
+
+            <div class="checklist-detail-header-actions">
+                <a href="/admin/routine/checklists" class="sys-btn sys-btn--secondary">Voltar</a>
+                <a href="/admin/routine/checklists/dashboard" class="sys-btn sys-btn--secondary">Painel</a>
+                <a href="/workshop/service-orders?checklist_id={{ checklist.id }}" class="sys-btn sys-btn--primary">Gerar OS</a>
             </div>
         </div>
-    </div>
 
-    <div class="sys-kpi-shell w-full">
-        <div class="sys-kpi-grid employees-kpi-row">
-            <div class="sys-kpi-card employees-kpi">
-                <div class="sys-kpi-cell-inner employees-kpi__inner">
-                    <span class="sys-kpi-label">Data</span>
-                    <span class="employees-kpi__value tabular-nums text-base sm:text-lg">{{ date_br }}</span>
-                    <span class="employees-kpi__meta">{{ checklist.shift }}</span>
-                </div>
+        <div class="checklist-detail-meta-grid">
+            <div class="checklist-detail-meta-card">
+                <span class="checklist-detail-meta-label">Status</span>
+                <span class="checklist-detail-meta-value">{{ status_label }}</span>
+                <span class="checklist-detail-meta-help">Fluxo atual da revis&atilde;o</span>
             </div>
-            <div class="sys-kpi-card employees-kpi">
-                <div class="sys-kpi-cell-inner employees-kpi__inner">
-                    <span class="sys-kpi-label">Equipamento</span>
-                    <span class="employees-kpi__value tabular-nums text-base sm:text-lg">{{ checklist.equipment_code }}</span>
-                    <span class="employees-kpi__meta {% if equipment and equipment.status == 'blocked' %}employees-text-danger{% endif %}">{{ equipment_status_label }}</span>
-                </div>
+            <div class="checklist-detail-meta-card">
+                <span class="checklist-detail-meta-label">N&atilde;o conformes</span>
+                <span class="checklist-detail-meta-value">{{ nonconforming_count }}</span>
+                <span class="checklist-detail-meta-help">{{ conforming_count }} de {{ total_items }} itens conformes</span>
             </div>
-            <div class="sys-kpi-card employees-kpi">
-                <div class="sys-kpi-cell-inner employees-kpi__inner">
-                    <span class="sys-kpi-label">Não conformes</span>
-                    <span class="employees-kpi__value employees-kpi__value--state {% if nonconforming_count > 0 %}employees-kpi__value--amber{% endif %} tabular-nums">{{ nonconforming_count }}</span>
-                </div>
+            <div class="checklist-detail-meta-card">
+                <span class="checklist-detail-meta-label">Turno</span>
+                <span class="checklist-detail-meta-value">{{ checklist.shift }}</span>
+                <span class="checklist-detail-meta-help">{{ date_br }}</span>
             </div>
-            <div class="sys-kpi-card employees-kpi">
-                <div class="sys-kpi-cell-inner employees-kpi__inner">
-                    <span class="sys-kpi-label">Status</span>
-                    <span class="mt-1 inline-flex">
-                        {% if checklist.status == 'approved' %}
-                        <span class="sys-badge sys-badge--ok">{{ status_label }}</span>
-                        {% elif checklist.status == 'rejected' %}
-                        <span class="sys-badge sys-badge--critical">{{ status_label }}</span>
-                        {% else %}
-                        <span class="sys-badge sys-badge--alert">{{ status_label }}</span>
-                        {% endif %}
-                    </span>
-                </div>
+            <div class="checklist-detail-meta-card">
+                <span class="checklist-detail-meta-label">Equipamento</span>
+                <span class="checklist-detail-meta-value">{{ checklist.equipment_code }}</span>
+                <span class="checklist-detail-meta-help">{{ equipment_status_label }}</span>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div class="space-y-5 lg:col-span-2">
-            <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
-                <div class="employees-table-panel__head border-b px-5 py-4 sm:px-6">
-                    <p class="employees-table-panel__kicker">Resumo</p>
-                    <h3 class="sys-section-heading employees-table-panel__title mt-1 text-base sm:text-lg">Identificação</h3>
-                </div>
-                <div class="grid gap-4 p-5 sm:grid-cols-3 sm:px-6">
-                    <div>
-                        <p class="employees-text-section-label mb-1">Colaborador</p>
-                        <p class="employees-text-strong text-sm font-semibold">{{ employee_name|emp_name }}</p>
-                        <p class="employees-text-muted text-xs">{{ employee_registration_id }}</p>
-                    </div>
-                    <div>
-                        <p class="employees-text-section-label mb-1">Equipamento</p>
-                        <p class="employees-text-strong text-sm font-semibold">{{ checklist.equipment_code }}</p>
-                        <p class="text-xs {% if equipment and equipment.status == 'blocked' %}employees-text-danger{% else %}employees-text-muted{% endif %}">{{ equipment_status_label }}</p>
-                    </div>
-                    <div>
-                        <p class="employees-text-section-label mb-1">Data / turno</p>
-                        <p class="employees-text-strong text-sm font-semibold">{{ date_br }}</p>
-                        <p class="employees-text-muted text-xs">{{ checklist.shift }}{% if time_br %} · {{ time_br }}{% endif %}</p>
-                    </div>
-                </div>
-                {% if odometer_km_br %}
-                <div class="border-t px-5 py-3 sm:px-6">
-                    <p class="employees-text-section-label mb-1">KM hodômetro</p>
-                    <p class="employees-text-strong font-mono text-sm">{{ odometer_km_br }}</p>
-                </div>
+    {% if nonconforming_count > 0 or checklist.critical_flag %}
+    <section class="sys-alert sys-alert--warn checklist-detail-attention">
+        <div class="space-y-1">
+            <h2 class="checklist-detail-section-title">Pontos que pedem aten&ccedil;&atilde;o</h2>
+            <p class="text-sm">
+                {% if checklist.critical_flag and nonconforming_count > 0 %}
+                Existem itens n&atilde;o conformes e o checklist est&aacute; marcado como cr&iacute;tico.
+                {% elif checklist.critical_flag %}
+                O checklist est&aacute; marcado como cr&iacute;tico e merece revis&atilde;o cuidadosa.
+                {% else %}
+                Existem {{ nonconforming_count }} item(ns) n&atilde;o conforme(s) neste checklist.
                 {% endif %}
+            </p>
+        </div>
+        {% if nonconforming_count > 0 %}
+        <div class="checklist-detail-attention-list">
+            {% for item in items %}
+            {% set ok = checklist_values.get(item.key, False) %}
+            {% if not ok %}
+            <div class="checklist-detail-attention-item">
+                <span class="checklist-detail-attention-dot"></span>
+                <span>{{ item.label }}</span>
             </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% if checklist.critical_flag and not checklist.images %}
+        <p class="text-sm">A aprova&ccedil;&atilde;o exigir&aacute; evid&ecirc;ncia visual. Use a corre&ccedil;&atilde;o administrativa para anexar imagens antes de aprovar.</p>
+        {% endif %}
+    </section>
+    {% else %}
+    <section class="sys-alert sys-alert--success">
+        Todos os itens foram preenchidos como conformes e o checklist n&atilde;o possui criticidade.
+    </section>
+    {% endif %}
 
-            <div class="sys-card sys-card--surface p-5 sm:p-6">
-                <h3 class="sys-section-heading text-base sm:text-lg">Itens do checklist</h3>
-                <p class="employees-table-panel__lede mt-1 text-sm">Conformidade por item configurado no fluxo operacional.</p>
-                {% set checklist_values = checklist.items if checklist.items is mapping else {} %}
-                <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <div class="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_22rem]">
+        <div class="space-y-4">
+            <section class="sys-card sys-card--surface checklist-detail-card">
+                <div class="checklist-detail-card-head">
+                    <div>
+                        <h2 class="checklist-detail-section-title">Contexto do checklist</h2>
+                        <p class="checklist-detail-section-lead">As informa&ccedil;&otilde;es principais ficam concentradas aqui para evitar idas e voltas pela tela.</p>
+                    </div>
+                    <div class="checklist-detail-inline-links">
+                        <a href="/admin/equipment/tickets">Chamados</a>
+                        <a href="/admin/routine/checklists/settings">Configura&ccedil;&otilde;es</a>
+                    </div>
+                </div>
+
+                <div class="checklist-detail-info-grid">
+                    <div class="checklist-detail-info-block">
+                        <span class="checklist-detail-info-label">Colaborador</span>
+                        <span class="checklist-detail-info-value">{{ employee_name|emp_name }}</span>
+                        <span class="checklist-detail-info-help">Matr&iacute;cula {{ employee_registration_id }}</span>
+                    </div>
+                    <div class="checklist-detail-info-block">
+                        <span class="checklist-detail-info-label">Equipamento</span>
+                        <span class="checklist-detail-info-value">{{ checklist.equipment_code }}</span>
+                        <span class="checklist-detail-info-help">{{ equipment_status_label }}</span>
+                    </div>
+                    <div class="checklist-detail-info-block">
+                        <span class="checklist-detail-info-label">Data e envio</span>
+                        <span class="checklist-detail-info-value">{{ date_br }}</span>
+                        <span class="checklist-detail-info-help">{{ checklist.shift }}{% if time_br %} &middot; {{ time_br }}{% endif %}</span>
+                    </div>
+                    {% if odometer_km_br %}
+                    <div class="checklist-detail-info-block">
+                        <span class="checklist-detail-info-label">KM hod&ocirc;metro</span>
+                        <span class="checklist-detail-info-value">{{ odometer_km_br }}</span>
+                        <span class="checklist-detail-info-help">Valor informado no envio</span>
+                    </div>
+                    {% endif %}
+                    <div class="checklist-detail-info-block checklist-detail-info-block--full">
+                        <span class="checklist-detail-info-label">Observa&ccedil;&otilde;es</span>
+                        {% if checklist.observations %}
+                        <p class="checklist-detail-note">{{ checklist.observations }}</p>
+                        {% else %}
+                        <p class="checklist-detail-note checklist-detail-note--muted">Sem observa&ccedil;&otilde;es registradas.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="sys-card sys-card--surface checklist-detail-card">
+                <div class="checklist-detail-card-head">
+                    <div>
+                        <h2 class="checklist-detail-section-title">Checklist completo</h2>
+                        <p class="checklist-detail-section-lead">Os itens ficam em uma lista &uacute;nica, com destaque maior apenas para o que precisa de a&ccedil;&atilde;o.</p>
+                    </div>
+                    <span class="checklist-detail-counter">{{ total_items }} itens</span>
+                </div>
+
+                <div class="checklist-detail-item-list">
                     {% for item in items %}
                     {% set ok = checklist_values.get(item.key, False) %}
-                    <div class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 {% if ok %}border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/25 dark:bg-emerald-950/20{% else %}border-red-200 bg-red-50/40 dark:border-red-500/25 dark:bg-red-950/20{% endif %}">
-                        <span class="employees-text-body text-sm">{{ item.label }}</span>
-                        {% if ok %}<span class="sys-badge sys-badge--ok">Conforme</span>{% else %}<span class="sys-badge sys-badge--critical">Não conforme</span>{% endif %}
+                    <div class="checklist-detail-item-row {% if ok %}checklist-detail-item-row--ok{% else %}checklist-detail-item-row--fail{% endif %}">
+                        <div class="checklist-detail-item-main">
+                            <span class="checklist-detail-item-dot {% if ok %}checklist-detail-item-dot--ok{% else %}checklist-detail-item-dot--fail{% endif %}"></span>
+                            <div class="min-w-0">
+                                <p class="checklist-detail-item-title">{{ item.label }}</p>
+                                <p class="checklist-detail-item-subtitle">
+                                    {% if ok %}
+                                    Item registrado como conforme.
+                                    {% else %}
+                                    Item marcado como n&atilde;o conforme e precisa de valida&ccedil;&atilde;o.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        {% if ok %}
+                        <span class="sys-badge sys-badge--ok">Conforme</span>
+                        {% else %}
+                        <span class="sys-badge sys-badge--critical">N&atilde;o conforme</span>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
-            </div>
+            </section>
 
-            <div class="sys-card sys-card--surface p-5 sm:p-6">
-                <h3 class="sys-section-heading text-base sm:text-lg">Observações</h3>
-                <p class="employees-text-body mt-2 text-sm">{{ checklist.observations or 'Sem observações.' }}</p>
-                {% if reviewed_by_display %}
-                <div class="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
-                    <p class="employees-text-section-label mb-1">Revisado por</p>
-                    <p class="employees-text-body text-sm">{{ reviewed_by_display }}</p>
-                    {% if checklist.reviewed_at %}
-                    <p class="employees-text-muted mt-1 text-xs">{{ checklist.reviewed_at.strftime("%d/%m/%Y %H:%M") }}</p>
-                    {% endif %}
+            <section class="sys-card sys-card--surface checklist-detail-card">
+                <div class="checklist-detail-card-head">
+                    <div>
+                        <h2 class="checklist-detail-section-title">Evid&ecirc;ncias</h2>
+                        <p class="checklist-detail-section-lead">Imagens anexadas no envio ou adicionadas durante a corre&ccedil;&atilde;o administrativa.</p>
+                    </div>
                 </div>
-                {% endif %}
-            </div>
 
-            <div class="sys-card sys-card--surface p-5 sm:p-6">
-                <h3 class="sys-section-heading text-base sm:text-lg">Evidências</h3>
                 {% if checklist.images %}
-                <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div class="checklist-detail-gallery">
                     {% for img in checklist.images %}
-                    <a href="/static/uploads/checklists/{{ img }}" target="_blank" rel="noopener noreferrer"
-                        class="group block overflow-hidden rounded-xl border border-slate-200 dark:border-slate-600">
-                        <img src="/static/uploads/checklists/{{ img }}" alt="Evidência"
-                            class="h-24 w-full object-cover transition group-hover:opacity-90"
-                            onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23e2e8f0\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%2364758b\' font-family=\'sans-serif\' font-size=\'11\'%3EImagem%3C/text%3E%3C/svg%3E';">
-                        <p class="employees-text-caption px-2 py-1 text-center text-[10px]">Ampliar</p>
+                    <a href="/static/uploads/checklists/{{ img }}" target="_blank" rel="noopener noreferrer" class="checklist-detail-photo">
+                        <img src="/static/uploads/checklists/{{ img }}" alt="Evid&ecirc;ncia do checklist"
+                            onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27160%27 height=%27120%27%3E%3Crect width=%27160%27 height=%27120%27 fill=%27%23e2e8f0%27/%3E%3Ctext x=%2750%25%27 y=%2750%25%27 dominant-baseline=%27middle%27 text-anchor=%27middle%27 fill=%27%2364758b%27 font-family=%27sans-serif%27 font-size=%2712%27%3EImagem%3C/text%3E%3C/svg%3E';">
+                        <span class="checklist-detail-photo-label">Abrir imagem</span>
                     </a>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="employees-text-muted mt-2 text-sm">Nenhuma imagem enviada.</p>
+                <div class="sys-empty-state">Nenhuma imagem foi enviada neste checklist.</div>
                 {% endif %}
-            </div>
+            </section>
         </div>
 
-        <div class="space-y-5">
-            <div class="sys-card sys-card--surface sys-card--comfort p-5">
-                <h3 class="sys-section-heading text-base">Revisão</h3>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/review" method="POST" class="mt-4 space-y-3">
-                    <label class="sys-section__label sys-section__label--field text-xs" for="review-comment">Comentário do revisor</label>
-                    <textarea id="review-comment" name="comment" rows="3" class="sys-input w-full text-sm" placeholder="Opcional">{{ checklist.review_comment or '' }}</textarea>
-                    <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">Marcar como revisado</button>
-                </form>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/approve" method="POST" class="mt-4 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                    <label class="sys-section__label sys-section__label--field text-xs" for="approve-comment">Comentário (obrigatório se houver não conformidade)</label>
-                    <textarea id="approve-comment" name="comment" rows="3" class="sys-input w-full text-sm" placeholder="Observações da aprovação"></textarea>
-                    <button type="submit" class="sys-btn sys-btn--success w-full justify-center">Aprovar checklist</button>
-                </form>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/reject" method="POST" class="mt-4 space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                    <label class="sys-section__label sys-section__label--field text-xs" for="reject-comment">Comentário</label>
-                    <textarea id="reject-comment" name="comment" rows="3" required class="sys-input w-full text-sm" placeholder="Obrigatório para rejeição"></textarea>
-                    <button type="submit" class="sys-btn sys-btn--ghost-danger w-full justify-center border border-red-200 bg-red-50 text-red-800 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-200">Rejeitar checklist</button>
-                </form>
-            </div>
+        <aside class="checklist-detail-sidebar">
+            <section class="sys-card sys-card--surface checklist-detail-card">
+                <div class="checklist-detail-card-head">
+                    <div>
+                        <h2 class="checklist-detail-section-title">Decis&atilde;o do revisor</h2>
+                        <p class="checklist-detail-section-lead">Um &uacute;nico campo de coment&aacute;rio para revisar, aprovar ou rejeitar.</p>
+                    </div>
+                </div>
 
-            <div class="sys-card sys-card--surface sys-card--comfort p-5">
-                <h3 class="sys-section-heading text-base">Correção (admin)</h3>
-                {% if checklist.edited_at %}
-                <div class="employees-text-muted mt-3 space-y-1 text-xs">
-                    <p><span class="employees-text-section-label">Editado por:</span> {{ checklist.edited_by }}</p>
-                    <p><span class="employees-text-section-label">Em:</span> {{ checklist.edited_at.strftime("%d/%m/%Y %H:%M") }}</p>
-                    <p><span class="employees-text-section-label">Motivo:</span> {{ checklist.edit_comment }}</p>
-                    {% if checklist.previous_equipment_code %}
-                    <p><span class="employees-text-section-label">Equip. anterior:</span> {{ checklist.previous_equipment_code }}</p>
-                    {% endif %}
-                    {% if checklist.previous_observations %}
-                    <p><span class="employees-text-section-label">Obs. anteriores:</span> {{ checklist.previous_observations }}</p>
-                    {% endif %}
+                <form id="checklistDecisionForm" action="/admin/routine/checklists/{{ checklist.id }}/review" method="POST" class="space-y-3">
+                    <div>
+                        <label class="sys-section__label sys-section__label--field" for="decisionComment">Coment&aacute;rio da decis&atilde;o</label>
+                        <textarea id="decisionComment" name="comment" rows="4" class="sys-input text-sm" placeholder="Use quando precisar registrar contexto adicional."></textarea>
+                    </div>
+                    <p id="decisionHint" class="checklist-detail-form-hint"
+                        data-default-hint="{% if checklist.critical_flag and not checklist.images %}Checklist cr&iacute;tico sem evid&ecirc;ncia visual. Adicione imagens antes de aprovar.{% elif checklist.critical_flag %}Checklist cr&iacute;tico: aprove apenas com coment&aacute;rio coerente e confer&ecirc;ncia das evid&ecirc;ncias.{% elif nonconforming_count > 0 %}A aprova&ccedil;&atilde;o exige coment&aacute;rio porque h&aacute; n&atilde;o conformidades.{% else %}Coment&aacute;rio opcional para revisar ou aprovar.{% endif %}">
+                        {% if checklist.critical_flag and not checklist.images %}
+                        Checklist cr&iacute;tico sem evid&ecirc;ncia visual. Adicione imagens antes de aprovar.
+                        {% elif checklist.critical_flag %}
+                        Checklist cr&iacute;tico: aprove apenas com coment&aacute;rio coerente e confer&ecirc;ncia das evid&ecirc;ncias.
+                        {% elif nonconforming_count > 0 %}
+                        A aprova&ccedil;&atilde;o exige coment&aacute;rio porque h&aacute; n&atilde;o conformidades.
+                        {% else %}
+                        Coment&aacute;rio opcional para revisar ou aprovar.
+                        {% endif %}
+                    </p>
+                    <div class="checklist-detail-action-grid">
+                        <button type="submit"
+                            formaction="/admin/routine/checklists/{{ checklist.id }}/review"
+                            class="sys-btn sys-btn--secondary w-full justify-center"
+                            data-decision-action
+                            data-submit-hint="Checklist marcado como revisado.">
+                            Marcar como revisado
+                        </button>
+                        <button type="submit"
+                            formaction="/admin/routine/checklists/{{ checklist.id }}/approve"
+                            class="sys-btn sys-btn--success w-full justify-center"
+                            data-decision-action
+                            data-require-comment="{% if nonconforming_count > 0 or checklist.critical_flag %}true{% else %}false{% endif %}"
+                            data-required-hint="{% if checklist.critical_flag %}A aprova&ccedil;&atilde;o exige coment&aacute;rio por causa da criticidade.{% else %}A aprova&ccedil;&atilde;o exige coment&aacute;rio porque h&aacute; n&atilde;o conformidades.{% endif %}"
+                            data-submit-hint="Aprova&ccedil;&atilde;o enviada.">
+                            Aprovar checklist
+                        </button>
+                        <button type="submit"
+                            formaction="/admin/routine/checklists/{{ checklist.id }}/reject"
+                            class="sys-btn sys-btn--ghost-danger checklist-detail-danger-btn w-full justify-center"
+                            data-decision-action
+                            data-require-comment="true"
+                            data-required-hint="A rejei&ccedil;&atilde;o exige coment&aacute;rio."
+                            data-confirm-message="Rejeitar este checklist?"
+                            data-submit-hint="Rejei&ccedil;&atilde;o enviada.">
+                            Rejeitar checklist
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="sys-card sys-card--surface checklist-detail-card">
+                <div class="checklist-detail-card-head">
+                    <div>
+                        <h2 class="checklist-detail-section-title">Situa&ccedil;&atilde;o atual</h2>
+                        <p class="checklist-detail-section-lead">Hist&oacute;rico curto para decidir sem abrir outras telas.</p>
+                    </div>
+                </div>
+
+                <div class="checklist-detail-status-list">
+                    <div class="checklist-detail-status-row">
+                        <span class="checklist-detail-status-label">Status atual</span>
+                        <span class="checklist-detail-status-value">{{ status_label }}</span>
+                    </div>
+                    <div class="checklist-detail-status-row">
+                        <span class="checklist-detail-status-label">Equipamento</span>
+                        <span class="checklist-detail-status-value">{{ equipment_status_label }}</span>
+                    </div>
+                    <div class="checklist-detail-status-row">
+                        <span class="checklist-detail-status-label">Revisado por</span>
+                        <span class="checklist-detail-status-value">{% if reviewed_by_display %}{{ reviewed_by_display }}{% else %}Sem revis&atilde;o{% endif %}</span>
+                    </div>
+                    <div class="checklist-detail-status-row">
+                        <span class="checklist-detail-status-label">Data da revis&atilde;o</span>
+                        <span class="checklist-detail-status-value">{% if checklist.reviewed_at %}{{ checklist.reviewed_at.strftime("%d/%m/%Y %H:%M") }}{% else %}-{% endif %}</span>
+                    </div>
+                    <div class="checklist-detail-status-row">
+                        <span class="checklist-detail-status-label">E-mail manuten&ccedil;&atilde;o</span>
+                        <span class="checklist-detail-status-value">{{ "Enviado" if checklist.maintenance_email_sent_at else "Pendente" }}</span>
+                    </div>
+                </div>
+
+                {% if checklist.review_comment %}
+                <div class="checklist-detail-comment-box">
+                    <span class="checklist-detail-info-label">Coment&aacute;rio registrado</span>
+                    <p>{{ checklist.review_comment }}</p>
                 </div>
                 {% endif %}
-                <form action="/admin/routine/checklists/{{ checklist.id }}/edit" method="POST" enctype="multipart/form-data" class="mt-4 space-y-3">
-                    <div>
-                        <label class="sys-section__label sys-section__label--field text-xs" for="edit-equipment">Equipamento</label>
-                        <input id="edit-equipment" type="text" name="equipment_code" value="{{ checklist.equipment_code }}" required class="sys-input w-full text-sm">
-                    </div>
-                    <div>
-                        <label class="sys-section__label sys-section__label--field text-xs" for="edit-obs">Observações</label>
-                        <textarea id="edit-obs" name="observations" rows="3" class="sys-input w-full text-sm" placeholder="Complemento ou correção">{{ checklist.observations or '' }}</textarea>
-                    </div>
-                    <div>
-                        <label class="sys-section__label sys-section__label--field text-xs" for="edit-files">Evidências adicionais</label>
-                        <input id="edit-files" type="file" name="files" multiple accept="image/*" class="sys-input w-full text-sm">
-                    </div>
-                    <div>
-                        <label class="sys-section__label sys-section__label--field text-xs" for="edit-reason">Motivo da correção</label>
-                        <textarea id="edit-reason" name="edit_comment" rows="2" required class="sys-input w-full text-sm" placeholder="Explique a correção"></textarea>
-                    </div>
-                    <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Salvar correção</button>
-                </form>
-            </div>
 
-            <div class="sys-card sys-card--surface p-5">
-                <h3 class="sys-section-heading text-base">E-mail de manutenção</h3>
-                <div class="mt-3 flex items-center gap-2">
-                    <span class="h-2 w-2 shrink-0 rounded-full {% if checklist.maintenance_email_sent_at %}bg-emerald-500{% else %}bg-amber-500{% endif %}"></span>
-                    <p class="employees-text-body text-sm">{{ 'Enviado' if checklist.maintenance_email_sent_at else 'Não enviado' }}</p>
-                </div>
                 {% if checklist.maintenance_email_sent_at %}
-                <p class="employees-text-muted mt-2 text-xs">Enviado em: {{ checklist.maintenance_email_sent_at.strftime("%d/%m/%Y %H:%M") }}</p>
+                <p class="checklist-detail-side-note">E-mail enviado em {{ checklist.maintenance_email_sent_at.strftime("%d/%m/%Y %H:%M") }}.</p>
                 {% endif %}
+
                 {% if checklist.maintenance_email_error %}
-                <div class="sys-alert sys-alert--danger mt-3 text-xs">{{ checklist.maintenance_email_error }}</div>
+                <div class="sys-alert sys-alert--danger text-xs">{{ checklist.maintenance_email_error }}</div>
                 {% endif %}
-                <form action="/admin/routine/checklists/{{ checklist.id }}/resend-email" method="POST" class="mt-4">
-                    <button type="submit" class="sys-btn sys-btn--sky w-full justify-center">{{ 'Reenviar e-mail' if checklist.maintenance_email_sent_at else 'Enviar e-mail' }}</button>
-                </form>
-            </div>
 
-            {% if equipment and equipment.status == 'blocked' %}
-            <div class="sys-card sys-card--surface border-red-200 p-5 dark:border-red-500/30">
-                <h3 class="sys-section-heading text-base text-red-800 dark:text-red-200">Equipamento bloqueado</h3>
-                <p class="employees-text-body mt-2 text-sm text-red-900 dark:text-red-100">{{ equipment.blocked_reason or 'Aguardando liberação.' }}</p>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/release" method="POST" class="mt-4">
-                    <button type="submit" class="sys-btn sys-btn--ghost-danger w-full justify-center">Liberar equipamento</button>
-                </form>
-            </div>
-            {% endif %}
+                {% if equipment and equipment.status == "blocked" %}
+                <div class="checklist-detail-blocked-box">
+                    <span class="checklist-detail-info-label">Equipamento bloqueado</span>
+                    <p>{% if equipment.blocked_reason %}{{ equipment.blocked_reason }}{% else %}Aguardando libera&ccedil;&atilde;o.{% endif %}</p>
+                    <form action="/admin/routine/checklists/{{ checklist.id }}/release" method="POST" class="pt-2">
+                        <button type="submit" class="sys-btn sys-btn--ghost-danger checklist-detail-danger-btn w-full justify-center">Liberar equipamento</button>
+                    </form>
+                </div>
+                {% endif %}
+            </section>
 
-            <div class="sys-card sys-card--surface border-red-200 p-5 dark:border-red-900/40">
-                <h3 class="sys-section-heading text-base text-red-700 dark:text-red-300">Zona de perigo</h3>
-                <p class="employees-text-muted mt-1 text-xs">A exclusão é permanente. Checklists aprovados exigem confirmação explícita no servidor.</p>
-                <form action="/admin/routine/checklists/{{ checklist.id }}/delete" method="POST" class="mt-4"
-                    onsubmit="return confirm('Excluir este checklist permanentemente?');">
-                    {% if checklist.status == 'approved' %}
-                    <input type="hidden" name="confirm_delete" value="true">
+            <details class="sys-card sys-card--surface checklist-detail-disclosure" {% if checklist.edited_at %}open{% endif %}>
+                <summary>
+                    <span>Corre&ccedil;&atilde;o administrativa</span>
+                </summary>
+                <div class="checklist-detail-disclosure-body space-y-4">
+                    {% if checklist.edited_at %}
+                    <div class="checklist-detail-history-box">
+                        <span class="checklist-detail-info-label">&Uacute;ltima corre&ccedil;&atilde;o</span>
+                        <p>Editado por {{ checklist.edited_by }} em {{ checklist.edited_at.strftime("%d/%m/%Y %H:%M") }}.</p>
+                        <p class="checklist-detail-side-note">{{ checklist.edit_comment }}</p>
+                        {% if checklist.previous_equipment_code %}
+                        <p class="checklist-detail-side-note">Equipamento anterior: {{ checklist.previous_equipment_code }}</p>
+                        {% endif %}
+                        {% if checklist.previous_observations %}
+                        <p class="checklist-detail-side-note">Observa&ccedil;&otilde;es anteriores: {{ checklist.previous_observations }}</p>
+                        {% endif %}
+                    </div>
                     {% endif %}
-                    <button type="submit" class="sys-btn sys-btn--ghost-danger w-full justify-center">Excluir checklist</button>
-                </form>
-            </div>
-        </div>
+
+                    <form action="/admin/routine/checklists/{{ checklist.id }}/edit" method="POST" enctype="multipart/form-data" class="space-y-3">
+                        <div>
+                            <label class="sys-section__label sys-section__label--field" for="edit-equipment">Equipamento</label>
+                            <input id="edit-equipment" type="text" name="equipment_code" value="{{ checklist.equipment_code }}" required class="sys-input text-sm">
+                        </div>
+                        <div>
+                            <label class="sys-section__label sys-section__label--field" for="edit-observations">Observa&ccedil;&otilde;es</label>
+                            <textarea id="edit-observations" name="observations" rows="3" class="sys-input text-sm" placeholder="Complemento ou corre&ccedil;&atilde;o">{{ checklist.observations or "" }}</textarea>
+                        </div>
+                        <div>
+                            <label class="sys-section__label sys-section__label--field" for="edit-files">Evid&ecirc;ncias adicionais</label>
+                            <input id="edit-files" type="file" name="files" multiple accept="image/*" class="sys-input text-sm">
+                        </div>
+                        <div>
+                            <label class="sys-section__label sys-section__label--field" for="edit-comment">Motivo da corre&ccedil;&atilde;o</label>
+                            <textarea id="edit-comment" name="edit_comment" rows="3" required class="sys-input text-sm" placeholder="Explique a corre&ccedil;&atilde;o"></textarea>
+                        </div>
+                        <button type="submit" class="sys-btn sys-btn--primary w-full justify-center">Salvar corre&ccedil;&atilde;o</button>
+                    </form>
+                </div>
+            </details>
+
+            <details class="sys-card sys-card--surface checklist-detail-disclosure">
+                <summary>
+                    <span>A&ccedil;&otilde;es avan&ccedil;adas</span>
+                </summary>
+                <div class="checklist-detail-disclosure-body space-y-4">
+                    <div class="space-y-2">
+                        <span class="checklist-detail-info-label">E-mail de manuten&ccedil;&atilde;o</span>
+                        <p class="checklist-detail-side-note">{{ "Reenviar o e-mail" if checklist.maintenance_email_sent_at else "Enviar o e-mail" }} para a equipe de manuten&ccedil;&atilde;o.</p>
+                        <form action="/admin/routine/checklists/{{ checklist.id }}/resend-email" method="POST">
+                            <button type="submit" class="sys-btn sys-btn--secondary w-full justify-center">{{ "Reenviar e-mail" if checklist.maintenance_email_sent_at else "Enviar e-mail" }}</button>
+                        </form>
+                    </div>
+
+                    <div class="checklist-detail-danger-zone">
+                        <span class="checklist-detail-info-label">Zona de perigo</span>
+                        <p class="checklist-detail-side-note">A exclus&atilde;o &eacute; permanente. Use apenas quando o registro realmente n&atilde;o deve permanecer no hist&oacute;rico.</p>
+                        <form action="/admin/routine/checklists/{{ checklist.id }}/delete" method="POST" onsubmit="return confirm('Excluir este checklist permanentemente?');">
+                            {% if checklist.status == "approved" %}
+                            <input type="hidden" name="confirm_delete" value="true">
+                            {% endif %}
+                            <button type="submit" class="sys-btn sys-btn--ghost-danger checklist-detail-danger-btn w-full justify-center">Excluir checklist</button>
+                        </form>
+                    </div>
+                </div>
+            </details>
+        </aside>
     </div>
 </div>
 {% endblock %}

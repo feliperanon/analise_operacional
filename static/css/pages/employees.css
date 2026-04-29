@@ -34,7 +34,7 @@
   --emp-action-primary-hover: var(--sys-btn-primary-bg-hover);
   --emp-action-primary-soft: var(--sys-alert-info-bg);
   --emp-focus-ring: 0 0 0 3px rgb(59 130 246 / 0.22);
-  --emp-toolbar-h: var(--sys-control-height);
+  --emp-toolbar-h: 2.25rem;
   --emp-success: var(--sys-ok-fg);
   --emp-amber: var(--sys-alert-fg);
   --emp-danger: var(--sys-critical-fg);
@@ -152,6 +152,7 @@
 
 .ga-employee-theme.employees-page .employees-hero__toolbar {
   align-self: stretch;
+  row-gap: 0.4rem;
 }
 
 .ga-employee-theme.employees-page .employees-hero__chevron {
@@ -169,13 +170,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
   min-height: var(--emp-toolbar-h);
-  padding-left: 1.125rem;
-  padding-right: 1.125rem;
-  font-size: var(--sys-control-font-size);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
   border-radius: var(--emp-radius);
+  line-height: 1.15;
   transition:
     border-color 0.18s ease,
     background 0.18s ease,
@@ -210,7 +212,7 @@
 }
 
 .ga-employee-theme.employees-page .employees-cta--primary.sys-btn--primary {
-  min-width: 11rem;
+  min-width: 0;
   box-shadow: 0 1px 2px rgb(49 46 129 / 0.12), 0 6px 20px rgb(79 70 229 / 0.22);
 }
 

@@ -57,18 +57,42 @@
     font-size: 0.52rem !important;
 }
 
+/* Remove ícones dos cards KPI para ganhar largura no Fire TV. */
 .tv-dashboard-page .tv-kpi-mega-grid .employees-kpi__head > svg,
 .tv-dashboard-page .tv-kpi-mega-grid svg.h-4.w-4 {
-    width: 0.68rem !important;
-    height: 0.68rem !important;
-    min-width: 0.68rem !important;
-    min-height: 0.68rem !important;
-    margin-top: 0.02rem;
+    display: none !important;
 }
 
 .tv-dashboard-page .tv-kpi-mega-grid .employees-text-section-label {
     font-size: 0.46rem !important;
     line-height: 1 !important;
+}
+
+/* "Hora local" e "Andamento do dia" no mesmo padrão compacto dos demais KPIs. */
+.tv-dashboard-page .tv-kpi-mega-grid > .tv-kpi-lead {
+    min-height: 4.55rem !important;
+    padding: 0.32rem 0.45rem !important;
+    gap: 0.16rem !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid > .tv-kpi-lead #dash-time,
+.tv-dashboard-page .tv-kpi-mega-grid > .tv-kpi-lead #tv-kpi-day-pct {
+    font-size: 0.74rem !important;
+    line-height: 1.02 !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid > .tv-kpi-lead #dash-date,
+.tv-dashboard-page .tv-kpi-mega-grid > .tv-kpi-lead .text-\[10px\] {
+    font-size: 0.48rem !important;
+    line-height: 1.02 !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid > .tv-kpi-day-progress {
+    gap: 0.18rem !important;
+}
+
+.tv-dashboard-page .tv-kpi-mega-grid > .tv-kpi-day-progress .tv-kpi-day-progress-track {
+    height: 0.24rem !important;
 }
 
 /* Força painel principal em duas colunas no Fire TV. */

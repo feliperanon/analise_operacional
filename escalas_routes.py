@@ -41,6 +41,15 @@ def _safe_float(v: Any) -> float:
         return 0.0
 
 
+def _safe_str(v: Any) -> str:
+    if v is None:
+        return ""
+    try:
+        return str(v)
+    except Exception:
+        return ""
+
+
 def _get_user_label(request: Request) -> str:
     try:
         uid = request.session.get("user_id") or request.session.get("auth_user_id")
@@ -170,7 +179,8 @@ def _build_escala_groups(
             except Exception:
                 pass
 
-            has_plate = bool((r.delivery_vehicle_plate or "").strip()) and (r.delivery_vehicle_plate or "").strip() != "-"
+            plate_raw = _safe_str(r.delivery_vehicle_plate).strip()
+            has_plate = bool(plate_raw) and plate_raw != "-"
             default_status = "nao_escalado" if not has_plate else "escalado"
             groups[key] = {
                 "date": r.date,
@@ -181,7 +191,7 @@ def _build_escala_groups(
                 "total_value": 0.0,
                 "total_qty": 0,
                 "route_ids": [],
-                "escala_status": (r.escala_status or "").strip() or default_status,
+                "escala_status": _safe_str(r.escala_status).strip() or default_status,
             }
         g = groups[key]
         g["total_weight"] += _safe_float(r.tonnage)
@@ -213,8 +223,8 @@ def _build_escala_groups(
     motoristas = [e for e in emp_map.values() if e.status == "active" and getattr(e, "mobile_access_separation", False)]
     ajudantes = [e for e in emp_map.values() if e.status == "active" and getattr(e, "mobile_access_helper", False)]
 
-    motoristas.sort(key=lambda x: (x.name or "").lower())
-    ajudantes.sort(key=lambda x: (x.name or "").lower())
+    motoristas.sort(key=lambda x: _safe_str(x.name).lower())
+    ajudantes.sort(key=lambda x: _safe_str(x.name).lower())
 
     # Alocados
     alocados_driver = {e["employee_id"] for e in escalas}
@@ -312,15 +322,15 @@ async def escala_api_data(
     return JSONResponse({
         "summary": summary,
         "escalas": escalas,
-        "motoristas_disponiveis": [{"id": m.id, "name": m.name} for m in motoristas if m.id not in alocados_driver],
-        "motoristas_todos": [{"id": m.id, "name": m.name} for m in motoristas],
+        "motoristas_disponiveis": [{"id": m.id, "name": _safe_str(m.name)} for m in motoristas if m.id not in alocados_driver],
+        "motoristas_todos": [{"id": m.id, "name": _safe_str(m.name)} for m in motoristas],
         "motoristas_alocados": list(alocados_driver),
-        "ajudantes_disponiveis": [{"id": a.id, "name": a.name} for a in ajudantes if a.id not in alocados_helper],
-        "ajudantes_todos": [{"id": a.id, "name": a.name} for a in ajudantes],
+        "ajudantes_disponiveis": [{"id": a.id, "name": _safe_str(a.name)} for a in ajudantes if a.id not in alocados_helper],
+        "ajudantes_todos": [{"id": a.id, "name": _safe_str(a.name)} for a in ajudantes],
         "ajudantes_alocados": list(alocados_helper),
-        "caminhoes_disponiveis": [{"id": v.id, "placa": v.placa} for v in vehicles if _norm_plate(v.placa) not in alocados_plate],
+        "caminhoes_disponiveis": [{"id": v.id, "placa": _safe_str(v.placa)} for v in vehicles if _norm_plate(v.placa) not in alocados_plate],
         "caminhoes_alocados": list(alocados_plate),
-        "vehicles": [{"id": v.id, "placa": v.placa or ""} for v in vehicles],
+        "vehicles": [{"id": v.id, "placa": _safe_str(v.placa)} for v in vehicles],
     })
 
 

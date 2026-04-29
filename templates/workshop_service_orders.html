@@ -8,9 +8,29 @@
 
 {% block content %}
 <div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
-  <div class="flex flex-wrap justify-end gap-2">
-    <a href="/workshop/service-orders/consult" class="sys-btn sys-btn--secondary text-sm">Consulta rápida</a>
-    <a href="/workshop/service-orders/dashboard" class="sys-btn sys-btn--secondary text-sm">Dashboard gerencial</a>
+  {% include "_ops_cross_nav.html" %}
+
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Frota e oficina</span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Ordens de serviço</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">Abertura rápida de OS com o mesmo padrão visual das demais páginas do módulo operacional.</p>
+        </div>
+      </div>
+      <div class="employees-hero__toolbar flex w-full flex-wrap items-center gap-2 lg:ml-auto lg:w-auto lg:max-w-none lg:flex-shrink-0 lg:justify-end">
+        <a href="/workshop/service-orders/consult" class="employees-cta sys-btn sys-btn--secondary justify-center">Consulta rápida</a>
+        <a href="/workshop/service-orders/dashboard" class="employees-cta sys-btn sys-btn--secondary justify-center">Dashboard gerencial</a>
+      </div>
+    </div>
   </div>
   {% if message %}
   <div class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center justify-between gap-3">
@@ -37,12 +57,15 @@
     <div class="xl:col-span-3">
       <div class="sys-card sys-card--surface sys-card--comfort p-5">
         <h3 class="sys-section-heading text-base">Nova OS</h3>
-        <p class="employees-text-muted mt-1 text-xs leading-relaxed">Descreva a ocorrência e registre o plano de ação. Cada linha do plano segue o padrão <code class="rounded bg-slate-200/80 px-1 py-0.5 text-[0.7rem] dark:bg-slate-700/80">Ação | Responsável | Prazo</code> (data em dd/mm).</p>
+        <p class="employees-text-muted mt-1 text-xs leading-relaxed">
+          Descreva a ocorrência e registre o plano de ação.
+          Cada linha deve seguir: <span class="font-semibold text-slate-700 dark:text-slate-200">Ação</span> - <span class="font-semibold text-slate-700 dark:text-slate-200">Responsável</span> - <span class="font-semibold text-slate-700 dark:text-slate-200">Prazo</span> (data em dd/mm).
+        </p>
         <form action="/workshop/service-orders/create" method="POST" class="mt-4 flex flex-col gap-5">
           <input type="hidden" name="origin" value="{{ prefill.origin }}">
-          {# Uma linha em lg+: grid 5 colunas; abaixo disso empilha com grid responsivo #}
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.72fr)_minmax(0,0.72fr)_minmax(0,0.85fr)_minmax(0,1.1fr)] lg:items-end">
-            <div class="min-w-0 lg:min-w-[8rem]">
+          {# Grid responsivo: simples no mobile e completo no desktop #}
+          <div class="grid items-end gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-12">
+            <div class="min-w-0 sm:col-span-2 xl:col-span-4">
               <label class="sys-section__label sys-section__label--field" for="os-vehicle-id">Veículo <span class="font-normal text-slate-400 dark:text-slate-500">(obrigatório)</span></label>
               <select id="os-vehicle-id" name="vehicle_id" class="sys-select mt-1 w-full min-w-0" required aria-required="true" aria-describedby="os-vehicle-hint">
                 <option value="">Selecione a placa…</option>
@@ -52,27 +75,27 @@
               </select>
               <p id="os-vehicle-hint" class="employees-text-muted sr-only">É obrigatório selecionar o veículo pela placa.</p>
             </div>
-            <div class="min-w-0">
+            <div class="min-w-0 xl:col-span-2">
               <label class="sys-section__label sys-section__label--field" for="os-order-type">Tipo</label>
               <select id="os-order-type" name="order_type" class="sys-select mt-1 w-full">
                 <option value="corretiva" {% if prefill.order_type == 'corretiva' %}selected{% endif %}>Corretiva</option>
                 <option value="preventiva" {% if prefill.order_type == 'preventiva' %}selected{% endif %}>Preventiva</option>
               </select>
             </div>
-            <div class="min-w-0">
+            <div class="min-w-0 xl:col-span-2">
               <label class="sys-section__label sys-section__label--field" for="os-priority">Prioridade</label>
               <select id="os-priority" name="priority" class="sys-select mt-1 w-full">
-                <option value="medium">Média</option>
-                <option value="high">Alta</option>
-                <option value="critical">Crítica</option>
-                <option value="low">Baixa</option>
+                <option value="medium" {% if prefill.priority == 'medium' or not prefill.priority %}selected{% endif %}>Média</option>
+                <option value="high" {% if prefill.priority == 'high' %}selected{% endif %}>Alta</option>
+                <option value="critical" {% if prefill.priority == 'critical' %}selected{% endif %}>Crítica</option>
+                <option value="low" {% if prefill.priority == 'low' %}selected{% endif %}>Baixa</option>
               </select>
             </div>
-            <div class="min-w-0">
+            <div class="min-w-0 xl:col-span-2">
               <label class="sys-section__label sys-section__label--field" for="os-due-date">Prazo (SLA)</label>
               <input id="os-due-date" type="date" name="due_date" class="sys-input mt-1 w-full min-w-0">
             </div>
-            <div class="min-w-0 sm:col-span-2 lg:col-span-1">
+            <div class="min-w-0 xl:col-span-2">
               <label class="sys-section__label sys-section__label--field" for="os-checklist-id">Checklist <span class="font-normal text-slate-400 dark:text-slate-500">(opcional)</span></label>
               <select id="os-checklist-id" name="checklist_id" class="sys-select mt-1 w-full min-w-0">
                 <option value="">Nenhum</option>

@@ -8,23 +8,25 @@
 
 {% block content %}
 <div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+    {% include "_ops_cross_nav.html" %}
+
     <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
         <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
         <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+        <div class="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
             <div class="min-w-0">
-                <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Painel operacional</span>
+                <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Frota e oficina</span>
                 <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Conformidade e manutenção</h2>
-                <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">Mesmo padrão visual da página de colaboradores, focado em indicadores de checklist, reincidência e priorização de tratamento.</p>
+                <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">Dashboard de checklist no mesmo padrão visual, com leitura objetiva e decisões rápidas.</p>
                 <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
                     <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ total_count }} checklists</span>
                     <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ nonconforming_count }} não conformes</span>
                     <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">janela {{ period_days }} dias</span>
                 </div>
             </div>
-            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto">
-                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
-                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }">
+            <div class="employees-hero__toolbar flex w-full flex-wrap items-center gap-2 lg:ml-auto lg:w-auto lg:max-w-none lg:flex-shrink-0 lg:justify-end">
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary justify-center" :class="{ 'is-open': open }">
                         <span class="employees-cta__label">Ações rápidas</span>
                         <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </button>
@@ -33,9 +35,9 @@
                         <button type="button" class="employees-menu-item" onclick="openBulkModal()"><span class="employees-menu-item__text"><span class="employees-menu-item__title">Operações em lote</span><span class="employees-menu-item__hint">Encaminhar tratamento</span></span></button>
                     </div>
                 </div>
-                <a href="/admin/routine/checklists" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">Abrir lista</a>
-                <a href="/admin/equipment/tickets" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Chamados</a>
-                <a href="/admin/routine/checklists/settings" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Configurações</a>
+                <a href="/admin/routine/checklists" class="employees-cta employees-cta--primary sys-btn sys-btn--primary justify-center">Abrir lista</a>
+                <a href="/admin/equipment/tickets" class="employees-cta sys-btn sys-btn--secondary justify-center">Chamados</a>
+                <a href="/admin/routine/checklists/settings" class="employees-cta sys-btn sys-btn--secondary justify-center">Configurações</a>
             </div>
         </div>
     </div>

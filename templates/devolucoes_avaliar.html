@@ -203,14 +203,19 @@
             <div x-show="resumoDetailOpen" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60" @keydown.escape.window="fecharResumoMotorista()" @click.self="fecharResumoMotorista()">
                 <div class="rounded-xl border border-slate-700 bg-slate-800 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-xl" @click.stop>
                     <div class="p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
-                        <h2 class="text-base font-semibold text-white" x-text="resumoDetailMotorista ? 'Devoluções · ' + resumoDetailMotorista.motorista_name : 'Devoluções'"></h2>
+                        <h2 class="text-base font-semibold text-white"
+                            x-text="resumoDetailMotorista
+                                ? ((resumoDetailMotorista.motorista_name
+                                    ? ('Devoluções do motorista · ' + resumoDetailMotorista.motorista_name)
+                                    : ('Devoluções do ajudante · ' + (resumoDetailMotorista.ajudante_name || ''))))
+                                : 'Devoluções'"></h2>
                         <button type="button" @click="fecharResumoMotorista()" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition text-lg leading-none">×</button>
                     </div>
                     <div class="p-3 text-slate-500 text-xs border-b border-slate-700 shrink-0" x-text="'Período: ' + formatPeriodo(dateFrom, dateTo)"></div>
                     <div class="overflow-y-auto flex-1 min-h-0 p-3 space-y-2">
                         <p x-show="resumoDetailLoading" class="text-slate-400 text-sm py-6 text-center">Carregando devoluções…</p>
                         <template x-if="!resumoDetailLoading && resumoDetailMotorista && resumoDetailList.length === 0">
-                            <p class="text-slate-500 text-sm py-4">Nenhuma devolução encontrada para este motorista no período.</p>
+                            <p class="text-slate-500 text-sm py-4">Nenhuma devolução encontrada para este colaborador no período.</p>
                         </template>
                         <p class="text-slate-400 text-xs mb-2 px-1" x-show="!resumoDetailLoading && resumoDetailList.length">Marque responsabilidade (M = motorista, A = ajudante). Clique na linha para abrir edição completa.</p>
                         <template x-for="item in resumoDetailList" :key="item.id">
@@ -276,7 +281,13 @@
                         </thead>
                         <tbody class="divide-y divide-slate-700/80 text-sm">
                             <template x-for="r in resumoAjudantes" :key="r.ajudante_id">
-                                <tr class="hover:bg-slate-700/20 transition-colors">
+                                <tr class="hover:bg-slate-700/20 transition-colors outline-none"
+                                    :class="Number(r.devolucoes_total) > 0 ? 'cursor-pointer active:bg-slate-700/40' : ''"
+                                    role="button"
+                                    :tabindex="Number(r.devolucoes_total) > 0 ? 0 : -1"
+                                    @click="openResumoAjudante(r)"
+                                    @keydown.enter.prevent="openResumoAjudante(r)"
+                                    @keydown.space.prevent="openResumoAjudante(r)">
                                     <td class="px-4 py-3 font-medium text-white" x-text="r.ajudante_name"></td>
                                     <td class="px-4 py-3 text-right text-slate-300" x-text="r.entregues != null ? r.entregues : 0"></td>
                                     <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_total"></td>
@@ -323,13 +334,26 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Ajudante</label>
-                        <select x-model="editItem.ajudante_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
-                            <option value="">— Nenhum</option>
-                            {% for e in employees %}
-                            <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="block text-xs font-medium text-slate-400 mb-1">Ajudantes (múltipla escolha)</label>
+                        <div class="rounded-lg border border-slate-600 bg-slate-900 max-h-44 overflow-y-auto p-2 space-y-1">
+                            <template x-for="e in avaliar_employees" :key="e.id">
+                                <label class="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-slate-800/80 text-sm text-slate-200">
+                                    <input type="checkbox"
+                                           x-model="editItem.ajudante_ids"
+                                           :value="String(e.id)"
+                                           class="rounded border-slate-600 bg-slate-800 text-blue-500">
+                                    <span x-text="e.name"></span>
+                                </label>
+                            </template>
+                        </div>
+                        <div class="mt-1.5 flex items-center justify-between gap-2">
+                            <p class="text-[11px] text-slate-500" x-text="(editItem.ajudante_ids || []).length + ' selecionado(s)'"></p>
+                            <button type="button"
+                                    @click="editItem.ajudante_ids = []"
+                                    class="text-[11px] text-slate-400 hover:text-white transition">
+                                Limpar seleção
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-400 mb-1">Peso (kg)</label>
@@ -483,6 +507,23 @@ function devolucoesAvaliar(init) {
                 })
                 .catch(() => { this.resumoDetailLoading = false; this.resumoDetailList = []; });
         },
+        openResumoAjudante(r) {
+            const n = Number(r && r.devolucoes_total);
+            if (!r || r.ajudante_id == null || n <= 0) return;
+            this.resumoDetailMotorista = r;
+            this.resumoDetailOpen = true;
+            this.resumoDetailList = [];
+            this.resumoDetailLoading = true;
+            const url = '/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo) + '&ajudante_ids=' + encodeURIComponent(String(r.ajudante_id));
+            fetch(url, { credentials: 'same-origin' })
+                .then(x => x.json())
+                .then(j => {
+                    this.resumoDetailLoading = false;
+                    if (j.ok) this.resumoDetailList = j.data || [];
+                    else this.resumoDetailList = [];
+                })
+                .catch(() => { this.resumoDetailLoading = false; this.resumoDetailList = []; });
+        },
         fecharResumoMotorista() {
             this.resumoDetailOpen = false;
             this.resumoDetailMotorista = null;
@@ -517,11 +558,17 @@ function devolucoesAvaliar(init) {
             }).catch(() => {});
         },
         openEdit(item) {
+            const ajudanteIds = Array.isArray(item.ajudante_ids)
+                ? item.ajudante_ids.map(x => String(x)).filter(Boolean)
+                : ((item.ajudante_id != null && item.ajudante_id !== '' && item.ajudante_id !== undefined)
+                    ? [String(item.ajudante_id)]
+                    : []);
             this.editItem = {
                 id: item.id,
                 motivo_id: item.motivo_id != null ? String(item.motivo_id) : '',
                 motorista_id: item.motorista_id != null ? String(item.motorista_id) : '',
                 ajudante_id: (item.ajudante_id != null && item.ajudante_id !== '' && item.ajudante_id !== undefined) ? String(item.ajudante_id) : '',
+                ajudante_ids: ajudanteIds,
                 observacao: item.observacao || '',
                 observacao_gestor: item.observacao_gestor || ''
             };
@@ -532,10 +579,18 @@ function devolucoesAvaliar(init) {
         },
         saveEdit() {
             const id = this.editItem.id;
+            const ajudanteIds = Array.from(
+                new Set(
+                    (Array.isArray(this.editItem.ajudante_ids) ? this.editItem.ajudante_ids : [])
+                        .map(x => parseInt(x, 10))
+                        .filter(x => !isNaN(x) && x > 0)
+                )
+            );
             const payload = {
                 motivo_id: this.editItem.motivo_id ? parseInt(this.editItem.motivo_id, 10) : null,
                 motorista_id: this.editItem.motorista_id ? parseInt(this.editItem.motorista_id, 10) : null,
-                ajudante_id: (this.editItem.ajudante_id !== '' && this.editItem.ajudante_id != null) ? parseInt(this.editItem.ajudante_id, 10) : null,
+                ajudante_id: ajudanteIds.length ? ajudanteIds[0] : null,
+                ajudante_ids: ajudanteIds,
                 observacao_gestor: (this.editItem.observacao_gestor || '').trim() || null
             };
             const v = this.editValor.replace(/\./g, '').replace(',', '.');
@@ -554,7 +609,7 @@ function devolucoesAvaliar(init) {
                         if (i >= 0 && j.data) {
                             arr[i] = j.data;
                             arr[i].edited = true;
-                            this.touchCardFeedback(arr[i], 'edit', 'Cadastro atualizado (motivo, motorista, ajudante, valores ou observação).');
+                            this.touchCardFeedback(arr[i], 'edit', 'Cadastro atualizado (motivo, motorista, ajudantes, valores ou observação).');
                         }
                     };
                     apply(this.list, this.list.findIndex(x => x.id === id));

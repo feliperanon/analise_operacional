@@ -12330,6 +12330,13 @@ async def admin_checklist_delete(
         employee_id=checklist.employee_id
     ))
 
+    linked_orders = session.exec(
+        select(models.WorkshopServiceOrder).where(models.WorkshopServiceOrder.checklist_id == checklist.id)
+    ).all()
+    for order in linked_orders:
+        order.checklist_id = None
+        session.add(order)
+
     session.delete(checklist)
     session.commit()
     return RedirectResponse(url="/admin/routine/checklists", status_code=status.HTTP_303_SEE_OTHER)
@@ -12395,6 +12402,13 @@ async def admin_checklist_bulk_delete(
             employee_id=checklist.employee_id
         ))
         
+        linked_orders = session.exec(
+            select(models.WorkshopServiceOrder).where(models.WorkshopServiceOrder.checklist_id == checklist.id)
+        ).all()
+        for order in linked_orders:
+            order.checklist_id = None
+            session.add(order)
+
         session.delete(checklist)
     
     session.commit()
@@ -12505,6 +12519,18 @@ async def admin_cleanup_all_checklists(
 
         # Buscar todos os checklists
         checklists = session.exec(select(models.TranspalletChecklist)).all()
+        checklist_ids = [c.id for c in checklists if c and c.id]
+
+        # Evita violação de FK ao apagar checklists usados em OS
+        if checklist_ids:
+            linked_orders = session.exec(
+                select(models.WorkshopServiceOrder).where(
+                    models.WorkshopServiceOrder.checklist_id.in_(checklist_ids)
+                )
+            ).all()
+            for order in linked_orders:
+                order.checklist_id = None
+                session.add(order)
 
         for checklist in checklists:
             # Liberar equipamento se bloqueado por este checklist
@@ -12565,9 +12591,14 @@ async def admin_cleanup_all_checklists(
     except Exception as e:
         logger.exception("admin_cleanup_all_checklists error: %s", e)
         from urllib.parse import quote
-        msg = quote(str(e)[:200] if str(e) else "Erro ao processar")
+        err_text = (str(e) or "").lower()
+        if "foreignkeyviolation" in err_text or "workshopserviceorder_checklist_id_fkey" in err_text:
+            user_msg = "Erro no cleanup: existem ordens de serviço vinculadas aos checklists."
+        else:
+            user_msg = "Erro no cleanup: não foi possível concluir a operação."
+        msg = quote(user_msg)
         return RedirectResponse(
-            url=f"/admin/routine/checklists/settings?message=Erro+no+cleanup:+{msg}&level=error",
+            url=f"/admin/routine/checklists/settings?message={msg}&level=error",
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -15650,6 +15681,7 @@ async def workshop_service_orders_page(request: Request, session: Session = Depe
         "issues_text": "",
         "origin": "manual",
         "order_type": "corretiva",
+        "priority": "medium",
         "driver_employee_id": None,
     }
 
@@ -34748,13 +34780,20 @@ async def api_list_admin_routes(
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     
     try:
-        # Todas as rotas de entrega de hoje (para montar cards estilo TV)
-        all_routes_today = session.exec(
+        # Todas as rotas de entrega do dia da operação
+        all_routes_today_raw = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
             .where(models.Route.date == today)
             .order_by(models.Route.employee_id, models.Route.start_time, models.Route.id)
         ).all()
+        
+        # Filtro de segurança: garante estritamente YYYY-MM-DD do dia da operação,
+        # mesmo se houver divergência de tipo/formato vindo do banco.
+        all_routes_today = [
+            r for r in all_routes_today_raw
+            if str(getattr(r, "date", "") or "").strip()[:10] == today
+        ]
         
         all_emp_ids_with_routes = list({r.employee_id for r in all_routes_today if r.employee_id})
         helper_ids_from_routes = set()
@@ -34786,7 +34825,7 @@ async def api_list_admin_routes(
         
         for r in all_routes_today:
             st = (r.delivery_status or "").lower()
-            if st not in {"iniciada", "entregue", "devolucao"}:
+            if st not in {"iniciada", "entregue", "devolucao", "pendente"}:
                 continue
             bucket = live_buckets.get(r.employee_id)
             if not bucket:
@@ -34844,8 +34883,16 @@ async def api_list_admin_routes(
         for emp_id, bucket in live_buckets.items():
             emp_routes = [r for r in all_routes_today if r.employee_id == emp_id]
             bucket["employee_id"] = emp_id
-            bucket["total_deliveries"] = len(emp_routes)
-            bucket["completed_deliveries"] = len([r for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")])
+            operational_emp_routes = [
+                r for r in emp_routes
+                if (r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao", "pendente")
+            ]
+            # Mantém o contador coerente com os clientes exibidos no card.
+            bucket["total_deliveries"] = len(operational_emp_routes)
+            bucket["completed_deliveries"] = len([
+                r for r in operational_emp_routes
+                if (r.delivery_status or "").lower() in ("entregue", "devolucao")
+            ])
             bucket["plate"] = next(((r.delivery_vehicle_plate or "").strip() or None for r in emp_routes if (r.delivery_vehicle_plate or "").strip()), None) if emp_routes else None
             if not bucket["plate"] and session_plate_by_emp.get(emp_id):
                 bucket["plate"] = session_plate_by_emp[emp_id]
@@ -34864,8 +34911,9 @@ async def api_list_admin_routes(
             all_helper_names = resolved if resolved else session_names
             bucket["helper_count"] = len(all_helper_names)
             bucket["helper_names"] = all_helper_names[:3]
-            bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+            bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in operational_emp_routes), 2)
             open_routes_count = len([r for r in bucket["routes"] if (r.get("delivery_status") or "").lower() == "iniciada"])
+            bucket["open_routes_count"] = open_routes_count
             finished_times = [
                 rt["finished_at"] for rt in bucket["routes"]
                 if (rt.get("delivery_status") or "").lower() in ("entregue", "devolucao") and rt.get("finished_at")
@@ -34894,10 +34942,12 @@ async def api_list_admin_routes(
                 bucket["route_state"] = "not_started"
             elif has_started and not has_delivery_started:
                 bucket["route_state"] = "route_started"
-            elif all_delivered:
-                bucket["route_state"] = "all_delivered"
             elif has_over_20:
                 bucket["route_state"] = "over_20_min"
+            elif all_delivered:
+                # Só considerar "entregues/concluída" quando sessão realmente encerrada.
+                # Se ainda não encerrou, mantém em andamento para evitar falso positivo.
+                bucket["route_state"] = "in_progress"
             else:
                 bucket["route_state"] = "in_progress"
             bucket.update(
@@ -34929,6 +34979,8 @@ async def api_list_admin_routes(
                 return (1, alert_rank, -delay, -open_count)
             return (1, alert_rank, -delay, -open_count)
         
+        # Painel de operação mobile: mostrar todas as rotas do dia da operação.
+        # (não filtrar apenas "iniciada", para não ocultar motoristas/rotas do dia)
         live_separation = list(live_buckets.values())
         live_separation.sort(key=_live_sort_key)
         
@@ -34939,10 +34991,15 @@ async def api_list_admin_routes(
         rotas_concluidas_count = sum(
             1 for b in live_separation if (b.get("route_state") or "") in ("closed", "all_delivered")
         )
-        open_total = sum(
+        open_deliveries_total = sum(
             (b.get("total_deliveries") or 0) - (b.get("completed_deliveries") or 0)
             for b in live_separation
         )
+        completed_deliveries_total = sum(
+            (b.get("completed_deliveries") or 0)
+            for b in live_separation
+        )
+        open_routes_total = rotas_paradas_count + rotas_ativas_count
         
         routes_devolucao = [r for r in all_routes_today if normalized_delivery_status(r) == "devolucao"]
         n_dev_adm, _n_done_adm = counts_devolucao_rotas_concluidas(all_routes_today)
@@ -35040,8 +35097,16 @@ async def api_list_admin_routes(
                 "rotas_paradas": rotas_paradas_count,
                 "rotas_ativas": rotas_ativas_count,
                 "rotas_concluidas": rotas_concluidas_count,
-                "abertas": open_total,
+                # "Abertas" no card mobile deve representar quantidade de rotas abertas
+                # (não o total de entregas pendentes).
+                "abertas": open_routes_total,
+                "entregas_pendentes": open_deliveries_total,
+                "entregas_concluidas": completed_deliveries_total,
             },
+        }, headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
         })
     except Exception as e:
         logger.exception("api_list_admin_routes error: %s", e)

@@ -61,64 +61,69 @@
           <option value="preventiva" {{ "selected" if order_type_filter == "preventiva" else "" }}>Preventiva</option>
         </select>
       </div>
-      <div>
-        <label class="sys-section__label sys-section__label--field">Categoria</label>
-        <select name="problem_category" class="sys-select mt-1.5 w-full">
-          <option value="">Todas categorias</option>
-          <option value="freio" {{ "selected" if category_filter == "freio" else "" }}>Freio</option>
-          <option value="pneus" {{ "selected" if category_filter == "pneus" else "" }}>Pneus</option>
-          <option value="eletrica" {{ "selected" if category_filter == "eletrica" else "" }}>Elétrica</option>
-          <option value="motor" {{ "selected" if category_filter == "motor" else "" }}>Motor</option>
-          <option value="outro" {{ "selected" if category_filter == "outro" else "" }}>Outro</option>
-        </select>
-      </div>
-      <div>
-        <label class="sys-section__label sys-section__label--field">Origem</label>
-        <select name="origin_type" class="sys-select mt-1.5 w-full">
-          <option value="">Todas origens</option>
-          <option value="checklist" {{ "selected" if origin_filter == "checklist" else "" }}>Checklist</option>
-          <option value="motorista" {{ "selected" if origin_filter == "motorista" else "" }}>Motorista</option>
-          <option value="lideranca" {{ "selected" if origin_filter == "lideranca" else "" }}>Liderança</option>
-          <option value="manual" {{ "selected" if origin_filter == "manual" else "" }}>Manual/Outro</option>
-        </select>
-      </div>
-      <div>
-        <label class="sys-section__label sys-section__label--field">Custo min (R$)</label>
-        <input type="text" name="cost_min" class="sys-input mt-1.5 w-full" value="{{ cost_min_filter }}">
-      </div>
-      <div>
-        <label class="sys-section__label sys-section__label--field">Custo max (R$)</label>
-        <input type="text" name="cost_max" class="sys-input mt-1.5 w-full" value="{{ cost_max_filter }}">
-      </div>
     </div>
 
-    <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-        <input type="checkbox" name="overdue_only" value="1" {% if overdue_only_filter %}checked{% endif %}>
-        Apenas atrasadas
-      </label>
-      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-        <input type="checkbox" name="blocked_only" value="1" {% if blocked_only_filter %}checked{% endif %}>
-        Veículo bloqueado
-      </label>
-      <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-        <input type="checkbox" name="supplier_only" value="1" {% if supplier_only_filter %}checked{% endif %}>
-        Com fornecedor externo
-      </label>
-      <div>
-        <select name="supplier_status" class="sys-select w-full">
-          <option value="">Status fornecedor</option>
-          <option value="not_sent" {{ "selected" if supplier_status_filter == "not_sent" else "" }}>Não enviado</option>
-          <option value="sent" {{ "selected" if supplier_status_filter == "sent" else "" }}>Enviado</option>
-          <option value="waiting_quote" {{ "selected" if supplier_status_filter == "waiting_quote" else "" }}>Aguardando orçamento</option>
-          <option value="quote_received" {{ "selected" if supplier_status_filter == "quote_received" else "" }}>Orçamento recebido</option>
-          <option value="approved" {{ "selected" if supplier_status_filter == "approved" else "" }}>Aprovado</option>
-          <option value="in_service" {{ "selected" if supplier_status_filter == "in_service" else "" }}>Em serviço</option>
-          <option value="finalized" {{ "selected" if supplier_status_filter == "finalized" else "" }}>Finalizado</option>
-          <option value="canceled" {{ "selected" if supplier_status_filter == "canceled" else "" }}>Cancelado</option>
-        </select>
+    <details class="mt-3 rounded-lg border border-slate-200/80 p-3 dark:border-slate-700/70">
+      <summary class="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">Mais filtros (opcional)</summary>
+      <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div>
+          <label class="sys-section__label sys-section__label--field">Categoria</label>
+          <select name="problem_category" class="sys-select mt-1.5 w-full">
+            <option value="">Todas categorias</option>
+            <option value="freio" {{ "selected" if category_filter == "freio" else "" }}>Freio</option>
+            <option value="pneus" {{ "selected" if category_filter == "pneus" else "" }}>Pneus</option>
+            <option value="eletrica" {{ "selected" if category_filter == "eletrica" else "" }}>Elétrica</option>
+            <option value="motor" {{ "selected" if category_filter == "motor" else "" }}>Motor</option>
+            <option value="outro" {{ "selected" if category_filter == "outro" else "" }}>Outro</option>
+          </select>
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field">Origem</label>
+          <select name="origin_type" class="sys-select mt-1.5 w-full">
+            <option value="">Todas origens</option>
+            <option value="checklist" {{ "selected" if origin_filter == "checklist" else "" }}>Checklist</option>
+            <option value="motorista" {{ "selected" if origin_filter == "motorista" else "" }}>Motorista</option>
+            <option value="lideranca" {{ "selected" if origin_filter == "lideranca" else "" }}>Liderança</option>
+            <option value="manual" {{ "selected" if origin_filter == "manual" else "" }}>Manual/Outro</option>
+          </select>
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field">Custo min (R$)</label>
+          <input type="text" name="cost_min" class="sys-input mt-1.5 w-full" value="{{ cost_min_filter }}">
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field">Custo max (R$)</label>
+          <input type="text" name="cost_max" class="sys-input mt-1.5 w-full" value="{{ cost_max_filter }}">
+        </div>
       </div>
-    </div>
+      <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+          <input type="checkbox" name="overdue_only" value="1" {% if overdue_only_filter %}checked{% endif %}>
+          Apenas atrasadas
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+          <input type="checkbox" name="blocked_only" value="1" {% if blocked_only_filter %}checked{% endif %}>
+          Veículo bloqueado
+        </label>
+        <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+          <input type="checkbox" name="supplier_only" value="1" {% if supplier_only_filter %}checked{% endif %}>
+          Com fornecedor externo
+        </label>
+        <div>
+          <select name="supplier_status" class="sys-select w-full">
+            <option value="">Status fornecedor</option>
+            <option value="not_sent" {{ "selected" if supplier_status_filter == "not_sent" else "" }}>Não enviado</option>
+            <option value="sent" {{ "selected" if supplier_status_filter == "sent" else "" }}>Enviado</option>
+            <option value="waiting_quote" {{ "selected" if supplier_status_filter == "waiting_quote" else "" }}>Aguardando orçamento</option>
+            <option value="quote_received" {{ "selected" if supplier_status_filter == "quote_received" else "" }}>Orçamento recebido</option>
+            <option value="approved" {{ "selected" if supplier_status_filter == "approved" else "" }}>Aprovado</option>
+            <option value="in_service" {{ "selected" if supplier_status_filter == "in_service" else "" }}>Em serviço</option>
+            <option value="finalized" {{ "selected" if supplier_status_filter == "finalized" else "" }}>Finalizado</option>
+            <option value="canceled" {{ "selected" if supplier_status_filter == "canceled" else "" }}>Cancelado</option>
+          </select>
+        </div>
+      </div>
+    </details>
 
     <div class="mt-4 flex flex-wrap gap-2">
       <button type="submit" class="sys-btn sys-btn--primary text-sm">Aplicar filtros</button>
