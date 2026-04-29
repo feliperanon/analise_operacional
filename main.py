@@ -3994,9 +3994,7 @@ async def api_dashboard_tv_data(
                 pass
         selected_date_str = selected_date.strftime("%Y-%m-%d")
         selected_cc = parse_cost_center_filter(cost_center or "Todos")
-        employees_all = session.exec(
-            select(models.Employee).where(models.Employee.status != "fired")
-        ).all()
+        employees_all = session.exec(select(models.Employee).where(models.Employee.status != "fired")).all()
         employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cc)]
         employee_ids = list({e.id for e in employees if e.id is not None})
         employee_by_id = {e.id: e for e in employees if e.id is not None}
@@ -4013,11 +4011,12 @@ async def api_dashboard_tv_data(
                         "devolucao_mes": {},
                         "cost_centers_summary": {},
                         "tv_shift_alerts": {"atencao": 0, "critico": 0},
-                        "operational_shift": operational_shift_br(datetime.now(ZoneInfo("America/Sao_Paulo"))),
+                        "operational_shift": operational_shift_br(now_br),
                     },
                 },
                 headers=no_store_headers,
             )
+
         routes = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
@@ -4030,330 +4029,310 @@ async def api_dashboard_tv_data(
 
         completed_statuses = {"entregue", "devolucao"}
         completed_routes = [r for r in routes if _sl(getattr(r, "delivery_status", None)) in completed_statuses]
-    total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
-    durations_hours = []
-    for r in completed_routes:
-        d = route_duration_minutes(r)
-        if d and d > 0:
-            durations_hours.append(d / 60.0)
-    total_hours = sum(durations_hours)
-    avg_kgh = (total_tonnage / total_hours) if total_hours > 0 else 0.0
+        total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
+        durations_hours = []
+        for r in completed_routes:
+            d = route_duration_minutes(r)
+            if d and d > 0:
+                durations_hours.append(d / 60.0)
+        total_hours = sum(durations_hours)
+        avg_kgh = (total_tonnage / total_hours) if total_hours > 0 else 0.0
 
-    employee_by_id_all = {e.id: e for e in employees_all if e.id is not None}
-    all_emp_ids_with_routes = list({r.employee_id for r in routes})
-    live_buckets = {}
-    for emp_id in all_emp_ids_with_routes:
-        emp = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
-        if not emp:
-            continue
-        live_buckets[emp_id] = {"employee_name": emp.name, "photo_url": getattr(emp, "photo_url", None), "routes": []}
+        employee_by_id_all = {e.id: e for e in employees_all if e.id is not None}
+        all_emp_ids_with_routes = list({r.employee_id for r in routes if r.employee_id is not None})
+        live_buckets = {}
+        for emp_id in all_emp_ids_with_routes:
+            emp = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
+            if not emp:
+                continue
+            live_buckets[emp_id] = {"employee_name": emp.name, "photo_url": getattr(emp, "photo_url", None), "routes": []}
+
         for r in routes:
             st = _sl(getattr(r, "delivery_status", None))
-        if st not in {"pendente", "iniciada", "entregue", "devolucao"}:
-            continue
-        bucket = live_buckets.get(r.employee_id)
-        if not bucket:
-            continue
-        d_m = route_duration_minutes(r) or 0
-        client_name = client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else f"Cliente #{r.client_id}"
-        oe = iniciada_elapsed_wall_minutes(r, selected_date, now_br)
-        start_display = (r.delivery_started_at or r.start_time or "--:--") if st == "iniciada" else "--:--"
-        rd = {
-            "client": client_name,
-            "start_time": start_display,
-            "duration_mins": d_m,
-            "tonnage": float(r.tonnage or 0.0),
-            "delivery_status": st,
-        }
-        if oe is not None:
-            rd["open_elapsed_minutes"] = oe
-        bucket["routes"].append(rd)
-    sessions_today = session.exec(
-        select(models.DeliverySession)
-        .where(models.DeliverySession.date == selected_date_str)
-        .where(models.DeliverySession.employee_id.in_(all_emp_ids_with_routes))
-    ).all() if all_emp_ids_with_routes else []
+            if st not in {"pendente", "iniciada", "entregue", "devolucao"}:
+                continue
+            bucket = live_buckets.get(r.employee_id)
+            if not bucket:
+                continue
+            d_m = route_duration_minutes(r) or 0
+            c = client_by_id.get(r.client_id)
+            client_name = (getattr(c, "name", None) or getattr(c, "razao_social", None)) if c else f"Cliente #{r.client_id}"
+            oe = iniciada_elapsed_wall_minutes(r, selected_date, now_br)
+            rd = {
+                "client": client_name,
+                "start_time": (r.delivery_started_at or r.start_time or "--:--") if st == "iniciada" else "--:--",
+                "duration_mins": d_m,
+                "tonnage": float(r.tonnage or 0.0),
+                "delivery_status": st,
+            }
+            if oe is not None:
+                rd["open_elapsed_minutes"] = oe
+            bucket["routes"].append(rd)
+
+        sessions_today = session.exec(
+            select(models.DeliverySession)
+            .where(models.DeliverySession.date == selected_date_str)
+            .where(models.DeliverySession.employee_id.in_(all_emp_ids_with_routes))
+        ).all() if all_emp_ids_with_routes else []
         session_closed_by_emp = {s.employee_id: _sl(getattr(s, "status", None)) == "closed" for s in sessions_today}
         session_open_by_emp = {s.employee_id for s in sessions_today if _sl(getattr(s, "status", None)) == "open"}
-    session_plate_by_emp = {}
-    for s in sessions_today:
+        session_plate_by_emp = {}
+        for s in sessions_today:
             if s.employee_id and _s(getattr(s, "vehicle_plate", None)):
                 session_plate_by_emp.setdefault(s.employee_id, _s(getattr(s, "vehicle_plate", None)))
-    session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json) for s in sessions_today if getattr(s, "helpers_json", None)}
+        session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json) for s in sessions_today if getattr(s, "helpers_json", None)}
 
-    for emp_id, bucket in live_buckets.items():
-        emp_routes = [r for r in routes if r.employee_id == emp_id]
-        bucket["employee_id"] = emp_id
-        bucket["total_deliveries"] = len(emp_routes)
+        for emp_id, bucket in live_buckets.items():
+            emp_routes = [r for r in routes if r.employee_id == emp_id]
+            bucket["employee_id"] = emp_id
+            bucket["total_deliveries"] = len(emp_routes)
             bucket["completed_deliveries"] = len([r for r in emp_routes if _sl(getattr(r, "delivery_status", None)) in ("entregue", "devolucao")])
             bucket["plate"] = next((_s(getattr(r, "delivery_vehicle_plate", None)) or None for r in emp_routes if _s(getattr(r, "delivery_vehicle_plate", None))), None) if emp_routes else None
-        if not bucket["plate"] and session_plate_by_emp.get(emp_id):
-            bucket["plate"] = session_plate_by_emp[emp_id]
-        helper_ids = []
-        for r in emp_routes:
-            helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
-        route_helper_names = list(dict.fromkeys(
-            (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajud. #{hid}"
-            for hid in helper_ids if hid
-        ))
-        bucket["helper_count"] = len(route_helper_names)
-        bucket["helper_names"] = route_helper_names[:3]
-        if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
-            session_helper_names = [str(name).strip() for name in (session_helpers_by_emp.get(emp_id) or []) if str(name or "").strip()]
-            bucket["helper_count"] = len(session_helper_names)
-            bucket["helper_names"] = session_helper_names[:3]
-        bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+            if not bucket["plate"] and session_plate_by_emp.get(emp_id):
+                bucket["plate"] = session_plate_by_emp[emp_id]
+            helper_ids = []
+            for r in emp_routes:
+                helper_ids.extend(_parse_route_helper_ids(getattr(r, "delivery_helpers_json", None)))
+            route_helper_names = list(dict.fromkeys(
+                (employee_by_id_all.get(hid).name if employee_by_id_all.get(hid) else None) or f"Ajud. #{hid}"
+                for hid in helper_ids if hid
+            ))
+            bucket["helper_count"] = len(route_helper_names)
+            bucket["helper_names"] = route_helper_names[:3]
+            if not bucket.get("helper_names") and session_helpers_by_emp.get(emp_id):
+                session_helper_names = [str(name).strip() for name in (session_helpers_by_emp.get(emp_id) or []) if str(name or "").strip()]
+                bucket["helper_count"] = len(session_helper_names)
+                bucket["helper_names"] = session_helper_names[:3]
+            bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
             open_routes_count = len([r for r in emp_routes if _sl(getattr(r, "delivery_status", None)) == "iniciada"])
-            finished_times = [(r.delivery_finished_at or r.end_time or "") for r in emp_routes if _sl(getattr(r, "delivery_status", None)) in ("entregue", "devolucao") and (r.delivery_finished_at or r.end_time)]
-        last_finished_at = max(finished_times, key=lambda t: (t or "00:00")) if finished_times else None
-        minutes_without_open = 0
-        if open_routes_count == 0 and last_finished_at:
-            try:
-                parts = str(last_finished_at).strip().split(":")
-                h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
-                finished_dt = datetime(now_br.year, now_br.month, now_br.day, h, m, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
-                minutes_without_open = max(0, int((now_br - finished_dt).total_seconds() // 60))
-            except Exception:
-                pass
-        bucket["minutes_without_open_client"] = minutes_without_open
+            finished_times = [
+                (r.delivery_finished_at or r.end_time or "")
+                for r in emp_routes
+                if _sl(getattr(r, "delivery_status", None)) in ("entregue", "devolucao") and (r.delivery_finished_at or r.end_time)
+            ]
+            last_finished_at = max(finished_times, key=lambda t: (t or "00:00")) if finished_times else None
+            minutes_without_open = 0
+            if open_routes_count == 0 and last_finished_at:
+                try:
+                    parts = str(last_finished_at).strip().split(":")
+                    h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+                    finished_dt = datetime(now_br.year, now_br.month, now_br.day, h, m, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
+                    minutes_without_open = max(0, int((now_br - finished_dt).total_seconds() // 60))
+                except Exception:
+                    pass
+            bucket["minutes_without_open_client"] = minutes_without_open
             has_delivery_started = any(_sl(getattr(r, "delivery_status", None)) in ("iniciada", "entregue", "devolucao") for r in emp_routes)
-        session_started = emp_id in session_open_by_emp
-        has_started = has_delivery_started or session_started
-        all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
-        route_ended = session_closed_by_emp.get(emp_id, False)
-        if route_ended:
-            bucket["route_state"] = "closed"
-        elif not has_started:
-            bucket["route_state"] = "not_started"
-        elif has_started and not has_delivery_started:
-            bucket["route_state"] = "route_started"
-        elif all_delivered:
-            bucket["route_state"] = "all_delivered"
-        else:
-            bucket["route_state"] = "in_progress"
-        bucket["route_ended"] = route_ended
+            session_started = emp_id in session_open_by_emp
+            has_started = has_delivery_started or session_started
+            all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
+            route_ended = session_closed_by_emp.get(emp_id, False)
+            if route_ended:
+                bucket["route_state"] = "closed"
+            elif not has_started:
+                bucket["route_state"] = "not_started"
+            elif has_started and not has_delivery_started:
+                bucket["route_state"] = "route_started"
+            elif all_delivered:
+                bucket["route_state"] = "all_delivered"
+            else:
+                bucket["route_state"] = "in_progress"
+            bucket["route_ended"] = route_ended
             _emp_ws2 = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
             bucket["work_shift"] = _s(getattr(_emp_ws2, "work_shift", None) or "Manhã")
-        bucket.update(
-            compute_delivery_projection(
-                bucket,
-                now_br,
-                operation_start_hour=DELIVERY_OPERATION_START_HOUR,
-                operation_end_hour=DELIVERY_OPERATION_END_HOUR,
-                baseline_crew_size=DELIVERY_BASE_CREW_SIZE,
-                attention_buffer_minutes=DELIVERY_ATTENTION_BUFFER_MINUTES,
+            bucket.update(
+                compute_delivery_projection(
+                    bucket,
+                    now_br,
+                    operation_start_hour=DELIVERY_OPERATION_START_HOUR,
+                    operation_end_hour=DELIVERY_OPERATION_END_HOUR,
+                    baseline_crew_size=DELIVERY_BASE_CREW_SIZE,
+                    attention_buffer_minutes=DELIVERY_ATTENTION_BUFFER_MINUTES,
+                )
             )
-        )
 
-    def _live_sort_key(x):
-        state = x.get("route_state") or "in_progress"
-        open_count = (x.get("total_deliveries") or 0) - (x.get("completed_deliveries") or 0)
-        alert_level = str(x.get("route_alert_level") or "ok").strip().lower()
-        alert_rank = 0 if alert_level == "critico" else 1 if alert_level == "atencao" else 2
-        delay = int(x.get("projected_finish_delay_minutes") or 0)
-        if state == "closed":
-            return (4, 0, 0, 0)
-        if state == "not_started":
-            return (3, alert_rank, -delay, -open_count)
-        if state == "all_delivered":
-            return (3, 0, 0, -open_count)
-        if state == "route_started":
+        def _live_sort_key(x):
+            state = x.get("route_state") or "in_progress"
+            open_count = (x.get("total_deliveries") or 0) - (x.get("completed_deliveries") or 0)
+            alert_level = str(x.get("route_alert_level") or "ok").strip().lower()
+            alert_rank = 0 if alert_level == "critico" else 1 if alert_level == "atencao" else 2
+            delay = int(x.get("projected_finish_delay_minutes") or 0)
+            if state == "closed":
+                return (4, 0, 0, 0)
+            if state == "not_started":
+                return (3, alert_rank, -delay, -open_count)
+            if state == "all_delivered":
+                return (3, 0, 0, -open_count)
+            if state == "route_started":
+                return (1, alert_rank, -delay, -open_count)
             return (1, alert_rank, -delay, -open_count)
-        return (1, alert_rank, -delay, -open_count)
 
-    live_separation = list(live_buckets.values())
-    live_separation.sort(key=_live_sort_key)
-    rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
-    rotas_ativas_count = sum(
-        1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "route_started")
-    )
-    rotas_concluidas_count = sum(
-        1 for b in live_separation if (b.get("route_state") or "") in ("closed", "all_delivered")
-    )
-    _tsa_api = tv_shift_alert_counts(live_separation, now_br)
+        live_separation = list(live_buckets.values())
+        live_separation.sort(key=_live_sort_key)
+        rotas_paradas_count = sum(1 for b in live_separation if (b.get("route_state") or "") == "not_started")
+        rotas_ativas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("in_progress", "route_started"))
+        rotas_concluidas_count = sum(1 for b in live_separation if (b.get("route_state") or "") in ("closed", "all_delivered"))
+        _tsa_api = tv_shift_alert_counts(live_separation, now_br)
 
-    routes_devolucao = [r for r in routes if _is_operational_route_devolucao(r)]
-    n_dev_dia_tv, n_done_dia_tv = counts_devolucao_rotas_concluidas(routes)
-    devolucao_items = []
-    dev_clients_by_driver_api: Dict[str, List[str]] = {}
-    dev_driver_order_api: List[str] = []
-    for r in routes_devolucao:
-        c = client_by_id.get(r.client_id)
-        emp = employee_by_id.get(r.employee_id)
-        c_name = c.name if c else f"Cliente #{r.client_id}"
-        driver_name = emp.name if emp else f"Motorista #{r.employee_id}"
-        fancy = getattr(c, "fancy_name", "") if c else ""
-        address = getattr(c, "address", "") if c else ""
-        neighborhood = getattr(c, "neighborhood", "") if c else ""
-        city = getattr(c, "city", "") if c else ""
-        cep = getattr(c, "cep", "") if c else ""
-        kg = round(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0), 2)
-        valor = round(float(getattr(r, "valor_devolucao", None) or 0), 2)
-        devolucao_items.append({
-            "route_id": r.id,
-            "client_name": c_name,
-            "fancy_name": fancy,
-            "address": address,
-            "neighborhood": neighborhood,
-            "city": city,
-            "cep": cep,
-            "kg": kg,
-            "valor": valor,
-            "date": getattr(r, "date", selected_date_str),
-            "driver_name": driver_name,
-        })
-        if driver_name not in dev_clients_by_driver_api:
-            dev_driver_order_api.append(driver_name)
-            dev_clients_by_driver_api[driver_name] = []
-        dev_clients_by_driver_api[driver_name].append(c_name)
-    items_by_driver_api = [
-        {"driver_name": driver_name, "clients": dev_clients_by_driver_api[driver_name]}
-        for driver_name in dev_driver_order_api
-    ]
+        routes_devolucao = [r for r in routes if _is_operational_route_devolucao(r)]
+        n_dev_dia_tv, n_done_dia_tv = counts_devolucao_rotas_concluidas(routes)
+        devolucao_items = []
+        dev_clients_by_driver_api: Dict[str, List[str]] = {}
+        dev_driver_order_api: List[str] = []
+        for r in routes_devolucao:
+            c = client_by_id.get(r.client_id)
+            emp = employee_by_id.get(r.employee_id)
+            c_name = (getattr(c, "name", None) or getattr(c, "razao_social", None)) if c else f"Cliente #{r.client_id}"
+            driver_name = emp.name if emp else f"Motorista #{r.employee_id}"
+            devolucao_items.append({
+                "route_id": r.id,
+                "client_name": c_name,
+                "fancy_name": getattr(c, "fancy_name", "") if c else "",
+                "address": getattr(c, "address", "") if c else "",
+                "neighborhood": getattr(c, "neighborhood", "") if c else "",
+                "city": getattr(c, "city", "") if c else "",
+                "cep": getattr(c, "cep", "") if c else "",
+                "kg": round(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0), 2),
+                "valor": round(float(getattr(r, "valor_devolucao", None) or 0), 2),
+                "date": getattr(r, "date", selected_date_str),
+                "driver_name": driver_name,
+            })
+            if driver_name not in dev_clients_by_driver_api:
+                dev_driver_order_api.append(driver_name)
+                dev_clients_by_driver_api[driver_name] = []
+            dev_clients_by_driver_api[driver_name].append(c_name)
+        items_by_driver_api = [{"driver_name": d, "clients": dev_clients_by_driver_api[d]} for d in dev_driver_order_api]
 
-    devolucao_dia = {
-        "count": n_dev_dia_tv,
-        "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
-        "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
-        "total_entregas": n_done_dia_tv,
-        "pct": pct_devolucao_sobre_rotas_concluidas(routes),
-        "items_by_driver": items_by_driver_api,
-        "items_list": devolucao_items,
-    }
+        devolucao_dia = {
+            "count": n_dev_dia_tv,
+            "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
+            "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
+            "total_entregas": n_done_dia_tv,
+            "pct": pct_devolucao_sobre_rotas_concluidas(routes),
+            "items_by_driver": items_by_driver_api,
+            "items_list": devolucao_items,
+        }
 
-    month_start = selected_date.replace(day=1)
-    if selected_date.month == 12:
-        next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1)
-    else:
-        next_month_start = selected_date.replace(month=selected_date.month + 1, day=1)
-    month_start_str = month_start.strftime("%Y-%m-%d")
-    month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
-    routes_month = session.exec(
-        select(models.Route)
-        .where(models.Route.type == "delivery")
-        .where(models.Route.date >= month_start_str)
-        .where(models.Route.date <= month_end_str)
-        .where(models.Route.employee_id.in_(employee_ids))
-    ).all()
-    _, n_done_mes_tv = counts_devolucao_rotas_concluidas(routes_month)
-    mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(
-        session, month_start_str, month_end_str, employee_ids if employee_ids else None
-    )
-    devolucao_mes = {
-        "count": mes_cnt_reg,
-        "total_entregas": n_done_mes_tv,
-        "total_valor": round(mes_valor_reg, 2),
-        "pct": pct_devolucao_sobre_rotas_concluidas(routes_month),
-    }
+        month_start = selected_date.replace(day=1)
+        next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1) if selected_date.month == 12 else selected_date.replace(month=selected_date.month + 1, day=1)
+        month_start_str = month_start.strftime("%Y-%m-%d")
+        month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
+        routes_month = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date >= month_start_str)
+            .where(models.Route.date <= month_end_str)
+            .where(models.Route.employee_id.in_(employee_ids))
+        ).all()
+        _, n_done_mes_tv = counts_devolucao_rotas_concluidas(routes_month)
+        mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(session, month_start_str, month_end_str, employee_ids if employee_ids else None)
+        devolucao_mes = {
+            "count": mes_cnt_reg,
+            "total_entregas": n_done_mes_tv,
+            "total_valor": round(mes_valor_reg, 2),
+            "pct": pct_devolucao_sobre_rotas_concluidas(routes_month),
+        }
 
-    alerts_over_20min = []
+        alerts_over_20min = []
         for r in routes:
             if _sl(getattr(r, "delivery_status", None)) != "iniciada" or r.driver_lat_start is None:
                 continue
             started_at_str = r.delivery_started_at or r.start_time
             if not started_at_str or _s(started_at_str) in ("", "00:00"):
-            continue
-        try:
-            parts = str(started_at_str).strip().split(":")
-            h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
-            started_dt = datetime(selected_date.year, selected_date.month, selected_date.day, h, m, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
-            elapsed_mins = int((now_br - started_dt).total_seconds() // 60)
-            if elapsed_mins < 20:
                 continue
-            client_name = (client_by_id.get(r.client_id).name if client_by_id.get(r.client_id) else None) or f"Cliente #{r.client_id}"
-            emp = employee_by_id.get(r.employee_id)
-            alerts_over_20min.append({
-                "client_name": client_name,
-                "driver_name": emp.name if emp else f"Motorista #{r.employee_id}",
-                "minutes": elapsed_mins,
-                "started_at": started_at_str,
-                "plate": _s(getattr(r, "delivery_vehicle_plate", None)) or None,
-            })
-        except Exception:
-            continue
-    alerts_over_20min.sort(key=lambda x: -x["minutes"])
+            try:
+                parts = str(started_at_str).strip().split(":")
+                h, m = int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+                started_dt = datetime(selected_date.year, selected_date.month, selected_date.day, h, m, 0, tzinfo=ZoneInfo("America/Sao_Paulo"))
+                elapsed_mins = int((now_br - started_dt).total_seconds() // 60)
+                if elapsed_mins < 20:
+                    continue
+                c = client_by_id.get(r.client_id)
+                client_name = (getattr(c, "name", None) or getattr(c, "razao_social", None)) if c else f"Cliente #{r.client_id}"
+                emp = employee_by_id.get(r.employee_id)
+                alerts_over_20min.append({
+                    "client_name": client_name,
+                    "driver_name": emp.name if emp else f"Motorista #{r.employee_id}",
+                    "minutes": elapsed_mins,
+                    "started_at": started_at_str,
+                    "plate": _s(getattr(r, "delivery_vehicle_plate", None)) or None,
+                })
+            except Exception:
+                continue
+        alerts_over_20min.sort(key=lambda x: -x["minutes"])
 
-    # Alto índice devolução: só rota do dia — paradas de hoje ainda não entregues e com 2+ devoluções em 30d.
-    date_30d_ago = (now_br.date() - timedelta(days=30)).strftime("%Y-%m-%d")
-    devolucoes_30d = session.exec(
-        select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= date_30d_ago)
-        .where(models.Devolucao.data_romaneio <= selected_date_str)
-        .order_by(desc(models.Devolucao.data_romaneio), desc(models.Devolucao.id))
-    ).all()
-    client_dev_count = {}
-    for d in devolucoes_30d:
-        cid = d.client_id
-        client_dev_count[cid] = client_dev_count.get(cid, 0) + 1
-    pending_today = [
-        (r.client_id, r.employee_id)
-        for r in routes
-        if r.client_id is not None
-        and r.employee_id is not None
-        and (r.delivery_status or "").strip().lower() not in ("entregue", "devolucao")
-    ]
-    client_name_today = {
-        c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}")
-        for c in clients
-    }
-    seen_pair = set()
-    clientes_alto_indice = []
-    for cid, driver_id in pending_today:
-        if (cid, driver_id) in seen_pair or client_dev_count.get(cid, 0) < 2:
-            continue
-        seen_pair.add((cid, driver_id))
-        emp = employee_by_id.get(driver_id)
-        clientes_alto_indice.append({
-            "client_name": client_name_today.get(cid) or f"Cliente #{cid}",
-            "driver_name": emp.name if emp else f"Motorista #{driver_id}",
-            "count": client_dev_count[cid],
-        })
-    clientes_alto_indice.sort(key=lambda x: -x["count"])
-    clientes_alto_indice = clientes_alto_indice[:10]
+        date_30d_ago = (now_br.date() - timedelta(days=30)).strftime("%Y-%m-%d")
+        devolucoes_30d = session.exec(
+            select(models.Devolucao)
+            .where(models.Devolucao.data_romaneio >= date_30d_ago)
+            .where(models.Devolucao.data_romaneio <= selected_date_str)
+            .order_by(desc(models.Devolucao.data_romaneio), desc(models.Devolucao.id))
+        ).all()
+        client_dev_count = {}
+        for d in devolucoes_30d:
+            cid = d.client_id
+            client_dev_count[cid] = client_dev_count.get(cid, 0) + 1
+        pending_today = [
+            (r.client_id, r.employee_id)
+            for r in routes
+            if r.client_id is not None
+            and r.employee_id is not None
+            and _sl(getattr(r, "delivery_status", None)) not in ("entregue", "devolucao")
+        ]
+        client_name_today = {c.id: (getattr(c, "name", None) or getattr(c, "razao_social", None) or f"Cliente #{c.id}") for c in clients}
+        seen_pair = set()
+        clientes_alto_indice = []
+        for cid, driver_id in pending_today:
+            if (cid, driver_id) in seen_pair or client_dev_count.get(cid, 0) < 2:
+                continue
+            seen_pair.add((cid, driver_id))
+            emp = employee_by_id.get(driver_id)
+            clientes_alto_indice.append({
+                "client_name": client_name_today.get(cid) or f"Cliente #{cid}",
+                "driver_name": emp.name if emp else f"Motorista #{driver_id}",
+                "count": client_dev_count[cid],
+            })
+        clientes_alto_indice.sort(key=lambda x: -x["count"])
+        clientes_alto_indice = clientes_alto_indice[:10]
 
         selected_headcount = sum(1 for e in employees if _sl(getattr(e, "status", None)) not in {"away", "vacation", "sick", "day_off"})
-    cost_centers_summary = {}
-    for emp in employees_all:
-        lbl = cost_center_display_label(emp.cost_center)
-        if lbl not in cost_centers_summary:
-            cost_centers_summary[lbl] = {"headcount": 0, "target": 0, "away": 0}
+        cost_centers_summary = {}
+        for emp in employees_all:
+            lbl = cost_center_display_label(emp.cost_center)
+            if lbl not in cost_centers_summary:
+                cost_centers_summary[lbl] = {"headcount": 0, "target": 0, "away": 0}
             away = 1 if _sl(getattr(emp, "status", None)) in {"away", "vacation", "sick", "day_off"} else 0
-        cost_centers_summary[lbl]["headcount"] += max(0, 1 - away)
-        cost_centers_summary[lbl]["away"] += away
-        cost_centers_summary[lbl]["target"] = cost_centers_summary[lbl]["headcount"]
+            cost_centers_summary[lbl]["headcount"] += max(0, 1 - away)
+            cost_centers_summary[lbl]["away"] += away
+            cost_centers_summary[lbl]["target"] = cost_centers_summary[lbl]["headcount"]
 
         payload = {
-        "date": selected_date_str,
-        "cost_center": selected_cc or "Todos",
-        "dashboard": {
-            "kpi": {
-                "tonnage": round(total_tonnage, 2),
-                "avg_kgh": round(avg_kgh, 1),
-                "completed_routes_count": len(completed_routes),
-                "headcount": selected_headcount,
-                "target_headcount": selected_headcount,
-                "rotas_paradas": rotas_paradas_count,
-                "rotas_ativas": rotas_ativas_count,
-                "rotas_concluidas": rotas_concluidas_count,
+            "date": selected_date_str,
+            "cost_center": selected_cc or "Todos",
+            "dashboard": {
+                "kpi": {
+                    "tonnage": round(total_tonnage, 2),
+                    "avg_kgh": round(avg_kgh, 1),
+                    "completed_routes_count": len(completed_routes),
+                    "headcount": selected_headcount,
+                    "target_headcount": selected_headcount,
+                    "rotas_paradas": rotas_paradas_count,
+                    "rotas_ativas": rotas_ativas_count,
+                    "rotas_concluidas": rotas_concluidas_count,
+                },
+                "alerts": {"clients_over_20min": alerts_over_20min},
+                "live_separation": live_separation,
+                "devolucao_dia": devolucao_dia,
+                "devolucao_mes": devolucao_mes,
+                "clientes_alto_indice_devolucao": clientes_alto_indice,
+                "cost_centers_summary": cost_centers_summary,
+                "tv_shift_alerts": {"atencao": _tsa_api["atencao"], "critico": _tsa_api["critico"]},
+                "operational_shift": _tsa_api["operational_shift"],
             },
-            "alerts": {"clients_over_20min": alerts_over_20min},
-            "live_separation": live_separation,
-            "devolucao_dia": devolucao_dia,
-            "devolucao_mes": devolucao_mes,
-            "clientes_alto_indice_devolucao": clientes_alto_indice,
-            "cost_centers_summary": cost_centers_summary,
-            "tv_shift_alerts": {"atencao": _tsa_api["atencao"], "critico": _tsa_api["critico"]},
-            "operational_shift": _tsa_api["operational_shift"],
-        },
-    }
+        }
         return JSONResponse(payload, headers=no_store_headers)
     except Exception as e:
         logger.exception("api_dashboard_tv_data error: %s", e)
-        return JSONResponse(
-            {"error": "Erro interno ao montar dados da TV."},
-            status_code=500,
-            headers=no_store_headers,
-        )
+        return JSONResponse({"error": "Erro interno ao montar dados da TV."}, status_code=500, headers=no_store_headers)
 
 
 @app.get("/api/dashboard/informativo-data", response_class=JSONResponse)

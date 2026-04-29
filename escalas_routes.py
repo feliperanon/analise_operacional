@@ -308,30 +308,40 @@ async def escala_api_data(
     if perm:
         return perm
 
-    today = datetime.now().strftime("%Y-%m-%d")
-    date = date or today
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        date = date or today
 
-    summary, escalas, motoristas, ajudantes, vehicles = _build_escala_groups(session, date, shift)
+        summary, escalas, motoristas, ajudantes, vehicles = _build_escala_groups(session, date, shift)
 
-    alocados_driver = {e["employee_id"] for e in escalas}
-    alocados_helper = set()
-    for e in escalas:
-        alocados_helper.update(e["helper_ids"])
-    alocados_plate = {_norm_plate(e["vehicle_plate"]) for e in escalas if _norm_plate(e["vehicle_plate"])}
+        alocados_driver = {e["employee_id"] for e in escalas}
+        alocados_helper = set()
+        for e in escalas:
+            alocados_helper.update(e["helper_ids"])
+        alocados_plate = {_norm_plate(e["vehicle_plate"]) for e in escalas if _norm_plate(e["vehicle_plate"])}
 
-    return JSONResponse({
-        "summary": summary,
-        "escalas": escalas,
-        "motoristas_disponiveis": [{"id": m.id, "name": _safe_str(m.name)} for m in motoristas if m.id not in alocados_driver],
-        "motoristas_todos": [{"id": m.id, "name": _safe_str(m.name)} for m in motoristas],
-        "motoristas_alocados": list(alocados_driver),
-        "ajudantes_disponiveis": [{"id": a.id, "name": _safe_str(a.name)} for a in ajudantes if a.id not in alocados_helper],
-        "ajudantes_todos": [{"id": a.id, "name": _safe_str(a.name)} for a in ajudantes],
-        "ajudantes_alocados": list(alocados_helper),
-        "caminhoes_disponiveis": [{"id": v.id, "placa": _safe_str(v.placa)} for v in vehicles if _norm_plate(v.placa) not in alocados_plate],
-        "caminhoes_alocados": list(alocados_plate),
-        "vehicles": [{"id": v.id, "placa": _safe_str(v.placa)} for v in vehicles],
-    })
+        return JSONResponse({
+            "summary": summary,
+            "escalas": escalas,
+            "motoristas_disponiveis": [{"id": m.id, "name": _safe_str(m.name)} for m in motoristas if m.id not in alocados_driver],
+            "motoristas_todos": [{"id": m.id, "name": _safe_str(m.name)} for m in motoristas],
+            "motoristas_alocados": list(alocados_driver),
+            "ajudantes_disponiveis": [{"id": a.id, "name": _safe_str(a.name)} for a in ajudantes if a.id not in alocados_helper],
+            "ajudantes_todos": [{"id": a.id, "name": _safe_str(a.name)} for a in ajudantes],
+            "ajudantes_alocados": list(alocados_helper),
+            "caminhoes_disponiveis": [{"id": v.id, "placa": _safe_str(v.placa)} for v in vehicles if _norm_plate(v.placa) not in alocados_plate],
+            "caminhoes_alocados": list(alocados_plate),
+            "vehicles": [{"id": v.id, "placa": _safe_str(v.placa)} for v in vehicles],
+        })
+    except Exception as e:
+        logger.exception("escala_api_data error: %s", e)
+        return JSONResponse(
+            {
+                "error": "Erro interno ao carregar dados da escala.",
+                "detail": _safe_str(e),
+            },
+            status_code=500,
+        )
 
 
 @router.post("/api/atualizar", response_class=JSONResponse)

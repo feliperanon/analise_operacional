@@ -214,7 +214,7 @@
                         </template>
                     </div>
                 </template>
-                <template x-if="isHelperQuickChange()">
+                <template x-if="String((quickChange && quickChange.campo) || '').trim().toLowerCase().startsWith('ajud')">
                     <div class="space-y-3">
                         <p class="mb-2 text-xs text-slate-500 dark:text-slate-400">Selecione ajudantes (múltipla escolha)</p>
                         <div class="grid grid-cols-1 gap-1.5 md:grid-cols-2">
@@ -234,7 +234,7 @@
                     </div>
                 </template>
                 </div>
-                <div x-show="isHelperQuickChange()" class="shrink-0 border-t border-slate-200 p-4 dark:border-slate-700">
+                <div x-show="String((quickChange && quickChange.campo) || '').trim().toLowerCase().startsWith('ajud')" class="shrink-0 border-t border-slate-200 p-4 dark:border-slate-700">
                     <button type="button" @click="applyQuickChange(null, null, quickChange.ajudantesSelected)"
                             :disabled="hasSelectedHelperConflicts"
                             :style="hasSelectedHelperConflicts ? 'background-color:#f59e0b;color:#ffffff;opacity:1;' : 'background-color:#d97706;color:#ffffff;opacity:1;'"
