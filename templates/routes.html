@@ -419,7 +419,7 @@
                         <input type="hidden" name="selected_groups" id="bulk-selected-groups" value="">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
                         <input type="date" name="planning_date" id="bulk-planning-date" required class="delivery-mini-input bulk-action-date">
-                        <button type="submit" class="bulk-action-btn rounded-md bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-500">
+                        <button type="submit" class="bulk-action-btn bulk-action-btn--primary">
                             Mover
                         </button>
                     </form>
@@ -505,7 +505,7 @@
                         {% endif %}
                         <div id="bulk-stops-route-ids"></div>
                         <input type="date" name="planning_date" id="bulk-stops-planning-date" value="{{ selected_date_from }}" required class="delivery-mini-input bulk-action-date">
-                        <button type="submit" id="bulk-stops-submit-btn" disabled class="bulk-action-btn rounded-md bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-45">
+                        <button type="submit" id="bulk-stops-submit-btn" disabled class="bulk-action-btn bulk-action-btn--primary">
                             Mover selecionados
                         </button>
                     </form>
@@ -519,12 +519,12 @@
             {# Barra fixa no rodapé ao marcar paradas — visível junto da tabela (o topo do cartão costuma ficar fora da tela) #}
             <div id="bulk-stops-dock" class="separacao-bulk-dock hidden" role="region" aria-label="Mover paradas selecionadas">
                 <div class="separacao-bulk-dock__inner">
-                    <span id="bulk-stops-dock-count" class="text-xs font-semibold text-violet-800 dark:text-violet-100"></span>
-                    <label class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-200">
+                    <span id="bulk-stops-dock-count" class="separacao-bulk-dock__count"></span>
+                    <label class="separacao-bulk-dock__label" for="bulk-stops-planning-date-dock">
                         Nova data
                         <input type="date" id="bulk-stops-planning-date-dock" value="{{ selected_date_from }}" class="delivery-mini-input bulk-action-date">
                     </label>
-                    <button type="button" id="bulk-stops-dock-submit" class="bulk-action-btn rounded-md bg-violet-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-500">
+                    <button type="button" id="bulk-stops-dock-submit" class="bulk-action-btn bulk-action-btn--primary">
                         Mover selecionados
                     </button>
                     <button type="button" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px]" onclick="clearBulkStopSelection()">
@@ -715,13 +715,13 @@
                             <!-- Ajustes administrativos — um único cartão / uma linha de ferramentas -->
                             <details class="delivery-admin-details border-t border-slate-200 dark:border-slate-700/60">
                                 <summary class="delivery-admin-details__summary">
-                                    Ajustar rota — equipe, data (rota inteira) e início no web
+                                    Ajustes da rota
                                 </summary>
 
                                 <div class="delivery-admin-details__body">
                                     {% set _route_date = group.group_date or selected_date_from %}
                                     <section class="delivery-admin-segment delivery-admin-segment--unified" aria-label="Ferramentas administrativas desta rota">
-                                        <p class="delivery-admin-unified-hint">Paradas individuais: marque na tabela abaixo e use <strong>Mover selecionados</strong> no rodapé da página.</p>
+                                        <p class="delivery-admin-unified-hint">Várias paradas: tabela + barra no rodapé <span class="delivery-admin-hint-nowrap">(Mover selecionados)</span>.</p>
                                         <div class="delivery-admin-row delivery-admin-row--unified">
                                             <form action="/separacao/delivery/reassign-group" method="post" class="delivery-admin-form delivery-admin-form--reassign" style="display: contents">
                                                 <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
@@ -774,10 +774,10 @@
                                                 <input type="hidden" name="current_date" value="{{ _route_date }}">
                                                 <input type="hidden" name="shift" value="{{ selected_shift }}">
                                                 <div class="delivery-admin-field delivery-admin-field--planning-date">
-                                                    <label class="delivery-admin-label" for="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Nova data · rota inteira</label>
+                                                    <label class="delivery-admin-label" for="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Data · rota inteira</label>
                                                     <div class="delivery-admin-inline-field">
                                                         <input id="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" type="date" name="planning_date" value="{{ _route_date }}" required class="delivery-mini-input delivery-admin-input--date">
-                                                        <button type="submit" class="sys-btn sys-btn--secondary delivery-admin-btn delivery-admin-btn--tool">Mover rota inteira</button>
+                                                        <button type="submit" class="sys-btn sys-btn--secondary delivery-admin-btn delivery-admin-btn--tool">Mover tudo</button>
                                                     </div>
                                                 </div>
                                             </form>
@@ -821,7 +821,7 @@
                                                     >
                                                 </div>
                                                 <div class="delivery-admin-actions delivery-admin-actions--toolbar">
-                                                    <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn delivery-admin-btn--tool">Iniciar rota no web</button>
+                                                    <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn delivery-admin-btn--tool">Iniciar web</button>
                                                 </div>
                                             </form>
                                             {% endif %}
@@ -831,9 +831,7 @@
                             </details>
 
                             <!-- Tabela -->
-                            <div class="mb-2 rounded-lg border border-violet-400/40 bg-violet-500/[0.08] px-3 py-2 text-[11px] leading-snug text-violet-950 dark:border-violet-500/35 dark:bg-violet-950/45 dark:text-violet-100">
-                                <strong>Várias paradas só das linhas marcadas:</strong> use a 1ª coluna da tabela. Com pelo menos uma marcada, aparece a barra roxa <strong>fixa no rodapé da página</strong> com <strong>Mover selecionados</strong>. O bloco <em>Ajustar rota</em> acima só tem <strong>Mover rota inteira</strong> (todas as paradas deste motorista).
-                            </div>
+                            <p class="delivery-table-bulk-hint">1ª coluna + barra no rodapé = só marcados. <strong>Mover tudo</strong> = este motorista inteiro.</p>
                             <div class="sys-table-wrap sys-table-wrap--x-scroll border-t border-slate-200 dark:border-slate-700/60">
                                 <table class="separacao-delivery-table w-full min-w-[920px] text-left" id="delivery-table-{{ loop.index }}-{{ group.employee_id }}">
                                     <thead class="employees-data-table__head">
