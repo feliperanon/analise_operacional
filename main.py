@@ -34782,6 +34782,17 @@ async def api_list_admin_routes(
         except Exception:
             return None
 
+    def _json_safe(v: Any) -> Any:
+        if isinstance(v, float):
+            return v if math.isfinite(v) else 0.0
+        if isinstance(v, list):
+            return [_json_safe(x) for x in v]
+        if isinstance(v, tuple):
+            return [_json_safe(x) for x in v]
+        if isinstance(v, dict):
+            return {k: _json_safe(val) for k, val in v.items()}
+        return v
+
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
@@ -35110,7 +35121,7 @@ async def api_list_admin_routes(
                     "shift": str(getattr(emp, "work_shift", "Manhã") or "Manhã")
                 })
         
-        return JSONResponse({
+        payload = {
             "success": True,
             "live_separation": live_separation,
             "employees_without_route": employees_without_route,
@@ -35127,7 +35138,8 @@ async def api_list_admin_routes(
                 "entregas_pendentes": open_deliveries_total,
                 "entregas_concluidas": completed_deliveries_total,
             },
-        }, headers={
+        }
+        return JSONResponse(_json_safe(payload), headers={
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
             "Pragma": "no-cache",
             "Expires": "0",
