@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -36,7 +37,8 @@ def _safe_float(v: Any) -> float:
     if v is None:
         return 0.0
     try:
-        return float(v)
+        n = float(v)
+        return n if math.isfinite(n) else 0.0
     except (TypeError, ValueError):
         return 0.0
 

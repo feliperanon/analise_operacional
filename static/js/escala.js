@@ -188,6 +188,9 @@
                 try {
                     const r = await fetch(`/escala/api/data?${params}`);
                     const data = await r.json();
+                    if (!r.ok) {
+                        throw new Error(data && (data.detail || data.error) ? (data.detail || data.error) : 'Falha ao carregar dados da escala.');
+                    }
                     this.apiData = data;
                     const s = data.summary || {};
                     const motoristasTodos = data.motoristas_todos || [];
@@ -207,7 +210,7 @@
                     };
                     this.escalas = data.escalas || [];
                 } catch (err) {
-                    this.showToast('Erro ao carregar dados.', false);
+                    this.showToast(`Erro ao carregar dados: ${err && err.message ? err.message : 'falha inesperada.'}`, false);
                 } finally {
                     this.loading = false;
                     if (typeof lucide !== 'undefined') {
