@@ -324,13 +324,13 @@
     </div>
 
     <!-- Painel principal: título, ações em massa, WhatsApp e filtros no mesmo cartão -->
-    <div id="delivery-operations-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div id="delivery-operations-panel" class="sys-card sys-card--surface employees-table-panel overflow-x-hidden p-0">
         <div class="employees-table-panel__head delivery-ops-panel__head flex flex-col gap-3 border-b px-4 py-4 sm:px-5">
             <div class="delivery-ops-panel__block flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between lg:gap-5">
             <div class="min-w-0 flex-1">
                 <p class="employees-table-panel__kicker">Centro de operação</p>
                 <h3 class="sys-section-heading employees-table-panel__title mt-1 text-base sm:text-lg">Rotas e paradas</h3>
-                <p class="employees-table-panel__lede mt-1 max-w-2xl text-xs sm:text-sm">Expanda cada motorista para ver paradas, status e ações.</p>
+                <p class="employees-table-panel__lede mt-1 max-w-2xl text-xs sm:text-sm">Expanda cada motorista para ver a tabela. Para <strong class="font-semibold">mudar a data de vários clientes</strong>, marque os checkboxes da tabela — aparece a barra roxa fixa no topo deste painel com <strong class="font-semibold">Mover selecionados</strong> (não use o “Aplicar” dentro de cada linha).</p>
             </div>
             <div class="employees-table-panel__aside delivery-ops-panel__actions flex max-w-full flex-col gap-1.5 text-xs leading-relaxed lg:max-w-lg lg:pt-0.5 lg:text-right">
                 <div class="flex flex-wrap items-center justify-start gap-1.5 lg:justify-end">
@@ -402,7 +402,7 @@
             </div>
         </div>
 
-            <div id="bulk-actions-bar" class="hidden separacao-bulk-bar border-b px-4 py-2.5">
+            <div id="bulk-actions-bar" class="hidden separacao-bulk-bar border-b px-4 py-2.5" role="region" aria-label="Ações em lote nas paradas ou rotas selecionadas">
                 <!-- Modo: rotas -->
                 <div id="bulk-driver-panel" class="hidden flex flex-wrap items-center gap-2 lg:gap-2.5">
                     <span id="bulk-driver-count" class="text-xs font-semibold text-sky-700 dark:text-sky-300">0 rota(s) selecionada(s)</span>
@@ -2437,9 +2437,10 @@
     }
 
     function updateBulkStopBar() {
+        const countEl = document.getElementById('bulk-stops-count');
+        const prev = parseInt(countEl.textContent || '0', 10) || 0;
         const checkboxes = document.querySelectorAll('.bulk-stop-checkbox:checked');
         const count = checkboxes.length;
-        const countEl = document.getElementById('bulk-stops-count');
         const dateInput = document.getElementById('bulk-stops-planning-date');
 
         countEl.textContent = count;
@@ -2450,6 +2451,13 @@
         }
 
         updateBulkBarVisibility();
+
+        if (count > 0 && prev === 0) {
+            const bar = document.getElementById('bulk-actions-bar');
+            if (bar && !bar.classList.contains('hidden')) {
+                bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
     }
 
     function syncBulkStopRouteIds() {

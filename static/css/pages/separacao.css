@@ -23,6 +23,15 @@ html.dark .ga-employee-theme.employees-page.separacao-page dialog.separacao-moda
 .ga-employee-theme.employees-page.separacao-page .separacao-bulk-bar {
   border-color: var(--sys-border);
   background: var(--sys-bg-subtle);
+  /* Fica visível ao rolar a lista longa (evita “sumiu a barra de mover”) */
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 0.08);
+}
+
+html.dark .ga-employee-theme.employees-page.separacao-page .separacao-bulk-bar {
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.35);
 }
 
 .ga-employee-theme.employees-page.separacao-page .delivery-ops-panel__head {
