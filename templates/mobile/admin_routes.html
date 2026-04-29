@@ -446,6 +446,12 @@
                 try {
                     const res = await fetch('/api/mobile/admin/routes');
                     const data = await res.json();
+                    if (!res.ok) {
+                        const detail = (data && (data.detail || data.error)) ? (data.detail || data.error) : ('HTTP ' + res.status);
+                        console.error('Falha /api/mobile/admin/routes:', detail, data);
+                        alert('Erro ao carregar rotas: ' + detail);
+                        return;
+                    }
                     if (data.success) {
                         this.liveSeparation = data.live_separation || [];
                         this.employeesWithoutRoute = data.employees_without_route || [];
@@ -455,9 +461,12 @@
                         this.kpi = data.kpi || { abertas: 0, rotas_concluidas: 0, rotas_paradas: 0, rotas_ativas: 0 };
                         this.expandedCards = {};
                     } else {
-                        alert('Erro: ' + (data.error || ''));
+                        const detail = (data && (data.detail || data.error)) ? (data.detail || data.error) : 'erro desconhecido';
+                        console.error('Resposta sem success do /api/mobile/admin/routes:', detail, data);
+                        alert('Erro: ' + detail);
                     }
                 } catch (e) {
+                    console.error('Erro de conexão /api/mobile/admin/routes:', e);
                     alert('Erro de conexão');
                 } finally {
                     this.isLoading = false;
