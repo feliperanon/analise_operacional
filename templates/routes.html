@@ -495,7 +495,7 @@
                         action="/separacao/delivery/planning-date/stops"
                         method="post"
                         class="bulk-action-form inline-flex flex-wrap items-center gap-2"
-                        onsubmit="return syncBulkStopRouteIds() && confirm('Mover os clientes selecionados?');"
+                        onsubmit="return onBulkStopsMoveSubmit(event);"
                     >
                         <input type="hidden" name="date" value="{{ selected_date_from }}">
                         <input type="hidden" name="shift" value="{{ selected_shift }}">
@@ -511,6 +511,23 @@
                     </form>
 
                     <button type="button" onclick="clearBulkStopSelection()" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px]">
+                        Desmarcar
+                    </button>
+                </div>
+            </div>
+
+            {# Barra fixa no rodapé ao marcar paradas — visível junto da tabela (o topo do cartão costuma ficar fora da tela) #}
+            <div id="bulk-stops-dock" class="separacao-bulk-dock hidden" role="region" aria-label="Mover paradas selecionadas">
+                <div class="separacao-bulk-dock__inner">
+                    <span id="bulk-stops-dock-count" class="text-xs font-semibold text-violet-800 dark:text-violet-100"></span>
+                    <label class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-200">
+                        Nova data
+                        <input type="date" id="bulk-stops-planning-date-dock" value="{{ selected_date_from }}" class="delivery-mini-input bulk-action-date">
+                    </label>
+                    <button type="button" id="bulk-stops-dock-submit" class="bulk-action-btn rounded-md bg-violet-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-500">
+                        Mover selecionados
+                    </button>
+                    <button type="button" class="bulk-action-btn delivery-btn-ghost px-2 py-1 text-[11px]" onclick="clearBulkStopSelection()">
                         Desmarcar
                     </button>
                 </div>
@@ -816,6 +833,9 @@
                             </details>
 
                             <!-- Tabela -->
+                            <div class="mb-2 rounded-lg border border-violet-400/40 bg-violet-500/[0.08] px-3 py-2 text-[11px] leading-snug text-violet-950 dark:border-violet-500/35 dark:bg-violet-950/45 dark:text-violet-100">
+                                <strong>Várias paradas só das linhas marcadas:</strong> use a 1ª coluna da tabela. Com pelo menos uma marcada, aparece a barra roxa <strong>fixa no rodapé da página</strong> com <strong>Mover selecionados</strong>. O bloco <em>Ajustar rota</em> acima só tem <strong>Mover rota inteira</strong> (todas as paradas deste motorista).
+                            </div>
                             <div class="sys-table-wrap sys-table-wrap--x-scroll border-t border-slate-200 dark:border-slate-700/60">
                                 <table class="separacao-delivery-table w-full min-w-[920px] text-left" id="delivery-table-{{ loop.index }}-{{ group.employee_id }}">
                                     <thead class="employees-data-table__head">
@@ -2440,6 +2460,7 @@
 
     function updateBulkStopBar() {
         const countEl = document.getElementById('bulk-stops-count');
+        if (!countEl) return;
         const prev = parseInt(countEl.textContent || '0', 10) || 0;
         const checkboxes = document.querySelectorAll('.bulk-stop-checkbox:checked');
         const count = checkboxes.length;
@@ -2456,6 +2477,7 @@
         }
 
         updateBulkBarVisibility();
+        updateBulkStopDock();
 
         if (count > 0 && prev === 0) {
             const bar = document.getElementById('bulk-actions-bar');
@@ -2463,6 +2485,55 @@
                 bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         }
+    }
+
+    function onBulkStopsMoveSubmit(event) {
+        if (!syncBulkStopRouteIds()) {
+            event.preventDefault();
+            return false;
+        }
+        if (!confirm('Mover os clientes selecionados?')) {
+            event.preventDefault();
+            return false;
+        }
+        return true;
+    }
+
+    function updateBulkStopDock() {
+        const dock = document.getElementById('bulk-stops-dock');
+        const dockCount = document.getElementById('bulk-stops-dock-count');
+        const mainDate = document.getElementById('bulk-stops-planning-date');
+        const dockDate = document.getElementById('bulk-stops-planning-date-dock');
+        if (!dock || !dockCount) return;
+
+        const count = document.querySelectorAll('.bulk-stop-checkbox:checked').length;
+        dock.classList.toggle('hidden', count === 0);
+        dockCount.textContent = `${count} parada(s) marcada(s)`;
+
+        if (count > 0 && mainDate && dockDate) {
+            if (!dockDate.value || dockDate.value === '') {
+                dockDate.value = mainDate.value || '';
+            }
+        }
+    }
+
+    function bindBulkStopsDateSync() {
+        const mainDate = document.getElementById('bulk-stops-planning-date');
+        const dockDate = document.getElementById('bulk-stops-planning-date-dock');
+        if (!mainDate || !dockDate) return;
+        mainDate.addEventListener('change', () => { dockDate.value = mainDate.value; });
+        dockDate.addEventListener('change', () => { mainDate.value = dockDate.value; });
+    }
+
+    function submitBulkStopsFromDock() {
+        const mainDate = document.getElementById('bulk-stops-planning-date');
+        const dockDate = document.getElementById('bulk-stops-planning-date-dock');
+        const form = document.getElementById('bulk-stops-move-form');
+        if (!form || !mainDate || !dockDate) return;
+        mainDate.value = dockDate.value;
+        if (!syncBulkStopRouteIds()) return;
+        if (!confirm('Mover os clientes selecionados?')) return;
+        form.requestSubmit();
     }
 
     function syncBulkStopRouteIds() {
@@ -2554,6 +2625,9 @@
     document.addEventListener('DOMContentLoaded', function () {
         initAddStopSearch();
         initDeliveryHelperPickers();
+        bindBulkStopsDateSync();
+        const dockBtn = document.getElementById('bulk-stops-dock-submit');
+        if (dockBtn) dockBtn.addEventListener('click', submitBulkStopsFromDock);
         updateBulkDriverActions();
         updateBulkStopBar();
         refreshReturnReasons();
