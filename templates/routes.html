@@ -538,18 +538,6 @@
                         >
                             <summary class="delivery-route-summary flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-3 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <div class="min-w-0 flex items-center gap-2">
-                                    <label class="flex shrink-0 cursor-pointer" onclick="event.stopPropagation()" title="Selecionar rota">
-                                        <input
-                                            type="checkbox"
-                                            class="bulk-driver-checkbox rounded border-slate-400 text-sky-600 focus:ring-sky-500/50 dark:border-slate-500 dark:bg-slate-800"
-                                            data-employee-id="{{ group.employee_id }}"
-                                            data-driver-name="{{ group.driver_name }}"
-                                            data-vehicle-plate="{{ group.vehicle_plate }}"
-                                            data-group-date="{{ group.group_date or selected_date_from }}"
-                                        >
-                                        <span class="sr-only">Selecionar {{ group.driver_name }}</span>
-                                    </label>
-
                                     {% set _gdate = group.group_date or selected_date_from %}
                                     <span class="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                                         {{ _gdate[8:10] }}/{{ _gdate[5:7] }}
@@ -581,6 +569,17 @@
 
                             <!-- Ações rápidas -->
                             <div class="delivery-quick-actions border-t border-slate-200 px-3 py-2 dark:border-slate-700/60">
+                                <label class="mb-1 inline-flex cursor-pointer items-center gap-2 text-[11px] employees-text-muted" title="Selecionar rota">
+                                    <input
+                                        type="checkbox"
+                                        class="bulk-driver-checkbox rounded border-slate-400 text-sky-600 focus:ring-sky-500/50 dark:border-slate-500 dark:bg-slate-800"
+                                        data-employee-id="{{ group.employee_id }}"
+                                        data-driver-name="{{ group.driver_name }}"
+                                        data-vehicle-plate="{{ group.vehicle_plate }}"
+                                        data-group-date="{{ group.group_date or selected_date_from }}"
+                                    >
+                                    <span>Selecionar rota</span>
+                                </label>
                                 <span class="delivery-quick-actions__meta text-[11px] employees-text-muted">
                                     {{ group.rows|length }} paradas • R$ {{ "{:,.0f}".format(group.total_value).replace(",", ".") }}
                                     {% if group.returned_weight > 0 %}
