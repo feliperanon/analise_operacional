@@ -1154,6 +1154,66 @@ html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row.separac
   min-width: 0;
 }
 
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-segment--unified {
+  padding: 0.7rem 0.85rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-unified-hint {
+  margin: 0 0 0.55rem;
+  font-size: var(--sys-text-2xs, 0.6875rem);
+  line-height: 1.4;
+  color: var(--sys-text-muted);
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-row--unified {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.6rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-row--unified .delivery-admin-field {
+  margin: 0;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-row--unified .delivery-admin-field--helpers-inline {
+  flex: 1 1 14rem;
+  min-width: 11rem;
+  align-self: flex-start;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-vrule {
+  flex: 0 0 1px;
+  width: 1px;
+  align-self: stretch;
+  min-height: 2.35rem;
+  margin: 0 0.2rem;
+  background: var(--sys-border);
+  opacity: 0.9;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-inline-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-actions--toolbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 1.12rem;
+}
+
+.ga-employee-theme.employees-page.separacao-page .delivery-admin-btn--tool {
+  min-height: 2.125rem;
+  font-weight: 600;
+}
+
 .ga-employee-theme.employees-page.separacao-page .delivery-admin-segment--reassign {
   grid-column: 1 / -1;
 }
@@ -1366,6 +1426,16 @@ html.dark .ga-employee-theme.employees-page.separacao-page .delivery-admin-helpe
 
   .ga-employee-theme.employees-page.separacao-page .delivery-admin-form--inline {
     flex-wrap: wrap;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-row--unified .delivery-admin-vrule {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page.separacao-page .delivery-admin-row--unified .delivery-admin-actions--toolbar {
+    padding-top: 0;
+    flex: 1 1 100%;
+    justify-content: flex-start;
   }
 
   .ga-employee-theme.employees-page.separacao-page .delivery-admin-row--team-one-line {

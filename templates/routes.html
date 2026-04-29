@@ -712,82 +712,80 @@
                                 </div>
                             </div>
 
-                            <!-- Ajustes administrativos — faixa única (design system separacao) -->
+                            <!-- Ajustes administrativos — um único cartão / uma linha de ferramentas -->
                             <details class="delivery-admin-details border-t border-slate-200 dark:border-slate-700/60">
                                 <summary class="delivery-admin-details__summary">
-                                    Ajustar rota · reatribuir · mover data · iniciar web
+                                    Ajustar rota — equipe, data (rota inteira) e início no web
                                 </summary>
 
                                 <div class="delivery-admin-details__body">
-                                    <div class="delivery-admin-layout">
-                                        <section class="delivery-admin-segment delivery-admin-segment--reassign" aria-labelledby="reassign-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">
-                                            <h4 class="delivery-admin-segment__title" id="reassign-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Reatribuir equipe</h4>
-                                            {% set _route_date = group.group_date or selected_date_from %}
-                                            {# Dois formulários: Aplicar só reatribui equipe (mesma data). Data nova + "Mover rota inteira" é fluxo separado. Paradas avulsas: barra "Mover selecionados". #}
-                                            <div class="delivery-admin-row delivery-admin-row--team-one-line">
-                                                <form action="/separacao/delivery/reassign-group" method="post" class="delivery-admin-form delivery-admin-form--reassign" style="display: contents">
-                                                    <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
-                                                    <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
-                                                    <input type="hidden" name="date" value="{{ _route_date }}">
-                                                    <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                    {% set _route_date = group.group_date or selected_date_from %}
+                                    <section class="delivery-admin-segment delivery-admin-segment--unified" aria-label="Ferramentas administrativas desta rota">
+                                        <p class="delivery-admin-unified-hint">Paradas individuais: marque na tabela abaixo e use <strong>Mover selecionados</strong> no rodapé da página.</p>
+                                        <div class="delivery-admin-row delivery-admin-row--unified">
+                                            <form action="/separacao/delivery/reassign-group" method="post" class="delivery-admin-form delivery-admin-form--reassign" style="display: contents">
+                                                <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
+                                                <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
+                                                <input type="hidden" name="date" value="{{ _route_date }}">
+                                                <input type="hidden" name="shift" value="{{ selected_shift }}">
 
-                                                    <div class="delivery-admin-field delivery-admin-field--driver">
-                                                        <label class="delivery-admin-label" for="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Motorista</label>
-                                                        <select id="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" name="new_employee_id" class="delivery-mini-select delivery-admin-select--driver">
-                                                            {% for emp in delivery_employees %}
-                                                            <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
-                                                            {% endfor %}
-                                                        </select>
-                                                    </div>
-                                                    <div class="delivery-admin-field delivery-admin-field--vehicle">
-                                                        <label class="delivery-admin-label" for="reassign-veh-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Caminhão</label>
-                                                        <select id="reassign-veh-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" name="new_vehicle_plate" class="delivery-mini-select delivery-admin-select--vehicle">
-                                                            {% for veh in delivery_vehicles %}
-                                                            <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }}</option>
-                                                            {% endfor %}
-                                                        </select>
-                                                    </div>
-                                                    <div class="delivery-admin-field delivery-admin-field--helpers-inline">
-                                                        <label class="delivery-admin-label" for="helper-search-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Ajudantes</label>
-                                                        <div class="delivery-helper-picker delivery-admin-helper-picker" data-driver-id="{{ group.employee_id }}">
-                                                            <div class="relative">
-                                                                <input id="helper-search-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" type="text" class="delivery-helper-search delivery-mini-input delivery-admin-helper-search" placeholder="Buscar por nome…" autocomplete="off">
-                                                                <div class="delivery-helper-suggestions absolute z-20 mt-1 hidden max-h-40 w-full min-w-[12rem] overflow-y-auto rounded-lg border border-slate-200 bg-white text-slate-800 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"></div>
-                                                            </div>
-                                                            <div class="delivery-helper-hidden">
-                                                                {% for helper_id in group.helper_ids %}
-                                                                <input type="hidden" name="helper_ids" value="{{ helper_id }}">
-                                                                {% endfor %}
-                                                            </div>
-                                                            <div class="delivery-helper-selected delivery-admin-helper-chips"></div>
+                                                <div class="delivery-admin-field delivery-admin-field--driver">
+                                                    <label class="delivery-admin-label" for="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Motorista</label>
+                                                    <select id="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" name="new_employee_id" class="delivery-mini-select delivery-admin-select--driver">
+                                                        {% for emp in delivery_employees %}
+                                                        <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="delivery-admin-field delivery-admin-field--vehicle">
+                                                    <label class="delivery-admin-label" for="reassign-veh-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Caminhão</label>
+                                                    <select id="reassign-veh-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" name="new_vehicle_plate" class="delivery-mini-select delivery-admin-select--vehicle">
+                                                        {% for veh in delivery_vehicles %}
+                                                        <option value="{{ veh.placa }}" {% if veh.placa == group.vehicle_plate %}selected{% endif %}>{{ veh.placa }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="delivery-admin-field delivery-admin-field--helpers-inline">
+                                                    <label class="delivery-admin-label" for="helper-search-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Ajudantes</label>
+                                                    <div class="delivery-helper-picker delivery-admin-helper-picker" data-driver-id="{{ group.employee_id }}">
+                                                        <div class="relative">
+                                                            <input id="helper-search-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" type="text" class="delivery-helper-search delivery-mini-input delivery-admin-helper-search" placeholder="Buscar por nome…" autocomplete="off">
+                                                            <div class="delivery-helper-suggestions absolute z-20 mt-1 hidden max-h-40 w-full min-w-[12rem] overflow-y-auto rounded-lg border border-slate-200 bg-white text-slate-800 shadow-xl dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"></div>
                                                         </div>
+                                                        <div class="delivery-helper-hidden">
+                                                            {% for helper_id in group.helper_ids %}
+                                                            <input type="hidden" name="helper_ids" value="{{ helper_id }}">
+                                                            {% endfor %}
+                                                        </div>
+                                                        <div class="delivery-helper-selected delivery-admin-helper-chips"></div>
                                                     </div>
-                                                    <div class="delivery-admin-actions delivery-admin-actions--segment">
-                                                        <button type="reset" class="sys-btn sys-btn--secondary delivery-admin-btn">Limpar</button>
-                                                        <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn">Aplicar</button>
-                                                    </div>
-                                                </form>
+                                                </div>
+                                                <div class="delivery-admin-actions delivery-admin-actions--toolbar">
+                                                    <button type="reset" class="sys-btn sys-btn--secondary delivery-admin-btn delivery-admin-btn--tool">Limpar</button>
+                                                    <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn delivery-admin-btn--tool">Aplicar equipe</button>
+                                                </div>
+                                            </form>
 
-                                                <form action="/separacao/delivery/planning-date/group" method="post" class="delivery-admin-form" style="display: contents" onsubmit="return confirm('Mover rota inteira para a nova data?');">
-                                                    <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
-                                                    <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
-                                                    <input type="hidden" name="current_date" value="{{ _route_date }}">
-                                                    <input type="hidden" name="shift" value="{{ selected_shift }}">
-                                                    <div class="delivery-admin-field delivery-admin-field--planning-date">
-                                                        <label class="delivery-admin-label" for="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Nova data (rota inteira)</label>
+                                            <span class="delivery-admin-vrule" aria-hidden="true"></span>
+
+                                            <form action="/separacao/delivery/planning-date/group" method="post" class="delivery-admin-form" style="display: contents" onsubmit="return confirm('Mover todas as paradas deste motorista e caminhão para a nova data?');">
+                                                <input type="hidden" name="source_employee_id" value="{{ group.employee_id }}">
+                                                <input type="hidden" name="source_vehicle_plate" value="{{ group.vehicle_plate }}">
+                                                <input type="hidden" name="current_date" value="{{ _route_date }}">
+                                                <input type="hidden" name="shift" value="{{ selected_shift }}">
+                                                <div class="delivery-admin-field delivery-admin-field--planning-date">
+                                                    <label class="delivery-admin-label" for="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Nova data · rota inteira</label>
+                                                    <div class="delivery-admin-inline-field">
                                                         <input id="plan-date-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" type="date" name="planning_date" value="{{ _route_date }}" required class="delivery-mini-input delivery-admin-input--date">
+                                                        <button type="submit" class="sys-btn sys-btn--secondary delivery-admin-btn delivery-admin-btn--tool">Mover rota inteira</button>
                                                     </div>
-                                                    <div class="delivery-admin-actions delivery-admin-actions--segment">
-                                                        <button type="submit" class="sys-btn sys-btn--secondary delivery-admin-btn">Mover rota inteira</button>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </section>
+                                                </div>
+                                            </form>
 
-                                        {% if not group.session_started %}
-                                        <section class="delivery-admin-segment" aria-labelledby="webstart-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">
-                                            <h4 class="delivery-admin-segment__title" id="webstart-heading-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Iniciar rota (web)</h4>
-                                            <form action="/separacao/delivery/session/start" method="post" class="delivery-admin-form delivery-admin-form--inline">
+                                            {% if not group.session_started %}
+                                            <span class="delivery-admin-vrule" aria-hidden="true"></span>
+
+                                            <form action="/separacao/delivery/session/start" method="post" class="delivery-admin-form" style="display: contents">
                                                 <input type="hidden" name="employee_id" value="{{ group.employee_id }}">
                                                 <input type="hidden" name="vehicle_plate" value="{{ group.vehicle_plate }}">
                                                 <input type="hidden" name="date" value="{{ group.group_date | default(selected_date_from) }}">
@@ -808,7 +806,7 @@
                                                     >
                                                 </div>
                                                 <div class="delivery-admin-field">
-                                                    <label class="delivery-admin-label" for="web-km-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">KM saída</label>
+                                                    <label class="delivery-admin-label" for="web-km-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">KM de saída</label>
                                                     <input
                                                         id="web-km-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}"
                                                         type="number"
@@ -819,16 +817,16 @@
                                                         required
                                                         placeholder="0"
                                                         class="delivery-mini-input delivery-admin-input--km font-mono"
-                                                        title="KM de saída (ex.: 125430,5 no teclado numérico)"
+                                                        title="Quilometragem do odômetro ao sair (ex.: 125430,5)"
                                                     >
                                                 </div>
-                                                <div class="delivery-admin-actions delivery-admin-actions--segment">
-                                                    <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn">Iniciar rota web</button>
+                                                <div class="delivery-admin-actions delivery-admin-actions--toolbar">
+                                                    <button type="submit" class="sys-btn sys-btn--primary delivery-admin-btn delivery-admin-btn--tool">Iniciar rota no web</button>
                                                 </div>
                                             </form>
-                                        </section>
-                                        {% endif %}
-                                    </div>
+                                            {% endif %}
+                                        </div>
+                                    </section>
                                 </div>
                             </details>
 
