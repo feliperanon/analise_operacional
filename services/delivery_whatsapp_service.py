@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
 import unicodedata
 from collections import defaultdict
@@ -11,12 +13,14 @@ from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
+import httpx
 from sqlmodel import Session, desc, select
 
 import models
 from services.whatsapp_provider import BaseWhatsAppProvider, get_whatsapp_provider
 
 SAO_PAULO_TZ = ZoneInfo("America/Sao_Paulo")
+logger = logging.getLogger(__name__)
 
 WHATSAPP_ROUTE_STATUS_NAO_DISPONIVEL = "nao_disponivel"
 WHATSAPP_ROUTE_STATUS_PENDENTE = "pendente_envio"
@@ -68,6 +72,70 @@ def now_br() -> datetime:
 
 def _safe_json_dumps(payload: Any) -> str:
     return json.dumps(payload, ensure_ascii=False, default=str)
+
+
+def _post_n8n_delivery_whatsapp_webhook(
+    *,
+    snapshot: Dict[str, Any],
+    route_date: str,
+    shift: str,
+    employee_id: int,
+    vehicle_plate: str,
+    operator_label: str,
+    retry_failed: bool,
+    allow_repeat: bool,
+    skip_session_ready: bool,
+    sent_count: int,
+    failed_count: int,
+    per_client_results: List[Dict[str, Any]],
+) -> None:
+    webhook_url = str(os.getenv("N8N_DELIVERY_WHATSAPP_WEBHOOK_URL") or "").strip()
+    if not webhook_url:
+        return
+
+    token = str(os.getenv("N8N_DELIVERY_WHATSAPP_WEBHOOK_AUTH_TOKEN") or "").strip()
+    timeout_raw = str(os.getenv("N8N_DELIVERY_WHATSAPP_WEBHOOK_TIMEOUT_SECONDS") or "10").strip()
+    try:
+        timeout_seconds = float(timeout_raw)
+    except Exception:
+        timeout_seconds = 10.0
+    timeout_seconds = max(2.0, min(timeout_seconds, 60.0))
+
+    payload = {
+        "event": "delivery.whatsapp.batch_finished",
+        "occurred_at": now_br().isoformat(),
+        "route": {
+            "route_group_key": snapshot.get("route_group_key"),
+            "route_date": route_date,
+            "shift": shift,
+            "employee_id": employee_id,
+            "driver_name": snapshot.get("driver_name") or "",
+            "vehicle_plate": vehicle_plate,
+        },
+        "operator": {"label": operator_label or ""},
+        "delivery_whatsapp": {
+            "retry_failed": bool(retry_failed),
+            "allow_repeat": bool(allow_repeat),
+            "skip_session_ready": bool(skip_session_ready),
+            "status": snapshot.get("status"),
+            "status_label": snapshot.get("status_label"),
+            "message": snapshot.get("preview_message"),
+            "summary": snapshot.get("summary") or {},
+            "sent_count": int(sent_count or 0),
+            "failed_count": int(failed_count or 0),
+            "results": per_client_results,
+        },
+    }
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    try:
+        with httpx.Client(timeout=timeout_seconds) as client:
+            response = client.post(webhook_url, json=payload, headers=headers)
+            response.raise_for_status()
+    except Exception as exc:
+        logger.warning("delivery whatsapp n8n webhook error: %s", exc)
 
 
 def _norm_text(value: Optional[str]) -> str:
@@ -883,6 +951,21 @@ def send_delivery_whatsapp_notifications(
         for route in routes:
             session.add(route)
         session.commit()
+
+        _post_n8n_delivery_whatsapp_webhook(
+            snapshot=final_snapshot,
+            route_date=route_date,
+            shift=shift,
+            employee_id=employee_id,
+            vehicle_plate=vehicle_plate,
+            operator_label=operator_label,
+            retry_failed=retry_failed,
+            allow_repeat=allow_repeat,
+            skip_session_ready=skip_session_ready,
+            sent_count=sent_count,
+            failed_count=failed_count,
+            per_client_results=per_client_results,
+        )
 
         return {
             "batch_id": batch.id,
