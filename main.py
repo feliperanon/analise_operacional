@@ -34774,6 +34774,14 @@ async def api_list_admin_routes(
     def _safe_l(v: Any) -> str:
         return _safe_s(v).lower()
 
+    def _safe_i(v: Any) -> Optional[int]:
+        try:
+            if v is None:
+                return None
+            return int(str(v).strip())
+        except Exception:
+            return None
+
     user_id = request.session.get("user_id")
     if not user_id:
         return JSONResponse({"error": "Não autorizado"}, status_code=401)
@@ -35080,11 +35088,17 @@ async def api_list_admin_routes(
         recent_employee_ids = set()
         for r in recent_route_employees:
             if isinstance(r, (int, float)):
-                recent_employee_ids.add(int(r))
+                parsed = _safe_i(r)
+                if parsed is not None:
+                    recent_employee_ids.add(parsed)
             elif hasattr(r, "employee_id"):
-                recent_employee_ids.add(int(r.employee_id))
+                parsed = _safe_i(getattr(r, "employee_id", None))
+                if parsed is not None:
+                    recent_employee_ids.add(parsed)
             elif isinstance(r, (list, tuple)) and len(r) > 0:
-                recent_employee_ids.add(int(r[0]))
+                parsed = _safe_i(r[0])
+                if parsed is not None:
+                    recent_employee_ids.add(parsed)
         
         employees_without_route = []
         for emp in all_active_employees:
