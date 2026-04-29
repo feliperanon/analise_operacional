@@ -3976,6 +3976,13 @@ async def api_dashboard_tv_data(
     def _sl(v: Any) -> str:
         return _s(v).lower()
 
+    def _sf(v: Any) -> float:
+        try:
+            n = float(v or 0.0)
+            return n if math.isfinite(n) else 0.0
+        except Exception:
+            return 0.0
+
     user = get_current_user(request)
     if not user:
         return JSONResponse(
@@ -4029,7 +4036,7 @@ async def api_dashboard_tv_data(
 
         completed_statuses = {"entregue", "devolucao"}
         completed_routes = [r for r in routes if _sl(getattr(r, "delivery_status", None)) in completed_statuses]
-        total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
+        total_tonnage = float(sum(_sf(getattr(r, "tonnage", 0.0)) for r in routes))
         durations_hours = []
         for r in completed_routes:
             d = route_duration_minutes(r)
@@ -4062,7 +4069,7 @@ async def api_dashboard_tv_data(
                 "client": client_name,
                 "start_time": (r.delivery_started_at or r.start_time or "--:--") if st == "iniciada" else "--:--",
                 "duration_mins": d_m,
-                "tonnage": float(r.tonnage or 0.0),
+                "tonnage": _sf(getattr(r, "tonnage", 0.0)),
                 "delivery_status": st,
             }
             if oe is not None:
@@ -4103,7 +4110,7 @@ async def api_dashboard_tv_data(
                 session_helper_names = [str(name).strip() for name in (session_helpers_by_emp.get(emp_id) or []) if str(name or "").strip()]
                 bucket["helper_count"] = len(session_helper_names)
                 bucket["helper_names"] = session_helper_names[:3]
-            bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
+            bucket["total_kg"] = round(sum(_sf(getattr(r, "tonnage", 0.0)) for r in emp_routes), 2)
             open_routes_count = len([r for r in emp_routes if _sl(getattr(r, "delivery_status", None)) == "iniciada"])
             finished_times = [
                 (r.delivery_finished_at or r.end_time or "")
@@ -4191,8 +4198,8 @@ async def api_dashboard_tv_data(
                 "neighborhood": getattr(c, "neighborhood", "") if c else "",
                 "city": getattr(c, "city", "") if c else "",
                 "cep": getattr(c, "cep", "") if c else "",
-                "kg": round(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0), 2),
-                "valor": round(float(getattr(r, "valor_devolucao", None) or 0), 2),
+                "kg": round(_sf(getattr(r, "devolucao_volume", None) or getattr(r, "tonnage", 0)), 2),
+                "valor": round(_sf(getattr(r, "valor_devolucao", None)), 2),
                 "date": getattr(r, "date", selected_date_str),
                 "driver_name": driver_name,
             })
@@ -4204,8 +4211,8 @@ async def api_dashboard_tv_data(
 
         devolucao_dia = {
             "count": n_dev_dia_tv,
-            "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
-            "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
+            "total_kg": round(sum(_sf(getattr(r, "devolucao_volume", None) or getattr(r, "tonnage", 0)) for r in routes_devolucao), 2),
+            "total_valor": round(sum(_sf(getattr(r, "valor_devolucao", None)) for r in routes_devolucao), 2),
             "total_entregas": n_done_dia_tv,
             "pct": pct_devolucao_sobre_rotas_concluidas(routes),
             "items_by_driver": items_by_driver_api,
@@ -4332,7 +4339,11 @@ async def api_dashboard_tv_data(
         return JSONResponse(payload, headers=no_store_headers)
     except Exception as e:
         logger.exception("api_dashboard_tv_data error: %s", e)
-        return JSONResponse({"error": "Erro interno ao montar dados da TV."}, status_code=500, headers=no_store_headers)
+        return JSONResponse(
+            {"error": "Erro interno ao montar dados da TV.", "detail": _s(e)},
+            status_code=500,
+            headers=no_store_headers,
+        )
 
 
 @app.get("/api/dashboard/informativo-data", response_class=JSONResponse)
