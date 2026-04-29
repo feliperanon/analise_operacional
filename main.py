@@ -3970,6 +3970,12 @@ async def api_dashboard_tv_data(
     session: Session = Depends(get_session),
 ):
     """Payload JSON do dashboard para painel TV (atualização parcial a cada 1 min)."""
+    def _s(v: Any) -> str:
+        return str(v or "").strip()
+
+    def _sl(v: Any) -> str:
+        return _s(v).lower()
+
     user = get_current_user(request)
     if not user:
         return JSONResponse(
@@ -3977,52 +3983,53 @@ async def api_dashboard_tv_data(
             status_code=401,
             headers={"Cache-Control": "no-store, max-age=0"},
         )
-    now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
-    selected_date = now_br.date()
-    if date_ref:
-        try:
-            selected_date = datetime.strptime(date_ref, "%Y-%m-%d").date()
-        except Exception:
-            pass
-    selected_date_str = selected_date.strftime("%Y-%m-%d")
-    selected_cc = parse_cost_center_filter(cost_center or "Todos")
-    employees_all = session.exec(
-        select(models.Employee).where(models.Employee.status != "fired")
-    ).all()
-    employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cc)]
-    employee_ids = list({e.id for e in employees if e.id is not None})
-    employee_by_id = {e.id: e for e in employees if e.id is not None}
     no_store_headers = {"Cache-Control": "no-store, max-age=0", "Pragma": "no-cache"}
-    if not employee_ids:
-        return JSONResponse(
-            {
-                "date": selected_date_str,
-                "cost_center": selected_cc or "Todos",
-                "dashboard": {
-                    "kpi": {"rotas_paradas": 0, "rotas_ativas": 0, "rotas_concluidas": 0},
-                    "alerts": {"clients_over_20min": []},
-                    "live_separation": [],
-                    "devolucao_dia": {},
-                    "devolucao_mes": {},
-                    "cost_centers_summary": {},
-                    "tv_shift_alerts": {"atencao": 0, "critico": 0},
-                    "operational_shift": operational_shift_br(datetime.now(ZoneInfo("America/Sao_Paulo"))),
+    try:
+        now_br = datetime.now(ZoneInfo("America/Sao_Paulo"))
+        selected_date = now_br.date()
+        if date_ref:
+            try:
+                selected_date = datetime.strptime(date_ref, "%Y-%m-%d").date()
+            except Exception:
+                pass
+        selected_date_str = selected_date.strftime("%Y-%m-%d")
+        selected_cc = parse_cost_center_filter(cost_center or "Todos")
+        employees_all = session.exec(
+            select(models.Employee).where(models.Employee.status != "fired")
+        ).all()
+        employees = [e for e in employees_all if employee_matches_cost_center(e, selected_cc)]
+        employee_ids = list({e.id for e in employees if e.id is not None})
+        employee_by_id = {e.id: e for e in employees if e.id is not None}
+        if not employee_ids:
+            return JSONResponse(
+                {
+                    "date": selected_date_str,
+                    "cost_center": selected_cc or "Todos",
+                    "dashboard": {
+                        "kpi": {"rotas_paradas": 0, "rotas_ativas": 0, "rotas_concluidas": 0},
+                        "alerts": {"clients_over_20min": []},
+                        "live_separation": [],
+                        "devolucao_dia": {},
+                        "devolucao_mes": {},
+                        "cost_centers_summary": {},
+                        "tv_shift_alerts": {"atencao": 0, "critico": 0},
+                        "operational_shift": operational_shift_br(datetime.now(ZoneInfo("America/Sao_Paulo"))),
+                    },
                 },
-            },
-            headers=no_store_headers,
-        )
-    routes = session.exec(
-        select(models.Route)
-        .where(models.Route.type == "delivery")
-        .where(models.Route.date == selected_date_str)
-        .where(models.Route.employee_id.in_(employee_ids))
-    ).all()
-    client_ids = list({r.client_id for r in routes if r.client_id is not None})
-    clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
-    client_by_id = {c.id: c for c in clients if c.id is not None}
+                headers=no_store_headers,
+            )
+        routes = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date == selected_date_str)
+            .where(models.Route.employee_id.in_(employee_ids))
+        ).all()
+        client_ids = list({r.client_id for r in routes if r.client_id is not None})
+        clients = session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all() if client_ids else []
+        client_by_id = {c.id: c for c in clients if c.id is not None}
 
-    completed_statuses = {"entregue", "devolucao"}
-    completed_routes = [r for r in routes if (r.delivery_status or "").lower() in completed_statuses]
+        completed_statuses = {"entregue", "devolucao"}
+        completed_routes = [r for r in routes if _sl(getattr(r, "delivery_status", None)) in completed_statuses]
     total_tonnage = float(sum(float(r.tonnage or 0.0) for r in routes))
     durations_hours = []
     for r in completed_routes:
@@ -4040,8 +4047,8 @@ async def api_dashboard_tv_data(
         if not emp:
             continue
         live_buckets[emp_id] = {"employee_name": emp.name, "photo_url": getattr(emp, "photo_url", None), "routes": []}
-    for r in routes:
-        st = (r.delivery_status or "").lower()
+        for r in routes:
+            st = _sl(getattr(r, "delivery_status", None))
         if st not in {"pendente", "iniciada", "entregue", "devolucao"}:
             continue
         bucket = live_buckets.get(r.employee_id)
@@ -4066,20 +4073,20 @@ async def api_dashboard_tv_data(
         .where(models.DeliverySession.date == selected_date_str)
         .where(models.DeliverySession.employee_id.in_(all_emp_ids_with_routes))
     ).all() if all_emp_ids_with_routes else []
-    session_closed_by_emp = {s.employee_id: (s.status or "").lower() == "closed" for s in sessions_today}
-    session_open_by_emp = {s.employee_id for s in sessions_today if (s.status or "").lower() == "open"}
+        session_closed_by_emp = {s.employee_id: _sl(getattr(s, "status", None)) == "closed" for s in sessions_today}
+        session_open_by_emp = {s.employee_id for s in sessions_today if _sl(getattr(s, "status", None)) == "open"}
     session_plate_by_emp = {}
     for s in sessions_today:
-        if s.employee_id and (getattr(s, "vehicle_plate", None) or "").strip():
-            session_plate_by_emp.setdefault(s.employee_id, (s.vehicle_plate or "").strip())
+            if s.employee_id and _s(getattr(s, "vehicle_plate", None)):
+                session_plate_by_emp.setdefault(s.employee_id, _s(getattr(s, "vehicle_plate", None)))
     session_helpers_by_emp = {s.employee_id: _parse_session_helpers(s.helpers_json) for s in sessions_today if getattr(s, "helpers_json", None)}
 
     for emp_id, bucket in live_buckets.items():
         emp_routes = [r for r in routes if r.employee_id == emp_id]
         bucket["employee_id"] = emp_id
         bucket["total_deliveries"] = len(emp_routes)
-        bucket["completed_deliveries"] = len([r for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao")])
-        bucket["plate"] = next(((r.delivery_vehicle_plate or "").strip() or None for r in emp_routes if (r.delivery_vehicle_plate or "").strip()), None) if emp_routes else None
+            bucket["completed_deliveries"] = len([r for r in emp_routes if _sl(getattr(r, "delivery_status", None)) in ("entregue", "devolucao")])
+            bucket["plate"] = next((_s(getattr(r, "delivery_vehicle_plate", None)) or None for r in emp_routes if _s(getattr(r, "delivery_vehicle_plate", None))), None) if emp_routes else None
         if not bucket["plate"] and session_plate_by_emp.get(emp_id):
             bucket["plate"] = session_plate_by_emp[emp_id]
         helper_ids = []
@@ -4096,8 +4103,8 @@ async def api_dashboard_tv_data(
             bucket["helper_count"] = len(session_helper_names)
             bucket["helper_names"] = session_helper_names[:3]
         bucket["total_kg"] = round(sum(float(r.tonnage or 0.0) for r in emp_routes), 2)
-        open_routes_count = len([r for r in emp_routes if (r.delivery_status or "").lower() == "iniciada"])
-        finished_times = [(r.delivery_finished_at or r.end_time or "") for r in emp_routes if (r.delivery_status or "").lower() in ("entregue", "devolucao") and (r.delivery_finished_at or r.end_time)]
+            open_routes_count = len([r for r in emp_routes if _sl(getattr(r, "delivery_status", None)) == "iniciada"])
+            finished_times = [(r.delivery_finished_at or r.end_time or "") for r in emp_routes if _sl(getattr(r, "delivery_status", None)) in ("entregue", "devolucao") and (r.delivery_finished_at or r.end_time)]
         last_finished_at = max(finished_times, key=lambda t: (t or "00:00")) if finished_times else None
         minutes_without_open = 0
         if open_routes_count == 0 and last_finished_at:
@@ -4109,7 +4116,7 @@ async def api_dashboard_tv_data(
             except Exception:
                 pass
         bucket["minutes_without_open_client"] = minutes_without_open
-        has_delivery_started = any((r.delivery_status or "").lower() in ("iniciada", "entregue", "devolucao") for r in emp_routes)
+            has_delivery_started = any(_sl(getattr(r, "delivery_status", None)) in ("iniciada", "entregue", "devolucao") for r in emp_routes)
         session_started = emp_id in session_open_by_emp
         has_started = has_delivery_started or session_started
         all_delivered = bucket["total_deliveries"] > 0 and bucket["completed_deliveries"] == bucket["total_deliveries"]
@@ -4125,8 +4132,8 @@ async def api_dashboard_tv_data(
         else:
             bucket["route_state"] = "in_progress"
         bucket["route_ended"] = route_ended
-        _emp_ws2 = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
-        bucket["work_shift"] = (getattr(_emp_ws2, "work_shift", None) or "Manhã").strip()
+            _emp_ws2 = employee_by_id.get(emp_id) or employee_by_id_all.get(emp_id)
+            bucket["work_shift"] = _s(getattr(_emp_ws2, "work_shift", None) or "Manhã")
         bucket.update(
             compute_delivery_projection(
                 bucket,
@@ -4240,11 +4247,11 @@ async def api_dashboard_tv_data(
     }
 
     alerts_over_20min = []
-    for r in routes:
-        if (r.delivery_status or "").lower() != "iniciada" or r.driver_lat_start is None:
-            continue
-        started_at_str = r.delivery_started_at or r.start_time
-        if not started_at_str or started_at_str.strip() in ("", "00:00"):
+        for r in routes:
+            if _sl(getattr(r, "delivery_status", None)) != "iniciada" or r.driver_lat_start is None:
+                continue
+            started_at_str = r.delivery_started_at or r.start_time
+            if not started_at_str or _s(started_at_str) in ("", "00:00"):
             continue
         try:
             parts = str(started_at_str).strip().split(":")
@@ -4260,7 +4267,7 @@ async def api_dashboard_tv_data(
                 "driver_name": emp.name if emp else f"Motorista #{r.employee_id}",
                 "minutes": elapsed_mins,
                 "started_at": started_at_str,
-                "plate": (r.delivery_vehicle_plate or "").strip() or None,
+                "plate": _s(getattr(r, "delivery_vehicle_plate", None)) or None,
             })
         except Exception:
             continue
@@ -4304,18 +4311,18 @@ async def api_dashboard_tv_data(
     clientes_alto_indice.sort(key=lambda x: -x["count"])
     clientes_alto_indice = clientes_alto_indice[:10]
 
-    selected_headcount = sum(1 for e in employees if (e.status or "").lower() not in {"away", "vacation", "sick", "day_off"})
+        selected_headcount = sum(1 for e in employees if _sl(getattr(e, "status", None)) not in {"away", "vacation", "sick", "day_off"})
     cost_centers_summary = {}
     for emp in employees_all:
         lbl = cost_center_display_label(emp.cost_center)
         if lbl not in cost_centers_summary:
             cost_centers_summary[lbl] = {"headcount": 0, "target": 0, "away": 0}
-        away = 1 if (emp.status or "").lower() in {"away", "vacation", "sick", "day_off"} else 0
+            away = 1 if _sl(getattr(emp, "status", None)) in {"away", "vacation", "sick", "day_off"} else 0
         cost_centers_summary[lbl]["headcount"] += max(0, 1 - away)
         cost_centers_summary[lbl]["away"] += away
         cost_centers_summary[lbl]["target"] = cost_centers_summary[lbl]["headcount"]
 
-    payload = {
+        payload = {
         "date": selected_date_str,
         "cost_center": selected_cc or "Todos",
         "dashboard": {
@@ -4339,7 +4346,14 @@ async def api_dashboard_tv_data(
             "operational_shift": _tsa_api["operational_shift"],
         },
     }
-    return JSONResponse(payload, headers=no_store_headers)
+        return JSONResponse(payload, headers=no_store_headers)
+    except Exception as e:
+        logger.exception("api_dashboard_tv_data error: %s", e)
+        return JSONResponse(
+            {"error": "Erro interno ao montar dados da TV."},
+            status_code=500,
+            headers=no_store_headers,
+        )
 
 
 @app.get("/api/dashboard/informativo-data", response_class=JSONResponse)
@@ -35110,7 +35124,15 @@ async def api_list_admin_routes(
         })
     except Exception as e:
         logger.exception("api_list_admin_routes error: %s", e)
-        raise
+        return JSONResponse(
+            {"success": False, "error": "Erro interno ao carregar rotas do painel mobile."},
+            status_code=500,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
 
 @app.post("/api/mobile/admin/routes/{route_id}/edit")
