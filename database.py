@@ -356,6 +356,7 @@ def _migrate_informative_panel_config_audio():
         ("audio_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
         ("audio_url", "TEXT"),
         ("audio_playlist", "TEXT"),
+        ("audio_youtube_url", "TEXT"),
         ("audio_volume", "INTEGER NOT NULL DEFAULT 35"),
     ]
     try:

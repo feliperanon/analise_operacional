@@ -84,6 +84,11 @@
                             <input type="url" name="audio_url" value="{{ panel_audio_url or '' }}" class="sys-input" placeholder="https://.../radio.mp3">
                         </div>
                         <div>
+                            <label class="sys-section__label sys-section__label--field">URL do YouTube (opcional)</label>
+                            <input type="url" name="audio_youtube_url" value="{{ panel_audio_youtube_url or '' }}" class="sys-input" placeholder="https://www.youtube.com/watch?v=...">
+                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Se preencher, o dashboard prioriza reprodução pelo player oficial do YouTube.</p>
+                        </div>
+                        <div>
                             <label class="sys-section__label sys-section__label--field">Playlist (uma URL por linha, ordem de reprodução)</label>
                             <textarea name="audio_playlist" rows="5" class="sys-input" placeholder="https://site/faixa-01.mp3&#10;https://site/faixa-02.mp3">{{ panel_audio_playlist or '' }}</textarea>
                         </div>

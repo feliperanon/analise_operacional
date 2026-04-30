@@ -3198,7 +3198,7 @@ def _informative_audio_config(session: Session) -> Dict[str, Any]:
     try:
         c = session.get(models.InformativePanelConfig, 1)
         if c is None:
-            return {"enabled": False, "url": "", "playlist": [], "volume": 0.35}
+            return {"enabled": False, "url": "", "playlist": [], "youtube_url": "", "volume": 0.35}
         volume_raw = int(getattr(c, "audio_volume", 35) or 35)
         volume_raw = max(0, min(100, volume_raw))
         primary_url = (getattr(c, "audio_url", None) or "").strip()
@@ -3215,10 +3215,11 @@ def _informative_audio_config(session: Session) -> Dict[str, Any]:
             "enabled": bool(getattr(c, "audio_enabled", False)),
             "url": primary_url,
             "playlist": playlist,
+            "youtube_url": (getattr(c, "audio_youtube_url", None) or "").strip(),
             "volume": round(volume_raw / 100.0, 2),
         }
     except Exception:
-        return {"enabled": False, "url": "", "playlist": [], "volume": 0.35}
+        return {"enabled": False, "url": "", "playlist": [], "youtube_url": "", "volume": 0.35}
 
 
 def _dashboard_data_source_caption() -> str:
@@ -4506,6 +4507,7 @@ async def admin_informativo_page(
     panel_audio_enabled = False
     panel_audio_url = ""
     panel_audio_playlist = ""
+    panel_audio_youtube_url = ""
     panel_audio_volume = 35
     try:
         cfg = session.get(models.InformativePanelConfig, 1)
@@ -4514,6 +4516,7 @@ async def admin_informativo_page(
             panel_audio_enabled = bool(getattr(cfg, "audio_enabled", False))
             panel_audio_url = (getattr(cfg, "audio_url", None) or "").strip()
             panel_audio_playlist = (getattr(cfg, "audio_playlist", None) or "").strip()
+            panel_audio_youtube_url = (getattr(cfg, "audio_youtube_url", None) or "").strip()
             panel_audio_volume = max(0, min(100, int(getattr(cfg, "audio_volume", 35) or 35)))
     except Exception:
         pass
@@ -4555,6 +4558,7 @@ async def admin_informativo_page(
             "panel_audio_enabled": panel_audio_enabled,
             "panel_audio_url": panel_audio_url,
             "panel_audio_playlist": panel_audio_playlist,
+            "panel_audio_youtube_url": panel_audio_youtube_url,
             "panel_audio_volume": panel_audio_volume,
             "dry_year": dry_year,
             "dr_rows": dr_rows,
@@ -4587,6 +4591,7 @@ async def admin_informativo_audio_config(
     audio_enabled: Optional[str] = Form(None),
     audio_url: str = Form(""),
     audio_playlist: str = Form(""),
+    audio_youtube_url: str = Form(""),
     audio_volume: int = Form(35),
     audio_file: Optional[UploadFile] = File(None),
 ):
@@ -4615,6 +4620,7 @@ async def admin_informativo_audio_config(
             parsed_urls = [u for u in parsed_urls if u != next_audio_url]
         cfg.audio_url = next_audio_url
         cfg.audio_playlist = "\n".join(parsed_urls) if parsed_urls else None
+        cfg.audio_youtube_url = (audio_youtube_url or "").strip()[:500] or None
         session.add(cfg)
         session.commit()
         return RedirectResponse(url="/admin/informativo?saved=audio", status_code=303)

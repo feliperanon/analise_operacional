@@ -94,9 +94,12 @@
     data-date="{{ _d }}"
     data-cc="{{ _cc|e }}"
 >
-    {% if audio_cfg.get('enabled') and (audio_cfg.get('playlist') or audio_cfg.get('url')) %}
+    {% if audio_cfg.get('enabled') and (audio_cfg.get('youtube_url') or audio_cfg.get('playlist') or audio_cfg.get('url')) %}
     <audio id="dashboard-bg-audio" preload="none" playsinline hidden data-volume="{{ audio_cfg.get('volume', 0.35) }}"></audio>
     <script type="application/json" id="dashboard-bg-audio-playlist-json">{{ (audio_cfg.get('playlist') or []) | tojson }}</script>
+    <script type="application/json" id="dashboard-bg-audio-youtube-json">{{ (audio_cfg.get('youtube_url') or '') | tojson }}</script>
+    <div id="dashboard-bg-youtube-host" class="hidden" aria-hidden="true"></div>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <div id="dashboard-bg-audio-guard" class="fixed bottom-3 right-3 z-40">
         <button id="dashboard-bg-audio-btn" type="button" class="sys-btn sys-btn--secondary text-xs">
             Ativar som
@@ -839,20 +842,24 @@
     (function initDashboardBackgroundAudio() {
         var audio = document.getElementById('dashboard-bg-audio');
         var playlistJson = document.getElementById('dashboard-bg-audio-playlist-json');
+        var ytJson = document.getElementById('dashboard-bg-audio-youtube-json');
+        var ytHost = document.getElementById('dashboard-bg-youtube-host');
         var btn = document.getElementById('dashboard-bg-audio-btn');
         var guard = document.getElementById('dashboard-bg-audio-guard');
-        if (!audio) return;
+        if (!audio && !ytHost) return;
+        var ytUrl = '';
+        if (ytJson) {
+            try { ytUrl = JSON.parse(ytJson.textContent || '""') || ''; } catch (e00) { ytUrl = ''; }
+        }
         var playlist = [];
         if (playlistJson) {
             try { playlist = JSON.parse(playlistJson.textContent || '[]'); } catch (e0) { playlist = []; }
         }
         if (!Array.isArray(playlist)) playlist = [];
         playlist = playlist.filter(function(u) { return typeof u === 'string' && u.trim(); });
-        if (!playlist.length) return;
         var v = parseFloat(audio.getAttribute('data-volume') || '0.35');
         if (isNaN(v)) v = 0.35;
         v = Math.max(0, Math.min(1, v));
-        audio.volume = v;
         var idx = 0;
         function hideGuard() {
             if (guard) guard.style.display = 'none';
@@ -860,6 +867,92 @@
         function showGuard() {
             if (guard) guard.style.display = 'block';
         }
+        function youtubeVideoIdFromUrl(raw) {
+            if (!raw) return '';
+            try {
+                var u = new URL(raw);
+                var host = (u.hostname || '').toLowerCase();
+                if (host.indexOf('youtu.be') >= 0) {
+                    return (u.pathname || '').replace('/', '').trim();
+                }
+                if (host.indexOf('youtube.com') >= 0 || host.indexOf('youtube-nocookie.com') >= 0) {
+                    var vId = (u.searchParams.get('v') || '').trim();
+                    if (vId) return vId;
+                    var parts = (u.pathname || '').split('/').filter(Boolean);
+                    if (parts.length >= 2 && (parts[0] === 'shorts' || parts[0] === 'embed' || parts[0] === 'live')) {
+                        return (parts[1] || '').trim();
+                    }
+                }
+            } catch (e1) {
+                return '';
+            }
+            return '';
+        }
+        var ytVideoId = youtubeVideoIdFromUrl(ytUrl);
+        if (ytVideoId && ytHost) {
+            var ytPlayer = null;
+            function tryPlayYoutube() {
+                if (!ytPlayer || typeof ytPlayer.playVideo !== 'function') return;
+                try {
+                    ytPlayer.unMute();
+                    ytPlayer.playVideo();
+                } catch (e2) {}
+            }
+            function initYoutubePlayer() {
+                if (!window.YT || !window.YT.Player || ytPlayer) return;
+                ytPlayer = new window.YT.Player('dashboard-bg-youtube-host', {
+                    width: '1',
+                    height: '1',
+                    videoId: ytVideoId,
+                    playerVars: {
+                        autoplay: 1,
+                        controls: 0,
+                        disablekb: 1,
+                        fs: 0,
+                        iv_load_policy: 3,
+                        modestbranding: 1,
+                        rel: 0,
+                        playsinline: 1,
+                        loop: 1,
+                        playlist: ytVideoId
+                    },
+                    events: {
+                        onReady: function() {
+                            try {
+                                ytPlayer.setVolume(Math.round(v * 100));
+                            } catch (e3) {}
+                            tryPlayYoutube();
+                            setTimeout(showGuard, 1200);
+                        },
+                        onStateChange: function(ev) {
+                            if (ev && ev.data === window.YT.PlayerState.PLAYING) {
+                                hideGuard();
+                            }
+                        },
+                    }
+                });
+            }
+            var prev = window.onYouTubeIframeAPIReady;
+            window.onYouTubeIframeAPIReady = function() {
+                if (typeof prev === 'function') {
+                    try { prev(); } catch (e4) {}
+                }
+                initYoutubePlayer();
+            };
+            if (window.YT && window.YT.Player) {
+                initYoutubePlayer();
+            } else {
+                showGuard();
+            }
+            if (btn) {
+                btn.addEventListener('click', function() {
+                    tryPlayYoutube();
+                });
+            }
+            return;
+        }
+        if (!audio || !playlist.length) return;
+        audio.volume = v;
         function setTrack(i) {
             idx = ((i % playlist.length) + playlist.length) % playlist.length;
             audio.src = playlist[idx];

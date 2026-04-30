@@ -1180,6 +1180,7 @@ class InformativePanelConfig(SQLModel, table=True):
     audio_enabled: bool = Field(default=False)
     audio_url: Optional[str] = Field(default=None, max_length=500)
     audio_playlist: Optional[str] = Field(default=None, max_length=4000)
+    audio_youtube_url: Optional[str] = Field(default=None, max_length=500)
     audio_volume: int = Field(default=35, ge=0, le=100)
 
 

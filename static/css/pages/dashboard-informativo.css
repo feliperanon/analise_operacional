@@ -742,7 +742,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
 }
 
 .gv-bulletin-carousel-wrap {
-  min-height: 8.5rem;
+  min-height: 0;
 }
 
 .gv-bulletin-pane img {
@@ -758,24 +758,28 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-bulletin-split {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(460px, 66%);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.7rem;
   align-items: start;
 }
 
 .gv-bulletin-copy {
   min-width: 0;
-  padding-right: 0.55rem;
+  max-width: 74ch;
+  padding-right: 0.2rem;
+  max-height: clamp(8rem, 20vh, 12.5rem);
+  overflow: auto;
 }
 
 .gv-bulletin-media {
   min-width: 0;
+  order: -1;
 }
 
 .gv-bulletin-image {
   display: block;
   width: 100%;
-  height: clamp(180px, 28vh, 320px);
+  height: clamp(120px, 18vh, 190px);
   max-height: none;
   object-fit: cover;
   border: 1px solid rgb(229 231 235);
@@ -789,7 +793,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
   }
 
   .gv-bulletin-image {
-    height: 14rem;
+    height: clamp(125px, 24vh, 220px);
   }
 }
 
