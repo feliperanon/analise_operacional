@@ -863,8 +863,8 @@ body.dashboard-app .sys-kpi-grid #info-date {
   min-width: 0;
   min-height: 0;
   border-radius: 18px;
-  overflow: hidden;
-  background: rgb(241 245 249);
+  overflow: visible;
+  background: transparent;
 }
 
 .gv-bulletin-media.hidden {
@@ -884,13 +884,12 @@ body.dashboard-app .sys-kpi-grid #info-date {
   width: 100%;
   max-width: 100%;
   height: auto;
-  max-height: 100%;
   min-height: 0;
-  max-height: clamp(170px, 30vh, 320px);
-  object-fit: contain;
-  object-position: center;
+  max-height: none;
+  object-fit: initial;
+  object-position: initial;
   border-radius: 18px;
-  background: #fff;
+  background: transparent;
 }
 
 @media (max-width: 900px) {
@@ -910,7 +909,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
   .gv-bulletin-image {
     min-height: 0;
-    max-height: clamp(150px, 26vh, 240px);
+    max-height: none;
   }
 }
 

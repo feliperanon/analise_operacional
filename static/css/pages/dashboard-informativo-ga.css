@@ -486,6 +486,22 @@ body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel
   text-transform: uppercase;
 }
 
+.dashboard-informativo-ga .gv-rh-status--ok {
+  color: var(--sys-ok-fg, #15803d);
+}
+
+.dashboard-informativo-ga .gv-rh-status--warn {
+  color: var(--sys-warning-fg, #b45309);
+}
+
+.dashboard-informativo-ga .gv-rh-status--info {
+  color: var(--sys-accent-strong, #2563eb);
+}
+
+.dashboard-informativo-ga .gv-rh-status--muted {
+  color: var(--sys-text-muted, #64748b);
+}
+
 .dashboard-informativo-ga .gv-rh-table--vacation {
   font-size: 0.68rem;
 }

@@ -620,7 +620,10 @@
                                         <tr class="gv-rh-row gv-rh-row--vacation">
                                             <td class="gv-rh-name">{{ gv_nome_primeiro_e_inicial(v.name) }}</td>
                                             <td class="gv-rh-date">Até {{ v.until }}</td>
-                                            <td class="gv-rh-status">Em gozo</td>
+                                            {% set _active_days = v.days_left|default(0)|int %}
+                                            <td class="gv-rh-status {% if _active_days <= 1 %}gv-rh-status--warn{% else %}gv-rh-status--ok{% endif %}">
+                                                {% if _active_days <= 1 %}Encerra hoje{% else %}Em gozo{% endif %}
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -628,8 +631,11 @@
                                         {% for v in (inf.get('vacation_upcoming') or []) %}
                                         <tr class="gv-rh-row gv-rh-row--vacation">
                                             <td class="gv-rh-name">{{ gv_nome_primeiro_e_inicial(v.name) }}</td>
-                                            <td class="gv-rh-date">Início {{ v.start }}</td>
-                                            <td class="gv-rh-status">Programada</td>
+                                            {% set _up_days = v.in_days|default(0)|int %}
+                                            <td class="gv-rh-date">{% if _up_days <= 0 %}Início hoje{% else %}Início {{ v.start }}{% endif %}</td>
+                                            <td class="gv-rh-status {% if _up_days <= 0 %}gv-rh-status--info{% else %}gv-rh-status--muted{% endif %}">
+                                                {% if _up_days <= 0 %}Inicia hoje{% else %}Programada{% endif %}
+                                            </td>
                                         </tr>
                                         {% else %}
                                         {% if not (inf.get('vacation_active') or []) %}

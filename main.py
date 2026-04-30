@@ -1767,6 +1767,10 @@ SMTP_HOST_FIXED = SMTP_HOST
 SMTP_USER_FIXED = SMTP_USER
 SMTP_PASS_FIXED = (SMTP_PASS or "").strip()
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
+
+# Garante diretórios de upload críticos no boot.
+os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
+os.makedirs(INFORMATIVO_AUDIO_DIR, exist_ok=True)
 IMPORT_AUTH_PASSWORD = (os.getenv("IMPORT_AUTH_PASSWORD") or "").strip()
 ALERT_SETTINGS_PATH = "/admin/alerts/settings"
 
@@ -2273,11 +2277,6 @@ def _normalize_informativo_image_url(raw_url: Optional[str]) -> str:
     elif value.startswith("static/"):
         value = f"/{value}"
 
-    if value.startswith("/static/"):
-        rel = value.lstrip("/").replace("/", os.sep)
-        abs_path = os.path.join(str(BASE_DIR), rel)
-        if not os.path.isfile(abs_path):
-            return ""
     return value
 
 
