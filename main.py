@@ -1205,14 +1205,23 @@ async def global_exception_handler(request: Request, call_next):
             "trace_id": trace_id
         }, status_code=500)
 
-# --- Static: upload do informativo pode usar disco persistente (Render Disk, etc.).
-# Definir INFORMATIVO_IMAGE_DIR no ambiente aponta para uma pasta servida em /static/uploads/informativo/
-_INFORMATIVO_DIR_ENV = (os.getenv("INFORMATIVO_IMAGE_DIR") or "").strip()
-INFORMATIVO_IMAGE_DIR = (
-    os.path.normpath(_INFORMATIVO_DIR_ENV)
-    if _INFORMATIVO_DIR_ENV
-    else os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
-)
+# --- Informativo: imagens ---
+# Produção (Render): definir INFORMATIVO_MEDIA_ROOT=/var/data (Persistent Disk) e montar o disco nesse caminho.
+# Ficheiros ficam em {INFORMATIVO_MEDIA_ROOT}/informativo/ e URL pública /media/informativo/… (sobrevive a redeploy).
+# Sem isso, upload cai em static/uploads/informativo (efémero no Render) — usar URL externa para comunicados permanentes.
+_INFORMATIVO_MEDIA_ROOT_ENV = (os.getenv("INFORMATIVO_MEDIA_ROOT") or "").strip()
+INFORMATIVO_MEDIA_ROOT = os.path.normpath(_INFORMATIVO_MEDIA_ROOT_ENV) if _INFORMATIVO_MEDIA_ROOT_ENV else ""
+if INFORMATIVO_MEDIA_ROOT:
+    INFORMATIVO_IMAGE_DIR = os.path.join(INFORMATIVO_MEDIA_ROOT, "informativo")
+    INFORMATIVO_UPLOAD_PUBLIC_PREFIX = "/media/informativo"
+else:
+    _INFORMATIVO_DIR_ENV = (os.getenv("INFORMATIVO_IMAGE_DIR") or "").strip()
+    INFORMATIVO_IMAGE_DIR = (
+        os.path.normpath(_INFORMATIVO_DIR_ENV)
+        if _INFORMATIVO_DIR_ENV
+        else os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
+    )
+    INFORMATIVO_UPLOAD_PUBLIC_PREFIX = "/static/uploads/informativo"
 try:
     os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
 except OSError:
@@ -1240,21 +1249,37 @@ def _safe_informativo_upload_filename(name: str) -> bool:
     return low.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))
 
 
+def _informativo_legacy_static_disk_path(filename: str) -> str:
+    """Caminho no disco para URLs /static/uploads/informativo/… (nunca o volume /var/data quando esse volume é só para /media)."""
+    if INFORMATIVO_MEDIA_ROOT:
+        return os.path.join(_DEFAULT_INFORMATIVO_STATIC, filename)
+    return os.path.join(INFORMATIVO_IMAGE_DIR, filename)
+
+
 @app.get("/static/uploads/informativo/{filename}", include_in_schema=False)
 async def serve_informativo_upload_image(filename: str):
-    """Serve imagens de comunicados a partir de INFORMATIVO_IMAGE_DIR (incl. disco persistente via env)."""
+    """Serve imagens de comunicados para URLs legadas /static/uploads/informativo/…"""
     import mimetypes
 
     name = (filename or "").strip()
     if not _safe_informativo_upload_filename(name):
         return Response(content=_INFORMATIVO_MISSING_PNG, media_type="image/png")
-    path = os.path.join(INFORMATIVO_IMAGE_DIR, name)
+    path = _informativo_legacy_static_disk_path(name)
     if os.path.isfile(path):
         mt = mimetypes.guess_type(path)[0] or "application/octet-stream"
         return FileResponse(path, media_type=mt)
     return Response(content=_INFORMATIVO_MISSING_PNG, media_type="image/png")
 
-# Mount static files (uploads informativo são servidos pela rota acima — mesmo URL, sem 404 quando o ficheiro sumiu)
+# Disco persistente: servir /media/… a partir do volume (ex.: Render Disk em INFORMATIVO_MEDIA_ROOT)
+if INFORMATIVO_MEDIA_ROOT:
+    try:
+        os.makedirs(INFORMATIVO_MEDIA_ROOT, exist_ok=True)
+        os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
+    except OSError:
+        pass
+    app.mount("/media", StaticFiles(directory=INFORMATIVO_MEDIA_ROOT), name="informativo_media")
+
+# Mount static files (uploads informativo legados: rota GET acima; resto em /static)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -2288,7 +2313,7 @@ async def _save_informativo_image(file: UploadFile) -> str:
     file_path = os.path.join(INFORMATIVO_IMAGE_DIR, safe_name)
     with open(file_path, "wb") as fp:
         fp.write(content)
-    return f"/static/uploads/informativo/{safe_name}"
+    return f"{INFORMATIVO_UPLOAD_PUBLIC_PREFIX}/{safe_name}"
 
 
 async def _save_informativo_audio(file: UploadFile) -> str:
@@ -2339,9 +2364,12 @@ def _normalize_informativo_image_url(raw_url: Optional[str]) -> str:
         filename = os.path.basename(check_path.split("?", 1)[0])
         if not filename:
             return ""
-        # Não validar existência em disco: em deploy (ex.: Render) o filesystem pode ser
-        # efémero — apagar a URL escondia imagem no admin/TV mesmo com registro correto.
         return f"/static/uploads/informativo/{filename}"
+    if check_path.startswith("/media/informativo/"):
+        filename = os.path.basename(check_path.split("?", 1)[0])
+        if not filename:
+            return ""
+        return f"/media/informativo/{filename}"
 
     out = value
     if out and not out.lower().startswith(("http://", "https://", "data:")) and not out.startswith("/"):
@@ -2354,34 +2382,109 @@ def _normalize_informativo_image_url(raw_url: Optional[str]) -> str:
 
 
 def resolve_informativo_bulletin_image_url(raw_url: Optional[str]) -> Optional[str]:
-    """URL final do comunicado para templates (upload em /static/uploads/informativo/ ou URL externa)."""
+    """Normaliza uma única string (legado: misturava URL externa e path local)."""
     normalized = _normalize_informativo_image_url(raw_url)
     return normalized if normalized else None
 
 
+def _normalize_bulletin_external_url(raw: Optional[str]) -> Optional[str]:
+    """Apenas https, http ou data URI — valor do campo image_url (externo)."""
+    v = (raw or "").strip()[:500]
+    if not v:
+        return None
+    low = v.lower()
+    if low.startswith("data:"):
+        return v
+    p = urlparse(v)
+    if p.scheme in ("http", "https") and p.netloc:
+        return v
+    return None
+
+
+def _legacy_upload_path_from_image_url_field(raw: Optional[str]) -> Optional[str]:
+    """Se image_url guarda só path de upload (registros antigos), devolve path normalizado."""
+    if _normalize_bulletin_external_url(raw):
+        return None
+    n = _normalize_informativo_image_url(raw or "")
+    if not n:
+        return None
+    if n.startswith("/static/uploads/informativo/") or n.startswith("/media/informativo/"):
+        return n
+    return None
+
+
+def _is_local_informativo_asset_url(url: Optional[str]) -> bool:
+    if not url:
+        return False
+    u = url.split("?", 1)[0].strip()
+    return u.startswith("/static/uploads/informativo/") or u.startswith("/media/informativo/")
+
+
+def resolve_bulletin_display_image(b: Any) -> Optional[str]:
+    """URL exibida no painel/admin: image_url externa primeiro; senão upload (uploaded_image_path ou legado em image_url)."""
+    if b is None:
+        return None
+    if isinstance(b, str):
+        return resolve_informativo_bulletin_image_url(b)
+    ext: Optional[str] = None
+    upl_norm: Optional[str] = None
+    legacy_from_url: Optional[str] = None
+    if isinstance(b, dict):
+        ext = _normalize_bulletin_external_url(b.get("image_url"))
+        upl_raw = b.get("uploaded_image_path")
+        if upl_raw:
+            u = _normalize_informativo_image_url(str(upl_raw))
+            upl_norm = u if u else None
+        if not ext:
+            legacy_from_url = _legacy_upload_path_from_image_url_field(b.get("image_url"))
+    else:
+        ext = _normalize_bulletin_external_url(getattr(b, "image_url", None))
+        upl_raw = getattr(b, "uploaded_image_path", None)
+        if upl_raw:
+            u = _normalize_informativo_image_url(str(upl_raw))
+            upl_norm = u if u else None
+        if not ext:
+            legacy_from_url = _legacy_upload_path_from_image_url_field(getattr(b, "image_url", None))
+    if ext:
+        return ext
+    for cand in (upl_norm, legacy_from_url):
+        if cand:
+            return cand
+    return None
+
+
+def _bulletin_has_local_path_record(b: Any) -> bool:
+    if b is None:
+        return False
+    if isinstance(b, dict):
+        if (str(b.get("uploaded_image_path") or "").strip()):
+            return True
+        return bool(_legacy_upload_path_from_image_url_field(b.get("image_url")))
+    if (str(getattr(b, "uploaded_image_path", None) or "").strip()):
+        return True
+    return bool(_legacy_upload_path_from_image_url_field(getattr(b, "image_url", None)))
+
+
 def informativo_local_upload_file_missing(resolved_image_url: Optional[str]) -> bool:
-    """True se a URL é upload local em /static/uploads/informativo/ mas o ficheiro não existe (ex.: deploy efémero)."""
+    """True se a URL é ficheiro servido por este app mas o path no disco não existe."""
     if not resolved_image_url:
         return False
     u = resolved_image_url.split("?", 1)[0].strip()
-    if not u.startswith("/static/uploads/informativo/"):
-        return False
     fn = os.path.basename(u)
     if not fn or ".." in fn.replace("\\", "/"):
         return True
-    path = os.path.join(INFORMATIVO_IMAGE_DIR, fn)
-    return not os.path.isfile(path)
+    if u.startswith("/media/informativo/"):
+        path = os.path.join(INFORMATIVO_IMAGE_DIR, fn)
+        return not os.path.isfile(path)
+    if u.startswith("/static/uploads/informativo/"):
+        path = _informativo_legacy_static_disk_path(fn)
+        return not os.path.isfile(path)
+    return False
 
 
 def _tpl_resolve_bulletin_image(b: Any) -> Optional[str]:
-    """Jinja: aceita InformativeBulletin, dict com image_url ou string."""
-    if b is None:
-        return None
-    if isinstance(b, dict):
-        return resolve_informativo_bulletin_image_url(b.get("image_url"))
-    if isinstance(b, str):
-        return resolve_informativo_bulletin_image_url(b)
-    return resolve_informativo_bulletin_image_url(getattr(b, "image_url", None))
+    """Jinja: aceita InformativeBulletin, dict com image_url/uploaded_image_path ou string."""
+    return resolve_bulletin_display_image(b)
 
 
 templates.env.globals["resolve_bulletin_image"] = _tpl_resolve_bulletin_image
@@ -3546,7 +3649,8 @@ def _build_informativo_extras(
             "id": b.id,
             "title": b.title,
             "body": b.body or "",
-            "image_url": resolve_informativo_bulletin_image_url(b.image_url) or "",
+            "image_url": (getattr(b, "image_url", None) or "") or "",
+            "uploaded_image_path": (getattr(b, "uploaded_image_path", None) or "") or "",
             "link_url": (getattr(b, "link_url", None) or "").strip(),
         }
         for b in bulletins
@@ -4666,16 +4770,24 @@ async def admin_informativo_page(
         }
     bulletin_admin_rows: List[Dict[str, Any]] = []
     for b in rows:
-        img_res = resolve_informativo_bulletin_image_url(getattr(b, "image_url", None))
+        disp = resolve_bulletin_display_image(b)
+        has_local = _bulletin_has_local_path_record(b)
+        if disp and _is_local_informativo_asset_url(disp):
+            local_missing = informativo_local_upload_file_missing(disp)
+        elif not disp and has_local:
+            local_missing = True
+        else:
+            local_missing = False
+        no_image = not disp and not has_local
         bulletin_admin_rows.append(
             {
                 "bulletin": b,
-                "image_url_resolved": img_res,
-                "local_file_missing": informativo_local_upload_file_missing(img_res),
+                "image_url_resolved": disp,
+                "admin_inf_no_image": no_image,
+                "local_file_missing": local_missing,
             }
         )
-    render_env = (os.getenv("RENDER") or "").strip().lower()
-    show_ephemeral_upload_hint = render_env in ("1", "true", "yes", "on")
+    informativo_has_persistent_uploads = bool(INFORMATIVO_MEDIA_ROOT)
     return templates.TemplateResponse(
         "admin_informativo.html",
         {
@@ -4692,7 +4804,7 @@ async def admin_informativo_page(
             "dry_year": dry_year,
             "dr_rows": dr_rows,
             "dr_display": dr_display,
-            "show_ephemeral_upload_hint": show_ephemeral_upload_hint,
+            "informativo_has_persistent_uploads": informativo_has_persistent_uploads,
         },
     )
 
@@ -4863,7 +4975,12 @@ async def admin_informativo_edit_page(
         raise HTTPException(status_code=404, detail="Aviso não encontrado")
     return templates.TemplateResponse(
         "admin_informativo_edit.html",
-        {"request": request, "bulletin": b, "user": user},
+        {
+            "request": request,
+            "bulletin": b,
+            "user": user,
+            "informativo_has_persistent_uploads": bool(INFORMATIVO_MEDIA_ROOT),
+        },
     )
 
 
@@ -4889,19 +5006,17 @@ async def admin_informativo_update(
     )
     if has_new_file:
         try:
-            next_stored = await _save_informativo_image(bulletin_image)
+            b.uploaded_image_path = await _save_informativo_image(bulletin_image)
         except ValueError:
             return RedirectResponse(url=f"/admin/informativo/{bulletin_id}/edit?err_image=1", status_code=303)
-    else:
-        img_field = form.get("image_url")
-        if img_field is not None:
-            form_image = str(img_field).strip()[:500]
-            next_stored = form_image if form_image else b.image_url
-        else:
-            next_stored = b.image_url
+    if form.get("clear_external_image"):
+        b.image_url = None
+    elif form.get("image_url") is not None:
+        raw_img = str(form.get("image_url") or "").strip()
+        if raw_img:
+            b.image_url = _normalize_bulletin_external_url(raw_img)
     b.title = title[:200]
     b.body = str(form.get("body") or "").strip() or None
-    b.image_url = resolve_informativo_bulletin_image_url(next_stored)
     link_field = form.get("link_url")
     if link_field is not None:
         b.link_url = str(link_field or "").strip()[:500] or None
@@ -4927,20 +5042,27 @@ async def admin_informativo_create(
     title = (title or "").strip()
     if not title:
         return RedirectResponse(url="/admin/informativo?err=1", status_code=303)
-    form_image = (image_url or "").strip()[:500]
+    ext = _normalize_bulletin_external_url(image_url)
+    upl: Optional[str] = None
     if bulletin_image and (bulletin_image.filename or "").strip():
         try:
-            next_stored = await _save_informativo_image(bulletin_image)
+            upl = await _save_informativo_image(bulletin_image)
         except ValueError:
             return RedirectResponse(url="/admin/informativo?err_image=1", status_code=303)
-    elif form_image:
-        next_stored = form_image
-    else:
-        next_stored = None
+    elif not ext:
+        raw = (image_url or "").strip()[:500]
+        if raw:
+            upl = _normalize_informativo_image_url(raw) or None
+            if upl and not (
+                upl.startswith("/static/uploads/informativo/")
+                or upl.startswith("/media/informativo/")
+            ):
+                upl = None
     b = models.InformativeBulletin(
         title=title[:200],
         body=(body or "").strip() or None,
-        image_url=resolve_informativo_bulletin_image_url(next_stored),
+        image_url=ext,
+        uploaded_image_path=upl,
         link_url=(link_url or "").strip()[:500] or None,
         sort_order=int(sort_order or 0),
         is_active=True,

@@ -44,6 +44,12 @@
                 <p class="sys-alert sys-alert--warn">Imagem inválida. Use JPG, PNG ou WEBP com até 8MB.</p>
                 {% endif %}
 
+                {% if not informativo_has_persistent_uploads %}
+                <p class="admin-inf-alert" role="status">
+                    Em produção, prefira <strong>imagem por URL</strong>. Upload local pode ser perdido após deploy sem volume (<code class="rounded bg-amber-100/80 px-1 dark:bg-amber-900/40">INFORMATIVO_MEDIA_ROOT</code>).
+                </p>
+                {% endif %}
+
                 <form method="post" action="/admin/informativo/{{ bulletin.id }}/update" enctype="multipart/form-data" class="sys-card sys-card--surface sys-card--comfort space-y-4">
                     <div>
                         <label class="sys-section__label sys-section__label--field">Título <span class="text-rose-600">*</span></label>
@@ -54,9 +60,25 @@
                         <textarea name="body" rows="4" class="sys-input" placeholder="Comunicado interno…">{{ bulletin.body or '' }}</textarea>
                     </div>
                     <div>
+                        <label class="sys-section__label sys-section__label--field">Imagem por URL (opcional)</label>
+                        <input type="text" name="image_url" value="{{ bulletin.image_url or '' }}" class="sys-input" placeholder="https://… (recomendado em produção)" maxlength="500" autocomplete="off">
+                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Tem prioridade sobre o upload. Vazio + salvar mantém a URL atual; para remover, marque abaixo.</p>
+                        <label class="mt-2 flex cursor-pointer items-center gap-2 text-[11px] text-gray-600 dark:text-gray-400">
+                            <input type="checkbox" name="clear_external_image" value="1" class="rounded border-gray-300">
+                            Limpar URL externa (fica só upload, se houver)
+                        </label>
+                    </div>
+                    <div>
                         <label class="sys-section__label sys-section__label--field">Importar imagem do computador (opcional)</label>
                         <input type="file" name="bulletin_image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sys-input">
-                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Envie apenas se quiser trocar a imagem. Se não enviar arquivo, a imagem já cadastrada é mantida.</p>
+                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Envie apenas se quiser trocar a imagem enviada ao servidor. Se não enviar arquivo, o upload atual é mantido.</p>
+                        {% if not informativo_has_persistent_uploads %}
+                        <p class="mt-1 text-[11px] text-amber-800 dark:text-amber-200/90">Sem volume persistente, este ficheiro pode sumir após redeploy.</p>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <label class="sys-section__label sys-section__label--field">Link (opcional)</label>
+                        <input type="url" name="link_url" value="{{ bulletin.link_url or '' }}" class="sys-input" placeholder="https://…" maxlength="500">
                     </div>
                     <div>
                         <label class="sys-section__label sys-section__label--field">Ordem</label>

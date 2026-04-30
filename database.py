@@ -196,6 +196,7 @@ def create_db_and_tables():
     _migrate_devolucao_duplicate_fields()
     _migrate_route_escala_status()
     _migrate_informative_bulletin_link_url()
+    _migrate_informative_bulletin_uploaded_image_path()
     _migrate_informative_panel_config()
     _migrate_informative_panel_config_audio()
     _migrate_client_vendedor_id()
@@ -301,6 +302,36 @@ def _migrate_informative_bulletin_link_url():
             else:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type}"))
             conn.commit()
+    except Exception:
+        pass
+
+
+def _migrate_informative_bulletin_uploaded_image_path():
+    """Coluna uploaded_image_path + backfill de paths locais que estavam só em image_url."""
+    table = "informative_bulletin"
+    col = "uploaded_image_path"
+    col_type = "VARCHAR(500)" if "postgresql" in str(engine.url).lower() else "TEXT"
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                cur = conn.execute(text(f"PRAGMA table_info({table})"))
+                existing = [r[1] for r in list(cur) if len(r) > 1]
+                if col not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
+            else:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(
+                f"UPDATE {table} SET {col} = image_url, image_url = NULL "
+                f"WHERE image_url IS NOT NULL AND TRIM(image_url) != '' "
+                f"AND (image_url LIKE '/static/uploads/informativo/%' OR image_url LIKE '/media/informativo/%' "
+                f"OR image_url LIKE 'static/uploads/informativo/%') "
+                f"AND ({col} IS NULL OR TRIM({col}) = '')"
+            ))
     except Exception:
         pass
 

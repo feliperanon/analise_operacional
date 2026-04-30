@@ -301,7 +301,7 @@
                                     {% if bulletin_image %}
                                     <div class="gv-bulletin-media gv-bulletin-media--contain">
                                         {# eager em todos os slides: evita aviso do Edge sobre lazy+placeholder e garante carrossel estável em TV #}
-                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image" loading="eager" decoding="async"{% if loop.first %} fetchpriority="high"{% endif %} onerror="this.onerror=null; var media=this.closest('.gv-bulletin-media'); var split=this.closest('.gv-bulletin-split'); if(split){ split.classList.add('gv-bulletin-split--no-media'); } if(media){ media.remove(); }">
+                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image" loading="eager" decoding="async"{% if loop.first %} fetchpriority="high"{% endif %} onerror="this.onerror=null;console.warn('Imagem do informativo não encontrada:',this.src);var media=this.closest('.gv-bulletin-media');var split=this.closest('.gv-bulletin-split');if(media){media.classList.add('gv-bulletin-media--missing');}if(split){split.classList.add('gv-bulletin-split--no-media');}if(media){media.remove();}">
                                     </div>
                                     {% endif %}
                                 </div>

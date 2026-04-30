@@ -25,12 +25,12 @@
     </button>
 
     <div class="ta-dashboard-layout flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header class="sys-page-header ta-dash-header admin-inf-page-header--compact sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
-            <div class="sys-main-inner flex w-full flex-col gap-0.5 pl-12 sm:pl-14">
-                <p class="text-[11px] font-medium text-gray-500 dark:text-gray-400">Administração / Informativo</p>
+        <header class="sys-page-header ta-dash-header admin-inf-page-header--compact sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-2 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
+            <div class="sys-main-inner flex w-full flex-col gap-0 pl-12 sm:pl-14">
+                <p class="text-[10px] font-medium leading-tight text-gray-500 dark:text-gray-400">Administração / Informativo</p>
                 <div class="flex flex-wrap items-baseline justify-between gap-2">
-                    <h1 class="text-lg font-bold tracking-tight text-gray-800 dark:text-white/90">Painel informativo</h1>
-                    <p class="text-[11px] text-gray-500 dark:text-gray-400">Comunicados em <a href="/dashboard" class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">/dashboard</a></p>
+                    <h1 class="text-base font-bold leading-tight tracking-tight text-gray-800 dark:text-white/90">Painel informativo</h1>
+                    <p class="text-[10px] leading-tight text-gray-500 dark:text-gray-400">Comunicados em <a href="/dashboard" class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">/dashboard</a></p>
                 </div>
             </div>
         </header>
@@ -63,10 +63,13 @@
                 <p class="sys-alert sys-alert--warn admin-inf-flash">Não foi possível salvar a configuração de áudio. Revise os campos e tente novamente.</p>
                 {% endif %}
 
-                {% if show_ephemeral_upload_hint %}
-                <p class="admin-inf-hint-banner" role="status">
-                    <strong>Produção (Render):</strong> uploads locais podem ser perdidos após deploy ou restart sem disco persistente.
-                    Para imagens permanentes nos comunicados, use <strong>URL externa</strong> ou configure <code class="rounded bg-slate-200/80 px-1 text-[11px] dark:bg-slate-700">INFORMATIVO_IMAGE_DIR</code> em disco persistente.
+                {% if not informativo_has_persistent_uploads %}
+                <p class="admin-inf-alert" role="status">
+                    <strong>Produção:</strong> prefira <strong>URL de imagem</strong>. Upload local pode sumir após deploy sem disco. No Render use <code class="rounded bg-amber-100/80 px-1 dark:bg-amber-900/40">INFORMATIVO_MEDIA_ROOT</code> (ex. <code class="rounded bg-amber-100/80 px-1 dark:bg-amber-900/40">/var/data</code>) → <code class="rounded bg-amber-100/80 px-1 dark:bg-amber-900/40">/media/informativo/</code>.
+                </p>
+                {% else %}
+                <p class="admin-inf-alert admin-inf-alert--ok" role="status">
+                    Volume persistente ativo (<code class="rounded bg-teal-100/80 px-1 dark:bg-teal-900/40">/media/informativo/</code>). URL externa segue recomendada para CDN.
                 </p>
                 {% endif %}
 
@@ -90,6 +93,9 @@
                             <div>
                                 <label class="sys-section__label sys-section__label--field">Upload de imagem (opcional)</label>
                                 <input type="file" name="bulletin_image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sys-input">
+                                {% if not informativo_has_persistent_uploads %}
+                                <p class="mt-1 text-[11px] text-amber-800 dark:text-amber-200/90">Sem <code class="rounded bg-amber-100/90 px-0.5 dark:bg-amber-900/50">INFORMATIVO_MEDIA_ROOT</code>, o ficheiro pode deixar de existir após redeploy.</p>
+                                {% endif %}
                             </div>
                             <div>
                                 <label class="sys-section__label sys-section__label--field">Link (opcional)</label>
@@ -110,9 +116,10 @@
                             {% set b = row.bulletin %}
                             {% set bulletin_image = row.image_url_resolved %}
                             {% set local_missing = row.local_file_missing %}
+                            {% set admin_inf_no_image = row.admin_inf_no_image %}
                             <li class="sys-card sys-card--surface admin-inf-bulletin-row">
                                 <div class="admin-inf-bulletin-thumb-wrap">
-                                    {% if not bulletin_image %}
+                                    {% if admin_inf_no_image %}
                                     <div class="admin-inf-bulletin-thumb admin-inf-bulletin-thumb--empty" aria-hidden="true">Sem imagem</div>
                                     {% elif local_missing %}
                                     <div class="admin-inf-bulletin-thumb admin-inf-bulletin-thumb--error" role="img" aria-label="Imagem não encontrada">Imagem não encontrada</div>
@@ -196,7 +203,7 @@
                     </div>
                 </section>
 
-                <details class="admin-inf-collapse"{% if request.query_params.get('saved_devolucao') == '1' %} open{% endif %}>
+                <details class="admin-inf-collapse admin-inf-monthly-collapse"{% if request.query_params.get('saved_devolucao') == '1' %} open{% endif %}>
                     <summary>Índice de devolução mensal</summary>
                     <div class="admin-inf-monthly-inner">
                         <p class="admin-inf-subtext admin-inf-monthly-lead">Base do gráfico mensal do dashboard · números no padrão brasileiro</p>
@@ -209,8 +216,8 @@
                         </form>
                         <form method="post" action="/admin/informativo/devolucao-mensal" class="admin-inf-devolucao-form">
                             <input type="hidden" name="dry_year" value="{{ dry_year }}">
-                            <div class="sys-table-wrap sys-table-wrap--x-scroll admin-inf-monthly-table">
-                                <table class="admin-inf-monthly-table-el w-full min-w-[640px] border-collapse text-left text-sm">
+                            <div class="sys-table-wrap sys-table-wrap--x-scroll admin-inf-monthly-table-wrap">
+                                <table class="admin-inf-monthly-table-el admin-inf-monthly-table w-full min-w-[640px] border-collapse text-left text-sm">
                                     <thead>
                                         <tr class="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:text-gray-400">
                                             <th class="py-2.5 pr-3">Mês</th>

@@ -1164,8 +1164,10 @@ class InformativeBulletin(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str = Field(max_length=200)
     body: Optional[str] = None  # texto livre; quebras de linha viram <br> no template
-    # Upload local e URL externa compartilham este campo (prioridade na gravação: novo arquivo > URL do formulário > manter valor ao editar).
+    # URL externa (https) ou data URI — preferida para produção (persistente).
     image_url: Optional[str] = Field(default=None, max_length=500)
+    # Upload no servidor: caminho público /media/informativo/… (disco Render) ou legado /static/uploads/informativo/…
+    uploaded_image_path: Optional[str] = Field(default=None, max_length=500)
     link_url: Optional[str] = Field(default=None, max_length=500)  # matéria / site (abre em nova aba)
     sort_order: int = Field(default=0, index=True)
     is_active: bool = Field(default=True, index=True)
