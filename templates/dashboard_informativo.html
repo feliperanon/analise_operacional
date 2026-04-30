@@ -257,14 +257,20 @@
                         {% if featured_bulletins|length > 0 %}
                             {% for b in featured_bulletins %}
                             <div class="gv-bulletin-pane" data-bulletin-pane{% if not loop.first %} hidden{% endif %}>
-                                <h4 class="font-semibold gv-aviso-heading mb-2">{{ b.title }}</h4>
-                                {% if b.image_url %}
-                                <img src="{{ b.image_url }}" alt="" class="max-h-28 w-full rounded-lg border border-gray-200 mb-3 object-cover" loading="lazy" onerror="this.classList.add('hidden')">
-                                {% endif %}
-                                {% if b.body %}<p class="whitespace-pre-wrap">{{ b.body }}</p>{% endif %}
-                                {% if b.link_url %}
-                                <p class="mt-2 mb-0"><a href="{{ b.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-700 font-medium underline-offset-2 hover:underline">Ver matéria</a></p>
-                                {% endif %}
+                                <div class="gv-bulletin-split">
+                                    <div class="gv-bulletin-copy">
+                                        <h4 class="font-semibold gv-aviso-heading mb-2">{{ b.title }}</h4>
+                                        {% if b.body %}<p class="whitespace-pre-wrap">{{ b.body }}</p>{% endif %}
+                                        {% if b.link_url %}
+                                        <p class="mt-2 mb-0"><a href="{{ b.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-700 font-medium underline-offset-2 hover:underline">Ver matéria</a></p>
+                                        {% endif %}
+                                    </div>
+                                    {% if b.image_url %}
+                                    <div class="gv-bulletin-media">
+                                        <img src="{{ b.image_url }}" alt="" class="gv-bulletin-image" loading="lazy" onerror="this.closest('.gv-bulletin-media').classList.add('hidden')">
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </div>
                             {% endfor %}
                             {% if featured_bulletins|length > 1 %}

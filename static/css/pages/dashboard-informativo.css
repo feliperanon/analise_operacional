@@ -752,6 +752,45 @@ body.dashboard-app .sys-kpi-grid #info-date {
   border-radius: var(--sys-radius-md);
 }
 
+.gv-bulletin-pane {
+  min-height: 0;
+}
+
+.gv-bulletin-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 42%);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.gv-bulletin-copy {
+  min-width: 0;
+}
+
+.gv-bulletin-media {
+  min-width: 0;
+}
+
+.gv-bulletin-image {
+  display: block;
+  width: 100%;
+  max-height: 14.5rem;
+  object-fit: contain;
+  border: 1px solid rgb(229 231 235);
+  border-radius: var(--sys-radius-md);
+  background: #fff;
+}
+
+@media (max-width: 900px) {
+  .gv-bulletin-split {
+    grid-template-columns: 1fr;
+  }
+
+  .gv-bulletin-image {
+    max-height: 10.5rem;
+  }
+}
+
 .gv-bulletin-dot {
   width: 0.45rem;
   height: 0.45rem;
