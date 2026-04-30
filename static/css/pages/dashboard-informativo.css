@@ -712,10 +712,6 @@ body.dashboard-app .sys-kpi-grid #info-date {
   border-bottom-color: rgb(15 23 42 / 0.08);
 }
 
-.gv-table-wrap tbody tr:nth-child(n + 10) {
-  display: none;
-}
-
 .gv-body .gv-fit-oneline {
   color: #1e293b;
   font-weight: 500;
