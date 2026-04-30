@@ -4590,33 +4590,46 @@ async def admin_informativo_audio_config(
     audio_volume: int = Form(35),
     audio_file: Optional[UploadFile] = File(None),
 ):
-    cfg = session.get(models.InformativePanelConfig, 1)
-    if cfg is None:
-        cfg = models.InformativePanelConfig(id=1, carousel_interval_seconds=8)
-        session.add(cfg)
+    try:
+        cfg = session.get(models.InformativePanelConfig, 1)
+        if cfg is None:
+            cfg = models.InformativePanelConfig(id=1, carousel_interval_seconds=8)
+            session.add(cfg)
 
-    cfg.audio_enabled = bool(audio_enabled)
-    cfg.audio_volume = max(0, min(100, int(audio_volume or 35)))
-    next_audio_url = (audio_url or "").strip()[:500] or None
-    raw_list = (audio_playlist or "").strip()
-    parsed_urls: List[str] = []
-    if raw_list:
-        for line in raw_list.splitlines():
-            item = (line or "").strip()
-            if item and item not in parsed_urls:
-                parsed_urls.append(item[:500])
-    if audio_file and (audio_file.filename or "").strip():
-        try:
-            next_audio_url = await _save_informativo_audio(audio_file)
-        except ValueError:
-            return RedirectResponse(url="/admin/informativo?err_audio=1", status_code=303)
-    if next_audio_url and next_audio_url in parsed_urls:
-        parsed_urls = [u for u in parsed_urls if u != next_audio_url]
-    cfg.audio_url = next_audio_url
-    cfg.audio_playlist = "\n".join(parsed_urls) if parsed_urls else None
-    session.add(cfg)
-    session.commit()
-    return RedirectResponse(url="/admin/informativo?saved=audio", status_code=303)
+        cfg.audio_enabled = bool(audio_enabled)
+        cfg.audio_volume = max(0, min(100, int(audio_volume or 35)))
+        next_audio_url = (audio_url or "").strip()[:500] or None
+        raw_list = (audio_playlist or "").strip()
+        parsed_urls: List[str] = []
+        if raw_list:
+            for line in raw_list.splitlines():
+                item = (line or "").strip()
+                if item and item not in parsed_urls:
+                    parsed_urls.append(item[:500])
+        if audio_file and (audio_file.filename or "").strip():
+            try:
+                next_audio_url = await _save_informativo_audio(audio_file)
+            except ValueError:
+                return RedirectResponse(url="/admin/informativo?err_audio=1", status_code=303)
+        if next_audio_url and next_audio_url in parsed_urls:
+            parsed_urls = [u for u in parsed_urls if u != next_audio_url]
+        cfg.audio_url = next_audio_url
+        cfg.audio_playlist = "\n".join(parsed_urls) if parsed_urls else None
+        session.add(cfg)
+        session.commit()
+        return RedirectResponse(url="/admin/informativo?saved=audio", status_code=303)
+    except Exception:
+        session.rollback()
+        return RedirectResponse(url="/admin/informativo?err_audio=1", status_code=303)
+
+
+@app.get("/admin/informativo/audio-config")
+async def admin_informativo_audio_config_redirect(
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+):
+    """Evita erro ao abrir a rota de POST diretamente no navegador."""
+    return RedirectResponse(url="/admin/informativo", status_code=303)
 
 
 @app.post("/admin/informativo/devolucao-mensal")

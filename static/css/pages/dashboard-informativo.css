@@ -638,7 +638,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
 }
 
 .gv-table-wrap .gv-name-cell {
-  width: 41%;
+  width: 38%;
   vertical-align: middle;
   overflow: hidden;
   padding-left: 0.25rem;
@@ -653,13 +653,13 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-table-wrap th:nth-child(2),
 .gv-table-wrap td:nth-child(2) {
-  width: 19%;
+  width: 16%;
   text-align: center;
 }
 
 .gv-table-wrap th:nth-child(3),
 .gv-table-wrap td:nth-child(3) {
-  width: 40%;
+  width: 46%;
   text-align: center;
 }
 
@@ -758,7 +758,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-bulletin-split {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 62%);
+  grid-template-columns: minmax(0, 0.8fr) minmax(460px, 66%);
   gap: 1rem;
   align-items: start;
 }
@@ -775,8 +775,9 @@ body.dashboard-app .sys-kpi-grid #info-date {
 .gv-bulletin-image {
   display: block;
   width: 100%;
-  max-height: 22rem;
-  object-fit: contain;
+  height: clamp(180px, 28vh, 320px);
+  max-height: none;
+  object-fit: cover;
   border: 1px solid rgb(229 231 235);
   border-radius: var(--sys-radius-md);
   background: #fff;
@@ -788,7 +789,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
   }
 
   .gv-bulletin-image {
-    max-height: 13rem;
+    height: 14rem;
   }
 }
 
