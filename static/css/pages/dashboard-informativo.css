@@ -951,6 +951,20 @@ body.dashboard-app .sys-kpi-grid #info-date {
   background: #f8fafc;
 }
 
+/* Arte/upload: mostrar imagem inteira sem “puxar” o img para 100% (evita recorte visual) */
+.gv-bulletin-media.gv-bulletin-media--contain {
+  overflow: hidden;
+}
+
+.gv-bulletin-media.gv-bulletin-media--contain .gv-bulletin-image {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: min(330px, 100%);
+  object-fit: contain;
+  object-position: center;
+}
+
 .gv-bulletin-media.hidden {
   display: none;
 }
@@ -987,10 +1001,6 @@ body.dashboard-app .sys-kpi-grid #info-date {
   object-position: center;
   border-radius: 22px;
   background: transparent;
-}
-
-.gv-bulletin-media.gv-bulletin-media--contain .gv-bulletin-image {
-  object-fit: contain;
 }
 
 .gv-bulletin-media.gv-bulletin-media--cover .gv-bulletin-image {

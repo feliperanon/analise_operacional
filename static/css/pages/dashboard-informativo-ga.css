@@ -529,3 +529,34 @@ body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel
   text-transform: uppercase;
   text-align: left;
 }
+
+/* —— Smart TV (Samsung Internet / Tizen WebKit): legibilidade e uso com controle remoto —— */
+#informativo-root.dashboard-informativo-ga {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Dots do carrossel: área de foco maior para navegação por D-pad (sem aumentar o desenho do ponto) */
+#informativo-root.dashboard-informativo-ga [role="tablist"][aria-label="Navegar avisos"] {
+  gap: 12px;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-dot {
+  box-sizing: content-box;
+  padding: 12px;
+  margin: -12px;
+  background-clip: content-box;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-dot:focus-visible {
+  outline: 2px solid var(--sys-accent-strong, #2563eb);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #informativo-root.dashboard-informativo-ga .gv-bulletin-dot {
+    transition: none;
+  }
+}
