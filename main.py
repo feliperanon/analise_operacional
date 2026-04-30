@@ -1749,6 +1749,8 @@ TICKET_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "tickets")
 TICKET_MAX_IMAGE_SIZE = 5 * 1024 * 1024
 DELIVERY_RETURN_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "delivery_returns")
 DELIVERY_RETURN_MAX_IMAGE_SIZE = 8 * 1024 * 1024
+INFORMATIVO_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
+INFORMATIVO_MAX_IMAGE_SIZE = 8 * 1024 * 1024
 MAINTENANCE_EMAIL_TO = os.getenv("MAINTENANCE_EMAIL_TO", "").strip()
 MAINTENANCE_EMAIL_FROM = os.getenv("MAINTENANCE_EMAIL_FROM", "").strip()
 SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
@@ -2213,6 +2215,26 @@ async def save_ticket_images(files: List[UploadFile]) -> List[str]:
             handle.write(contents)
         saved.append(filename)
     return saved
+
+
+async def _save_informativo_image(file: UploadFile) -> str:
+    os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
+    raw_name = (file.filename or "").strip()
+    if not raw_name:
+        raise ValueError("Arquivo inválido.")
+    ext = os.path.splitext(raw_name)[1].lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+        raise ValueError("Formato inválido. Use JPG, PNG ou WEBP.")
+    content = await file.read()
+    if not content:
+        raise ValueError("Arquivo vazio.")
+    if len(content) > INFORMATIVO_MAX_IMAGE_SIZE:
+        raise ValueError("Imagem excede 8MB.")
+    safe_name = f"informativo_{datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}{ext}"
+    file_path = os.path.join(INFORMATIVO_IMAGE_DIR, safe_name)
+    with open(file_path, "wb") as fp:
+        fp.write(content)
+    return f"/static/uploads/informativo/{safe_name}"
 
 def resolve_equipment(session: Session, code: str) -> models.TranspalletEquipment:
     equipment = session.exec(
@@ -4567,6 +4589,7 @@ async def admin_informativo_update(
     title: str = Form(""),
     body: str = Form(""),
     image_url: str = Form(""),
+    bulletin_image: Optional[UploadFile] = File(None),
     link_url: str = Form(""),
     sort_order: int = Form(0),
 ):
@@ -4576,9 +4599,15 @@ async def admin_informativo_update(
     title = (title or "").strip()
     if not title:
         return RedirectResponse(url=f"/admin/informativo/{bulletin_id}/edit?err=1", status_code=303)
+    next_image_url = (image_url or "").strip()[:500] or None
+    if bulletin_image and (bulletin_image.filename or "").strip():
+        try:
+            next_image_url = await _save_informativo_image(bulletin_image)
+        except ValueError:
+            return RedirectResponse(url=f"/admin/informativo/{bulletin_id}/edit?err_image=1", status_code=303)
     b.title = title[:200]
     b.body = (body or "").strip() or None
-    b.image_url = (image_url or "").strip()[:500] or None
+    b.image_url = next_image_url
     b.link_url = (link_url or "").strip()[:500] or None
     b.sort_order = int(sort_order or 0)
     b.updated_at = datetime.now()
@@ -4595,16 +4624,23 @@ async def admin_informativo_create(
     title: str = Form(""),
     body: str = Form(""),
     image_url: str = Form(""),
+    bulletin_image: Optional[UploadFile] = File(None),
     link_url: str = Form(""),
     sort_order: int = Form(0),
 ):
     title = (title or "").strip()
     if not title:
         return RedirectResponse(url="/admin/informativo?err=1", status_code=303)
+    next_image_url = (image_url or "").strip()[:500] or None
+    if bulletin_image and (bulletin_image.filename or "").strip():
+        try:
+            next_image_url = await _save_informativo_image(bulletin_image)
+        except ValueError:
+            return RedirectResponse(url="/admin/informativo?err_image=1", status_code=303)
     b = models.InformativeBulletin(
         title=title[:200],
         body=(body or "").strip() or None,
-        image_url=(image_url or "").strip()[:500] or None,
+        image_url=next_image_url,
         link_url=(link_url or "").strip()[:500] or None,
         sort_order=int(sort_order or 0),
         is_active=True,
