@@ -107,7 +107,8 @@
                             {% for b in bulletins or [] %}
                             <li class="sys-card sys-card--surface admin-inf-bulletin-row">
                                 {% if b.image_url %}
-                                <img src="{{ b.image_url }}" alt="" class="admin-inf-bulletin-thumb" loading="lazy" onerror="this.style.display='none'">
+                                <img src="{{ b.image_url }}" alt="" class="admin-inf-bulletin-thumb" loading="lazy" onerror="this.onerror=null; this.style.display='none'; var fb=this.nextElementSibling; if (fb) fb.style.display='grid';">
+                                <div class="admin-inf-bulletin-thumb admin-inf-bulletin-thumb--empty" style="display:none;" aria-hidden="true">Arquivo ausente</div>
                                 {% else %}
                                 <div class="admin-inf-bulletin-thumb admin-inf-bulletin-thumb--empty" aria-hidden="true">Sem imagem</div>
                                 {% endif %}

@@ -4620,6 +4620,9 @@ async def admin_informativo_audio_config(
     audio_file: Optional[UploadFile] = File(None),
 ):
     try:
+        # Garante migrações aplicadas mesmo sem restart do processo.
+        create_db_and_tables()
+
         def _is_youtube_url(value: Optional[str]) -> bool:
             raw = (value or "").strip().lower()
             if not raw:
