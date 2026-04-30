@@ -277,9 +277,9 @@
                     <div class="gv-aviso-body gv-bulletin-carousel-wrap" id="bulletin-carousel-root" data-interval-ms="{{ inf.get('carousel_interval_ms', 8000) }}">
                         {% if featured_bulletins|length > 0 %}
                             {% for b in featured_bulletins %}
-                            {% set _img = (b.image_url or '')|trim %}
+                            {% set bulletin_image = resolve_bulletin_image(b) %}
                             <div class="gv-bulletin-pane" data-bulletin-pane{% if not loop.first %} hidden{% endif %}>
-                                <div class="gv-bulletin-split{% if not _img %} gv-bulletin-split--no-media{% endif %}">
+                                <div class="gv-bulletin-split{% if not bulletin_image %} gv-bulletin-split--no-media{% endif %}">
                                     <div class="gv-bulletin-copy">
                                         <h4 class="font-semibold gv-aviso-heading gv-bulletin-copy-title">{{ b.title }}</h4>
                                         {% if b.body or b.link_url %}
@@ -293,12 +293,12 @@
                                         </div>
                                         {% endif %}
                                     </div>
-                                    {# Painel TV: padrão arte/banner — object-fit contain. Só use --cover se no futuro houver flag no cadastro (foto). #}
-                                    <div class="gv-bulletin-media gv-bulletin-media--contain{% if not _img %} hidden{% endif %}">
-                                        {% if _img %}
-                                        <img src="{{ b.image_url }}" alt="" class="gv-bulletin-image"{% if loop.first %} loading="eager" fetchpriority="high" decoding="sync"{% else %} loading="lazy" decoding="async"{% endif %} onerror="this.onerror=null; this.style.display='none'; var m=this.closest('.gv-bulletin-media'); var s=this.closest('.gv-bulletin-split'); if(m){m.classList.add('hidden');} if(s){s.classList.add('gv-bulletin-split--no-media');}">
-                                        {% endif %}
+                                    {# Painel TV: arte/banner em contain; opt-in .gv-bulletin-media--cover para foto no cadastro futuro. #}
+                                    {% if bulletin_image %}
+                                    <div class="gv-bulletin-media gv-bulletin-media--contain">
+                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image"{% if loop.first %} loading="eager" fetchpriority="high" decoding="sync"{% else %} loading="lazy" decoding="async"{% endif %} onerror="this.onerror=null; var media=this.closest('.gv-bulletin-media'); var split=this.closest('.gv-bulletin-split'); if(split){ split.classList.add('gv-bulletin-split--no-media'); } if(media){ media.remove(); }">
                                     </div>
+                                    {% endif %}
                                 </div>
                             </div>
                             {% endfor %}

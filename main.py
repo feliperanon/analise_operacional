@@ -2298,6 +2298,26 @@ def _normalize_informativo_image_url(raw_url: Optional[str]) -> str:
     return value
 
 
+def resolve_informativo_bulletin_image_url(raw_url: Optional[str]) -> Optional[str]:
+    """URL final do comunicado para templates (upload em /static/uploads/informativo/ ou URL externa)."""
+    normalized = _normalize_informativo_image_url(raw_url)
+    return normalized if normalized else None
+
+
+def _tpl_resolve_bulletin_image(b: Any) -> Optional[str]:
+    """Jinja: aceita InformativeBulletin, dict com image_url ou string."""
+    if b is None:
+        return None
+    if isinstance(b, dict):
+        return resolve_informativo_bulletin_image_url(b.get("image_url"))
+    if isinstance(b, str):
+        return resolve_informativo_bulletin_image_url(b)
+    return resolve_informativo_bulletin_image_url(getattr(b, "image_url", None))
+
+
+templates.env.globals["resolve_bulletin_image"] = _tpl_resolve_bulletin_image
+
+
 def resolve_equipment(session: Session, code: str) -> models.TranspalletEquipment:
     equipment = session.exec(
         select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == code)
@@ -3470,7 +3490,7 @@ def _build_informativo_extras(
             "id": b.id,
             "title": b.title,
             "body": b.body or "",
-            "image_url": _normalize_informativo_image_url(b.image_url),
+            "image_url": resolve_informativo_bulletin_image_url(b.image_url) or "",
             "link_url": (getattr(b, "link_url", None) or "").strip(),
         }
         for b in bulletins
@@ -4543,8 +4563,6 @@ async def admin_informativo_page(
     rows = session.exec(
         select(models.InformativeBulletin).order_by(models.InformativeBulletin.sort_order, models.InformativeBulletin.id)
     ).all()
-    for row in rows:
-        row.image_url = _normalize_informativo_image_url(getattr(row, "image_url", None)) or None
     panel_sec = 8
     panel_audio_enabled = False
     panel_audio_url = ""
@@ -4773,7 +4791,6 @@ async def admin_informativo_edit_page(
     b = session.get(models.InformativeBulletin, bulletin_id)
     if not b:
         raise HTTPException(status_code=404, detail="Aviso não encontrado")
-    b.image_url = _normalize_informativo_image_url(getattr(b, "image_url", None)) or None
     return templates.TemplateResponse(
         "admin_informativo_edit.html",
         {"request": request, "bulletin": b, "user": user},
@@ -4786,30 +4803,39 @@ async def admin_informativo_update(
     bulletin_id: int,
     session: Session = Depends(get_session),
     user=Depends(require_leader),
-    title: str = Form(""),
-    body: str = Form(""),
-    image_url: str = Form(""),
-    bulletin_image: Optional[UploadFile] = File(None),
-    link_url: str = Form(""),
-    sort_order: int = Form(0),
 ):
+    form = await request.form()
     b = session.get(models.InformativeBulletin, bulletin_id)
     if not b:
         raise HTTPException(status_code=404, detail="Aviso não encontrado")
-    title = (title or "").strip()
+    title = str(form.get("title") or "").strip()
     if not title:
         return RedirectResponse(url=f"/admin/informativo/{bulletin_id}/edit?err=1", status_code=303)
-    next_image_url = (image_url or "").strip()[:500] or None
-    if bulletin_image and (bulletin_image.filename or "").strip():
+    bulletin_image = form.get("bulletin_image")
+    has_new_file = (
+        bulletin_image is not None
+        and getattr(bulletin_image, "filename", None)
+        and str(bulletin_image.filename).strip()
+    )
+    if has_new_file:
         try:
-            next_image_url = await _save_informativo_image(bulletin_image)
+            next_stored = await _save_informativo_image(bulletin_image)
         except ValueError:
             return RedirectResponse(url=f"/admin/informativo/{bulletin_id}/edit?err_image=1", status_code=303)
+    else:
+        img_field = form.get("image_url")
+        if img_field is not None:
+            form_image = str(img_field).strip()[:500]
+            next_stored = form_image if form_image else b.image_url
+        else:
+            next_stored = b.image_url
     b.title = title[:200]
-    b.body = (body or "").strip() or None
-    b.image_url = next_image_url
-    b.link_url = (link_url or "").strip()[:500] or None
-    b.sort_order = int(sort_order or 0)
+    b.body = str(form.get("body") or "").strip() or None
+    b.image_url = resolve_informativo_bulletin_image_url(next_stored)
+    link_field = form.get("link_url")
+    if link_field is not None:
+        b.link_url = str(link_field or "").strip()[:500] or None
+    b.sort_order = int(form.get("sort_order") or 0)
     b.updated_at = datetime.now()
     session.add(b)
     session.commit()
@@ -4831,16 +4857,20 @@ async def admin_informativo_create(
     title = (title or "").strip()
     if not title:
         return RedirectResponse(url="/admin/informativo?err=1", status_code=303)
-    next_image_url = (image_url or "").strip()[:500] or None
+    form_image = (image_url or "").strip()[:500]
     if bulletin_image and (bulletin_image.filename or "").strip():
         try:
-            next_image_url = await _save_informativo_image(bulletin_image)
+            next_stored = await _save_informativo_image(bulletin_image)
         except ValueError:
             return RedirectResponse(url="/admin/informativo?err_image=1", status_code=303)
+    elif form_image:
+        next_stored = form_image
+    else:
+        next_stored = None
     b = models.InformativeBulletin(
         title=title[:200],
         body=(body or "").strip() or None,
-        image_url=next_image_url,
+        image_url=resolve_informativo_bulletin_image_url(next_stored),
         link_url=(link_url or "").strip()[:500] or None,
         sort_order=int(sort_order or 0),
         is_active=True,

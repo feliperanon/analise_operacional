@@ -54,17 +54,9 @@
                         <textarea name="body" rows="4" class="sys-input" placeholder="Comunicado interno…">{{ bulletin.body or '' }}</textarea>
                     </div>
                     <div>
-                        <label class="sys-section__label sys-section__label--field">URL da imagem (opcional)</label>
-                        <input type="url" name="image_url" value="{{ bulletin.image_url or '' }}" class="sys-input" placeholder="https://exemplo.com/imagem.jpg">
-                    </div>
-                    <div>
                         <label class="sys-section__label sys-section__label--field">Importar imagem do computador (opcional)</label>
                         <input type="file" name="bulletin_image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sys-input">
-                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Se enviar arquivo, ele terá prioridade sobre a URL da imagem atual.</p>
-                    </div>
-                    <div>
-                        <label class="sys-section__label sys-section__label--field">URL da matéria / site (opcional)</label>
-                        <input type="url" name="link_url" value="{{ bulletin.link_url or '' }}" class="sys-input" placeholder="https://…">
+                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Envie apenas se quiser trocar a imagem. Se não enviar arquivo, a imagem já cadastrada é mantida.</p>
                     </div>
                     <div>
                         <label class="sys-section__label sys-section__label--field">Ordem</label>

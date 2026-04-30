@@ -940,7 +940,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
   max-height: 330px;
   height: 100%;
   align-self: center;
-  border-radius: 22px;
+  border-radius: 18px;
   overflow: hidden;
   background: #f8fafc;
 }
@@ -954,17 +954,19 @@ body.dashboard-app .sys-kpi-grid #info-date {
 }
 
 .gv-bulletin-media.gv-bulletin-media--missing {
-  display: grid;
-  place-items: center;
-  color: var(--sys-text-muted);
-  border: 1px dashed rgb(148 163 184 / 0.5);
+  background: #f1f5f9;
 }
 
-.gv-bulletin-media.gv-bulletin-media--missing::before {
-  content: "Imagem indisponivel";
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+.gv-bulletin-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .gv-bulletin-split--no-media {
@@ -975,7 +977,6 @@ body.dashboard-app .sys-kpi-grid #info-date {
   grid-template-columns: 1fr;
 }
 
-/* Padrão painel TV: arte/banner inteira (sem cover) */
 .gv-bulletin-image {
   display: block;
   width: 100%;
@@ -983,14 +984,16 @@ body.dashboard-app .sys-kpi-grid #info-date {
   max-width: 100%;
   max-height: 330px;
   min-height: 0;
-  object-fit: contain;
   object-position: center;
-  border-radius: 22px;
+  border-radius: 18px;
   background: transparent;
 }
 
-/* Opt-in futuro: foto comum (cadastro) — só aplicar quando houver classe no HTML */
-.gv-bulletin-media.gv-bulletin-media--cover .gv-bulletin-image {
+.gv-bulletin-media--contain .gv-bulletin-image {
+  object-fit: contain;
+}
+
+.gv-bulletin-media--cover .gv-bulletin-image {
   object-fit: cover;
 }
 
