@@ -277,15 +277,21 @@
                             <div class="gv-bulletin-pane" data-bulletin-pane{% if not loop.first %} hidden{% endif %}>
                                 <div class="gv-bulletin-split{% if not b.image_url %} gv-bulletin-split--no-media{% endif %}">
                                     <div class="gv-bulletin-copy">
-                                        <h4 class="font-semibold gv-aviso-heading mb-2">{{ b.title }}</h4>
-                                        {% if b.body %}<p class="whitespace-pre-wrap">{{ b.body }}</p>{% endif %}
-                                        {% if b.link_url %}
-                                        <p class="mt-2 mb-0"><a href="{{ b.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-700 font-medium underline-offset-2 hover:underline">Ver matéria</a></p>
+                                        <h4 class="font-semibold gv-aviso-heading gv-bulletin-copy-title mb-0">{{ b.title }}</h4>
+                                        {% if b.body or b.link_url %}
+                                        <div class="gv-bulletin-copy-scroll">
+                                            <div class="gv-bulletin-copy-scroll-inner">
+                                                {% if b.body %}<p class="whitespace-pre-wrap mb-0">{{ b.body }}</p>{% endif %}
+                                                {% if b.link_url %}
+                                                <p class="gv-bulletin-copy-link mt-2 mb-0"><a href="{{ b.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-700 font-medium underline-offset-2 hover:underline">Ver matéria</a></p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                         {% endif %}
                                     </div>
                                     <div class="gv-bulletin-media{% if not b.image_url %} hidden{% endif %}">
                                         {% if b.image_url %}
-                                        <img src="{{ b.image_url }}" alt="" class="gv-bulletin-image" loading="lazy" onerror="this.closest('.gv-bulletin-media').classList.add('hidden')">
+                                        <img src="{{ b.image_url }}" alt="" class="gv-bulletin-image" loading="lazy" onerror="this.onerror=null; this.style.display='none'; var media=this.closest('.gv-bulletin-media'); if(media){media.classList.add('gv-bulletin-media--missing');}">
                                         {% endif %}
                                     </div>
                                 </div>

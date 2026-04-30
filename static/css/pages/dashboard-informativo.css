@@ -383,6 +383,23 @@ body.dashboard-app .gv-body {
   flex-shrink: 0;
 }
 
+/* Comunicado em destaque: título e ícone na mesma linha visual (sem “flutuar”) */
+.gv-body .sys-card.sys-card--focus > .gv-card-head {
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.gv-body .sys-card.sys-card--focus > .gv-card-head .gv-card-icon--emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--sys-radius-md);
+  background: rgb(14 165 233 / 0.14);
+  line-height: 1;
+}
+
 .gv-body .gv-card-head .gv-card-title {
   margin-bottom: 0;
 }
@@ -833,7 +850,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
   display: grid;
   grid-template-columns: minmax(260px, 0.82fr) minmax(420px, 1.18fr);
   gap: 28px;
-  align-items: center;
+  align-items: stretch;
 }
 
 .gv-bulletin-copy {
@@ -841,8 +858,61 @@ body.dashboard-app .sys-kpi-grid #info-date {
   max-width: 460px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.38rem;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.gv-bulletin-copy-title {
+  flex-shrink: 0;
+}
+
+/* Texto longo: rolagem suave + fade no fim */
+.gv-bulletin-copy-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: clamp(9.5rem, 22vh, 17rem);
+  border-radius: var(--sys-radius-md);
+}
+
+.gv-bulletin-copy-scroll::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2rem;
+  pointer-events: none;
+  border-radius: 0 0 var(--sys-radius-md) var(--sys-radius-md);
+  background: linear-gradient(to bottom, transparent, var(--sys-surface));
+  z-index: 1;
+}
+
+.gv-bulletin-copy-scroll-inner {
+  position: relative;
+  z-index: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 0.2rem;
+  padding-bottom: 1.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184 / 0.55) transparent;
+}
+
+.gv-bulletin-copy-scroll-inner::-webkit-scrollbar {
+  width: 5px;
+}
+
+.gv-bulletin-copy-scroll-inner::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184 / 0.55);
+  border-radius: var(--sys-radius-full);
+}
+
+.gv-bulletin-copy-link {
+  flex-shrink: 0;
 }
 
 .gv-bulletin-copy .gv-aviso-heading,
@@ -862,13 +932,30 @@ body.dashboard-app .sys-kpi-grid #info-date {
   justify-content: center;
   min-width: 0;
   min-height: 0;
+  align-self: stretch;
+  aspect-ratio: 16 / 10;
+  max-height: clamp(200px, 32vh, 360px);
   border-radius: 18px;
-  overflow: visible;
-  background: transparent;
+  overflow: hidden;
+  background: var(--sys-neutral-bg);
 }
 
 .gv-bulletin-media.hidden {
   display: none;
+}
+
+.gv-bulletin-media.gv-bulletin-media--missing {
+  display: grid;
+  place-items: center;
+  color: var(--sys-text-muted);
+  border: 1px dashed rgb(148 163 184 / 0.5);
+}
+
+.gv-bulletin-media.gv-bulletin-media--missing::before {
+  content: "Imagem indisponivel";
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .gv-bulletin-split--no-media {
@@ -882,13 +969,12 @@ body.dashboard-app .sys-kpi-grid #info-date {
 .gv-bulletin-image {
   display: block;
   width: 100%;
+  height: 100%;
   max-width: 100%;
-  height: auto;
   min-height: 0;
-  max-height: none;
-  object-fit: initial;
-  object-position: initial;
-  border-radius: 18px;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 0;
   background: transparent;
 }
 
@@ -905,11 +991,16 @@ body.dashboard-app .sys-kpi-grid #info-date {
   .gv-bulletin-media {
     order: -1;
     min-height: 0;
+    max-height: min(40vh, 280px);
+    aspect-ratio: 16 / 10;
+  }
+
+  .gv-bulletin-copy-scroll {
+    max-height: clamp(8rem, 28vh, 14rem);
   }
 
   .gv-bulletin-image {
     min-height: 0;
-    max-height: none;
   }
 }
 
