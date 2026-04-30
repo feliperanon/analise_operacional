@@ -300,7 +300,8 @@
                                     {# Painel TV: arte/banner em contain; opt-in .gv-bulletin-media--cover para foto no cadastro futuro. #}
                                     {% if bulletin_image %}
                                     <div class="gv-bulletin-media gv-bulletin-media--contain">
-                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image"{% if loop.first %} loading="eager" fetchpriority="high" decoding="sync"{% else %} loading="lazy" decoding="async"{% endif %} onerror="this.onerror=null; var media=this.closest('.gv-bulletin-media'); var split=this.closest('.gv-bulletin-split'); if(split){ split.classList.add('gv-bulletin-split--no-media'); } if(media){ media.remove(); }">
+                                        {# eager em todos os slides: evita aviso do Edge sobre lazy+placeholder e garante carrossel estável em TV #}
+                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image" loading="eager" decoding="async"{% if loop.first %} fetchpriority="high"{% endif %} onerror="this.onerror=null; var media=this.closest('.gv-bulletin-media'); var split=this.closest('.gv-bulletin-split'); if(split){ split.classList.add('gv-bulletin-split--no-media'); } if(media){ media.remove(); }">
                                     </div>
                                     {% endif %}
                                 </div>

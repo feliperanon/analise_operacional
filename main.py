@@ -1220,14 +1220,41 @@ except OSError:
 _DEFAULT_INFORMATIVO_STATIC = os.path.normpath(
     os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
 )
-if os.path.normpath(INFORMATIVO_IMAGE_DIR) != _DEFAULT_INFORMATIVO_STATIC:
-    app.mount(
-        "/static/uploads/informativo",
-        StaticFiles(directory=INFORMATIVO_IMAGE_DIR),
-        name="informativo_uploads",
-    )
 
-# Mount static files (geral; depois do mount específico do informativo quando há disco externo)
+# PNG 1×1 transparente: quando o ficheiro não existe (ex.: Render sem disco persistente), evita 404 no browser e avisos no console.
+_INFORMATIVO_MISSING_PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+    "0000000a49444154789c63000100000500001d0d210000000049454e44ae426082"
+)
+
+
+def _safe_informativo_upload_filename(name: str) -> bool:
+    if not name or len(name) > 220:
+        return False
+    if "/" in name or "\\" in name or ".." in name:
+        return False
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+    if not all(c in allowed for c in name):
+        return False
+    low = name.lower()
+    return low.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))
+
+
+@app.get("/static/uploads/informativo/{filename}", include_in_schema=False)
+async def serve_informativo_upload_image(filename: str):
+    """Serve imagens de comunicados a partir de INFORMATIVO_IMAGE_DIR (incl. disco persistente via env)."""
+    import mimetypes
+
+    name = (filename or "").strip()
+    if not _safe_informativo_upload_filename(name):
+        return Response(content=_INFORMATIVO_MISSING_PNG, media_type="image/png")
+    path = os.path.join(INFORMATIVO_IMAGE_DIR, name)
+    if os.path.isfile(path):
+        mt = mimetypes.guess_type(path)[0] or "application/octet-stream"
+        return FileResponse(path, media_type=mt)
+    return Response(content=_INFORMATIVO_MISSING_PNG, media_type="image/png")
+
+# Mount static files (uploads informativo são servidos pela rota acima — mesmo URL, sem 404 quando o ficheiro sumiu)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
