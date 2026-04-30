@@ -4633,6 +4633,26 @@ async def admin_informativo_audio_config(
             except (TypeError, ValueError):
                 return fallback
 
+        def _normalize_playlist(raw: str, max_total: int = 4000) -> Optional[str]:
+            if not raw:
+                return None
+            unique_items: List[str] = []
+            for line in raw.splitlines():
+                item = (line or "").strip()
+                if item and item not in unique_items:
+                    unique_items.append(item[:500])
+            if not unique_items:
+                return None
+            out: List[str] = []
+            size = 0
+            for item in unique_items:
+                extra = len(item) + (1 if out else 0)
+                if size + extra > max_total:
+                    break
+                out.append(item)
+                size += extra
+            return "\n".join(out) if out else None
+
         cfg = session.get(models.InformativePanelConfig, 1)
         if cfg is None:
             cfg = models.InformativePanelConfig(id=1, carousel_interval_seconds=8)
@@ -4647,21 +4667,17 @@ async def admin_informativo_audio_config(
             next_youtube_url = next_audio_url
             next_audio_url = None
         raw_list = (audio_playlist or "").strip()
-        parsed_urls: List[str] = []
-        if raw_list:
-            for line in raw_list.splitlines():
-                item = (line or "").strip()
-                if item and item not in parsed_urls:
-                    parsed_urls.append(item[:500])
+        normalized_playlist = _normalize_playlist(raw_list, max_total=4000)
         if audio_file and (audio_file.filename or "").strip():
             try:
                 next_audio_url = await _save_informativo_audio(audio_file)
             except ValueError:
                 return RedirectResponse(url="/admin/informativo?err_audio=1", status_code=303)
-        if next_audio_url and next_audio_url in parsed_urls:
-            parsed_urls = [u for u in parsed_urls if u != next_audio_url]
+        if next_audio_url and normalized_playlist:
+            filtered = [u for u in normalized_playlist.splitlines() if u != next_audio_url]
+            normalized_playlist = "\n".join(filtered) if filtered else None
         cfg.audio_url = next_audio_url
-        cfg.audio_playlist = "\n".join(parsed_urls) if parsed_urls else None
+        cfg.audio_playlist = normalized_playlist
         cfg.audio_youtube_url = next_youtube_url
         session.add(cfg)
         session.commit()

@@ -398,3 +398,118 @@ body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel
     box-shadow: none;
   }
 }
+
+/* RH card em padrão de tabela compacta (alinhado aos rankings) */
+.dashboard-informativo-ga .gv-rh-sidecard {
+  padding: 0.8rem 0.85rem;
+  border-radius: var(--sys-radius-xl);
+}
+
+.dashboard-informativo-ga .gv-rh-sidecard .gv-card-head {
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-informativo-ga .gv-rh-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.dashboard-informativo-ga .gv-rh-block-kicker,
+.dashboard-informativo-ga .gv-rh-block-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted, #64748b);
+}
+
+.dashboard-informativo-ga .gv-rh-table-wrap {
+  overflow: hidden;
+  border-radius: 0.8rem;
+}
+
+.dashboard-informativo-ga .gv-rh-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.72rem;
+}
+
+.dashboard-informativo-ga .gv-rh-table thead th {
+  padding: 0.35rem 0.45rem;
+  font-size: 0.6rem;
+  line-height: 1.1;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sys-text-muted, #64748b);
+  border-bottom: 1px solid rgb(148 163 184 / 0.22);
+}
+
+.dashboard-informativo-ga .gv-rh-table thead th.text-right {
+  text-align: right;
+}
+
+.dashboard-informativo-ga .gv-rh-table tbody td {
+  padding: 0.42rem 0.45rem;
+  line-height: 1.15;
+  border-bottom: 1px solid rgb(148 163 184 / 0.14);
+  vertical-align: middle;
+}
+
+.dashboard-informativo-ga .gv-rh-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.dashboard-informativo-ga .gv-rh-name {
+  min-width: 0;
+  max-width: 100%;
+  font-weight: 800;
+  color: var(--sys-text-primary, #0f172a);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-informativo-ga .gv-rh-date,
+.dashboard-informativo-ga .gv-rh-status {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 800;
+  color: var(--sys-text-muted, #64748b);
+  font-variant-numeric: tabular-nums;
+  text-transform: uppercase;
+}
+
+.dashboard-informativo-ga .gv-rh-table--vacation {
+  font-size: 0.68rem;
+}
+
+.dashboard-informativo-ga .gv-rh-table--vacation th:nth-child(1),
+.dashboard-informativo-ga .gv-rh-table--vacation td:nth-child(1) {
+  width: 42%;
+}
+
+.dashboard-informativo-ga .gv-rh-table--vacation th:nth-child(2),
+.dashboard-informativo-ga .gv-rh-table--vacation td:nth-child(2) {
+  width: 36%;
+}
+
+.dashboard-informativo-ga .gv-rh-table--vacation th:nth-child(3),
+.dashboard-informativo-ga .gv-rh-table--vacation td:nth-child(3) {
+  width: 22%;
+}
+
+.dashboard-informativo-ga .gv-rh-empty {
+  padding: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--sys-text-faint, #94a3b8);
+  text-transform: uppercase;
+  text-align: left;
+}

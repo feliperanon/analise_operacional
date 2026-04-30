@@ -69,23 +69,28 @@
 {%- endmacro %}
 
 {% macro gv_birthday_rows(items, list_id) -%}
-<ul id="{{ list_id }}" class="gv-bday-list gv-bday-list--rh">
-    {%- for b in (items or []) -%}
-    <li class="gv-bday-row{% if b.is_today %} gv-bday-today{% endif %}">
-        {%- if b.is_today -%}
-        <span class="gv-bday-balloons" aria-hidden="true">
-            <span class="gv-bday-balloon gv-bday-balloon--a"></span>
-            <span class="gv-bday-balloon gv-bday-balloon--b"></span>
-        </span>
-        {%- endif -%}
-        <span class="gv-bday-name gv-fit-oneline">{{ gv_nome_primeiro_e_inicial(b.name) }}</span>
-        {%- if b.is_today %}<span class="gv-bday-badge-inline">Hoje</span>{% endif -%}
-        <span class="gv-bday-date">{{ b.day }}/{{ current_date[5:7] if current_date else '' }}</span>
-    </li>
-    {%- else -%}
-    <li class="gv-bday-empty">Nenhum neste mês.</li>
-    {%- endfor -%}
-</ul>
+<div class="gv-table-wrap gv-rh-table-wrap">
+    <table class="gv-rh-table gv-rh-table--birthday">
+        <thead>
+            <tr>
+                <th>Colaborador</th>
+                <th class="text-right">Data</th>
+            </tr>
+        </thead>
+        <tbody id="{{ list_id }}">
+            {%- for b in (items or []) -%}
+            <tr class="gv-rh-row{% if b.is_today %} gv-rh-row--today{% endif %}">
+                <td class="gv-rh-name">{{ gv_nome_primeiro_e_inicial(b.name) }}</td>
+                <td class="gv-rh-date">{{ b.day }}/{{ current_date[5:7] if current_date else '' }}</td>
+            </tr>
+            {%- else -%}
+            <tr>
+                <td colspan="2" class="gv-rh-empty">Nenhum neste mês.</td>
+            </tr>
+            {%- endfor -%}
+        </tbody>
+    </table>
+</div>
 {%- endmacro %}
 
 <div
@@ -601,22 +606,41 @@
                         <div class="gv-rh-divider" role="presentation"></div>
                         <section class="gv-rh-block gv-rh-block--ferias shrink-0">
                             <h3 class="gv-rh-block-title">Férias</h3>
-                            <p class="gv-rh-sublabel">Em gozo</p>
-                            <ul id="card-vac-active" class="gv-rh-list space-y-0 text-slate-600 m-0 p-0 list-none">
-                                {% for v in (inf.get('vacation_active') or []) %}
-                                <li class="gv-ferias-li py-2 border-b border-slate-100 dark:border-slate-700/80">{{ gv_nome_primeiro_e_inicial(v.name) }} <span class="gv-rh-li-meta">até {{ v.until }} ({{ v.days_left }})</span></li>
-                                {% else %}
-                                <li class="text-slate-400 gv-ferias-li py-2">Ninguém em férias no período.</li>
-                                {% endfor %}
-                            </ul>
-                            <p class="gv-rh-sublabel gv-rh-sublabel--spaced">Programadas</p>
-                            <ul id="card-vac-up" class="gv-rh-list space-y-0 text-slate-600 m-0 p-0 list-none">
-                                {% for v in (inf.get('vacation_upcoming') or []) %}
-                                <li class="gv-ferias-li py-2 border-b border-slate-100 dark:border-slate-700/80">{{ gv_nome_primeiro_e_inicial(v.name) }} <span class="gv-rh-li-meta">início {{ v.start }}</span></li>
-                                {% else %}
-                                <li class="text-slate-400 gv-ferias-li py-2">Nenhuma programada.</li>
-                                {% endfor %}
-                            </ul>
+                            <div class="gv-table-wrap gv-rh-table-wrap">
+                                <table class="gv-rh-table gv-rh-table--vacation">
+                                    <thead>
+                                        <tr>
+                                            <th>Colaborador</th>
+                                            <th class="text-right">Período</th>
+                                            <th class="text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="card-vac-active">
+                                        {% for v in (inf.get('vacation_active') or []) %}
+                                        <tr class="gv-rh-row gv-rh-row--vacation">
+                                            <td class="gv-rh-name">{{ gv_nome_primeiro_e_inicial(v.name) }}</td>
+                                            <td class="gv-rh-date">Até {{ v.until }}</td>
+                                            <td class="gv-rh-status">Em gozo</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tbody id="card-vac-up">
+                                        {% for v in (inf.get('vacation_upcoming') or []) %}
+                                        <tr class="gv-rh-row gv-rh-row--vacation">
+                                            <td class="gv-rh-name">{{ gv_nome_primeiro_e_inicial(v.name) }}</td>
+                                            <td class="gv-rh-date">Início {{ v.start }}</td>
+                                            <td class="gv-rh-status">Programada</td>
+                                        </tr>
+                                        {% else %}
+                                        {% if not (inf.get('vacation_active') or []) %}
+                                        <tr>
+                                            <td colspan="3" class="gv-rh-empty">Nenhuma programada</td>
+                                        </tr>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </section>
                     </div>
                 </article>
@@ -705,26 +729,6 @@
         var _ro = new ResizeObserver(function() { gvScheduleFit(); });
         _ro.observe(gvBodyEl);
     }
-
-    (function initBirthdayCelebration() {
-        var row = document.querySelector('.gv-bday-row.gv-bday-today');
-        if (!row) return;
-        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        var colors = ['#f472b6', '#34d399', '#60a5fa', '#fbbf24', '#a78bfa', '#fb7185'];
-        var n = 12;
-        var i;
-        var first = row.firstChild;
-        for (i = 0; i < n; i++) {
-            var pc = document.createElement('span');
-            pc.className = 'gv-bday-confetti';
-            pc.setAttribute('aria-hidden', 'true');
-            pc.style.background = colors[i % colors.length];
-            pc.style.left = (6 + Math.random() * 88) + '%';
-            pc.style.animationDelay = (Math.random() * 2.6) + 's';
-            pc.style.animationDuration = (2.2 + Math.random() * 1.4) + 's';
-            row.insertBefore(pc, first);
-        }
-    })();
 
     function devolucaoPctLineClass(v) {
         v = Number(v) || 0;
