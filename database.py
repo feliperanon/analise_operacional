@@ -3,6 +3,7 @@ from sqlalchemy import text
 
 import os
 import time
+import logging
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv, dotenv_values
@@ -352,8 +353,9 @@ def _migrate_informative_panel_config():
 def _migrate_informative_panel_config_audio():
     """Adiciona colunas de áudio na tabela informative_panel_config."""
     table = "informative_panel_config"
+    logger = logging.getLogger(__name__)
     cols = [
-        ("audio_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("audio_enabled", "BOOLEAN NOT NULL DEFAULT FALSE"),
         ("audio_url", "TEXT"),
         ("audio_playlist", "TEXT"),
         ("audio_youtube_url", "TEXT"),
@@ -369,10 +371,18 @@ def _migrate_informative_panel_config_audio():
                         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"))
             else:
                 for col_name, col_type in cols:
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+                    try:
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+                    except Exception as col_exc:
+                        logger.warning(
+                            "Falha ao migrar coluna %s.%s: %s",
+                            table,
+                            col_name,
+                            str(col_exc),
+                        )
             conn.commit()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Falha na migração de áudio do painel informativo: %s", str(exc))
 
 
 def _migrate_client_vendedor_id():
