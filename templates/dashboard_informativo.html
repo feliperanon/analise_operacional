@@ -274,6 +274,8 @@
                     <div class="gv-aviso-body gv-bulletin-carousel-wrap" id="bulletin-carousel-root" data-interval-ms="{{ inf.get('carousel_interval_ms', 8000) }}">
                         {% if featured_bulletins|length > 0 %}
                             {% for b in featured_bulletins %}
+                            {% set _img = (b.image_url or '')|trim %}
+                            {% set _is_upload = _img and ('static/uploads/informativo' in _img) %}
                             <div class="gv-bulletin-pane" data-bulletin-pane{% if not loop.first %} hidden{% endif %}>
                                 <div class="gv-bulletin-split{% if not b.image_url %} gv-bulletin-split--no-media{% endif %}">
                                     <div class="gv-bulletin-copy">
@@ -281,7 +283,7 @@
                                         {% if b.body or b.link_url %}
                                         <div class="gv-bulletin-copy-scroll">
                                             <div class="gv-bulletin-copy-scroll-inner">
-                                                {% if b.body %}<p class="whitespace-pre-wrap mb-0">{{ b.body }}</p>{% endif %}
+                                                {% if b.body %}<p class="mb-0">{{ b.body }}</p>{% endif %}
                                                 {% if b.link_url %}
                                                 <p class="gv-bulletin-copy-link mt-2 mb-0"><a href="{{ b.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-700 font-medium underline-offset-2 hover:underline">Ver matéria</a></p>
                                                 {% endif %}
@@ -289,7 +291,7 @@
                                         </div>
                                         {% endif %}
                                     </div>
-                                    <div class="gv-bulletin-media{% if not b.image_url %} hidden{% endif %}">
+                                    <div class="gv-bulletin-media{% if _is_upload %} gv-bulletin-media--contain{% else %} gv-bulletin-media--cover{% endif %}{% if not b.image_url %} hidden{% endif %}">
                                         {% if b.image_url %}
                                         <img src="{{ b.image_url }}" alt="" class="gv-bulletin-image" loading="lazy" onerror="this.onerror=null; this.style.display='none'; var media=this.closest('.gv-bulletin-media'); if(media){media.classList.add('gv-bulletin-media--missing');}">
                                         {% endif %}

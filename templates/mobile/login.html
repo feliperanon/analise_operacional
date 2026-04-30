@@ -87,6 +87,17 @@
         color: var(--color-text-muted);
         line-height: 1.5;
     }
+    .mobile-login-clean__logo {
+        width: 100%;
+        max-width: 290px;
+        height: auto;
+        object-fit: contain;
+    }
+    @media (max-width: 420px) {
+        .mobile-login-clean__logo {
+            max-width: 250px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -95,7 +106,7 @@
     <div class="mobile-login-clean__inner flex flex-col justify-center" style="min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));">
         <p class="m-0 text-center text-[11px] font-semibold uppercase tracking-[0.14em]" style="color: var(--color-text-muted);">Portal operacional</p>
 
-        <img src="{{ static_path('logo-souza-pinto-login-v2.png') }}?v=20260310" alt="Souza Pinto" class="mx-auto mt-6 block w-full max-w-[220px] object-contain">
+        <img src="{{ static_path('logo-souza-pinto-login-v2.png') }}?v=20260310" alt="Souza Pinto" class="mobile-login-clean__logo mx-auto mt-6 block">
 
         <h1 class="m-0 mt-8 text-center text-xl font-semibold tracking-tight" style="color: var(--color-text);">Entrar</h1>
         <p class="m-0 mt-2 text-center text-sm leading-relaxed" style="color: var(--color-text-muted);">Use sua matrícula para acessar o app.</p>
