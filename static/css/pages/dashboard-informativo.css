@@ -854,7 +854,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) 18px;
   overflow: hidden;
 }
 
@@ -866,8 +866,8 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-bulletin-split {
   display: grid;
-  grid-template-columns: minmax(260px, 0.72fr) minmax(480px, 1.28fr);
-  gap: 24px;
+  grid-template-columns: minmax(280px, 0.78fr) minmax(420px, 1.22fr);
+  gap: 22px;
   align-items: center;
   height: 100%;
   min-height: 0;
@@ -876,24 +876,23 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-bulletin-copy {
   min-width: 0;
+  min-height: 0;
   max-width: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.5rem;
-  min-height: 0;
+  gap: 0.35rem;
   overflow: hidden;
 }
 
 .gv-bulletin-copy-title {
   flex-shrink: 0;
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   font-weight: 800;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.25;
+  font-size: clamp(14px, 0.9vw, 17px);
+  line-height: 1.22;
+  overflow: visible;
 }
 
 .gv-bulletin-copy-scroll {
@@ -903,33 +902,32 @@ body.dashboard-app .sys-kpi-grid #info-date {
 }
 
 .gv-bulletin-copy-scroll-inner {
-  max-height: 100%;
-  overflow: hidden;
+  overflow: visible;
+  max-height: none;
 }
 
 .gv-bulletin-copy-link {
   flex-shrink: 0;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-top: 0.35rem;
+  overflow-wrap: anywhere;
 }
 
 .gv-bulletin-copy .gv-aviso-heading,
 .gv-bulletin-copy h4 {
-  font-size: clamp(15px, 1vw, 18px);
-  line-height: 1.25;
+  font-size: clamp(14px, 0.9vw, 17px);
+  line-height: 1.22;
 }
 
+/* Texto completo: sem line-clamp; quebras do cadastro preservadas; excedente só limitado pelo card (overflow do pai) */
 .gv-bulletin-copy p {
   margin: 0;
-  font-size: clamp(15px, 1.05vw, 19px);
-  line-height: 1.42;
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: clamp(13px, 0.9vw, 16px);
+  line-height: 1.34;
+  display: block;
+  overflow: visible;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .gv-bulletin-media {
@@ -938,7 +936,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
   justify-content: center;
   width: 100%;
   min-width: 0;
-  min-height: 240px;
+  min-height: 220px;
   max-height: 330px;
   height: 100%;
   align-self: center;
@@ -947,18 +945,8 @@ body.dashboard-app .sys-kpi-grid #info-date {
   background: #f8fafc;
 }
 
-/* Arte/upload: mostrar imagem inteira sem “puxar” o img para 100% (evita recorte visual) */
 .gv-bulletin-media.gv-bulletin-media--contain {
   overflow: hidden;
-}
-
-.gv-bulletin-media.gv-bulletin-media--contain .gv-bulletin-image {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: min(330px, 100%);
-  object-fit: contain;
-  object-position: center;
 }
 
 .gv-bulletin-media.hidden {
@@ -987,18 +975,21 @@ body.dashboard-app .sys-kpi-grid #info-date {
   grid-template-columns: 1fr;
 }
 
+/* Padrão painel TV: arte/banner inteira (sem cover) */
 .gv-bulletin-image {
   display: block;
   width: 100%;
   height: 100%;
   max-width: 100%;
+  max-height: 330px;
   min-height: 0;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   border-radius: 22px;
   background: transparent;
 }
 
+/* Opt-in futuro: foto comum (cadastro) — só aplicar quando houver classe no HTML */
 .gv-bulletin-media.gv-bulletin-media--cover .gv-bulletin-image {
   object-fit: cover;
 }
@@ -1020,10 +1011,6 @@ body.dashboard-app .sys-kpi-grid #info-date {
     max-height: min(40vh, 280px);
     aspect-ratio: 16 / 10;
     height: auto;
-  }
-
-  .gv-bulletin-copy-scroll {
-    max-height: clamp(8rem, 28vh, 14rem);
   }
 
   .gv-bulletin-image {
@@ -1048,9 +1035,18 @@ body.dashboard-app .sys-kpi-grid #info-date {
 }
 
 [role="tablist"][aria-label="Navegar avisos"] {
-  margin-top: 8px !important;
-  padding-top: 6px !important;
+  height: 18px;
+  min-height: 18px;
+  max-height: 18px;
+  margin-top: 6px !important;
+  margin-bottom: 0 !important;
+  padding-top: 4px !important;
+  padding-bottom: 0 !important;
   flex-shrink: 0;
+  align-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  line-height: 1;
 }
 
 .gv-bday-list {

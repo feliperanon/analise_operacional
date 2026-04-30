@@ -2288,12 +2288,11 @@ def _normalize_informativo_image_url(raw_url: Optional[str]) -> str:
 
     check_path = path or value
     if check_path.startswith("/static/uploads/informativo/"):
-        filename = os.path.basename(check_path)
+        filename = os.path.basename(check_path.split("?", 1)[0])
         if not filename:
             return ""
-        abs_path = os.path.join(INFORMATIVO_IMAGE_DIR, filename)
-        if not os.path.isfile(abs_path):
-            return ""
+        # Não validar existência em disco: em deploy (ex.: Render) o filesystem pode ser
+        # efémero — apagar a URL escondia imagem no admin/TV mesmo com registro correto.
         return f"/static/uploads/informativo/{filename}"
 
     return value
