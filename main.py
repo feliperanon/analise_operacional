@@ -4526,6 +4526,8 @@ async def admin_informativo_page(
     rows = session.exec(
         select(models.InformativeBulletin).order_by(models.InformativeBulletin.sort_order, models.InformativeBulletin.id)
     ).all()
+    for row in rows:
+        row.image_url = _normalize_informativo_image_url(getattr(row, "image_url", None)) or None
     panel_sec = 8
     panel_audio_enabled = False
     panel_audio_url = ""
@@ -4735,6 +4737,7 @@ async def admin_informativo_edit_page(
     b = session.get(models.InformativeBulletin, bulletin_id)
     if not b:
         raise HTTPException(status_code=404, detail="Aviso não encontrado")
+    b.image_url = _normalize_informativo_image_url(getattr(b, "image_url", None)) or None
     return templates.TemplateResponse(
         "admin_informativo_edit.html",
         {"request": request, "bulletin": b, "user": user},
