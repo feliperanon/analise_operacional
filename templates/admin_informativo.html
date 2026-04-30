@@ -33,8 +33,8 @@
             </div>
         </header>
 
-        <main class="admin-informativo-main px-4 py-5 sm:px-6">
-            <div class="admin-informativo-inner sys-main-inner mx-auto w-full space-y-6 pb-10">
+        <main class="admin-informativo-main px-4 py-4 sm:px-6">
+            <div class="admin-informativo-inner sys-main-inner mx-auto w-full pb-8">
 
                 {% if request.query_params.get('saved_devolucao') == '1' %}
                 <p class="sys-alert sys-alert--success">Dados de devolução mensal (índice) salvos.</p>
@@ -57,66 +57,152 @@
                 {% if request.query_params.get('err_audio') %}
                 <p class="sys-alert sys-alert--warn">Áudio inválido. Use MP3, OGG, WAV ou M4A com até 20MB. Para vídeo do YouTube, use o campo "URL do YouTube".</p>
                 {% endif %}
+                {% if request.query_params.get('err_audio_cfg') %}
+                <p class="sys-alert sys-alert--warn">Não foi possível salvar a configuração de áudio. Revise os campos e tente novamente.</p>
+                {% endif %}
 
-                <section class="sys-card sys-card--surface sys-card--comfort">
-                    <h2 class="sys-section-heading">Carrossel no painel</h2>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Intervalo entre um aviso e o próximo no card <span class="font-medium text-gray-700 dark:text-gray-300">Comunicado em destaque</span> (de 4 a 120 segundos).</p>
-                    <form method="post" action="/admin/informativo/panel-config" class="sys-filter-bar sys-filter-bar--end mt-4">
-                        <div class="min-w-0">
-                            <label class="sys-section__label sys-section__label--field">Segundos</label>
-                            <input type="number" name="carousel_interval_seconds" min="4" max="120" value="{{ panel_carousel_seconds }}"
-                                   class="sys-input w-32 max-w-full tabular-nums" inputmode="numeric">
-                        </div>
-                        <button type="submit" class="sys-btn sys-btn--primary shrink-0">Salvar tempo</button>
-                    </form>
+                <section class="admin-inf-page-header">
+                    <div>
+                        <h2 class="sys-section-heading">Painel informativo</h2>
+                        <p class="admin-inf-subtitle">Gerencie comunicados, mídia, áudio e indicadores exibidos no dashboard.</p>
+                    </div>
                 </section>
 
-                <section class="sys-card sys-card--surface sys-card--comfort">
-                    <h2 class="sys-section-heading">Som de fundo no dashboard</h2>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use URL (rádio/stream) ou envie arquivo local. Em Smart TV, o navegador pode exigir clique para ativar o áudio.</p>
-                    <form method="post" action="/admin/informativo/audio-config" enctype="multipart/form-data" class="mt-4 space-y-4">
-                        <div class="flex items-center gap-2">
-                            <input id="audio_enabled" type="checkbox" name="audio_enabled" value="1" {% if panel_audio_enabled %}checked{% endif %}>
-                            <label for="audio_enabled" class="sys-section__label sys-section__label--field mb-0">Ativar som no dashboard</label>
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">URL do áudio (opcional)</label>
-                            <input type="url" name="audio_url" value="{{ panel_audio_url or '' }}" class="sys-input" placeholder="https://.../radio.mp3">
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">URL do YouTube (opcional)</label>
-                            <input type="url" name="audio_youtube_url" value="{{ panel_audio_youtube_url or '' }}" class="sys-input" placeholder="https://www.youtube.com/watch?v=...">
-                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Se preencher, o dashboard prioriza reprodução pelo player oficial do YouTube.</p>
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">Playlist (uma URL por linha, ordem de reprodução)</label>
-                            <textarea name="audio_playlist" rows="5" class="sys-input" placeholder="https://site/faixa-01.mp3&#10;https://site/faixa-02.mp3">{{ panel_audio_playlist or '' }}</textarea>
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">Importar áudio (opcional)</label>
-                            <input type="file" name="audio_file" accept=".mp3,.ogg,.wav,.m4a,audio/mpeg,audio/ogg,audio/wav,audio/mp4" class="sys-input">
-                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Se enviar arquivo, ele vira a primeira faixa da playlist.</p>
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">Volume inicial (0 a 100)</label>
-                            <input type="number" name="audio_volume" min="0" max="100" value="{{ panel_audio_volume }}" class="sys-input w-36 tabular-nums" inputmode="numeric">
-                        </div>
-                        <button type="submit" class="sys-btn sys-btn--primary">Salvar áudio</button>
-                    </form>
+                <section class="sys-card sys-card--surface admin-inf-compact-card">
+                    <div class="admin-inf-quick-header">
+                        <h3 class="sys-section-heading">Configurações rápidas</h3>
+                        <p class="admin-inf-subtext">Ajustes operacionais do painel em um bloco compacto.</p>
+                    </div>
+
+                    <div class="admin-inf-quick-settings">
+                        <article class="admin-inf-compact-item">
+                            <h4 class="admin-inf-compact-title">Tempo do carrossel</h4>
+                            <p class="admin-inf-compact-help">Tempo entre avisos no painel.</p>
+                            <form method="post" action="/admin/informativo/panel-config" class="admin-inf-compact-form">
+                                <div class="min-w-0">
+                                    <label class="sys-section__label sys-section__label--field">Tempo do carrossel</label>
+                                    <input type="number" name="carousel_interval_seconds" min="4" max="120" value="{{ panel_carousel_seconds }}"
+                                           class="sys-input w-32 max-w-full tabular-nums" inputmode="numeric">
+                                    <p class="admin-inf-field-help">4 a 120 segundos</p>
+                                </div>
+                                <button type="submit" class="sys-btn sys-btn--primary shrink-0">Salvar</button>
+                            </form>
+                        </article>
+
+                        <article class="admin-inf-compact-item admin-inf-compact-item--span2">
+                            <h4 class="admin-inf-compact-title">Som de fundo</h4>
+                            <p class="admin-inf-compact-help">Ative áudio, ajuste volume e fontes de mídia.</p>
+                            <form method="post" action="/admin/informativo/audio-config" enctype="multipart/form-data" class="admin-inf-audio-grid">
+                                <div class="admin-inf-audio-toggle">
+                                    <input id="audio_enabled" type="checkbox" name="audio_enabled" value="1" {% if panel_audio_enabled %}checked{% endif %}>
+                                    <label for="audio_enabled" class="sys-section__label sys-section__label--field mb-0">Ativar áudio</label>
+                                </div>
+                                <div>
+                                    <label class="sys-section__label sys-section__label--field">Volume inicial</label>
+                                    <input type="number" name="audio_volume" min="0" max="100" value="{{ panel_audio_volume }}" class="sys-input w-36 max-w-full tabular-nums" inputmode="numeric">
+                                </div>
+                                <div>
+                                    <label class="sys-section__label sys-section__label--field">URL do áudio</label>
+                                    <input type="url" name="audio_url" value="{{ panel_audio_url or '' }}" class="sys-input" placeholder="https://.../radio.mp3">
+                                </div>
+                                <div>
+                                    <label class="sys-section__label sys-section__label--field">URL do YouTube</label>
+                                    <input type="url" name="audio_youtube_url" value="{{ panel_audio_youtube_url or '' }}" class="sys-input" placeholder="https://www.youtube.com/watch?v=...">
+                                </div>
+                                <div class="admin-inf-audio-full">
+                                    <label class="sys-section__label sys-section__label--field">Playlist (uma URL por linha)</label>
+                                    <textarea name="audio_playlist" rows="4" class="sys-input" placeholder="https://site/faixa-01.mp3&#10;https://site/faixa-02.mp3">{{ panel_audio_playlist or '' }}</textarea>
+                                </div>
+                                <div class="admin-inf-audio-full">
+                                    <label class="sys-section__label sys-section__label--field">Importar áudio (opcional)</label>
+                                    <input type="file" name="audio_file" accept=".mp3,.ogg,.wav,.m4a,audio/mpeg,audio/ogg,audio/wav,audio/mp4" class="sys-input">
+                                </div>
+                                <div class="admin-inf-audio-actions">
+                                    <button type="submit" class="sys-btn sys-btn--primary">Salvar áudio</button>
+                                </div>
+                            </form>
+                        </article>
+                    </div>
                 </section>
 
-                <section class="sys-card sys-card--surface sys-card--comfort">
+                <section class="admin-inf-main-grid">
+                    <article class="sys-card sys-card--focus admin-inf-main-card">
+                        <h2 class="sys-section-heading">Novo aviso</h2>
+                        <p class="admin-inf-subtext">Até cinco avisos ativos; menor ordem aparece primeiro.</p>
+                        <form method="post" action="/admin/informativo" enctype="multipart/form-data" class="admin-inf-new-form">
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Título <span class="text-rose-600">*</span></label>
+                                <input type="text" name="title" required maxlength="200" class="sys-input">
+                            </div>
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Texto</label>
+                                <textarea name="body" rows="4" class="sys-input" placeholder="Comunicado interno…"></textarea>
+                            </div>
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Imagem: URL (opcional)</label>
+                                <input type="url" name="image_url" class="sys-input" placeholder="https://exemplo.com/imagem.jpg">
+                            </div>
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Imagem: upload (opcional)</label>
+                                <input type="file" name="bulletin_image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sys-input">
+                            </div>
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Link opcional</label>
+                                <input type="url" name="link_url" class="sys-input" placeholder="https://…">
+                            </div>
+                            <div>
+                                <label class="sys-section__label sys-section__label--field">Ordem</label>
+                                <input type="number" name="sort_order" value="0" class="sys-input w-36 tabular-nums" inputmode="numeric">
+                            </div>
+                            <button type="submit" class="sys-btn sys-btn--sky">Publicar</button>
+                        </form>
+                    </article>
+
+                    <article class="sys-card sys-card--surface admin-inf-main-card">
+                        <h2 class="sys-section-heading">Avisos publicados</h2>
+                        <ul class="admin-inf-published-list">
+                            {% for b in bulletins or [] %}
+                            <li class="sys-card sys-card--surface admin-inf-bulletin-row">
+                                {% if b.image_url %}
+                                <img src="{{ b.image_url }}" alt="" class="admin-inf-bulletin-thumb" loading="lazy" onerror="this.style.display='none'">
+                                {% else %}
+                                <div class="admin-inf-bulletin-thumb" aria-hidden="true"></div>
+                                {% endif %}
+                                <div class="min-w-0">
+                                    <div class="admin-inf-bulletin-head">
+                                        <span class="sys-badge sys-badge--neutral font-mono text-[10px]">Ordem {{ b.sort_order }}</span>
+                                        <span class="sys-badge {% if b.is_active %}sys-badge--success{% else %}sys-badge--neutral{% endif %} text-[10px]">{% if b.is_active %}Ativo{% else %}Inativo{% endif %}</span>
+                                    </div>
+                                    <p class="admin-inf-bulletin-title" title="{{ b.title }}">{{ b.title }}</p>
+                                    {% if b.image_url %}<p class="admin-inf-bulletin-meta" title="{{ b.image_url }}">Imagem: {{ b.image_url }}</p>{% endif %}
+                                    {% if b.link_url %}<p class="admin-inf-bulletin-meta" title="{{ b.link_url }}">Link: {{ b.link_url }}</p>{% endif %}
+                                    {% if b.body %}<p class="admin-inf-bulletin-body">{{ b.body }}</p>{% endif %}
+                                </div>
+                                <div class="admin-inf-actions">
+                                    <a href="/admin/informativo/{{ b.id }}/edit" class="sys-btn sys-btn--secondary inline-flex items-center justify-center text-center text-sm font-medium no-underline">Editar</a>
+                                    <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
+                                        <button type="submit" class="sys-btn sys-btn--ghost-danger text-sm font-medium">Excluir</button>
+                                    </form>
+                                </div>
+                            </li>
+                            {% else %}
+                            <li class="sys-empty-state">Nenhum aviso ainda.</li>
+                            {% endfor %}
+                        </ul>
+                    </article>
+                </section>
+
+                <section class="sys-card sys-card--surface admin-inf-devolucao-card">
                     <h2 class="sys-section-heading">Índice de devolução mensal</h2>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Alimenta o gráfico <span class="font-medium text-gray-700 dark:text-gray-300">Índice de devolução mensal</span> no painel: eixo em <span class="font-medium">R$</span> (devolução vs teto de 2% da <span class="font-medium">receita daquele mês</span>, para a linha da meta variar). O <span class="font-medium">índice %</span> aparece no tooltip.</p>
-                    <form method="get" action="/admin/informativo" class="sys-filter-bar sys-filter-bar--end mt-4">
+                    <p class="admin-inf-subtext">Base do gráfico mensal do dashboard.</p>
+                    <form method="get" action="/admin/informativo" class="admin-inf-year-form">
                         <div class="min-w-0">
                             <label class="sys-section__label sys-section__label--field">Ano</label>
                             <input type="number" name="dry_year" min="2000" max="2100" value="{{ dry_year }}" class="sys-input w-32 max-w-full tabular-nums" inputmode="numeric">
                         </div>
                         <button type="submit" class="sys-btn sys-btn--secondary shrink-0">Carregar ano</button>
                     </form>
-                    <p class="mt-3 text-[11px] leading-snug text-gray-500 dark:text-gray-400">Percentual: vírgula decimal (ex.: <span class="tabular-nums">2,5</span>). Valores em reais: milhar com ponto e centavos com vírgula (ex.: <span class="tabular-nums">1.234,56</span>).</p>
-                    <form method="post" action="/admin/informativo/devolucao-mensal" class="mt-4">
+                    <form method="post" action="/admin/informativo/devolucao-mensal" class="admin-inf-devolucao-form">
                         <input type="hidden" name="dry_year" value="{{ dry_year }}">
                         <div class="sys-table-wrap sys-table-wrap--x-scroll">
                             <table class="w-full min-w-[720px] border-collapse text-left text-sm">
@@ -143,70 +229,8 @@
                                 </tbody>
                             </table>
                         </div>
-                        <button type="submit" class="sys-btn sys-btn--success mt-5">Salvar índice de devolução</button>
+                        <button type="submit" class="sys-btn sys-btn--success admin-inf-save-devolucao">Salvar índice de devolução</button>
                     </form>
-                </section>
-
-                <section class="sys-card sys-card--focus sys-card--comfort">
-                    <h2 class="sys-section-heading">Novo aviso</h2>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Até cinco avisos ativos; menor <span class="font-medium">ordem</span> aparece primeiro no carrossel.</p>
-                    <form method="post" action="/admin/informativo" enctype="multipart/form-data" class="mt-4 space-y-4">
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">Título <span class="text-rose-600">*</span></label>
-                            <input type="text" name="title" required maxlength="200" class="sys-input">
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">Texto</label>
-                            <textarea name="body" rows="4" class="sys-input" placeholder="Comunicado interno…"></textarea>
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">URL da imagem (opcional)</label>
-                            <input type="url" name="image_url" class="sys-input" placeholder="https://exemplo.com/imagem.jpg">
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">Importar imagem do computador (opcional)</label>
-                            <input type="file" name="bulletin_image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sys-input">
-                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Se enviar arquivo, ele terá prioridade sobre a URL da imagem.</p>
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">URL da matéria / site (opcional)</label>
-                            <input type="url" name="link_url" class="sys-input" placeholder="https://…">
-                        </div>
-                        <div>
-                            <label class="sys-section__label sys-section__label--field">Ordem</label>
-                            <input type="number" name="sort_order" value="0" class="sys-input w-36 tabular-nums" inputmode="numeric">
-                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Número menor = aparece antes no painel.</p>
-                        </div>
-                        <button type="submit" class="sys-btn sys-btn--sky">Publicar</button>
-                    </form>
-                </section>
-
-                <section>
-                    <h2 class="sys-section-heading mb-3">Publicados</h2>
-                    <ul class="space-y-3">
-                        {% for b in bulletins or [] %}
-                        <li class="sys-card sys-card--surface admin-inf-bulletin-row flex flex-wrap items-start justify-between gap-3">
-                            <div class="min-w-0 flex-1">
-                                <div class="mb-1 flex flex-wrap items-center gap-2">
-                                    <span class="sys-badge sys-badge--neutral font-mono text-[10px]">Ordem {{ b.sort_order }}</span>
-                                    <p class="font-bold text-gray-900 dark:text-white">{{ b.title }}</p>
-                                </div>
-                                {% if b.image_url %}<p class="mt-1 break-all text-xs text-gray-500 dark:text-gray-400">Imagem: {{ b.image_url }}</p>{% endif %}
-                                {% if b.link_url %}<p class="mt-1 break-all text-xs text-gray-500 dark:text-gray-400">Matéria: {{ b.link_url }}</p>{% endif %}
-                                <p class="mt-2 whitespace-pre-wrap text-sm text-gray-600 dark:text-gray-300">{{ b.body or '' }}</p>
-                                <p class="mt-2 text-[10px] uppercase tracking-wide text-gray-400">{% if b.is_active %}Ativo{% else %}Inativo{% endif %}</p>
-                            </div>
-                            <div class="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
-                                <a href="/admin/informativo/{{ b.id }}/edit" class="sys-btn sys-btn--secondary inline-flex items-center justify-center text-center text-sm font-medium no-underline">Editar</a>
-                                <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
-                                    <button type="submit" class="sys-btn sys-btn--ghost-danger w-full text-sm font-medium">Excluir</button>
-                                </form>
-                            </div>
-                        </li>
-                        {% else %}
-                        <li class="sys-empty-state">Nenhum aviso ainda.</li>
-                        {% endfor %}
-                    </ul>
                 </section>
             </div>
         </main>

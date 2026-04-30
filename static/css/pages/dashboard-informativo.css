@@ -129,7 +129,7 @@ body.dashboard-app .gv-body {
 /* —— Grid 3 colunas → 2 (tablet largo) → 1 —— */
 .gv-body {
   display: grid;
-  grid-template-columns: minmax(0, 450px) minmax(0, 1fr) minmax(0, 300px);
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr) clamp(260px, 22vw, 340px);
   gap: var(--sys-gap-sm);
   flex: 1 1 auto;
   min-height: 0;
@@ -282,6 +282,86 @@ body.dashboard-app .gv-body {
   overflow: hidden;
   max-width: none;
   box-sizing: border-box;
+}
+
+.gv-rh-sidecard {
+  max-width: 340px;
+  padding: 14px 16px;
+}
+
+.gv-rh-card-body {
+  gap: 0;
+}
+
+.gv-rh-block {
+  padding: 0;
+}
+
+.gv-rh-block-kicker {
+  margin-bottom: 6px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.gv-bday-list--rh {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gv-body .gv-rh-sidecard .gv-bday-list--rh .gv-bday-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 18px;
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: 10px;
+}
+
+.gv-body .gv-rh-sidecard .gv-bday-list--rh .gv-bday-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.gv-body .gv-rh-sidecard .gv-bday-list--rh .gv-bday-date {
+  justify-self: end;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.gv-rh-divider {
+  margin: 10px 0;
+}
+
+.gv-rh-block-title {
+  margin-bottom: 4px;
+}
+
+.gv-rh-sublabel {
+  margin: 4px 0;
+  font-size: 11px;
+}
+
+.gv-rh-sidecard .gv-ferias-li {
+  padding-top: 5px !important;
+  padding-bottom: 5px !important;
+  line-height: 1.25;
+}
+
+.gv-rh-sidecard .gv-rh-li-meta {
+  white-space: nowrap;
+  font-size: 11px;
+  opacity: 0.75;
 }
 
 /* —— Cartões corpo: surface + focus —— */
@@ -751,24 +831,36 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-bulletin-split {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
-  gap: 20px;
-  align-items: stretch;
+  grid-template-columns: minmax(260px, 0.82fr) minmax(420px, 1.18fr);
+  gap: 28px;
+  align-items: center;
 }
 
 .gv-bulletin-copy {
   min-width: 0;
+  max-width: 460px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.3rem;
+  gap: 0.38rem;
+}
+
+.gv-bulletin-copy .gv-aviso-heading,
+.gv-bulletin-copy h4 {
+  font-size: clamp(15px, 1vw, 18px);
+  line-height: 1.25;
+}
+
+.gv-bulletin-copy p {
+  font-size: clamp(14px, 0.95vw, 16px);
+  line-height: 1.45;
 }
 
 .gv-bulletin-media {
   display: block;
   min-width: 0;
-  min-height: 180px;
-  border-radius: 18px;
+  min-height: 220px;
+  border-radius: 22px;
   overflow: hidden;
 }
 
@@ -788,25 +880,30 @@ body.dashboard-app .sys-kpi-grid #info-date {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 180px;
-  max-height: 260px;
+  min-height: 220px;
+  max-height: 300px;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: 22px;
 }
 
 @media (max-width: 900px) {
   .gv-bulletin-split {
     grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .gv-bulletin-copy {
+    max-width: none;
   }
 
   .gv-bulletin-media {
     order: -1;
-    min-height: 160px;
+    min-height: 180px;
   }
 
   .gv-bulletin-image {
-    min-height: 160px;
-    max-height: 220px;
+    min-height: 180px;
+    max-height: 240px;
   }
 }
 

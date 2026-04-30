@@ -2258,6 +2258,29 @@ async def _save_informativo_audio(file: UploadFile) -> str:
         fp.write(content)
     return f"/static/uploads/informativo_audio/{safe_name}"
 
+
+def _normalize_informativo_image_url(raw_url: Optional[str]) -> str:
+    value = (raw_url or "").strip()
+    if not value:
+        return ""
+    lower = value.lower()
+    if lower.startswith(("http://", "https://", "data:")):
+        return value
+
+    # Compatibilidade com registros legados: salva apenas o nome do arquivo.
+    if "/" not in value and "\\" not in value:
+        value = f"/static/uploads/informativo/{value.lstrip('/')}"
+    elif value.startswith("static/"):
+        value = f"/{value}"
+
+    if value.startswith("/static/"):
+        rel = value.lstrip("/").replace("/", os.sep)
+        abs_path = os.path.join(str(BASE_DIR), rel)
+        if not os.path.isfile(abs_path):
+            return ""
+    return value
+
+
 def resolve_equipment(session: Session, code: str) -> models.TranspalletEquipment:
     equipment = session.exec(
         select(models.TranspalletEquipment).where(models.TranspalletEquipment.code == code)
@@ -3430,7 +3453,7 @@ def _build_informativo_extras(
             "id": b.id,
             "title": b.title,
             "body": b.body or "",
-            "image_url": (b.image_url or "").strip(),
+            "image_url": _normalize_informativo_image_url(b.image_url),
             "link_url": (getattr(b, "link_url", None) or "").strip(),
         }
         for b in bulletins
@@ -4602,13 +4625,19 @@ async def admin_informativo_audio_config(
                 return False
             return ("youtube.com" in raw) or ("youtu.be" in raw)
 
+        def _safe_volume(raw: Any, fallback: int = 35) -> int:
+            try:
+                return max(0, min(100, int(raw)))
+            except (TypeError, ValueError):
+                return fallback
+
         cfg = session.get(models.InformativePanelConfig, 1)
         if cfg is None:
             cfg = models.InformativePanelConfig(id=1, carousel_interval_seconds=8)
             session.add(cfg)
 
         cfg.audio_enabled = bool(audio_enabled)
-        cfg.audio_volume = max(0, min(100, int(audio_volume or 35)))
+        cfg.audio_volume = _safe_volume(audio_volume, fallback=35)
         next_audio_url = (audio_url or "").strip()[:500] or None
         next_youtube_url = (audio_youtube_url or "").strip()[:500] or None
         if not next_youtube_url and _is_youtube_url(next_audio_url):
@@ -4636,8 +4665,9 @@ async def admin_informativo_audio_config(
         session.commit()
         return RedirectResponse(url="/admin/informativo?saved=audio", status_code=303)
     except Exception:
+        logger.exception("Falha ao salvar configuração de áudio do informativo")
         session.rollback()
-        return RedirectResponse(url="/admin/informativo?err_audio=1", status_code=303)
+        return RedirectResponse(url="/admin/informativo?err_audio_cfg=1", status_code=303)
 
 
 @app.get("/admin/informativo/audio-config")

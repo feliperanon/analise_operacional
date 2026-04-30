@@ -11,9 +11,11 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* Largura do conteúdo da lista (mais estreito que sys-main-inner 1536px) */
 .admin-informativo-inner {
-  max-width: 64rem;
+  max-width: 1440px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
 }
 
 /* Formulário “editar” mais estreito (equivalente ao antigo max-w-3xl) */
@@ -21,13 +23,232 @@
   max-width: 48rem;
 }
 
-/* Linha da lista “Publicados”: densidade horizontal */
-.admin-informativo-page .sys-card.sys-card--surface.admin-inf-bulletin-row {
-  padding: 1rem 1.25rem;
+.admin-inf-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-@media (min-width: 640px) {
+.admin-inf-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.admin-inf-subtext {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.admin-inf-compact-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+}
+
+.admin-inf-quick-header {
+  margin-bottom: 10px;
+}
+
+.admin-inf-quick-settings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-inf-compact-item {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(248, 250, 252, 0.7);
+}
+
+.admin-inf-compact-item--span2 {
+  grid-column: span 2;
+}
+
+.admin-inf-compact-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.admin-inf-compact-help {
+  margin-top: 3px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.admin-inf-compact-form {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-inf-field-help {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.admin-inf-audio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-inf-audio-toggle,
+.admin-inf-audio-actions,
+.admin-inf-audio-full {
+  grid-column: 1 / -1;
+}
+
+.admin-inf-audio-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-inf-main-grid {
+  display: grid;
+  grid-template-columns: minmax(420px, 0.85fr) minmax(0, 1.15fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.admin-inf-main-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+}
+
+.admin-inf-new-form {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-inf-published-list {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-informativo-page .sys-card.sys-card--surface.admin-inf-bulletin-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+.admin-inf-bulletin-thumb {
+  width: 72px;
+  height: 54px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+
+.admin-inf-bulletin-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-inf-bulletin-title {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.admin-inf-bulletin-meta {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-inf-bulletin-body {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #475569;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.admin-inf-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-inf-devolucao-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+}
+
+.admin-inf-year-form {
+  margin-top: 8px;
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-inf-devolucao-form {
+  margin-top: 10px;
+}
+
+.admin-inf-save-devolucao {
+  margin-top: 12px;
+}
+
+@media (max-width: 1100px) {
+  .admin-inf-quick-settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-inf-compact-item--span2 {
+    grid-column: span 1;
+  }
+
+  .admin-inf-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-inf-quick-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-inf-audio-grid {
+    grid-template-columns: 1fr;
+  }
+
   .admin-informativo-page .sys-card.sys-card--surface.admin-inf-bulletin-row {
-    padding: 1.25rem 1.5rem;
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .admin-inf-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .admin-inf-bulletin-thumb {
+    width: 56px;
+    height: 44px;
   }
 }
