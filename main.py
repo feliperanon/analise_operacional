@@ -154,7 +154,7 @@ import pydantic
 from logging.handlers import RotatingFileHandler
 import unicodedata
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request as UrlRequest, urlopen
 from urllib.error import HTTPError, URLError
 from dotenv import load_dotenv
@@ -2267,15 +2267,34 @@ def _normalize_informativo_image_url(raw_url: Optional[str]) -> str:
     value = (raw_url or "").strip()
     if not value:
         return ""
+    parsed = urlparse(value)
+    path = (parsed.path or "").strip()
     lower = value.lower()
-    if lower.startswith(("http://", "https://", "data:")):
+    if lower.startswith("data:"):
         return value
 
-    # Compatibilidade com registros legados: salva apenas o nome do arquivo.
+    # Compatibilidade com registros legados: valor salvo só com nome do arquivo.
     if "/" not in value and "\\" not in value:
-        value = f"/static/uploads/informativo/{value.lstrip('/')}"
+        path = f"/static/uploads/informativo/{value.lstrip('/')}"
+        value = path
     elif value.startswith("static/"):
-        value = f"/{value}"
+        path = f"/{value}"
+        value = path
+    elif path and parsed.scheme in ("http", "https"):
+        # Mantém URL externa, mas normaliza para verificar assets locais publicados por URL absoluta.
+        value = value
+    elif path:
+        value = path
+
+    check_path = path or value
+    if check_path.startswith("/static/uploads/informativo/"):
+        filename = os.path.basename(check_path)
+        if not filename:
+            return ""
+        abs_path = os.path.join(INFORMATIVO_IMAGE_DIR, filename)
+        if not os.path.isfile(abs_path):
+            return ""
+        return f"/static/uploads/informativo/{filename}"
 
     return value
 
