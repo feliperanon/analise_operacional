@@ -13,7 +13,10 @@
     <link rel="stylesheet" href="/static/css/system-layout.css">
     <link rel="stylesheet" href="/static/css/system-components.css">
     <link rel="stylesheet" href="/static/css/system-utilities.css">
-    <link rel="stylesheet" href="/static/css/gestao-avista-page.css">
+    {% block shell_stylesheets %}
+    {# v= query ajuda a evitar cache intermediário com resposta 520/inválida #}
+    <link rel="stylesheet" href="/static/css/gestao-avista-page.css?v=2">
+    {% endblock %}
     <script src="/static/vendor/lucide/lucide-0.563.0.min.js"></script>
     <script defer src="/static/vendor/alpine/alpine-3.14.3.min.js"></script>
     <style>[x-cloak]{display:none!important}</style>

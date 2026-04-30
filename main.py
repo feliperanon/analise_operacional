@@ -1205,7 +1205,29 @@ async def global_exception_handler(request: Request, call_next):
             "trace_id": trace_id
         }, status_code=500)
 
-# Mount static files
+# --- Static: upload do informativo pode usar disco persistente (Render Disk, etc.).
+# Definir INFORMATIVO_IMAGE_DIR no ambiente aponta para uma pasta servida em /static/uploads/informativo/
+_INFORMATIVO_DIR_ENV = (os.getenv("INFORMATIVO_IMAGE_DIR") or "").strip()
+INFORMATIVO_IMAGE_DIR = (
+    os.path.normpath(_INFORMATIVO_DIR_ENV)
+    if _INFORMATIVO_DIR_ENV
+    else os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
+)
+try:
+    os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
+except OSError:
+    pass
+_DEFAULT_INFORMATIVO_STATIC = os.path.normpath(
+    os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
+)
+if os.path.normpath(INFORMATIVO_IMAGE_DIR) != _DEFAULT_INFORMATIVO_STATIC:
+    app.mount(
+        "/static/uploads/informativo",
+        StaticFiles(directory=INFORMATIVO_IMAGE_DIR),
+        name="informativo_uploads",
+    )
+
+# Mount static files (geral; depois do mount específico do informativo quando há disco externo)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -1749,7 +1771,7 @@ TICKET_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "tickets")
 TICKET_MAX_IMAGE_SIZE = 5 * 1024 * 1024
 DELIVERY_RETURN_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "delivery_returns")
 DELIVERY_RETURN_MAX_IMAGE_SIZE = 8 * 1024 * 1024
-INFORMATIVO_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
+# INFORMATIVO_IMAGE_DIR: definido antes de app.mount("/static") (disco persistente opcional)
 INFORMATIVO_MAX_IMAGE_SIZE = 8 * 1024 * 1024
 INFORMATIVO_AUDIO_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "informativo_audio")
 INFORMATIVO_MAX_AUDIO_SIZE = 20 * 1024 * 1024
@@ -1768,8 +1790,7 @@ SMTP_USER_FIXED = SMTP_USER
 SMTP_PASS_FIXED = (SMTP_PASS or "").strip()
 APP_BASE_URL = os.getenv("APP_BASE_URL", "").strip().rstrip("/")
 
-# Garante diretórios de upload críticos no boot.
-os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
+# Garante diretórios de upload críticos no boot (informativo imagem já criado antes do mount).
 os.makedirs(INFORMATIVO_AUDIO_DIR, exist_ok=True)
 IMPORT_AUTH_PASSWORD = (os.getenv("IMPORT_AUTH_PASSWORD") or "").strip()
 ALERT_SETTINGS_PATH = "/admin/alerts/settings"
@@ -2295,7 +2316,14 @@ def _normalize_informativo_image_url(raw_url: Optional[str]) -> str:
         # efémero — apagar a URL escondia imagem no admin/TV mesmo com registro correto.
         return f"/static/uploads/informativo/{filename}"
 
-    return value
+    out = value
+    if out and not out.lower().startswith(("http://", "https://", "data:")) and not out.startswith("/"):
+        if "uploads/informativo/" in out.replace("\\", "/"):
+            out = "/" + out.lstrip("/")
+        elif out.startswith("static/"):
+            out = "/" + out
+
+    return out
 
 
 def resolve_informativo_bulletin_image_url(raw_url: Optional[str]) -> Optional[str]:

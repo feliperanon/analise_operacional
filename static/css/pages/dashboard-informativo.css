@@ -126,11 +126,14 @@ body.dashboard-app .gv-body {
   gap: 0.38rem;
 }
 
-/* —— Grid 3 colunas → 2 (tablet largo) → 1 —— */
-.gv-body {
+/* —— Grid 3 colunas TV: esquerda estreita, centro (comunicado + gráfico) maior, direita fixa —— */
+.gv-body,
+.gv-dashboard-grid,
+.gv-content-grid,
+.gv-main-grid {
   display: grid;
-  grid-template-columns: minmax(0, 420px) minmax(0, 1fr) clamp(260px, 22vw, 340px);
-  gap: var(--sys-gap-sm);
+  grid-template-columns: clamp(300px, 22vw, 440px) minmax(640px, 1fr) clamp(320px, 20vw, 400px);
+  gap: 12px;
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -138,14 +141,18 @@ body.dashboard-app .gv-body {
   align-items: stretch;
   align-content: stretch;
   width: 100%;
+  height: 100%;
   padding: 0.35rem 0 0.45rem;
   box-sizing: border-box;
 }
 
 /* Desktop médio: dev à esquerda em altura cheia; meio + direita empilhados */
 @media (max-width: 1279px) and (min-width: 768px) {
-  .gv-body {
-    grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  .gv-body,
+  .gv-dashboard-grid,
+  .gv-content-grid,
+  .gv-main-grid {
+    grid-template-columns: clamp(320px, 32vw, 480px) minmax(0, 1fr);
     grid-template-rows: auto 1fr;
   }
 
@@ -168,7 +175,10 @@ body.dashboard-app .gv-body {
 }
 
 @media (max-width: 767px) {
-  .gv-body {
+  .gv-body,
+  .gv-dashboard-grid,
+  .gv-content-grid,
+  .gv-main-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: none;
   }
@@ -204,26 +214,73 @@ body.dashboard-app .gv-body {
 }
 
 .gv-dev-cards {
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  gap: 0.38rem;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 10px;
   flex: 1 1 auto;
-  min-height: min-content;
-  align-items: stretch;
+  min-height: 0;
+  overflow: hidden;
   width: 100%;
-  max-width: 450px;
+  max-width: none;
+  align-items: stretch;
 }
 
 .gv-dev-cards .sys-card.sys-card--surface {
   width: 100%;
-  max-width: 450px;
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  flex: 0 0 auto;
-  min-height: min-content;
-  overflow: visible;
+  flex: 1 1 0;
+  overflow: hidden;
+  padding: 14px 16px;
+}
+
+.gv-dev-cards .gv-card-title {
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.gv-dev-cards .gv-table-wrap table {
+  table-layout: fixed;
+  width: 100%;
+  font-size: 12px;
+}
+
+.gv-dev-cards .gv-table-wrap thead th,
+.gv-dev-cards .gv-table-wrap tbody td {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+  line-height: 1.1;
+}
+
+.gv-dev-cards .gv-table-wrap thead th:nth-child(1),
+.gv-dev-cards .gv-table-wrap tbody td:nth-child(1) {
+  width: 48%;
+}
+
+.gv-dev-cards .gv-table-wrap thead th:nth-child(2),
+.gv-dev-cards .gv-table-wrap tbody td:nth-child(2) {
+  width: 20%;
+}
+
+.gv-dev-cards .gv-table-wrap thead th:nth-child(3),
+.gv-dev-cards .gv-table-wrap tbody td:nth-child(3) {
+  width: 32%;
+}
+
+.gv-dev-cards .gv-name-cell,
+.gv-dev-cards .gv-fit-oneline {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gv-dev-cards .gv-table-wrap tbody tr:nth-child(n + 10) {
+  display: none;
 }
 
 .gv-col-mid {
@@ -866,7 +923,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-bulletin-split {
   display: grid;
-  grid-template-columns: minmax(280px, 0.78fr) minmax(420px, 1.22fr);
+  grid-template-columns: minmax(260px, 0.72fr) minmax(440px, 1.28fr);
   gap: 22px;
   align-items: center;
   height: 100%;
@@ -888,7 +945,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-bulletin-copy-title {
   flex-shrink: 0;
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   font-weight: 800;
   font-size: clamp(14px, 0.9vw, 17px);
   line-height: 1.22;
@@ -940,7 +997,7 @@ body.dashboard-app .sys-kpi-grid #info-date {
   max-height: 330px;
   height: 100%;
   align-self: center;
-  border-radius: 18px;
+  border-radius: 20px;
   overflow: hidden;
   background: #f8fafc;
 }
@@ -984,8 +1041,9 @@ body.dashboard-app .sys-kpi-grid #info-date {
   max-width: 100%;
   max-height: 330px;
   min-height: 0;
+  object-fit: contain;
   object-position: center;
-  border-radius: 18px;
+  border-radius: 20px;
   background: transparent;
 }
 
@@ -1296,6 +1354,10 @@ body.dashboard-app .gv-dev-cards {
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
+}
+
+body.dashboard-app .gv-body .gv-dev-cards .sys-card.sys-card--surface {
+  padding: 14px 16px;
 }
 
 body.dashboard-app .gv-body .sys-card.sys-card--surface {

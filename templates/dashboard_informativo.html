@@ -1,5 +1,9 @@
 {% extends "base_gestao_avista.html" %}
 
+{% block html_class_extra %} informativo-tv-html{% endblock %}
+
+{% block body_class_extra %} informativo-tv-mode{% endblock %}
+
 {% block title %}Gestão Avista · Painel informativo{% endblock %}
 
 {% block header_breadcrumb %}
@@ -202,7 +206,7 @@
     <!-- Painel principal: sem card externo (cada coluna já tem sys-card; evita moldura dupla e “come” área útil) -->
     <div class="informativo-main-grid employees-table-panel flex min-h-0 flex-1 flex-col overflow-hidden">
         <div class="gv-panel-stack gv-panel-stack-inner informativo-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div class="gv-body">
+            <div class="gv-body gv-dashboard-grid gv-content-grid gv-main-grid">
             <div class="gv-col gv-col-dev">
                 <div class="gv-dev-cards">
                     <article class="sys-card sys-card--surface">
