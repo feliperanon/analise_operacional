@@ -1177,6 +1177,10 @@ class InformativePanelConfig(SQLModel, table=True):
     __tablename__ = "informative_panel_config"
     id: int = Field(default=1, primary_key=True)
     carousel_interval_seconds: int = Field(default=8, ge=4, le=120)
+    audio_enabled: bool = Field(default=False)
+    audio_url: Optional[str] = Field(default=None, max_length=500)
+    audio_playlist: Optional[str] = Field(default=None, max_length=4000)
+    audio_volume: int = Field(default=35, ge=0, le=100)
 
 
 class InformativeMonthlyReturn(SQLModel, table=True):

@@ -196,6 +196,7 @@ def create_db_and_tables():
     _migrate_route_escala_status()
     _migrate_informative_bulletin_link_url()
     _migrate_informative_panel_config()
+    _migrate_informative_panel_config_audio()
     _migrate_client_vendedor_id()
 
 
@@ -343,6 +344,31 @@ def _migrate_informative_panel_config():
                         """
                     )
                 )
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _migrate_informative_panel_config_audio():
+    """Adiciona colunas de áudio na tabela informative_panel_config."""
+    table = "informative_panel_config"
+    cols = [
+        ("audio_enabled", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("audio_url", "TEXT"),
+        ("audio_playlist", "TEXT"),
+        ("audio_volume", "INTEGER NOT NULL DEFAULT 35"),
+    ]
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                cur = conn.execute(text(f"PRAGMA table_info({table})"))
+                existing = [r[1] for r in list(cur) if len(r) > 1]
+                for col_name, col_type in cols:
+                    if col_name not in existing:
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"))
+            else:
+                for col_name, col_type in cols:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
             conn.commit()
     except Exception:
         pass

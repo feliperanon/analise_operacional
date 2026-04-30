@@ -1751,6 +1751,8 @@ DELIVERY_RETURN_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "de
 DELIVERY_RETURN_MAX_IMAGE_SIZE = 8 * 1024 * 1024
 INFORMATIVO_IMAGE_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
 INFORMATIVO_MAX_IMAGE_SIZE = 8 * 1024 * 1024
+INFORMATIVO_AUDIO_DIR = os.path.join(str(BASE_DIR), "static", "uploads", "informativo_audio")
+INFORMATIVO_MAX_AUDIO_SIZE = 20 * 1024 * 1024
 MAINTENANCE_EMAIL_TO = os.getenv("MAINTENANCE_EMAIL_TO", "").strip()
 MAINTENANCE_EMAIL_FROM = os.getenv("MAINTENANCE_EMAIL_FROM", "").strip()
 SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
@@ -2235,6 +2237,26 @@ async def _save_informativo_image(file: UploadFile) -> str:
     with open(file_path, "wb") as fp:
         fp.write(content)
     return f"/static/uploads/informativo/{safe_name}"
+
+
+async def _save_informativo_audio(file: UploadFile) -> str:
+    os.makedirs(INFORMATIVO_AUDIO_DIR, exist_ok=True)
+    raw_name = (file.filename or "").strip()
+    if not raw_name:
+        raise ValueError("Arquivo inválido.")
+    ext = os.path.splitext(raw_name)[1].lower()
+    if ext not in (".mp3", ".ogg", ".wav", ".m4a"):
+        raise ValueError("Formato inválido. Use MP3, OGG, WAV ou M4A.")
+    content = await file.read()
+    if not content:
+        raise ValueError("Arquivo vazio.")
+    if len(content) > INFORMATIVO_MAX_AUDIO_SIZE:
+        raise ValueError("Áudio excede 20MB.")
+    safe_name = f"informativo_audio_{datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}{ext}"
+    file_path = os.path.join(INFORMATIVO_AUDIO_DIR, safe_name)
+    with open(file_path, "wb") as fp:
+        fp.write(content)
+    return f"/static/uploads/informativo_audio/{safe_name}"
 
 def resolve_equipment(session: Session, code: str) -> models.TranspalletEquipment:
     equipment = session.exec(
@@ -3172,6 +3194,33 @@ def _informative_carousel_interval_ms(session: Session) -> int:
     return 8000
 
 
+def _informative_audio_config(session: Session) -> Dict[str, Any]:
+    try:
+        c = session.get(models.InformativePanelConfig, 1)
+        if c is None:
+            return {"enabled": False, "url": "", "playlist": [], "volume": 0.35}
+        volume_raw = int(getattr(c, "audio_volume", 35) or 35)
+        volume_raw = max(0, min(100, volume_raw))
+        primary_url = (getattr(c, "audio_url", None) or "").strip()
+        raw_playlist = (getattr(c, "audio_playlist", None) or "").strip()
+        playlist: List[str] = []
+        if primary_url:
+            playlist.append(primary_url)
+        if raw_playlist:
+            for line in raw_playlist.splitlines():
+                item = (line or "").strip()
+                if item and item not in playlist:
+                    playlist.append(item[:500])
+        return {
+            "enabled": bool(getattr(c, "audio_enabled", False)),
+            "url": primary_url,
+            "playlist": playlist,
+            "volume": round(volume_raw / 100.0, 2),
+        }
+    except Exception:
+        return {"enabled": False, "url": "", "playlist": [], "volume": 0.35}
+
+
 def _dashboard_data_source_caption() -> str:
     """Texto curto para o /dashboard: de onde vêm os dados (evita confusão SQLite vazio vs Postgres)."""
     src = (os.environ.get("ACTIVE_DATABASE_SOURCE") or "").strip().lower()
@@ -3419,6 +3468,7 @@ def _build_informativo_extras(
             "total_kg": round(tonnage_total_kg, 2),
         },
         "carousel_interval_ms": _informative_carousel_interval_ms(session),
+        "audio": _informative_audio_config(session),
         "devolucao_mensal_kpi": devolucao_mensal_kpi,
     }
 
@@ -4453,10 +4503,18 @@ async def admin_informativo_page(
         select(models.InformativeBulletin).order_by(models.InformativeBulletin.sort_order, models.InformativeBulletin.id)
     ).all()
     panel_sec = 8
+    panel_audio_enabled = False
+    panel_audio_url = ""
+    panel_audio_playlist = ""
+    panel_audio_volume = 35
     try:
         cfg = session.get(models.InformativePanelConfig, 1)
         if cfg is not None:
             panel_sec = max(4, min(120, int(cfg.carousel_interval_seconds or 8)))
+            panel_audio_enabled = bool(getattr(cfg, "audio_enabled", False))
+            panel_audio_url = (getattr(cfg, "audio_url", None) or "").strip()
+            panel_audio_playlist = (getattr(cfg, "audio_playlist", None) or "").strip()
+            panel_audio_volume = max(0, min(100, int(getattr(cfg, "audio_volume", 35) or 35)))
     except Exception:
         pass
     dry_year = datetime.now().year
@@ -4494,6 +4552,10 @@ async def admin_informativo_page(
             "bulletins": rows,
             "user": user,
             "panel_carousel_seconds": panel_sec,
+            "panel_audio_enabled": panel_audio_enabled,
+            "panel_audio_url": panel_audio_url,
+            "panel_audio_playlist": panel_audio_playlist,
+            "panel_audio_volume": panel_audio_volume,
             "dry_year": dry_year,
             "dr_rows": dr_rows,
             "dr_display": dr_display,
@@ -4516,6 +4578,45 @@ async def admin_informativo_panel_config(
         cfg.carousel_interval_seconds = sec
     session.commit()
     return RedirectResponse(url="/admin/informativo?saved=panel", status_code=303)
+
+
+@app.post("/admin/informativo/audio-config")
+async def admin_informativo_audio_config(
+    session: Session = Depends(get_session),
+    user=Depends(require_leader),
+    audio_enabled: Optional[str] = Form(None),
+    audio_url: str = Form(""),
+    audio_playlist: str = Form(""),
+    audio_volume: int = Form(35),
+    audio_file: Optional[UploadFile] = File(None),
+):
+    cfg = session.get(models.InformativePanelConfig, 1)
+    if cfg is None:
+        cfg = models.InformativePanelConfig(id=1, carousel_interval_seconds=8)
+        session.add(cfg)
+
+    cfg.audio_enabled = bool(audio_enabled)
+    cfg.audio_volume = max(0, min(100, int(audio_volume or 35)))
+    next_audio_url = (audio_url or "").strip()[:500] or None
+    raw_list = (audio_playlist or "").strip()
+    parsed_urls: List[str] = []
+    if raw_list:
+        for line in raw_list.splitlines():
+            item = (line or "").strip()
+            if item and item not in parsed_urls:
+                parsed_urls.append(item[:500])
+    if audio_file and (audio_file.filename or "").strip():
+        try:
+            next_audio_url = await _save_informativo_audio(audio_file)
+        except ValueError:
+            return RedirectResponse(url="/admin/informativo?err_audio=1", status_code=303)
+    if next_audio_url and next_audio_url in parsed_urls:
+        parsed_urls = [u for u in parsed_urls if u != next_audio_url]
+    cfg.audio_url = next_audio_url
+    cfg.audio_playlist = "\n".join(parsed_urls) if parsed_urls else None
+    session.add(cfg)
+    session.commit()
+    return RedirectResponse(url="/admin/informativo?saved=audio", status_code=303)
 
 
 @app.post("/admin/informativo/devolucao-mensal")

@@ -42,6 +42,9 @@
                 {% if request.query_params.get('saved') == 'panel' %}
                 <p class="sys-alert sys-alert--success">Tempo do carrossel salvo.</p>
                 {% endif %}
+                {% if request.query_params.get('saved') == 'audio' %}
+                <p class="sys-alert sys-alert--success">Configuração de áudio salva.</p>
+                {% endif %}
                 {% if request.query_params.get('updated') %}
                 <p class="sys-alert sys-alert--success">Aviso atualizado.</p>
                 {% endif %}
@@ -50,6 +53,9 @@
                 {% endif %}
                 {% if request.query_params.get('err_image') %}
                 <p class="sys-alert sys-alert--warn">Imagem inválida. Use JPG, PNG ou WEBP com até 8MB.</p>
+                {% endif %}
+                {% if request.query_params.get('err_audio') %}
+                <p class="sys-alert sys-alert--warn">Áudio inválido. Use MP3, OGG, WAV ou M4A com até 20MB.</p>
                 {% endif %}
 
                 <section class="sys-card sys-card--surface sys-card--comfort">
@@ -62,6 +68,35 @@
                                    class="sys-input w-32 max-w-full tabular-nums" inputmode="numeric">
                         </div>
                         <button type="submit" class="sys-btn sys-btn--primary shrink-0">Salvar tempo</button>
+                    </form>
+                </section>
+
+                <section class="sys-card sys-card--surface sys-card--comfort">
+                    <h2 class="sys-section-heading">Som de fundo no dashboard</h2>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use URL (rádio/stream) ou envie arquivo local. Em Smart TV, o navegador pode exigir clique para ativar o áudio.</p>
+                    <form method="post" action="/admin/informativo/audio-config" enctype="multipart/form-data" class="mt-4 space-y-4">
+                        <div class="flex items-center gap-2">
+                            <input id="audio_enabled" type="checkbox" name="audio_enabled" value="1" {% if panel_audio_enabled %}checked{% endif %}>
+                            <label for="audio_enabled" class="sys-section__label sys-section__label--field mb-0">Ativar som no dashboard</label>
+                        </div>
+                        <div>
+                            <label class="sys-section__label sys-section__label--field">URL do áudio (opcional)</label>
+                            <input type="url" name="audio_url" value="{{ panel_audio_url or '' }}" class="sys-input" placeholder="https://.../radio.mp3">
+                        </div>
+                        <div>
+                            <label class="sys-section__label sys-section__label--field">Playlist (uma URL por linha, ordem de reprodução)</label>
+                            <textarea name="audio_playlist" rows="5" class="sys-input" placeholder="https://site/faixa-01.mp3&#10;https://site/faixa-02.mp3">{{ panel_audio_playlist or '' }}</textarea>
+                        </div>
+                        <div>
+                            <label class="sys-section__label sys-section__label--field">Importar áudio (opcional)</label>
+                            <input type="file" name="audio_file" accept=".mp3,.ogg,.wav,.m4a,audio/mpeg,audio/ogg,audio/wav,audio/mp4" class="sys-input">
+                            <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Se enviar arquivo, ele vira a primeira faixa da playlist.</p>
+                        </div>
+                        <div>
+                            <label class="sys-section__label sys-section__label--field">Volume inicial (0 a 100)</label>
+                            <input type="number" name="audio_volume" min="0" max="100" value="{{ panel_audio_volume }}" class="sys-input w-36 tabular-nums" inputmode="numeric">
+                        </div>
+                        <button type="submit" class="sys-btn sys-btn--primary">Salvar áudio</button>
                     </form>
                 </section>
 
