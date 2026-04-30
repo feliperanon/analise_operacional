@@ -25,93 +25,99 @@
     </button>
 
     <div class="ta-dashboard-layout flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header class="sys-page-header ta-dash-header sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-3 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
+        <header class="sys-page-header ta-dash-header admin-inf-page-header--compact sticky top-0 z-30 flex w-full shrink-0 border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900 sm:px-6">
             <div class="sys-main-inner flex w-full flex-col gap-0.5 pl-12 sm:pl-14">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Administração / Informativo</p>
-                <h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Painel informativo</h1>
-                <p class="text-xs text-gray-500 dark:text-gray-400">Comunicados no <a href="/dashboard" class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">/dashboard</a> · números no padrão brasileiro (vírgula decimal, ponto nos milhares)</p>
+                <p class="text-[11px] font-medium text-gray-500 dark:text-gray-400">Administração / Informativo</p>
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h1 class="text-lg font-bold tracking-tight text-gray-800 dark:text-white/90">Painel informativo</h1>
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400">Comunicados em <a href="/dashboard" class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">/dashboard</a></p>
+                </div>
             </div>
         </header>
 
-        <main class="admin-informativo-main px-4 py-4 sm:px-6">
-            <div class="admin-informativo-inner sys-main-inner mx-auto w-full pb-8">
+        <main class="admin-informativo-main">
+            <div class="admin-informativo-inner">
 
                 {% if request.query_params.get('saved_devolucao') == '1' %}
-                <p class="sys-alert sys-alert--success">Dados de devolução mensal (índice) salvos.</p>
+                <p class="sys-alert sys-alert--success admin-inf-flash">Dados de devolução mensal (índice) salvos.</p>
                 {% endif %}
                 {% if request.query_params.get('saved') == 'panel' %}
-                <p class="sys-alert sys-alert--success">Tempo do carrossel salvo.</p>
+                <p class="sys-alert sys-alert--success admin-inf-flash">Tempo do carrossel salvo.</p>
                 {% endif %}
                 {% if request.query_params.get('saved') == 'audio' %}
-                <p class="sys-alert sys-alert--success">Configuração de áudio salva.</p>
+                <p class="sys-alert sys-alert--success admin-inf-flash">Configuração de áudio salva.</p>
                 {% endif %}
                 {% if request.query_params.get('updated') %}
-                <p class="sys-alert sys-alert--success">Aviso atualizado.</p>
+                <p class="sys-alert sys-alert--success admin-inf-flash">Aviso atualizado.</p>
                 {% endif %}
                 {% if request.query_params.get('err') %}
-                <p class="sys-alert sys-alert--warn">Informe um título.</p>
+                <p class="sys-alert sys-alert--warn admin-inf-flash">Informe um título.</p>
                 {% endif %}
                 {% if request.query_params.get('err_image') %}
-                <p class="sys-alert sys-alert--warn">Imagem inválida. Use JPG, PNG ou WEBP com até 8MB.</p>
+                <p class="sys-alert sys-alert--warn admin-inf-flash">Imagem inválida. Use JPG, PNG ou WEBP com até 8MB.</p>
                 {% endif %}
                 {% if request.query_params.get('err_audio') %}
-                <p class="sys-alert sys-alert--warn">Áudio inválido. Use MP3, OGG, WAV ou M4A com até 20MB. Para vídeo do YouTube, use o campo "URL do YouTube".</p>
+                <p class="sys-alert sys-alert--warn admin-inf-flash">Áudio inválido. Use MP3, OGG, WAV ou M4A com até 20MB. Para YouTube, use o campo “URL do YouTube”.</p>
                 {% endif %}
                 {% if request.query_params.get('err_audio_cfg') %}
-                <p class="sys-alert sys-alert--warn">Não foi possível salvar a configuração de áudio. Revise os campos e tente novamente.</p>
+                <p class="sys-alert sys-alert--warn admin-inf-flash">Não foi possível salvar a configuração de áudio. Revise os campos e tente novamente.</p>
                 {% endif %}
 
-                <section class="admin-inf-page-header">
-                    <div>
-                        <h2 class="sys-section-heading">Painel informativo</h2>
-                        <p class="admin-inf-subtitle">Gerencie comunicados, mídia, áudio e indicadores do dashboard.</p>
-                    </div>
-                </section>
+                {% if show_ephemeral_upload_hint %}
+                <p class="admin-inf-hint-banner" role="status">
+                    <strong>Produção (Render):</strong> uploads locais podem ser perdidos após deploy ou restart sem disco persistente.
+                    Para imagens permanentes nos comunicados, use <strong>URL externa</strong> ou configure <code class="rounded bg-slate-200/80 px-1 text-[11px] dark:bg-slate-700">INFORMATIVO_IMAGE_DIR</code> em disco persistente.
+                </p>
+                {% endif %}
 
                 <section class="admin-inf-main-grid">
-                    <article class="sys-card sys-card--focus admin-inf-main-card admin-inf-form-card">
-                        <h2 class="sys-section-heading">Novo aviso</h2>
-                        <p class="admin-inf-subtext">Até cinco avisos ativos; menor ordem aparece primeiro.</p>
+                    <article class="sys-card sys-card--focus admin-inf-form-card">
+                        <h2 class="admin-inf-card-heading">Novo aviso</h2>
+                        <p class="admin-inf-subtext">Até 5 ativos · menor ordem = primeiro no carrossel</p>
                         <form method="post" action="/admin/informativo" enctype="multipart/form-data" class="admin-inf-new-form">
                             <div>
                                 <label class="sys-section__label sys-section__label--field">Título <span class="text-rose-600">*</span></label>
-                                <input type="text" name="title" required maxlength="200" class="sys-input">
+                                <input type="text" name="title" required maxlength="200" class="sys-input" placeholder="Título do comunicado">
                             </div>
                             <div>
                                 <label class="sys-section__label sys-section__label--field">Texto</label>
-                                <textarea name="body" rows="4" class="sys-input" placeholder="Comunicado interno…"></textarea>
+                                <textarea name="body" rows="3" class="sys-input" placeholder="Texto curto para TV…"></textarea>
                             </div>
                             <div>
-                                <label class="sys-section__label sys-section__label--field">Imagem: URL (opcional)</label>
-                                <input type="text" name="image_url" class="sys-input" placeholder="https://… ou /static/uploads/informativo/…" autocomplete="off">
+                                <label class="sys-section__label sys-section__label--field">Imagem por URL (opcional)</label>
+                                <input type="text" name="image_url" class="sys-input" placeholder="https://… (recomendado em produção)" autocomplete="off">
                             </div>
                             <div>
-                                <label class="sys-section__label sys-section__label--field">Imagem: upload (opcional)</label>
+                                <label class="sys-section__label sys-section__label--field">Upload de imagem (opcional)</label>
                                 <input type="file" name="bulletin_image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sys-input">
                             </div>
                             <div>
-                                <label class="sys-section__label sys-section__label--field">Link opcional</label>
+                                <label class="sys-section__label sys-section__label--field">Link (opcional)</label>
                                 <input type="url" name="link_url" class="sys-input" placeholder="https://…">
                             </div>
                             <div>
                                 <label class="sys-section__label sys-section__label--field">Ordem</label>
                                 <input type="number" name="sort_order" value="0" class="sys-input w-36 tabular-nums" inputmode="numeric">
                             </div>
-                            <button type="submit" class="sys-btn sys-btn--sky">Publicar</button>
+                            <button type="submit" class="sys-btn sys-btn--sky admin-inf-submit-primary">Publicar</button>
                         </form>
                     </article>
 
-                    <article class="sys-card sys-card--surface admin-inf-main-card">
-                        <h2 class="sys-section-heading">Avisos publicados</h2>
+                    <article class="sys-card sys-card--surface admin-inf-published-card">
+                        <h2 class="admin-inf-card-heading">Avisos publicados</h2>
                         <ul class="admin-inf-published-list">
-                            {% for b in bulletins or [] %}
-                            {% set bulletin_image = resolve_bulletin_image(b) %}
+                            {% for row in bulletin_admin_rows or [] %}
+                            {% set b = row.bulletin %}
+                            {% set bulletin_image = row.image_url_resolved %}
+                            {% set local_missing = row.local_file_missing %}
                             <li class="sys-card sys-card--surface admin-inf-bulletin-row">
                                 <div class="admin-inf-bulletin-thumb-wrap">
-                                    {% if bulletin_image %}
-                                    <img src="{{ bulletin_image }}" alt="" class="admin-inf-bulletin-thumb" loading="lazy" onerror="this.onerror=null; const w=this.closest('.admin-inf-bulletin-thumb-wrap'); if(w){ w.innerHTML='<div class=&quot;admin-inf-bulletin-thumb admin-inf-bulletin-thumb--empty&quot; aria-hidden=&quot;true&quot;>Falha ao carregar</div>'; }">
-                                    {% else %}
+                                    {% if not bulletin_image %}
                                     <div class="admin-inf-bulletin-thumb admin-inf-bulletin-thumb--empty" aria-hidden="true">Sem imagem</div>
+                                    {% elif local_missing %}
+                                    <div class="admin-inf-bulletin-thumb admin-inf-bulletin-thumb--error" role="img" aria-label="Imagem não encontrada">Imagem não encontrada</div>
+                                    {% else %}
+                                    <img src="{{ bulletin_image }}" alt="" class="admin-inf-bulletin-thumb" loading="lazy" onerror="this.onerror=null;var box=this.parentElement;if(box){this.remove();box.classList.add('admin-inf-bulletin-thumb-wrap--error');box.innerHTML='<div class=&quot;admin-inf-bulletin-thumb admin-inf-bulletin-thumb--error&quot; role=&quot;img&quot;>Imagem não encontrada</div>';}">
                                     {% endif %}
                                 </div>
                                 <div class="admin-inf-bulletin-content">
@@ -125,111 +131,113 @@
                                     {% if b.body %}<p class="admin-inf-bulletin-body">{{ b.body }}</p>{% endif %}
                                 </div>
                                 <div class="admin-inf-bulletin-actions">
-                                    <a href="/admin/informativo/{{ b.id }}/edit" class="sys-btn sys-btn--secondary inline-flex items-center justify-center text-center text-sm font-medium no-underline">Editar</a>
+                                    <a href="/admin/informativo/{{ b.id }}/edit" class="sys-btn sys-btn--secondary inline-flex items-center justify-center text-center text-sm font-medium no-underline" title="Editar ou substituir imagem">Editar</a>
                                     <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
                                         <button type="submit" class="sys-btn sys-btn--ghost-danger text-sm font-medium">Excluir</button>
                                     </form>
                                 </div>
                             </li>
                             {% else %}
-                            <li class="sys-empty-state">Nenhum aviso ainda.</li>
+                            <li class="admin-inf-empty-inline">Nenhum aviso ainda.</li>
                             {% endfor %}
                         </ul>
                     </article>
                 </section>
 
                 <section class="sys-card sys-card--surface admin-inf-settings-card">
-                    <h2 class="sys-section-heading">Configurações do painel</h2>
-                    <p class="admin-inf-subtext">Ajustes do carrossel e áudio de fundo do dashboard.</p>
-                    <div class="admin-inf-settings-grid">
-                        <article class="admin-inf-carousel-setting">
-                            <h3 class="admin-inf-compact-title">Tempo do carrossel</h3>
-                            <p class="admin-inf-field-help">4 a 120 segundos</p>
-                            <form method="post" action="/admin/informativo/panel-config" class="admin-inf-carousel-form">
-                                <div class="min-w-0">
-                                    <label class="sys-section__label sys-section__label--field">Tempo do carrossel</label>
-                                    <input type="number" name="carousel_interval_seconds" min="4" max="120" value="{{ panel_carousel_seconds }}"
-                                           class="sys-input max-w-full tabular-nums" inputmode="numeric">
-                                </div>
-                                <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
-                            </form>
-                        </article>
+                    <h2 class="admin-inf-card-heading admin-inf-settings-card-title">Configurações do painel</h2>
+                    <div class="admin-inf-settings-toolbar">
+                        <form method="post" action="/admin/informativo/panel-config" class="admin-inf-carousel-block">
+                            <span class="admin-inf-field-label">Carrossel (s)</span>
+                            <div class="admin-inf-carousel-fields">
+                                <input type="number" name="carousel_interval_seconds" min="4" max="120" value="{{ panel_carousel_seconds }}"
+                                       class="sys-input tabular-nums admin-inf-input-carousel" inputmode="numeric" aria-label="Intervalo do carrossel em segundos">
+                                <button type="submit" class="sys-btn sys-btn--primary text-sm">Salvar</button>
+                            </div>
+                            <span class="admin-inf-field-hint">4–120</span>
+                        </form>
 
-                        <article class="admin-inf-audio-setting">
-                            <h3 class="admin-inf-compact-title">Som de fundo</h3>
-                            <form method="post" action="/admin/informativo/audio-config" enctype="multipart/form-data" class="admin-inf-audio-grid">
-                                <div class="admin-inf-field--full admin-inf-audio-toggle">
+                        <form method="post" action="/admin/informativo/audio-config" enctype="multipart/form-data" class="admin-inf-audio-toolbar-form">
+                            <div class="admin-inf-settings-grid">
+                                <div class="admin-inf-audio-toggle-cell">
                                     <input id="audio_enabled" type="checkbox" name="audio_enabled" value="1" {% if panel_audio_enabled %}checked{% endif %}>
-                                    <label for="audio_enabled" class="sys-section__label sys-section__label--field mb-0">Ativar áudio</label>
+                                    <label for="audio_enabled" class="admin-inf-field-label-inline">Ativar áudio</label>
                                 </div>
                                 <div>
-                                    <label class="sys-section__label sys-section__label--field">Volume inicial</label>
-                                    <input type="number" name="audio_volume" min="0" max="100" value="{{ panel_audio_volume }}" class="sys-input tabular-nums" inputmode="numeric">
+                                    <label class="sys-section__label sys-section__label--field" for="audio_volume">Volume</label>
+                                    <input id="audio_volume" type="number" name="audio_volume" min="0" max="100" value="{{ panel_audio_volume }}" class="sys-input tabular-nums" inputmode="numeric">
                                 </div>
                                 <div>
-                                    <label class="sys-section__label sys-section__label--field">URL do áudio</label>
-                                    <input type="url" name="audio_url" value="{{ panel_audio_url or '' }}" class="sys-input" placeholder="https://.../radio.mp3">
+                                    <label class="sys-section__label sys-section__label--field" for="audio_url">URL do áudio</label>
+                                    <input id="audio_url" type="url" name="audio_url" value="{{ panel_audio_url or '' }}" class="sys-input" placeholder="https://…/audio.mp3">
                                 </div>
                                 <div>
-                                    <label class="sys-section__label sys-section__label--field">URL do YouTube</label>
-                                    <input type="url" name="audio_youtube_url" value="{{ panel_audio_youtube_url or '' }}" class="sys-input" placeholder="https://www.youtube.com/watch?v=...">
+                                    <label class="sys-section__label sys-section__label--field" for="audio_youtube_url">URL YouTube</label>
+                                    <input id="audio_youtube_url" type="url" name="audio_youtube_url" value="{{ panel_audio_youtube_url or '' }}" class="sys-input" placeholder="https://youtube.com/…">
                                 </div>
-                                <div class="admin-inf-field--full">
-                                    <label class="sys-section__label sys-section__label--field">Playlist (uma URL por linha)</label>
-                                    <textarea name="audio_playlist" rows="3" class="sys-input" placeholder="https://site/faixa-01.mp3&#10;https://site/faixa-02.mp3">{{ panel_audio_playlist or '' }}</textarea>
+                                <div class="admin-inf-settings-actions">
+                                    <button type="submit" class="sys-btn sys-btn--primary text-sm whitespace-nowrap">Salvar áudio</button>
                                 </div>
-                                <div class="admin-inf-field--full">
-                                    <label class="sys-section__label sys-section__label--field">Importar áudio (opcional)</label>
-                                    <input type="file" name="audio_file" accept=".mp3,.ogg,.wav,.m4a,audio/mpeg,audio/ogg,audio/wav,audio/mp4" class="sys-input">
+                            </div>
+                            <details class="admin-inf-audio-advanced">
+                                <summary>Opções avançadas de áudio</summary>
+                                <div class="admin-inf-audio-advanced-inner">
+                                    <div>
+                                        <label class="sys-section__label sys-section__label--field" for="audio_playlist">Playlist (uma URL por linha)</label>
+                                        <textarea id="audio_playlist" name="audio_playlist" rows="3" class="sys-input" placeholder="https://…">{{ panel_audio_playlist or '' }}</textarea>
+                                    </div>
+                                    <div>
+                                        <label class="sys-section__label sys-section__label--field" for="audio_file">Importar ficheiro de áudio</label>
+                                        <input id="audio_file" type="file" name="audio_file" accept=".mp3,.ogg,.wav,.m4a,audio/mpeg,audio/ogg,audio/wav,audio/mp4" class="sys-input">
+                                    </div>
                                 </div>
-                                <div class="admin-inf-field--full">
-                                    <button type="submit" class="sys-btn sys-btn--primary">Salvar áudio</button>
-                                </div>
-                            </form>
-                        </article>
+                            </details>
+                        </form>
                     </div>
                 </section>
 
-                <section class="sys-card sys-card--surface admin-inf-monthly-card">
-                    <h2 class="sys-section-heading">Índice de devolução mensal</h2>
-                    <p class="admin-inf-subtext">Base do gráfico mensal do dashboard.</p>
-                    <form method="get" action="/admin/informativo" class="admin-inf-year-form">
-                        <div class="min-w-0">
-                            <label class="sys-section__label sys-section__label--field">Ano</label>
-                            <input type="number" name="dry_year" min="2000" max="2100" value="{{ dry_year }}" class="sys-input w-32 max-w-full tabular-nums" inputmode="numeric">
-                        </div>
-                        <button type="submit" class="sys-btn sys-btn--secondary shrink-0">Carregar ano</button>
-                    </form>
-                    <form method="post" action="/admin/informativo/devolucao-mensal" class="admin-inf-devolucao-form">
-                        <input type="hidden" name="dry_year" value="{{ dry_year }}">
-                        <div class="sys-table-wrap sys-table-wrap--x-scroll admin-inf-monthly-table">
-                            <table class="w-full min-w-[720px] border-collapse text-left text-sm">
-                                <thead>
-                                    <tr class="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:text-gray-400">
-                                        <th class="py-2.5 pr-3">Mês</th>
-                                        <th class="py-2.5 pr-3">% devolução (índice)</th>
-                                        <th class="py-2.5 pr-3">Valor devolução (R$)</th>
-                                        <th class="py-2.5 pr-3">Receita (R$) <span class="font-normal normal-case text-gray-400">— base da meta 2%; não aparece no gráfico do painel</span></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="text-gray-800 dark:text-gray-200">
-                                    {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
-                                    {% for mes_nome in meses %}
-                                    {% set m = loop.index %}
-                                    {% set dd = dr_display.get(m) or {} %}
-                                    <tr class="border-b border-gray-100 dark:border-gray-700/80">
-                                        <td class="py-2.5 pr-3 font-medium text-gray-900 dark:text-white">{{ mes_nome }}</td>
-                                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_pct" value="{{ dd.get('pct', '') }}" class="sys-input max-w-[9rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
-                                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_valor" value="{{ dd.get('valor', '') }}" class="sys-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
-                                        <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ dd.get('receita', '') }}" class="sys-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        <button type="submit" class="sys-btn sys-btn--success admin-inf-save-devolucao">Salvar índice de devolução</button>
-                    </form>
-                </section>
+                <details class="admin-inf-collapse"{% if request.query_params.get('saved_devolucao') == '1' %} open{% endif %}>
+                    <summary>Índice de devolução mensal</summary>
+                    <div class="admin-inf-monthly-inner">
+                        <p class="admin-inf-subtext admin-inf-monthly-lead">Base do gráfico mensal do dashboard · números no padrão brasileiro</p>
+                        <form method="get" action="/admin/informativo" class="admin-inf-year-form">
+                            <div class="min-w-0">
+                                <label class="sys-section__label sys-section__label--field" for="dry_year">Ano</label>
+                                <input id="dry_year" type="number" name="dry_year" min="2000" max="2100" value="{{ dry_year }}" class="sys-input w-32 max-w-full tabular-nums" inputmode="numeric">
+                            </div>
+                            <button type="submit" class="sys-btn sys-btn--secondary shrink-0 text-sm">Carregar</button>
+                        </form>
+                        <form method="post" action="/admin/informativo/devolucao-mensal" class="admin-inf-devolucao-form">
+                            <input type="hidden" name="dry_year" value="{{ dry_year }}">
+                            <div class="sys-table-wrap sys-table-wrap--x-scroll admin-inf-monthly-table">
+                                <table class="admin-inf-monthly-table-el w-full min-w-[640px] border-collapse text-left text-sm">
+                                    <thead>
+                                        <tr class="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                                            <th class="py-2.5 pr-3">Mês</th>
+                                            <th class="py-2.5 pr-3">% devolução</th>
+                                            <th class="py-2.5 pr-3">Valor (R$)</th>
+                                            <th class="py-2.5 pr-3">Receita (R$) <span class="font-normal normal-case text-gray-400">— meta 2%</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-gray-800 dark:text-gray-200">
+                                        {% set meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'] %}
+                                        {% for mes_nome in meses %}
+                                        {% set m = loop.index %}
+                                        {% set dd = dr_display.get(m) or {} %}
+                                        <tr class="border-b border-gray-100 dark:border-gray-700/80">
+                                            <td class="py-2.5 pr-3 font-medium text-gray-900 dark:text-white">{{ mes_nome }}</td>
+                                            <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_pct" value="{{ dd.get('pct', '') }}" class="sys-input max-w-[9rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                            <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_valor" value="{{ dd.get('valor', '') }}" class="sys-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                            <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ dd.get('receita', '') }}" class="sys-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <button type="submit" class="sys-btn sys-btn--success admin-inf-save-devolucao text-sm">Salvar índice</button>
+                        </form>
+                    </div>
+                </details>
             </div>
         </main>
     </div>

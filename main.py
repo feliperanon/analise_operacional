@@ -2332,6 +2332,20 @@ def resolve_informativo_bulletin_image_url(raw_url: Optional[str]) -> Optional[s
     return normalized if normalized else None
 
 
+def informativo_local_upload_file_missing(resolved_image_url: Optional[str]) -> bool:
+    """True se a URL é upload local em /static/uploads/informativo/ mas o ficheiro não existe (ex.: deploy efémero)."""
+    if not resolved_image_url:
+        return False
+    u = resolved_image_url.split("?", 1)[0].strip()
+    if not u.startswith("/static/uploads/informativo/"):
+        return False
+    fn = os.path.basename(u)
+    if not fn or ".." in fn.replace("\\", "/"):
+        return True
+    path = os.path.join(INFORMATIVO_IMAGE_DIR, fn)
+    return not os.path.isfile(path)
+
+
 def _tpl_resolve_bulletin_image(b: Any) -> Optional[str]:
     """Jinja: aceita InformativeBulletin, dict com image_url ou string."""
     if b is None:
@@ -3398,15 +3412,6 @@ def _build_informativo_extras(
     if motorista_ids_scope:
         devs_curr_q = devs_curr_q.where(models.Devolucao.motorista_id.in_(motorista_ids_scope))
     devs_curr = session.exec(devs_curr_q).all()
-    helper_ids_scoped: set[int] = set()
-    for d in devs_curr:
-        hid = getattr(d, "ajudante_id", None)
-        if hid:
-            try:
-                helper_ids_scoped.add(int(hid))
-            except (TypeError, ValueError):
-                pass
-
     try:
         resumo_mes = consolidado_avaliar_resumo(session, month_start_str, month_end_str)
     except Exception:
@@ -3437,17 +3442,13 @@ def _build_informativo_extras(
         })
     devolucao_ranking.sort(key=lambda x: (x.get("name") or "").casefold())
 
+    # Ajudantes: sempre listar todos com devolução no mês (mesmo com filtro de motorista/CC no painel).
+    # Filtrar por helper_ids_scoped removia nomes de quem só aparecia com motoristas fora do recorte.
     devolucao_ranking_helper = []
     for row in rows_h:
         if int(row.get("devolucoes_total") or 0) <= 0:
             continue
         hid = row.get("ajudante_id")
-        if scope_set is not None:
-            try:
-                if int(hid) not in helper_ids_scoped:
-                    continue
-            except (TypeError, ValueError):
-                continue
         devolucao_ranking_helper.append({
             "name": (row.get("ajudante_name") or "").strip() or (f"Ajudante #{hid}" if hid else "—"),
             "pct_ajustado": float(row.get("pct_ajustado") or 0),
@@ -4636,11 +4637,24 @@ async def admin_informativo_page(
             "valor": _format_br_money_form(row.get("valor")),
             "receita": _format_br_money_form(row.get("receita")),
         }
+    bulletin_admin_rows: List[Dict[str, Any]] = []
+    for b in rows:
+        img_res = resolve_informativo_bulletin_image_url(getattr(b, "image_url", None))
+        bulletin_admin_rows.append(
+            {
+                "bulletin": b,
+                "image_url_resolved": img_res,
+                "local_file_missing": informativo_local_upload_file_missing(img_res),
+            }
+        )
+    render_env = (os.getenv("RENDER") or "").strip().lower()
+    show_ephemeral_upload_hint = render_env in ("1", "true", "yes", "on")
     return templates.TemplateResponse(
         "admin_informativo.html",
         {
             "request": request,
             "bulletins": rows,
+            "bulletin_admin_rows": bulletin_admin_rows,
             "user": user,
             "panel_carousel_seconds": panel_sec,
             "panel_audio_enabled": panel_audio_enabled,
@@ -4651,6 +4665,7 @@ async def admin_informativo_page(
             "dry_year": dry_year,
             "dr_rows": dr_rows,
             "dr_display": dr_display,
+            "show_ephemeral_upload_hint": show_ephemeral_upload_hint,
         },
     )
 

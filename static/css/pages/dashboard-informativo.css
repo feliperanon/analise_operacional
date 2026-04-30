@@ -279,9 +279,7 @@ body.dashboard-app .gv-body {
   text-overflow: ellipsis;
 }
 
-.gv-dev-cards .gv-table-wrap tbody tr:nth-child(n + 10) {
-  display: none;
-}
+/* Não ocultar linhas: o painel é visto por todos os colaboradores — todos devem aparecer na lista. */
 
 .gv-col-mid {
   min-height: 0;
