@@ -4596,6 +4596,12 @@ async def admin_informativo_audio_config(
     audio_file: Optional[UploadFile] = File(None),
 ):
     try:
+        def _is_youtube_url(value: Optional[str]) -> bool:
+            raw = (value or "").strip().lower()
+            if not raw:
+                return False
+            return ("youtube.com" in raw) or ("youtu.be" in raw)
+
         cfg = session.get(models.InformativePanelConfig, 1)
         if cfg is None:
             cfg = models.InformativePanelConfig(id=1, carousel_interval_seconds=8)
@@ -4604,6 +4610,11 @@ async def admin_informativo_audio_config(
         cfg.audio_enabled = bool(audio_enabled)
         cfg.audio_volume = max(0, min(100, int(audio_volume or 35)))
         next_audio_url = (audio_url or "").strip()[:500] or None
+        next_youtube_url = (audio_youtube_url or "").strip()[:500] or None
+        if not next_youtube_url and _is_youtube_url(next_audio_url):
+            # Permite colar URL do YouTube no campo de áudio comum sem erro.
+            next_youtube_url = next_audio_url
+            next_audio_url = None
         raw_list = (audio_playlist or "").strip()
         parsed_urls: List[str] = []
         if raw_list:
@@ -4620,7 +4631,7 @@ async def admin_informativo_audio_config(
             parsed_urls = [u for u in parsed_urls if u != next_audio_url]
         cfg.audio_url = next_audio_url
         cfg.audio_playlist = "\n".join(parsed_urls) if parsed_urls else None
-        cfg.audio_youtube_url = (audio_youtube_url or "").strip()[:500] or None
+        cfg.audio_youtube_url = next_youtube_url
         session.add(cfg)
         session.commit()
         return RedirectResponse(url="/admin/informativo?saved=audio", status_code=303)
