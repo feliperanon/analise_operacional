@@ -2987,6 +2987,206 @@ async def relatorio_avaliacao_motorista_page(
     return templates.TemplateResponse("relatorio_avaliacao_motorista.html", {"request": request, **data})
 
 
+def _build_bi_vendedor_dataset(
+    session: Session,
+    date_from: Optional[str],
+    date_to: Optional[str],
+    vendedor_id: Optional[int] = None,
+) -> dict:
+    """Consolida vendas e devoluções por vendedor para ranking comercial."""
+    delivery_dataset = _build_bi_delivery_dataset(
+        session=session,
+        date_from=date_from,
+        date_to=date_to,
+        shift="Todos",
+        driver_id=None,
+        plate="Todos",
+        status="Todos",
+    )
+
+    route_rows = [
+        r for r in (delivery_dataset.get("all_route_rows") or [])
+        if str(r.get("source") or "").upper() == "ROTA"
+    ]
+    financial_rows = list(delivery_dataset.get("all_financial_rows") or [])
+
+    client_ids = sorted({
+        int(r.get("client_id"))
+        for r in (route_rows + financial_rows)
+        if r.get("client_id") is not None
+    })
+    clients = (
+        session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all()
+        if client_ids else []
+    )
+    client_map = {c.id: c for c in clients}
+
+    seller_ids = sorted({
+        int(c.vendedor_id)
+        for c in clients
+        if getattr(c, "vendedor_id", None) is not None
+    })
+    sellers = (
+        session.exec(select(models.Employee).where(models.Employee.id.in_(seller_ids))).all()
+        if seller_ids else []
+    )
+    seller_map = {s.id: s for s in sellers}
+
+    def _seller_for_client(client_id: Optional[int]) -> tuple[Optional[int], str]:
+        if client_id is None:
+            return None, "Sem vendedor"
+        cli = client_map.get(int(client_id))
+        sid = getattr(cli, "vendedor_id", None) if cli else None
+        if sid is None:
+            return None, "Sem vendedor"
+        seller = seller_map.get(int(sid))
+        if seller:
+            return int(sid), str(seller.name or f"Vendedor #{sid}")
+        return int(sid), f"Vendedor #{sid}"
+
+    seller_acc: dict[int, dict] = {}
+    sem_vendedor_key = -1
+
+    def _ensure_bucket(sid: Optional[int], name: str) -> dict:
+        key = int(sid) if sid is not None else sem_vendedor_key
+        if key not in seller_acc:
+            seller_acc[key] = {
+                "vendedor_id": None if sid is None else int(sid),
+                "vendedor": name,
+                "clientes_set": set(),
+                "pedidos_total": 0,
+                "pedidos_concluidos": 0,
+                "vendas_planejadas": 0.0,
+                "vendas_realizadas": 0.0,
+                "devolucoes_qtd": 0,
+                "devolucoes_valor": 0.0,
+            }
+        return seller_acc[key]
+
+    for row in route_rows:
+        sid, sname = _seller_for_client(row.get("client_id"))
+        bucket = _ensure_bucket(sid, sname)
+        cid = row.get("client_id")
+        if cid is not None:
+            bucket["clientes_set"].add(int(cid))
+        bucket["pedidos_total"] += 1
+        status = str(row.get("status") or "").lower()
+        if status in ("entregue", "devolucao"):
+            bucket["pedidos_concluidos"] += 1
+        bucket["vendas_planejadas"] += float(row.get("planned_value") or 0.0)
+        bucket["vendas_realizadas"] += float(row.get("delivered_value") or 0.0)
+
+    for row in financial_rows:
+        sid, sname = _seller_for_client(row.get("client_id"))
+        bucket = _ensure_bucket(sid, sname)
+        cid = row.get("client_id")
+        if cid is not None:
+            bucket["clientes_set"].add(int(cid))
+        val = float(row.get("value") or row.get("returned_value") or 0.0)
+        bucket["devolucoes_qtd"] += 1
+        bucket["devolucoes_valor"] += val
+
+    rows = []
+    for bucket in seller_acc.values():
+        base_valor = float(bucket["vendas_realizadas"] or 0.0) + float(bucket["devolucoes_valor"] or 0.0)
+        taxa_devol = _safe_pct(bucket["devolucoes_valor"], base_valor)
+        ticket_medio = (
+            float(bucket["vendas_realizadas"]) / float(bucket["pedidos_concluidos"])
+            if bucket["pedidos_concluidos"] > 0 else 0.0
+        )
+        rows.append({
+            "vendedor_id": bucket["vendedor_id"],
+            "vendedor": bucket["vendedor"],
+            "clientes_ativos": len(bucket["clientes_set"]),
+            "pedidos_total": int(bucket["pedidos_total"]),
+            "pedidos_concluidos": int(bucket["pedidos_concluidos"]),
+            "vendas_planejadas": round(float(bucket["vendas_planejadas"]), 2),
+            "vendas_realizadas": round(float(bucket["vendas_realizadas"]), 2),
+            "devolucoes_qtd": int(bucket["devolucoes_qtd"]),
+            "devolucoes_valor": round(float(bucket["devolucoes_valor"]), 2),
+            "taxa_devolucao_valor": round(float(taxa_devol), 2),
+            "ticket_medio": round(float(ticket_medio), 2),
+        })
+
+    all_rows = sorted(rows, key=lambda x: (-x["vendas_realizadas"], -x["devolucoes_valor"], x["vendedor"]))
+    filtered_rows = [
+        r for r in all_rows
+        if vendedor_id is None or r.get("vendedor_id") == vendedor_id
+    ]
+
+    base_rows = filtered_rows if filtered_rows else all_rows
+    top_vendas = sorted(base_rows, key=lambda x: x["vendas_realizadas"], reverse=True)[:10]
+    top_devolucoes = sorted(base_rows, key=lambda x: x["devolucoes_valor"], reverse=True)[:10]
+    top_taxa = [
+        r for r in sorted(base_rows, key=lambda x: x["taxa_devolucao_valor"])
+        if (r.get("vendas_realizadas") or 0) > 0
+    ][:10]
+
+    maior_vendas = top_vendas[0] if top_vendas else None
+    maior_devolucao = top_devolucoes[0] if top_devolucoes else None
+    menor_taxa = top_taxa[0] if top_taxa else None
+    soma_vendas = round(sum(float(r["vendas_realizadas"]) for r in base_rows), 2)
+    soma_devolucoes = round(sum(float(r["devolucoes_valor"]) for r in base_rows), 2)
+    taxa_geral = round(_safe_pct(soma_devolucoes, soma_vendas + soma_devolucoes), 2)
+
+    filters_payload = {
+        "date_from": delivery_dataset.get("filters", {}).get("date_from"),
+        "date_to": delivery_dataset.get("filters", {}).get("date_to"),
+        "vendedor_id": vendedor_id,
+    }
+    filters_query = urlencode({
+        "date_from": filters_payload["date_from"] or "",
+        "date_to": filters_payload["date_to"] or "",
+        "vendedor_id": vendedor_id if vendedor_id is not None else "",
+    })
+
+    chart_payload = {
+        "top_vendas": top_vendas,
+        "top_devolucoes": top_devolucoes,
+        "top_taxa": top_taxa,
+    }
+
+    sellers_filter = sorted(
+        [{"id": r.get("vendedor_id"), "name": r.get("vendedor")} for r in all_rows if r.get("vendedor_id") is not None],
+        key=lambda x: str(x["name"] or ""),
+    )
+
+    return {
+        "filters": filters_payload,
+        "filters_query": filters_query,
+        "sellers_filter": sellers_filter,
+        "rows": base_rows,
+        "kpis": {
+            "vendedores_ativos": len(base_rows),
+            "vendas_realizadas": soma_vendas,
+            "devolucoes_valor": soma_devolucoes,
+            "taxa_devolucao_geral": taxa_geral,
+        },
+        "maior_vendas": maior_vendas,
+        "maior_devolucao": maior_devolucao,
+        "menor_taxa": menor_taxa,
+        "chart_payload_json": json.dumps(chart_payload, ensure_ascii=False),
+    }
+
+
+@router.get("/bi/vendedor", response_class=HTMLResponse)
+async def bi_vendedor_page(
+    request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    vendedor_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    parsed_vendedor_id: Optional[int] = int(vendedor_id) if (vendedor_id or "").strip().isdigit() else None
+    dataset = _build_bi_vendedor_dataset(
+        session=session,
+        date_from=date_from,
+        date_to=date_to,
+        vendedor_id=parsed_vendedor_id,
+    )
+    return templates.TemplateResponse("bi_vendedor.html", {"request": request, **dataset})
+
+
 @router.get("/bi/delivery", response_class=HTMLResponse)
 async def bi_delivery_page(
     request: Request,
@@ -3892,7 +4092,7 @@ async def bi_devolucoes_page(
         client_id=parsed_client_id,
         client_filter_scope=(client_scope or "solo").strip().lower(),
     )
-    return templates.TemplateResponse("bi_devolucoes.html", {"request": request, **dataset})
+    return templates.TemplateResponse("bi_devolucoes_refactor.html", {"request": request, **dataset})
 
 
 @router.get("/bi/devolucoes/export")

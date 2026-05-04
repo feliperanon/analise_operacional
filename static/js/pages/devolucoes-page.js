@@ -9,11 +9,16 @@
     confirmHandler: null,
     importPreview: null,
     debounceTimer: 0,
+    filterChangeTimer: 0,
     clientSearchTimer: 0,
     clientSearchController: null,
     bulkCountRaf: 0,
     manualElementsCache: null,
+    modalsTeleported: false,
   };
+
+  var SEARCH_DEBOUNCE_MS = 380;
+  var FILTER_CHANGE_DEBOUNCE_MS = 220;
 
   var currencyFormatter = new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 2,
@@ -32,20 +37,20 @@
     });
   }
 
+  function ensureModalsTeleported() {
+    if (state.modalsTeleported) return;
+    state.modalsTeleported = true;
+    teleportModalsToBody();
+  }
+
   function setBodyLock(locked) {
     document.body.classList.toggle("overflow-hidden", !!locked);
   }
 
-  function closeDetailsMenus(exceptEl) {
-    document.querySelectorAll(".devolucoes-hero-menu[open]").forEach(function (details) {
-      if (details !== exceptEl) details.removeAttribute("open");
-    });
-  }
-
   function openModal(id) {
+    ensureModalsTeleported();
     var modal = byId(id);
     if (!modal) return;
-    closeDetailsMenus();
     document.querySelectorAll(".emp-modal-shell:not(.hidden)").forEach(function (openShell) {
       if (openShell.id && openShell.id !== id) {
         openShell.classList.add("hidden");
@@ -543,7 +548,7 @@
         }
       );
       redirectWithFlash(
-        isEdit ? "Devolucao atualizada com sucesso." : "Devolucao criada com sucesso.",
+        isEdit ? "Devolução atualizada com sucesso." : "Devolução criada com sucesso.",
         "success"
       );
     } catch (error) {
@@ -752,12 +757,12 @@
 
   async function deleteSingle(id) {
     await fetchJson("/api/devolucoes/" + encodeURIComponent(id), { method: "DELETE" });
-    redirectWithFlash("Devolucao excluida com sucesso.", "success");
+    redirectWithFlash("Devolução excluída com sucesso.", "success");
   }
 
   async function approveSingle(id) {
     await fetchJson("/api/devolucoes/" + encodeURIComponent(id) + "/approve", { method: "POST" });
-    redirectWithFlash("Devolucao aprovada com sucesso.", "success");
+    redirectWithFlash("Devolução aprovada com sucesso.", "success");
   }
 
   async function bulkApprove() {
@@ -792,7 +797,7 @@
     redirectWithFlash(
       "Exclusão em lote concluída: " +
         deletedCount +
-        " excluidas" +
+        " excluídas" +
         (skippedCount ? ", " + skippedCount + " ignoradas." : "."),
       deletedCount ? "success" : "error"
     );
@@ -802,7 +807,7 @@
     var startDate = pageRoot.dataset.reconnectStart;
     var endDate = pageRoot.dataset.reconnectEnd;
     if (!startDate || !endDate) {
-      throw new Error("Periodo atual nao disponivel para reconectar devolucoes sem rota.");
+      throw new Error("Período atual não disponível para reconectar devoluções sem rota.");
     }
     var payload = await fetchJson("/api/devolucoes/reconnect-orphans", {
       method: "POST",
@@ -813,7 +818,7 @@
       }),
     });
     redirectWithFlash(
-      "Reconexao concluida: " +
+      "Reconexão concluída: " +
         (payload.reconnected || 0) +
         " vinculadas, " +
         (payload.duplicates_linked || 0) +
@@ -822,15 +827,29 @@
     );
   }
 
-  function queueFilterSubmit() {
+  function submitFilterForm(resetPage) {
     var form = byId("devolucoesFilterForm");
     if (!form) return;
-    window.clearTimeout(state.debounceTimer);
-    state.debounceTimer = window.setTimeout(function () {
+    if (resetPage) {
       var pageField = form.querySelector('[name="page"]');
       if (pageField) pageField.value = "1";
-      form.requestSubmit();
-    }, 380);
+    }
+    form.requestSubmit();
+  }
+
+  function queueFilterSubmit() {
+    window.clearTimeout(state.debounceTimer);
+    state.debounceTimer = window.setTimeout(function () {
+      submitFilterForm(true);
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  function queueFilterSubmitDebounced() {
+    window.clearTimeout(state.filterChangeTimer);
+    state.filterChangeTimer = window.setTimeout(function () {
+      state.filterChangeTimer = 0;
+      submitFilterForm(true);
+    }, FILTER_CHANGE_DEBOUNCE_MS);
   }
 
   document.addEventListener("click", function (event) {
@@ -862,8 +881,6 @@
       } else {
         openModal(modalId);
       }
-      var details = openButton.closest("details");
-      if (details) details.removeAttribute("open");
       return;
     }
 
@@ -878,10 +895,6 @@
       var client = parseJsonSafe(suggestion.dataset.client);
       if (client) setSelectedClient(client);
       return;
-    }
-
-    if (!event.target.closest(".devolucoes-hero-menu")) {
-      closeDetailsMenus();
     }
 
     if (!event.target.closest("#manual-client-suggestions") && !event.target.closest("#manual-client-search")) {
@@ -929,7 +942,7 @@
       if (batchAction === "approve") {
         openConfirmModal({
           title: "Aprovar selecionados",
-          text: "Os itens em aguardando serao consolidados e sairao da fila de revisao.",
+          text: "Os itens em aguardando serão consolidados e sairão da fila de revisão.",
           confirmLabel: "Aprovar lote",
           tone: "primary",
           onConfirm: bulkApprove,
@@ -937,14 +950,14 @@
       } else if (batchAction === "delete") {
         openConfirmModal({
           title: "Excluir selecionados",
-          text: "As devolucoes selecionadas serao removidas da base. Confirme apenas se ja revisou a selecao.",
+          text: "As devoluções selecionadas serão removidas da base. Confirme apenas se já revisou a seleção.",
           confirmLabel: "Excluir lote",
           tone: "danger",
           onConfirm: bulkDelete,
         });
       } else if (batchAction === "reconnect") {
         openConfirmModal({
-          title: "Reconectar devolucoes sem rota",
+          title: "Reconectar devoluções sem rota",
           text: "O sistema tentará vincular as devoluções órfãs do período atual às rotas correspondentes.",
           confirmLabel: "Reconectar",
           tone: "primary",
@@ -957,7 +970,7 @@
     var confirmButton = event.target.closest("[data-confirm-action]");
     if (confirmButton && confirmButton.getAttribute("data-confirm-action") === "reconnect") {
       openConfirmModal({
-        title: "Reconectar devolucoes sem rota",
+        title: "Reconectar devoluções sem rota",
         text: "Deseja executar a reconciliação de devoluções órfãs para o período filtrado?",
         confirmLabel: "Reconectar",
         tone: "primary",
@@ -972,7 +985,6 @@
         closeActiveModal();
         return;
       }
-      closeDetailsMenus();
       clearClientSuggestions();
     }
   });
@@ -1003,6 +1015,15 @@
       clearImportPreview();
       return;
     }
+    var filterForm = byId("devolucoesFilterForm");
+    if (filterForm && filterForm.contains(event.target)) {
+      if (event.target.matches("[data-debounce-submit='true']")) {
+        return;
+      }
+      window.clearTimeout(state.debounceTimer);
+      window.clearTimeout(state.filterChangeTimer);
+      queueFilterSubmitDebounced();
+    }
   });
 
   document.addEventListener("input", function (event) {
@@ -1028,6 +1049,7 @@
     filterForm.addEventListener("submit", function () {
       var pageField = filterForm.querySelector('[name="page"]');
       if (pageField && !pageField.value) pageField.value = "1";
+      pageRoot.classList.add("devolucoes-page--navigating");
     });
   }
 
@@ -1043,6 +1065,9 @@
   var importCommitButton = byId("devolucoes-import-commit-btn");
   if (importCommitButton) importCommitButton.addEventListener("click", handleImportCommit);
 
-  teleportModalsToBody();
+  window.addEventListener("pageshow", function () {
+    pageRoot.classList.remove("devolucoes-page--navigating");
+  });
+
   updateBulkCount();
 })();

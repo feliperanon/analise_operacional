@@ -1,0 +1,126 @@
+/**
+ * Autorizações de entrega (/admin/delivery-auth-requests).
+ * Complementa employees.css: tabela responsiva em cards (mesmo padrão da lista de colaboradores).
+ */
+
+.delivery-auth-page .dac-bulk-bar {
+  position: sticky;
+  bottom: 0.5rem;
+  z-index: 20;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--sys-border);
+  box-shadow: var(--sys-shadow-md, 0 8px 24px rgb(15 23 42 / 0.08));
+}
+
+@media (min-width: 768px) {
+  .delivery-auth-page .dac-bulk-bar {
+    position: static;
+    box-shadow: var(--sys-shadow-xs);
+  }
+}
+
+.delivery-auth-page .dac-checkbox {
+  min-width: 1.15rem;
+  min-height: 1.15rem;
+}
+
+/* Tabela em cards (mobile) — paridade com #employeesTable */
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable thead {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tbody {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-xl);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgb(241 245 249);
+    white-space: normal;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td:first-child {
+    border-top: 0;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td[data-label]:not(.dac-auth-td-check)::before {
+    content: attr(data-label);
+    flex: 0 0 5.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td.dac-auth-td-check {
+    justify-content: flex-start;
+    gap: 0.75rem;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td.dac-auth-td-check::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td.employee-actions-cell {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td.employee-actions-cell::before {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row .employee-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row .sys-btn {
+    min-height: 2.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  html.dark .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row {
+    background: linear-gradient(180deg, rgb(17 24 39) 0%, rgb(30 41 59) 100%);
+    border-color: rgb(55 65 81);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  html.dark .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td {
+    border-top-color: rgb(55 65 81);
+  }
+
+  html.dark .ga-employee-theme.employees-page.delivery-auth-page #dacAuthTable tr.employees-data-table__row td[data-label]::before {
+    color: rgb(148 163 184);
+  }
+}

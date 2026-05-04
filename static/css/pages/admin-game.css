@@ -1,0 +1,81 @@
+@import url("/static/css/pages/employees.css");
+
+.ga-game-theme.game-page {
+  --employees-kpi-accent: rgba(99, 102, 241, 0.72);
+}
+
+.ga-game-theme.game-page #game-table-panel .employees-data-table__th,
+.ga-game-theme.game-page #game-table-panel .employees-data-table__cell {
+  vertical-align: middle;
+}
+
+.ga-game-theme.game-page .game-row .sys-badge {
+  white-space: nowrap;
+}
+
+.ga-game-theme.game-page .game-row td[data-label] {
+  white-space: normal;
+}
+
+.ga-game-theme.game-page .emp-modal-close {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+@media (max-width: 767px) {
+  .ga-game-theme.game-page #gameTable thead {
+    display: none;
+  }
+
+  .ga-game-theme.game-page #gameTable tbody {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem;
+  }
+
+  .ga-game-theme.game-page #gameTable tr.game-row {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-xl);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+
+  .ga-game-theme.game-page #gameTable tr.game-row td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.8rem 1rem;
+    border-top: 1px solid rgb(241 245 249);
+  }
+
+  .ga-game-theme.game-page #gameTable tr.game-row td:first-child {
+    border-top: 0;
+  }
+
+  .ga-game-theme.game-page #gameTable tr.game-row td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 5.8rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .ga-game-theme.game-page #gameTable tr.game-row td:last-child {
+    display: block;
+  }
+
+  .ga-game-theme.game-page #gameTable tr.game-row td:last-child::before {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .ga-game-theme.game-page #gameTable .employee-actions {
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,171 @@
+/**
+ * Relatório de ausências de rota (/lider/rotas/relatorio) — sobre employees.css + design system GA.
+ */
+
+.lider-rotas-relatorio-page .rr-kpi-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+  .lider-rotas-relatorio-page .rr-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.lider-rotas-relatorio-page .rr-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.125rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.lider-rotas-relatorio-page .rr-chip--missing {
+  background: rgb(254 226 226);
+  color: rgb(153 27 27);
+}
+
+.lider-rotas-relatorio-page .rr-chip--noapp {
+  background: rgb(254 243 199);
+  color: rgb(154 52 18);
+}
+
+.lider-rotas-relatorio-page .rr-chip--just {
+  background: rgb(219 234 254);
+  color: rgb(30 64 175);
+}
+
+html.dark .lider-rotas-relatorio-page .rr-chip--missing {
+  background: rgb(127 29 29 / 0.35);
+  color: rgb(252 165 165);
+}
+
+html.dark .lider-rotas-relatorio-page .rr-chip--noapp {
+  background: rgb(154 52 18 / 0.35);
+  color: rgb(253 186 116);
+}
+
+html.dark .lider-rotas-relatorio-page .rr-chip--just {
+  background: rgb(30 58 138 / 0.35);
+  color: rgb(147 197 253);
+}
+
+.lider-rotas-relatorio-page .rr-days-cell {
+  max-width: 22rem;
+}
+
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page #rotasRelatorioTable {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable thead {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tbody {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-xl);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgb(241 245 249);
+    white-space: normal;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td:first-child {
+    border-top: 0;
+    padding-bottom: 1rem;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 5.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td.employee-cell-primary {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td.employee-cell-primary::before {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td.employee-actions-cell {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td.employee-actions-cell::before {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row .employee-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  html.dark .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row {
+    background: linear-gradient(180deg, rgb(17 24 39) 0%, rgb(30 41 59) 100%);
+    border-color: rgb(55 65 81);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  html.dark .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td {
+    border-top-color: rgb(55 65 81);
+  }
+
+  html.dark .ga-employee-theme.employees-page #rotasRelatorioTable tr.employee-row td[data-label]::before {
+    color: rgb(148 163 184);
+  }
+}
+
+/* Impressão */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .lider-rotas-relatorio-page .employees-table-panel,
+  .lider-rotas-relatorio-page .employees-hero {
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .lider-rotas-relatorio-page .rr-chip {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

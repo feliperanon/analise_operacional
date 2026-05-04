@@ -1,0 +1,128 @@
+/**
+ * Turnover analysis — complementa employees.css (mesmo shell .ga-employee-theme.employees-page).
+ */
+
+.turnover-analysis-page .turnover-analytics-details > summary {
+  list-style: none;
+}
+
+.turnover-analysis-page .turnover-analytics-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.turnover-analysis-page .turnover-analytics-details .turnover-analytics-chevron {
+  transition: transform 0.15s ease;
+}
+
+.turnover-analysis-page .turnover-analytics-details[open] .turnover-analytics-chevron {
+  transform: rotate(180deg);
+}
+
+.turnover-analysis-page .turnover-mini-bar {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--sys-border, rgb(226 232 240));
+  overflow: hidden;
+}
+
+.turnover-analysis-page .turnover-mini-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  max-width: 100%;
+}
+
+.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row--hidden {
+  display: none !important;
+}
+
+.turnover-analysis-page .turnover-pager {
+  border-top: 1px solid var(--sys-border, rgb(226 232 240));
+}
+
+/* Tabela em cards (mobile) — espelha employees #employeesTable */
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable thead {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tbody {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-xl);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgb(241 245 249);
+    white-space: normal;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td:first-child {
+    border-top: 0;
+    padding-bottom: 1rem;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 5.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td.turnover-cell-primary {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td.turnover-cell-primary::before {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td.turnover-actions-cell {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td.turnover-actions-cell::before {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row .turnover-action-strip {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+html.dark .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row {
+  background: linear-gradient(180deg, rgb(17 24 39) 0%, rgb(31 41 55) 100%);
+  border-color: rgb(55 65 81);
+}
+
+html.dark .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td {
+  border-top-color: rgb(55 65 81);
+}
+
+html.dark .ga-employee-theme.employees-page.turnover-analysis-page #turnoverExitsTable tr.turnover-exit-row td[data-label]::before {
+  color: rgb(148 163 184);
+}

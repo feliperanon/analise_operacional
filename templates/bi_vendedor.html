@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="bi-vendedor-page">
+  <div class="bi-vendedor-container">
+    <header class="bi-vendedor-header">
+      <div>
+        <h1>BI Vendedor</h1>
+        <p>Ranking de vendas, devoluções e taxa de devolução por vendedor.</p>
+      </div>
+      <div class="bi-vendedor-actions">
+        <a href="/bi/delivery" class="bi-btn bi-btn-ghost">BI Entregas</a>
+        <a href="/bi/clientes" class="bi-btn bi-btn-ghost">BI Clientes</a>
+        <a href="/bi/motorista" class="bi-btn bi-btn-ghost">BI Motorista</a>
+        <a href="/bi/devolucoes" class="bi-btn bi-btn-ghost">BI Devoluções</a>
+      </div>
+      <form method="get" action="/bi/vendedor" class="bi-vendedor-filters">
+        <label>
+          Data inicial
+          <input type="date" name="date_from" value="{{ filters.date_from }}">
+        </label>
+        <label>
+          Data final
+          <input type="date" name="date_to" value="{{ filters.date_to }}">
+        </label>
+        <label>
+          Vendedor
+          <select name="vendedor_id">
+            <option value="">Todos</option>
+            {% for s in sellers_filter %}
+            <option value="{{ s.id }}" {% if filters.vendedor_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <div class="bi-vendedor-filter-actions">
+          <button type="submit" class="bi-btn bi-btn-primary">Aplicar</button>
+          <a href="/bi/vendedor" class="bi-btn bi-btn-ghost">Limpar</a>
+        </div>
+      </form>
+    </header>
+
+    <section class="bi-kpis">
+      <article class="kpi">
+        <span>Vendedores ativos</span>
+        <strong>{{ kpis.vendedores_ativos|fmt_br_int }}</strong>
+      </article>
+      <article class="kpi">
+        <span>Vendas realizadas</span>
+        <strong>{{ kpis.vendas_realizadas|fmt_br_moeda }}</strong>
+      </article>
+      <article class="kpi">
+        <span>Devoluções (R$)</span>
+        <strong>{{ kpis.devolucoes_valor|fmt_br_moeda }}</strong>
+      </article>
+      <article class="kpi">
+        <span>Taxa devolução geral</span>
+        <strong>{{ kpis.taxa_devolucao_geral|fmt_br_1 }}%</strong>
+      </article>
+    </section>
+
+    <section class="bi-highlights">
+      <div class="highlight">
+        <h3>Quem mais vende</h3>
+        <p>{{ maior_vendas.vendedor if maior_vendas else "—" }}</p>
+        <small>{{ maior_vendas.vendas_realizadas|fmt_br_moeda if maior_vendas else "R$ 0,00" }}</small>
+      </div>
+      <div class="highlight">
+        <h3>Maior devolução em valor</h3>
+        <p>{{ maior_devolucao.vendedor if maior_devolucao else "—" }}</p>
+        <small>{{ maior_devolucao.devolucoes_valor|fmt_br_moeda if maior_devolucao else "R$ 0,00" }}</small>
+      </div>
+      <div class="highlight">
+        <h3>Melhor taxa de devolução</h3>
+        <p>{{ menor_taxa.vendedor if menor_taxa else "—" }}</p>
+        <small>{{ menor_taxa.taxa_devolucao_valor|fmt_br_1 if menor_taxa else "0,0" }}%</small>
+      </div>
+    </section>
+
+    <section class="bi-charts">
+      <article class="chart-card">
+        <h3>Top vendas por vendedor</h3>
+        <canvas id="chartTopVendas"></canvas>
+      </article>
+      <article class="chart-card">
+        <h3>Top devoluções por vendedor</h3>
+        <canvas id="chartTopDevolucoes"></canvas>
+      </article>
+    </section>
+
+    <section class="table-card">
+      <h3>Ranking completo por vendedor</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vendedor</th>
+              <th>Clientes</th>
+              <th>Pedidos</th>
+              <th>Concluídos</th>
+              <th>Vendas planejad.</th>
+              <th>Vendas realizadas</th>
+              <th>Devoluções (qtd.)</th>
+              <th>Devoluções (R$)</th>
+              <th>Taxa dev. valor</th>
+              <th>Ticket médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td>{{ row.vendedor }}</td>
+              <td>{{ row.clientes_ativos|fmt_br_int }}</td>
+              <td>{{ row.pedidos_total|fmt_br_int }}</td>
+              <td>{{ row.pedidos_concluidos|fmt_br_int }}</td>
+              <td>{{ row.vendas_planejadas|fmt_br_moeda }}</td>
+              <td>{{ row.vendas_realizadas|fmt_br_moeda }}</td>
+              <td>{{ row.devolucoes_qtd|fmt_br_int }}</td>
+              <td>{{ row.devolucoes_valor|fmt_br_moeda }}</td>
+              <td class="{{ 'tone-warn' if row.taxa_devolucao_valor >= 4 else 'tone-ok' if row.taxa_devolucao_valor <= 2 else '' }}">{{ row.taxa_devolucao_valor|fmt_br_1 }}%</td>
+              <td>{{ row.ticket_medio|fmt_br_moeda }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="10">Sem dados no período selecionado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const payload = {{ chart_payload_json|safe }} || {};
+  const topVendas = payload.top_vendas || [];
+  const topDevolucoes = payload.top_devolucoes || [];
+
+  function makeBarChart(id, labels, data, color, valuePrefix) {
+    const el = document.getElementById(id);
+    if (!el || typeof Chart === 'undefined') return;
+    new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{ data: data, backgroundColor: color, borderRadius: 6 }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            ticks: {
+              callback: (v) => valuePrefix + Number(v || 0).toLocaleString('pt-BR')
+            }
+          }
+        }
+      }
+    });
+  }
+
+  makeBarChart(
+    'chartTopVendas',
+    topVendas.map(r => r.vendedor),
+    topVendas.map(r => Number(r.vendas_realizadas || 0)),
+    'rgba(16,185,129,0.85)',
+    'R$ '
+  );
+  makeBarChart(
+    'chartTopDevolucoes',
+    topDevolucoes.map(r => r.vendedor),
+    topDevolucoes.map(r => Number(r.devolucoes_valor || 0)),
+    'rgba(239,68,68,0.85)',
+    'R$ '
+  );
+</script>
+
+<style>
+  .bi-vendedor-page { background: #0b1220; min-height: 100vh; color: #e2e8f0; padding: 1.25rem; }
+  .bi-vendedor-container { max-width: 1500px; margin: 0 auto; display: grid; gap: 1rem; }
+  .bi-vendedor-header, .kpi, .highlight, .chart-card, .table-card { background: #111a2d; border: 1px solid #23314f; border-radius: 12px; }
+  .bi-vendedor-header { padding: 1rem; display: grid; gap: 1rem; }
+  .bi-vendedor-header h1 { margin: 0; font-size: 1.3rem; }
+  .bi-vendedor-header p { margin: .2rem 0 0; color: #94a3b8; }
+  .bi-vendedor-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .bi-vendedor-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; align-items: end; }
+  .bi-vendedor-filters label { display: grid; gap: .3rem; font-size: .8rem; color: #94a3b8; }
+  .bi-vendedor-filters input, .bi-vendedor-filters select { height: 38px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; padding: 0 .6rem; }
+  .bi-vendedor-filter-actions { display: flex; gap: .5rem; }
+  .bi-btn { height: 38px; border-radius: 8px; padding: 0 .9rem; display: inline-flex; align-items: center; border: 1px solid #334155; text-decoration: none; color: #cbd5e1; font-size: .82rem; font-weight: 600; }
+  .bi-btn-primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+  .bi-btn-ghost { background: transparent; }
+  .bi-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+  .kpi { padding: .85rem; display: grid; gap: .35rem; }
+  .kpi span { color: #94a3b8; font-size: .78rem; }
+  .kpi strong { font-size: 1.15rem; }
+  .bi-highlights { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+  .highlight { padding: .85rem; }
+  .highlight h3 { margin: 0; font-size: .85rem; color: #94a3b8; }
+  .highlight p { margin: .4rem 0 .2rem; font-size: 1rem; font-weight: 700; }
+  .highlight small { color: #38bdf8; }
+  .bi-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+  .chart-card { padding: .85rem; }
+  .chart-card h3 { margin: 0 0 .5rem; font-size: .9rem; }
+  .table-card { padding: .85rem; }
+  .table-card h3 { margin: 0 0 .5rem; font-size: .9rem; }
+  .table-wrap { overflow: auto; border-radius: 8px; border: 1px solid #334155; }
+  table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+  th, td { padding: .55rem; border-bottom: 1px solid #1f2a44; text-align: left; font-size: .78rem; }
+  th { background: #0f172a; color: #94a3b8; position: sticky; top: 0; }
+  .tone-warn { color: #f59e0b; font-weight: 700; }
+  .tone-ok { color: #10b981; font-weight: 700; }
+  @media (max-width: 1000px) {
+    .bi-vendedor-filters, .bi-kpis, .bi-highlights, .bi-charts { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}

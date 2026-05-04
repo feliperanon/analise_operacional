@@ -1,251 +1,381 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Performance operacional · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Gerente / Performance operacional</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Performance operacional</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Planejado vs realizado no dia, com leitura rápida das paradas de entrega</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/gm-performance-operacional.css">
+{% endblock %}
 
 {% block content %}
-<div class="p-6 max-w-7xl mx-auto space-y-8 animate-fade-in" x-data="performanceController()">
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
-                Performance Operacional
-            </h1>
-            <p class="text-slate-400 mt-1">Visão executiva de planejado vs realizado.</p>
-        </div>
-        
-        <div class="flex items-center gap-3 bg-slate-800/50 p-2 rounded-xl border border-slate-700/50">
-            <input type="date" x-model="filters.date" @change="fetchData()" 
-                   class="bg-transparent border-none text-white focus:ring-0 text-sm">
-            <button @click="fetchData()" class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
-                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-            </button>
-        </div>
-    </div>
 
-    <!-- Error State -->
-    <template x-if="error">
-        <div class="bg-rose-500/10 border border-rose-500/30 p-6 rounded-2xl flex items-center gap-4">
-            <div class="w-12 h-12 bg-rose-500/20 rounded-full flex items-center justify-center text-rose-500">
-                <i data-lucide="alert-circle"></i>
-            </div>
-            <div>
-                <h3 class="font-bold text-rose-500">Erro ao carregar dados</h3>
-                <p class="text-sm text-rose-400/80" x-text="error"></p>
-            </div>
-        </div>
-    </template>
-
-    <!-- Loading State -->
-    <div x-show="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-50 pointer-events-none">
-        <div class="h-32 bg-slate-800 rounded-2xl animate-pulse"></div>
-        <div class="h-32 bg-slate-800 rounded-2xl animate-pulse"></div>
-        <div class="h-32 bg-slate-800 rounded-2xl animate-pulse"></div>
-    </div>
-
-    <!-- KPI Content -->
-    <div x-show="!loading && !error" class="space-y-8">
-        
-        <!-- Sessão 1: Planejado (Input de Ordem) -->
-        <section>
-            <div class="flex items-center gap-2 mb-4">
-                <div class="w-1.5 h-6 bg-blue-500 rounded-full"></div>
-                <h3 class="text-lg font-semibold text-slate-200">Planejamento do Dia</h3>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Peso Planejado -->
-                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl relative overflow-hidden group hover:border-blue-500/50 transition-all">
-                    <div class="relative z-10">
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Peso Planejado</p>
-                        <h4 class="text-2xl font-bold mt-2" x-text="formatNumber(data.planned.weight) + ' Kg'">0,00 Kg</h4>
-                    </div>
-                    <i data-lucide="package" class="absolute right-4 bottom-4 w-12 h-12 text-blue-500/10 group-hover:text-blue-500/20 transition-colors"></i>
+<div
+    class="gm-perf-page ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3"
+    x-data="gmPerformancePage()"
+    x-cloak
+>
+    <!-- Hero -->
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
                 </div>
-
-                <!-- Valor Total -->
-                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl relative overflow-hidden group hover:border-emerald-500/50 transition-all">
-                    <div class="relative z-10">
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Valor em Notas</p>
-                        <h4 class="text-2xl font-bold mt-2" x-text="formatCurrency(data.planned.value)">R$ 0,00</h4>
-                    </div>
-                    <i data-lucide="banknote" class="absolute right-4 bottom-4 w-12 h-12 text-emerald-500/10 group-hover:text-emerald-500/20 transition-colors"></i>
-                </div>
-
-                <!-- Valor em Espécie -->
-                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl relative overflow-hidden group hover:border-amber-500/50 transition-all">
-                    <div class="relative z-10">
-                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Valor em Espécie</p>
-                        <h4 class="text-2xl font-bold mt-2" x-text="formatCurrency(data.planned.cash_value)">R$ 0,00</h4>
-                    </div>
-                    <i data-lucide="coins" class="absolute right-4 bottom-4 w-12 h-12 text-amber-500/10 group-hover:text-amber-500/20 transition-colors"></i>
-                </div>
-            </div>
-
-            <!-- Recursos -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4">
-                    <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400">
-                        <i data-lucide="truck" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase">Caminhões</p>
-                        <p class="text-lg font-bold" x-text="data.planned.truck_count">0</p>
-                    </div>
-                </div>
-                <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4">
-                    <div class="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400">
-                        <i data-lucide="user" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase">Motoristas</p>
-                        <p class="text-lg font-bold" x-text="data.planned.driver_count">0</p>
-                    </div>
-                </div>
-                <div class="bg-slate-800/50 border border-slate-700 p-4 rounded-xl flex items-center gap-4">
-                    <div class="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center text-purple-400">
-                        <i data-lucide="users" class="w-5 h-5"></i>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase">Ajudantes</p>
-                        <p class="text-lg font-bold" x-text="data.planned.helper_count">0</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Sessão 2: Realizado e Eficiência -->
-        <section>
-            <div class="flex items-center gap-2 mb-4">
-                <div class="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
-                <h3 class="text-lg font-semibold text-slate-200">Realizado e Eficiência</h3>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <!-- Peso Entregue -->
-                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Peso Entregue</p>
-                    <div class="flex items-end gap-2">
-                        <h4 class="text-2xl font-bold" x-text="formatNumber(data.realized.delivered_weight) + ' Kg'">0,00 Kg</h4>
-                        <span class="text-xs pb-1" :class="getWeightEfficiencyClass()" x-text="getWeightEfficiency()">0%</span>
-                    </div>
-                    <div class="w-full bg-slate-700 h-1.5 rounded-full mt-4 overflow-hidden">
-                        <div class="bg-emerald-500 h-full transition-all duration-1000" :style="'width: ' + getWeightEfficiency()"></div>
-                    </div>
-                </div>
-
-                <!-- Devolução % -->
-                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Devolução (% Valor)</p>
-                    <h4 class="text-2xl font-bold" x-text="formatNumber(data.realized.return_value_pct) + '%'">0,00%</h4>
-                    <p class="text-[10px] mt-2" :class="data.realized.return_value_pct > 5 ? 'text-rose-400' : 'text-emerald-400'">
-                        <span x-text="data.realized.return_value_pct > 5 ? 'Acima da meta (5%)' : 'Dentro do esperado'"></span>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        Gerência · Entregas
+                    </span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Painel do dia</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Compare o que foi planejado com o executado, acompanhe paradas e status sem sair do mesmo padrão visual do cadastro de colaboradores.
                     </p>
-                </div>
-
-                <!-- KM Total -->
-                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">KM Percorrido</p>
-                    <h4 class="text-2xl font-bold" x-text="formatNumber(data.realized.total_km) + ' KM'">0,0 KM</h4>
-                    <p class="text-[10px] text-slate-500 mt-2">Dados do App Mobile</p>
-                </div>
-
-                <!-- Tempo Operação -->
-                <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl">
-                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tempo Operação</p>
-                    <h4 class="text-2xl font-bold" x-text="data.realized.total_op_hours + ' h'">0,0 h</h4>
-                    <p class="text-[10px] text-slate-500 mt-2">Duração total das sessões</p>
-                </div>
-            </div>
-
-            <!-- Médias por Cliente -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl flex justify-between items-center">
-                    <div>
-                        <p class="text-xs font-bold text-slate-500 uppercase">Média Tempo / Entrega</p>
-                        <h4 class="text-2xl font-bold mt-1" x-text="data.realized.avg_time_delivered_m + ' min'">0 min</h4>
-                    </div>
-                    <div class="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-500">
-                        <i data-lucide="container"></i>
-                    </div>
-                </div>
-                <div class="bg-slate-800/50 border border-slate-700 p-6 rounded-2xl flex justify-between items-center">
-                    <div>
-                        <p class="text-xs font-bold text-slate-500 uppercase">Média Tempo / Devolução</p>
-                        <h4 class="text-2xl font-bold mt-1" x-text="data.realized.avg_time_return_m + ' min'">0 min</h4>
-                    </div>
-                    <div class="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center text-rose-500">
-                        <i data-lucide="undo-2"></i>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-sky-500"></span>
+                            Dados do mobile (km e tempo) quando houver sessão
+                        </span>
                     </div>
                 </div>
             </div>
-        </section>
 
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-lg xl:flex-shrink-0 xl:justify-end">
+                <button type="button" @click="fetchData(true)" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" :disabled="loading">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </span>
+                    <span class="employees-cta__label" x-text="loading ? 'Atualizando…' : 'Atualizar'"></span>
+                </button>
+                <button type="button" @click="setToday()" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__label">Hoje (SP)</span>
+                </button>
+                <a href="/gm/mapa-realtime" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__label">Mapa tempo real</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Erro -->
+    <div x-show="error" x-transition class="sys-alert sys-alert--danger flex items-start gap-3" role="alert">
+        <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div class="min-w-0 flex-1">
+            <p class="font-semibold">Algo deu errado</p>
+            <p class="mt-1 text-sm opacity-90" x-text="error"></p>
+        </div>
+        <button type="button" @click="error = null; fetchData(true)" class="sys-btn sys-btn--secondary shrink-0 text-xs">Tentar de novo</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="sys-kpi-shell w-full" x-show="!error">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo do dia">
+            <template x-if="loading && !data">
+                <div class="sys-kpi-card employees-kpi flex-[1_1_8rem] min-w-[8rem] animate-pulse py-6"></div>
+            </template>
+            <template x-if="loading && !data">
+                <div class="sys-kpi-card employees-kpi flex-[1_1_8rem] min-w-[8rem] animate-pulse py-6"></div>
+            </template>
+            <template x-if="loading && !data">
+                <div class="sys-kpi-card employees-kpi flex-[1_1_8rem] min-w-[8rem] animate-pulse py-6"></div>
+            </template>
+            <template x-if="loading && !data">
+                <div class="sys-kpi-card employees-kpi flex-[1_1_8rem] min-w-[8rem] animate-pulse py-6"></div>
+            </template>
+
+            <template x-if="data">
+                <div class="sys-kpi-card employees-kpi" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Execução (peso)</span>
+                        <span class="employees-kpi__value tabular-nums mt-1" x-text="formatNumber(data.execution_pct) + '%'"></span>
+                        <div class="employees-kpi__meta">
+                            <span class="employees-text-muted">Entregue</span>
+                            <span class="tabular-nums employees-text-strong" x-text="formatNumber(data.realized.delivered_weight) + ' kg'"></span>
+                            <span class="employees-text-muted"> de </span>
+                            <span class="tabular-nums" x-text="formatNumber(data.planned.weight) + ' kg'"></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <template x-if="data">
+                <div class="sys-kpi-card employees-kpi" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Valor planejado</span>
+                        <span class="employees-kpi__value tabular-nums mt-1" x-text="formatCurrency(data.planned.value)"></span>
+                        <div class="employees-kpi__meta"><span class="employees-text-muted">Soma das notas do dia</span></div>
+                    </div>
+                </div>
+            </template>
+            <template x-if="data">
+                <div class="sys-kpi-card employees-kpi" style="--employees-kpi-accent: rgba(148, 163, 184, 0.68);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Paradas</span>
+                        <span class="employees-kpi__value tabular-nums mt-1" x-text="data.summary_counts.stops"></span>
+                        <div class="employees-kpi__meta"><span class="employees-text-muted">Rotas delivery na data</span></div>
+                    </div>
+                </div>
+            </template>
+            <template x-if="data">
+                <div class="sys-kpi-card employees-kpi" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);">
+                    <div class="sys-kpi-cell-inner employees-kpi__inner">
+                        <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Em aberto</span>
+                        <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums mt-1" x-text="data.summary_counts.pendentes"></span>
+                        <div class="employees-kpi__meta">
+                            <span class="employees-text-muted">Devoluções: </span>
+                            <span class="tabular-nums font-medium" x-text="data.summary_counts.devolucoes"></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar" x-show="!error">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner flex-col gap-4 lg:flex-row lg:items-end">
+                <div class="employees-filter-bar__primary flex w-full flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <div class="min-w-[10rem] flex-1 sm:max-w-[11rem]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Data</span>
+                        <input type="date" x-model="date" @change="page = 1; fetchData(true)"
+                            class="sys-input mt-1 w-full tabular-nums">
+                    </div>
+                    <div class="min-w-[10rem] flex-1 sm:max-w-[11rem]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Turno</span>
+                        <select x-model="shift" @change="page = 1; fetchData(true)" class="sys-input mt-1 w-full">
+                            <option value="">Todos</option>
+                            <option value="Manhã">Manhã</option>
+                            <option value="Tarde">Tarde</option>
+                            <option value="Noite">Noite</option>
+                        </select>
+                    </div>
+                    <div class="min-w-0 flex-[2]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search mt-1 w-full">
+                            <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="search" x-model="q" @input="onSearchInput()" placeholder="Motorista, cliente, placa, pedido…" class="ops-toolbar-search__input" autocomplete="off">
+                        </div>
+                    </div>
+                    <div class="min-w-[8rem]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Por página</span>
+                        <select x-model.number="perPage" @change="page = 1; fetchData(true)" class="sys-input mt-1 w-full">
+                            <option value="15">15</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider lg:hidden" aria-hidden="true"></div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" @click="clearFilters()" class="ops-toolbar-ghost-btn employees-filter-bar__btn px-3 py-2 text-sm">Limpar filtros</button>
+                    <a :href="separacaoUrl()" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar">
+                        <span class="employees-filter-bar__link-sub-text">Abrir painel de rotas</span>
+                    </a>
+                </div>
+            </div>
+            <div class="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-700/80">
+                <p class="employees-filter-bar__label employees-filter-bar__label--compact mb-2">Visão rápida</p>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" @click="setView('all')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs" :class="view === 'all' ? 'filter-btn--active' : ''">Todos</button>
+                    <button type="button" @click="setView('pendentes')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs" :class="view === 'pendentes' ? 'filter-btn--active' : ''">Pendentes</button>
+                    <button type="button" @click="setView('concluidos')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs" :class="view === 'concluidos' ? 'filter-btn--active' : ''">Concluídos</button>
+                    <button type="button" @click="setView('devolucao')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs" :class="view === 'devolucao' ? 'filter-btn--active' : ''">Devoluções</button>
+                    <button type="button" @click="setView('criticos')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs" :class="view === 'criticos' ? 'filter-btn--active' : ''">Críticos</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela -->
+    <div id="gm-perf-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0" x-show="!error">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Operação</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Paradas do dia</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">
+                    Lista filtrável das rotas de entrega. No celular, cada linha vira um card legível.
+                </p>
+            </div>
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span class="employees-text-caption" x-show="data">Referência: </span>
+                <span class="employees-text-caption tabular-nums" x-text="data ? data.date : ''"></span>
+                <span class="employees-text-caption" x-show="data && data.routes"> · </span>
+                <span class="employees-text-caption" x-show="data && data.routes" x-text="data && data.routes ? (data.routes.total + ' registro(s)') : ''"></span>
+                <p class="employees-text-caption mt-2 block text-[11px]" x-show="data && data.realized">
+                    <span class="tabular-nums" x-text="'Km app: ' + formatNumber(data.realized.total_km)"></span>
+                    <span> · </span>
+                    <span class="tabular-nums" x-text="'Tempo sessões: ' + formatNumber(data.realized.total_op_hours) + ' h'"></span>
+                    <span> · </span>
+                    <span class="tabular-nums" x-text="'Média entrega: ' + formatNumber(data.realized.avg_time_delivered_m) + ' min'"></span>
+                </p>
+            </div>
+        </div>
+
+        <div x-show="selectedCount() > 0" class="gm-perf-bulk-bar flex flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-6">
+            <span class="text-sm employees-text-strong"><span x-text="selectedCount()"></span> selecionado(s) nesta página</span>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" @click="exportSelectedCsv()" class="sys-btn sys-btn--secondary text-xs">Exportar CSV</button>
+            </div>
+        </div>
+
+        <div class="sys-table-wrap sys-table-wrap--x-scroll relative min-h-[12rem]">
+            <div x-show="loading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-gray-900/50">
+                <p class="text-sm employees-text-muted">Carregando…</p>
+            </div>
+
+            <template x-if="data && data.routes && data.routes.total === 0">
+                <div class="sys-empty-state px-6 py-16 text-center">
+                    <p class="employees-text-strong text-base">Nenhuma parada neste recorte</p>
+                    <p class="mt-2 text-sm employees-text-muted">Ajuste a data, o turno ou a visão rápida.</p>
+                </div>
+            </template>
+
+            <table id="gmPerfTable" class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]" x-show="data && data.routes && data.routes.total > 0">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-2 py-2 pl-4 w-10">
+                            <input type="checkbox" class="h-4 w-4 rounded border-slate-300" @change="toggleAllPage($event)" :checked="allPageSelected()">
+                        </th>
+                        <th class="employees-data-table__th px-3 py-2 pl-3">Cliente / pedido</th>
+                        <th class="employees-data-table__th px-2 py-2">Motorista</th>
+                        <th class="employees-data-table__th px-2 py-2">Turno</th>
+                        <th class="employees-data-table__th px-2 py-2">Placa</th>
+                        <th class="employees-data-table__th px-2 py-2 text-right">Peso (kg)</th>
+                        <th class="employees-data-table__th px-2 py-2 text-right">Valor</th>
+                        <th class="employees-data-table__th px-2 py-2">Status</th>
+                        <th class="employees-data-table__th px-2 py-2 pr-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y">
+                    <template x-for="row in (data && data.routes ? data.routes.items : [])" :key="row.id">
+                        <tr class="gm-perf-row employees-data-table__row transition-colors">
+                            <td class="employees-data-table__cell px-2 py-2 pl-4 align-middle" data-label="Selecionar">
+                                <input type="checkbox" class="h-4 w-4 rounded border-slate-300" :checked="!!selected[String(row.id)]" @change="toggleRow(row.id)">
+                            </td>
+                            <td class="gm-perf-cell-primary employees-data-table__td--col-name px-3 py-2 pl-3 align-middle" data-label="Cliente">
+                                <span class="employees-text-strong block" x-text="row.client_name"></span>
+                                <span class="employees-text-caption text-xs">Pedido <span class="tabular-nums" x-text="row.order"></span></span>
+                            </td>
+                            <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motorista" x-text="row.driver_name"></td>
+                            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Turno" x-text="row.shift"></td>
+                            <td class="employees-data-table__cell px-2 py-2 align-middle tabular-nums" data-label="Placa" x-text="row.plate"></td>
+                            <td class="employees-data-table__cell px-2 py-2 align-middle text-right tabular-nums" data-label="Peso (kg)" x-text="formatNumber(row.tonnage)"></td>
+                            <td class="employees-data-table__cell px-2 py-2 align-middle text-right tabular-nums" data-label="Valor" x-text="formatCurrency(row.valor)"></td>
+                            <td class="employees-data-table__td--col-status px-2 py-2 align-middle" data-label="Status">
+                                <span class="sys-badge" :class="badgeClass(row.badge)" x-text="row.status_label"></span>
+                            </td>
+                            <td class="gm-perf-actions-cell employees-data-table__td--col-actions px-2 py-2 pr-4 align-middle" data-label="Ações">
+                                <div class="gm-perf-actions employees-action-strip flex flex-wrap items-center gap-1">
+                                    <button type="button" @click="openDetail(row)" class="sys-btn sys-btn--secondary px-2.5 py-1.5 text-xs">Detalhes</button>
+                                    <a :href="separacaoUrl()" class="sys-btn sys-btn--secondary px-2.5 py-1.5 text-xs">Rotas</a>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6" x-show="data && data.routes && data.routes.total > 0">
+            <p class="text-xs employees-text-caption">
+                Página <span class="tabular-nums" x-text="data.routes.page"></span> de <span class="tabular-nums" x-text="data.routes.total_pages"></span>
+            </p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" class="sys-btn sys-btn--secondary text-xs" @click="goPage(data.routes.page - 1)" :disabled="data.routes.page <= 1">Anterior</button>
+                <button type="button" class="sys-btn sys-btn--secondary text-xs" @click="goPage(data.routes.page + 1)" :disabled="data.routes.page >= data.routes.total_pages">Próxima</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal detalhe -->
+    <div x-show="detailOpen" x-transition class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" @keydown.escape.window="closeDetail()">
+        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/55" @click="closeDetail()"></div>
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto" x-show="detailRow">
+            <div class="mb-4 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h3 class="sys-section-heading text-lg">Parada #<span class="tabular-nums" x-text="detailRow ? detailRow.id : ''"></span></h3>
+                    <p class="mt-1 text-sm employees-text-muted" x-text="detailRow ? detailRow.client_name : ''"></p>
+                </div>
+                <button type="button" @click="closeDetail()" class="emp-modal-close shrink-0 rounded-md p-1.5" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <dl class="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Status</dt>
+                    <dd class="mt-0.5"><span class="sys-badge" :class="detailRow ? badgeClass(detailRow.badge) : ''" x-text="detailRow ? detailRow.status_label : ''"></span></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Motorista</dt>
+                    <dd class="mt-0.5 employees-text-strong" x-text="detailRow ? detailRow.driver_name : ''"></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Turno</dt>
+                    <dd class="mt-0.5" x-text="detailRow ? detailRow.shift : ''"></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Placa</dt>
+                    <dd class="mt-0.5 tabular-nums" x-text="detailRow ? detailRow.plate : ''"></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Pedido</dt>
+                    <dd class="mt-0.5 tabular-nums" x-text="detailRow ? detailRow.order : ''"></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Peso / valor</dt>
+                    <dd class="mt-0.5 tabular-nums" x-text="detailRow ? (formatNumber(detailRow.tonnage) + ' kg · ' + formatCurrency(detailRow.valor)) : ''"></dd>
+                </div>
+                <div class="sm:col-span-2">
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Endereço</dt>
+                    <dd class="mt-0.5" x-text="detailRow ? (detailRow.address || '—') : ''"></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Bairro / cidade</dt>
+                    <dd class="mt-0.5" x-text="detailRow ? (detailRow.bairro + ' · ' + detailRow.cidade) : ''"></dd>
+                </div>
+                <div>
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Início / fim</dt>
+                    <dd class="mt-0.5 tabular-nums" x-text="detailRow ? ((detailRow.started_at || '—') + ' → ' + (detailRow.finished_at || '—')) : ''"></dd>
+                </div>
+                <div class="sm:col-span-2" x-show="detailRow && detailRow.valor_devolucao > 0">
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Devolução (R$)</dt>
+                    <dd class="mt-0.5 tabular-nums" x-text="detailRow ? formatCurrency(detailRow.valor_devolucao) : ''"></dd>
+                </div>
+                <div class="sm:col-span-2" x-show="detailRow && detailRow.return_reason">
+                    <dt class="text-xs font-semibold uppercase tracking-wide employees-text-muted">Motivo</dt>
+                    <dd class="mt-0.5" x-text="detailRow ? detailRow.return_reason : ''"></dd>
+                </div>
+            </dl>
+            <div class="mt-6 flex flex-wrap justify-end gap-2">
+                <button type="button" @click="closeDetail()" class="sys-btn sys-btn--secondary">Fechar</button>
+                <a :href="separacaoUrl()" class="sys-btn sys-btn--primary">Ir ao painel de rotas</a>
+            </div>
+        </div>
     </div>
 </div>
 
-<script>
-function performanceController() {
-    return {
-        loading: false,
-        error: null,
-        filters: {
-            date: new Date().toISOString().split('T')[0]
-        },
-        data: {
-            planned: { weight: 0, value: 0, cash_value: 0, driver_count: 0, helper_count: 0, truck_count: 0 },
-            realized: { delivered_weight: 0, return_value_pct: 0, total_km: 0, total_op_hours: 0, avg_time_delivered_m: 0, avg_time_return_m: 0 }
-        },
-        
-        init() {
-            this.fetchData();
-        },
+{% endblock %}
 
-        async fetchData() {
-            this.loading = true;
-            this.error = null;
-            try {
-                const url = `/api/gm/performance-operacional-data?date=${this.filters.date}`;
-                const res = await fetch(url);
-                if (!res.ok) throw new Error('Falha na resposta do servidor');
-                this.data = await res.json();
-                
-                // Initialize Lucide icons after update
-                setTimeout(() => lucide.createIcons(), 100);
-            } catch (e) {
-                console.error(e);
-                this.error = 'Não foi possível carregar os dados desta data.';
-            } finally {
-                this.loading = false;
-            }
-        },
-
-        formatNumber(v) {
-            return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }).format(v || 0);
-        },
-
-        formatCurrency(v) {
-            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
-        },
-
-        getWeightEfficiency() {
-            if (!this.data.planned.weight) return '0%';
-            const pct = (this.data.realized.delivered_weight / this.data.planned.weight) * 100;
-            return Math.min(pct, 100).toFixed(1) + '%';
-        },
-
-        getWeightEfficiencyClass() {
-            const pct = (this.data.realized.delivered_weight / this.data.planned.weight) * 100;
-            if (pct >= 90) return 'text-emerald-400';
-            if (pct >= 70) return 'text-amber-400';
-            return 'text-rose-400';
-        }
-    }
-}
-</script>
-
-<style>
-.animate-fade-in {
-    animation: fadeIn 0.5s ease-out;
-}
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-</style>
+{% block body_scripts %}
+<script defer src="/static/js/pages/gm-performance-operacional-page.js"></script>
 {% endblock %}

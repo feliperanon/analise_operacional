@@ -639,7 +639,7 @@ def init_devolucoes_router(
         if sort_dir not in {"asc", "desc"}:
             sort_dir = "desc" if sort_key in {"data", "valor"} else "asc"
         page = max(1, int(page or 1))
-        per_page_effective = min(max(25, int(per_page or 100)), 200)
+        per_page_effective = min(max(25, int(per_page or 50)), 200)
 
         # Só colunas usadas nos selects (menos tráfego Redis/Postgres que ORM completo)
         er = session.exec(

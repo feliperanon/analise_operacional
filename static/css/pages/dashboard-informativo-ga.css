@@ -532,17 +532,23 @@ body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel
 
 .dashboard-informativo-ga .gv-rh-table--vacation th:nth-child(1),
 .dashboard-informativo-ga .gv-rh-table--vacation td:nth-child(1) {
-  width: 42%;
+  width: 38%;
 }
 
 .dashboard-informativo-ga .gv-rh-table--vacation th:nth-child(2),
 .dashboard-informativo-ga .gv-rh-table--vacation td:nth-child(2) {
-  width: 36%;
+  width: 34%;
 }
 
 .dashboard-informativo-ga .gv-rh-table--vacation th:nth-child(3),
 .dashboard-informativo-ga .gv-rh-table--vacation td:nth-child(3) {
-  width: 22%;
+  width: 28%;
+}
+
+/* Status (“Encerra hoje”, etc.): largura fixa da coluna + nowrap cortava o texto */
+.dashboard-informativo-ga .gv-rh-table--vacation .gv-rh-status {
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .dashboard-informativo-ga .gv-rh-empty {

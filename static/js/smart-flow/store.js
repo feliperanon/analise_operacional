@@ -102,7 +102,20 @@ const Store = {
         this.state.employees = initialData.employees || [];
         // Converte setores string em objetos se vierem simples, ou usa config
         this.state.sectors = initialData.sectors || [];
-        this.state.targets = initialData.targets || {};
+        if (initialData.targets && typeof initialData.targets === 'object') {
+            this.state.targets = { ...this.state.targets, ...initialData.targets };
+        }
+        if (initialData.currentDate) {
+            const sh = initialData.currentShift || this.state.currentShift;
+            this.state.currentDate = ShiftDateUtils.normalizeDateForShift(initialData.currentDate, sh);
+        }
+        if (initialData.currentShift) {
+            this.state.currentShift = initialData.currentShift;
+        }
+        if (initialData.tonnage != null && initialData.tonnage !== '') {
+            const t = Number(initialData.tonnage);
+            if (!Number.isNaN(t)) this.state.tonnage = t;
+        }
         console.log('Store initialized:', this.state.employees.length, 'employees, Targets:', this.state.targets);
     },
 
@@ -345,6 +358,8 @@ const Store = {
         // Produtividade
         const prod = present > 0 ? Math.round(this.state.tonnage / present) : 0;
 
+        const unavailable = dayoff + missing + sick + vacation + away;
+
         this.state.kpis = {
             headcount: shiftEmps.length,
             present: present,
@@ -354,6 +369,8 @@ const Store = {
             vacation,
             away,
             missing,
+            dayoff,
+            unavailable,
             tonnage: this.state.tonnage,
             productivity: prod,
             percent: totalTarget > 0 ? Math.round((present / totalTarget) * 100) : 0

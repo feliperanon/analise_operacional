@@ -1,369 +1,326 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Fluxo operacional · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Liderança / Fluxo operacional</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Fluxo operacional</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Alocação por setor, rotina do turno e leitura rápida do quadro</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/smart-flow-ga.css?v=1">
+{% endblock %}
 
 {% block content %}
-<div class="min-h-dvh flex flex-col bg-slate-900 text-slate-100 font-sans overflow-x-hidden">
 
-    <!-- Header Responsivo -->
-    <header class="bg-slate-800/95 border-b border-slate-700 px-4 py-3 shrink-0">
-        <div class="max-w-7xl mx-auto">
-            <div class="smart-header-shell">
+<div class="ga-employee-theme employees-shell smart-flow-page employees-page space-y-5 pt-2 md:pt-3">
 
-                <div class="flex flex-col gap-3">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="text-blue-500 text-xl shrink-0">
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                    stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                                </svg>
-                            </span>
-                            <div class="min-w-0">
-                                <h1 class="text-lg font-bold text-white leading-tight">Fluxo Operacional</h1>
-                                <p class="text-[10px] text-slate-400 font-semibold tracking-[0.16em]">VISAO EM TEMPO
-                                    REAL</p>
-                            </div>
-                        </div>
-
-                        <div class="inline-flex p-1 bg-slate-800 rounded-lg border border-slate-700 gap-1 shrink-0"
-                            id="shift-controls">
-                            <button onclick="changeShift('Manhã')" data-shift="Manhã"
-                                class="h-9 px-3 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-white hover:bg-slate-700">Manhã</button>
-                            <button onclick="changeShift('Tarde')" data-shift="Tarde"
-                                class="h-9 px-3 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-white hover:bg-slate-700">Tarde</button>
-                            <button onclick="changeShift('Noite')" data-shift="Noite"
-                                class="h-9 px-3 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-white hover:bg-slate-700">Noite</button>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-row items-center gap-3 overflow-x-auto no-scrollbar">
-                        <div class="flex items-center gap-2 shrink-0">
-                            <div id="dashboard-clock"
-                                class="bg-slate-900/80 backdrop-blur border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-3 shadow-inner shrink-0">
-                                <div class="text-center min-w-[60px]">
-                                    <div id="dash-time" class="text-xl font-bold text-white font-mono leading-none">
-                                        --:--</div>
-                                    <div id="dash-date"
-                                        class="text-[9px] text-slate-500 uppercase tracking-wider mt-0.5">---</div>
-                                </div>
-                                <div class="w-px h-8 bg-slate-700"></div>
-                                <div id="dash-shift-indicator" class="text-center min-w-[70px]">
-                                    <div id="dash-shift-name" class="text-xs font-bold text-blue-400">Turno</div>
-                                    <div id="dash-shift-progress"
-                                        class="w-16 h-1 bg-slate-700 rounded-full mt-1 overflow-hidden mx-auto">
-                                        <div id="dash-shift-bar" class="h-full bg-blue-500 rounded-full transition-all"
-                                            style="width: 0%"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center gap-2 bg-slate-900/80 p-1 rounded-xl border border-slate-700 hover:border-slate-500 transition-colors cursor-pointer group shrink-0"
-                                title="Mudar Data" onclick="document.getElementById('date-picker').showPicker()">
-                                <div class="px-2">
-                                    <input type="date" id="date-picker" value="{{ current_date }}"
-                                        onchange="changeDate(this.value)"
-                                        class="bg-transparent text-slate-100 text-xs font-bold w-6 border-none focus:ring-0 cursor-pointer outline-none p-0 opacity-0 absolute pointer-events-none">
-                                    <svg class="h-5 w-5 text-slate-400 group-hover:text-white transition-colors"
-                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                        </path>
-                                    </svg>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center gap-2 shrink-0">
-                                <div class="inline-flex items-center gap-2 shrink-0">
-                                    <button onclick="createSector()"
-                                        class="header-action-btn bg-blue-600 hover:bg-blue-500 active:bg-blue-700"
-                                        title="Novo Setor">
-                                        <span>Novo setor</span>
-                                    </button>
-
-                                    <button onclick="saveAll()"
-                                        class="header-action-btn bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700"
-                                        title="Salvar Alterações">
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                        <span>Salvar</span>
-                                    </button>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
                 </div>
-
-                <div class="mt-3 pt-3 border-t border-slate-700/80">
-                    <div
-                        class="grid grid-cols-4 gap-2 justify-center sm:grid-cols-4 md:grid-cols-5 lg:flex lg:flex-row lg:flex-nowrap lg:items-stretch lg:gap-2 lg:overflow-visible lg:justify-center pb-1">
-                        <a href="/routine/report?date={{ current_date }}&shift={{ current_shift }}" id="report-link"
-                            target="_blank" aria-label="Relatório de rotina"
-                            class="smart-nav-chip bg-purple-600 hover:bg-purple-500 border border-purple-700/60">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span class="text-[9px] text-slate-100">Relatório</span>
-                        </a>
-
-                        <a href="/smart-flow/organogram?date={{ current_date }}&shift={{ current_shift }}"
-                            id="organogram-link" target="_blank" aria-label="Organograma"
-                            class="smart-nav-chip bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 border border-cyan-500/30">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            <span class="text-[9px] text-slate-100">Organograma</span>
-                        </a>
-
-                        <a href="/admin/routine/checklists" aria-label="Checklists"
-                            class="smart-nav-chip bg-amber-600/80 hover:bg-amber-600 border border-amber-500/40">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path
-                                    d="M9 5h6m-6 4h6m-7 4h8m-5 4h2m-8 2h10a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                            </svg>
-                            <span class="text-[9px] text-slate-100">Checklists</span>
-                        </a>
-
-                        <a href="/lider/rotas/relatorio" aria-label="Relatório de rotas"
-                            class="smart-nav-chip bg-indigo-600/80 hover:bg-indigo-600 border border-indigo-500/40">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span class="text-[9px] text-slate-100">Rel. rotas</span>
-                        </a>
-
-                        <a href="/admin/alerts/settings" aria-label="Alertas de ausências"
-                            class="smart-nav-chip bg-red-600/80 hover:bg-red-600 border border-red-500/40">
-                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            <span class="text-[9px] text-slate-100">Alertas</span>
-                        </a>
+                <div class="min-w-0 flex-1">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        Painel do líder
+                    </span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Smart Flow</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
+                        Organize o turno arrastando colaboradores para os setores ou use a lista para localizar e filtrar com rapidez.
+                    </p>
+                    <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <div id="dashboard-clock"
+                            class="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white/60 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-800/50">
+                            <div class="text-center min-w-[52px]">
+                                <div id="dash-time" class="text-base font-bold tabular-nums leading-none text-slate-800 dark:text-white">--:--</div>
+                                <div id="dash-date" class="text-[10px] text-slate-500 uppercase tracking-wider">—</div>
+                            </div>
+                            <div class="h-6 w-px bg-slate-200 dark:bg-slate-600" aria-hidden="true"></div>
+                            <div id="dash-shift-indicator" class="min-w-[4.5rem]">
+                                <div id="dash-shift-name" class="text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">Turno</div>
+                                <div class="mt-0.5 h-1 w-full max-w-[4rem] rounded-full bg-slate-200 dark:bg-slate-700">
+                                    <div id="dash-shift-bar" class="h-full rounded-full bg-blue-500 transition-all" style="width:0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-medium">
+                            Data operacional: <strong class="font-semibold tabular-nums">{{ current_date }}</strong>
+                        </span>
                     </div>
                 </div>
             </div>
-        </div>
-    </header>
-    <!-- KPI Strip (Responsive Grid) -->
-    <div id="kpi-strip" class="shrink-0 px-4 py-3 border-b border-slate-800 bg-slate-900/95 backdrop-blur z-10">
-        <div class="max-w-7xl mx-auto">
-            <!-- Mobile: 3 rows layout, Desktop: 1 row with flex-nowrap -->
-            <div class="grid grid-cols-3 lg:flex lg:flex-row lg:flex-nowrap gap-2 lg:gap-3">
 
-                <!-- 1. Headcount - Mobile: 2/3 of row 1, Desktop: flex-[1.5] -->
-                <div onclick="KPIDetails.show('present')"
-                    class="col-span-2 lg:col-auto lg:flex-[1.5] lg:min-w-0 bg-slate-800/90 border border-slate-700 rounded-xl lg:rounded-2xl p-2 lg:p-3 shadow-inner transition hover:border-blue-500/80 cursor-pointer flex flex-col justify-between min-h-[90px] lg:min-h-[110px]">
-                    <div class="flex items-start justify-between">
-                        <p class="text-[9px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-wide">Headcount
-                        </p>
-                        <span class="text-[8px] lg:text-[9px] text-slate-500">Meta</span>
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:ml-auto xl:w-auto xl:max-w-xl xl:flex-shrink-0 xl:justify-end">
+                <div class="inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/80 p-1 dark:border-slate-700 dark:bg-slate-800/40"
+                    id="shift-controls" role="group" aria-label="Turno">
+                    <button type="button" onclick="changeShift('Manhã')" data-shift="Manhã"
+                        class="sf-shift-btn rounded-lg px-3 py-2 text-xs font-semibold transition-colors">Manhã</button>
+                    <button type="button" onclick="changeShift('Tarde')" data-shift="Tarde"
+                        class="sf-shift-btn rounded-lg px-3 py-2 text-xs font-semibold transition-colors">Tarde</button>
+                    <button type="button" onclick="changeShift('Noite')" data-shift="Noite"
+                        class="sf-shift-btn rounded-lg px-3 py-2 text-xs font-semibold transition-colors">Noite</button>
+                </div>
+
+                <label class="sf-date-field flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-xs font-medium shadow-sm dark:border-slate-700 dark:bg-slate-900"
+                    title="Alterar data">
+                    <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <input type="date" id="date-picker" value="{{ current_date }}" onchange="changeDate(this.value)"
+                        class="min-w-0 flex-1 cursor-pointer border-0 bg-transparent p-0 text-slate-800 focus:ring-0 dark:text-slate-100" />
+                </label>
+
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[10rem]">
+                    <button type="button" @click="open = !open"
+                        class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto"
+                        :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+                        </span>
+                        <span class="employees-cta__label">Atalhos</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="open" x-cloak x-transition @click.away="open = false"
+                        class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,18rem)]">
+                        <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Relatórios e ferramentas</p>
+                        <a href="/routine/report?date={{ current_date }}&shift={{ current_shift }}" id="report-link" target="_blank" rel="noopener" class="employees-menu-item" @click="open = false">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--slate" aria-hidden="true"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>
+                            <span class="employees-menu-item__text"><span class="employees-menu-item__title">Relatório de rotina</span><span class="employees-menu-item__hint">Abre em nova aba</span></span>
+                        </a>
+                        <a href="/smart-flow/organogram?date={{ current_date }}&shift={{ current_shift }}" id="organogram-link" target="_blank" rel="noopener" class="employees-menu-item" @click="open = false">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg></span>
+                            <span class="employees-menu-item__text"><span class="employees-menu-item__title">Organograma</span><span class="employees-menu-item__hint">Visão hierárquica</span></span>
+                        </a>
+                        <a href="/admin/routine/checklists" class="employees-menu-item" @click="open = false">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5h6m-6 4h6m-7 4h8m-5 4h2m-8 2h10a2 2 0 002-2V5a2 2 0 00-2-2H6a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg></span>
+                            <span class="employees-menu-item__text"><span class="employees-menu-item__title">Checklists</span><span class="employees-menu-item__hint">Rotinas administrativas</span></span>
+                        </a>
+                        <a href="/lider/rotas/relatorio" class="employees-menu-item" @click="open = false">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></span>
+                            <span class="employees-menu-item__text"><span class="employees-menu-item__title">Rel. rotas</span><span class="employees-menu-item__hint">Separadores</span></span>
+                        </a>
+                        <a href="/admin/alerts/settings" class="employees-menu-item" @click="open = false">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--slate" aria-hidden="true"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></span>
+                            <span class="employees-menu-item__text"><span class="employees-menu-item__title">Alertas de ausência</span><span class="employees-menu-item__hint">Configuração</span></span>
+                        </a>
                     </div>
-                    <p class="text-xl lg:text-2xl font-bold text-white leading-tight mt-1 lg:mt-2">
-                        <span id="total-present">0</span>
-                        <span class="text-slate-500 text-[10px] lg:text-xs">/ <span
-                                id="total-target-kpi">45</span></span>
-                    </p>
-                    <p class="text-[9px] lg:text-[10px] text-slate-400 mt-0.5 lg:mt-1">
-                        <span id="present-percent" class="text-emerald-400 font-bold">0%</span> presença
-                    </p>
                 </div>
 
-                <!-- 2. Vagas - Mobile: 1/3 of row 1, Desktop: flex-1 -->
-                <div onclick="KPIDetails.show('gap')"
-                    class="col-span-1 lg:col-auto lg:flex-1 lg:min-w-0 bg-slate-800/90 border border-slate-700 rounded-xl lg:rounded-2xl p-2 lg:p-3 shadow-inner transition hover:border-red-500/70 cursor-pointer flex flex-col justify-between min-h-[90px] lg:min-h-[110px]">
-                    <p class="text-[9px] lg:text-[10px] font-bold text-red-400 uppercase tracking-wide">Vagas</p>
-                    <p class="text-xl lg:text-2xl font-bold text-white mt-1 lg:mt-2" id="total-gap">0</p>
-                </div>
-
-                <!-- 3. Folgas - Mobile: row 2, Desktop: flex-1 -->
-                <div onclick="KPIDetails.show('dayoff')"
-                    class="col-span-1 lg:col-auto lg:flex-1 lg:min-w-0 bg-slate-800/90 border border-slate-700 rounded-xl lg:rounded-2xl p-2 lg:p-3 shadow-inner transition hover:border-blue-400/70 cursor-pointer flex flex-col justify-between min-h-[90px] lg:min-h-[110px]">
-                    <p class="text-[9px] lg:text-[10px] font-bold text-blue-400 uppercase tracking-wide">Folgas</p>
-                    <p class="text-xl lg:text-2xl font-bold text-white mt-1 lg:mt-2" id="total-dayoff">0</p>
-                </div>
-
-                <!-- 4. Férias - Mobile: row 2, Desktop: flex-1 -->
-                <div onclick="KPIDetails.show('vacation')"
-                    class="col-span-1 lg:col-auto lg:flex-1 lg:min-w-0 bg-slate-800/90 border border-slate-700 rounded-xl lg:rounded-2xl p-2 lg:p-3 shadow-inner transition hover:border-orange-500/70 cursor-pointer flex flex-col justify-between min-h-[90px] lg:min-h-[110px]">
-                    <p class="text-[9px] lg:text-[10px] font-bold text-orange-400 uppercase tracking-wide">Férias</p>
-                    <p class="text-xl lg:text-2xl font-bold text-white mt-1 lg:mt-2" id="total-vacation">0</p>
-                </div>
-
-                <!-- 5. Afastados - Mobile: row 2, Desktop: flex-1 -->
-                <div onclick="KPIDetails.show('away')"
-                    class="col-span-1 lg:col-auto lg:flex-1 lg:min-w-0 bg-slate-800/90 border border-slate-700 rounded-xl lg:rounded-2xl p-2 lg:p-3 shadow-inner transition hover:border-indigo-500/70 cursor-pointer flex flex-col justify-between min-h-[90px] lg:min-h-[110px]">
-                    <p class="text-[9px] lg:text-[10px] font-bold text-indigo-400 uppercase tracking-wide">Afastados</p>
-                    <p class="text-xl lg:text-2xl font-bold text-white mt-1 lg:mt-2" id="total-away">0</p>
-                </div>
-
-                <!-- 6. Atestados - Mobile: row 3, Desktop: flex-1 -->
-                <div onclick="KPIDetails.show('sick')"
-                    class="col-span-1 lg:col-auto lg:flex-1 lg:min-w-0 bg-slate-800/90 border border-slate-700 rounded-xl lg:rounded-2xl p-2 lg:p-3 shadow-inner transition hover:border-amber-500/70 cursor-pointer flex flex-col justify-between min-h-[90px] lg:min-h-[110px]">
-                    <p class="text-[9px] lg:text-[10px] font-bold text-amber-400 uppercase tracking-wide">Atestados</p>
-                    <p class="text-xl lg:text-2xl font-bold text-white mt-1 lg:mt-2" id="total-sick">0</p>
-                </div>
-
-                <!-- 7. Faltas - Mobile: row 3, Desktop: flex-1 -->
-                <div onclick="KPIDetails.show('missing')"
-                    class="col-span-1 lg:col-auto lg:flex-1 lg:min-w-0 bg-slate-800/90 border border-slate-700 rounded-xl lg:rounded-2xl p-2 lg:p-3 shadow-inner transition hover:border-rose-500/70 cursor-pointer flex flex-col justify-between min-h-[90px] lg:min-h-[110px]">
-                    <p class="text-[9px] lg:text-[10px] font-bold text-rose-400 uppercase tracking-wide">Faltas</p>
-                    <p class="text-xl lg:text-2xl font-bold text-white mt-1 lg:mt-2" id="total-missing">0</p>
-                </div>
-
-                <!-- 8. Produção - Mobile: row 3, Desktop: flex-[1.5] -->
-                <div onclick="editTonnage()"
-                    class="col-span-1 lg:col-auto lg:flex-[1.5] lg:min-w-0 bg-slate-800/90 border border-slate-700 rounded-xl lg:rounded-2xl p-2 lg:p-3 shadow-inner transition hover:border-purple-500/80 cursor-pointer flex flex-col justify-between min-h-[90px] lg:min-h-[110px]">
-                    <p class="text-[9px] lg:text-[10px] font-bold text-purple-400 uppercase tracking-wide">Produção</p>
-                    <p class="text-xl lg:text-2xl font-bold text-white mt-1 lg:mt-2" id="total-tonnage">0 kg</p>
-                    <p class="text-[9px] lg:text-[10px] text-slate-500 mt-0.5 lg:mt-1 uppercase tracking-wide">
-                        <span id="prod-per-person" class="text-purple-400 font-bold">0</span> kg/p
-                    </p>
-                </div>
-
+                <button type="button" onclick="createSector()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true"><svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg></span>
+                    <span class="employees-cta__label">Novo setor</span>
+                </button>
+                <button type="button" onclick="saveAll()" class="sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span class="ml-1.5">Salvar turno</span>
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Main Content -->
-    <main class="flex-1 flex flex-col relative">
-        <!-- Flow Grid -->
-        <div class="flex-1 p-4 md:p-6 overflow-y-auto overflow-x-hidden">
-            <div id="flow-grid"
-                class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 pb-24">
-                <!-- Sectors rendered here -->
+    <div id="kpi-strip" class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo do turno">
+            <button type="button" onclick="KPIDetails.show('present')" class="sys-kpi-card employees-kpi ops-card--interactive text-left" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Presença alocada</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="total-present" class="employees-kpi__value tabular-nums">0</span>
+                                <span class="employees-kpi__denom text-sm">/ <span id="total-target-kpi">0</span></span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span id="present-percent" class="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">0%</span>
+                        <span class="employees-text-muted"> da meta do turno</span>
+                    </div>
+                </div>
+            </button>
+            <button type="button" onclick="KPIDetails.show('gap')" class="sys-kpi-card employees-kpi ops-card--interactive text-left" style="--employees-kpi-accent: rgba(248, 113, 113, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-red-600 dark:text-red-300">Vagas (demitidos)</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="total-gap" class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">0</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Posições sem colaborador ativo</span></div>
+                </div>
+            </button>
+            <button type="button" onclick="KPIDetails.show('unavailable')" class="sys-kpi-card employees-kpi ops-card--interactive text-left" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Indisponíveis</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="total-unavailable" class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">0</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12h-4m-4 0H3"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Folga, falta, atestado, férias e afastamento</span></div>
+                </div>
+            </button>
+            <button type="button" onclick="editTonnage()" class="sys-kpi-card employees-kpi ops-card--interactive text-left" style="--employees-kpi-accent: rgba(168, 85, 247, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-violet-600 dark:text-violet-300">Produção</span>
+                            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                                <span id="total-tonnage" class="employees-kpi__value tabular-nums">0 kg</span>
+                            </div>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span id="prod-per-person" class="font-semibold text-violet-600 dark:text-violet-400 tabular-nums">0</span>
+                        <span class="employees-text-muted"> kg por pessoa presente</span>
+                    </div>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner flex-col gap-3 lg:flex-row lg:items-end">
+                <div class="employees-filter-bar__primary w-full min-w-0">
+                    <div class="employees-filter-bar__primary-scroll">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na lista</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search">
+                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                            <input type="search" id="sf-list-search" autocomplete="off" placeholder="Nome, matrícula ou função" class="ops-toolbar-search__input" />
+                        </div>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider hidden lg:block" aria-hidden="true"></div>
+                <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap w-full lg:w-auto">
+                    <span class="employees-text-caption hidden text-[11px] sm:inline">Visão:</span>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" data-sf-view="all">Todos</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-sf-view="present">Presentes</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-sf-view="unallocated">Sem alocação</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-sf-view="absent">Ausências</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-sf-view="critical">Críticos</button>
+                    <button type="button" id="sf-view-clear" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar filtros</button>
+                </div>
             </div>
         </div>
-    </main>
+    </div>
 
-    <!-- Bottom Sheet Container (Interação Colaborador) -->
-    <!-- Bottom Sheet Backdrop (Fixo na tela inteira) -->
-    <div id="sheet-backdrop" role="presentation" aria-hidden="true"
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-300 opacity-0 pointer-events-none"
-        onclick="Render.closeBottomSheet()"></div>
+    <div class="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-2 dark:border-slate-700" role="tablist" aria-label="Modo de visualização">
+        <button type="button" id="sf-tab-mural" class="sf-tab sf-tab--active sys-btn sys-btn--secondary px-4 py-2 text-xs font-semibold" role="tab" aria-selected="true">Mural de setores</button>
+        <button type="button" id="sf-tab-list" class="sf-tab sys-btn sys-btn--secondary px-4 py-2 text-xs font-semibold opacity-70 ring-0 hover:opacity-100" role="tab" aria-selected="false">Lista do turno</button>
+    </div>
 
+    <div id="sf-panel-mural" class="sf-panel">
+        <div class="sys-card sys-card--surface overflow-hidden p-4 md:p-5">
+            <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p class="sys-section-title text-[11px]">Operação</p>
+                    <h3 class="sys-section-heading text-base font-semibold">Alocação por setor</h3>
+                </div>
+                <p class="max-w-prose text-xs text-slate-500 dark:text-slate-400">Arraste colaboradores da lista interna de cada setor. Alterações são salvas com <strong>Salvar turno</strong>.</p>
+            </div>
+            <div id="flow-grid" class="sf-flow-grid grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4"></div>
+        </div>
+    </div>
+
+    <div id="sf-panel-list" class="sf-panel hidden">
+        <div id="sf-allocation-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+            <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between">
+                <div class="min-w-0 flex-1">
+                    <p class="employees-table-panel__kicker">Turno filtrado</p>
+                    <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Colaboradores do turno</h3>
+                    <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No celular, cada linha vira um card. Use a busca com debounce para não travar a tela.</p>
+                </div>
+            </div>
+            <div id="sf-list-loading" class="hidden px-5 py-8 text-center text-sm text-slate-500">Carregando dados do turno…</div>
+            <div id="sf-list-error" class="hidden px-5 py-6">
+                <div class="sys-alert sys-alert--danger text-sm">Não foi possível montar a lista. Verifique sua conexão e recarregue.</div>
+            </div>
+            <div id="sf-list-empty" class="hidden px-5 py-10">
+                <div class="sys-empty-state text-center">
+                    <p class="text-sm font-medium text-slate-700 dark:text-slate-200">Nenhum colaborador neste turno com os filtros atuais.</p>
+                    <p class="mt-1 text-xs text-slate-500">Ajuste a busca ou clique em <strong>Limpar filtros</strong>.</p>
+                </div>
+            </div>
+            <div class="sys-table-wrap sys-table-wrap--x-scroll hidden md:block">
+                <table class="employees-data-table employees-data-table--compact w-full min-w-[720px] border-collapse text-left text-sm" aria-describedby="sf-table-summary">
+                    <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                        <tr>
+                            <th class="employees-data-table__th px-3 py-2 pl-5">Colaborador</th>
+                            <th class="employees-data-table__th px-2 py-2">Matrícula</th>
+                            <th class="employees-data-table__th px-2 py-2">Função</th>
+                            <th class="employees-data-table__th px-2 py-2">Status</th>
+                            <th class="employees-data-table__th px-2 py-2">Setor</th>
+                            <th class="employees-data-table__th px-2 py-2">Subsetor</th>
+                            <th class="employees-data-table__th px-2 py-2 pr-5">Situação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sf-allocation-tbody" class="employees-data-table__body divide-y"></tbody>
+                </table>
+            </div>
+            <div id="sf-allocation-cards" class="md:hidden divide-y divide-slate-200/80 dark:divide-slate-700 p-3 space-y-3"></div>
+            <div class="flex flex-col items-center gap-2 border-t px-4 py-4 sm:flex-row sm:justify-between">
+                <p id="sf-table-summary" class="text-xs text-slate-500"><span id="sf-page-info">0</span> registros exibidos</p>
+                <button type="button" id="sf-load-more" class="sys-btn sys-btn--secondary text-xs hidden">Carregar mais</button>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- CSS Scoped Styles for Touch Targets -->
-<style>
-    .smart-header-shell {
-        background: rgba(15, 23, 42, 0.68);
-        border: 1px solid rgba(51, 65, 85, 0.95);
-        border-radius: 1rem;
-        padding: 0.9rem;
-        backdrop-filter: blur(8px);
-    }
+{% endblock %}
 
-    .smart-nav-chip {
-        min-width: 84px;
-        flex: 0 0 auto;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 0.25rem;
-        border-radius: 0.95rem;
-        padding: 0.5rem 0.55rem;
-        color: #ffffff;
-        transition: all 150ms ease;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        font-size: 10px;
-    }
+{% block layout_portal %}
+<div id="sheet-backdrop" role="presentation" aria-hidden="true"
+    class="fixed inset-0 z-[100] bg-black/50 opacity-0 backdrop-blur-sm transition-opacity duration-300 pointer-events-none"
+    onclick="typeof Render !== 'undefined' && Render.closeBottomSheet()"></div>
+<div id="employee-bottom-sheet" role="dialog" aria-modal="true" aria-hidden="true" tabindex="-1" inert
+    class="pointer-events-none fixed inset-x-0 bottom-0 z-[110] max-h-[90vh] translate-y-full transition-transform duration-300 ease-out">
+    <div class="sf-sheet-surface mx-auto max-w-lg rounded-t-2xl border border-b-0 border-slate-200 bg-white px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-4 shadow-[0_-12px_40px_rgba(15,23,42,0.12)] dark:border-slate-700 dark:bg-slate-900 dark:shadow-[0_-12px_40px_rgba(0,0,0,0.4)]">
+        <div id="sheet-content" class="max-h-[min(78vh,720px)] overflow-y-auto text-slate-800 dark:text-slate-100"></div>
+    </div>
+</div>
 
-    .header-action-btn {
-        height: 2.25rem;
-        min-width: 6.25rem;
-        padding: 0 0.95rem;
-        border-radius: 0.65rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.45rem;
-        color: #fff;
-        font-size: 0.75rem;
-        font-weight: 700;
-        line-height: 1;
-        box-shadow: 0 8px 16px rgba(15, 23, 42, 0.24);
-        transition: all 150ms ease;
-    }
-
-    .touch-target {
-        min-height: 44px;
-        min-width: 44px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    #shift-controls button.active {
-        background-color: #3b82f6;
-        color: white;
-        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5);
-    }
-
-    #shift-controls button[data-shift="Tarde"].active {
-        background-color: #f97316;
-        box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.5);
-    }
-
-    #shift-controls button[data-shift="Noite"].active {
-        background-color: #a855f7;
-        box-shadow: 0 4px 6px -1px rgba(168, 85, 247, 0.5);
-    }
-
-    .safe-area-bottom {
-        padding-bottom: env(safe-area-inset-bottom, 20px);
-    }
-
-    .no-scrollbar::-webkit-scrollbar {
-        display: none;
-    }
-
-    .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
-</style>
-
-<!-- Modal: Criar/Editar Setor -->
-<div id="sector-crud-modal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm" onclick="closeModal('sector-crud-modal')"></div>
+<div id="sector-crud-modal" class="sf-modal fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/50" onclick="closeModal('sector-crud-modal')"></div>
     <div class="relative z-10 flex min-h-full items-center justify-center p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md">
-            <div class="flex items-center justify-between p-4 border-b border-slate-700">
-                <h3 class="text-lg font-bold text-slate-100" id="sector-modal-title">Novo Setor</h3>
-                <button onclick="closeModal('sector-crud-modal')" class="text-slate-400 hover:text-white">
-                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+        <div class="sys-card sys-card--surface w-full max-w-md overflow-hidden shadow-xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
+                <h3 class="text-base font-semibold text-slate-800 dark:text-white" id="sector-modal-title">Novo setor</h3>
+                <button type="button" onclick="closeModal('sector-crud-modal')" class="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Fechar">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-
-            <form id="sector-form" class="p-4 space-y-4">
+            <form id="sector-form" class="space-y-4 p-4" onsubmit="return false;">
                 <input type="hidden" id="sector-id" name="sector_id">
-
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Nome do Setor</label>
-                    <input type="text" id="sector-name" name="name" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                    <label class="sys-section__label sys-section__label--field mb-1.5 block" for="sector-name">Nome do setor</label>
+                    <input type="text" id="sector-name" name="name" required class="sys-input w-full" />
                 </div>
-
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Limite de Vagas</label>
-                    <input type="number" id="sector-max" name="max_employees" min="0" value="0"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                    <label class="sys-section__label sys-section__label--field mb-1.5 block" for="sector-max">Limite de vagas</label>
+                    <input type="number" id="sector-max" name="max_employees" min="0" value="0" class="sys-input w-full" />
                 </div>
-
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Cor</label>
-                    <select id="sector-color" name="color"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                    <label class="sys-section__label sys-section__label--field mb-1.5 block" for="sector-color">Cor</label>
+                    <select id="sector-color" name="color" class="sys-input w-full">
                         <option value="blue">Azul</option>
                         <option value="green">Verde</option>
                         <option value="purple">Roxo</option>
@@ -372,94 +329,73 @@
                     </select>
                 </div>
             </form>
-
-            <div class="p-4 border-t border-slate-700 flex justify-end gap-2">
-                <button onclick="closeModal('sector-crud-modal')"
-                    class="px-4 py-2 text-sm text-slate-300 hover:text-white">Cancelar</button>
-                <button onclick="saveSector()"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold">Salvar</button>
+            <div class="flex justify-end gap-2 border-t border-slate-200/80 px-4 py-3 dark:border-slate-700">
+                <button type="button" onclick="closeModal('sector-crud-modal')" class="sys-btn sys-btn--ghost">Cancelar</button>
+                <button type="button" onclick="saveSector()" class="sys-btn sys-btn--primary">Salvar</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal: Criar/Editar Sub-setor -->
-<div id="subsector-crud-modal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-slate-900/90 backdrop-blur-sm" onclick="closeModal('subsector-crud-modal')">
-    </div>
+<div id="subsector-crud-modal" class="sf-modal fixed inset-0 z-50 hidden" aria-hidden="true">
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/50" onclick="closeModal('subsector-crud-modal')"></div>
     <div class="relative z-10 flex min-h-full items-center justify-center p-4">
-        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md">
-            <div class="flex items-center justify-between p-4 border-b border-slate-700">
-                <h3 class="text-lg font-bold text-slate-100" id="subsector-modal-title">Novo Sub-setor</h3>
-                <button onclick="closeModal('subsector-crud-modal')" class="text-slate-400 hover:text-white">
-                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+        <div class="sys-card sys-card--surface w-full max-w-md overflow-hidden shadow-xl" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
+                <h3 class="text-base font-semibold text-slate-800 dark:text-white" id="subsector-modal-title">Novo subsetor</h3>
+                <button type="button" onclick="closeModal('subsector-crud-modal')" class="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Fechar">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-
-            <form id="subsector-form" class="p-4 space-y-4">
+            <form id="subsector-form" class="space-y-4 p-4" onsubmit="return false;">
                 <input type="hidden" id="subsector-id" name="subsector_id">
                 <input type="hidden" id="subsector-sector-id" name="sector_id">
-
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Nome do Sub-setor</label>
-                    <input type="text" id="subsector-name" name="name" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                    <label class="sys-section__label sys-section__label--field mb-1.5 block" for="subsector-name">Nome</label>
+                    <input type="text" id="subsector-name" name="name" required class="sys-input w-full" />
                 </div>
-
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Limite de Vagas</label>
-                    <input type="number" id="subsector-max" name="max_employees" min="0" value="0"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500">
+                    <label class="sys-section__label sys-section__label--field mb-1.5 block" for="subsector-max">Limite de vagas</label>
+                    <input type="number" id="subsector-max" name="max_employees" min="0" value="0" class="sys-input w-full" />
                 </div>
             </form>
-
-            <div class="p-4 border-t border-slate-700 flex justify-end gap-2">
-                <button onclick="closeModal('subsector-crud-modal')"
-                    class="px-4 py-2 text-sm text-slate-300 hover:text-white">Cancelar</button>
-                <button onclick="saveSubSector()"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold">Salvar</button>
+            <div class="flex justify-end gap-2 border-t border-slate-200/80 px-4 py-3 dark:border-slate-700">
+                <button type="button" onclick="closeModal('subsector-crud-modal')" class="sys-btn sys-btn--ghost">Cancelar</button>
+                <button type="button" onclick="saveSubSector()" class="sys-btn sys-btn--primary">Salvar</button>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<!-- Scripts Loader -->
+{% block body_scripts %}
+<script type="application/json" id="sf-initial-json">{{ all_employees_json | safe }}</script>
 <script>
-    // Dados iniciais - carregados do backend
+(function () {
+    var el = document.getElementById('sf-initial-json');
+    var employees = [];
+    try { employees = JSON.parse(el.textContent); } catch (e) { console.error('sf-initial-json parse', e); }
+    el.remove();
     window.INITIAL_DATA = {
-        employees: [],
+        employees: employees,
         sectors: [],
-        tonnage: 0
+        tonnage: {{ total_tonnage_raw | default(0) }},
+        currentDate: "{{ current_date }}",
+        currentShift: "{{ current_shift }}",
+        targets: {}
     };
-
-    // Carregar employees do backend via fetch imediato
-    fetch('/api/employees')
-        .then(r => r.json())
-        .then(data => {
-            window.INITIAL_DATA.employees = data.employees || [];
-            console.log('Employees loaded:', window.INITIAL_DATA.employees.length);
-
-            // Atualizar Store se já estiver inicializado
-            if (window.Store && window.Store.state) {
-                window.Store.state.employees = window.INITIAL_DATA.employees;
-                window.Store.notify(); // Recalcular KPIs e atualizar UI
-                console.log('Store updated with employees');
-            }
-        })
-        .catch(err => console.error('Error loading employees:', err));
+    window.INITIAL_DATA.targets["{{ current_shift }}"] = {{ shift_target_hr | default(0) }};
+    window.SMART_FLOW_SKIP_AUTO_SHIFT = true;
+})();
 </script>
-
-<!-- Modules -->
 <script src="/static/js/smart-flow/api.js?v=20260102X"></script>
-<script src="/static/js/smart-flow/store.js?v=20260122B"></script>
+<script src="/static/js/smart-flow/store.js?v=20260430A"></script>
 <script src="/static/js/smart-flow/clock.js?v=20260206A"></script>
 <script src="/static/js/smart-flow/sectors-crud.js?v=20260102X"></script>
 <script src="/static/js/smart-flow/sector-management.js?v=20260102X"></script>
-<script src="/static/js/smart-flow/kpi-details.js?v=20260122A"></script>
-<script src="/static/js/smart-flow/render.js?v=20260225A"></script>
-<script src="/static/js/smart-flow/events.js?v=20260122A"></script>
-<script src="/static/js/smart-flow/main.js?v=20260122B"></script>
-
+<script src="/static/js/smart-flow/kpi-details.js?v=20260430A"></script>
+<script src="/static/js/smart-flow/render.js?v=20260430A"></script>
+<script src="/static/js/smart-flow/events.js?v=20260430A"></script>
+<script src="/static/js/smart-flow/allocation-list.js?v=20260430A"></script>
+<script src="/static/js/smart-flow/main.js?v=20260430A"></script>
 {% endblock %}

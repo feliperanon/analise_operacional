@@ -73,12 +73,11 @@ window.SmartFlowClock = {
         if (shiftNameEl) {
             shiftNameEl.textContent = 'Turno ' + shift.name;
             const colorClasses = {
-                blue: 'text-blue-400',
-                orange: 'text-orange-400',
-                purple: 'text-purple-400'
+                blue: 'text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400',
+                orange: 'text-[10px] font-bold uppercase tracking-wide text-orange-600 dark:text-orange-400',
+                purple: 'text-[10px] font-bold uppercase tracking-wide text-purple-600 dark:text-purple-400'
             };
-            // Reset classes
-            shiftNameEl.className = 'text-sm font-bold ' + (colorClasses[shift.color] || 'text-slate-400');
+            shiftNameEl.className = colorClasses[shift.color] || 'text-[10px] font-bold uppercase tracking-wide text-slate-500';
         }
         
         const progress = this.getShiftProgress(hours, minutes);
@@ -94,6 +93,9 @@ window.SmartFlowClock = {
     },
 
     autoSelectShift() {
+        if (window.SMART_FLOW_SKIP_AUTO_SHIFT) {
+            return;
+        }
         const now = new Date();
         const shift = this.getCurrentShift(now.getHours(), now.getMinutes());
         

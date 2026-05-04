@@ -1,146 +1,414 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Funções · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Cadastros / Funções</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Funções (cargos)</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Cadastro mestre de cargos, salário base e descrição para o quadro</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/funcoes.css">
+<script src="/static/js/pages/funcoes-page.js" defer></script>
+{% endblock %}
 
 {% block content %}
-<div class="p-4 md:p-6 space-y-5">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
-            </div>
-            <div>
-                <h1 class="text-2xl font-bold text-white">Cadastro de Funções (Cargos)</h1>
-                <p class="text-sm text-slate-400">Função, salário base e descrição do cargo</p>
-            </div>
+{% set _f = filters or {} %}
+{% set _st = _f.get('status_view') or 'all' %}
+{% set _links = links or {} %}
+{% set _stats = stats or {} %}
+
+<div
+  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3"
+  data-page="funcoes"
+  lang="pt-BR"
+>
+  {% if request.query_params.get('success') %}
+  <div class="sys-alert sys-alert--success flex items-center gap-3" role="alert">
+    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+    </svg>
+    <span class="min-w-0 flex-1">{{ request.query_params.get('success') }}</span>
+    <button type="button" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" onclick="this.closest('[role=alert]').remove()" aria-label="Fechar">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
+  </div>
+  {% endif %}
+  {% if request.query_params.get('error') %}
+  <div class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <span class="min-w-0 flex-1">{{ request.query_params.get('error') }}</span>
+    <button type="button" class="shrink-0 rounded-md p-1.5 text-slate-500 transition hover:bg-black/5 dark:text-slate-400 dark:hover:bg-white/10" onclick="this.closest('[role=alert]').remove()" aria-label="Fechar">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+    </button>
+  </div>
+  {% endif %}
+
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+          </svg>
         </div>
-        <button type="button" onclick="document.getElementById('addCargoModal').classList.remove('hidden')"
-            class="h-10 px-5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-sm font-semibold transition shadow-lg flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-            Nova Função
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Cadastros</span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Funções e cargos</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+            Mantenha o padrão de nomes alinhado ao quadro de colaboradores. Alterações aqui não renomeiam cargos já lançados nos colaboradores automaticamente.
+          </p>
+          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+              {{ _stats.get('ativos', 0) }} ativas
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              {{ _stats.get('em_uso', 0) }} em uso no quadro
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              {{ _stats.get('total', 0) }} cadastradas
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+          <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+            <span class="employees-cta__icon" aria-hidden="true">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            </span>
+            <span class="employees-cta__label">Importar</span>
+            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div x-show="open" x-cloak x-transition @click.away="open = false" class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+            <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Arquivo e modelo</p>
+            <button type="button" class="employees-menu-item" @click="open = false" data-open-modal="importFuncaoModal">
+              <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">CSV em lote</span>
+                <span class="employees-menu-item__hint">NOME, SALARIO_BASE, DESCRICAO</span>
+              </span>
+            </button>
+            <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
+            <a href="/funcoes/csv-modelo" class="employees-menu-item no-underline text-inherit" download @click="open = false">
+              <span class="employees-menu-item__icon employees-menu-item__icon--slate" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Baixar modelo</span>
+                <span class="employees-menu-item__hint">funcoes_modelo.csv</span>
+              </span>
+            </a>
+          </div>
+        </div>
+
+        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" data-open-modal="addFuncaoModal">
+          <span class="employees-cta__icon" aria-hidden="true">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          </span>
+          <span class="employees-cta__label">Nova função</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de funções">
+      <a href="{{ _links.get('all', '/funcoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _st == 'all' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Total</span>
+              <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ _stats.get('total', 0) }}</span></div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Todas as funções cadastradas</span></div>
+        </div>
+      </a>
+      <a href="{{ _links.get('ativo', '/funcoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _st == 'ativo' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Ativas</span>
+              <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ _stats.get('ativos', 0) }}</span></div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Disponíveis para vínculo</span></div>
+        </div>
+      </a>
+      <a href="{{ _links.get('inativo', '/funcoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _st == 'inativo' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(148, 163, 184, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Inativas</span>
+              <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ _stats.get('inativos', 0) }}</span></div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Fora do catálogo ativo</span></div>
+        </div>
+      </a>
+      <a href="{{ _links.get('em_uso', '/funcoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _st == 'em_uso' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(56, 189, 248, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-sky-600 dark:text-sky-300">Em uso</span>
+              <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ _stats.get('em_uso', 0) }}</span></div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-sky-500 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Com colaboradores no quadro</span></div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <form id="funcoesFilterForm" method="get" action="/funcoes" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+    {% if _st != 'all' %}
+    <input type="hidden" name="status_view" value="{{ _st }}">
+    {% endif %}
+    <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+      <div class="employees-filter-bar__inner">
+        <div class="employees-filter-bar__primary">
+          <div class="employees-filter-bar__primary-scroll">
+            <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+            <div class="ops-toolbar-search employees-filter-bar__search">
+              <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="search" name="q" value="{{ _f.get('q') or '' }}" placeholder="Nome ou descrição da função" class="ops-toolbar-search__input" data-debounce-submit="true" autocomplete="off">
+            </div>
+          </div>
+        </div>
+        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+        <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap">
+          <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
+          <a href="{{ _links.get('all', '/funcoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _st == 'all' %}filter-btn--active{% endif %}">Todos</a>
+          <a href="{{ _links.get('ativo', '/funcoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _st == 'ativo' %}filter-btn--active{% endif %}">Ativas</a>
+          <a href="{{ _links.get('inativo', '/funcoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _st == 'inativo' %}filter-btn--active{% endif %}">Inativas</a>
+          <a href="{{ _links.get('em_uso', '/funcoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _st == 'em_uso' %}filter-btn--active{% endif %}">Em uso</a>
+          <a href="{{ _links.get('sem_uso', '/funcoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _st == 'sem_uso' %}filter-btn--active{% endif %}">Sem uso</a>
+          <a href="{{ _links.get('clear', '/funcoes') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar filtros</a>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+      <div class="min-w-0 flex-1">
+        <p class="employees-table-panel__kicker">Catálogo</p>
+        <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista de funções</h3>
+        <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No celular, cada função vira um card com rótulos claros. A contagem de colaboradores considera apenas o quadro ativo (não demitidos).</p>
+      </div>
+      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+        {% if cargos_rows|length %}
+          <strong>{{ cargos_rows|length }}</strong> função(ões) nesta visão.
+        {% else %}
+          Nenhum resultado para o filtro atual.
+        {% endif %}
+      </div>
     </div>
 
-    {% if request.query_params.get("success") %}
-    <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center gap-3 text-emerald-200" role="alert">
-        <svg class="w-5 h-5 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-        <span>{{ request.query_params.get("success") }}</span>
-        <button onclick="this.parentElement.remove()" class="text-emerald-400 hover:text-white p-1 ml-auto"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    {% if cargos_rows %}
+    <div class="sys-table-wrap sys-table-wrap--x-scroll">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[880px]" id="employeesTable">
+        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+          <tr>
+            <th class="employees-data-table__th px-2 py-2 pl-3">Função</th>
+            <th class="employees-data-table__th px-2 py-2">Salário base</th>
+            <th class="employees-data-table__th px-2 py-2">Descrição</th>
+            <th class="employees-data-table__th px-2 py-2">Quadro</th>
+            <th class="employees-data-table__th px-2 py-2">Status</th>
+            <th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="employees-data-table__body divide-y" id="tableBody">
+          {% for row in cargos_rows %}
+          <tr class="group employee-row employees-data-table__row transition-colors" id="funcao-row-{{ row.id }}">
+            <td class="employee-cell-primary px-2 py-2 pl-3 align-middle" data-label="Função">
+              <div class="employee-primary-content min-w-0">
+                <span class="employee-name block font-medium employees-text-strong">{{ row.nome }}</span>
+              </div>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap employees-text-body" data-label="Salário">{{ row.salario_fmt }}</td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Descrição">
+              <span class="employees-data-table__role-ellipsis block max-w-[18rem]" title="{{ row.descricao_short|e }}">{{ row.descricao }}</span>
+            </td>
+            <td class="px-2 py-2 align-middle whitespace-nowrap" data-label="Quadro">
+              {% if row.in_use %}
+              <span class="sys-badge sys-badge--ok">{{ row.colaboradores_count }} colab.</span>
+              {% else %}
+              <span class="employees-pill employees-pill--neutral">Sem vínculo</span>
+              {% endif %}
+            </td>
+            <td class="px-2 py-2 align-middle whitespace-nowrap" data-label="Status">
+              {% if row.badge_tone == 'ok' %}
+              <span class="sys-badge sys-badge--ok">{{ row.badge_label }}</span>
+              {% else %}
+              <span class="employees-pill employees-pill--status employees-pill--pending">{{ row.badge_label }}</span>
+              {% endif %}
+            </td>
+            <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
+              <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                <button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar" data-action="edit" data-row="{{ row.payload_json | forceescape }}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5a2.121 2.121 0 10-3-3L5 17v3z"></path></svg>
+                </button>
+                <button type="button" class="employee-action-btn employee-action-btn--delete" title="Excluir" data-action="delete" data-id="{{ row.id }}" data-label="{{ row.nome|e }}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M4 7h16"></path></svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="sys-empty-state m-6">
+      {% if _f.get('q') or _st != 'all' %}
+      Nenhuma função encontrada. <a href="{{ _links.get('clear', '/funcoes') }}" class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400">Limpar filtros</a>
+      {% else %}
+      Nenhuma função cadastrada. <button type="button" class="font-semibold text-indigo-600 hover:underline dark:text-indigo-400" data-open-modal="addFuncaoModal">Cadastrar</button>
+      {% endif %}
     </div>
     {% endif %}
-    {% if request.query_params.get("error") %}
-    <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3 text-red-200" role="alert">
-        <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <span>{{ request.query_params.get("error") }}</span>
-    </div>
-    {% endif %}
+  </div>
 
-    <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
-        <table class="w-full text-left text-sm text-slate-400">
-            <thead class="bg-slate-900/50 text-slate-200 font-medium border-b border-slate-700">
-                <tr>
-                    <th class="p-4 pl-6">Função</th>
-                    <th class="p-4">Salário Base</th>
-                    <th class="p-4">Descrição</th>
-                    <th class="p-4">Status</th>
-                    <th class="p-4 text-right">Ações</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-700">
-                {% for c in cargos %}
-                <tr class="hover:bg-white/5 transition-colors">
-                    <td class="p-4 pl-6 font-medium text-white">{{ c.nome }}</td>
-                    <td class="p-4">{% if c.salario_base is not none %}R$ {{ "%.2f"|format(c.salario_base)|replace(".", ",") }}{% else %}<span class="text-slate-500">—</span>{% endif %}</td>
-                    <td class="p-4 text-slate-300 max-w-xs truncate" title="{{ c.descricao or '' }}">{{ c.descricao or '—' }}</td>
-                    <td class="p-4"><span class="px-2 py-0.5 rounded-full text-xs {% if c.status == 'ATIVO' %}bg-emerald-500/10 text-emerald-400{% else %}bg-slate-600/50 text-slate-400{% endif %}">{{ c.status }}</span></td>
-                    <td class="p-4 text-right">
-                        <button type="button" onclick='openEditCargo({{ c.model_dump_json()|safe }})' class="p-1.5 hover:bg-slate-700 rounded text-yellow-400 transition-colors" title="Editar">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                        </button>
-                        <form action="/funcoes/{{ c.id }}/delete" method="post" class="inline" onsubmit="return confirm('Excluir esta função?');">
-                            <button type="submit" class="p-1.5 hover:bg-slate-700 rounded text-red-400 transition-colors" title="Excluir">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr><td colspan="5" class="p-8 text-center text-slate-500">Nenhuma função cadastrada. <a href="#" onclick="document.getElementById('addCargoModal').classList.remove('hidden'); return false;" class="text-indigo-400 hover:underline">Cadastrar</a></td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+  <div id="addFuncaoModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-6 pt-24 md:pt-20" role="dialog" aria-modal="true" aria-labelledby="add-funcao-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg">
+      <div class="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <p class="employees-text-section-label">Cadastro</p>
+          <h3 id="add-funcao-title" class="sys-section-heading mt-1 text-lg">Nova função</h3>
+        </div>
+        <button type="button" class="emp-modal-close shrink-0" data-close-modal="addFuncaoModal" aria-label="Fechar">&times;</button>
+      </div>
+      <form action="/funcoes/add" method="post" class="space-y-4">
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="add-nome">Nome (maiúsculas)</label>
+          <input id="add-nome" type="text" name="nome" required placeholder="Ex.: OPERADOR DE EMPILHADEIRA" class="sys-input mt-1 w-full" data-autofocus>
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="add-salario">Salário base (R$)</label>
+          <input id="add-salario" type="number" name="salario_base" step="0.01" min="0" class="sys-input mt-1 w-full" placeholder="Opcional">
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="add-desc">Descrição</label>
+          <textarea id="add-desc" name="descricao" rows="3" class="sys-input mt-1 w-full resize-y" placeholder="Responsabilidades principais"></textarea>
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="add-status">Status</label>
+          <select id="add-status" name="status" class="sys-select mt-1 w-full">
+            <option value="ATIVO" selected>Ativo</option>
+            <option value="INATIVO">Inativo</option>
+          </select>
+        </div>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+          <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="addFuncaoModal">Cancelar</button>
+          <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
+        </div>
+      </form>
     </div>
+  </div>
+
+  <div id="editFuncaoModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-6 pt-24 md:pt-20" role="dialog" aria-modal="true" aria-labelledby="edit-funcao-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg">
+      <div class="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <p class="employees-text-section-label">Edição</p>
+          <h3 id="edit-funcao-title" class="sys-section-heading mt-1 text-lg">Editar função</h3>
+        </div>
+        <button type="button" class="emp-modal-close shrink-0" data-close-modal="editFuncaoModal" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="editFuncaoForm" method="post" class="space-y-4">
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="edit-nome">Nome</label>
+          <input id="edit-nome" type="text" name="nome" required class="sys-input mt-1 w-full">
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="edit-salario">Salário base (R$)</label>
+          <input id="edit-salario" type="number" name="salario_base" step="0.01" min="0" class="sys-input mt-1 w-full">
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="edit-desc">Descrição</label>
+          <textarea id="edit-desc" name="descricao" rows="3" class="sys-input mt-1 w-full resize-y"></textarea>
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="edit-status">Status</label>
+          <select id="edit-status" name="status" class="sys-select mt-1 w-full">
+            <option value="ATIVO">Ativo</option>
+            <option value="INATIVO">Inativo</option>
+          </select>
+        </div>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+          <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="editFuncaoModal">Cancelar</button>
+          <button type="submit" class="sys-btn sys-btn--primary">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="importFuncaoModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-6 pt-24 md:pt-20" role="dialog" aria-modal="true" aria-labelledby="import-funcao-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg">
+      <div class="mb-6 flex items-center justify-between gap-3">
+        <div>
+          <p class="employees-text-section-label">Importação</p>
+          <h3 id="import-funcao-title" class="sys-section-heading mt-1 text-lg">CSV de funções</h3>
+        </div>
+        <button type="button" class="emp-modal-close shrink-0" data-close-modal="importFuncaoModal" aria-label="Fechar">&times;</button>
+      </div>
+      <form action="/funcoes/import" method="post" enctype="multipart/form-data" class="space-y-4">
+        <p class="text-sm text-slate-600 dark:text-slate-400">Colunas obrigatórias: <strong>NOME</strong>. Opcionais: SALARIO_BASE, DESCRICAO. Encoding UTF-8. Duplicatas (mesmo nome) são ignoradas.</p>
+        <label class="emp-modal-dropzone block cursor-pointer">
+          <input type="file" name="file" accept=".csv,text/csv" required class="hidden" id="import-funcao-file">
+          <span class="emp-modal-icon-ring emp-modal-icon-ring--lg mx-auto mb-3">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          </span>
+          <p class="text-center text-sm font-semibold">Escolher arquivo .csv</p>
+          <p id="import-funcao-file-name" class="mt-2 text-center text-xs text-sky-600 dark:text-sky-300"></p>
+        </label>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+          <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="importFuncaoModal">Cancelar</button>
+          <a href="/funcoes/csv-modelo" class="sys-btn sys-btn--secondary no-underline" download>Modelo</a>
+          <button type="submit" class="sys-btn sys-btn--primary">Enviar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="confirmFuncaoModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-funcao-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-md">
+      <div class="mb-4 flex items-start gap-3">
+        <span class="emp-modal-icon-ring emp-modal-icon-ring--lg">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </span>
+        <div class="min-w-0 flex-1">
+          <h3 id="confirm-funcao-title" class="sys-section-heading text-lg">Excluir função</h3>
+          <p id="confirm-funcao-text" class="employees-text-muted mt-2 text-sm">Confirme para remover o cadastro. Colaboradores já existentes não são alterados.</p>
+        </div>
+      </div>
+      <form id="deleteFuncaoForm" method="post" action="" class="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="confirmFuncaoModal">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--ghost-danger">Excluir</button>
+      </form>
+    </div>
+  </div>
 </div>
-
-<!-- Modal Adicionar -->
-<div id="addCargoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl">
-        <form action="/funcoes/add" method="post" class="p-6">
-            <h3 class="text-lg font-bold text-white mb-4">Nova Função</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Nome (padrão, maiúsculas)</label>
-                    <input type="text" name="nome" required placeholder="Ex: OPERADOR DE EMPILHADEIRA"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Salário Base (R$)</label>
-                    <input type="number" name="salario_base" step="0.01" min="0" placeholder="Ex: 1957.08"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Descrição da função</label>
-                    <textarea name="descricao" rows="3" placeholder="Responsabilidades principais..."
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 resize-none"></textarea>
-                </div>
-            </div>
-            <div class="mt-6 flex justify-end gap-2">
-                <button type="button" onclick="document.getElementById('addCargoModal').classList.add('hidden')" class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
-                <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium">Salvar</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Modal Editar -->
-<div id="editCargoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-    <div class="bg-slate-800 rounded-2xl w-full max-w-lg border border-slate-700 shadow-2xl">
-        <form id="editCargoForm" method="post" class="p-6">
-            <h3 class="text-lg font-bold text-white mb-4">Editar Função</h3>
-            <input type="hidden" name="id" id="editCargoId">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Nome</label>
-                    <input type="text" name="nome" id="editCargoNome" required
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Salário Base (R$)</label>
-                    <input type="number" name="salario_base" id="editCargoSalario" step="0.01" min="0"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Descrição</label>
-                    <textarea name="descricao" id="editCargoDescricao" rows="3"
-                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 resize-none"></textarea>
-                </div>
-            </div>
-            <div class="mt-6 flex justify-end gap-2">
-                <button type="button" onclick="document.getElementById('editCargoModal').classList.add('hidden')" class="px-4 py-2 text-slate-300 hover:text-white">Cancelar</button>
-                <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium">Salvar</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-function openEditCargo(c) {
-    document.getElementById('editCargoId').value = c.id;
-    document.getElementById('editCargoNome').value = c.nome || '';
-    document.getElementById('editCargoSalario').value = c.salario_base ?? '';
-    document.getElementById('editCargoDescricao').value = c.descricao || '';
-    document.getElementById('editCargoForm').action = '/funcoes/' + c.id + '/update';
-    document.getElementById('editCargoModal').classList.remove('hidden');
-}
-</script>
 {% endblock %}

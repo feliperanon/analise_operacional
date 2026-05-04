@@ -20,6 +20,10 @@ const App = {
         // 3. Inicializar Eventos
         Events.init();
 
+        if (typeof AllocationList !== 'undefined') {
+            AllocationList.init();
+        }
+
         // 4. Subscrever Renderizador ao Store
         Store.subscribe((state) => {
             Render.update(state);

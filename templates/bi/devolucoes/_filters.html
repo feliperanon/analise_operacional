@@ -1,0 +1,36 @@
+<section class="sys-card sys-card--surface bi-dev-filters">
+  <button type="button" class="sys-btn sys-btn--secondary bi-dev-filters__toggle" data-toggle-filters>Filtros</button>
+  <form method="get" action="/bi/devolucoes" id="bi-dev-form">
+    <div class="bi-dev-filters__grid" data-filters-body>
+      <input type="date" name="date_from" value="{{ filters.date_from }}" class="sys-input" />
+      <input type="date" name="date_to" value="{{ filters.date_to }}" class="sys-input" />
+      <select name="client_id" class="sys-select">
+        <option value="">Cliente</option>
+        {% for c in clients_filter %}<option value="{{ c.id }}" {% if filters.client_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      </select>
+      <select name="motorista_id" class="sys-select">
+        <option value="">Motorista</option>
+        {% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.motorista_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+      </select>
+      <select name="motivo_id" class="sys-select">
+        <option value="">Motivo</option>
+        {% for m in motivos_filter %}<option value="{{ m.id }}" {% if filters.motivo_id==m.id %}selected{% endif %}>{{ m.nome }}</option>{% endfor %}
+      </select>
+      <select name="responsabilidade_id" class="sys-select">
+        <option value="">Responsabilidade</option>
+        {% for r in resps_filter %}<option value="{{ r.id }}" {% if filters.responsabilidade_id==r.id %}selected{% endif %}>{{ r.nome }}</option>{% endfor %}
+      </select>
+      <input type="search" id="bi-dev-search" class="sys-input bi-dev-search" placeholder="Busca geral" />
+      <button type="submit" class="sys-btn sys-btn--primary">Aplicar</button>
+      <a href="/bi/devolucoes" class="sys-btn sys-btn--secondary">Limpar filtros</a>
+    </div>
+    <div class="bi-dev-quick">
+      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="today">Hoje</button>
+      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="week">Semana</button>
+      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="month">Mês</button>
+      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="pendentes">Pendentes</button>
+      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="criticas">Críticas</button>
+      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="resolvidas">Resolvidas</button>
+    </div>
+  </form>
+</section>

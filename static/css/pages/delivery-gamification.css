@@ -1,0 +1,140 @@
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-selection-toolbar {
+  border: 1px solid var(--sys-border);
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-modal-card {
+  max-height: min(90vh, 880px);
+  overflow: auto;
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-tabs {
+  background: var(--sys-bg-subtle);
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .quick-filter.is-active {
+  border-color: rgb(148 163 184);
+  background: rgb(226 232 240);
+  color: rgb(15 23 42);
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-row--selected {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-table-states .sys-empty-state,
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-table-states .sys-alert {
+  margin: 0;
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.2rem 0.55rem;
+  font-size: var(--sys-text-xs);
+  font-weight: 600;
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-status-badge[data-tone="emerald"] {
+  color: var(--sys-ok-fg);
+  background: var(--sys-ok-bg);
+  border-color: var(--sys-ok-border);
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-status-badge[data-tone="amber"] {
+  color: var(--sys-alert-fg);
+  background: var(--sys-alert-bg);
+  border-color: var(--sys-alert-border);
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-status-badge[data-tone="rose"] {
+  color: var(--sys-critical-fg);
+  background: var(--sys-critical-bg);
+  border-color: var(--sys-critical-border);
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-status-badge[data-tone="violet"] {
+  color: #5b21b6;
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.32);
+}
+
+.ga-employee-theme.employees-page.gamification-delivery-page .delivery-status-badge[data-tone="slate"] {
+  color: var(--sys-neutral-fg);
+  background: var(--sys-neutral-bg);
+  border-color: var(--sys-neutral-border);
+}
+
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable thead {
+    display: none;
+  }
+
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tbody {
+    display: grid;
+    gap: 0.9rem;
+    padding: 0.95rem;
+  }
+
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row {
+    display: block;
+    overflow: hidden;
+    border: 1px solid var(--sys-border);
+    border-radius: var(--sys-radius-xl);
+    background: linear-gradient(180deg, #ffffff 0%, rgb(248 250 252) 100%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 0.06);
+  }
+
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-top: 1px solid rgb(241 245 249);
+    white-space: normal;
+  }
+
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row td:first-child {
+    border-top: 0;
+    padding-bottom: 1rem;
+  }
+
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row td[data-label]::before {
+    content: attr(data-label);
+    flex: 0 0 6.25rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgb(100 116 139);
+  }
+
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row td.employee-cell-primary,
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row td.employee-actions-cell {
+    display: block;
+  }
+
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row td.employee-cell-primary::before,
+  .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row td.employee-actions-cell::before {
+    display: none;
+  }
+}
+
+html.dark .ga-employee-theme.employees-page.gamification-delivery-page .quick-filter.is-active {
+  border-color: rgb(75 85 99);
+  background: rgb(55 65 81);
+  color: #fff;
+}
+
+html.dark .ga-employee-theme.employees-page.gamification-delivery-page #employeesTable tr.employee-row {
+  background: linear-gradient(180deg, rgb(17 24 39) 0%, rgb(31 41 55) 100%);
+  border-color: rgb(55 65 81);
+}

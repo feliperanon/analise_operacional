@@ -1,13 +1,36 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Turnover e rotatividade · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Pessoas &amp; RH / Turnover</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Turnover e rotatividade</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Taxa de saídas, substituições e lista operacional do período</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/turnover-analysis.css">
+{% endblock %}
 
 {% block content %}
-<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="{ 
-    showAIModal: false, 
+
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium turnover-analysis-page space-y-5 pt-2 md:pt-3" x-data="{
+    showAIModal: false,
     showDatesModal: false,
-    aiLoading: false, 
+    showFixConfirm: false,
+    showImportInfo: false,
+    aiLoading: false,
     aiReport: '',
     savingDates: false,
     datesSaved: false,
+    fixingDates: false,
     generateReport() {
         this.aiLoading = true;
         this.aiReport = '';
@@ -38,7 +61,6 @@
         this.savingDates = true;
         const form = document.getElementById('datesForm');
         const formData = new FormData(form);
-        
         fetch('/admin/turnover-analysis/update-dates', {
             method: 'POST',
             body: formData
@@ -48,9 +70,7 @@
             this.savingDates = false;
             if (data.success) {
                 this.datesSaved = true;
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                setTimeout(() => { window.location.reload(); }, 1200);
             } else {
                 alert('Erro ao salvar: ' + (data.error || 'Erro desconhecido'));
             }
@@ -60,24 +80,16 @@
             alert('Erro de conexão: ' + e.message);
         });
     },
-    fixingDates: false,
-    fixDatesAuto() {
-        if (!confirm('Isso vai preencher automaticamente as datas de saída usando a data do evento de demissão/afastamento. Continuar?')) {
-            return;
-        }
+    runFixDates() {
+        this.showFixConfirm = false;
         this.fixingDates = true;
-        
-        fetch('/admin/turnover-analysis/fix-dates', {
-            method: 'POST'
-        })
+        fetch('/admin/turnover-analysis/fix-dates', { method: 'POST' })
         .then(r => r.json())
         .then(data => {
             this.fixingDates = false;
             if (data.success) {
                 this.datesSaved = true;
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                setTimeout(() => { window.location.reload(); }, 1200);
             } else {
                 alert('Erro ao corrigir: ' + (data.error || 'Erro desconhecido'));
             }
@@ -88,583 +100,539 @@
         });
     }
 }">
-    <div class="max-w-7xl mx-auto space-y-6">
-        
-        <!-- Header -->
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-white mb-2 flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
+
+    <!-- Hero -->
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Pessoas &amp; RH</span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Indicadores de rotatividade</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Leitura rápida da taxa de turnover, tempo de substituição e saídas recentes — alinhado ao cadastro de colaboradores.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        {% set _period_lbl = {'all': 'Todo histórico', 'month': 'Este mês', 'quarter': 'Trimestre', 'semester': 'Semestre', 'year': 'Este ano', 'custom': 'Personalizado'} %}
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            Período: <strong class="employees-text-strong">{% if current_period in _period_lbl %}{{ _period_lbl[current_period] }}{% else %}{{ current_period }}{% endif %}</strong>
+                        </span>
+                        {% if current_shift and current_shift != 'all' %}
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            Turno: {{ current_shift }}
+                        </span>
+                        {% endif %}
                     </div>
-                    Análise de Turnover e Rotatividade
-                </h1>
-                <p class="text-sm text-slate-400">Parecer completo sobre movimentação de colaboradores</p>
+                </div>
             </div>
-            <div class="flex flex-wrap gap-2">
-                <!-- Alerta de datas pendentes -->
+
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-none xl:flex-shrink-0 xl:justify-end">
                 {% set pending_exits = recent_exits|selectattr('exit_date_pending')|list %}
                 {% set pending_count = pending_exits|length %}
                 {% if pending_count > 0 %}
-                <button @click="showDatesModal = true" class="w-full md:w-auto px-3 py-2 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg flex items-center gap-2 text-orange-400 text-xs transition cursor-pointer">
-                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
-                    <span>{{ pending_count }} colaborador(es) sem data de saída. <strong class="underline">Clique para preencher</strong></span>
+                <button type="button" @click="showDatesModal = true" class="employees-cta sys-btn sys-btn--secondary w-full justify-center border-amber-500/40 text-amber-800 hover:bg-amber-500/10 dark:text-amber-200 sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </span>
+                    <span class="employees-cta__label">{{ pending_count }} data(s) pendente(s)</span>
                 </button>
                 {% endif %}
-                {% if gemini_available %}
-                <button @click="showAIModal = true; generateReport()" 
-                        class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-lg transition flex items-center gap-2 text-sm font-medium shadow-lg">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                    </svg>
-                    Gerar Parecer com IA
-                </button>
-                {% endif %}
-                <a href="/admin/turnover-analysis/export?period={{ current_period }}&start_date={{ current_start_date or '' }}&end_date={{ current_end_date or '' }}" 
-                   class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition flex items-center gap-2 text-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Exportar Excel
-                </a>
-                <a href="/admin/substitutions" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition flex items-center gap-2 text-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-                    </svg>
-                    Ver Substituições
-                </a>
-                <a href="/employees" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg border border-slate-700 transition flex items-center gap-2 text-sm">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                    </svg>
-                    Voltar
-                </a>
-            </div>
-        </div>
 
-        <!-- Filtros -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <form method="GET" class="grid grid-cols-2 md:grid-cols-5 gap-4 items-end">
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">Período Rápido</label>
-                    <select name="period" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-rose-500 focus:outline-none">
-                        <option value="all" {% if current_period == 'all' %}selected{% endif %}>Todo período</option>
-                        <option value="month" {% if current_period == 'month' %}selected{% endif %}>Este mês</option>
-                        <option value="quarter" {% if current_period == 'quarter' %}selected{% endif %}>Este trimestre</option>
-                        <option value="semester" {% if current_period == 'semester' %}selected{% endif %}>Este semestre</option>
-                        <option value="year" {% if current_period == 'year' %}selected{% endif %}>Este ano</option>
-                        <option value="custom" {% if current_period == 'custom' %}selected{% endif %}>Personalizado</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">Data Início</label>
-                    <input type="date" name="start_date" value="{{ current_start_date or '' }}" 
-                           class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-rose-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">Data Fim</label>
-                    <input type="date" name="end_date" value="{{ current_end_date or '' }}"
-                           class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-rose-500 focus:outline-none">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">Turno</label>
-                    <select name="shift" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:border-rose-500 focus:outline-none">
-                        <option value="all" {% if current_shift == 'all' %}selected{% endif %}>Todos</option>
-                        <option value="Manhã" {% if current_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
-                        <option value="Tarde" {% if current_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
-                        <option value="Noite" {% if current_shift == 'Noite' %}selected{% endif %}>Noite</option>
-                    </select>
-                </div>
-                <div>
-                    <button type="submit" class="w-full px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg transition text-sm font-medium flex items-center justify-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        Analisar
+                <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+                        <span class="employees-cta__icon" aria-hidden="true">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        </span>
+                        <span class="employees-cta__label">Dados</span>
+                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                     </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- KPIs Principais -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- Taxa de Turnover -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-bold text-slate-400 uppercase">Taxa de Turnover</p>
-                    <div class="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/>
-                        </svg>
-                    </div>
-                </div>
-                <p class="text-3xl font-bold text-white">{{ "%.1f"|format(metrics.turnover_rate) }}%</p>
-                <p class="text-xs text-slate-500 mt-1">{{ metrics.total_exits }} saídas / {{ metrics.avg_headcount }} média quadro</p>
-            </div>
-            
-            <!-- Tempo Médio Substituição -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-bold text-slate-400 uppercase">Tempo Médio Substituição</p>
-                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                </div>
-                <p class="text-3xl font-bold text-white">{{ "%.0f"|format(metrics.avg_replacement_days) }} <span class="text-lg font-normal text-slate-400">dias</span></p>
-                <p class="text-xs text-slate-500 mt-1">para contratar substituto</p>
-            </div>
-            
-            <!-- Tempo Médio de Permanência -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-bold text-slate-400 uppercase">Permanência Média</p>
-                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                        </svg>
-                    </div>
-                </div>
-                <p class="text-3xl font-bold text-white">{{ "%.1f"|format(metrics.avg_tenure_months) }} <span class="text-lg font-normal text-slate-400">meses</span></p>
-                <p class="text-xs text-slate-500 mt-1">antes do desligamento</p>
-            </div>
-            
-            <!-- Total Demissões vs Afastamentos -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-bold text-slate-400 uppercase">Saídas no Período</p>
-                    <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                        </svg>
-                    </div>
-                </div>
-                <p class="text-3xl font-bold text-white">{{ metrics.total_exits }}</p>
-                <div class="flex gap-2 mt-1">
-                    <span class="text-xs px-2 py-0.5 rounded bg-red-500/20 text-red-400">{{ metrics.fired_count }} demissões</span>
-                    <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-400">{{ metrics.away_count }} afastamentos</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Gráficos e Análises -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            <!-- Análise por Turno -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
-                    </svg>
-                    Turnover por Turno
-                </h3>
-                <div class="space-y-3">
-                    {% for shift_name, data in by_shift.items() %}
-                    <div class="bg-slate-900/50 rounded-lg p-3">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="font-medium text-white">{{ shift_name }}</span>
-                            <span class="text-lg font-bold {% if data.rate > 15 %}text-red-400{% elif data.rate > 10 %}text-amber-400{% else %}text-green-400{% endif %}">
-                                {{ "%.1f"|format(data.rate) }}%
+                    <div x-show="open" @click.outside="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+                        <button type="button" @click="open = false; showImportInfo = true" class="employees-menu-item w-full text-left">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             </span>
-                        </div>
-                        <div class="w-full bg-slate-700 rounded-full h-2 mb-1">
-                            <div class="h-2 rounded-full {% if data.rate > 15 %}bg-red-500{% elif data.rate > 10 %}bg-amber-500{% else %}bg-green-500{% endif %}"
-                                 style="width: {{ [data.rate * 3, 100]|min }}%"></div>
-                        </div>
-                        <div class="flex justify-between text-xs text-slate-500">
-                            <span>{{ data.exits }} saídas</span>
-                            <span>{{ data.total }} colaboradores</span>
-                        </div>
-                    </div>
-                    {% else %}
-                    <p class="text-slate-500 text-center py-4">Sem dados disponível</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Análise por Função/Cargo -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                    </svg>
-                    Turnover por Função
-                </h3>
-                <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
-                    {% for role, data in by_role.items()|sort(attribute='1.rate', reverse=true) %}
-                    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg p-2">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm text-white truncate">{{ role }}</p>
-                            <p class="text-xs text-slate-500">{{ data.exits }}/{{ data.total }} colaboradores</p>
-                        </div>
-                        <span class="ml-2 px-2 py-1 rounded-lg text-sm font-bold {% if data.rate > 20 %}bg-red-500/20 text-red-400{% elif data.rate > 10 %}bg-amber-500/20 text-amber-400{% else %}bg-green-500/20 text-green-400{% endif %}">
-                            {{ "%.0f"|format(data.rate) }}%
-                        </span>
-                    </div>
-                    {% else %}
-                    <p class="text-slate-500 text-center py-4">Sem dados disponível</p>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <!-- Análise por Faixa Etária -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    Turnover por Faixa Etária
-                </h3>
-                <div class="space-y-3">
-                    {% for age_range, data in by_age.items() %}
-                    <div class="bg-slate-900/50 rounded-lg p-3">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="font-medium text-white">{{ age_range }}</span>
-                            <span class="text-lg font-bold {% if data.rate > 15 %}text-red-400{% elif data.rate > 10 %}text-amber-400{% else %}text-green-400{% endif %}">
-                                {{ "%.1f"|format(data.rate) }}%
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Origem dos dados</span>
+                                <span class="employees-menu-item__hint">Como o cadastro alimenta esta tela</span>
                             </span>
-                        </div>
-                        <div class="w-full bg-slate-700 rounded-full h-2 mb-1">
-                            <div class="h-2 rounded-full {% if data.rate > 15 %}bg-red-500{% elif data.rate > 10 %}bg-amber-500{% else %}bg-green-500{% endif %}"
-                                 style="width: {{ [data.rate * 3, 100]|min }}%"></div>
-                        </div>
-                        <div class="flex justify-between text-xs text-slate-500">
-                            <span>{{ data.exits }} saídas</span>
-                            <span>{{ data.total }} colaboradores</span>
-                        </div>
+                        </button>
                     </div>
-                    {% else %}
-                    <p class="text-slate-500 text-center py-4">Sem dados de idade disponível</p>
-                    {% endfor %}
                 </div>
-            </div>
 
-            <!-- Análise por Centro de Custo/Setor -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                    </svg>
-                    Turnover por Setor
-                </h3>
-                <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
-                    {% for sector, data in by_sector.items()|sort(attribute='1.rate', reverse=true) %}
-                    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg p-2">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm text-white truncate">{{ sector or 'Não Informado' }}</p>
-                            <p class="text-xs text-slate-500">{{ data.exits }}/{{ data.total }} colaboradores</p>
-                        </div>
-                        <span class="ml-2 px-2 py-1 rounded-lg text-sm font-bold {% if data.rate > 20 %}bg-red-500/20 text-red-400{% elif data.rate > 10 %}bg-amber-500/20 text-amber-400{% else %}bg-green-500/20 text-green-400{% endif %}">
-                            {{ "%.0f"|format(data.rate) }}%
-                        </span>
-                    </div>
-                    {% else %}
-                    <p class="text-slate-500 text-center py-4">Sem dados disponível</p>
-                    {% endfor %}
+                <a href="/admin/turnover-analysis/export?period={{ current_period }}&start_date={{ current_start_date or '' }}&end_date={{ current_end_date or '' }}" class="employees-cta sys-btn sys-btn--success w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    </span>
+                    <span class="employees-cta__label">Exportar Excel</span>
+                </a>
+
+                {% if gemini_available %}
+                <button type="button" @click="showAIModal = true; generateReport()" class="employees-cta sys-btn sys-btn--secondary w-full justify-center border-violet-400/40 text-violet-800 hover:bg-violet-500/10 dark:text-violet-200 sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                    </span>
+                    <span class="employees-cta__label">Parecer com IA</span>
+                </button>
+                {% endif %}
+
+                <a href="/employees" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Colaboradores</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de turnover">
+            <div class="sys-kpi-card employees-kpi" style="--employees-kpi-accent: rgba(244, 63, 94, 0.65);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-rose-600 dark:text-rose-300">Taxa de turnover</span>
+                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ "%.1f"|format(metrics.turnover_rate) }}%</span>
+                    <div class="employees-kpi__meta employees-text-muted text-xs">{{ metrics.total_exits }} saídas · média quadro {{ metrics.avg_headcount }}</div>
                 </div>
             </div>
-            
-            <!-- Análise por Tempo de Casa -->
-            <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Turnover por Tempo de Casa
-                </h3>
-                <div class="space-y-2">
-                    {% set tenure_order = ['0-6 meses', '6-12 meses', '1-2 anos', '2-5 anos', '5-10 anos', '10+ anos', 'Não informado'] %}
-                    {% for tenure in tenure_order %}
-                    {% if tenure in by_tenure %}
-                    {% set data = by_tenure[tenure] %}
-                    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg p-2">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm text-white">{{ tenure }}</p>
-                            <p class="text-xs text-slate-500">{{ data.exits }}/{{ data.total }} colaboradores</p>
-                        </div>
-                        <span class="ml-2 px-2 py-1 rounded-lg text-sm font-bold {% if data.rate > 20 %}bg-red-500/20 text-red-400{% elif data.rate > 10 %}bg-amber-500/20 text-amber-400{% else %}bg-green-500/20 text-green-400{% endif %}">
-                            {{ "%.0f"|format(data.rate) }}%
-                        </span>
+            <div class="sys-kpi-card employees-kpi" style="--employees-kpi-accent: rgba(251, 191, 36, 0.65);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Substituição média</span>
+                    <span class="employees-kpi__value tabular-nums">{{ "%.0f"|format(metrics.avg_replacement_days) }}<span class="employees-kpi__denom text-base font-normal"> dias</span></span>
+                    <div class="employees-kpi__meta employees-text-muted text-xs">até novo colaborador</div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi" style="--employees-kpi-accent: rgba(59, 130, 246, 0.65);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Permanência média</span>
+                    <span class="employees-kpi__value tabular-nums">{{ "%.1f"|format(metrics.avg_tenure_months) }}<span class="employees-kpi__denom text-base font-normal"> meses</span></span>
+                    <div class="employees-kpi__meta employees-text-muted text-xs">antes do desligamento</div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi" style="--employees-kpi-accent: rgba(139, 92, 246, 0.6);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-violet-600 dark:text-violet-300">Saídas no período</span>
+                    <span class="employees-kpi__value tabular-nums">{{ metrics.total_exits }}</span>
+                    <div class="employees-kpi__meta flex flex-wrap gap-2 text-xs">
+                        <span class="sys-badge sys-badge--critical">{{ metrics.fired_count }} demissões</span>
+                        <span class="sys-badge sys-badge--alert">{{ metrics.away_count }} afastamentos</span>
                     </div>
-                    {% endif %}
-                    {% endfor %}
-                    {% if not by_tenure %}
-                    <p class="text-slate-500 text-center py-4">Sem dados disponível</p>
-                    {% endif %}
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Evolução Mensal -->
-        {% if monthly_trend %}
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
-                </svg>
-                Evolução Mensal de Turnover
-            </h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {% for month, data in monthly_trend.items() %}
-                <div class="bg-slate-900/50 rounded-lg p-3 text-center">
-                    <p class="text-xs text-slate-400 mb-1">{{ month }}</p>
-                    <p class="text-xl font-bold {% if data.rate > 15 %}text-red-400{% elif data.rate > 10 %}text-amber-400{% else %}text-green-400{% endif %}">
-                        {{ "%.1f"|format(data.rate) }}%
-                    </p>
-                    <div class="flex justify-center gap-1 mt-1">
-                        <span class="text-xs text-red-400">{{ data.fired }}</span>
-                        <span class="text-xs text-slate-500">/</span>
-                        <span class="text-xs text-amber-400">{{ data.away }}</span>
+    <!-- Filtros de período (servidor) -->
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <form method="get" action="/admin/turnover-analysis" class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner w-full flex-col gap-4 lg:flex-row lg:items-end">
+                <div class="grid w-full gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:flex-1">
+                    <div class="min-w-0">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Período</span>
+                        <select name="period" class="sys-input mt-1 w-full min-h-[2.5rem] py-2 text-sm">
+                            <option value="all" {% if current_period == 'all' %}selected{% endif %}>Todo período</option>
+                            <option value="month" {% if current_period == 'month' %}selected{% endif %}>Este mês</option>
+                            <option value="quarter" {% if current_period == 'quarter' %}selected{% endif %}>Trimestre</option>
+                            <option value="semester" {% if current_period == 'semester' %}selected{% endif %}>Semestre</option>
+                            <option value="year" {% if current_period == 'year' %}selected{% endif %}>Este ano</option>
+                            <option value="custom" {% if current_period == 'custom' %}selected{% endif %}>Personalizado</option>
+                        </select>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Início</span>
+                        <input type="date" name="start_date" value="{{ current_start_date or '' }}" class="sys-input mt-1 w-full min-h-[2.5rem] py-2 text-sm">
+                    </div>
+                    <div class="min-w-0">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Fim</span>
+                        <input type="date" name="end_date" value="{{ current_end_date or '' }}" class="sys-input mt-1 w-full min-h-[2.5rem] py-2 text-sm">
+                    </div>
+                    <div class="min-w-0">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Turno</span>
+                        <select name="shift" class="sys-input mt-1 w-full min-h-[2.5rem] py-2 text-sm">
+                            <option value="all" {% if current_shift == 'all' %}selected{% endif %}>Todos</option>
+                            <option value="Manhã" {% if current_shift == 'Manhã' %}selected{% endif %}>Manhã</option>
+                            <option value="Tarde" {% if current_shift == 'Tarde' %}selected{% endif %}>Tarde</option>
+                            <option value="Noite" {% if current_shift == 'Noite' %}selected{% endif %}>Noite</option>
+                        </select>
                     </div>
                 </div>
-                {% endfor %}
+                <div class="flex flex-wrap items-center gap-2 lg:shrink-0">
+                    <button type="submit" class="sys-btn sys-btn--primary justify-center px-4">Aplicar período</button>
+                    <a href="/admin/turnover-analysis?period=all&amp;shift=all" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar text-[11px] sm:text-xs">Limpar período</a>
+                    <a href="/admin/substitutions" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar text-[11px] sm:text-xs">Substituições</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Busca e visões rápidas (cliente) -->
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner">
+                <div class="employees-filter-bar__primary w-full min-w-0">
+                    <div class="employees-filter-bar__primary-scroll w-full min-w-0">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na lista</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search w-full max-w-xl">
+                            <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="search" id="turnoverSearchInput" autocomplete="off" placeholder="Nome, matrícula, função, turno ou centro" class="ops-toolbar-search__input" aria-label="Buscar saídas">
+                        </div>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider hidden sm:block" aria-hidden="true"></div>
+                <div class="employees-filter-bar__secondary flex w-full flex-col gap-2 sm:w-auto">
+                    <span class="employees-filter-bar__label employees-filter-bar__label--compact sm:sr-only">Visão rápida</span>
+                    <div id="turnoverQuickFilters" class="flex flex-wrap gap-2" role="toolbar" aria-label="Visões rápidas">
+                        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-turnover-quick="all" aria-pressed="true">Todos</button>
+                        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-turnover-quick="fired" aria-pressed="false">Demissões</button>
+                        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-turnover-quick="away" aria-pressed="false">Afastamentos</button>
+                        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-turnover-quick="pending" aria-pressed="false">Data pendente</button>
+                        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-turnover-quick="critical" aria-pressed="false" title="Permanência menor que 6 meses">&lt; 6 meses</button>
+                    </div>
+                </div>
             </div>
         </div>
-        {% endif %}
+    </div>
 
-        <!-- Top 10 Saídas Recentes -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-            <div class="p-4 border-b border-slate-700 flex items-center justify-between">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Últimas Saídas
-                </h3>
-                <span class="text-xs text-slate-400">{{ recent_exits|length }} registro(s)</span>
+    <!-- Recortes analíticos (recolhível) -->
+    <details class="turnover-analytics-details sys-card sys-card--surface overflow-hidden">
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 sm:px-5">
+            <div>
+                <p class="employees-table-panel__kicker">Análise</p>
+                <h3 class="sys-section-heading mt-1 text-base sm:text-lg">Recortes por turno, função e setor</h3>
+                <p class="employees-text-muted mt-1 max-w-2xl text-xs">Abra para ver detalhes — mantém o foco na operação do dia a dia.</p>
             </div>
-            {% if recent_exits %}
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-slate-900/50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Colaborador</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Função</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Turno</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Idade</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Permanência</th>
-                            <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Motivo</th>
-                            <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase">Data Saída</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-700">
-                        {% for emp in recent_exits %}
-                        <tr class="hover:bg-slate-700/30 transition">
-                            <td class="px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
-                                        <span class="text-xs font-bold text-red-400">{{ emp.name[:2].upper() }}</span>
-                                    </div>
-                                    <div>
-                                        <div class="text-white font-medium">{{ emp.name|emp_name }}</div>
-                                        <div class="text-xs text-slate-500">{{ emp.registration_id }}</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3 text-slate-300">{{ emp.role }}</td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="px-2 py-1 rounded text-xs bg-slate-700 text-slate-300">{{ emp.work_shift }}</span>
-                            </td>
-                            <td class="px-4 py-3 text-center text-slate-300">{{ emp.age or '-' }}</td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="text-white font-medium">{{ emp.tenure_months }}</span>
-                                <span class="text-xs text-slate-500">meses</span>
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                {% if emp.status == 'fired' %}
-                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-red-500/20 text-red-400">Demissão</span>
-                                {% else %}
-                                <span class="px-2 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400">Afastamento</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3">
-                                {% if emp.exit_date_pending %}
-                                <span class="px-2 py-1 rounded text-xs bg-orange-500/20 text-orange-400 border border-orange-500/30">Pendente</span>
-                                {% else %}
-                                <span class="text-slate-300">{{ emp.exit_date }}</span>
-                                {% endif %}
-                            </td>
-                        </tr>
+            <svg class="turnover-analytics-chevron h-5 w-5 shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="border-t border-slate-200/80 p-4 dark:border-slate-700/80 sm:p-5">
+            <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div class="sys-card sys-card--surface p-4">
+                    <h4 class="sys-section-title mb-3">Por turno</h4>
+                    <div class="space-y-3">
+                        {% for shift_name, data in by_shift.items() %}
+                        <div class="rounded-lg border border-slate-200/80 p-3 dark:border-slate-600/80">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="employees-text-strong text-sm">{{ shift_name }}</span>
+                                <span class="tabular-nums text-sm font-semibold {% if data.rate > 15 %}text-red-600 dark:text-red-400{% elif data.rate > 10 %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">{{ "%.1f"|format(data.rate) }}%</span>
+                            </div>
+                            <div class="turnover-mini-bar mt-2">
+                                <div class="turnover-mini-bar__fill {% if data.rate > 15 %}bg-red-500{% elif data.rate > 10 %}bg-amber-500{% else %}bg-emerald-500{% endif %}" style="width: {{ [data.rate * 3, 100]|min }}%"></div>
+                            </div>
+                            <p class="employees-text-muted mt-1 text-xs">{{ data.exits }} saídas · {{ data.total }} no quadro</p>
+                        </div>
+                        {% else %}
+                        <p class="employees-text-muted text-sm">Sem dados.</p>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </div>
+                </div>
+                <div class="sys-card sys-card--surface p-4">
+                    <h4 class="sys-section-title mb-3">Por função (maior taxa)</h4>
+                    <div class="max-h-64 space-y-2 overflow-y-auto pr-1">
+                        {% for role, data in by_role.items()|sort(attribute='1.rate', reverse=true) %}
+                        <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 px-3 py-2 dark:border-slate-600/80">
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm employees-text-strong">{{ role }}</p>
+                                <p class="employees-text-muted text-xs">{{ data.exits }}/{{ data.total }}</p>
+                            </div>
+                            <span class="shrink-0 text-xs font-semibold tabular-nums {% if data.rate > 20 %}text-red-600 dark:text-red-400{% elif data.rate > 10 %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">{{ "%.0f"|format(data.rate) }}%</span>
+                        </div>
+                        {% else %}
+                        <p class="employees-text-muted text-sm">Sem dados.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="sys-card sys-card--surface p-4">
+                    <h4 class="sys-section-title mb-3">Por faixa etária</h4>
+                    <div class="space-y-2">
+                        {% for age_range, data in by_age.items() %}
+                        <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 px-3 py-2 text-sm dark:border-slate-600/80">
+                            <span>{{ age_range }}</span>
+                            <span class="font-medium tabular-nums {% if data.rate > 15 %}text-red-600 dark:text-red-400{% elif data.rate > 10 %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">{{ "%.1f"|format(data.rate) }}%</span>
+                        </div>
+                        {% else %}
+                        <p class="employees-text-muted text-sm">Sem dados de idade.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="sys-card sys-card--surface p-4">
+                    <h4 class="sys-section-title mb-3">Por setor</h4>
+                    <div class="max-h-64 space-y-2 overflow-y-auto pr-1">
+                        {% for sector, data in by_sector.items()|sort(attribute='1.rate', reverse=true) %}
+                        <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 px-3 py-2 dark:border-slate-600/80">
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm employees-text-strong">{{ sector or 'Não informado' }}</p>
+                                <p class="employees-text-muted text-xs">{{ data.exits }}/{{ data.total }}</p>
+                            </div>
+                            <span class="shrink-0 text-xs font-semibold tabular-nums {% if data.rate > 20 %}text-red-600 dark:text-red-400{% elif data.rate > 10 %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">{{ "%.0f"|format(data.rate) }}%</span>
+                        </div>
+                        {% else %}
+                        <p class="employees-text-muted text-sm">Sem dados.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="sys-card sys-card--surface p-4 lg:col-span-2">
+                    <h4 class="sys-section-title mb-3">Por tempo de casa</h4>
+                    {% set tenure_order = ['0-6 meses', '6-12 meses', '1-2 anos', '2-5 anos', '5-10 anos', '10+ anos', 'Não informado'] %}
+                    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {% for tenure in tenure_order %}
+                        {% if tenure in by_tenure %}
+                        {% set data = by_tenure[tenure] %}
+                        <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 px-3 py-2 dark:border-slate-600/80">
+                            <span class="text-sm">{{ tenure }}</span>
+                            <span class="text-xs font-semibold tabular-nums {% if data.rate > 20 %}text-red-600 dark:text-red-400{% elif data.rate > 10 %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">{{ "%.0f"|format(data.rate) }}%</span>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% if not by_tenure %}
+                    <p class="employees-text-muted text-sm">Sem dados.</p>
+                    {% endif %}
+                </div>
             </div>
-            {% else %}
-            <div class="p-12 text-center">
-                <p class="text-slate-400">Nenhuma saída registrada no período</p>
+
+            {% if monthly_trend %}
+            <div class="mt-4 sys-card sys-card--surface p-4">
+                <h4 class="sys-section-title mb-3">Evolução mensal</h4>
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                    {% for month, data in monthly_trend.items() %}
+                    <div class="rounded-lg border border-slate-200/80 p-3 text-center dark:border-slate-600/80">
+                        <p class="employees-text-muted text-xs">{{ month }}</p>
+                        <p class="mt-1 text-lg font-semibold tabular-nums {% if data.rate > 15 %}text-red-600 dark:text-red-400{% elif data.rate > 10 %}text-amber-600 dark:text-amber-400{% else %}text-emerald-600 dark:text-emerald-400{% endif %}">{{ "%.1f"|format(data.rate) }}%</p>
+                        <p class="employees-text-muted mt-1 text-[10px]">{{ data.fired }} dem. · {{ data.away }} af.</p>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
             {% endif %}
         </div>
+    </details>
 
-        <!-- Insights e Alertas -->
-        {% if insights %}
-        <div class="bg-gradient-to-r from-rose-900/30 to-pink-900/30 rounded-xl border border-rose-700/50 p-4">
-            <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                Insights e Alertas
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {% for insight in insights %}
-                <div class="bg-slate-800/50 rounded-lg p-3 border-l-4 {% if insight.type == 'danger' %}border-red-500{% elif insight.type == 'warning' %}border-amber-500{% else %}border-blue-500{% endif %}">
-                    <p class="text-sm text-white">{{ insight.message }}</p>
-                </div>
-                {% endfor %}
+    {% if insights %}
+    <div class="space-y-3">
+        <h3 class="sys-section-heading text-base sm:text-lg">Alertas automáticos</h3>
+        <div class="grid gap-3 md:grid-cols-2">
+            {% for insight in insights %}
+            <div class="sys-alert {% if insight.type == 'danger' %}sys-alert--danger{% elif insight.type == 'warning' %}sys-alert--warn{% else %}sys-alert--info{% endif %} flex items-start gap-3" role="status">
+                <span class="min-w-0 flex-1 text-sm">{{ insight.message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Lista principal -->
+    <div id="turnover-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Saídas no período</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Últimas movimentações</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Desktop em tabela; no celular vira cards. Use busca e visões rápidas sem recarregar a página.</p>
+            </div>
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span class="employees-text-caption">Datas pendentes aparecem com selo laranja. Exporte o Excel para auditoria.</span>
             </div>
         </div>
-        {% endif %}
 
+        {% if recent_exits %}
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[880px]" id="turnoverExitsTable">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th employees-data-table__th--col-name px-3 py-2 pl-5">Colaborador</th>
+                        <th class="employees-data-table__th px-3 py-2">Função</th>
+                        <th class="employees-data-table__th employees-data-table__th--col-center px-3 py-2 whitespace-nowrap">Turno</th>
+                        <th class="employees-data-table__th px-3 py-2 whitespace-nowrap text-center">Idade</th>
+                        <th class="employees-data-table__th px-3 py-2 whitespace-nowrap text-center">Permanência</th>
+                        <th class="employees-data-table__th employees-data-table__th--col-status px-3 py-2">Motivo</th>
+                        <th class="employees-data-table__th px-3 py-2 whitespace-nowrap">Data saída</th>
+                        <th class="employees-data-table__th employees-data-table__th--static employees-data-table__th--col-actions px-3 py-2">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y">
+                    {% for emp in recent_exits %}
+                    {% set search_blob = (emp.name|emp_name ~ ' ' ~ emp.registration_id|string ~ ' ' ~ emp.role ~ ' ' ~ emp.work_shift ~ ' ' ~ emp.cost_center)|lower %}
+                    <tr class="group employee-row turnover-exit-row employees-data-table__row transition-colors"
+                        data-exit-status="{{ emp.status }}"
+                        data-exit-pending="{{ 1 if emp.exit_date_pending else 0 }}"
+                        data-tenure-months="{{ emp.tenure_months }}"
+                        data-search="{{ search_blob|e }}">
+                        <td class="employee-cell-primary turnover-cell-primary employees-data-table__td--col-name px-3 py-2 pl-5 align-middle" data-label="Colaborador">
+                            <a href="/employees/{{ emp.id }}" class="employee-name employees-data-table__name-link block font-medium employees-text-strong hover:underline">{{ emp.name|emp_name }}</a>
+                            <span class="employees-text-muted block text-xs">{{ emp.registration_id }}</span>
+                        </td>
+                        <td class="employees-data-table__cell px-3 py-2 align-middle" data-label="Função"><span class="employees-data-table__role-ellipsis">{{ emp.role }}</span></td>
+                        <td class="employees-data-table__cell employees-data-table__td--col-center px-3 py-2 align-middle whitespace-nowrap" data-label="Turno">
+                            <span class="employees-pill employees-pill--neutral">{{ emp.work_shift }}</span>
+                        </td>
+                        <td class="employees-data-table__cell px-3 py-2 align-middle text-center whitespace-nowrap" data-label="Idade">{{ emp.age if emp.age is not none else '—' }}</td>
+                        <td class="employees-data-table__cell px-3 py-2 align-middle text-center whitespace-nowrap" data-label="Permanência"><span class="tabular-nums font-medium">{{ emp.tenure_months }}</span> <span class="employees-text-muted text-xs">meses</span></td>
+                        <td class="employees-data-table__td--col-status px-3 py-2 align-middle whitespace-nowrap" data-label="Motivo">
+                            {% if emp.status == 'fired' %}
+                            <span class="sys-badge sys-badge--critical">Demissão</span>
+                            {% else %}
+                            <span class="sys-badge sys-badge--alert">Afastamento</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell px-3 py-2 align-middle whitespace-nowrap" data-label="Data saída">
+                            {% if emp.exit_date_pending %}
+                            <span class="employees-pill employees-pill--status employees-pill--pending">Pendente</span>
+                            {% else %}
+                            <span class="employees-text-body">{{ emp.exit_date }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="turnover-actions-cell employees-data-table__td--col-actions px-3 py-2 align-middle" data-label="Ações">
+                            <div class="turnover-action-strip employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                                <a href="/employees/{{ emp.id }}" class="employee-action-btn employee-action-btn--edit" title="Abrir cadastro">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div id="turnoverFilteredEmpty" class="hidden border-t border-slate-200/80 px-4 py-10 text-center dark:border-slate-700/80" hidden>
+            <div class="sys-empty-state mx-auto max-w-md">
+                <p class="sys-empty-state__title font-medium text-slate-800 dark:text-slate-100">Nenhum resultado nesta visão</p>
+                <p class="sys-empty-state__text mt-1 text-sm">Ajuste a busca ou troque a visão rápida.</p>
+            </div>
+        </div>
+        <div class="turnover-pager flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <p id="turnoverPagerMeta" class="employees-text-muted text-xs"></p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" id="turnoverPagerPrev" class="sys-btn sys-btn--secondary px-3 py-2 text-xs">Anterior</button>
+                <button type="button" id="turnoverPagerNext" class="sys-btn sys-btn--secondary px-3 py-2 text-xs">Próxima</button>
+            </div>
+        </div>
+        {% else %}
+        <div class="sys-empty-state px-6 py-14 text-center">
+            <p class="sys-empty-state__title">Nenhuma saída no período</p>
+            <p class="sys-empty-state__text mt-2 max-w-md mx-auto text-sm">Amplie o intervalo ou verifique cadastros de demissão e afastamento em Colaboradores.</p>
+            <a href="/employees" class="sys-btn sys-btn--primary mt-4 inline-flex">Ir para colaboradores</a>
+        </div>
+        {% endif %}
     </div>
 
-    <!-- Modal de Edição de Datas de Saída -->
-    <div x-show="showDatesModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-        <div @click.away="showDatesModal = false" class="bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] border border-slate-700 shadow-2xl overflow-hidden flex flex-col my-auto">
-            <div class="flex justify-between items-center p-4 border-b border-slate-700">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    Preencher Datas de Saída
-                </h3>
-                <button @click="showDatesModal = false" class="text-slate-400 hover:text-white p-1">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+    <!-- Modal: origem dos dados -->
+    <div x-show="showImportInfo" x-cloak class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="showImportInfo = false">
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md" @click.stop>
+            <div class="flex items-start justify-between gap-3 border-b border-slate-200/80 px-5 py-4 dark:border-slate-700/80">
+                <h3 class="text-base font-semibold">Origem dos dados</h3>
+                <button type="button" class="emp-modal-close" @click="showImportInfo = false" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            
-            <div class="flex-1 overflow-y-auto p-4">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                    <p class="text-sm text-slate-400">Preencha as datas de demissão/afastamento dos colaboradores abaixo:</p>
-                    <button type="button" @click="fixDatesAuto()" :disabled="fixingDates"
-                            class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-xs font-medium flex items-center gap-1.5 whitespace-nowrap">
-                        <template x-if="fixingDates">
-                            <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        </template>
-                        <template x-if="!fixingDates">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                            </svg>
-                        </template>
-                        <span x-text="fixingDates ? 'Corrigindo...' : 'Corrigir Automaticamente'">Corrigir Automaticamente</span>
+            <div class="px-5 py-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                <p>Esta tela consolida colaboradores com status <strong>demissão</strong> ou <strong>afastamento</strong>, além de substituições registradas no período.</p>
+                <p class="mt-3">Importação em massa e manutenção de cadastro continuam centralizadas em <a href="/employees" class="font-medium text-blue-600 underline dark:text-blue-400">Colaboradores</a>.</p>
+            </div>
+            <div class="flex justify-end gap-2 border-t border-slate-200/80 px-5 py-3 dark:border-slate-700/80">
+                <button type="button" class="sys-btn sys-btn--primary" @click="showImportInfo = false">Entendi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: datas pendentes -->
+    <div x-show="showDatesModal" x-cloak class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4" @click.self="showDatesModal = false">
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-4 flex max-h-[min(90vh,720px)] w-full max-w-2xl flex-col overflow-hidden" @click.stop>
+            <div class="flex items-center justify-between gap-3 border-b border-slate-200/80 px-4 py-4 dark:border-slate-700/80 sm:px-5">
+                <h3 class="flex items-center gap-2 text-base font-semibold">
+                    <svg class="h-5 w-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Datas de saída pendentes
+                </h3>
+                <button type="button" class="emp-modal-close" @click="showDatesModal = false" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="employees-text-muted text-sm">Informe as datas ou use a correção automática.</p>
+                    <button type="button" class="sys-btn sys-btn--secondary shrink-0 text-xs" @click="showFixConfirm = true" :disabled="fixingDates">
+                        <span x-text="fixingDates ? 'Corrigindo…' : 'Corrigir automaticamente'">Corrigir automaticamente</span>
                     </button>
                 </div>
-                
-                <form id="datesForm" class="space-y-3">
+                <form id="datesForm" class="mt-4 space-y-3">
                     {% for emp in recent_exits %}
                     {% if emp.exit_date_pending %}
-                    <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700">
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
-                            <div class="flex items-center gap-2 flex-1 min-w-0">
-                                <div class="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                                    <span class="text-xs font-bold text-orange-400">{{ emp.name[:2].upper() }}</span>
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-sm text-white font-medium truncate">{{ emp.name|emp_name }}</p>
-                                    <p class="text-[10px] text-slate-500">{{ emp.registration_id }} • {{ emp.role }}</p>
-                                </div>
+                    <div class="rounded-xl border border-slate-200/80 p-3 dark:border-slate-600/80">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="font-medium employees-text-strong">{{ emp.name|emp_name }}</p>
+                                <p class="employees-text-muted text-xs">{{ emp.registration_id }} · {{ emp.role }}</p>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs px-2 py-1 rounded {% if emp.status == 'fired' %}bg-red-500/20 text-red-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">
-                                    {% if emp.status == 'fired' %}Demissão{% else %}Afastamento{% endif %}
-                                </span>
-                                <input type="date" name="date_{{ emp.registration_id }}" 
-                                       class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white focus:border-orange-500 focus:outline-none w-36"
-                                       placeholder="Data de saída">
+                            <div class="flex flex-wrap items-center gap-2">
+                                {% if emp.status == 'fired' %}
+                                <span class="sys-badge sys-badge--critical">Demissão</span>
+                                {% else %}
+                                <span class="sys-badge sys-badge--alert">Afastamento</span>
+                                {% endif %}
+                                <input type="date" name="date_{{ emp.registration_id }}" class="sys-input min-h-[2.5rem] py-2 text-sm" aria-label="Data de saída para {{ emp.name|emp_name }}">
                             </div>
                         </div>
                     </div>
                     {% endif %}
                     {% endfor %}
                 </form>
-                
-                <!-- Mensagem de sucesso -->
-                <div x-show="datesSaved" x-transition class="mt-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg text-green-400 text-sm flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    Datas salvas com sucesso! Recarregando...
-                </div>
+                <div x-show="datesSaved" x-transition class="sys-alert sys-alert--success mt-4 text-sm">Datas salvas. Recarregando…</div>
             </div>
-            
-            <div class="p-4 border-t border-slate-700 flex gap-3">
-                <button type="button" @click="showDatesModal = false" class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium">
-                    Cancelar
-                </button>
-                <button type="button" @click="saveDates()" :disabled="savingDates" 
-                        class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition text-sm font-medium flex items-center justify-center gap-2">
-                    <template x-if="savingDates">
-                        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </template>
-                    <span x-text="savingDates ? 'Salvando...' : 'Salvar Datas'">Salvar Datas</span>
+            <div class="flex flex-wrap gap-2 border-t border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
+                <button type="button" class="sys-btn sys-btn--secondary flex-1 sm:flex-none" @click="showDatesModal = false">Cancelar</button>
+                <button type="button" class="sys-btn sys-btn--primary flex-1 sm:flex-none" @click="saveDates()" :disabled="savingDates">
+                    <span x-text="savingDates ? 'Salvando…' : 'Salvar'">Salvar</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Relatório IA -->
-    <div x-show="showAIModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-        <div @click.away="showAIModal = false" class="bg-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] border border-slate-700 shadow-2xl overflow-hidden flex flex-col">
-            <div class="flex justify-between items-center p-4 border-b border-slate-700">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                    </svg>
-                    Parecer Executivo - Análise de Turnover
-                </h3>
-                <button @click="showAIModal = false" class="text-slate-400 hover:text-white">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+    <!-- Modal: confirmação correção automática (acima do modal de datas) -->
+    <div x-show="showFixConfirm" x-cloak class="emp-modal-shell fixed inset-0 z-[60] flex items-center justify-center p-4" @click.self="showFixConfirm = false">
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md" @click.stop>
+            <div class="border-b border-slate-200/80 px-5 py-4 dark:border-slate-700/80">
+                <h3 class="text-base font-semibold">Corrigir datas automaticamente?</h3>
+                <p class="employees-text-muted mt-2 text-sm">Isso preenche datas de saída com base nos eventos de demissão/afastamento. Revise depois no cadastro.</p>
+            </div>
+            <div class="flex flex-wrap justify-end gap-2 px-5 py-3">
+                <button type="button" class="sys-btn sys-btn--secondary" @click="showFixConfirm = false">Cancelar</button>
+                <button type="button" class="sys-btn sys-btn--primary" @click="runFixDates()">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: IA -->
+    <div x-show="showAIModal" x-cloak class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="showAIModal = false">
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden" @click.stop>
+            <div class="flex items-center justify-between gap-3 border-b border-slate-200/80 px-4 py-4 dark:border-slate-700/80 sm:px-5">
+                <h3 class="text-base font-semibold">Parecer executivo (IA)</h3>
+                <button type="button" class="emp-modal-close" @click="showAIModal = false" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
-            
-            <div class="flex-1 overflow-y-auto p-4">
+            <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
                 <template x-if="aiLoading">
-                    <div class="flex flex-col items-center justify-center py-12">
-                        <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                        <p class="text-slate-400">Gerando parecer com inteligência artificial...</p>
-                        <p class="text-xs text-slate-500 mt-2">Isso pode levar alguns segundos</p>
+                    <div class="flex flex-col items-center justify-center py-12 text-center">
+                        <div class="h-10 w-10 animate-spin rounded-full border-2 border-violet-500 border-t-transparent"></div>
+                        <p class="employees-text-muted mt-4 text-sm">Gerando parecer…</p>
                     </div>
                 </template>
-                
                 <template x-if="!aiLoading && aiReport">
-                    <div class="prose prose-invert prose-sm max-w-none">
+                    <div class="prose prose-sm max-w-none dark:prose-invert">
                         <div x-html="aiReport.replace(/\n/g, '<br>')"></div>
                     </div>
                 </template>
             </div>
-            
-            <div class="p-4 border-t border-slate-700 flex gap-3">
-                <button @click="showAIModal = false" class="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-medium">
-                    Fechar
-                </button>
-                <button @click="navigator.clipboard.writeText(aiReport); alert('Copiado!')" 
-                        x-show="aiReport && !aiLoading"
-                        class="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition text-sm font-medium flex items-center justify-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                    </svg>
-                    Copiar Parecer
-                </button>
+            <div class="flex flex-wrap gap-2 border-t border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
+                <button type="button" class="sys-btn sys-btn--secondary" @click="showAIModal = false">Fechar</button>
+                <button type="button" class="sys-btn sys-btn--primary" x-show="aiReport && !aiLoading" @click="navigator.clipboard.writeText(aiReport).then(() => alert('Copiado para a área de transferência.')).catch(() => {})">Copiar texto</button>
             </div>
         </div>
     </div>
 </div>
 
-<style>
-    [x-cloak] { display: none !important; }
-</style>
+{% endblock %}
+
+{% block body_scripts %}
+<script defer src="/static/js/pages/turnover-analysis-page.js"></script>
 {% endblock %}

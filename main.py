@@ -580,6 +580,12 @@ class ManualXPRequest(BaseModel):
     reason: str
     status: Optional[str] = "confirmed"  # confirmed | provisional
 
+
+class GameTxUpdateRequest(BaseModel):
+    employee_id: int
+    amount: int
+    reason: str
+
 class DailyRoutineUpdate(BaseModel):
     date: str
     shift: str
@@ -7679,6 +7685,7 @@ async def api_manual_xp(payload: ManualXPRequest, request: Request, session: Ses
 @app.get("/admin/game", response_class=HTMLResponse)
 async def admin_game_dashboard(request: Request, session: Session = Depends(get_session), user=Depends(require_leader)):
     """Manager Dashboard for Gamification Control"""
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     pending_rows = session.exec(
         select(
             models.GameXPTransaction.id,
@@ -7686,6 +7693,7 @@ async def admin_game_dashboard(request: Request, session: Session = Depends(get_
             models.GameXPTransaction.reason,
             models.GameXPTransaction.created_at,
             models.Employee.name,
+            models.GameXPTransaction.employee_id,
         )
         .join(models.Employee)
         .where(models.GameXPTransaction.status == "provisional")
@@ -7693,18 +7701,48 @@ async def admin_game_dashboard(request: Request, session: Session = Depends(get_
     ).all()
 
     pending_list = []
-    for tx_id, tx_amount, tx_reason, tx_created_at, employee_name in pending_rows:
+    pending_today = 0
+    total_bonus = 0
+    total_penalty = 0
+    critical_count = 0
+    for tx_id, tx_amount, tx_reason, tx_created_at, employee_name, employee_id in pending_rows:
+        amount_i = int(tx_amount or 0)
+        reason_s = (tx_reason or "").strip()
+        created_iso = tx_created_at.isoformat() if tx_created_at else None
+        is_today = bool(tx_created_at and tx_created_at >= today_start)
+        is_critical = abs(amount_i) >= 150 or any(token in reason_s.lower() for token in ("urgente", "crit", "erro grave"))
+        if is_today:
+            pending_today += 1
+        if amount_i >= 0:
+            total_bonus += amount_i
+        else:
+            total_penalty += abs(amount_i)
+        if is_critical:
+            critical_count += 1
         pending_list.append({
             "id": tx_id,
+            "employee_id": employee_id,
             "employee_name": employee_name or "",
-            "amount": tx_amount,
-            "reason": tx_reason,
+            "amount": amount_i,
+            "reason": reason_s,
             "date": tx_created_at.strftime("%d/%m %H:%M") if tx_created_at else "-",
+            "created_at": created_iso,
+            "is_today": is_today,
+            "is_critical": is_critical,
         })
+
+    stats = {
+        "total_pending": len(pending_list),
+        "pending_today": pending_today,
+        "total_bonus": total_bonus,
+        "total_penalty": total_penalty,
+        "critical_count": critical_count,
+    }
 
     return templates.TemplateResponse("admin_game.html", {
         "request": request,
-        "pending_txs": pending_list
+        "pending_txs": pending_list,
+        "stats": stats,
         # History removed from dashboard, moved to exclusive page
     })
 
@@ -7962,6 +8000,42 @@ async def api_manage_tx(tx_id: int, action: str, session: Session = Depends(get_
     session.add(tx)
     session.commit()
     return {"success": True, "status": tx.status}
+
+
+@app.post("/api/game/transaction/{tx_id}/update", dependencies=[Depends(require_leader)])
+async def api_update_tx(
+    tx_id: int,
+    payload: GameTxUpdateRequest,
+    session: Session = Depends(get_session),
+):
+    """Atualiza pendência provisória antes da aprovação."""
+    tx = session.get(models.GameXPTransaction, tx_id)
+    if not tx:
+        return JSONResponse({"success": False, "error": "Transação não encontrada."}, status_code=404)
+    if (tx.status or "").strip().lower() != "provisional":
+        return JSONResponse({"success": False, "error": "Apenas pendências podem ser editadas."}, status_code=400)
+
+    emp = session.get(models.Employee, payload.employee_id)
+    if not emp:
+        return JSONResponse({"success": False, "error": "Colaborador não encontrado."}, status_code=404)
+
+    reason = (payload.reason or "").strip()
+    if not reason:
+        return JSONResponse({"success": False, "error": "Motivo é obrigatório."}, status_code=400)
+
+    try:
+        amount = int(payload.amount)
+    except Exception:
+        return JSONResponse({"success": False, "error": "amount inválido."}, status_code=400)
+    if amount == 0:
+        return JSONResponse({"success": False, "error": "amount não pode ser 0."}, status_code=400)
+
+    tx.employee_id = payload.employee_id
+    tx.amount = amount
+    tx.reason = reason
+    session.add(tx)
+    session.commit()
+    return {"success": True}
 
 @app.get("/admin/game/settings", response_class=HTMLResponse)
 async def admin_game_settings(request: Request, session: Session = Depends(get_session)):
@@ -30945,11 +31019,248 @@ async def routine_report(
 from sqlmodel import select
 
 
+def _funcoes_normalize_header(key: str) -> str:
+    if not key:
+        return ""
+    k = str(key).strip().upper().replace("Ç", "C")
+    for old, new in [(" ", "_"), ("-", "_")]:
+        k = k.replace(old, new)
+    aliases = {
+        "FUNCAO": "NOME",
+        "FUNÇÃO": "NOME",
+        "CARGO": "NOME",
+        "NOME_DA_FUNCAO": "NOME",
+        "SALARIO": "SALARIO_BASE",
+        "SALARIO_BASE_R": "SALARIO_BASE",
+        "OBSERVACAO": "DESCRICAO",
+        "OBSERVACAOES": "DESCRICAO",
+    }
+    return aliases.get(k, k)
+
+
 @app.get("/funcoes", response_class=HTMLResponse)
-async def funcoes_page(request: Request, session: Session = Depends(get_session)):
+async def funcoes_page(
+    request: Request,
+    q: Optional[str] = Query(None),
+    status_view: str = Query("all"),
+    session: Session = Depends(get_session),
+):
     require_login(request)
-    cargos = session.exec(select(models.CargoMaster).order_by(models.CargoMaster.nome)).all()
-    return templates.TemplateResponse("funcoes.html", {"request": request, "cargos": cargos})
+    from urllib.parse import urlencode
+
+    status_view = (status_view or "all").strip().lower()
+    if status_view not in {"all", "ativo", "inativo", "em_uso", "sem_uso"}:
+        status_view = "all"
+    q_raw = (q or "").strip()
+    search_lower = q_raw.lower()
+
+    all_cargos = session.exec(select(models.CargoMaster).order_by(models.CargoMaster.nome)).all()
+    emps = session.exec(select(models.Employee.role).where(models.Employee.status != "fired")).all()
+
+    role_counts: Counter = Counter()
+    roles_in_use: set = set()
+    for r in emps:
+        if r is None:
+            continue
+        s = str(r).strip().upper()
+        if not s:
+            continue
+        roles_in_use.add(s)
+        role_counts[s] += 1
+
+    def cargo_key(c: models.CargoMaster) -> str:
+        return (c.nome or "").strip().upper()
+
+    def cargo_in_use(c: models.CargoMaster) -> bool:
+        k = cargo_key(c)
+        return bool(k) and k in roles_in_use
+
+    total = len(all_cargos)
+    ativos = sum(1 for c in all_cargos if (c.status or "").upper() == "ATIVO")
+    inativos = sum(1 for c in all_cargos if (c.status or "").upper() != "ATIVO")
+    em_uso_n = sum(1 for c in all_cargos if cargo_in_use(c))
+
+    filtered: List[models.CargoMaster] = []
+    for c in all_cargos:
+        if search_lower:
+            nome_l = (c.nome or "").lower()
+            desc_l = (c.descricao or "").lower()
+            if search_lower not in nome_l and search_lower not in desc_l:
+                continue
+        st = (c.status or "").upper()
+        if status_view == "ativo" and st != "ATIVO":
+            continue
+        if status_view == "inativo" and st == "ATIVO":
+            continue
+        if status_view == "em_uso" and not cargo_in_use(c):
+            continue
+        if status_view == "sem_uso" and cargo_in_use(c):
+            continue
+        filtered.append(c)
+
+    def fmt_money(v: Any) -> str:
+        if v is None:
+            return "—"
+        try:
+            s = f"{float(v):,.2f}"
+            return "R$ " + s.replace(",", "X").replace(".", ",").replace("X", ".")
+        except Exception:
+            return "—"
+
+    def qs_href(**params: Any) -> str:
+        clean = {k: v for k, v in params.items() if v is not None and str(v).strip() != ""}
+        s = urlencode(clean, doseq=True)
+        return "/funcoes" + ("?" + s if s else "")
+
+    base_q = {"q": q_raw} if q_raw else {}
+    links = {
+        "clear": "/funcoes",
+        "all": qs_href(**base_q),
+        "ativo": qs_href(**{**base_q, "status_view": "ativo"}),
+        "inativo": qs_href(**{**base_q, "status_view": "inativo"}),
+        "em_uso": qs_href(**{**base_q, "status_view": "em_uso"}),
+        "sem_uso": qs_href(**{**base_q, "status_view": "sem_uso"}),
+    }
+
+    rows_out: List[Dict[str, Any]] = []
+    for c in filtered:
+        ck = cargo_key(c)
+        cnt = int(role_counts.get(ck, 0))
+        in_use = cnt > 0
+        st_up = (c.status or "").upper()
+        if st_up == "ATIVO":
+            badge_tone = "ok"
+            badge_label = "Ativo"
+        else:
+            badge_tone = "neutral"
+            badge_label = "Inativo"
+        rows_out.append(
+            {
+                "id": c.id,
+                "nome": c.nome,
+                "salario_fmt": fmt_money(c.salario_base),
+                "descricao": (c.descricao or "").strip() or "—",
+                "descricao_short": (c.descricao or "").strip(),
+                "status": c.status or "ATIVO",
+                "colaboradores_count": cnt,
+                "in_use": in_use,
+                "badge_tone": badge_tone,
+                "badge_label": badge_label,
+                "payload_json": json.dumps(
+                    {
+                        "id": c.id,
+                        "nome": c.nome,
+                        "salario_base": c.salario_base,
+                        "descricao": c.descricao or "",
+                        "status": c.status or "ATIVO",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+        )
+
+    return templates.TemplateResponse(
+        "funcoes.html",
+        {
+            "request": request,
+            "cargos_rows": rows_out,
+            "filters": {"q": q_raw, "status_view": status_view},
+            "stats": {
+                "total": total,
+                "ativos": ativos,
+                "inativos": inativos,
+                "em_uso": em_uso_n,
+            },
+            "links": links,
+        },
+    )
+
+
+@app.get("/funcoes/csv-modelo", response_class=Response)
+async def funcoes_csv_modelo(request: Request):
+    require_login(request)
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["NOME", "SALARIO_BASE", "DESCRICAO"])
+    w.writerow(["OPERADOR DE EMPILHADEIRA", "1957.08", "Exemplo de descrição"])
+    data = buf.getvalue().encode("utf-8-sig")
+    return Response(
+        content=data,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="funcoes_modelo.csv"'},
+    )
+
+
+@app.post("/funcoes/import", response_class=RedirectResponse)
+async def funcoes_import(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    if not file or not file.filename:
+        return RedirectResponse(url="/funcoes?error=Nenhum arquivo enviado", status_code=303)
+    fn = (file.filename or "").lower()
+    if not fn.endswith(".csv"):
+        return RedirectResponse(url="/funcoes?error=Use um arquivo .csv (modelo disponível na tela)", status_code=303)
+    try:
+        raw = await file.read()
+        text = raw.decode("utf-8-sig", errors="replace")
+    except Exception:
+        return RedirectResponse(url="/funcoes?error=Não foi possível ler o arquivo (UTF-8)", status_code=303)
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        return RedirectResponse(url="/funcoes?error=CSV sem cabeçalho", status_code=303)
+
+    colmap = {_funcoes_normalize_header(h): h for h in reader.fieldnames if h}
+    if "NOME" not in colmap:
+        return RedirectResponse(
+            url="/funcoes?error=Coluna obrigatória ausente: NOME (ou FUNÇÃO/CARGO)",
+            status_code=303,
+        )
+
+    existing = session.exec(select(models.CargoMaster.nome)).all()
+    existing_set = {(n or "").strip().upper() for n in existing if n}
+
+    created = 0
+    skipped_dup = 0
+    skipped_empty = 0
+    row_i = 0
+    for row in reader:
+        row_i += 1
+        nome_key = colmap.get("NOME")
+        raw_nome = (row.get(nome_key) or "").strip() if nome_key else ""
+        if not raw_nome:
+            skipped_empty += 1
+            continue
+        nome_val = raw_nome.upper()
+        if nome_val in existing_set:
+            skipped_dup += 1
+            continue
+        sal = None
+        sk = colmap.get("SALARIO_BASE")
+        if sk:
+            raw_sal = (row.get(sk) or "").strip()
+            if raw_sal:
+                try:
+                    s2 = raw_sal.replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
+                    sal = float(s2)
+                except Exception:
+                    sal = None
+        desc = None
+        dk = colmap.get("DESCRICAO")
+        if dk:
+            desc = (row.get(dk) or "").strip() or None
+        c = models.CargoMaster(nome=nome_val, salario_base=sal, descricao=desc, status="ATIVO")
+        session.add(c)
+        existing_set.add(nome_val)
+        created += 1
+    session.commit()
+    msg = f"Importação concluída: {created} nova(s), {skipped_dup} duplicada(s) ignorada(s), {skipped_empty} linha(s) vazia(s)."
+    from urllib.parse import quote
+
+    return RedirectResponse(url="/funcoes?success=" + quote(msg), status_code=303)
 
 
 @app.post("/funcoes/add", response_class=RedirectResponse)
@@ -30958,6 +31269,7 @@ async def funcoes_add(
     nome: str = Form(...),
     salario_base: Optional[float] = Form(None),
     descricao: Optional[str] = Form(None),
+    status: str = Form("ATIVO"),
     session: Session = Depends(get_session),
 ):
     require_login(request)
@@ -30968,7 +31280,12 @@ async def funcoes_add(
         sal = float(salario_base) if salario_base is not None and str(salario_base).strip() else None
     except (ValueError, TypeError):
         sal = None
-    cargo = models.CargoMaster(nome=nome_val, salario_base=sal, descricao=(descricao or "").strip() or None)
+    st = (status or "ATIVO").strip().upper()
+    if st not in ("ATIVO", "INATIVO"):
+        st = "ATIVO"
+    cargo = models.CargoMaster(
+        nome=nome_val, salario_base=sal, descricao=(descricao or "").strip() or None, status=st
+    )
     session.add(cargo)
     session.commit()
     return RedirectResponse(url="/funcoes?success=Função cadastrada com sucesso", status_code=303)
@@ -30981,6 +31298,7 @@ async def funcoes_update(
     nome: str = Form(...),
     salario_base: Optional[float] = Form(None),
     descricao: Optional[str] = Form(None),
+    status: str = Form("ATIVO"),
     session: Session = Depends(get_session),
 ):
     require_login(request)
@@ -30993,6 +31311,10 @@ async def funcoes_update(
     except (ValueError, TypeError):
         cargo.salario_base = None
     cargo.descricao = (descricao or "").strip() or None
+    st = (status or "ATIVO").strip().upper()
+    if st not in ("ATIVO", "INATIVO"):
+        st = "ATIVO"
+    cargo.status = st
     cargo.updated_at = datetime.now()
     session.add(cargo)
     session.commit()
@@ -33308,31 +33630,229 @@ def get_people_intelligence_metrics(session: Session, cost_center: Optional[str]
 # --- People Intelligence Route ---
 @app.get("/people-intelligence", response_class=HTMLResponse)
 async def people_intelligence_page(
-    request: Request, 
+    request: Request,
     cost_center: Optional[str] = "Todos",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    q: Optional[str] = None,
+    status_view: str = Query(default="all"),
+    event_type: str = Query(default="all"),
+    sort: str = Query(default="risk"),
+    dir: str = Query(default="desc"),
+    page: int = 1,
+    per_page: int = 50,
     session: Session = Depends(get_session)
 ):
     user = require_login(request)
     data = get_people_intelligence_metrics(session, cost_center, start_date, end_date)
-    
+
+    search_term = (q or "").strip().lower()
+    status_view = (status_view or "all").strip().lower()
+    event_type = (event_type or "all").strip().lower()
+    sort_key = (sort or "risk").strip().lower()
+    sort_dir = (dir or "desc").strip().lower()
+    page = max(1, int(page or 1))
+    per_page = min(max(25, int(per_page or 50)), 200)
+
+    if status_view not in {"all", "critical", "attention", "stable"}:
+        status_view = "all"
+    if event_type not in {"all", "falta", "atestado", "afastamento"}:
+        event_type = "all"
+    if sort_key not in {"risk", "combined", "name", "sector", "presence"}:
+        sort_key = "risk"
+    if sort_dir not in {"asc", "desc"}:
+        sort_dir = "desc" if sort_key in {"risk", "combined"} else "asc"
+
+    rows = []
+    source_rows = data.get("chronic_offenders") or []
+    for item in source_rows:
+        falta = int(item.get("falta", 0) or 0)
+        atestado = int(item.get("atestado", 0) or 0)
+        afastamento = int(item.get("afastamento", 0) or 0)
+        combined = int(item.get("combined_events", falta + atestado + afastamento) or 0)
+        risk_score = float(item.get("risk_score", 0) or 0)
+        utilization_rate = float(item.get("utilization_rate", 0) or 0)
+        presence_rate = max(0.0, min(100.0, utilization_rate))
+
+        if risk_score >= 10 or combined >= 8:
+            status_key = "critical"
+            status_label = "Crítico"
+            status_tone = "critical"
+        elif risk_score >= 5 or combined >= 4:
+            status_key = "attention"
+            status_label = "Atenção"
+            status_tone = "alert"
+        else:
+            status_key = "stable"
+            status_label = "Estável"
+            status_tone = "ok"
+
+        rows.append({
+            "employee_id": item.get("employee_id"),
+            "name": (item.get("name") or "-").strip() or "-",
+            "sector": (item.get("sector") or "Não informado").strip() or "Não informado",
+            "falta": falta,
+            "atestado": atestado,
+            "afastamento": afastamento,
+            "combined_events": combined,
+            "risk_score": round(risk_score, 1),
+            "presence_rate": round(presence_rate, 1),
+            "utilization_rate": round(utilization_rate, 1),
+            "tenure_months": int(item.get("tenure_months", 0) or 0),
+            "status_key": status_key,
+            "status_label": status_label,
+            "status_tone": status_tone,
+        })
+
+    if not rows:
+        merged = {}
+        for bucket, key in ((data.get("top_absent", []), "falta"), (data.get("top_sick", []), "atestado"), (data.get("top_away", []), "afastamento")):
+            for item in bucket:
+                eid = item.get("employee_id")
+                if not eid:
+                    continue
+                row = merged.setdefault(eid, {
+                    "employee_id": eid,
+                    "name": (item.get("name") or "-").strip() or "-",
+                    "sector": (item.get("sector") or "Não informado").strip() or "Não informado",
+                    "falta": 0,
+                    "atestado": 0,
+                    "afastamento": 0,
+                    "tenure_months": int(item.get("tenure_months", 0) or 0),
+                })
+                row[key] = int(item.get(key, 0) or 0)
+        for row in merged.values():
+            row["combined_events"] = int(row["falta"] + row["atestado"] + row["afastamento"])
+            row["risk_score"] = round(row["combined_events"] * 1.2, 1)
+            row["presence_rate"] = max(0.0, round(100.0 - (row["combined_events"] * 2.5), 1))
+            row["utilization_rate"] = row["presence_rate"]
+            if row["risk_score"] >= 10 or row["combined_events"] >= 8:
+                row["status_key"], row["status_label"], row["status_tone"] = "critical", "Crítico", "critical"
+            elif row["risk_score"] >= 5 or row["combined_events"] >= 4:
+                row["status_key"], row["status_label"], row["status_tone"] = "attention", "Atenção", "alert"
+            else:
+                row["status_key"], row["status_label"], row["status_tone"] = "stable", "Estável", "ok"
+            rows.append(row)
+
+    def _matches(row: dict) -> bool:
+        if status_view != "all" and row["status_key"] != status_view:
+            return False
+        if event_type != "all" and int(row.get(event_type, 0) or 0) <= 0:
+            return False
+        if search_term:
+            blob = f"{row.get('name', '')} {row.get('sector', '')}".lower()
+            if search_term not in blob:
+                return False
+        return True
+
+    filtered_rows = [row for row in rows if _matches(row)]
+
+    sort_map = {
+        "risk": lambda x: float(x.get("risk_score", 0)),
+        "combined": lambda x: int(x.get("combined_events", 0)),
+        "name": lambda x: (x.get("name", "") or "").lower(),
+        "sector": lambda x: (x.get("sector", "") or "").lower(),
+        "presence": lambda x: float(x.get("presence_rate", 0)),
+    }
+    filtered_rows.sort(key=sort_map.get(sort_key, sort_map["risk"]), reverse=(sort_dir == "desc"))
+
+    total_count = len(filtered_rows)
+    total_pages = max(1, math.ceil(total_count / per_page)) if total_count else 1
+    if page > total_pages:
+        page = total_pages
+    offset = max(0, (page - 1) * per_page)
+    paged_rows = filtered_rows[offset: offset + per_page]
+
+    def _href(**overrides):
+        params = {
+            "cost_center": cost_center or "Todos",
+            "start_date": data["start_date"],
+            "end_date": data["end_date"],
+            "q": q or "",
+            "status_view": status_view if status_view != "all" else "",
+            "event_type": event_type if event_type != "all" else "",
+            "sort": sort_key,
+            "dir": sort_dir,
+            "page": page,
+            "per_page": per_page,
+        }
+        for k, v in overrides.items():
+            params[k] = v
+        clean = {k: v for k, v in params.items() if v not in (None, "", [])}
+        return "/people-intelligence" + ("?" + urlencode(clean) if clean else "")
+
+    sort_links = {}
+    for key in ["risk", "combined", "name", "sector", "presence"]:
+        default_dir = "desc" if key in {"risk", "combined"} else "asc"
+        next_dir = ("asc" if sort_dir == "desc" else "desc") if sort_key == key else default_dir
+        sort_links[key] = _href(sort=key, dir=next_dir, page=1)
+
+    critical_count = sum(1 for r in filtered_rows if r["status_key"] == "critical")
+    attention_count = sum(1 for r in filtered_rows if r["status_key"] == "attention")
+    stable_count = sum(1 for r in filtered_rows if r["status_key"] == "stable")
+    avg_presence = round(sum(float(r.get("presence_rate", 0) or 0) for r in filtered_rows) / max(1, len(filtered_rows)), 1)
+
     return templates.TemplateResponse("people_intelligence.html", {
         "request": request,
         "user": user,
         "current_cost_center": cost_center or "Todos",
         "cost_center_options": data.get("cost_center_options", ["Todos"]),
-        "start_date": data['start_date'],
-        "end_date": data['end_date'],
-        "overview": data['overview'],
-        "top_absent": data['top_absent'][:10],
-        "top_sick": data['top_sick'][:10],
-        "sectors": data['sectors'],
-        "chronic_offenders": data['chronic_offenders'][:10],
-        "emp_map": data['emp_map'],
-        "all_absent": data['top_absent'],
-        "all_sick": data['top_sick'],
-        "all_away": data['top_away']
+        "start_date": data["start_date"],
+        "end_date": data["end_date"],
+        "overview": data["overview"],
+        "top_absent": data["top_absent"][:10],
+        "top_sick": data["top_sick"][:10],
+        "sectors": data["sectors"],
+        "chronic_offenders": data["chronic_offenders"][:10],
+        "emp_map": data["emp_map"],
+        "all_absent": data["top_absent"],
+        "all_sick": data["top_sick"],
+        "all_away": data["top_away"],
+        "rows": paged_rows,
+        "rows_full": filtered_rows[:500],
+        "filters": {
+            "q": q or "",
+            "status_view": status_view,
+            "event_type": event_type,
+            "sort": sort_key,
+            "dir": sort_dir,
+            "page": page,
+            "per_page": per_page,
+        },
+        "links": {
+            "all": _href(status_view="", page=1),
+            "critical": _href(status_view="critical", page=1),
+            "attention": _href(status_view="attention", page=1),
+            "stable": _href(status_view="stable", page=1),
+            "clear": "/people-intelligence",
+            "report": "/people-intelligence/report?" + urlencode({
+                "cost_center": cost_center or "Todos",
+                "start_date": data["start_date"],
+                "end_date": data["end_date"],
+            }),
+            "prev": _href(page=(page - 1 if page > 1 else 1)),
+            "next": _href(page=(page + 1 if page < total_pages else total_pages)),
+        },
+        "sort_links": sort_links,
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "has_prev": page > 1,
+            "has_next": page < total_pages,
+            "page_start": (offset + 1) if total_count else 0,
+            "page_end": offset + len(paged_rows),
+        },
+        "kpis": {
+            "total_monitorados": len(filtered_rows),
+            "critical_count": critical_count,
+            "attention_count": attention_count,
+            "stable_count": stable_count,
+            "avg_presence": avg_presence,
+        },
+        "message": request.query_params.get("message"),
+        "level": request.query_params.get("level"),
     })
 
 @app.get("/api/people-intelligence/offenders")
@@ -33462,9 +33982,14 @@ async def lider_rotas_relatorio_page(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     shift: str = "Todos",
+    q: Optional[str] = None,
+    view: str = "all",
+    page: int = 1,
+    per_page: int = 40,
+    imprimir: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
-    """Relatório de dias sem rota por colaborador - para impressão."""
+    """Relatório de dias sem rota por colaborador (painel GA + impressão)."""
     user = require_login(request)
     br_tz = ZoneInfo("America/Sao_Paulo")
     now = datetime.now(br_tz)
@@ -33545,6 +34070,7 @@ async def lider_rotas_relatorio_page(
     report_data = []
     total_missing = 0
     total_no_app = 0  # Total de dias que não abriram o app
+    total_justified = 0
     
     # Mapa de dias da semana em inglês para comparação
     weekday_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -33658,22 +34184,68 @@ async def lider_rotas_relatorio_page(
             })
             total_missing += len(missing_days)
             total_no_app += len(no_app_days)
+            total_justified += len(justified_days)
     
     # Ordenar por quantidade de ausências (faltas + não abriu app, maior primeiro)
     report_data.sort(key=lambda x: (x["total_missing"] + x["total_no_app"]), reverse=True)
-    
+
+    report_full_count = len(report_data)
+    q_norm = (q or "").strip().lower()
+    view_key = (view or "all").strip().lower()
+    if view_key not in {"all", "critical", "faltas", "sem_app", "justificados"}:
+        view_key = "all"
+
+    filtered = list(report_data)
+    if q_norm:
+        def _matches(row):
+            emp = row["employee"]
+            name = (getattr(emp, "name", None) or "").lower()
+            reg = str(getattr(emp, "registration_id", None) or "")
+            role = (getattr(emp, "role", None) or "").lower()
+            return q_norm in name or q_norm in reg.lower() or q_norm in role
+
+        filtered = [r for r in filtered if _matches(r)]
+
+    if view_key == "critical":
+        filtered = [r for r in filtered if (r["total_missing"] + r["total_no_app"]) >= 2]
+    elif view_key == "faltas":
+        filtered = [r for r in filtered if r["total_missing"] > 0]
+    elif view_key == "sem_app":
+        filtered = [r for r in filtered if r["total_no_app"] > 0]
+    elif view_key == "justificados":
+        filtered = [r for r in filtered if r["total_justified"] > 0]
+
+    filtered_count = len(filtered)
+    is_print_all = imprimir == "1"
+    pp = 5000 if is_print_all else max(10, min(int(per_page or 40), 100))
+    pg = max(1, int(page or 1))
+    total_pages = max(1, math.ceil(filtered_count / pp)) if filtered_count else 1
+    if pg > total_pages:
+        pg = total_pages
+    start_i = (pg - 1) * pp
+    report_page = filtered[start_i : start_i + pp]
+
     return templates.TemplateResponse("lider_rotas_relatorio.html", {
         "request": request,
         "user": user,
-        "report_data": report_data,
+        "report_data": report_page,
+        "report_full_count": report_full_count,
+        "report_filtered_count": filtered_count,
         "start_date": first_day.strftime("%Y-%m-%d"),
         "end_date": last_day.strftime("%Y-%m-%d"),
         "shift": shift,
+        "q": (q or "").strip(),
+        "view": view_key,
+        "page": pg,
+        "per_page": pp,
+        "total_pages": total_pages,
+        "is_print_all": is_print_all,
         "period_label": f"{first_day.strftime('%d/%m/%Y')} a {last_day.strftime('%d/%m/%Y')}",
         "total_days": len(all_days),
         "total_employees": len(employees),
         "total_missing": total_missing,
         "total_no_app": total_no_app,
+        "total_justified": total_justified,
         "generated_at": now.strftime("%d/%m/%Y %H:%M"),
     })
 
@@ -34011,32 +34583,38 @@ async def gm_performance_operacional_page(request: Request, session: Session = D
 async def api_gm_performance_data(
     request: Request,
     date: Optional[str] = None,
-    session: Session = Depends(get_session)
+    q: Optional[str] = None,
+    view: str = "all",
+    shift: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+    session: Session = Depends(get_session),
 ):
-    """API que retorna os dados consolidados de planejado vs realizado."""
+    """Consolidado planejado vs realizado + lista paginada de paradas (rotas delivery do dia)."""
     require_gerente(request)
     if not date:
         date = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
 
-    # 1. Planejado (Todas as rotas do tipo delivery no dia)
-    routes = session.exec(
-        select(models.Route).where(models.Route.date == date, models.Route.type == "delivery")
-    ).all()
+    routes = list(
+        session.exec(
+            select(models.Route)
+            .where(models.Route.date == date, models.Route.type == "delivery")
+            .order_by(desc(models.Route.id))
+        ).all()
+    )
 
     planned_weight = sum(r.tonnage or 0.0 for r in routes)
     planned_value = sum(r.valor_financeiro or 0.0 for r in routes)
-    
-    # "Espécie" - baseado em delivery_type contendo termos relacionados
+
     planned_cash = sum(
-        r.valor_financeiro or 0.0 
-        for r in routes 
+        r.valor_financeiro or 0.0
+        for r in routes
         if r.delivery_type and any(x in r.delivery_type.lower() for x in ["dinheiro", "especie"])
     )
 
     drivers = {r.employee_id for r in routes if r.employee_id}
     trucks = {r.delivery_vehicle_plate for r in routes if r.delivery_vehicle_plate}
-    
-    # Ajudantes (parse do JSON)
+
     helpers = set()
     for r in routes:
         if r.delivery_helpers_json:
@@ -34045,51 +34623,173 @@ async def api_gm_performance_data(
                 if isinstance(h_ids, list):
                     for h_id in h_ids:
                         helpers.add(h_id)
-            except:
+            except Exception:
                 pass
 
-    # 2. Realizado (Mobile Sessions e Status de Entrega)
-    delivered_weight = sum(r.tonnage or 0.0 for r in routes if r.delivery_status == "entregue")
+    delivered_weight = sum(
+        r.tonnage or 0.0 for r in routes if normalized_delivery_status(r) == "entregue"
+    )
     total_returned_value = sum(r.valor_devolucao or 0.0 for r in routes)
     return_value_pct = (total_returned_value / planned_value * 100) if planned_value > 0 else 0
 
-    # 3. Dados do App (Mobile) - KM e Tempos
     sessions = session.exec(
         select(models.DeliverySession).where(models.DeliverySession.date == date)
     ).all()
-    
-    total_km = sum((s.km_return or 0.0) - (s.km_departure or 0.0) for s in sessions if s.km_return and s.km_departure)
-    
-    # Tempo total de operação (soma das durações das sessões)
+
+    total_km = sum(
+        (s.km_return or 0.0) - (s.km_departure or 0.0)
+        for s in sessions
+        if s.km_return and s.km_departure
+    )
+
     total_op_seconds = 0
     for s in sessions:
         if s.started_at and s.ended_at:
             total_op_seconds += (s.ended_at - s.started_at).total_seconds()
-    
+
     total_op_hours = total_op_seconds / 3600
 
-    # Média de tempo por cliente (Entregue vs Devolução)
-    # Usando delivery_started_at e delivery_finished_at no modelo Route
-    delivered_routes = [r for r in routes if r.delivery_status == "entregue" and r.delivery_started_at and r.delivery_finished_at]
-    return_routes = [r for r in routes if r.delivery_status == "devolucao" and r.delivery_started_at and r.delivery_finished_at]
+    delivered_routes = [
+        r
+        for r in routes
+        if normalized_delivery_status(r) == "entregue"
+        and r.delivery_started_at
+        and r.delivery_finished_at
+    ]
+    return_routes = [
+        r
+        for r in routes
+        if normalized_delivery_status(r) == "devolucao"
+        and r.delivery_started_at
+        and r.delivery_finished_at
+    ]
 
     def calc_avg_time(route_list):
-        if not route_list: return 0
+        if not route_list:
+            return 0
         total_m = 0
+        used = 0
         for r in route_list:
             try:
-                # Formato HH:MM
                 s = datetime.strptime(r.delivery_started_at, "%H:%M")
                 e = datetime.strptime(r.delivery_finished_at, "%H:%M")
                 diff = (e - s).total_seconds() / 60
-                if diff < 0: diff += 1440 # overnight
+                if diff < 0:
+                    diff += 1440
                 total_m += diff
-            except:
+                used += 1
+            except Exception:
                 pass
-        return total_m / len(route_list)
+        return total_m / used if used else 0
 
     avg_time_delivered = calc_avg_time(delivered_routes)
     avg_time_return = calc_avg_time(return_routes)
+
+    execution_pct = round((delivered_weight / planned_weight * 100), 1) if planned_weight > 0 else 0.0
+
+    pending_c = 0
+    delivered_c = 0
+    devol_c = 0
+    for r in routes:
+        norm = normalized_delivery_status(r) or "pendente"
+        if norm == "entregue":
+            delivered_c += 1
+        elif norm == "devolucao":
+            devol_c += 1
+        if norm not in ("entregue", "devolucao", "cancelada"):
+            pending_c += 1
+
+    status_labels = {
+        "entregue": "Entregue",
+        "devolucao": "Devolução",
+        "cancelada": "Cancelada",
+        "iniciada": "Em rota",
+        "reaberta": "Reaberta",
+        "pendente": "Pendente",
+    }
+
+    emp_ids = {r.employee_id for r in routes if r.employee_id}
+    cli_ids = {r.client_id for r in routes if r.client_id}
+    emp_map: Dict[int, str] = {}
+    if emp_ids:
+        for e in session.exec(select(models.Employee).where(models.Employee.id.in_(emp_ids))).all():
+            emp_map[e.id] = (e.name or "").strip() or "—"
+    cli_map: Dict[int, str] = {}
+    if cli_ids:
+        for c in session.exec(select(models.Client).where(models.Client.id.in_(cli_ids))).all():
+            cli_map[c.id] = (c.razao_social or c.name or c.nome_fantasia or "Cliente").strip()
+
+    view_l = (view or "all").strip().lower()
+    q_strip = (q or "").strip().lower()
+    shift_f = (shift or "").strip() or None
+
+    def match_view(norm: str) -> bool:
+        if view_l in ("", "all", "todos"):
+            return True
+        if view_l == "pendentes":
+            return norm not in ("entregue", "devolucao", "cancelada")
+        if view_l in ("concluidos", "concluídos"):
+            return norm == "entregue"
+        if view_l == "devolucao":
+            return norm == "devolucao"
+        if view_l == "criticos":
+            return norm in ("devolucao", "cancelada")
+        return True
+
+    rows_out: List[Dict[str, Any]] = []
+    for r in routes:
+        norm = normalized_delivery_status(r) or "pendente"
+        if not match_view(norm):
+            continue
+        if shift_f and (r.shift or "").strip() != shift_f:
+            continue
+        dname = emp_map.get(r.employee_id, "—")
+        cname = cli_map.get(r.client_id, "—")
+        plate = (r.delivery_vehicle_plate or "").strip()
+        order = (r.delivery_order_number or r.delivery_client_code or "").strip() or "—"
+        bairro = (r.delivery_neighborhood or "").strip()
+        cidade = (r.delivery_city or "").strip()
+        if q_strip:
+            blob = f"{dname} {cname} {plate} {order} {bairro} {cidade} {norm}".lower()
+            if q_strip not in blob:
+                continue
+
+        if norm == "entregue":
+            badge = "ok"
+        elif norm in ("devolucao", "cancelada"):
+            badge = "critical"
+        elif norm in ("iniciada", "reaberta"):
+            badge = "alert"
+        else:
+            badge = "neutral"
+
+        rows_out.append(
+            {
+                "id": r.id,
+                "shift": (r.shift or "—").strip(),
+                "driver_name": dname,
+                "client_name": cname,
+                "plate": plate or "—",
+                "tonnage": round(float(r.tonnage or 0), 3),
+                "valor": round(float(r.valor_financeiro or 0), 2),
+                "status": norm,
+                "status_label": status_labels.get(norm, (norm or "—").replace("_", " ").title()),
+                "badge": badge,
+                "order": order,
+                "bairro": bairro or "—",
+                "cidade": cidade or "—",
+                "started_at": r.delivery_started_at or r.start_time or "",
+                "finished_at": r.delivery_finished_at or r.end_time or "",
+                "valor_devolucao": round(float(r.valor_devolucao or 0), 2),
+                "return_reason": ((r.delivery_return_reason or "").strip())[:160],
+                "address": ((r.delivery_address or "").strip())[:200],
+            }
+        )
+
+    total = len(rows_out)
+    start = (page - 1) * per_page
+    page_items = rows_out[start : start + per_page]
+    total_pages = max(1, (total + per_page - 1) // per_page) if total else 1
 
     return {
         "date": date,
@@ -34099,7 +34799,7 @@ async def api_gm_performance_data(
             "cash_value": round(planned_cash, 2),
             "driver_count": len(drivers),
             "helper_count": len(helpers),
-            "truck_count": len(trucks)
+            "truck_count": len(trucks),
         },
         "realized": {
             "delivered_weight": round(delivered_weight, 2),
@@ -34107,8 +34807,22 @@ async def api_gm_performance_data(
             "total_km": round(total_km, 1),
             "total_op_hours": round(total_op_hours, 1),
             "avg_time_delivered_m": round(avg_time_delivered, 1),
-            "avg_time_return_m": round(avg_time_return, 1)
-        }
+            "avg_time_return_m": round(avg_time_return, 1),
+        },
+        "execution_pct": execution_pct,
+        "summary_counts": {
+            "stops": len(routes),
+            "pendentes": pending_c,
+            "entregues": delivered_c,
+            "devolucoes": devol_c,
+        },
+        "routes": {
+            "items": page_items,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages,
+        },
     }
 
 # --- Mapa Real-time ---

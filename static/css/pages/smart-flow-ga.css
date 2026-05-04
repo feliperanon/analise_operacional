@@ -1,0 +1,35 @@
+/**
+ * Smart Flow no shell Gestão Avista — complementa employees.css / system-components.
+ */
+
+.smart-flow-page .sf-shift-btn--active {
+    background: rgba(59, 130, 246, 0.15);
+    color: rgb(29 78 216);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+html.dark .smart-flow-page .sf-shift-btn--active {
+    background: rgba(59, 130, 246, 0.22);
+    color: rgb(147 197 253);
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.smart-flow-page .sf-tab--active {
+    font-weight: 600;
+}
+
+.smart-flow-page .sf-flow-grid {
+    min-height: 12rem;
+}
+
+.smart-flow-page .sf-sheet-surface {
+    color: inherit;
+}
+
+.smart-flow-page .sf-modal {
+    z-index: 120;
+}
+
+.smart-flow-page #kpi-details-modal {
+    z-index: 130;
+}

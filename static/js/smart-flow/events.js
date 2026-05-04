@@ -15,19 +15,19 @@ const Events = {
 
         // Como os cards são gerados dinamicamente, delegamos no grid
         document.addEventListener('dragstart', (e) => {
-            // Se arrastar da Sidebar ou de um Card (se implementarmos drag reverso)
-            // Assumimos que o elemento arrastável tem dataset.empId
-            if (e.target.dataset.empId) {
-                e.dataTransfer.setData('empId', e.target.dataset.empId);
+            const el = e.target.closest('[data-emp-id], [data-employee-id]');
+            const rawId = el && (el.dataset.empId || el.dataset.employeeId);
+            if (rawId) {
+                e.dataTransfer.setData('empId', String(rawId));
+                e.dataTransfer.setData('employeeId', String(rawId));
                 e.dataTransfer.effectAllowed = 'move';
-                e.target.classList.add('opacity-50');
+                (el || e.target).classList.add('opacity-50');
             }
         });
 
         document.addEventListener('dragend', (e) => {
-            if (e.target.dataset.empId) {
-                e.target.classList.remove('opacity-50');
-            }
+            const el = e.target.closest('[data-emp-id], [data-employee-id]');
+            if (el) el.classList.remove('opacity-50');
         });
 
         // Drop Zone: Setores
@@ -35,7 +35,7 @@ const Events = {
             e.preventDefault(); // Necessário para permitir o drop
             const card = e.target.closest('[data-sector]');
             if (card) {
-                card.classList.add('border-blue-500', 'bg-slate-800/80');
+                card.classList.add('border-blue-500', 'bg-blue-50', 'dark:bg-slate-800/80');
                 e.dataTransfer.dropEffect = 'move';
             }
         });
@@ -43,7 +43,7 @@ const Events = {
         grid.addEventListener('dragleave', (e) => {
             const card = e.target.closest('[data-sector]');
             if (card) {
-                card.classList.remove('border-blue-500', 'bg-slate-800/80');
+                card.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-slate-800/80');
             }
         });
 
@@ -51,7 +51,7 @@ const Events = {
             e.preventDefault();
             const card = e.target.closest('[data-sector]');
             if (card) {
-                card.classList.remove('border-blue-500', 'bg-slate-800/80');
+                card.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-slate-800/80');
                 const empId = e.dataTransfer.getData('empId');
                 const sectorKey = card.dataset.sector;
 
@@ -166,7 +166,15 @@ const Events = {
         };
 
         window.editTonnage = () => {
-            alert('A produção é calculada automaticamente a partir da Separação (Rotas).');
+            const cur = Store.state.tonnage != null ? Store.state.tonnage : 0;
+            const input = window.prompt('Produção do turno (kg):', String(cur));
+            if (input === null) return;
+            const n = parseFloat(String(input).replace(',', '.'));
+            if (Number.isNaN(n) || n < 0) {
+                window.alert('Informe um número válido (quilogramas).');
+                return;
+            }
+            Store.updateTonnage(n);
         };
     },
 

@@ -1,683 +1,208 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block html_class_extra %} ga-people-intelligence-html{% endblock %}
+
+{% block title %}People Intelligence · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Pessoas / People Intelligence</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">People Intelligence</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Monitoramento de absenteísmo, presença e risco por colaborador</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/people-intelligence.css">
+<script src="/static/js/pages/people-intelligence-page.js" defer></script>
+{% endblock %}
 
 {% block content %}
-<style>
-    /* Custom Print Styles for People Intelligence Report */
-    @media print {
-        @page {
-            size: A4 landscape;
-            margin: 0.5cm;
-        }
+{% set _filters = filters or {} %}
+{% set _links = links or {} %}
+{% set _sort = sort_links or {} %}
+{% set _pagination = pagination or {} %}
+{% set _kpis = kpis or {} %}
+{% set _rows = rows or [] %}
+{% set _status_view = _filters.get('status_view') or 'all' %}
+{% set _sort_key = _filters.get('sort') or 'risk' %}
+{% set _sort_dir = _filters.get('dir') or 'desc' %}
 
-        body {
-            font-size: 9px;
-        }
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium people-intelligence-page space-y-5 pt-2 md:pt-3" data-page="people-intelligence">
+  {% if message %}
+  <div id="page-alert" class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center gap-3" role="alert">
+    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <span class="min-w-0 flex-1">{{ message }}</span>
+    <button type="button" class="emp-modal-close shrink-0" data-dismiss-alert aria-label="Fechar">x</button>
+  </div>
+  {% else %}
+  <div id="page-alert" class="hidden"></div>
+  {% endif %}
 
-        aside,
-        .no-print {
-            display: none !important;
-        }
-
-        main {
-            margin: 0 !important;
-            padding: 0.5cm !important;
-        }
-
-        .glass-card {
-            background: white !important;
-            border: 1px solid #ddd !important;
-            padding: 8px !important;
-            margin-bottom: 8px !important;
-            page-break-inside: avoid;
-        }
-
-        table {
-            font-size: 8px !important;
-        }
-
-        table th,
-        table td {
-            padding: 3px 4px !important;
-        }
-
-        h1 {
-            font-size: 18px !important;
-        }
-
-        h2 {
-            font-size: 11px !important;
-        }
-    }
-</style>
-
-<div class="p-6 space-y-6">
-    <!-- Simplified Header -->
-    <header class="bg-slate-800/50 border border-slate-700 rounded-xl px-6 py-4">
-        <div class="flex items-center justify-between gap-6">
-
-            <!-- Title -->
-            <div>
-                <h1 class="text-xl font-bold text-white flex items-center gap-2">
-                    <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                        </path>
-                    </svg>
-                    Gestão de Pessoas 2.0
-                </h1>
-                <p class="text-xs text-slate-400 mt-0.5">{{ start_date }} a {{ end_date }}</p>
-            </div>
-
-            <!-- Filters -->
-            <div class="flex items-center gap-3">
-                <!-- Date Filters -->
-                <div class="flex items-center gap-2 bg-slate-900/50 px-3 py-2 rounded-lg border border-slate-700">
-                    <input type="date" id="startDateFilter" value="{{ start_date }}"
-                        class="bg-transparent text-white text-xs font-medium border-none focus:ring-0 cursor-pointer outline-none">
-                    <span class="text-slate-600">→</span>
-                    <input type="date" id="endDateFilter" value="{{ end_date }}"
-                        class="bg-transparent text-white text-xs font-medium border-none focus:ring-0 cursor-pointer outline-none">
-                </div>
-
-                <!-- Filtro Empresa -->
-                <select id="costCenterFilter" onchange="changeCostCenter(this.value)"
-                    class="bg-slate-900/50 text-white text-xs font-medium px-3 py-2 rounded-lg border border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    {% for opt in cost_center_options or ['Todos'] %}
-                    <option value="{{ opt }}" {{ 'selected' if current_cost_center == opt else '' }}>{{ opt }}</option>
-                    {% endfor %}
-                </select>
-
-                <!-- Actions -->
-                <button onclick="applyFilters()"
-                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
-                    Filtrar
-                </button>
-
-                <button onclick="openPrintPreview()"
-                    class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 px-4 py-2 rounded-lg text-xs font-bold transition border border-purple-500/30">
-                    Relatório
-                </button>
-            </div>
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2M7 20H2v-2a3 3 0 015.356-1.857"></path></svg>
         </div>
-    </header>
-
-    <!-- Overview Stats -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-        <!-- Headcount Card -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Headcount</h3>
-            <p class="text-2xl font-bold text-white">{{ overview.headcount }}</p>
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Painel operacional</span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">People Intelligence</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">Visão operacional para priorizar críticos, reduzir faltas e direcionar ações de RH com rapidez.</p>
+          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5"><span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>{{ _kpis.get('stable_count', 0) }} estáveis</span>
+            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ _kpis.get('avg_presence', 0) }}% presença média</span>
+            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ start_date }} até {{ end_date }}</span>
+          </div>
         </div>
-
-        <!-- Faltas Card -->
-        <div onclick="openOverviewModal('falta', 'Detalhamento de Faltas')"
-            class="bg-slate-800 rounded-xl border border-slate-700 p-4 cursor-pointer hover:bg-slate-750 hover:border-red-500/50 transition group relative overflow-hidden">
-            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Faltas</h3>
-            <p class="text-2xl font-bold text-red-400">{{ overview.total_absences }}</p>
-            <p class="text-xs text-slate-500 mt-1">Média: {{ overview.avg_absence_per_emp }}</p>
-            <div class="absolute right-2 top-2 opacity-0 group-hover:opacity-10 text-red-500 transition">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-            </div>
-        </div>
-
-        <!-- Atestados Card -->
-        <div onclick="openOverviewModal('atestado', 'Detalhamento de Atestados')"
-            class="bg-slate-800 rounded-xl border border-slate-700 p-4 cursor-pointer hover:bg-slate-750 hover:border-amber-500/50 transition group relative overflow-hidden">
-            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Atestados</h3>
-            <p class="text-2xl font-bold text-amber-400">{{ overview.total_sick }}</p>
-            <div class="absolute right-2 top-2 opacity-0 group-hover:opacity-10 text-amber-500 transition">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-            </div>
-        </div>
-
-        <!-- Afastados Card -->
-        <div onclick="openOverviewModal('afastado', 'Detalhamento de Afastados')"
-            class="bg-slate-800 rounded-xl border border-slate-700 p-4 cursor-pointer hover:bg-slate-750 hover:border-indigo-500/50 transition group relative overflow-hidden">
-            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Afastados</h3>
-            <p class="text-2xl font-bold text-indigo-400">{{ overview.total_away }}</p>
-            <div class="absolute right-2 top-2 opacity-0 group-hover:opacity-10 text-indigo-500 transition">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-            </div>
-        </div>
-
-        <!-- Presença Card -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Presença</h3>
-            <p class="text-2xl font-bold text-emerald-400">{{ overview.presence_rate }}%</p>
-        </div>
-
-        <!-- Risco Geral Card -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
-            <h3 class="text-slate-400 text-xs font-semibold uppercase mb-2">Risco Geral</h3>
-            <p class="text-2xl font-bold text-purple-400">{{ sectors[0].risk_index if sectors else 0 }}</p>
-        </div>
-
-        <!-- Ofensores Card -->
-        <div class="bg-gradient-to-br from-red-900/30 to-orange-900/30 rounded-xl border border-red-500/40 p-4">
-            <h3 class="text-red-300 text-xs font-semibold uppercase mb-2">Ofensores</h3>
-            <p class="text-2xl font-bold text-red-300">{{ overview.chronic_count }}</p>
-            <p class="text-xs text-red-400 mt-1">Alto Risco</p>
-        </div>
+      </div>
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <button type="button" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" data-open-modal="importModal"><span class="employees-cta__label">Importar</span></button>
+        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" data-open-modal="createActionModal"><span class="employees-cta__label">Novo plano</span></button>
+      </div>
     </div>
+  </div>
 
-    <!-- Main Content Grid 2x2 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        <!-- Top Left: Ofensores de Faltas -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
-            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                    </path>
-                </svg>
-                Ofensores de Faltas
-            </h2>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="text-xs text-slate-500 uppercase border-b border-slate-700">
-                            <th class="pb-2">Colaborador</th>
-                            <th class="pb-2">Setor</th>
-                            <th class="pb-2 text-right">Faltas</th>
-                            <th class="pb-2 text-right">Tempo Casa</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-sm">
-                        {% for item in top_absent %}
-                        <tr class="border-b border-slate-800 hover:bg-slate-800/50 transition">
-                            <td class="py-3 font-medium">
-                                <a href="/employees/{{ item.employee_id }}"
-                                    class="text-white hover:text-indigo-400 transition">{{ item.name }}</a>
-                            </td>
-                            <td class="py-3 text-slate-400">{{ item.sector }}</td>
-                            <td class="py-3 text-right">
-                                <span class="inline-block px-2 py-1 rounded bg-red-500/10 text-red-400 font-bold">{{
-                                    item.falta }}</span>
-                            </td>
-                            <td class="py-3 text-right text-slate-500">{{ item.tenure_months }} meses</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4" class="py-4 text-center text-slate-600">Nenhum dado registrado.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Top Right: Top Atestados Médicos -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
-            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                    </path>
-                </svg>
-                Top Atestados Médicos
-            </h2>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="text-xs text-slate-500 uppercase border-b border-slate-700">
-                            <th class="pb-2">Colaborador</th>
-                            <th class="pb-2">Setor</th>
-                            <th class="pb-2 text-right">Atestados</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-sm">
-                        {% for item in top_sick %}
-                        <tr class="border-b border-slate-800 hover:bg-slate-800/50 transition">
-                            <td class="py-3 font-medium">
-                                <a href="/employees/{{ item.employee_id }}"
-                                    class="text-white hover:text-indigo-400 transition">{{ item.name }}</a>
-                            </td>
-                            <td class="py-3 text-slate-400">{{ item.sector }}</td>
-                            <td class="py-3 text-right">
-                                <span class="inline-block px-2 py-1 rounded bg-amber-500/10 text-amber-400 font-bold">{{
-                                    item.atestado }}</span>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="3" class="py-4 text-center text-slate-600">Nenhum dado registrado.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Bottom: Ofensores Crônicos - Detalhado (Full Width) -->
-        {% if chronic_offenders %}
-        <div
-            class="lg:col-span-2 bg-gradient-to-br from-red-900/10 to-orange-900/10 rounded-xl border border-red-500/20 p-8">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
-                    <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                        </path>
-                    </svg>
-                    Ofensores Crônicos - Detalhado
-                </h2>
-                <button onclick="openOffendersModal()"
-                    class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg transition-colors font-bold uppercase tracking-wider flex items-center gap-2 cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-                        </path>
-                    </svg>
-                    Ver Todos
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="text-sm text-slate-400 uppercase border-b-2 border-red-700">
-                            <th class="pb-3 pr-4 font-semibold">Colaborador</th>
-                            <th class="pb-3 px-3 font-semibold">Setor</th>
-                            <th class="pb-3 px-3 text-center font-semibold">Faltas</th>
-                            <th class="pb-3 px-3 text-center font-semibold">Atestados</th>
-                            <th class="pb-3 px-3 text-center font-semibold">Total</th>
-                            <th class="pb-3 px-3 text-center font-semibold">Dias Esperados</th>
-                            <th class="pb-3 px-3 text-center font-semibold">Aproveitamento</th>
-                            <th class="pb-3 pl-3 text-center font-semibold">Risco %</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-base">
-                        {% for item in chronic_offenders %}
-                        <tr class="border-b border-red-800/30 hover:bg-red-900/20 transition">
-                            <td class="py-4 pr-4 font-medium">
-                                <a href="/employees/{{ item.employee_id }}"
-                                    class="text-white hover:text-red-400 transition text-base">{{ item.name }}</a>
-                            </td>
-                            <td class="py-4 px-3 text-slate-300">{{ item.sector }}</td>
-                            <td class="py-4 px-3 text-center">
-                                <span
-                                    class="inline-block px-3 py-1.5 rounded-lg bg-red-500/20 text-red-300 font-bold text-base">{{
-                                    item.falta }}</span>
-                            </td>
-                            <td class="py-4 px-3 text-center">
-                                <span
-                                    class="inline-block px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 font-bold text-base">{{
-                                    item.atestado }}</span>
-                            </td>
-                            <td class="py-4 px-3 text-center">
-                                <span
-                                    class="inline-block px-3 py-1.5 rounded-lg bg-orange-500/30 text-orange-200 font-bold text-lg">{{
-                                    item.combined_events }}</span>
-                            </td>
-                            <td class="py-4 px-3 text-center">
-                                <div class="flex flex-col items-center gap-1">
-                                    <span class="text-slate-200 font-bold text-base">{{ item.actual_work_days }}/{{
-                                        item.expected_work_days }}</span>
-                                    <span class="text-xs text-slate-500">dias</span>
-                                </div>
-                            </td>
-                            <td class="py-4 px-3 text-center">
-                                <span
-                                    class="inline-block px-3 py-1.5 rounded-lg font-bold text-base {% if item.utilization_rate >= 90 %}bg-emerald-500/30 text-emerald-200{% elif item.utilization_rate >= 75 %}bg-yellow-500/30 text-yellow-200{% elif item.utilization_rate >= 60 %}bg-orange-500/30 text-orange-200{% else %}bg-red-500/40 text-red-200{% endif %}">
-                                    {{ item.utilization_rate }}%
-                                </span>
-                            </td>
-                            <td class="py-4 pl-3 text-center">
-                                <span
-                                    class="inline-block px-3 py-1.5 rounded-lg {% if item.risk_score > 10 %}bg-red-500/40 text-red-200{% elif item.risk_score > 5 %}bg-orange-500/30 text-orange-200{% else %}bg-yellow-500/30 text-yellow-200{% endif %} font-bold text-base">{{
-                                    item.risk_score }}%</span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-6 p-4 bg-red-900/30 border border-red-700/40 rounded-lg">
-                <p class="text-sm text-red-200 leading-relaxed">
-                    <strong class="text-red-100">⚠️ Ação Recomendada:</strong> Acompanhamento individual com RH e
-                    liderança imediata. Colaboradores com aproveitamento abaixo de 75% requerem atenção especial.
-                </p>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Insights IA -->
-        <div
-            class="lg:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl border border-indigo-500/20 p-6">
-            <h2 class="text-xl font-bold text-indigo-400 mb-4 flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z">
-                    </path>
-                </svg>
-                Insights IA
-            </h2>
-            <ul class="space-y-3">
-                <li class="flex gap-3 items-start">
-                    <svg class="w-4 h-4 mt-1 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <p class="text-sm text-slate-300">
-                        A média de faltas é mais alta em colaboradores com menos de <strong class="text-white">6
-                            meses</strong> de casa.
-                    </p>
-                </li>
-                <li class="flex gap-3 items-start">
-                    <svg class="w-4 h-4 mt-1 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                        </path>
-                    </svg>
-                    <p class="text-sm text-slate-300">
-                        Atestados aumentam nas segundas-feiras. Considere ações preventivas.
-                    </p>
-                </li>
-                <li class="flex gap-3 items-start">
-                    <svg class="w-4 h-4 mt-1 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <p class="text-sm text-slate-300">
-                        Colaboradores sem faltas há 6+ meses merecem reconhecimento.
-                    </p>
-                </li>
-            </ul>
-        </div>
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo">
+      <a href="{{ _links.get('all', '/people-intelligence') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'all' %}ops-card--selected{% endif %} group no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Monitorados</span><div class="employees-kpi__value tabular-nums">{{ _kpis.get('total_monitorados', 0) }}</div></div></a>
+      <a href="{{ _links.get('critical', '/people-intelligence') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'critical' %}ops-card--selected{% endif %} group no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-rose-600 dark:text-rose-300">Críticos</span><div class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ _kpis.get('critical_count', 0) }}</div></div></a>
+      <a href="{{ _links.get('attention', '/people-intelligence') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'attention' %}ops-card--selected{% endif %} group no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-amber-600 dark:text-amber-300">Atenção</span><div class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ _kpis.get('attention_count', 0) }}</div></div></a>
+      <a href="{{ _links.get('stable', '/people-intelligence') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'stable' %}ops-card--selected{% endif %} group no-underline"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Estáveis</span><div class="employees-kpi__value tabular-nums">{{ _kpis.get('stable_count', 0) }}</div></div></a>
     </div>
+  </div>
+
+  <form id="peopleFiltersForm" method="GET" action="/people-intelligence" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+    <input type="hidden" name="sort" value="{{ _sort_key }}">
+    <input type="hidden" name="dir" value="{{ _sort_dir }}">
+    <input type="hidden" name="page" value="1">
+    <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+      <div class="employees-filter-bar__inner">
+        <div class="employees-filter-bar__primary">
+          <div class="employees-filter-bar__primary-scroll">
+            <div class="ops-toolbar-search employees-filter-bar__search"><svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0"></path></svg><input type="search" name="q" value="{{ _filters.get('q') or '' }}" placeholder="Colaborador ou setor" class="ops-toolbar-search__input" data-debounce-submit="true"></div>
+            <input type="date" name="start_date" value="{{ start_date }}" class="ops-toolbar-control px-3">
+            <input type="date" name="end_date" value="{{ end_date }}" class="ops-toolbar-control px-3">
+            <select name="cost_center" class="ops-toolbar-control px-3">{% for opt in cost_center_options or ['Todos'] %}<option value="{{ opt }}" {% if current_cost_center == opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select>
+            <select name="event_type" class="ops-toolbar-control px-3">
+              <option value="all" {% if _filters.get('event_type') == 'all' %}selected{% endif %}>Todos eventos</option>
+              <option value="falta" {% if _filters.get('event_type') == 'falta' %}selected{% endif %}>Faltas</option>
+              <option value="atestado" {% if _filters.get('event_type') == 'atestado' %}selected{% endif %}>Atestados</option>
+              <option value="afastamento" {% if _filters.get('event_type') == 'afastamento' %}selected{% endif %}>Afastamentos</option>
+            </select>
+            <select name="per_page" class="ops-toolbar-control px-3">{% for option in [50,100,200] %}<option value="{{ option }}" {% if _filters.get('per_page') == option %}selected{% endif %}>{{ option }} por página</option>{% endfor %}</select>
+          </div>
+        </div>
+        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+        <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap">
+          <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
+          <a href="{{ _links.get('all', '/people-intelligence') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'all' %}filter-btn--active{% endif %}">Todos</a>
+          <a href="{{ _links.get('critical', '/people-intelligence') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'critical' %}filter-btn--active{% endif %}">Críticos</a>
+          <a href="{{ _links.get('attention', '/people-intelligence') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'attention' %}filter-btn--active{% endif %}">Atenção</a>
+          <a href="{{ _links.get('stable', '/people-intelligence') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'stable' %}filter-btn--active{% endif %}">Estáveis</a>
+          <a href="{{ _links.get('clear', '/people-intelligence') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar</a>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div class="sys-card sys-card--surface sys-card--comfort devolucoes-selection-toolbar">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"><input id="bulk-select-all" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span>Selecionar visíveis</span></label>
+        <span class="employees-filter-counter employees-filter-counter--toolbar">Selecionados: <strong id="bulk-selected-count" class="ml-1">0</strong></span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <a href="{{ _links.get('report', '/people-intelligence/report') }}" target="_blank" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Relatório</a>
+        <button type="button" class="sys-btn sys-btn--secondary employees-filter-bar__btn" data-open-modal="batchOperationsModal">Operações em lote</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+      <div class="min-w-0 flex-1"><p class="employees-table-panel__kicker">Saúde operacional</p><h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Monitoramento de colaboradores</h3></div>
+      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">{% if _pagination.get('total_count',0) %}Exibindo <strong>{{ _pagination.get('page_start',0) }}</strong>–<strong>{{ _pagination.get('page_end',0) }}</strong> de <strong>{{ _pagination.get('total_count',0) }}</strong>.{% else %}Nenhum resultado.{% endif %}<div class="mt-2 flex flex-wrap justify-end gap-2"><a href="{{ _links.get('prev','#') }}" class="sys-btn sys-btn--secondary {% if not _pagination.get('has_prev') %}pointer-events-none opacity-50{% endif %}">Anterior</a><span class="employees-text-caption inline-flex items-center px-1.5">Pág. {{ _pagination.get('page',1) }} / {{ _pagination.get('total_pages',1) }}</span><a href="{{ _links.get('next','#') }}" class="sys-btn sys-btn--secondary {% if not _pagination.get('has_next') %}pointer-events-none opacity-50{% endif %}">Próxima</a></div></div>
+    </div>
+    {% if _rows %}
+    <div class="sys-table-wrap sys-table-wrap--x-scroll">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1180px]" id="employeesTable">
+        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+          <tr>
+            <th class="employees-data-table__th group px-2 py-2 pl-3"><a href="{{ _sort.get('name', _links.get('all', '/people-intelligence')) }}" class="flex items-center gap-1.5">Colaborador <span class="employees-data-table__sort-icon {% if _sort_key == 'name' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'name' and _sort_dir == 'asc' else '↓' if _sort_key == 'name' else '↕' }}</span></a></th>
+            <th class="employees-data-table__th group px-2 py-2"><a href="{{ _sort.get('sector', _links.get('all', '/people-intelligence')) }}" class="flex items-center gap-1.5">Setor <span class="employees-data-table__sort-icon {% if _sort_key == 'sector' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'sector' and _sort_dir == 'asc' else '↓' if _sort_key == 'sector' else '↕' }}</span></a></th>
+            <th class="employees-data-table__th px-2 py-2">Faltas</th><th class="employees-data-table__th px-2 py-2">Atest.</th><th class="employees-data-table__th px-2 py-2">Afast.</th>
+            <th class="employees-data-table__th group px-2 py-2"><a href="{{ _sort.get('combined', _links.get('all', '/people-intelligence')) }}" class="flex items-center gap-1.5">Eventos <span class="employees-data-table__sort-icon {% if _sort_key == 'combined' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'combined' and _sort_dir == 'asc' else '↓' if _sort_key == 'combined' else '↕' }}</span></a></th>
+            <th class="employees-data-table__th group px-2 py-2"><a href="{{ _sort.get('risk', _links.get('all', '/people-intelligence')) }}" class="flex items-center gap-1.5">Risco <span class="employees-data-table__sort-icon {% if _sort_key == 'risk' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'risk' and _sort_dir == 'asc' else '↓' if _sort_key == 'risk' else '↕' }}</span></a></th>
+            <th class="employees-data-table__th group px-2 py-2"><a href="{{ _sort.get('presence', _links.get('all', '/people-intelligence')) }}" class="flex items-center gap-1.5">Presença <span class="employees-data-table__sort-icon {% if _sort_key == 'presence' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'presence' and _sort_dir == 'asc' else '↓' if _sort_key == 'presence' else '↕' }}</span></a></th>
+            <th class="employees-data-table__th px-2 py-2">Status</th><th class="employees-data-table__th employees-data-table__th--static w-10 whitespace-nowrap px-2 py-2 text-xs">Sel.</th><th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="employees-data-table__body divide-y" id="tableBody">
+          {% for row in _rows %}
+          <tr class="group employee-row employees-data-table__row transition-colors">
+            <td class="employee-cell-primary px-2 py-2 pl-3 align-middle" data-label="Colaborador"><div class="employee-primary-content min-w-0"><a href="/employees/{{ row.employee_id }}" class="employee-name employees-data-table__name-link block truncate font-medium transition-colors hover:underline employees-text-strong">{{ row.name }}</a></div></td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Setor">{{ row.sector }}</td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Faltas"><span class="employees-pill employees-pill--neutral">{{ row.falta }}</span></td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Atest."><span class="employees-pill employees-pill--neutral">{{ row.atestado }}</span></td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Afast."><span class="employees-pill employees-pill--neutral">{{ row.afastamento }}</span></td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle font-semibold" data-label="Eventos">{{ row.combined_events }}</td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Risco"><span class="employees-pill {% if row.status_key == 'critical' %}employees-pill--danger{% elif row.status_key == 'attention' %}employees-pill--pending{% else %}employees-pill--emerald{% endif %}">{{ row.risk_score }}%</span></td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Presença">{{ row.presence_rate }}%</td>
+            <td class="px-2 py-2 align-middle whitespace-nowrap" data-label="Status">{% if row.status_tone == 'critical' %}<span class="sys-badge sys-badge--critical">{{ row.status_label }}</span>{% elif row.status_tone == 'alert' %}<span class="sys-badge sys-badge--alert">{{ row.status_label }}</span>{% else %}<span class="sys-badge sys-badge--ok">{{ row.status_label }}</span>{% endif %}</td>
+            <td class="employees-data-table__cell w-10 px-2 py-2 align-middle" data-label="Selecionar"><input type="checkbox" class="pi-bulk-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500" value="{{ row.employee_id }}" data-label="{{ row.name|e }}"></td>
+            <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações"><div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1"><button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar plano" data-action="edit" data-row='{{ row|tojson|forceescape }}'><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5"></path></svg></button><button type="button" class="employee-action-btn employee-action-btn--return" title="Detalhar" data-action="details" data-id="{{ row.employee_id }}"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0"></path></svg></button></div></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="sys-empty-state m-6">Nenhum colaborador encontrado para os filtros selecionados.</div>
+    {% endif %}
+  </div>
+
+  <div id="importModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-6 pt-24 md:pt-20" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-2xl people-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3"><div><p class="employees-text-section-label">Importação</p><h3 id="import-modal-title" class="sys-section-heading mt-1 text-lg">Importar monitoramento</h3></div><button type="button" class="emp-modal-close shrink-0" data-close-modal="importModal" aria-label="Fechar">&times;</button></div>
+      <form id="people-import-form" class="space-y-4" novalidate>
+        <label class="emp-modal-dropzone block cursor-pointer"><input type="file" id="people-import-file" accept=".xlsx,.xls,.csv" class="hidden"><span class="emp-modal-icon-ring emp-modal-icon-ring--lg mx-auto mb-3"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10"></path></svg></span><p class="text-sm font-semibold text-slate-900 dark:text-white">Selecionar arquivo</p><p class="employees-text-muted mt-1 text-xs">Validação local de colunas, linhas vazias e duplicadas.</p><p id="people-import-file-name" class="mt-3 text-xs font-medium text-sky-600 dark:text-sky-300"></p></label>
+        <div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 text-xs leading-relaxed dark:border-slate-700/80 dark:bg-slate-900/40"><p class="font-semibold text-slate-900 dark:text-white">Colunas esperadas</p><code class="mt-2 block rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-200">COLABORADOR, SETOR, FALTAS, ATESTADOS, AFASTAMENTOS, PRESENCA, RISCO</code></div>
+        <div id="people-import-preview" class="hidden rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40"><p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Prévia da importação</p><div id="people-import-errors" class="mt-2 text-xs text-slate-600 dark:text-slate-300"></div></div>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" class="sys-btn sys-btn--secondary" data-close-modal="importModal">Cancelar</button><button type="button" id="people-import-validate-btn" class="sys-btn sys-btn--secondary">Validar arquivo</button><button type="button" id="people-import-confirm-btn" class="sys-btn sys-btn--primary" disabled>Confirmar importação</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="createActionModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-6 pt-24 md:pt-20" role="dialog" aria-modal="true" aria-labelledby="create-action-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-2xl people-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3"><div><p class="employees-text-section-label">Criação</p><h3 id="create-action-title" class="sys-section-heading mt-1 text-lg">Novo plano de ação</h3></div><button type="button" class="emp-modal-close shrink-0" data-close-modal="createActionModal" aria-label="Fechar">&times;</button></div>
+      <form id="create-action-form" class="space-y-5" novalidate>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2"><div><label class="sys-section__label sys-section__label--field" for="action-employee">Colaborador</label><input id="action-employee" required class="sys-input mt-1 w-full" placeholder="Nome"></div><div><label class="sys-section__label sys-section__label--field" for="action-sector">Setor</label><input id="action-sector" class="sys-input mt-1 w-full" placeholder="Setor"></div><div><label class="sys-section__label sys-section__label--field" for="action-priority">Prioridade</label><select id="action-priority" required class="sys-select mt-1 w-full"><option value="">Selecione</option><option value="critical">Crítico</option><option value="attention">Atenção</option><option value="stable">Estável</option></select></div><div><label class="sys-section__label sys-section__label--field" for="action-owner">Responsável</label><input id="action-owner" class="sys-input mt-1 w-full" placeholder="RH/Liderança"></div><div class="md:col-span-2"><label class="sys-section__label sys-section__label--field" for="action-plan">Plano</label><textarea id="action-plan" required rows="3" class="sys-input mt-1 w-full resize-y" placeholder="Descreva a ação"></textarea></div></div>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" class="sys-btn sys-btn--secondary" data-close-modal="createActionModal">Cancelar</button><button type="submit" class="sys-btn sys-btn--primary">Salvar plano</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="batchOperationsModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="batch-operations-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-lg people-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3"><div><p class="employees-text-section-label">Operações em lote</p><h3 id="batch-operations-title" class="sys-section-heading mt-1 text-lg">Ações para selecionados</h3></div><button type="button" class="emp-modal-close shrink-0" data-close-modal="batchOperationsModal" aria-label="Fechar">&times;</button></div>
+      <div class="space-y-4"><div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40"><p class="text-sm font-medium text-slate-900 dark:text-white">Selecionados agora</p><p class="mt-1 text-3xl font-semibold text-slate-900 dark:text-white" id="batch-modal-selected-count">0</p></div><div class="grid gap-3"><button type="button" class="sys-btn sys-btn--secondary justify-center" data-batch-action="export">Exportar selecionados</button><button type="button" class="sys-btn sys-btn--secondary justify-center" data-batch-action="mark-attention">Marcar atenção</button><button type="button" class="sys-btn sys-btn--danger justify-center" data-batch-action="clear-selection">Limpar seleção</button></div></div>
+    </div>
+  </div>
+
+  <div id="confirmActionModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-md people-modal-card">
+      <div class="mb-4 flex items-start gap-3"><span class="emp-modal-icon-ring emp-modal-icon-ring--lg"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01"></path></svg></span><div class="min-w-0 flex-1"><h3 id="confirm-action-title" class="sys-section-heading text-lg">Confirmar ação</h3><p id="confirm-action-text" class="employees-text-muted mt-2 text-sm">Deseja continuar?</p></div></div>
+      <div class="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" class="sys-btn sys-btn--secondary" data-close-modal="confirmActionModal">Cancelar</button><button type="button" id="confirm-action-submit" class="sys-btn sys-btn--primary">Confirmar</button></div>
+    </div>
+  </div>
 </div>
-
-<!-- Offenders Modal -->
-<div id="offendersModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
-    aria-modal="true">
-    <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" onclick="closeOffendersModal()">
-    </div>
-    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <div
-                class="relative transform overflow-hidden rounded-xl bg-slate-800 border border-slate-700 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-6xl">
-                <!-- Header -->
-                <div class="bg-slate-900/50 px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                            </path>
-                        </svg>
-                        Ofensores Crônicos (Lista Completa)
-                    </h3>
-                    <button type="button" class="text-slate-400 hover:text-white" onclick="closeOffendersModal()">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <!-- Body -->
-                <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                    <table class="w-full text-left border-collapse" id="offendersTable">
-                        <thead>
-                            <tr class="text-sm text-slate-400 uppercase border-b-2 border-red-700/50">
-                                <th class="pb-3 pr-4 font-semibold">Colaborador</th>
-                                <th class="pb-3 px-3 font-semibold">Setor</th>
-                                <th class="pb-3 px-3 text-center font-semibold">Faltas</th>
-                                <th class="pb-3 px-3 text-center font-semibold">Atestados</th>
-                                <th class="pb-3 px-3 text-center font-semibold">Total</th>
-                                <th class="pb-3 px-3 text-center font-semibold">Dias Esperados</th>
-                                <th class="pb-3 px-3 text-center font-semibold">Aproveitamento</th>
-                                <th class="pb-3 pl-3 text-center font-semibold">Risco %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="offendersTableBody" class="text-base">
-                            <!-- JS Populated -->
-                        </tbody>
-                    </table>
-                    <div id="offendersLoading" class="text-center py-8 hidden">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
-                        <p class="text-slate-400 mt-2">Carregando dados...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    function applyFilters() {
-        const costCenter = document.getElementById('costCenterFilter')?.value || '{{ current_cost_center }}';
-        const startDate = document.getElementById('startDateFilter').value;
-        const endDate = document.getElementById('endDateFilter').value;
-        window.location.href = `/people-intelligence?cost_center=${encodeURIComponent(costCenter)}&start_date=${startDate}&end_date=${endDate}`;
-    }
-
-    function resetFilters() {
-        window.location.href = '/people-intelligence';
-    }
-
-    function openPrintPreview() {
-        const costCenter = document.getElementById('costCenterFilter')?.value || '{{ current_cost_center }}';
-        const startDate = document.getElementById('startDateFilter').value;
-        const endDate = document.getElementById('endDateFilter').value;
-        window.open(`/people-intelligence/report?cost_center=${encodeURIComponent(costCenter)}&start_date=${startDate}&end_date=${endDate}`, '_blank');
-    }
-
-    function changeCostCenter(costCenter) {
-        const startDate = document.getElementById('startDateFilter').value;
-        const endDate = document.getElementById('endDateFilter').value;
-        window.location.href = `/people-intelligence?cost_center=${encodeURIComponent(costCenter)}&start_date=${startDate}&end_date=${endDate}`;
-    }
-
-    async function openOffendersModal() {
-        const modal = document.getElementById('offendersModal');
-        modal.classList.remove('hidden');
-
-        // Show Loading
-        const tbody = document.getElementById('offendersTableBody');
-        const loading = document.getElementById('offendersLoading');
-        tbody.innerHTML = '';
-        loading.classList.remove('hidden');
-
-        // Fetch Params
-        const costCenter = document.getElementById('costCenterFilter')?.value || '{{ current_cost_center }}';
-        const startDate = document.getElementById('startDateFilter').value;
-        const endDate = document.getElementById('endDateFilter').value;
-
-        try {
-            const response = await fetch(`/api/people-intelligence/offenders?cost_center=${encodeURIComponent(costCenter)}&start_date=${startDate}&end_date=${endDate}`);
-            const data = await response.json();
-            const offenders = data.offenders;
-
-            // Render
-            loading.classList.add('hidden');
-            if (offenders.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="py-12 text-center text-slate-500">Nenhum registro encontrado.</td></tr>';
-                return;
-            }
-
-            const rows = offenders.map(item => {
-                // Logic to determine classes (risk color, etc.)
-                let riskClass = "bg-yellow-500/30 text-yellow-200";
-                if (item.risk_score > 10) riskClass = "bg-red-500/40 text-red-200";
-                else if (item.risk_score > 5) riskClass = "bg-orange-500/30 text-orange-200";
-
-                let utilClass = "bg-red-500/40 text-red-200";
-                if (item.utilization_rate >= 90) utilClass = "bg-emerald-500/30 text-emerald-200";
-                else if (item.utilization_rate >= 75) utilClass = "bg-yellow-500/30 text-yellow-200";
-                else if (item.utilization_rate >= 60) utilClass = "bg-orange-500/30 text-orange-200";
-
-                return `
-                     <tr class="border-b border-red-800/20 hover:bg-slate-700/30 transition">
-                         <td class="py-4 pr-4 font-medium">
-                             <a href="/employees/${item.employee_id}" class="text-white hover:text-indigo-400 transition">${item.name}</a>
-                         </td>
-                         <td class="py-4 px-3 text-slate-300">${item.sector}</td>
-                         <td class="py-4 px-3 text-center">
-                             <span class="inline-block px-3 py-1.5 rounded-lg bg-red-500/20 text-red-300 font-bold text-base">${item.falta}</span>
-                         </td>
-                         <td class="py-4 px-3 text-center">
-                             <span class="inline-block px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 font-bold text-base">${item.atestado}</span>
-                         </td>
-                         <td class="py-4 px-3 text-center">
-                             <span class="inline-block px-3 py-1.5 rounded-lg bg-orange-500/30 text-orange-200 font-bold text-lg">${item.combined_events}</span>
-                         </td>
-                         <td class="py-4 px-3 text-center">
-                            <div class="flex flex-col items-center gap-1">
-                                <span class="text-slate-200 font-bold text-base">${item.actual_work_days}/${item.expected_work_days}</span>
-                                <span class="text-xs text-slate-500">dias</span>
-                            </div>
-                         </td>
-                         <td class="py-4 px-3 text-center">
-                            <span class="inline-block px-3 py-1.5 rounded-lg font-bold text-base ${utilClass}">
-                                ${item.utilization_rate}%
-                            </span>
-                         </td>
-                         <td class="py-4 pl-3 text-center">
-                            <span class="inline-block px-3 py-1.5 rounded-lg ${riskClass} font-bold text-base">${item.risk_score}%</span>
-                         </td>
-                     </tr>
-                 `;
-            }).join('');
-
-            tbody.innerHTML = rows;
-
-        } catch (e) {
-            console.error(e);
-            loading.classList.add('hidden');
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-red-400">Erro ao carregar dados.</td></tr>';
-        }
-    }
-
-    function closeOffendersModal() {
-        document.getElementById('offendersModal').classList.add('hidden');
-    }
-</script>
-
-<!-- Overview Drill-Down Modal -->
-<div id="overviewModal"
-    class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div
-        class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
-        <div class="p-6 border-b border-slate-800 flex justify-between items-center">
-            <h3 id="overviewModalTitle" class="text-xl font-bold text-white flex items-center gap-2">
-                <!-- Icon -->
-                <span id="overviewModalTitleText">Detalhes</span>
-            </h3>
-            <button onclick="closeOverviewModal()" class="text-slate-400 hover:text-white transition">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                    </path>
-                </svg>
-            </button>
-        </div>
-
-        <div class="p-0 overflow-y-auto flex-1">
-            <table class="w-full text-left border-collapse">
-                <thead class="bg-slate-800/50 sticky top-0 backdrop-blur-md">
-                    <tr class="text-xs text-slate-400 uppercase border-b border-slate-700">
-                        <th class="px-6 py-4">Colaborador</th>
-                        <th class="px-6 py-4">Setor</th>
-                        <th class="px-6 py-4 text-center">Quantidade</th>
-                        <th class="px-6 py-4 text-right">Tempo de Casa</th>
-                    </tr>
-                </thead>
-                <tbody id="overviewModalBody" class="text-sm divide-y divide-slate-800">
-                    <!-- Content injected via JS -->
-                </tbody>
-            </table>
-        </div>
-
-        <div class="p-4 border-t border-slate-800 bg-slate-900/50 rounded-b-2xl flex justify-end">
-            <button onclick="closeOverviewModal()"
-                class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                Fechar
-            </button>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Serialize data from Jinja
-    const ALL_ABSENT = {{ all_absent | default ([]) | tojson }};
-    const ALL_SICK = {{ all_sick | default ([]) | tojson }};
-    const ALL_AWAY = {{ all_away | default ([]) | tojson }};
-
-    function openOverviewModal(type, title) {
-        const modal = document.getElementById('overviewModal');
-        const titleEl = document.getElementById('overviewModalTitleText');
-        const bodyEl = document.getElementById('overviewModalBody');
-
-        titleEl.textContent = title;
-        bodyEl.innerHTML = '';
-
-        let data = [];
-        let valueKey = '';
-        let colorClass = '';
-
-        if (type === 'falta') {
-            data = ALL_ABSENT;
-            valueKey = 'falta';
-            colorClass = 'text-red-400 bg-red-500/10';
-        } else if (type === 'atestado') {
-            data = ALL_SICK;
-            valueKey = 'atestado';
-            colorClass = 'text-amber-400 bg-amber-500/10';
-        } else if (type === 'afastado') {
-            data = ALL_AWAY;
-            valueKey = 'afastamento';
-            colorClass = 'text-indigo-400 bg-indigo-500/10';
-        }
-
-        if (data.length === 0) {
-            bodyEl.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">Nenhum registro encontrado.</td></tr>`;
-        } else {
-            data.forEach(item => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-slate-800/50 transition group';
-
-                row.innerHTML = `
-                    <td class="px-6 py-4 font-medium">
-                        <a href="/employees/${item.employee_id}" class="text-white hover:text-indigo-400 transition flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                                ${item.name.substring(0, 2).toUpperCase()}
-                            </div>
-                            ${item.name}
-                        </a>
-                    </td>
-                    <td class="px-6 py-4 text-slate-400">${item.sector}</td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="inline-block px-3 py-1 rounded font-bold ${colorClass}">
-                            ${item[valueKey]}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 text-right text-slate-500 font-mono">${item.tenure_months} meses</td>
-                `;
-                bodyEl.appendChild(row);
-            });
-        }
-
-        modal.classList.remove('hidden');
-    }
-
-    function closeOverviewModal() {
-        document.getElementById('overviewModal').classList.add('hidden');
-    }
-</script>
 {% endblock %}

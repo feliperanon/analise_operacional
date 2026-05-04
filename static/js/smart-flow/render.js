@@ -82,6 +82,10 @@ const Render = {
 
         this.updateHeader(state);
 
+        if (window.AllocationList && typeof AllocationList.onStoreUpdate === 'function') {
+            AllocationList.onStoreUpdate(state);
+        }
+
     },
 
 
@@ -97,13 +101,9 @@ const Render = {
             const shift = btn.dataset.shift;
 
             if (shift === state.currentShift) {
-
-                btn.className = "px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all bg-blue-600 text-white shadow-md";
-
+                btn.className = "sf-shift-btn sf-shift-btn--active filter-btn--active rounded-lg px-3 py-2 text-xs font-semibold shadow-sm";
             } else {
-
-                btn.className = "px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300 hover:bg-slate-700/50";
-
+                btn.className = "sf-shift-btn rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800";
             }
 
         });
@@ -182,6 +182,10 @@ const Render = {
 
         setText('total-away', kpis.away || 0);
 
+        setText('total-unavailable', kpis.unavailable != null ? kpis.unavailable : (
+            (kpis.dayoff || 0) + (kpis.missing || 0) + (kpis.sick || 0) + (kpis.vacation || 0) + (kpis.away || 0)
+        ));
+
         setText('total-tonnage', (kpis.tonnage || 0).toLocaleString('pt-BR') + ' kg');
 
         setText('prod-per-person', (kpis.productivity || 0).toLocaleString('pt-BR'));
@@ -244,7 +248,7 @@ const Render = {
 
         const card = document.createElement('div');
 
-        card.className = 'bg-slate-800 rounded-lg border border-slate-700 p-3 hover:border-blue-500 transition cursor-pointer group';
+        card.className = 'sf-sector-card rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:border-blue-400 cursor-pointer group dark:border-slate-700 dark:bg-slate-800/90';
 
 
 
@@ -326,15 +330,15 @@ const Render = {
 
             <!-- Header Compacto -->
 
-            <div class="flex items-center justify-between mb-3 border-b border-slate-700/50 pb-2">
+            <div class="flex items-center justify-between mb-3 border-b border-slate-200/80 pb-2 dark:border-slate-700/50">
 
                 <div class="flex-1 min-w-0">
 
-                     <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider truncate mb-0.5">${sector.name}</h3>
+                     <h3 class="text-xs font-bold text-slate-600 uppercase tracking-wider truncate mb-0.5 dark:text-slate-300">${sector.name}</h3>
 
                     <div class="flex items-center gap-2">
 
-                         <span class="text-lg font-bold ${sectorEmployeeCount < sector.max_employees ? 'text-amber-400' : 'text-white'} leading-none">${countRealPresent} <span class="text-xs text-slate-500 font-normal">/ ${sector.max_employees}</span></span>
+                         <span class="text-lg font-bold ${sectorEmployeeCount < sector.max_employees ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'} leading-none">${countRealPresent} <span class="text-xs text-slate-500 font-normal">/ ${sector.max_employees}</span></span>
 
                     </div>
 
@@ -344,9 +348,9 @@ const Render = {
 
                 <div class="flex gap-1" onclick="event.stopPropagation()">
 
-                    <button onclick="SectorsCRUD.openEditSector(${sector.id}, '${sector.name}', ${sector.max_employees}, '${sector.color}')" class="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-700 transition"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                    <button onclick="SectorsCRUD.openEditSector(${sector.id}, '${sector.name}', ${sector.max_employees}, '${sector.color}')" class="p-1.5 text-slate-500 hover:text-slate-800 rounded hover:bg-slate-100 transition dark:hover:text-white dark:hover:bg-slate-700"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
 
-                    <button onclick="SectorsCRUD.deleteSector(${sector.id}, '${sector.name}')" class="p-1.5 text-slate-500 hover:text-red-400 rounded hover:bg-slate-700 transition"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                    <button onclick="SectorsCRUD.deleteSector(${sector.id}, '${sector.name}')" class="p-1.5 text-slate-500 hover:text-red-600 rounded hover:bg-red-50 transition dark:hover:text-red-400 dark:hover:bg-slate-700"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
 
                 </div>
 
@@ -358,7 +362,7 @@ const Render = {
 
                 <span class="text-slate-400">Capacidade</span>
 
-                <span class="font-semibold text-slate-200">${sectorEmployeeCount}/${sector.max_employees}</span>
+                <span class="font-semibold text-slate-700 dark:text-slate-200">${sectorEmployeeCount}/${sector.max_employees}</span>
 
                 <span class="text-[9px] font-bold text-${occupancyTone}-400">${percentage}% ocup.</span>
 
@@ -378,7 +382,7 @@ const Render = {
 
                 </div>
 
-                <div class="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden dark:bg-slate-900">
 
                     <div class="bg-${realPercentage < 70 ? 'red' : 'emerald'}-500 h-full transition-all" style="width: ${realPercentage}%"></div>
 
@@ -452,7 +456,7 @@ const Render = {
 
         const card = document.createElement('div');
 
-        card.className = 'bg-slate-900 rounded-xl border border-slate-700 overflow-hidden flex flex-col transition-all duration-300'; // Alterado para suportar collapse
+        card.className = 'rounded-xl border border-slate-200 bg-slate-50/80 overflow-hidden flex flex-col transition-all duration-300 dark:border-slate-700 dark:bg-slate-900/60';
 
         card.dataset.subsectorId = subsector.id;
 
@@ -472,7 +476,7 @@ const Render = {
 
         const header = document.createElement('div');
 
-        header.className = 'flex items-center justify-between p-3 border-b border-slate-700 cursor-pointer bg-slate-800 hover:bg-slate-750 transition select-none';
+        header.className = 'flex items-center justify-between p-3 border-b border-slate-200 cursor-pointer bg-white hover:bg-slate-50 transition select-none dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-800/80';
 
 
 
@@ -496,11 +500,11 @@ const Render = {
 
                 <div>
 
-                    <h4 class="text-sm font-bold text-white leading-tight">${subsector.name}</h4>
+                    <h4 class="text-sm font-bold text-slate-800 leading-tight dark:text-white">${subsector.name}</h4>
 
                     <p class="text-[10px] text-slate-500">
 
-                        <span class="subsector-count font-bold text-slate-300">${currentCount}</span> / ${subsector.max_employees}
+                        <span class="subsector-count font-bold text-slate-700 dark:text-slate-300">${currentCount}</span> / ${subsector.max_employees}
 
                     </p>
 
@@ -570,7 +574,7 @@ const Render = {
 
             employeesList.innerHTML = `
 
-                <div class="text-xs text-slate-600 text-center py-4 border-2 border-dashed border-slate-700 rounded-lg">
+                <div class="text-xs text-slate-500 text-center py-4 border-2 border-dashed border-slate-200 rounded-lg dark:border-slate-600 dark:text-slate-400">
 
                     Arraste aqui
 
@@ -666,13 +670,15 @@ const Render = {
 
         // Card base stylings - touch friendly
 
-        card.className = 'bg-slate-800 rounded-xl p-3 border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer relative group active:scale-95 duration-100 touch-manipulation select-none';
+        card.className = 'bg-white dark:bg-slate-800 rounded-xl p-3 border-l-4 shadow-sm hover:shadow-md transition-all cursor-pointer relative group active:scale-95 duration-100 touch-manipulation select-none border border-slate-100 dark:border-slate-700';
 
 
 
         card.draggable = true;
 
         card.dataset.employeeId = employee.id;
+
+        card.dataset.empId = employee.id;
 
 
 
@@ -766,13 +772,13 @@ const Render = {
 
                 <!-- Avatar / Initials -->
 
-                <div class="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center shrink-0 border border-slate-600">
+                <div class="h-10 w-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-600">
 
                     ${employee.photo_url ?
 
                 `<img src="${employee.photo_url}" class="h-full w-full rounded-full object-cover">` :
 
-                `<span class="text-xs font-bold text-slate-400">${employee.name.substring(0, 2).toUpperCase()}</span>`
+                `<span class="text-xs font-bold text-slate-600 dark:text-slate-400">${employee.name.substring(0, 2).toUpperCase()}</span>`
 
             }
 
@@ -784,7 +790,7 @@ const Render = {
 
                 <div class="flex-1 min-w-0">
 
-                    <p class="text-sm font-bold text-white truncate leading-tight">${(employee.name || '').toUpperCase()}</p>
+                    <p class="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">${(employee.name || '').toUpperCase()}</p>
 
                     <p class="text-[11px] text-${statusColor}-400 font-medium truncate mt-0.5 flex items-center gap-1">
 
@@ -849,67 +855,6 @@ const Render = {
         return card;
 
     },
-
-
-
-    // --- Bottom Sheet Logic ---
-
-
-
-    openBottomSheet(employee) {
-
-        const sheet = document.getElementById('employee-bottom-sheet');
-
-        const backdrop = document.getElementById('sheet-backdrop');
-
-        const content = document.getElementById('sheet-content');
-
-
-
-        if (!sheet || !content) return;
-
-
-
-        // Popular Conteúdo
-
-        content.innerHTML = this.buildSheetContent(employee);
-
-        this.lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-
-
-
-        // Mostrar
-
-        sheet.classList.remove('translate-y-full');
-
-        backdrop.classList.remove('opacity-0', '-z-10');
-
-        backdrop.classList.add('z-40');
-
-    },
-
-
-
-    closeBottomSheet() {
-
-        const sheet = document.getElementById('employee-bottom-sheet');
-
-        const backdrop = document.getElementById('sheet-backdrop');
-
-
-
-        if (!sheet) return;
-
-
-
-        sheet.classList.add('translate-y-full');
-
-        backdrop.classList.add('opacity-0', '-z-10');
-
-        backdrop.classList.remove('z-40');
-
-    },
-
 
 
     buildSheetContent(employee) {
@@ -1321,9 +1266,10 @@ const Render = {
 
 
 
-            const employeeId = e.dataTransfer.getData('employeeId');
+            let employeeId = e.dataTransfer.getData('employeeId');
+            if (!employeeId) employeeId = e.dataTransfer.getData('empId');
 
-            const maxEmployees = parseInt(element.dataset.maxEmployees);
+            const maxEmployees = parseInt(element.dataset.maxEmployees, 10);
 
             const currentCount = element.querySelectorAll('.employees-list > div').length;
 

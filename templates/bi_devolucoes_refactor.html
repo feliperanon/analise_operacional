@@ -1,0 +1,48 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}BI Devoluções · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / BI & Métricas / BI Devoluções</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">BI Devoluções</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Análise de devoluções por período, cliente, vendedor, motorista, motivo e valor.</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/bi-devolucoes.css">
+<script src="/static/js/pages/bi-devolucoes-page.js" defer></script>
+{% endblock %}
+
+{% block content %}
+{% set _df = filters.date_from[:10] if filters.date_from and filters.date_from|length >= 10 else '' %}
+{% set _dt = filters.date_to[:10] if filters.date_to and filters.date_to|length >= 10 else '' %}
+{% set period_label = (_df[8:10] ~ '/' ~ _df[5:7] ~ '/' ~ _df[0:4] ~ ' a ' ~ _dt[8:10] ~ '/' ~ _dt[5:7] ~ '/' ~ _dt[0:4]) if (_df and _dt) else 'Todo o período' %}
+
+<div class="bi-dev-page" data-page="bi-devolucoes">
+  {% include "bi/devolucoes/_header.html" %}
+  {% include "bi/devolucoes/_kpis.html" %}
+  {% include "bi/devolucoes/_filters.html" %}
+  {% include "bi/devolucoes/_analysis.html" %}
+  {% include "bi/devolucoes/_list.html" %}
+
+  <script id="bi-devolucoes-data" type="application/json">
+    {
+      "periodLabel": {{ period_label|tojson }},
+      "rowsDetail": {{ rows_detail_json|safe }},
+      "evolucaoDiaria": {{ evolucao_diaria_json|safe }},
+      "topMotivos": {{ top_motivos_json|safe }},
+      "topMotoristas": {{ top_motoristas_json|safe }},
+      "topVendedores": {{ top_vendedores_json|safe }},
+      "topClientes": {{ top_clientes_json|safe }},
+      "exportCsv": {{ ('/bi/devolucoes/export?format=csv&' ~ filters_query)|tojson }},
+      "exportXlsx": {{ ('/bi/devolucoes/export?format=xlsx&' ~ filters_query)|tojson }}
+    }
+  </script>
+</div>
+{% endblock %}

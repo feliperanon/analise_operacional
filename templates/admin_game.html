@@ -1,408 +1,229 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Game Master · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Gamificação / Game Master</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Game Master</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Aprovação de XP pendente, ajustes e operações em lote</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/admin-game.css">
+{% endblock %}
 
 {% block content %}
-<div class="min-h-dvh flex flex-col bg-slate-900 text-slate-100 overflow-x-hidden" x-data="gameMaster()"
-    x-init="init()">
+<div class="ga-employee-theme employees-page employees-page--premium ga-game-theme game-page space-y-5 pt-2 md:pt-3" x-data="adminGamePage()" x-init="init()">
+    <div x-show="toast.show" x-transition class="sys-alert fixed bottom-4 right-4 z-[70] m-0 shadow-lg" :class="toast.type === 'success' ? 'sys-alert--success' : 'sys-alert--danger'" x-text="toast.message"></div>
 
-    <!-- Header Responsivo -->
-    <header class="bg-slate-950 border-b border-slate-800 px-4 py-3 md:px-6 md:py-4 shrink-0">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-
-            <!-- Logo e Título -->
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-yellow-500/10 rounded-lg text-yellow-400">
-                    <i data-lucide="gamepad-2" class="w-5 h-5 md:w-6 md:h-6"></i>
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15.5a2.5 2.5 0 01-2.5 2.5H7l-4 3V6.5A2.5 2.5 0 015.5 4h13A2.5 2.5 0 0121 6.5v9z"></path></svg>
                 </div>
-                <div>
-                    <h1 class="text-xl md:text-2xl font-bold text-white">Game Master</h1>
-                    <p class="text-xs md:text-sm text-slate-400">Painel de Controle de Gamificação</p>
-                </div>
-            </div>
-
-            <!-- Botões de Navegação (scrollable em mobile) -->
-            <div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
-                <a href="/admin/game/settings"
-                    class="touch-target flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-500 active:bg-purple-700 transition-colors shadow-lg shadow-purple-500/20 flex-shrink-0">
-                    <i data-lucide="sliders" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Configurações</span>
-                </a>
-                <a href="/admin/game/audit"
-                    class="touch-target flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-slate-300 bg-slate-800 rounded-lg hover:bg-slate-700 active:bg-slate-600 hover:text-white transition-colors border border-slate-700 flex-shrink-0">
-                    <i data-lucide="list" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Auditoria</span>
-                </a>
-                <a href="/admin/game/achievements"
-                    class="touch-target flex items-center gap-2 px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-500 active:bg-orange-700 transition-colors shadow-lg shadow-orange-500/20 flex-shrink-0">
-                    <i data-lucide="award" class="w-4 h-4"></i>
-                    <span class="hidden sm:inline">Conquistas</span>
-                </a>
-            </div>
-        </div>
-    </header>
-
-    <main class="flex-1 p-4 md:p-6 lg:p-8 flex flex-col lg:flex-row gap-6 overflow-y-auto">
-
-        <!-- Left: Pending Actions -->
-        <!-- Coluna Principal: Lista de Pendências -->
-        <div class="w-full lg:flex-1 space-y-6 order-2 lg:order-1">
-
-            <!-- Pending Approvals Card -->
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden shadow-xl">
-                <div class="px-6 py-5 border-b border-slate-700 bg-slate-900/50 flex justify-between items-center">
-                    <h2 class="font-bold text-white flex items-center gap-2">
-                        <i data-lucide="inbox" class="w-5 h-5 text-yellow-500"></i>
-                        Pendentes de Aprovação
-                    </h2>
-                    <span class="bg-yellow-500/10 text-yellow-500 text-xs px-3 py-1 rounded-full font-bold">{{
-                        pending_txs|length }}</span>
-                </div>
-
-                <div class="divide-y divide-slate-700 max-h-[600px] overflow-y-auto custom-scrollbar">
-                    {% if not pending_txs %}
-                    <div class="p-12 text-center text-slate-500 flex flex-col items-center">
-                        <i data-lucide="thumbs-up" class="w-12 h-12 mb-3 opacity-50"></i>
-                        <p class="text-lg font-medium">Tudo limpo!</p>
-                        <p class="text-sm">Nenhuma pendência encontrada.</p>
-                    </div>
-                    {% endif %}
-
-                    {% for tx in pending_txs %}
-                    <div class="p-4 hover:bg-slate-700/30 transition-colors group border-b border-slate-700/50 last:border-0"
-                        id="tx-row-{{ tx.id }}">
-
-                        <!-- Parse Logic in Jinja -->
-                        {% set reason_parts = tx.reason.split('|') %}
-                        {% set description = reason_parts[0].split('(')[0].strip() %}
-                        {% set extra_info = reason_parts[1:] %}
-
-                        <div class="flex justify-between items-start">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold text-[10px] uppercase border border-slate-600">
-                                    {{ tx.employee_name[:2] }}
-                                </div>
-                                <div>
-                                    <p class="font-bold text-white text-sm">{{ tx.employee_name }}</p>
-                                    <div class="flex flex-wrap gap-2 mt-1">
-                                        <span class="text-xs text-slate-400 font-medium">{{ description }}</span>
-
-                                        {% for tag in extra_info %}
-                                        <span
-                                            class="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded border border-slate-600">
-                                            {{ tag.strip() }}
-                                        </span>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <span
-                                class="bg-indigo-500/10 text-indigo-400 font-bold px-2 py-1 rounded text-xs border border-indigo-500/20 whitespace-nowrap">
-                                +{{ tx.amount|int }} XP
-                            </span>
-                        </div>
-
-                        <div class="flex items-center justify-between mt-3 pl-[44px]">
-                            <span class="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
-                                <i data-lucide="clock" class="w-3 h-3"></i> {{ tx.date }}
-                            </span>
-
-                            <div class="flex gap-2">
-                                <button @click="reject({{ tx.id }})"
-                                    class="px-3 py-1.5 text-xs font-medium text-red-400 hover:bg-red-500/10 rounded-md transition-colors border border-transparent hover:border-red-500/20">
-                                    Rejeitar
-                                </button>
-                                <button @click="approve({{ tx.id }})"
-                                    class="px-4 py-1.5 text-xs font-bold text-white bg-green-600 hover:bg-green-500 rounded-md shadow-lg hover:shadow-green-500/20 transition-all flex items-center gap-1">
-                                    <i data-lucide="check" class="w-3 h-3"></i> Aprovar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Painel operacional</span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Pendências de XP</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">Tela rápida para aprovar, rejeitar, editar e importar ajustes de pontuação sem sair do fluxo.</p>
                 </div>
             </div>
-        </div>
-
-        <!-- Right: Actions & Mini-Stats -->
-        <!-- Coluna Lateral: Ações e Estatísticas -->
-        <div class="w-full lg:w-80 xl:w-96 lg:flex-shrink-0 space-y-6 order-1 lg:order-2">
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="font-bold text-white mb-2 flex items-center gap-2">
-                    <i data-lucide="sliders" class="w-5 h-5 text-blue-400"></i>
-                    Ajuste manual de XP
-                </h3>
-                <p class="text-sm text-slate-400 mb-5">Bonifique ou penalize com registro de motivo/observação.</p>
-
-                <!-- Toggle -->
-                <div class="grid grid-cols-2 gap-2 mb-4">
-                    <button type="button" @click="manual.form.type='add'"
-                        :class="manual.form.type==='add' ? 'bg-green-600 text-white border-green-500/40' : 'bg-slate-900 text-slate-200 border-slate-700'"
-                        class="px-3 py-2 rounded-xl border text-xs font-bold transition-colors">
-                        + XP
-                    </button>
-                    <button type="button" @click="manual.form.type='remove'"
-                        :class="manual.form.type==='remove' ? 'bg-red-600 text-white border-red-500/40' : 'bg-slate-900 text-slate-200 border-slate-700'"
-                        class="px-3 py-2 rounded-xl border text-xs font-bold transition-colors">
-                        - XP
-                    </button>
-                </div>
-
-                <!-- Form -->
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1">Colaborador</label>
-                        <select x-model.number="manual.form.employee_id"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500">
-                            <option value="0">Selecione...</option>
-                            <template x-for="e in manual.employees" :key="e.id">
-                                <option :value="e.id" x-text="e.name"></option>
-                            </template>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1">Quantidade (XP)</label>
-                        <input type="number" min="1" step="1" x-model="manual.form.amount"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
-                            placeholder="Ex: 50">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 mb-1">Motivo / Observação</label>
-                        <textarea rows="3" x-model="manual.form.reason"
-                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
-                            placeholder="Ex: Bonificação por meta batida / Ajuste por correção de lançamento"></textarea>
-                    </div>
-
-                    <div x-show="manual.error" x-transition.opacity
-                        class="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-sm text-red-200">
-                        <div class="flex items-start gap-2">
-                            <i data-lucide="alert-triangle" class="w-4 h-4 mt-0.5"></i>
-                            <div x-text="manual.error"></div>
-                        </div>
-                    </div>
-
-                    <div x-show="manual.success" x-transition.opacity
-                        class="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-sm text-green-200">
-                        <div class="flex items-start gap-2">
-                            <i data-lucide="check-circle" class="w-4 h-4 mt-0.5"></i>
-                            <div x-text="manual.success"></div>
-                        </div>
-                    </div>
-
-                    <button type="button" @click="submitManual()" :disabled="manual.saving"
-                        class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-colors"
-                        :class="manual.form.type==='add' ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-900/40' : 'bg-red-600 hover:bg-red-500 disabled:bg-red-900/40'">
-                        <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="manual.saving"></i>
-                        <span
-                            x-text="manual.form.type==='add' ? (manual.saving ? 'Aplicando...' : 'Aplicar bonificação') : (manual.saving ? 'Aplicando...' : 'Aplicar penalidade')"></span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Sync Card -->
-            <div class="bg-slate-800 rounded-2xl border border-slate-700 p-6">
-                <h3 class="font-bold text-white mb-2 flex items-center gap-2">
-                    <i data-lucide="refresh-cw" class="w-5 h-5 text-blue-400"></i>
-                    Sincronização
-                </h3>
-                <p class="text-sm text-slate-400 mb-5">Recalcula transações pendentes para o dia de hoje.</p>
-
-                <button type="button" @click="recalculateToday()" :disabled="syncing"
-                    class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 font-bold text-sm text-white transition-all border border-slate-600">
-                    <i data-lucide="loader-2" class="w-4 h-4 animate-spin" x-show="syncing"></i>
-                    <i data-lucide="zap" class="w-4 h-4 text-yellow-500" x-show="!syncing"></i>
-                    <span x-text="syncing ? 'Sincronizando...' : 'Recalcular XP (Hoje)'"></span>
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+                <button type="button" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" @click="openImportModal()">
+                    <span class="employees-cta__label">Importar ajustes</span>
+                </button>
+                <button type="button" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" @click="openBatchConfirm('approve')">
+                    <span class="employees-cta__label">Aprovar em lote</span>
+                </button>
+                <button type="button" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" @click="openBatchConfirm('reject')">
+                    <span class="employees-cta__label">Rejeitar em lote</span>
+                </button>
+                <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" @click="openCreateModal()">
+                    <span class="employees-cta__label">Novo ajuste</span>
                 </button>
             </div>
+        </div>
+    </div>
 
-            <div class="bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl p-6 shadow-lg text-white">
-                <h3 class="font-bold text-lg mb-2">Dica do Sistema</h3>
-                <p class="text-indigo-100 text-sm leading-relaxed">
-                    Lembre-se de validar as pontuações diariamente para manter o ranking atualizado e a equipe engajada!
-                </p>
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row">
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="isQuickActive('all') ? 'ops-card--selected' : ''" @click="setQuickFilter('all')">
+                <div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Pendentes</span><span class="employees-kpi__value tabular-nums" x-text="stats.total_pending"></span></div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="isQuickActive('today') ? 'ops-card--selected' : ''" @click="setQuickFilter('today')">
+                <div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Hoje</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--blue tabular-nums" x-text="stats.pending_today"></span></div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="isQuickActive('bonus') ? 'ops-card--selected' : ''" @click="setQuickFilter('bonus')">
+                <div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Bonificação</span><span class="employees-kpi__value tabular-nums" x-text="stats.total_bonus"></span></div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="isQuickActive('penalty') ? 'ops-card--selected' : ''" @click="setQuickFilter('penalty')">
+                <div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Penalidade</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums" x-text="stats.total_penalty"></span></div>
+            </button>
+            <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="isQuickActive('critical') ? 'ops-card--selected' : ''" @click="setQuickFilter('critical')">
+                <div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Críticos</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums" x-text="stats.critical_count"></span></div>
+            </button>
+        </div>
+    </div>
+
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner">
+                <div class="employees-filter-bar__primary">
+                    <div class="employees-filter-bar__primary-scroll">
+                        <div class="ops-toolbar-search employees-filter-bar__search">
+                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" class="ops-toolbar-search__input" placeholder="Colaborador, motivo ou data" x-model="searchInput" @input="onSearchInput()">
+                        </div>
+                        <select class="ops-toolbar-control px-3" x-model="filters.type" @change="applyFiltersNow()">
+                            <option value="all">Tipo: Todos</option>
+                            <option value="bonus">Bonificação</option>
+                            <option value="penalty">Penalidade</option>
+                        </select>
+                        <select class="ops-toolbar-control px-3" x-model="filters.status" @change="applyFiltersNow()">
+                            <option value="all">Status: Todos</option>
+                            <option value="pending">Pendentes</option>
+                            <option value="critical">Críticos</option>
+                            <option value="today">Hoje</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider"></div>
+                <div class="employees-filter-bar__secondary">
+                    <button type="button" class="ops-toolbar-ghost-btn employees-filter-bar__btn" @click="clearFilters()">Limpar filtros</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Fila de validação</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Transações pendentes</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Selecione múltiplos itens para ações em lote. No mobile, cada linha vira card com botões rápidos.</p>
+            </div>
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span x-text="visibleRows.length + ' de ' + filteredRows.length + ' exibidos'"></span>
             </div>
         </div>
 
-    </main>
+        <template x-if="loading"><p class="sys-empty-state m-0 p-6">Carregando transações...</p></template>
+        <template x-if="!loading && rows.length === 0"><p class="sys-empty-state m-0 p-6">Não há pendências no momento.</p></template>
+        <template x-if="!loading && rows.length > 0 && filteredRows.length === 0"><p class="sys-empty-state m-0 p-6">Nenhum resultado encontrado para os filtros aplicados.</p></template>
+        <template x-if="error"><p class="sys-alert sys-alert--danger m-4" x-text="error"></p></template>
+
+        <div class="sys-table-wrap sys-table-wrap--x-scroll" x-show="filteredRows.length > 0">
+            <table id="gameTable" class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-3 py-2 pl-5"><input type="checkbox" @change="toggleSelectAll($event.target.checked)" :checked="isAllVisibleSelected()"></th>
+                        <th class="employees-data-table__th px-2 py-2">Colaborador</th>
+                        <th class="employees-data-table__th px-2 py-2">Motivo</th>
+                        <th class="employees-data-table__th px-2 py-2">Data</th>
+                        <th class="employees-data-table__th px-2 py-2">Tipo</th>
+                        <th class="employees-data-table__th px-2 py-2">Status</th>
+                        <th class="employees-data-table__th px-2 py-2">XP</th>
+                        <th class="employees-data-table__th px-2 py-2">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y">
+                    <template x-for="row in visibleRows" :key="row.id">
+                        <tr class="employees-data-table__row game-row" :data-id="row.id" :data-selectable="1">
+                            <td class="px-3 py-2 pl-5" data-label="Seleção"><input type="checkbox" :checked="selected.has(row.id)" @change="toggleSelect(row.id, $event.target.checked)"></td>
+                            <td class="employees-data-table__cell px-2 py-2" data-label="Colaborador"><span class="employees-data-table__name-link" x-text="row.employee_name"></span></td>
+                            <td class="employees-data-table__cell px-2 py-2" data-label="Motivo"><span class="truncate block max-w-[22rem]" :title="row.reason" x-text="row.reason"></span></td>
+                            <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2" data-label="Data" x-text="row.date"></td>
+                            <td class="px-2 py-2" data-label="Tipo"><span class="sys-badge" :class="row.amount >= 0 ? 'sys-badge--ok' : 'sys-badge--alert'" x-text="row.amount >= 0 ? 'Bonificação' : 'Penalidade'"></span></td>
+                            <td class="px-2 py-2" data-label="Status">
+                                <span class="sys-badge sys-badge--info" x-show="!row.is_critical && !row.is_today">Pendente</span>
+                                <span class="sys-badge sys-badge--alert" x-show="row.is_today">Hoje</span>
+                                <span class="sys-badge sys-badge--critical" x-show="row.is_critical">Crítico</span>
+                            </td>
+                            <td class="employees-data-table__cell px-2 py-2 font-semibold tabular-nums" data-label="XP" x-text="(row.amount > 0 ? '+' : '') + row.amount"></td>
+                            <td class="employee-actions-cell px-2 py-2" data-label="Ações">
+                                <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1" :data-id="row.id">
+                                    <button type="button" class="employee-action-btn employee-action-btn--edit" data-action="edit" :data-id="row.id" title="Editar">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                    </button>
+                                    <button type="button" class="employee-action-btn employee-action-btn--return" data-action="approve" :data-id="row.id" title="Aprovar">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    </button>
+                                    <button type="button" class="employee-action-btn employee-action-btn--fire" data-action="reject" :data-id="row.id" title="Rejeitar">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="border-t px-4 py-3 sm:px-6 flex items-center justify-between" x-show="filteredRows.length > visibleRows.length">
+            <p class="text-xs text-slate-500">Carregamento incremental ativo</p>
+            <button type="button" class="sys-btn sys-btn--secondary" @click="loadMore()">Carregar mais</button>
+        </div>
+    </div>
+
+    <div id="game-create-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg">
+            <div class="mb-4 flex items-center justify-between"><h3 class="sys-section-heading text-lg">Novo ajuste de XP</h3><button type="button" class="emp-modal-close" @click="closeCreateModal()">✕</button></div>
+            <form class="space-y-3" @submit.prevent="submitCreate()">
+                <div><label class="sys-section__label sys-section__label--field">Colaborador</label><select class="sys-select w-full" x-model.number="createForm.employee_id" required><option value="0">Selecione...</option><template x-for="e in employees" :key="e.id"><option :value="e.id" x-text="e.name"></option></template></select></div>
+                <div class="grid gap-3 sm:grid-cols-2"><div><label class="sys-section__label sys-section__label--field">Tipo</label><select class="sys-select w-full" x-model="createForm.type"><option value="add">Bonificação</option><option value="remove">Penalidade</option></select></div><div><label class="sys-section__label sys-section__label--field">Quantidade XP</label><input class="sys-input w-full" type="number" min="1" x-model.number="createForm.amount" required></div></div>
+                <div><label class="sys-section__label sys-section__label--field">Motivo</label><textarea class="sys-input w-full min-h-[96px]" x-model.trim="createForm.reason" required></textarea></div>
+                <p class="sys-alert sys-alert--danger m-0" x-show="createError" x-text="createError"></p>
+                <div class="flex justify-end gap-2"><button type="button" class="sys-btn sys-btn--secondary" @click="closeCreateModal()">Cancelar</button><button type="submit" class="sys-btn sys-btn--primary" :disabled="savingCreate" x-text="savingCreate ? 'Salvando...' : 'Salvar'"></button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="game-edit-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg">
+            <div class="mb-4 flex items-center justify-between"><h3 class="sys-section-heading text-lg">Editar pendência</h3><button type="button" class="emp-modal-close" @click="closeEditModal()">✕</button></div>
+            <form class="space-y-3" @submit.prevent="submitEdit()">
+                <div><label class="sys-section__label sys-section__label--field">Colaborador</label><select class="sys-select w-full" x-model.number="editForm.employee_id" required><option value="0">Selecione...</option><template x-for="e in employees" :key="e.id"><option :value="e.id" x-text="e.name"></option></template></select></div>
+                <div class="grid gap-3 sm:grid-cols-2"><div><label class="sys-section__label sys-section__label--field">Quantidade XP</label><input class="sys-input w-full" type="number" x-model.number="editForm.amount" required></div><div><label class="sys-section__label sys-section__label--field">Status esperado</label><input class="sys-input w-full" type="text" value="Pendente" disabled></div></div>
+                <div><label class="sys-section__label sys-section__label--field">Motivo</label><textarea class="sys-input w-full min-h-[96px]" x-model.trim="editForm.reason" required></textarea></div>
+                <p class="sys-alert sys-alert--danger m-0" x-show="editError" x-text="editError"></p>
+                <div class="flex justify-end gap-2"><button type="button" class="sys-btn sys-btn--secondary" @click="closeEditModal()">Cancelar</button><button type="submit" class="sys-btn sys-btn--primary" :disabled="savingEdit" x-text="savingEdit ? 'Salvando...' : 'Salvar alterações'"></button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="game-import-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-2xl">
+            <div class="mb-4 flex items-center justify-between"><h3 class="sys-section-heading text-lg">Importar ajustes em lote</h3><button type="button" class="emp-modal-close" @click="closeImportModal()">✕</button></div>
+            <form class="space-y-3" @submit.prevent="submitImport()">
+                <p class="text-xs text-slate-500">Formato CSV: <code>employee_id,amount,reason,status</code>. Status opcional (padrão: provisional).</p>
+                <textarea class="sys-input w-full min-h-[220px] font-mono text-xs" x-model="importForm.raw" placeholder="12,50,Bônus por meta,provisional&#10;31,-20,Penalidade por retrabalho,provisional"></textarea>
+                <p class="sys-alert sys-alert--danger m-0" x-show="importError" x-text="importError"></p>
+                <p class="sys-alert sys-alert--success m-0" x-show="importSuccess" x-text="importSuccess"></p>
+                <div class="flex justify-end gap-2"><button type="button" class="sys-btn sys-btn--secondary" @click="closeImportModal()">Fechar</button><button type="submit" class="sys-btn sys-btn--primary" :disabled="importing" x-text="importing ? 'Importando...' : 'Importar'"></button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="game-confirm-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+            <h3 class="sys-section-heading text-lg" x-text="confirm.title"></h3>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-300" x-text="confirm.description"></p>
+            <div class="mt-5 flex justify-end gap-2"><button type="button" class="sys-btn sys-btn--secondary" @click="closeConfirm()">Cancelar</button><button type="button" class="sys-btn" :class="confirm.action === 'reject' ? 'sys-btn--secondary text-red-700 dark:text-red-300' : 'sys-btn--primary'" @click="executeConfirm()">Confirmar</button></div>
+        </div>
+    </div>
 </div>
+{% endblock %}
 
-<script>
-    lucide.createIcons();
-    function gameMaster() {
-        return {
-            manual: {
-                employees: [],
-                saving: false,
-                error: '',
-                success: '',
-                form: {
-                    type: 'add',
-                    employee_id: 0,
-                    amount: '',
-                    reason: ''
-                }
-            },
-            syncing: false,
-
-            init() {
-                this.loadEmployees();
-            },
-
-            approve(id) {
-                this.sendAction(id, 'approve');
-            },
-            reject(id) {
-                this.sendAction(id, 'reject');
-            },
-
-            async loadEmployees() {
-                try {
-                    const res = await fetch('/api/employees');
-                    const data = await res.json();
-                    // Esperado: { employees: [{id, name}, ...] }
-                    this.manual.employees = (data && (data.employees || data.data || data)) || [];
-                } catch (e) {
-                    // Se não existir endpoint ainda, evita quebrar a página
-                    this.manual.employees = [];
-                } finally {
-                    this.$nextTick(() => lucide.createIcons());
-                }
-            },
-
-            validateManual() {
-                this.manual.error = '';
-                this.manual.success = '';
-
-                const employee_id = Number(this.manual.form.employee_id);
-                const amount = Number(this.manual.form.amount);
-                const reason = (this.manual.form.reason || '').trim();
-
-                if (!Number.isFinite(employee_id) || employee_id <= 0) {
-                    return 'Selecione um colaborador.';
-                }
-                if (!Number.isFinite(amount) || amount <= 0) {
-                    return 'Informe uma quantidade válida (maior que 0).';
-                }
-                if (!reason) {
-                    return 'Informe o motivo/observação.';
-                }
-                return '';
-            },
-
-            async submitManual() {
-                const v = this.validateManual();
-                if (v) {
-                    this.manual.error = v;
-                    this.$nextTick(() => lucide.createIcons());
-                    return;
-                }
-
-                this.manual.saving = true;
-                this.manual.error = '';
-                this.manual.success = '';
-
-                let amount = parseInt(this.manual.form.amount, 10);
-                if (this.manual.form.type === 'remove') {
-                    amount = -Math.abs(amount);
-                }
-
-                try {
-                    const res = await fetch('/api/game/manual-xp', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            employee_id: Number(this.manual.form.employee_id),
-                            amount,
-                            reason: (this.manual.form.reason || '').trim(),
-                            status: 'confirmed'
-                        })
-                    });
-
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok || !data.success) {
-                        this.manual.error = (data && data.error) ? data.error : 'Falha ao criar transação.';
-                        this.$nextTick(() => lucide.createIcons());
-                        return;
-                    }
-
-                    this.manual.success = 'Ajuste aplicado com sucesso!';
-                    this.manual.form.amount = '';
-                    this.manual.form.reason = '';
-
-                    // Atualiza lista de pendências/histórico sem depender de reload total
-                    setTimeout(() => window.location.reload(), 500);
-                } catch (e) {
-                    this.manual.error = 'Erro de conexão.';
-                } finally {
-                    this.manual.saving = false;
-                    this.$nextTick(() => lucide.createIcons());
-                }
-            },
-
-            async recalculateToday() {
-                this.syncing = true;
-                const today = new Date().toISOString().split('T')[0];
-                try {
-                    const res = await fetch(`/api/game/recalculate-all/${today}`, { method: 'POST' });
-                    const data = await res.json();
-                    if (data.success) {
-                        alert('XP recalculado com sucesso! ' + (data.processed || 0) + ' transações processadas.');
-                        window.location.reload();
-                    } else {
-                        alert('Erro ao recalcular: ' + (data.error || 'Erro desconhecido'));
-                    }
-                } catch (e) {
-                    alert('Erro de conexão ao sincronizar.');
-                } finally {
-                    this.syncing = false;
-                    this.$nextTick(() => lucide.createIcons());
-                }
-            },
-
-            sendAction(id, action) {
-                fetch(`/api/game/transaction/${id}/${action}`, { method: 'POST' })
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.success) {
-                            const el = document.getElementById(`tx-row-${id}`);
-                            el.style.height = el.offsetHeight + 'px';
-                            el.style.opacity = '0';
-                            el.style.transform = 'translateX(20px)';
-                            setTimeout(() => {
-                                el.style.height = '0px';
-                                el.style.padding = '0px';
-                                el.style.margin = '0px';
-                                el.style.border = 'none';
-                            }, 300);
-                            setTimeout(() => el.remove(), 600);
-                        } else {
-                            alert('Erro ao processar');
-                        }
-                    });
-            }
-        }
-    }
-</script>
-
-<!-- Mobile CSS -->
-<style>
-    .touch-target {
-        min-height: 44px;
-        min-width: 44px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .no-scrollbar::-webkit-scrollbar {
-        display: none;
-    }
-
-    .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
-</style>
+{% block body_scripts %}
+<script id="game-pending-data" type="application/json">{{ pending_txs|tojson }}</script>
+<script id="game-stats-data" type="application/json">{{ stats|tojson }}</script>
+<script src="/static/js/pages/admin-game-page.js"></script>
 {% endblock %}

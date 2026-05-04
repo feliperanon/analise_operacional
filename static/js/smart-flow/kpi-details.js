@@ -63,6 +63,29 @@ const KPIDetails = {
             });
             title = 'Colaboradores em Falta';
             color = 'rose';
+        } else if (type === 'unavailable') {
+            const allShift = employees.filter(e => {
+                const empShift = e.work_shift ?? e.shift ?? null;
+                if (!empShift) return false;
+                return empShift.toLowerCase() === currentShift.toLowerCase();
+            });
+            filtered = allShift.filter(e => {
+                const st = (e.status || 'active').toLowerCase();
+                if (st === 'fired' || st === 'demitido') return false;
+                const routine = routines[e.id];
+                const normalized = routine ? String(routine).toLowerCase() : null;
+                if (normalized === 'dayoff' || normalized === 'folga') return true;
+                if (normalized === 'absent' || normalized === 'falta') return true;
+                if (normalized === 'sick' || normalized === 'atestado') return true;
+                if (normalized === 'vacation' || normalized === 'férias' || normalized === 'ferias') return true;
+                if (normalized === 'away' || normalized === 'afastado') return true;
+                if (st === 'vacation' || st === 'férias' || st === 'ferias') return true;
+                if (st === 'away' || st === 'afastado') return true;
+                if (st === 'sick' || st === 'atestado') return true;
+                return false;
+            });
+            title = 'Indisponíveis no turno';
+            color = 'amber';
         } else if (type === 'gap') {
             // Buscar TODOS os colaboradores do turno (incluindo demitidos)
             const allShiftEmps = Store.state.employees.filter(e => {
@@ -92,15 +115,15 @@ const KPIDetails = {
         modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm';
 
         modal.innerHTML = `
-            <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col m-4">
+            <div class="sys-card sys-card--surface m-4 flex w-full max-w-2xl max-h-[80vh] flex-col overflow-hidden shadow-xl border border-slate-200/80 dark:border-slate-700">
                 
                 <!-- Header -->
-                <div class="flex items-center justify-between p-6 border-b border-slate-700 bg-slate-900/50">
+                <div class="flex items-center justify-between border-b border-slate-200/80 bg-slate-50/80 p-5 dark:border-slate-700 dark:bg-slate-800/50">
                     <div>
-                        <h2 class="text-2xl font-bold text-white">${title}</h2>
-                        <p class="text-sm text-slate-400">${shift} • ${date} • ${employees.length} colaborador${employees.length !== 1 ? 'es' : ''}</p>
+                        <h2 class="text-xl font-bold text-slate-900 dark:text-white">${title}</h2>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">${shift} • ${date} • ${employees.length} colaborador${employees.length !== 1 ? 'es' : ''}</p>
                     </div>
-                    <button onclick="KPIDetails.close()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700 transition">
+                    <button type="button" onclick="KPIDetails.close()" class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-700 dark:hover:text-white">
                         <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
@@ -108,10 +131,10 @@ const KPIDetails = {
                 </div>
 
                 <!-- Content -->
-                <div class="flex-1 overflow-y-auto p-6">
+                <div class="flex-1 overflow-y-auto p-5">
                     ${employees.length === 0 ? `
-                        <div class="text-center py-12">
-                            <p class="text-slate-500">Nenhum colaborador encontrado</p>
+                        <div class="sys-empty-state py-10 text-center">
+                            <p class="text-sm text-slate-600 dark:text-slate-300">Nenhum colaborador encontrado</p>
                         </div>
                     ` : `
                         <div class="space-y-2">
@@ -136,14 +159,14 @@ const KPIDetails = {
             const statusText = statusMap[statusLower] || emp.status || 'Ativo';
 
             return `
-                                <div class="bg-slate-900 rounded-lg p-4 border border-slate-700 hover:border-${color}-500 transition">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex-1">
-                                            <p class="text-sm font-bold text-white">${(emp.name || '').toUpperCase()}</p>
-                                            <p class="text-xs text-slate-400">${emp.role || 'Sem cargo'} • ID: ${emp.id}</p>
+                                <div class="rounded-lg border border-slate-200/80 bg-white p-3 transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800/40">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">${(emp.name || '').toUpperCase()}</p>
+                                            <p class="text-xs text-slate-500">${emp.role || 'Sem cargo'} • Mat.: ${emp.id}</p>
                                         </div>
-                                        <div class="text-right">
-                                            <span class="px-2 py-1 rounded-full text-xs font-bold bg-${color}-600/20 text-${color}-400">
+                                        <div class="shrink-0 text-right">
+                                            <span class="sys-badge inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                                                 ${statusText}
                                             </span>
                                         </div>
@@ -155,8 +178,8 @@ const KPIDetails = {
                 </div>
 
                 <!-- Footer -->
-                <div class="p-4 border-t border-slate-700 bg-slate-900/50 flex justify-end">
-                    <button onclick="KPIDetails.close()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition text-sm font-bold">
+                <div class="flex justify-end border-t border-slate-200/80 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/30">
+                    <button type="button" onclick="KPIDetails.close()" class="sys-btn sys-btn--secondary text-sm">
                         Fechar
                     </button>
                 </div>

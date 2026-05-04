@@ -1,298 +1,261 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
 
-{% macro tone_classes(tone) -%}
-    {%- if tone == "emerald" -%}border-emerald-400/40 bg-emerald-500/15 text-emerald-200
-    {%- elif tone == "amber" -%}border-amber-400/40 bg-amber-500/15 text-amber-200
-    {%- elif tone == "rose" -%}border-rose-400/40 bg-rose-500/15 text-rose-200
-    {%- elif tone == "violet" -%}border-violet-400/40 bg-violet-500/15 text-violet-200
-    {%- elif tone == "sky" -%}border-sky-400/40 bg-sky-500/15 text-sky-200
-    {%- else -%}border-slate-500/30 bg-slate-800/50 text-slate-300
-    {%- endif -%}
-{%- endmacro %}
+{% block html_class_extra %} ga-gamification-delivery-html{% endblock %}
+{% block title %}Gamificação de Entregas · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / BI & Métricas / Gamificação de Entregas</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Gamificação de Entregas</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Painel operacional de devolução, produtividade e premiação por colaborador</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/delivery-gamification.css">
+<script src="/static/js/pages/delivery-gamification-page.js" defer></script>
+{% endblock %}
 
 {% block content %}
-<style>
-    .gami-page { background: linear-gradient(165deg, #0c1222 0%, #0f172a 50%, #020617 100%); min-height: 100vh; }
-    .gami-pill { @apply rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider; }
-    .gami-tab { @apply rounded-xl px-4 py-2.5 text-sm font-semibold transition-all; }
-    .gami-tab.active { @apply bg-sky-500/20 text-sky-200 border border-sky-400/40; }
-    .gami-tab:not(.active) { @apply text-slate-400 hover:text-slate-200 border border-transparent; }
-    .rank-row:hover { background: rgba(56, 189, 248, 0.06); }
-    .medal-1 { color: #fbbf24; text-shadow: 0 0 12px rgba(251,191,36,0.4); }
-    .medal-2 { color: #94a3b8; text-shadow: 0 0 12px rgba(148,163,184,0.4); }
-    .medal-3 { color: #f97316; text-shadow: 0 0 12px rgba(249,115,22,0.4); }
-</style>
+{% set _filters = filters or {} %}
+{% set _summary = summary or {} %}
+{% set _driver = driver_rows or [] %}
+{% set _helper = helper_rows or [] %}
+{% set _team = team_rows or [] %}
+{% set _productivity = productivity_rows or [] %}
+{% set _has_rows = (_driver|length + _helper|length + _team|length + _productivity|length) > 0 %}
 
-<div class="gami-page text-slate-100">
-    <div class="mx-auto max-w-6xl px-4 py-6 md:px-6">
-        <!-- Header compacto -->
-        <header class="mb-6">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-2xl">🏆</span>
-                        <h1 class="text-xl font-bold text-white md:text-2xl">Ranking de Entregas</h1>
-                    </div>
-                    <p class="text-xs text-slate-400">{{ period_label }} · {{ filters.cost_center }}</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <a href="/bi/motorista" class="gami-pill border-slate-600 bg-slate-800/60 text-slate-300 hover:bg-slate-700/60">BI Motorista</a>
-                    <a href="/operations/performance" class="gami-pill bg-gradient-to-r from-sky-500/30 to-emerald-500/30 text-sky-200 border-sky-400/30">Avaliação</a>
-                </div>
-            </div>
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium gamification-delivery-page space-y-5 pt-2 md:pt-3" data-page="delivery-gamification">
+  <div id="page-alert" class="hidden"></div>
 
-            <form method="get" action="/gamificacao/entregas" class="mt-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-700/60 bg-slate-900/40 p-3">
-                <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold uppercase text-slate-500">Data</label>
-                    <input type="date" name="date" value="{{ filters.date }}" class="rounded-lg border border-slate-600 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-sky-500/50 focus:outline-none">
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold uppercase text-slate-500">Período</label>
-                    <select name="period" class="rounded-lg border border-slate-600 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-sky-500/50 focus:outline-none">
-                        <option value="daily" {{ 'selected' if filters.period == 'daily' else '' }}>Diário</option>
-                        <option value="weekly" {{ 'selected' if filters.period == 'weekly' else '' }}>7 dias</option>
-                        <option value="monthly" {{ 'selected' if filters.period == 'monthly' else '' }}>Mês</option>
-                    </select>
-                </div>
-                <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-bold uppercase text-slate-500">Empresa</label>
-                    <select name="cost_center" class="rounded-lg border border-slate-600 bg-slate-950/80 px-3 py-2 text-sm text-white focus:border-sky-500/50 focus:outline-none">
-                        {% for opt in cost_center_options %}
-                        <option value="{{ opt }}" {{ 'selected' if filters.cost_center == opt else '' }}>{{ opt }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="submit" class="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-400">Aplicar</button>
-                <a href="/gamificacao/entregas" class="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:border-slate-500">Limpar</a>
-            </form>
-        </header>
-
-        <!-- KPIs em linha -->
-        <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <div class="rounded-xl border border-slate-700/50 bg-slate-900/30 px-4 py-3">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Avaliados</p>
-                <p class="text-xl font-bold text-white">{{ summary.collaborators_count|fmt_br_int }}</p>
-            </div>
-            <div class="rounded-xl border border-slate-700/50 bg-slate-900/30 px-4 py-3">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Na meta</p>
-                <p class="text-xl font-bold text-emerald-400">{{ summary.within_target_count|fmt_br_int }}</p>
-            </div>
-            <div class="rounded-xl border border-slate-700/50 bg-slate-900/30 px-4 py-3">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Dev. global</p>
-                <p class="text-xl font-bold {{ 'text-emerald-400' if (summary.global_return_rate_pct or 0)|float <= (meta_pct or 99)|float else 'text-rose-400' }}">{{ summary.global_return_rate_pct|fmt_br_2 }}%</p>
-            </div>
-            <div class="rounded-xl border border-slate-700/50 bg-slate-900/30 px-4 py-3">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Produtividade</p>
-                <p class="text-xl font-bold text-sky-300">{{ summary.avg_kgh|fmt_br }} kg/h</p>
-            </div>
-            <div class="rounded-xl border border-slate-700/50 bg-slate-900/30 px-4 py-3">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Prêmio proj.</p>
-                <p class="text-xl font-bold text-amber-300">R$ {{ summary.projected_total_payout|fmt_br_2 }}</p>
-            </div>
-            <div class="rounded-xl border border-slate-700/50 bg-slate-900/30 px-4 py-3">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Rotas</p>
-                <p class="text-xl font-bold text-slate-200">{{ summary.total_routes|fmt_br_int }}</p>
-            </div>
+  <section class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
         </div>
-
-        <!-- Pódio gamificado -->
-        <section id="podio" class="mb-6">
-            <div class="rounded-2xl border border-slate-700/60 bg-slate-900/40 p-5">
-                <div class="mb-4 flex items-center justify-between">
-                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span>🥇</span> Top 3 · Meta {{ meta_pct|fmt_br_2 }}%
-                    </h2>
-                    <a href="#rankings" class="text-xs text-sky-400 hover:text-sky-300">Ver ranking completo ↓</a>
-                </div>
-                <div class="grid gap-4 sm:grid-cols-3">
-                    {% for row in podium_rows %}
-                    <div class="rounded-xl border border-slate-600/60 bg-gradient-to-b from-slate-800/80 to-slate-900/80 p-4 {{ 'ring-1 ring-amber-400/30' if loop.index == 1 else 'ring-1 ring-slate-400/20' if loop.index == 2 else 'ring-1 ring-orange-400/30' }}">
-                        <div class="flex items-center gap-3">
-                            <span class="text-3xl font-black {{ 'medal-1' if loop.index == 1 else 'medal-2' if loop.index == 2 else 'medal-3' }}">{{ loop.index }}º</span>
-                            <div class="min-w-0 flex-1">
-                                <p class="font-bold text-white truncate">{{ row.name }}</p>
-                                <p class="text-xs text-slate-400">{{ row.role_label }}</p>
-                            </div>
-                            <span class="gami-pill {{ tone_classes(row.status_tone) }}">{{ row.status_label }}</span>
-                        </div>
-                        <div class="mt-3 flex justify-between text-sm">
-                            <div>
-                                <p class="text-[10px] text-slate-500">Devolução</p>
-                                <p class="font-bold {{ 'text-emerald-400' if row.within_target else 'text-rose-400' }}">{{ row.return_rate_pct|fmt_br_2 }}%</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-[10px] text-slate-500">Prêmio</p>
-                                <p class="font-bold text-amber-300">R$ {{ row.estimated_payout|fmt_br_2 }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    {% else %}
-                    <div class="sm:col-span-3 rounded-xl border border-slate-700 bg-slate-900/50 p-6 text-center text-sm text-slate-400">
-                        Sem dados suficientes para o pódio no período.
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </section>
-
-        <!-- Cards compactos: Blindagem + Atenção -->
-        <section class="mb-6 grid gap-4 sm:grid-cols-2">
-            <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
-                <h3 class="text-sm font-bold text-emerald-200 mb-3">🛡️ Zero devolução (destaque)</h3>
-                <div class="space-y-2 max-h-32 overflow-y-auto">
-                    {% for row in guardians_rows %}
-                    <div class="flex justify-between rounded-lg bg-slate-900/40 px-3 py-2 text-sm">
-                        <span class="font-medium text-white truncate">{{ row.name }}</span>
-                        <span class="text-emerald-300 shrink-0">R$ {{ row.estimated_payout|fmt_br_2 }}</span>
-                    </div>
-                    {% else %}
-                    <p class="text-xs text-slate-500">Nenhum no recorte.</p>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
-                <h3 class="text-sm font-bold text-rose-200 mb-3">⚠️ Acima da meta</h3>
-                <div class="space-y-2 max-h-32 overflow-y-auto">
-                    {% for row in risk_rows %}
-                    <div class="flex justify-between rounded-lg bg-slate-900/40 px-3 py-2 text-sm">
-                        <span class="font-medium text-white truncate">{{ row.name }}</span>
-                        <span class="text-rose-300 font-mono">{{ row.return_rate_pct|fmt_br_2 }}%</span>
-                    </div>
-                    {% else %}
-                    <p class="text-xs text-emerald-400">Todos na meta!</p>
-                    {% endfor %}
-                </div>
-            </div>
-        </section>
-
-        <!-- Tabs + Rankings -->
-        <section id="rankings" class="rounded-2xl border border-slate-700/60 bg-slate-900/40 overflow-hidden">
-            <div class="border-b border-slate-700/60 p-3">
-                <div class="flex flex-wrap gap-2">
-                    <button type="button" data-tab="motoristas" class="gami-tab active">Motoristas</button>
-                    <button type="button" data-tab="ajudantes" class="gami-tab">Ajudantes</button>
-                    <button type="button" data-tab="consolidado" class="gami-tab">Consolidado</button>
-                    <button type="button" data-tab="produtividade" class="gami-tab">Produtividade</button>
-                </div>
-                <label class="mt-3 flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-950/60 px-3 py-2 max-w-xs">
-                    <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                    <input id="gami-search" type="text" placeholder="Buscar nome ou empresa..." class="flex-1 bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none">
-                </label>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full min-w-[900px] text-sm">
-                    <thead class="bg-slate-950/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        <tr>
-                            <th class="px-3 py-3 text-left">#</th>
-                            <th class="px-3 py-3 text-left">Nome</th>
-                            <th class="px-3 py-3 text-left">Empresa</th>
-                            <th class="px-3 py-3 text-right">Dev.</th>
-                            <th class="px-3 py-3 text-right">Valor dev.</th>
-                            <th class="px-3 py-3 text-right">Rotas</th>
-                            <th class="px-3 py-3 text-right">Prod.</th>
-                            <th class="px-3 py-3 text-right">Prêmio</th>
-                            <th class="px-3 py-3 text-left">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="rank-tbody" class="text-slate-200">
-                        {% for row in driver_rows %}
-                        <tr class="rank-row border-t border-slate-700/50 tab-row tab-motoristas" data-search="{{ (row.name ~ ' ' ~ row.cost_center)|lower }}">
-                            <td class="px-3 py-2.5 font-bold {{ 'text-amber-400' if row.return_rank == 1 else 'text-slate-400' if row.return_rank == 2 else 'text-orange-400' if row.return_rank == 3 else 'text-slate-500' }}">{{ row.return_rank }}</td>
-                            <td class="px-3 py-2.5 font-medium text-white">{{ row.name }}</td>
-                            <td class="px-3 py-2.5 text-slate-400">{{ row.cost_center }}</td>
-                            <td class="px-3 py-2.5 text-right font-mono {{ 'text-emerald-400' if row.within_target else 'text-rose-400' }}">{{ row.return_rate_pct|fmt_br_2 }}%</td>
-                            <td class="px-3 py-2.5 text-right">R$ {{ row.returned_value|fmt_br_2 }}</td>
-                            <td class="px-3 py-2.5 text-right">{{ row.route_count }}</td>
-                            <td class="px-3 py-2.5 text-right">{{ row.kgh|fmt_br }} kg/h</td>
-                            <td class="px-3 py-2.5 text-right font-bold text-amber-300">R$ {{ row.estimated_payout|fmt_br_2 }}</td>
-                            <td class="px-3 py-2.5"><span class="gami-pill {{ tone_classes(row.status_tone) }}">{{ row.status_label }}</span></td>
-                        </tr>
-                        {% endfor %}
-                        {% for row in helper_rows %}
-                        <tr class="rank-row border-t border-slate-700/50 tab-row tab-ajudantes hidden" data-search="{{ (row.name ~ ' ' ~ row.cost_center)|lower }}">
-                            <td class="px-3 py-2.5 font-bold {{ 'text-amber-400' if row.return_rank == 1 else 'text-slate-400' if row.return_rank == 2 else 'text-orange-400' if row.return_rank == 3 else 'text-slate-500' }}">{{ row.return_rank }}</td>
-                            <td class="px-3 py-2.5 font-medium text-white">{{ row.name }}</td>
-                            <td class="px-3 py-2.5 text-slate-400">{{ row.cost_center }}</td>
-                            <td class="px-3 py-2.5 text-right font-mono {{ 'text-emerald-400' if row.within_target else 'text-rose-400' }}">{{ row.return_rate_pct|fmt_br_2 }}%</td>
-                            <td class="px-3 py-2.5 text-right">R$ {{ row.returned_value|fmt_br_2 }}</td>
-                            <td class="px-3 py-2.5 text-right">{{ row.route_count }}</td>
-                            <td class="px-3 py-2.5 text-right">{{ row.kgh|fmt_br }} kg/h</td>
-                            <td class="px-3 py-2.5 text-right font-bold text-amber-300">R$ {{ row.estimated_payout|fmt_br_2 }}</td>
-                            <td class="px-3 py-2.5"><span class="gami-pill {{ tone_classes(row.status_tone) }}">{{ row.status_label }}</span></td>
-                        </tr>
-                        {% endfor %}
-                        {% for row in team_rows %}
-                        <tr class="rank-row border-t border-slate-700/50 tab-row tab-consolidado hidden" data-search="{{ (row.name ~ ' ' ~ row.cost_center ~ ' ' ~ row.role_label)|lower }}">
-                            <td class="px-3 py-2.5 font-bold {{ 'text-amber-400' if row.return_rank == 1 else 'text-slate-400' if row.return_rank == 2 else 'text-orange-400' if row.return_rank == 3 else 'text-slate-500' }}">{{ row.return_rank }}</td>
-                            <td class="px-3 py-2.5"><span class="font-medium text-white">{{ row.name }}</span><span class="ml-1 text-xs text-slate-500">({{ row.role_label }})</span></td>
-                            <td class="px-3 py-2.5 text-slate-400">{{ row.cost_center }}</td>
-                            <td class="px-3 py-2.5 text-right font-mono {{ 'text-emerald-400' if row.within_target else 'text-rose-400' }}">{{ row.return_rate_pct|fmt_br_2 }}%</td>
-                            <td class="px-3 py-2.5 text-right">R$ {{ row.returned_value|fmt_br_2 }}</td>
-                            <td class="px-3 py-2.5 text-right">{{ row.route_count }}</td>
-                            <td class="px-3 py-2.5 text-right">{{ row.kgh|fmt_br }} kg/h</td>
-                            <td class="px-3 py-2.5 text-right font-bold text-amber-300">R$ {{ row.estimated_payout|fmt_br_2 }}</td>
-                            <td class="px-3 py-2.5"><span class="gami-pill {{ tone_classes(row.status_tone) }}">{{ row.status_label }}</span></td>
-                        </tr>
-                        {% endfor %}
-                        {% for row in productivity_rows %}
-                        <tr class="rank-row border-t border-slate-700/50 tab-row tab-produtividade hidden" data-search="{{ (row.name ~ ' ' ~ row.cost_center)|lower }}">
-                            <td class="px-3 py-2.5 font-bold {{ 'text-amber-400' if row.productivity_rank == 1 else 'text-slate-400' if row.productivity_rank == 2 else 'text-orange-400' if row.productivity_rank == 3 else 'text-slate-500' }}">{{ row.productivity_rank }}</td>
-                            <td class="px-3 py-2.5"><span class="font-medium text-white">{{ row.name }}</span><span class="ml-1 text-xs text-slate-500">({{ row.role_label }})</span></td>
-                            <td class="px-3 py-2.5 text-slate-400">{{ row.cost_center }}</td>
-                            <td class="px-3 py-2.5 text-right font-mono {{ 'text-emerald-400' if row.within_target else 'text-rose-400' }}">{{ row.return_rate_pct|fmt_br_2 }}%</td>
-                            <td class="px-3 py-2.5 text-right">R$ {{ row.returned_value|fmt_br_2 }}</td>
-                            <td class="px-3 py-2.5 text-right">{{ row.route_count }}</td>
-                            <td class="px-3 py-2.5 text-right font-mono text-sky-300 font-bold">{{ row.kgh|fmt_br }} kg/h</td>
-                            <td class="px-3 py-2.5 text-right font-bold text-amber-300">R$ {{ row.estimated_payout|fmt_br_2 }}</td>
-                            <td class="px-3 py-2.5"><span class="gami-pill {{ tone_classes(row.status_tone) }}">{{ row.status_label }}</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Regras colapsáveis -->
-            <details class="border-t border-slate-700/60">
-                <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-400 hover:text-slate-200">Ver regras de prêmio (Premiação de Devolução)</summary>
-                <div class="space-y-2 px-4 pb-4 text-sm text-slate-300">
-                    {% for tier in prize_rules.devolucao %}
-                    <p>{{ tier.label }} = R$ {{ tier.prize|fmt_br_2 }}</p>
-                    {% endfor %}
-                </div>
-            </details>
-        </section>
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Painel operacional</span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Ranking e gestão de entregas</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">Visão rápida para acompanhar devolução, identificar críticos e executar ações em lote com fluidez.</p>
+          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5"><span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>{{ _summary.get('within_target_count', 0) }} na meta</span>
+            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ period_label }}</span>
+            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">{{ _filters.get('cost_center', 'Todos') }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <button type="button" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" data-open-modal="importModal"><span class="employees-cta__label">Importar</span></button>
+        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" data-open-modal="createModal"><span class="employees-cta__label">Nova entrega</span></button>
+      </div>
     </div>
+  </section>
+
+  <section class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de entregas">
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive ops-card--selected" data-kpi-filter="all"><span class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Colaboradores</span><span class="employees-kpi__value tabular-nums">{{ _summary.get('collaborators_count', 0) }}</span></span></button>
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" data-kpi-filter="within"><span class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Na meta</span><span class="employees-kpi__value tabular-nums">{{ _summary.get('within_target_count', 0) }}</span></span></button>
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" data-kpi-filter="critical"><span class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-rose-600 dark:text-rose-300">Críticos</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ _summary.get('outside_target_count', 0) }}</span></span></button>
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" data-kpi-filter="today"><span class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-cyan-600 dark:text-cyan-300">Rotas</span><span class="employees-kpi__value tabular-nums">{{ _summary.get('total_routes', 0) }}</span></span></button>
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" data-kpi-filter="pending"><span class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-amber-600 dark:text-amber-300">Sem movimento</span><span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ (_summary.get('collaborators_count', 0) - _summary.get('active_count', 0)) if _summary.get('collaborators_count', 0) >= _summary.get('active_count', 0) else 0 }}</span></span></button>
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" data-kpi-filter="all"><span class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-violet-600 dark:text-violet-300">Premiação</span><span class="employees-kpi__value tabular-nums">R$ {{ _summary.get('projected_total_payout', 0)|fmt_br_2 }}</span></span></button>
+    </div>
+  </section>
+
+  <form id="deliveryFiltersForm" method="get" action="/gamificacao/entregas" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+    <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+      <div class="employees-filter-bar__inner">
+        <div class="employees-filter-bar__primary">
+          <div class="employees-filter-bar__primary-scroll">
+            <div class="ops-toolbar-search employees-filter-bar__search">
+              <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0"></path></svg>
+              <input id="searchInput" type="search" placeholder="Buscar colaborador, função ou empresa" class="ops-toolbar-search__input" data-debounce-search="true">
+            </div>
+            <input type="date" name="date" value="{{ _filters.get('date') }}" class="ops-toolbar-control px-3">
+            <select name="period" class="ops-toolbar-control px-3">
+              <option value="daily" {% if _filters.get('period') == 'daily' %}selected{% endif %}>Diário</option>
+              <option value="weekly" {% if _filters.get('period') == 'weekly' %}selected{% endif %}>7 dias</option>
+              <option value="monthly" {% if _filters.get('period') == 'monthly' %}selected{% endif %}>Mês</option>
+            </select>
+            <select name="cost_center" class="ops-toolbar-control px-3">
+              {% for opt in cost_center_options or ['Todos'] %}
+              <option value="{{ opt }}" {% if _filters.get('cost_center') == opt %}selected{% endif %}>{{ opt }}</option>
+              {% endfor %}
+            </select>
+            <select id="statusFilter" class="ops-toolbar-control px-3">
+              <option value="all">Todos status</option>
+              <option value="emerald">Na meta</option>
+              <option value="amber">Atenção</option>
+              <option value="rose">Crítico</option>
+              <option value="slate">Sem movimento</option>
+              <option value="violet">Elite</option>
+            </select>
+          </div>
+        </div>
+        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+        <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap">
+          <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
+          <button type="button" class="ops-toolbar-ghost-btn employees-filter-bar__btn quick-filter is-active" data-quick-filter="all">Todos</button>
+          <button type="button" class="ops-toolbar-ghost-btn employees-filter-bar__btn quick-filter" data-quick-filter="pending">Pendentes</button>
+          <button type="button" class="ops-toolbar-ghost-btn employees-filter-bar__btn quick-filter" data-quick-filter="within">Concluídos</button>
+          <button type="button" class="ops-toolbar-ghost-btn employees-filter-bar__btn quick-filter" data-quick-filter="critical">Críticos</button>
+          <button type="button" class="ops-toolbar-ghost-btn employees-filter-bar__btn quick-filter" data-quick-filter="today">Hoje</button>
+          <button type="button" class="ops-toolbar-ghost-btn employees-filter-bar__btn" id="clearFiltersBtn">Limpar</button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <section class="sys-card sys-card--surface sys-card--comfort delivery-selection-toolbar">
+    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300"><input id="bulk-select-all" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500"><span>Selecionar visíveis</span></label>
+        <span class="employees-filter-counter employees-filter-counter--toolbar">Selecionados: <strong id="bulk-selected-count" class="ml-1">0</strong></span>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" class="sys-btn sys-btn--secondary employees-filter-bar__btn" data-open-modal="batchModal">Operações em lote</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+      <div class="min-w-0 flex-1">
+        <p class="employees-table-panel__kicker">Visão analítica</p>
+        <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Resultados por colaborador</h3>
+        <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No mobile a tabela vira cards para leitura rápida e ações sem rolagem lateral desnecessária.</p>
+      </div>
+      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+        <span id="resultMeta" class="employees-text-caption">Carregando lista...</span>
+      </div>
+    </div>
+
+    <div class="delivery-tabs border-b border-slate-200 px-5 py-3 dark:border-slate-700 sm:px-6">
+      <div class="employees-view-toggle">
+        <button type="button" class="view-toggle-btn is-active" data-tab="motoristas">Motoristas</button>
+        <button type="button" class="view-toggle-btn" data-tab="ajudantes">Ajudantes</button>
+        <button type="button" class="view-toggle-btn" data-tab="consolidado">Consolidado</button>
+        <button type="button" class="view-toggle-btn" data-tab="produtividade">Produtividade</button>
+      </div>
+    </div>
+
+    {% if _has_rows %}
+    <div class="sys-table-wrap sys-table-wrap--x-scroll">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1120px]" id="employeesTable">
+        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+          <tr>
+            <th class="employees-data-table__th employees-data-table__th--static w-10 px-2 py-2 text-center">Sel.</th>
+            <th class="employees-data-table__th employees-data-table__th--col-name px-2 py-2">Colaborador</th>
+            <th class="employees-data-table__th px-2 py-2">Função</th>
+            <th class="employees-data-table__th px-2 py-2">Empresa</th>
+            <th class="employees-data-table__th px-2 py-2 text-right">Dev.</th>
+            <th class="employees-data-table__th px-2 py-2 text-right">Rotas</th>
+            <th class="employees-data-table__th px-2 py-2 text-right">Prod.</th>
+            <th class="employees-data-table__th px-2 py-2 text-right">Prêmio</th>
+            <th class="employees-data-table__th px-2 py-2">Status</th>
+            <th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody" class="employees-data-table__body divide-y"></tbody>
+      </table>
+    </div>
+    {% else %}
+    <div id="emptyServerState" class="sys-empty-state m-6">Nenhum dado disponível para os filtros do período atual.</div>
+    {% endif %}
+
+    <div id="tableStates" class="delivery-table-states hidden p-6">
+      <div id="tableLoading" class="sys-alert sys-alert--info hidden">Carregando dados...</div>
+      <div id="tableNoResults" class="sys-empty-state hidden">Nenhum resultado encontrado com os filtros aplicados.</div>
+      <div id="tableError" class="sys-alert sys-alert--danger hidden">Erro ao carregar dados. Tente novamente em alguns instantes.</div>
+    </div>
+
+    <div class="delivery-pagination border-t border-slate-200 px-5 py-3 dark:border-slate-700 sm:px-6">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <span id="paginationMeta" class="employees-text-caption">0 resultados</span>
+        <div class="flex items-center gap-2">
+          <button type="button" id="prevPageBtn" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Anterior</button>
+          <button type="button" id="nextPageBtn" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Próxima</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div id="importModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-2xl delivery-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3"><div><p class="employees-text-section-label">Importação</p><h3 id="import-modal-title" class="sys-section-heading mt-1 text-lg">Importar entregas</h3><p class="employees-text-muted mt-1 text-xs">Validação de colunas obrigatórias, linhas vazias e duplicidade.</p></div><button type="button" class="emp-modal-close shrink-0" data-close-modal="importModal" aria-label="Fechar">&times;</button></div>
+      <form id="importForm" class="space-y-4" novalidate>
+        <label class="emp-modal-dropzone block cursor-pointer"><input type="file" id="importFile" accept=".csv,.xlsx,.xls" class="hidden"><span class="emp-modal-icon-ring emp-modal-icon-ring--lg mx-auto mb-3"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10"></path></svg></span><p class="text-sm font-semibold text-slate-900 dark:text-white">Selecionar arquivo</p><p id="importFileName" class="mt-2 text-xs font-medium text-sky-600 dark:text-sky-300"></p></label>
+        <div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 text-xs leading-relaxed dark:border-slate-700/80 dark:bg-slate-900/40">
+          <p class="font-semibold text-slate-900 dark:text-white">Colunas esperadas</p>
+          <code class="mt-2 block rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-[11px] text-slate-700 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-200">COLABORADOR, FUNCAO, EMPRESA, DEVOLUCAO_PCT, ROTAS, KGH, PREMIO, STATUS</code>
+        </div>
+        <div id="importPreview" class="hidden rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40"><p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Resultado da validação</p><div id="importValidationResult" class="mt-2 text-xs text-slate-600 dark:text-slate-300"></div></div>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" class="sys-btn sys-btn--secondary" data-close-modal="importModal">Cancelar</button><button type="button" id="validateImportBtn" class="sys-btn sys-btn--secondary">Validar arquivo</button><button type="submit" id="confirmImportBtn" class="sys-btn sys-btn--primary" disabled>Importar</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="createModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="create-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-2xl delivery-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3"><div><p class="employees-text-section-label">Criação</p><h3 id="create-title" class="sys-section-heading mt-1 text-lg">Nova entrega monitorada</h3></div><button type="button" class="emp-modal-close shrink-0" data-close-modal="createModal" aria-label="Fechar">&times;</button></div>
+      <form id="createForm" class="space-y-5" novalidate>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div><label class="sys-section__label sys-section__label--field" for="create-name">Colaborador</label><input id="create-name" required class="sys-input mt-1 w-full"></div>
+          <div><label class="sys-section__label sys-section__label--field" for="create-role">Função</label><input id="create-role" required class="sys-input mt-1 w-full"></div>
+          <div><label class="sys-section__label sys-section__label--field" for="create-center">Empresa</label><input id="create-center" required class="sys-input mt-1 w-full"></div>
+          <div><label class="sys-section__label sys-section__label--field" for="create-status">Status</label><select id="create-status" required class="sys-select mt-1 w-full"><option value="">Selecione</option><option value="emerald">Na meta</option><option value="amber">Atenção</option><option value="rose">Crítico</option><option value="slate">Sem movimento</option></select></div>
+          <div><label class="sys-section__label sys-section__label--field" for="create-dev">Devolução (%)</label><input id="create-dev" type="number" min="0" step="0.01" class="sys-input mt-1 w-full"></div>
+          <div><label class="sys-section__label sys-section__label--field" for="create-routes">Rotas</label><input id="create-routes" type="number" min="0" class="sys-input mt-1 w-full"></div>
+        </div>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" class="sys-btn sys-btn--secondary" data-close-modal="createModal">Cancelar</button><button type="submit" class="sys-btn sys-btn--primary">Salvar</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="editModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-lg delivery-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3"><div><p class="employees-text-section-label">Edição</p><h3 id="edit-title" class="sys-section-heading mt-1 text-lg">Editar entrega monitorada</h3></div><button type="button" class="emp-modal-close shrink-0" data-close-modal="editModal" aria-label="Fechar">&times;</button></div>
+      <form id="editForm" class="space-y-4" novalidate>
+        <input type="hidden" id="edit-index">
+        <div><label class="sys-section__label sys-section__label--field" for="edit-name">Colaborador</label><input id="edit-name" required class="sys-input mt-1 w-full"></div>
+        <div><label class="sys-section__label sys-section__label--field" for="edit-status">Status</label><select id="edit-status" required class="sys-select mt-1 w-full"><option value="emerald">Na meta</option><option value="amber">Atenção</option><option value="rose">Crítico</option><option value="slate">Sem movimento</option><option value="violet">Elite</option></select></div>
+        <div class="flex flex-wrap justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" class="sys-btn sys-btn--secondary" data-close-modal="editModal">Cancelar</button><button type="submit" class="sys-btn sys-btn--primary">Salvar alterações</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="batchModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="batch-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-lg delivery-modal-card">
+      <div class="mb-6 flex items-center justify-between gap-3"><div><p class="employees-text-section-label">Operações em lote</p><h3 id="batch-title" class="sys-section-heading mt-1 text-lg">Ações para selecionados</h3></div><button type="button" class="emp-modal-close shrink-0" data-close-modal="batchModal" aria-label="Fechar">&times;</button></div>
+      <div class="space-y-4">
+        <div class="rounded-xl border border-slate-200/90 bg-slate-50/80 p-4 dark:border-slate-700/80 dark:bg-slate-900/40"><p class="text-sm font-medium text-slate-900 dark:text-white">Selecionados agora</p><p class="mt-1 text-3xl font-semibold text-slate-900 dark:text-white" id="batchSelectedCount">0</p></div>
+        <div class="grid gap-3">
+          <button type="button" class="sys-btn sys-btn--secondary justify-center" data-batch-action="mark-review">Marcar para revisão</button>
+          <button type="button" class="sys-btn sys-btn--secondary justify-center" data-batch-action="export">Exportar selecionados</button>
+          <button type="button" class="sys-btn sys-btn--danger justify-center" data-batch-action="clear">Limpar seleção</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-md delivery-modal-card">
+      <div class="mb-4 flex items-start gap-3"><span class="emp-modal-icon-ring emp-modal-icon-ring--lg"><svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01"></path></svg></span><div class="min-w-0 flex-1"><h3 id="confirm-title" class="sys-section-heading text-lg">Confirmar ação crítica</h3><p id="confirmText" class="employees-text-muted mt-2 text-sm">Deseja continuar?</p></div></div>
+      <div class="flex justify-end gap-3 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" class="sys-btn sys-btn--secondary" data-close-modal="confirmModal">Cancelar</button><button type="button" class="sys-btn sys-btn--primary" id="confirmSubmitBtn">Confirmar</button></div>
+    </div>
+  </div>
+
+  <script id="deliveryRowsMotoristas" type="application/json">{{ _driver|tojson }}</script>
+  <script id="deliveryRowsAjudantes" type="application/json">{{ _helper|tojson }}</script>
+  <script id="deliveryRowsConsolidado" type="application/json">{{ _team|tojson }}</script>
+  <script id="deliveryRowsProdutividade" type="application/json">{{ _productivity|tojson }}</script>
 </div>
-
-<script>
-(function() {
-    const tabs = document.querySelectorAll('[data-tab]');
-    const rows = document.querySelectorAll('.tab-row');
-    const search = document.getElementById('gami-search');
-
-    tabs.forEach(t => {
-        t.addEventListener('click', () => {
-            tabs.forEach(x => x.classList.remove('active'));
-            t.classList.add('active');
-            const tab = t.dataset.tab;
-            rows.forEach(r => {
-                r.classList.toggle('hidden', !r.classList.contains('tab-' + tab));
-            });
-        });
-    });
-
-    if (search) {
-        search.addEventListener('input', () => {
-            const term = (search.value || '').trim().toLowerCase();
-            const activeTab = document.querySelector('[data-tab].active')?.dataset.tab;
-            rows.forEach(r => {
-                if (!r.classList.contains('tab-' + activeTab)) return;
-                const haystack = r.getAttribute('data-search') || '';
-                r.style.display = !term || haystack.includes(term) ? '' : 'none';
-            });
-        });
-    }
-})();
-</script>
 {% endblock %}

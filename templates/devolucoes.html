@@ -1,9 +1,11 @@
 {% extends "base_gestao_avista.html" %}
 
+{% block html_class_extra %} ga-devolucoes-html{% endblock %}
+
 {% block title %}Devoluções · Gestão Avista{% endblock %}
 
 {% block header_breadcrumb %}
-<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Operação / Devoluções</p>
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Processos / Devoluções</p>
 {% endblock %}
 
 {% block header_title %}
@@ -91,21 +93,22 @@
       </div>
 
       <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
-        <details class="employees-hero__import-wrap devolucoes-hero-menu relative w-full sm:w-auto sm:min-w-[11rem]">
-          <summary class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+        {# Mesmo padrão UX que /employees: dropdown com Alpine (fecha ao clicar fora). #}
+        <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+          <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
             <span class="employees-cta__icon" aria-hidden="true">
               <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
               </svg>
             </span>
             <span class="employees-cta__label">Importar</span>
-            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
-          </summary>
-          <div class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+          </button>
+          <div x-show="open" x-cloak x-transition @click.away="open = false" class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
             <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importação e operações</p>
-            <button type="button" class="employees-menu-item" data-open-modal="importModal">
+            <button type="button" class="employees-menu-item" @click="open = false" data-open-modal="importModal">
               <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
               </span>
@@ -114,7 +117,7 @@
                 <span class="employees-menu-item__hint">Prévia, validação e gravação em lote</span>
               </span>
             </button>
-            <button type="button" class="employees-menu-item" data-open-modal="batchOperationsModal">
+            <button type="button" class="employees-menu-item" @click="open = false" data-open-modal="batchOperationsModal">
               <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 12h6m-6 4h6"></path></svg>
               </span>
@@ -123,7 +126,7 @@
                 <span class="employees-menu-item__hint">Excluir, aprovar e revisar seleções</span>
               </span>
             </button>
-            <button type="button" class="employees-menu-item" data-confirm-action="reconnect">
+            <button type="button" class="employees-menu-item" @click="open = false" data-confirm-action="reconnect">
               <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.172 15a4 4 0 015.656 0l.586.586a4 4 0 005.656-5.656l-1.757-1.757a4 4 0 00-5.656 0L12 8m0 8l-1.757 1.757a4 4 0 01-5.656-5.656L5.172 10a4 4 0 015.656 0L12 12"></path></svg>
               </span>
@@ -132,8 +135,18 @@
                 <span class="employees-menu-item__hint">Tenta vincular ocorrências sem rota ao período atual</span>
               </span>
             </button>
+            <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
+            <a href="/devolucoes/template" class="employees-menu-item" download @click="open = false">
+              <span class="employees-menu-item__icon employees-menu-item__icon--slate" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Baixar modelo</span>
+                <span class="employees-menu-item__hint">planilha_devolucoes_modelo.xlsx</span>
+              </span>
+            </a>
           </div>
-        </details>
+        </div>
 
         <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" data-open-modal="manualDevolucaoModal" data-modal-mode="create">
           <span class="employees-cta__icon" aria-hidden="true">
@@ -287,6 +300,9 @@
     <input type="hidden" name="page" value="1">
     <input type="hidden" name="sort" value="{{ _sort_key }}">
     <input type="hidden" name="dir" value="{{ _sort_dir }}">
+    {% if _status_view and _status_view != 'all' %}
+    <input type="hidden" name="status_view" value="{{ _status_view }}">
+    {% endif %}
     <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
       <div class="employees-filter-bar__inner">
         <div class="employees-filter-bar__primary">
@@ -321,10 +337,20 @@
           </div>
         </div>
         <div class="employees-filter-bar__divider" aria-hidden="true"></div>
-        <div class="employees-filter-bar__secondary">
+        <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap">
           <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
           <a href="{{ _links.get('today', '/devolucoes?hoje=1') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('today_active') %}filter-btn--active{% endif %}">Hoje</a>
-          <a href="{{ _links.get('clear', '/devolucoes') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar</a>
+          <a href="{{ _links.get('all', '/devolucoes') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'all' %}filter-btn--active{% endif %}">Ver todos</a>
+          <a href="/devolucoes/avaliar" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar" title="Consolidado e avaliação">
+            <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            <span class="employees-filter-bar__link-sub-text">Avaliar</span>
+          </a>
+          <span class="employees-text-caption hidden text-[11px] sm:inline">Origem:</span>
+          <a href="{{ _links.get('excel', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('source') == 'EXCEL' %}filter-btn--active{% endif %}">Excel</a>
+          <a href="{{ _links.get('mobile', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('source') == 'MOBILE' %}filter-btn--active{% endif %}">Mobile</a>
+          <a href="{{ _links.get('web', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('source') == 'WEB' %}filter-btn--active{% endif %}">Web</a>
+          <a href="{{ _links.get('manual', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('source') == 'MANUAL' %}filter-btn--active{% endif %}">Manual</a>
+          <a href="{{ _links.get('clear', '/devolucoes') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar filtros</a>
         </div>
       </div>
     </div>
@@ -372,20 +398,19 @@
 
     {% if devolucoes %}
     <div class="sys-table-wrap sys-table-wrap--x-scroll">
-      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1120px]" id="employeesTable">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1240px]" id="employeesTable">
         <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
           <tr>
-            <th class="employees-data-table__th employees-data-table__th--static w-10 whitespace-nowrap px-2 py-2 pl-3 text-xs">Sel.</th>
+            <th class="employees-data-table__th group px-2 py-2 pl-3">
+              <a href="{{ _sort_links.get('client', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
+                Cliente
+                <span class="employees-data-table__sort-icon {% if _sort_key == 'client' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'client' and _sort_dir == 'asc' else '↓' if _sort_key == 'client' else '↕' }}</span>
+              </a>
+            </th>
             <th class="employees-data-table__th group px-2 py-2">
               <a href="{{ _sort_links.get('data', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
                 Data
                 <span class="employees-data-table__sort-icon {% if _sort_key == 'data' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'data' and _sort_dir == 'asc' else '↓' if _sort_key == 'data' else '↕' }}</span>
-              </a>
-            </th>
-            <th class="employees-data-table__th group px-2 py-2">
-              <a href="{{ _sort_links.get('client', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
-                Cliente
-                <span class="employees-data-table__sort-icon {% if _sort_key == 'client' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'client' and _sort_dir == 'asc' else '↓' if _sort_key == 'client' else '↕' }}</span>
               </a>
             </th>
             <th class="employees-data-table__th group px-2 py-2">
@@ -394,6 +419,7 @@
                 <span class="employees-data-table__sort-icon {% if _sort_key == 'motorista' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'motorista' and _sort_dir == 'asc' else '↓' if _sort_key == 'motorista' else '↕' }}</span>
               </a>
             </th>
+            <th class="employees-data-table__th px-2 py-2">Motivo</th>
             <th class="employees-data-table__th px-2 py-2">Placa</th>
             <th class="employees-data-table__th group px-2 py-2">
               <a href="{{ _sort_links.get('valor', _links.get('all', '/devolucoes')) }}" class="flex items-center gap-1.5">
@@ -413,32 +439,23 @@
                 <span class="employees-data-table__sort-icon {% if _sort_key == 'status' %}employees-data-table__sort-icon--active{% endif %}">{{ '↑' if _sort_key == 'status' and _sort_dir == 'asc' else '↓' if _sort_key == 'status' else '↕' }}</span>
               </a>
             </th>
+            <th class="employees-data-table__th employees-data-table__th--static w-10 whitespace-nowrap px-2 py-2 text-xs">Sel.</th>
             <th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Ações</th>
           </tr>
         </thead>
         <tbody class="employees-data-table__body divide-y" id="tableBody">
           {% for row in devolucoes %}
           <tr class="group employee-row employees-data-table__row transition-colors" id="devolucao-row-{{ row.id }}">
-            <td class="employees-data-table__cell w-10 px-2 py-2 pl-3 align-middle" data-label="Selecionar">
-              <input
-                type="checkbox"
-                class="devolucao-bulk-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                value="{{ row.id }}"
-                data-id="{{ row.id }}"
-                data-label="{{ row.client_name|e }}"
-                data-can-approve="{{ 'true' if row.can_approve else 'false' }}"
-              >
-            </td>
-            <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle whitespace-nowrap" data-label="Data">{{ row.data_display }}</td>
-            <td class="employee-cell-primary px-2 py-2 align-middle" data-label="Cliente">
+            <td class="employee-cell-primary px-2 py-2 pl-3 align-middle" data-label="Cliente">
               <div class="employee-primary-content min-w-0">
                 <span class="employee-name block truncate font-medium employees-text-strong">{{ row.client_name }}</span>
                 <span class="employees-text-caption block truncate text-xs">{{ row.client_secondary }}</span>
               </div>
             </td>
-            <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motorista">
-              <span class="block">{{ row.motorista_name }}</span>
-              <span class="employees-text-caption block text-[10px] leading-tight opacity-60">{{ row.motivo_label }}</span>
+            <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle whitespace-nowrap" data-label="Data">{{ row.data_display }}</td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motorista">{{ row.motorista_name }}</td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motivo">
+              <span class="employees-data-table__role-ellipsis block max-w-[14rem]" title="{{ row.motivo_label }}">{{ row.motivo_label }}</span>
             </td>
             <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap employees-text-body" data-label="Placa">{{ row.vehicle_plate }}</td>
             <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap font-semibold text-sky-600 dark:text-sky-300" data-label="Valor">{{ row.valor_fmt }}</td>
@@ -455,6 +472,16 @@
               {% else %}
               <span class="employees-pill employees-pill--status employees-pill--pending">{{ row.status_label }}</span>
               {% endif %}
+            </td>
+            <td class="employees-data-table__cell w-10 px-2 py-2 align-middle" data-label="Selecionar">
+              <input
+                type="checkbox"
+                class="devolucao-bulk-cb rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                value="{{ row.id }}"
+                data-id="{{ row.id }}"
+                data-label="{{ row.client_name|e }}"
+                data-can-approve="{{ 'true' if row.can_approve else 'false' }}"
+              >
             </td>
             <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
               <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
@@ -644,7 +671,7 @@
     </div>
   </div>
 
-  <div id="batchOperationsModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="batch-operations-title">
+  <div id="batchOperationsModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="batch-operations-title">
     <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-lg devolucoes-modal-card">
       <div class="mb-6 flex items-center justify-between gap-3">
         <div>
@@ -670,7 +697,7 @@
     </div>
   </div>
 
-  <div id="confirmActionModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title">
+  <div id="confirmActionModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title">
     <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-md devolucoes-modal-card">
       <div class="mb-4 flex items-start gap-3">
         <span class="emp-modal-icon-ring emp-modal-icon-ring--lg">

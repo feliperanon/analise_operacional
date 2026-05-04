@@ -1,0 +1,36 @@
+/* Página /funcoes — extensão do shell employees + design system GA */
+
+.ga-employee-theme.employees-page[data-page="funcoes"].funcoes-page--navigating #employees-table-panel {
+  opacity: 0.72;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+@media (max-width: 768px) {
+  .ga-employee-theme.employees-page[data-page="funcoes"] .employees-hero__toolbar {
+    width: 100%;
+  }
+
+  .ga-employee-theme.employees-page[data-page="funcoes"] .employees-hero__import-wrap {
+    width: 100%;
+  }
+
+  .ga-employee-theme.employees-page[data-page="funcoes"] .employees-hero__import-wrap .employees-hero__import-menu {
+    left: 0;
+    right: 0;
+    width: 100%;
+  }
+
+  .ga-employee-theme.employees-page[data-page="funcoes"] #employeesTable .employee-action-btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    touch-action: manipulation;
+  }
+}
+
+/* Mobile: cards herdados de employees.css (#employeesTable) — não sobrescrever tr/td */
+
+.ga-employee-theme.employees-page[data-page="funcoes"] .emp-modal-shell {
+  z-index: 2000 !important;
+  isolation: isolate;
+}

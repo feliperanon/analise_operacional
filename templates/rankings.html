@@ -1,2288 +1,318 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Performance Operacional · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / BI &amp; Métricas / Performance Operacional</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Performance Operacional</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Painel de produtividade, disciplina e qualidade por colaborador</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/operations-performance.css">
+{% endblock %}
 
 {% block content %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<div class="min-h-dvh bg-slate-900 text-slate-100 p-4 md:p-6 lg:p-8" x-data="performanceController()">
-    <div class="max-w-7xl mx-auto space-y-6">
-        {% set period_label_map = {'daily': 'Diário', 'weekly': 'Semanal', 'monthly': 'Mensal'} %}
-        {% set period_label = period_label_map.get(filters.period, filters.period) %}
-        {% set route_label_map = {'Media': 'Média', 'Todos': 'Todas'} %}
-        {% set route_label = route_label_map.get(filters.route_band, filters.route_band) %}
-        {% set tenure_label_map = {'Consolidacao': 'Consolidação'} %}
-        {% set tenure_label = tenure_label_map.get(filters.tenure_band, filters.tenure_band) %}
-        
-        <!-- HEADER PRINCIPAL - Limpo e Direto -->
-        <header class="relative">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 class="text-2xl md:text-3xl font-bold text-white">Avaliação Operacional</h1>
-                            <p class="text-sm text-slate-400">Colaboradores com acesso ao mobile de separação</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="flex flex-wrap items-stretch justify-start gap-2 sm:gap-3 lg:justify-end">
-                    <!-- Botão Relatório de Análise -->
-                    <a href="/operations/performance/analysis?period={{ filters.period }}&date={{ filters.date }}&cost_center={{ filters.cost_center }}" 
-                       class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 px-4 py-2.5 text-white transition-all group shadow-lg shadow-rose-500/20 hover:from-rose-500 hover:to-red-500 sm:w-auto"
-                       title="Relatório completo de performance">
-                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <span class="text-sm font-semibold">Relatório</span>
-                    </a>
-                    
-                    {% if calculation_debug %}
-                    <!-- Botão de Debug de Cálculos -->
-                    <button @click="showDebugPanel = true" class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-slate-800/80 px-4 py-2.5 text-emerald-300 transition-all group hover:bg-emerald-500/10 hover:text-emerald-200 sm:w-auto" title="Debug: Ver detalhes dos cálculos">
-                        <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                        </svg>
-                        <span class="text-sm font-medium">Debug</span>
-                    </button>
-                    {% endif %}
-                    
-                    <!-- Botão de Ajuda/Guia -->
-                    <button @click="showGuide = true" class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-slate-300 transition-all group hover:bg-slate-700 hover:text-white sm:w-auto">
-                        <svg class="w-5 h-5 text-amber-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                        </svg>
-                        <span class="text-sm font-medium">Como funciona?</span>
-                    </button>
-                    
-                    <!-- Botão de Filtros -->
-                    <button @click="showFilters = !showFilters" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-white transition-all hover:bg-blue-500 sm:w-auto">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-                        </svg>
-                        <span class="text-sm font-semibold">Filtros</span>
-                        <svg class="w-4 h-4 transition-transform" :class="showFilters ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Resumo do Contexto Atual (sempre visível, compacto) -->
-            <div class="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                    <div class="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5">
-                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        <span class="text-sm font-medium text-white">{{ period_range_label }}</span>
-                        <span class="text-xs text-slate-500">({{ period_label }})</span>
-                    </div>
-                    
-                    <div class="flex flex-wrap items-center gap-1 text-xs">
-                        <span class="rounded-md border border-slate-700/50 bg-slate-800/40 px-2 py-1 text-slate-300">{{ filters.cost_center }}</span>
-                        <span class="rounded-md border border-slate-700/50 bg-slate-800/40 px-2 py-1 text-slate-300">{{ route_label }}</span>
-                        <span class="rounded-md border border-slate-700/50 bg-slate-800/40 px-2 py-1 text-slate-300">{{ tenure_label }}</span>
-                    </div>
-                </div>
-                
-                <div class="flex flex-wrap items-center gap-1 text-xs">
-                    <span class="rounded-md border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-rose-300" title="Faltas injustificadas no período">
-                        <span class="font-bold">{{ absence_totals.unjustified|fmt_br_int }}</span> faltas
-                    </span>
-                    <span class="rounded-md border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-cyan-300" title="Atestados médicos no período">
-                        <span class="font-bold">{{ absence_totals.justified|fmt_br_int }}</span> atestados
-                    </span>
-                    {% if absence_totals.leave > 0 %}
-                    <span class="rounded-md border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-orange-300">
-                        <span class="font-bold">{{ absence_totals.leave|fmt_br_int }}</span> afastados
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
-        </header>
+{% set ns = namespace(reference_count=0, evolving_count=0, potential_count=0, attention_count=0) %}
+{% for row in rows %}
+  {% if row.badge == 'Referência' %}{% set ns.reference_count = ns.reference_count + 1 %}{% endif %}
+  {% if row.badge == 'Em evolução' %}{% set ns.evolving_count = ns.evolving_count + 1 %}{% endif %}
+  {% if row.badge == 'Potencial' %}{% set ns.potential_count = ns.potential_count + 1 %}{% endif %}
+  {% if row.badge == 'Atenção' %}{% set ns.attention_count = ns.attention_count + 1 %}{% endif %}
+{% endfor %}
 
-        <!-- PAINEL DE FILTROS (Colapsável) -->
-        <form x-show="showFilters" x-cloak x-transition
-              class="bg-gradient-to-b from-slate-800/80 to-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden" 
-              method="get" action="/operations/performance" id="filtersForm">
-            
-            <div class="p-5">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                        Filtrar Análise
-                    </h3>
-                    <span class="text-[10px] px-2 py-1 rounded-full bg-slate-900/50 text-slate-500">{{ period_context_label }}</span>
-                </div>
-                
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <!-- Período -->
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Período</label>
-                        <select name="period" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                            <option value="daily" {{ 'selected' if filters.period == 'daily' else '' }}>Diário</option>
-                            <option value="weekly" {{ 'selected' if filters.period == 'weekly' else '' }}>Semanal</option>
-                            <option value="monthly" {{ 'selected' if filters.period == 'monthly' else '' }}>Mensal</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Data -->
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Data Base</label>
-                        <input type="date" name="date" value="{{ filters.date }}" 
-                               class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                    </div>
-                    
-                    <!-- Empresa -->
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Empresa</label>
-                        <select name="cost_center" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                            {% for opt in cost_center_options %}
-                            <option value="{{ opt }}" {{ 'selected' if filters.cost_center == opt else '' }}>{{ opt }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <!-- Tipo de Rota -->
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Tipo de Rota</label>
-                        <select name="route_band" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                            <option value="Todos" {{ 'selected' if filters.route_band == 'Todos' else '' }}>Todas</option>
-                            <option value="Leve" {{ 'selected' if filters.route_band == 'Leve' else '' }}>Leve</option>
-                            <option value="Media" {{ 'selected' if filters.route_band == 'Media' else '' }}>Média</option>
-                            <option value="Pesada" {{ 'selected' if filters.route_band == 'Pesada' else '' }}>Pesada</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Liga -->
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Liga</label>
-                        <select name="tenure_band" class="w-full rounded-lg bg-slate-900/80 border border-slate-600 px-3 py-2 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all">
-                            <option value="Todos" {{ 'selected' if filters.tenure_band == 'Todos' else '' }}>Todas</option>
-                            <option value="Novatos" {{ 'selected' if filters.tenure_band == 'Novatos' else '' }}>Novatos (0-3m)</option>
-                            <option value="Consolidacao" {{ 'selected' if filters.tenure_band == 'Consolidacao' else '' }}>Consolidação (3-12m)</option>
-                            <option value="Veteranos" {{ 'selected' if filters.tenure_band == 'Veteranos' else '' }}>Veteranos (12m+)</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Ordenar -->
-                    <div>
-                        <label class="block text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-1.5">Ordenar por</label>
-                        <div class="flex gap-1">
-                            <select name="sort_by" class="flex-1 rounded-lg bg-slate-900/80 border border-slate-600 px-2 py-2 text-sm text-white focus:border-blue-500 transition-all">
-                                <option value="score" {{ 'selected' if filters.sort_by == 'score' else '' }}>Score</option>
-                                <option value="kgh" {{ 'selected' if filters.sort_by == 'kgh' else '' }}>Kg/h</option>
-                                <option value="tonnage" {{ 'selected' if filters.sort_by == 'tonnage' else '' }}>Volume</option>
-                                <option value="consistency" {{ 'selected' if filters.sort_by == 'consistency' else '' }}>Consistência</option>
-                            </select>
-                            <select name="order" class="w-20 rounded-lg bg-slate-900/80 border border-slate-600 px-2 py-2 text-sm text-white focus:border-blue-500 transition-all">
-                                <option value="desc" {{ 'selected' if filters.order == 'desc' else '' }}>DESC</option>
-                                <option value="asc" {{ 'selected' if filters.order == 'asc' else '' }}>ASC</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Footer do Form -->
-            <div class="flex items-center justify-between px-5 py-3 bg-slate-900/30 border-t border-slate-700/50">
-                <a href="/operations/performance" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    Limpar filtros
-                </a>
-                <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                    Aplicar Filtros
-                </button>
-            </div>
-        </form>
-        
-        <!-- MODAL GUIA - Como Funciona a Avaliação -->
-        <div x-show="showGuide" class="fixed inset-0 z-[100] flex items-center justify-center p-4" style="display: none;" x-cloak>
-            <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm" @click="showGuide = false" x-transition.opacity></div>
-            
-            <div class="relative w-full max-w-3xl max-h-[85vh] bg-slate-900 rounded-3xl shadow-2xl border border-slate-700 overflow-hidden"
-                 x-show="showGuide"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100">
-                
-                <!-- Header do Modal -->
-                <div class="sticky top-0 z-10 bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-transparent border-b border-slate-700 px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                                </svg>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold text-white">Como Funciona a Avaliação?</h2>
-                                <p class="text-sm text-slate-400">Guia completo para entender cada métrica</p>
-                            </div>
-                        </div>
-                        <button @click="showGuide = false" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Conteúdo Scrollável -->
-                <div class="overflow-y-auto max-h-[calc(85vh-80px)] p-6 space-y-6">
-                    
-                    <!-- Introdução -->
-                    <div class="bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-2xl p-5 border border-blue-500/20">
-                        <div class="flex gap-4">
-                            <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
-                                <span class="text-2xl">🎯</span>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-bold text-white mb-2">O que é a Avaliação Operacional?</h3>
-                                <p class="text-sm text-slate-300 leading-relaxed">
-                                    É um sistema inteligente que analisa o desempenho de cada colaborador na separação de mercadorias.
-                                    Avaliamos <strong class="text-white">5 pilares</strong> para criar um score justo que considera não só velocidade, 
-                                    mas também qualidade, presença, evolução e contexto de trabalho.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Score -->
-                    <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700">
-                        <div class="flex items-start gap-4">
-                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shrink-0">
-                                <span class="text-2xl font-black text-white">S</span>
-                            </div>
-                            <div class="flex-1">
-                                <h3 class="text-lg font-bold text-white mb-1">Score (0-100)</h3>
-                                <p class="text-xs text-emerald-400 uppercase tracking-wider mb-2">Nota geral do colaborador</p>
-                                <p class="text-sm text-slate-300 mb-3">
-                                    O score é a <strong class="text-white">nota final</strong> que combina todos os 5 pilares. 
-                                    Quanto maior, melhor o desempenho geral.
-                                </p>
-                                <div class="flex flex-wrap gap-2 text-xs">
-                                    <span class="px-2 py-1 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">80+ = Excelente</span>
-                                    <span class="px-2 py-1 rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30">60-79 = Bom</span>
-                                    <span class="px-2 py-1 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">40-59 = Regular</span>
-                                    <span class="px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 border border-rose-500/30">0-39 = Atenção</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Os 5 Pilares -->
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                            </svg>
-                            Os 5 Pilares da Avaliação
-                        </h3>
-                        
-                        <div class="grid gap-3">
-                            <!-- Produtividade -->
-                            <div class="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50 hover:border-emerald-500/30 transition-colors">
-                                <div class="flex items-center gap-3 mb-2">
-                                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                                        <span class="text-lg">⚡</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-white">1. Produtividade</h4>
-                                        <p class="text-[10px] text-emerald-400 uppercase">Kg/h e Volume</p>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-slate-300 leading-relaxed">
-                                    <strong class="text-white">Kg/h</strong> = Quantos quilos você separa por hora em média. 
-                                    <strong class="text-white">Volume</strong> = Total de quilos no período.
-                                    <br><span class="text-slate-500">Exemplo: 650 kg/h significa que você separa 650 quilos a cada hora trabalhada.</span>
-                                </p>
-                            </div>
-                            
-                            <!-- Qualidade -->
-                            <div class="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50 hover:border-blue-500/30 transition-colors">
-                                <div class="flex items-center gap-3 mb-2">
-                                    <div class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                                        <span class="text-lg">📊</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-white">2. Qualidade</h4>
-                                        <p class="text-[10px] text-blue-400 uppercase">Regularidade e CV</p>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-slate-300 leading-relaxed">
-                                    <strong class="text-white">Regularidade</strong> = Você mantém um ritmo constante? (quanto mais estável, melhor).
-                                    <strong class="text-white">CV (Coef. Variação)</strong> = Mede oscilação no desempenho.
-                                    <br><span class="text-slate-500">CV baixo = desempenho estável. CV alto = dias muito bons e dias muito ruins.</span>
-                                </p>
-                            </div>
-                            
-                            <!-- Disciplina -->
-                            <div class="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50 hover:border-amber-500/30 transition-colors">
-                                <div class="flex items-center gap-3 mb-2">
-                                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                                        <span class="text-lg">📅</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-white">3. Disciplina</h4>
-                                        <p class="text-[10px] text-amber-400 uppercase">Presença e Faltas</p>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-slate-300 leading-relaxed">
-                                    <strong class="text-white">Presença</strong> = % de dias que você compareceu e trabalhou.
-                                    <strong class="text-white">Faltas</strong> = Ausências sem justificativa impactam negativamente.
-                                    <br><span class="text-slate-500">Presença 95% = de 20 dias úteis, você trabalhou 19. Atestados não contam como falta!</span>
-                                </p>
-                            </div>
-                            
-                            <!-- Evolução -->
-                            <div class="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50 hover:border-purple-500/30 transition-colors">
-                                <div class="flex items-center gap-3 mb-2">
-                                    <div class="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                        <span class="text-lg">📈</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-white">4. Evolução</h4>
-                                        <p class="text-[10px] text-purple-400 uppercase">Tendência de melhora</p>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-slate-300 leading-relaxed">
-                                    Você está <strong class="text-emerald-400">melhorando</strong>, <strong class="text-slate-400">estável</strong> ou <strong class="text-rose-400">piorando</strong>?
-                                    Comparamos seu desempenho ao longo do período.
-                                    <br><span class="text-slate-500">Mesmo com kg/h menor, se você está evoluindo, isso é valorizado!</span>
-                                </p>
-                            </div>
-                            
-                            <!-- Contexto -->
-                            <div class="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50 hover:border-slate-500/30 transition-colors">
-                                <div class="flex items-center gap-3 mb-2">
-                                    <div class="w-8 h-8 rounded-lg bg-slate-500/20 flex items-center justify-center">
-                                        <span class="text-lg">🎓</span>
-                                    </div>
-                                    <div>
-                                        <h4 class="font-bold text-white">5. Contexto</h4>
-                                        <p class="text-[10px] text-slate-400 uppercase">Tempo de casa e rotas</p>
-                                    </div>
-                                </div>
-                                <p class="text-xs text-slate-300 leading-relaxed">
-                                    <strong class="text-white">Liga</strong> = Agrupa colaboradores por experiência (Novatos, Consolidação, Veteranos).
-                                    <strong class="text-white">Tipo de Rota</strong> = Rotas pesadas são mais difíceis.
-                                    <br><span class="text-slate-500">Novatos são avaliados com outros novatos. Veteranos entre veteranos. Justo!</span>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Selos/Badges -->
-                    <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700">
-                        <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <span class="text-lg">🏅</span>
-                            Classificações (Badges)
-                        </h3>
-                        <div class="grid sm:grid-cols-2 gap-3">
-                            <div class="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                                <span class="text-2xl">🌟</span>
-                                <div>
-                                    <p class="font-bold text-emerald-300">Referência</p>
-                                    <p class="text-[10px] text-slate-400">Top performers, exemplo para o time</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                                <span class="text-2xl">🚀</span>
-                                <div>
-                                    <p class="font-bold text-blue-300">Em Evolução</p>
-                                    <p class="text-[10px] text-slate-400">Melhorando consistentemente</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                                <span class="text-2xl">💎</span>
-                                <div>
-                                    <p class="font-bold text-amber-300">Potencial</p>
-                                    <p class="text-[10px] text-slate-400">Capacidade acima, precisa desenvolver</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                                <span class="text-2xl">⚠️</span>
-                                <div>
-                                    <p class="font-bold text-rose-300">Atenção</p>
-                                    <p class="text-[10px] text-slate-400">Necessita acompanhamento</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Dicas -->
-                    <div class="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-2xl p-5 border border-indigo-500/20">
-                        <h3 class="font-bold text-white mb-3 flex items-center gap-2">
-                            <span class="text-lg">💡</span>
-                            Dicas para Melhorar seu Score
-                        </h3>
-                        <ul class="space-y-2 text-sm text-slate-300">
-                            <li class="flex items-start gap-2">
-                                <span class="text-emerald-400">✓</span>
-                                <span>Mantenha um ritmo <strong class="text-white">constante</strong> - evite dias muito lentos</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <span class="text-emerald-400">✓</span>
-                                <span>Faltas injustificadas <strong class="text-white">impactam muito</strong> - comunique ausências</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <span class="text-emerald-400">✓</span>
-                                <span>Evolução é valorizada - <strong class="text-white">melhorar 5%</strong> já faz diferença</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <span class="text-emerald-400">✓</span>
-                                <span>Preencha a rotina diária - <strong class="text-white">sem registro = sem avaliação justa</strong></span>
-                            </li>
-                        </ul>
-                    </div>
-                    
-                </div>
-            </div>
+<div
+  class="ga-employee-theme op-performance-page space-y-5 pt-2 md:pt-3"
+  x-data="operationsPerformancePage({
+    rows: {{ rows|tojson }},
+    filters: {{ filters|tojson }},
+    periodRangeLabel: {{ period_range_label|tojson }},
+    periodContextLabel: {{ period_context_label|tojson }},
+    teamStats: {{ team_stats|tojson }},
+    absenceTotals: {{ absence_totals|tojson }},
+    costCenterOptions: {{ cost_center_options|tojson }},
+    badges: {
+      reference: {{ ns.reference_count }},
+      evolving: {{ ns.evolving_count }},
+      potential: {{ ns.potential_count }},
+      attention: {{ ns.attention_count }}
+    }
+  })"
+>
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
         </div>
-
-        {% if not rows %}
-        <div class="text-center py-16 bg-slate-800/40 border border-dashed border-slate-700 rounded-3xl">
-            <p class="text-slate-400">Nenhuma rota encontrada para o período selecionado.</p>
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Painel operacional</span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Avaliação de performance</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">Tela operacional para decisões rápidas com filtros, priorização de risco e ações em lote.</p>
+          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+              <span x-text="summary.totalRows + ' colaboradores avaliados'"></span>
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5" x-text="periodRangeLabel"></span>
+            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5" x-text="filters.cost_center || 'Todos os centros'"></span>
+          </div>
         </div>
-        {% else %}
-        <!-- CARDS DE RESUMO DO TIME -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4 hover:border-slate-600 transition-colors group" x-data="{ showTip: false }">
-                <div class="flex items-center justify-between mb-1">
-                    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Volume Total</p>
-                    <button @mouseenter="showTip = true" @mouseleave="showTip = false" class="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">?</button>
-                </div>
-                <p class="text-2xl font-bold text-white">{{ team_stats.total_tonnage|fmt_br_int }}</p>
-                <p class="text-[10px] text-slate-500">kg separados</p>
-                <div x-show="showTip" x-transition class="absolute z-50 mt-2 p-2 bg-slate-900 border border-slate-600 rounded-lg text-[10px] text-slate-300 w-48 shadow-xl">
-                    Total de quilos separados por todo o time no período selecionado.
-                </div>
-            </div>
-            
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4 hover:border-emerald-500/30 transition-colors group" x-data="{ showTip: false }">
-                <div class="flex items-center justify-between mb-1">
-                    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Média Kg/h</p>
-                    <button @mouseenter="showTip = true" @mouseleave="showTip = false" class="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">?</button>
-                </div>
-                <p class="text-2xl font-bold text-emerald-400">{{ team_stats.avg_kgh|fmt_br_int }}</p>
-                <p class="text-[10px] text-slate-500">produtividade</p>
-                <div x-show="showTip" x-transition class="absolute z-50 mt-2 p-2 bg-slate-900 border border-slate-600 rounded-lg text-[10px] text-slate-300 w-48 shadow-xl">
-                    Quilos separados por hora em média. Meta: 800 kg/h. Quanto maior, mais produtivo.
-                </div>
-            </div>
-            
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4 hover:border-blue-500/30 transition-colors group" x-data="{ showTip: false }">
-                <div class="flex items-center justify-between mb-1">
-                    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Tempo/Viagem</p>
-                    <button @mouseenter="showTip = true" @mouseleave="showTip = false" class="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">?</button>
-                </div>
-                <p class="text-2xl font-bold text-blue-400">{{ team_stats.avg_trip_minutes|fmt_br_duracao }}</p>
-                <p class="text-[10px] text-slate-500">média/rota</p>
-                <div x-show="showTip" x-transition class="absolute z-50 mt-2 p-2 bg-slate-900 border border-slate-600 rounded-lg text-[10px] text-slate-300 w-48 shadow-xl">
-                    Tempo médio para completar uma viagem/rota. Meta: ≤25 min. Menor é melhor.
-                </div>
-            </div>
-            
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4 hover:border-slate-600 transition-colors group" x-data="{ showTip: false }">
-                <div class="flex items-center justify-between mb-1">
-                    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Colaboradores</p>
-                    <button @mouseenter="showTip = true" @mouseleave="showTip = false" class="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">?</button>
-                </div>
-                <p class="text-2xl font-bold text-white">{{ team_stats.active_employees|fmt_br_int }}</p>
-                <p class="text-[10px] text-slate-500">ativos</p>
-                <div x-show="showTip" x-transition class="absolute z-50 mt-2 p-2 bg-slate-900 border border-slate-600 rounded-lg text-[10px] text-slate-300 w-48 shadow-xl">
-                    Quantidade de colaboradores que registraram atividade no período analisado.
-                </div>
-            </div>
-            
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4 hover:border-emerald-500/30 transition-colors group relative" x-data="{ showTip: false }">
-                <div class="flex items-center justify-between mb-1">
-                    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Presença</p>
-                    <button @mouseenter="showTip = true" @mouseleave="showTip = false" class="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">?</button>
-                </div>
-                <p class="text-2xl font-bold text-emerald-300">{{ (team_stats.avg_presence_adjusted * 100)|fmt_br_int }}%</p>
-                <p class="text-[10px] text-slate-500">ajustada</p>
-                <div x-show="showTip" x-transition class="absolute z-50 mt-2 right-0 p-2 bg-slate-900 border border-slate-600 rounded-lg text-[10px] text-slate-300 w-56 shadow-xl">
-                    <strong class="text-white">% de dias trabalhados</strong> excluindo atestados, afastamentos e folgas.
-                    <br><br>Ex: 95% = de cada 20 dias úteis, o time trabalhou em média 19.
-                </div>
-            </div>
-            
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4 hover:border-amber-500/30 transition-colors group relative" x-data="{ showTip: false }">
-                <div class="flex items-center justify-between mb-1">
-                    <p class="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Disciplina</p>
-                    <button @mouseenter="showTip = true" @mouseleave="showTip = false" class="w-4 h-4 rounded-full bg-slate-700 text-slate-400 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">?</button>
-                </div>
-                <p class="text-2xl font-bold text-amber-300">{{ (team_stats.discipline_rate * 100)|fmt_br_int }}%</p>
-                <p class="text-[10px] text-slate-500">{{ team_stats.unjustified_total|fmt_br_int }} faltas</p>
-                <div x-show="showTip" x-transition class="absolute z-50 mt-2 right-0 p-2 bg-slate-900 border border-slate-600 rounded-lg text-[10px] text-slate-300 w-56 shadow-xl">
-                    <strong class="text-white">% sem faltas injustificadas.</strong>
-                    <br><br>100% = nenhuma falta. 95% = 5% das oportunidades teve falta não justificada.
-                </div>
-            </div>
-        </div>
-
-        <!-- GAUGES DE METAS - Redesenhado -->
-        <div class="bg-gradient-to-br from-slate-800/60 to-slate-900/60 border border-slate-700 rounded-3xl p-6">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-                <div>
-                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
-                        Metas vs Realizado
-                    </h2>
-                    <p class="text-xs text-slate-500">Quanto mais próximo de 100%, melhor o desempenho da equipe</p>
-                </div>
-                <button @click="showGuide = true" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Entender métricas
-                </button>
-            </div>
-            
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-                <!-- Gauge Produtividade -->
-                {% set prod_pct = [[team_stats.avg_kgh / 800 * 100, 100]|min, 0]|max %}
-                <div class="bg-slate-900/50 rounded-2xl p-4 border border-slate-700/50 hover:border-emerald-500/30 transition-all group">
-                    <div class="flex flex-col items-center">
-                        <div class="relative w-28 h-28 lg:w-32 lg:h-32">
-                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="40" stroke="#1e293b" stroke-width="10" fill="none"/>
-                                <circle cx="50" cy="50" r="40" 
-                                    stroke="{% if prod_pct >= 100 %}#10b981{% elif prod_pct >= 75 %}#3b82f6{% elif prod_pct >= 50 %}#f59e0b{% else %}#ef4444{% endif %}" 
-                                    stroke-width="10" fill="none"
-                                    stroke-dasharray="{{ (prod_pct / 100 * 251.2)|round(1) }} 251.2"
-                                    stroke-linecap="round"
-                                    class="transition-all duration-1000"/>
-                            </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span class="text-xl lg:text-2xl font-bold text-white">{{ team_stats.avg_kgh|fmt_br_int }}</span>
-                                <span class="text-[10px] text-slate-400">kg/h</span>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center">
-                            <p class="text-xs font-semibold text-slate-200">Produtividade</p>
-                            <p class="text-[10px] text-slate-500 flex items-center justify-center gap-1">
-                                Meta: 800 kg/h
-                                <span class="inline-block w-1.5 h-1.5 rounded-full {% if prod_pct >= 100 %}bg-emerald-400{% elif prod_pct >= 75 %}bg-blue-400{% elif prod_pct >= 50 %}bg-amber-400{% else %}bg-rose-400{% endif %}"></span>
-                            </p>
-                        </div>
-                    </div>
-                    <!-- Progress bar alternativo para mobile -->
-                    <div class="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden lg:hidden">
-                        <div class="h-full rounded-full transition-all duration-1000 {% if prod_pct >= 100 %}bg-emerald-500{% elif prod_pct >= 75 %}bg-blue-500{% elif prod_pct >= 50 %}bg-amber-500{% else %}bg-rose-500{% endif %}" 
-                             style="width: {{ prod_pct }}%"></div>
-                    </div>
-                </div>
-                
-                <!-- Gauge Presença -->
-                {% set pres_pct = (team_stats.avg_presence_adjusted * 100)|round(0) %}
-                <div class="bg-slate-900/50 rounded-2xl p-4 border border-slate-700/50 hover:border-blue-500/30 transition-all group">
-                    <div class="flex flex-col items-center">
-                        <div class="relative w-28 h-28 lg:w-32 lg:h-32">
-                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="40" stroke="#1e293b" stroke-width="10" fill="none"/>
-                                <circle cx="50" cy="50" r="40" 
-                                    stroke="{% if pres_pct >= 95 %}#10b981{% elif pres_pct >= 85 %}#3b82f6{% elif pres_pct >= 70 %}#f59e0b{% else %}#ef4444{% endif %}" 
-                                    stroke-width="10" fill="none"
-                                    stroke-dasharray="{{ (pres_pct / 100 * 251.2)|round(1) }} 251.2"
-                                    stroke-linecap="round"
-                                    class="transition-all duration-1000"/>
-                            </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span class="text-xl lg:text-2xl font-bold text-white">{{ pres_pct|int }}%</span>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center">
-                            <p class="text-xs font-semibold text-slate-200">Presença Ajustada</p>
-                            <p class="text-[10px] text-slate-500 flex items-center justify-center gap-1">
-                                Meta: 95%
-                                <span class="inline-block w-1.5 h-1.5 rounded-full {% if pres_pct >= 95 %}bg-emerald-400{% elif pres_pct >= 85 %}bg-blue-400{% elif pres_pct >= 70 %}bg-amber-400{% else %}bg-rose-400{% endif %}"></span>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden lg:hidden">
-                        <div class="h-full rounded-full transition-all duration-1000 {% if pres_pct >= 95 %}bg-emerald-500{% elif pres_pct >= 85 %}bg-blue-500{% elif pres_pct >= 70 %}bg-amber-500{% else %}bg-rose-500{% endif %}" 
-                             style="width: {{ pres_pct }}%"></div>
-                    </div>
-                </div>
-                
-                <!-- Gauge Disciplina -->
-                {% set disc_pct = (team_stats.discipline_rate * 100)|round(0) %}
-                <div class="bg-slate-900/50 rounded-2xl p-4 border border-slate-700/50 hover:border-amber-500/30 transition-all group">
-                    <div class="flex flex-col items-center">
-                        <div class="relative w-28 h-28 lg:w-32 lg:h-32">
-                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="40" stroke="#1e293b" stroke-width="10" fill="none"/>
-                                <circle cx="50" cy="50" r="40" 
-                                    stroke="{% if disc_pct >= 98 %}#10b981{% elif disc_pct >= 90 %}#3b82f6{% elif disc_pct >= 80 %}#f59e0b{% else %}#ef4444{% endif %}" 
-                                    stroke-width="10" fill="none"
-                                    stroke-dasharray="{{ (disc_pct / 100 * 251.2)|round(1) }} 251.2"
-                                    stroke-linecap="round"
-                                    class="transition-all duration-1000"/>
-                            </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span class="text-xl lg:text-2xl font-bold text-white">{{ disc_pct|int }}%</span>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center">
-                            <p class="text-xs font-semibold text-slate-200">Disciplina</p>
-                            <p class="text-[10px] text-slate-500 flex items-center justify-center gap-1">
-                                Meta: 98% (sem faltas)
-                                <span class="inline-block w-1.5 h-1.5 rounded-full {% if disc_pct >= 98 %}bg-emerald-400{% elif disc_pct >= 90 %}bg-blue-400{% elif disc_pct >= 80 %}bg-amber-400{% else %}bg-rose-400{% endif %}"></span>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden lg:hidden">
-                        <div class="h-full rounded-full transition-all duration-1000 {% if disc_pct >= 98 %}bg-emerald-500{% elif disc_pct >= 90 %}bg-blue-500{% elif disc_pct >= 80 %}bg-amber-500{% else %}bg-rose-500{% endif %}" 
-                             style="width: {{ disc_pct }}%"></div>
-                    </div>
-                </div>
-                
-                <!-- Gauge Eficiência de Tempo -->
-                {% set tempo_meta = 25 %}
-                {% set tempo_pct = [[[(tempo_meta / team_stats.avg_trip_minutes * 100), 100]|min, 0]|max, 100]|min if team_stats.avg_trip_minutes > 0 else 0 %}
-                <div class="bg-slate-900/50 rounded-2xl p-4 border border-slate-700/50 hover:border-purple-500/30 transition-all group">
-                    <div class="flex flex-col items-center">
-                        <div class="relative w-28 h-28 lg:w-32 lg:h-32">
-                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="40" stroke="#1e293b" stroke-width="10" fill="none"/>
-                                <circle cx="50" cy="50" r="40" 
-                                    stroke="{% if team_stats.avg_trip_minutes <= 25 %}#10b981{% elif team_stats.avg_trip_minutes <= 30 %}#3b82f6{% elif team_stats.avg_trip_minutes <= 35 %}#f59e0b{% else %}#ef4444{% endif %}" 
-                                    stroke-width="10" fill="none"
-                                    stroke-dasharray="{{ (tempo_pct / 100 * 251.2)|round(1) }} 251.2"
-                                    stroke-linecap="round"
-                                    class="transition-all duration-1000"/>
-                            </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span class="text-xl lg:text-2xl font-bold text-white">{{ team_stats.avg_trip_minutes|fmt_br_duracao }}</span>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center">
-                            <p class="text-xs font-semibold text-slate-200">Tempo/Viagem</p>
-                            <p class="text-[10px] text-slate-500 flex items-center justify-center gap-1">
-                                Meta: ≤25 min
-                                <span class="inline-block w-1.5 h-1.5 rounded-full {% if team_stats.avg_trip_minutes <= 25 %}bg-emerald-400{% elif team_stats.avg_trip_minutes <= 30 %}bg-blue-400{% elif team_stats.avg_trip_minutes <= 35 %}bg-amber-400{% else %}bg-rose-400{% endif %}"></span>
-                            </p>
-                        </div>
-                    </div>
-                    <div class="mt-3 h-1.5 bg-slate-700 rounded-full overflow-hidden lg:hidden">
-                        <div class="h-full rounded-full transition-all duration-1000 {% if team_stats.avg_trip_minutes <= 25 %}bg-emerald-500{% elif team_stats.avg_trip_minutes <= 30 %}bg-blue-500{% elif team_stats.avg_trip_minutes <= 35 %}bg-amber-500{% else %}bg-rose-500{% endif %}" 
-                             style="width: {{ tempo_pct }}%"></div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Legenda de Cores -->
-            <div class="mt-6 pt-4 border-t border-slate-700/50">
-                <div class="flex flex-wrap justify-center gap-4 text-[10px]">
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                        <span class="text-slate-400">Meta atingida</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                        <span class="text-slate-400">Próximo da meta</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                        <span class="text-slate-400">Atenção</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                        <span class="text-slate-400">Abaixo do esperado</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- GRÁFICOS INTERATIVOS -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <!-- Gráfico de Barras - Top 10 -->
-            <div class="bg-slate-800/50 border border-slate-700 rounded-3xl p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-bold text-white">Top 10 Colaboradores</h3>
-                            <p class="text-[10px] text-slate-500">Ranking por score geral de performance</p>
-                        </div>
-                    </div>
-                    <button @click="showGuide = true" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700 transition-colors" title="O que é Score?">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </button>
-                </div>
-                <div class="h-64">
-                    <canvas id="chartBarTop10"></canvas>
-                </div>
-            </div>
-            
-            <!-- Gráfico Pizza - Distribuição por Badges -->
-            <div class="bg-slate-800/50 border border-slate-700 rounded-3xl p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-bold text-white">Perfil da Equipe</h3>
-                            <p class="text-[10px] text-slate-500">Distribuição por classificação (badge)</p>
-                        </div>
-                    </div>
-                    <button @click="showGuide = true" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700 transition-colors" title="O que são Badges?">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </button>
-                </div>
-                <div class="h-64 flex items-center justify-center">
-                    <canvas id="chartPieBadges"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <!-- Gráfico Radar - 5 Pilares (Média do Time) -->
-        <div class="bg-slate-800/50 border border-slate-700 rounded-3xl p-6">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-base font-bold text-white">Composição dos 5 Pilares</h3>
-                        <p class="text-[10px] text-slate-500">Compara a média do time com o melhor colaborador</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4 text-[10px]">
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-3 h-3 rounded-full bg-blue-500/50 border border-blue-500"></span>
-                        <span class="text-slate-400">Média do Time</span>
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="w-3 h-3 rounded-full bg-emerald-500/50 border border-emerald-500"></span>
-                        <span class="text-slate-400">Top Performer</span>
-                    </div>
-                    <button @click="showGuide = true" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700 transition-colors" title="O que são os 5 Pilares?">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-            <div class="h-72 max-w-xl mx-auto">
-                <canvas id="chartRadarPillars"></canvas>
-            </div>
-        </div>
-
-        <!-- SEÇÃO DE RELATÓRIOS IA -->
-        <div class="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700 rounded-3xl p-6" x-data="aiReportController({ geminiAvailable: {{ 'true' if gemini_available else 'false' }} })">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
-                <div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                            </svg>
-                        </div>
-                        <h2 class="text-xl font-bold text-white">Relatórios IA para Diretoria</h2>
-                        {% if gemini_available %}
-                        <span class="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">IA disponível</span>
-                        {% else %}
-                        <span class="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300">IA indisponível no ambiente</span>
-                        {% endif %}
-                    </div>
-                    <p class="text-xs text-slate-400 mt-1">Análises geradas por inteligência artificial com base nos dados operacionais</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <button @click="exportPDF()" class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-600 sm:w-auto">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        Exportar PDF
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Seletor de Tipo de Relatório -->
-            <div class="flex flex-wrap gap-2 mb-6">
-                <button @click="reportType = 'executive'" 
-                    :class="reportType === 'executive' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-500'"
-                    class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all">
-                    Resumo Executivo
-                </button>
-                <button @click="reportType = 'detailed'" 
-                    :class="reportType === 'detailed' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-500'"
-                    class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all">
-                    Relatório Detalhado
-                </button>
-                <button @click="reportType = 'recommendations'" 
-                    :class="reportType === 'recommendations' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-500'"
-                    class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all">
-                    Recomendações
-                </button>
-                <button @click="showIndividualSelect = !showIndividualSelect" 
-                    :class="reportType === 'individual' ? 'bg-blue-600 text-white border-blue-500' : 'bg-slate-800 text-slate-300 border-slate-600 hover:border-slate-500'"
-                    class="px-4 py-2 rounded-lg text-xs font-semibold border transition-all">
-                    Individual
-                </button>
-            </div>
-            
-            <!-- Seletor de Colaborador (para relatório individual) -->
-            <div x-show="showIndividualSelect" x-transition class="mb-6">
-                <label class="block text-xs font-semibold text-slate-400 mb-2">Selecione o colaborador:</label>
-                <select x-model="selectedEmployeeId" @change="reportType = 'individual'" class="w-full max-w-md rounded-lg bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-white">
-                    <option value="">Escolha um colaborador...</option>
-                    {% for row in rows %}
-                    <option value="{{ row.id }}">{{ row.name }} (Score: {{ row.score|fmt_br_2 }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <!-- Botão Gerar -->
-            <div class="mb-6">
-                <button @click="generateReport()" 
-                    :disabled="loading || !geminiAvailable || (reportType === 'individual' && !selectedEmployeeId)"
-                    :class="loading || !geminiAvailable ? 'cursor-not-allowed opacity-50' : 'hover:bg-blue-500'"
-                    class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-3 font-semibold text-white transition-all shadow-lg shadow-blue-500/20 sm:w-auto">
-                    <template x-if="loading">
-                        <svg class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </template>
-                    <template x-if="!loading">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                        </svg>
-                    </template>
-                    <span x-text="loading ? 'Gerando relatório...' : 'Gerar Relatório com IA'"></span>
-                </button>
-                <p x-show="!geminiAvailable" class="mt-2 text-xs text-amber-300">
-                    O relatório com IA fica desabilitado enquanto a chave `GEMINI_API_KEY` não estiver configurada no servidor.
-                </p>
-            </div>
-            
-            <!-- Área do Relatório -->
-            <div x-show="report" x-transition class="bg-slate-900/80 border border-slate-700 rounded-2xl p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <span class="px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-500/20 text-blue-300 border border-blue-500/30" x-text="getReportTypeLabel()"></span>
-                        <span class="text-[10px] text-slate-500" x-text="generatedAt"></span>
-                    </div>
-                    <button @click="copyReport()" class="text-xs text-slate-400 hover:text-white flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                        </svg>
-                        Copiar
-                    </button>
-                </div>
-                <div class="prose prose-sm prose-invert max-w-none">
-                    <div class="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap" x-text="report"></div>
-                </div>
-            </div>
-            
-            <!-- Mensagem de erro -->
-            <div x-show="error" x-transition class="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-red-300 text-sm">
-                <span x-text="error"></span>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {% for league in league_rankings %}
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-bold text-white">{{ league.band_label }}</h3>
-                    <a href="/operations/performance?date={{ filters.date }}&period={{ filters.period }}&cost_center={{ filters.cost_center }}&route_band={{ filters.route_band }}&sort_by={{ filters.sort_by }}&order={{ filters.order }}&tenure_band={{ league.band }}"
-                        class="text-xs text-blue-300 hover:text-blue-200">Filtrar</a>
-                </div>
-                {% if league.top %}
-                <div class="space-y-2 text-xs text-slate-300">
-                    {% for item in league.top %}
-                    <div class="flex items-center justify-between">
-                        <span class="text-white font-semibold">{{ item.name }}</span>
-                        <span>{{ item.score|fmt_br_2 }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="text-xs text-slate-500">Sem dados na liga.</p>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {% set insight_cards = [
-                ('Melhor do período', insights.best),
-                ('Maior evolução', insights.improved),
-                ('Melhor presença', insights.presence),
-                ('Mais consistente', insights.consistent),
-                ('Gargalo de tempo', insights.bottleneck),
-                ('Mais faltas', insights.absences),
-                ('Maior curva de aprendizado', insights.learning),
-                ('Veterano referencia', insights.veteran),
-                ('Potencial não explorado', insights.potential)
-            ] %}
-            {% for title, info in insight_cards %}
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
-                <p class="text-xs text-slate-400 uppercase tracking-wider">{{ title }}</p>
-                <p class="text-lg font-bold text-white mt-2">{{ info.name if info else '---' }}</p>
-                <p class="text-xs text-slate-500">{{ info.detail if info else 'Sem dados' }}</p>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="bg-slate-800/50 border border-slate-700 rounded-3xl p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-white">Top performers e por quê</h2>
-                <p class="text-xs text-slate-500">Score ponderado pelos 5 pilares (produtividade, qualidade, disciplina, evolução e contexto)</p>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {% for perf in top_performers %}
-                <div class="bg-slate-900/80 border border-slate-700 rounded-2xl p-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-semibold text-white">{{ perf.name }}</p>
-                            <p class="text-xs text-slate-500">Score {{ perf.score|fmt_br_2 }} | {{ perf.percentile|fmt_br_int }}%</p>
-                            {% if perf.badge %}
-                            <span class="mt-1 inline-flex items-center text-[10px] px-2 py-0.5 rounded-full border border-slate-700 text-slate-300">
-                                {{ perf.badge }}
-                            </span>
-                            {% endif %}
-                        </div>
-                        <button @click="openDetails({{ perf.id }})" class="text-xs text-blue-300 hover:text-blue-200">Detalhes</button>
-                    </div>
-                    <ul class="mt-3 space-y-1 text-xs text-slate-300">
-                        {% for reason in perf.reasons %}
-                        <li>• {{ reason }}</li>
-                        {% endfor %}
-                        {% if not perf.reasons %}
-                        <li>• Sem sinais fortes no período</li>
-                        {% endif %}
-                    </ul>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
-                <h3 class="text-sm font-bold text-white">Perfis operacionais</h3>
-                {% if rows|length < 12 %}
-                <p class="text-[10px] text-slate-500 mb-3">Origem: regras (amostra pequena).</p>
-                {% else %}
-                <p class="text-[10px] text-slate-500 mb-3">Origem: modelo estatístico do período.</p>
-                {% endif %}
-                <div class="space-y-3 text-xs text-slate-300">
-                    {% for cluster in clusters %}
-                    <div>
-                        <p class="font-semibold text-white">{{ cluster.label }} ({{ cluster.count }})</p>
-                        <p>Média kg/h: {{ cluster.avg_kgh|fmt_br_int }} | Reg: {{ (cluster.avg_regularity * 100)|fmt_br_int }}%</p>
-                        <p class="text-slate-500">{{ cluster.members | join(', ') }}</p>
-                    </div>
-                    {% endfor %}
-                    {% if not clusters %}
-                    <p class="text-slate-500">Dados insuficientes para clustering.</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
-                <h3 class="text-sm font-bold text-white">Outliers de performance</h3>
-                {% if rows|length < 8 %}
-                <p class="text-[10px] text-slate-500 mb-3">Amostra pequena para outliers.</p>
-                {% else %}
-                <p class="text-[10px] text-slate-500 mb-3">Origem: estatística (z-score em kg/h).</p>
-                {% endif %}
-                <div class="space-y-3 text-xs text-slate-300">
-                    {% for out in outliers %}
-                    <div>
-                        <p class="font-semibold text-white">{{ out.name }}</p>
-                        <p>Kg/h: {{ out.kgh|fmt_br_int }} | z {{ out.zscore|fmt_br_2 }}</p>
-                    </div>
-                    {% endfor %}
-                    {% if not outliers %}
-                    <p class="text-slate-500">Sem picos anormais no período.</p>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-4">
-                <h3 class="text-sm font-bold text-white">Drivers estatísticos do score (correlação)</h3>
-                <p class="text-[10px] text-slate-500 mb-3">Não indica causalidade.</p>
-                <div class="space-y-3 text-xs text-slate-300">
-                    {% for driver in feature_drivers %}
-                    <div class="flex items-center justify-between">
-                        <span>{{ driver.label }}</span>
-                        <span class="text-slate-400">{{ driver.corr|fmt_br_2 }}</span>
-                    </div>
-                    {% endfor %}
-                    {% if not feature_drivers %}
-                    <p class="text-slate-500">Sem dados para correlação.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Tabela Simplificada de Colaboradores -->
-        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl overflow-hidden">
-            <div class="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-700">
-                <div>
-                    <h2 class="text-lg font-bold text-white">Visão Geral da Equipe</h2>
-                    <p class="text-[10px] text-slate-500">{{ rows|length }} colaboradores</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <input x-model.trim="searchTerm" type="text" placeholder="Buscar..." class="w-40 rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-white placeholder:text-slate-500">
-                    <button type="button" @click="showDiscipline = !showDiscipline" :class="showDiscipline ? 'bg-amber-600 text-white border-amber-500' : 'bg-slate-900 text-slate-400 border-slate-700'" class="px-2.5 py-1.5 rounded-lg text-[10px] border transition">
-                        <span x-text="showDiscipline ? 'Ocultar Faltas' : 'Ver Faltas'"></span>
-                    </button>
-                </div>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs">
-                    <thead class="text-[10px] uppercase text-slate-400 bg-slate-900/80">
-                        <tr class="border-b border-slate-800">
-                            <th class="px-3 py-2.5 text-left sticky left-0 bg-slate-900 z-10">Colaborador</th>
-                            <th class="px-3 py-2.5 text-center">Score</th>
-                            <th class="px-3 py-2.5 text-right">Kg/h</th>
-                            <th class="px-3 py-2.5 text-right">Volume</th>
-                            <th class="px-3 py-2.5 text-center">Presença</th>
-                            <th class="px-3 py-2.5 text-center">Tendência</th>
-                            <th class="px-3 py-2.5 text-center" :class="showDiscipline ? '' : 'hidden'">Faltas</th>
-                            <th class="px-3 py-2.5 text-center" :class="showDiscipline ? '' : 'hidden'">Atestados</th>
-                            <th class="px-3 py-2.5 w-16"></th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-800/50">
-                        {% for row in rows %}
-                        <tr class="hover:bg-slate-800/50 transition cursor-pointer" data-search="{{ row.name }} {{ row.id }} {{ row.top_client }} {{ row.ajudantes|join(' ') if row.ajudantes else '' }}"
-                            x-show="matchesSearch($el.dataset.search)" @click="openDetails({{ row.id }})">
-                            <td class="px-3 py-2 sticky left-0 bg-slate-900/95 z-10">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-7 h-7 rounded-full bg-slate-700 overflow-hidden flex-shrink-0">
-                                        <img src="{{ row.photo or 'https://ui-avatars.com/api/?background=1f2937&color=fff&name=' + row.name }}" class="w-full h-full object-cover">
-                                    </div>
-                                    <div class="min-w-0">
-                                        <div class="flex items-center gap-1.5">
-                                            <p class="text-white font-medium truncate max-w-[180px]" title="{{ row.name }}">{{ row.name.split()[0] }} {{ row.name.split()[1] if row.name.split()|length > 1 else '' }}</p>
-                                            {% if row.badge %}
-                                            <span class="text-[8px] px-1.5 py-0.5 rounded-full border flex-shrink-0 {{ row.badge_class }}">{{ row.badge[:3] }}</span>
-                                            {% endif %}
-                                        </div>
-                                        <p class="text-[10px] text-slate-500 truncate max-w-[180px]">{{ row.tenure_band_label }} · {{ row.tenure_months|fmt_br_int }}m</p>
-                                            {% if row.ajudantes and row.ajudantes|length > 0 %}
-                                        <p class="text-[10px] text-slate-400 truncate max-w-[180px]" title="{{ row.ajudantes|join(', ') }}">
-                                            <span class="text-slate-500">Ajudantes:</span> {{ row.ajudantes|join(', ')|truncate(40, True, '…') }}
-                                        </p>
-                                            {% endif %}
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-3 py-2 text-center">
-                                <div class="inline-flex flex-col items-center">
-                                    <span class="text-emerald-400 font-bold">{{ row.score|fmt_br_2 }}</span>
-                                </div>
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                <span class="text-white font-medium">{{ row.avg_kgh|fmt_br_int }}</span>
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                <span class="text-slate-300">{{ (row.total_tonnage / 1000)|round(1) }}t</span>
-                            </td>
-                            <td class="px-3 py-2 text-center">
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium {% if row.regularity_adjusted >= 0.9 %}bg-emerald-500/20 text-emerald-400{% elif row.regularity_adjusted >= 0.7 %}bg-amber-500/20 text-amber-400{% else %}bg-red-500/20 text-red-400{% endif %}">
-                                    {{ row.regularity_adjusted|fmt_br_pct }}
-                                </span>
-                            </td>
-                            <td class="px-3 py-2 text-center">
-                                <span class="text-[10px] {% if row.trend_label == 'Em alta' %}text-emerald-400{% elif row.trend_label == 'Em queda' %}text-red-400{% else %}text-slate-400{% endif %}">
-                                    {% if row.trend_label == 'Em alta' %}↑{% elif row.trend_label == 'Em queda' %}↓{% else %}→{% endif %} {{ row.trend_label }}
-                                </span>
-                            </td>
-                            <td class="px-3 py-2 text-center" :class="showDiscipline ? '' : 'hidden'">
-                                {% if row.unjustified_absences > 0 %}
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-400">{{ row.unjustified_absences }}</span>
-                                {% else %}
-                                <span class="text-slate-500">0</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-3 py-2 text-center" :class="showDiscipline ? '' : 'hidden'">
-                                {% if row.justified_absences > 0 %}
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/20 text-amber-400">{{ row.justified_absences }}</span>
-                                {% else %}
-                                <span class="text-slate-500">0</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-3 py-2 text-right">
-                                <button @click.stop="openDetails({{ row.id }})" class="text-[10px] text-blue-400 hover:text-blue-300 transition">Ver →</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {% endif %}
-
-        {% if debug_absences %}
-        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
-            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências não classificadas</summary>
-            <p class="mt-2 text-slate-400">Total: {{ debug_absences.unknown }}</p>
-        {% if debug_absences.examples %}
-        <div class="mt-2 grid gap-1 text-slate-300">
-            {% for label in debug_absences.examples %}
-            <div>• {{ label }}</div>
-            {% endfor %}
-        </div>
-        {% endif %}
-        {% if debug_absences.labels %}
-        <div class="mt-2 grid gap-1 text-slate-300">
-            {% for item in debug_absences.labels %}
-            <div>• {{ item.label }} ({{ item.count }})</div>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </details>
-    {% endif %}
-
-        {% if debug_absence_summary %}
-        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
-            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências (resumo)</summary>
-            <div class="mt-2 grid gap-1 text-slate-300">
-                <div>Rotinas no período: {{ debug_absence_summary.routine_count|fmt_br_int }}</div>
-                <div>Eventos no período: {{ debug_absence_summary.event_count|fmt_br_int }}</div>
-                <div>Origem: {{ debug_absence_summary.source_label }}</div>
-            </div>
-            <div class="mt-2 grid gap-1 text-slate-300">
-                <div>Dias — Faltas: {{ debug_absence_summary.days.unjustified|fmt_br_int }} · Atestados: {{ debug_absence_summary.days.justified|fmt_br_int }} · Afastamentos: {{ debug_absence_summary.days.leave|fmt_br_int }} · Folgas: {{ debug_absence_summary.days.offday|fmt_br_int }}</div>
-                <div>Logs — Faltas: {{ debug_absence_summary.logs.unjustified|fmt_br_int }} · Atestados: {{ debug_absence_summary.logs.justified|fmt_br_int }} · Afastamentos: {{ debug_absence_summary.logs.leave|fmt_br_int }} · Folgas: {{ debug_absence_summary.logs.offday|fmt_br_int }}</div>
-            </div>
-            {% if debug_absence_summary.dup_examples %}
-            <div class="mt-2 grid gap-1 text-slate-300">
-                {% for item in debug_absence_summary.dup_examples %}
-                <div>• {{ item.date }} · {{ item.group }} · {{ item.count }} logs</div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </details>
-        {% endif %}
-
-        {% if debug_absence_diagnostic %}
-        <details class="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 text-xs text-slate-300">
-            <summary class="cursor-pointer text-slate-400 font-semibold">Debug ausências por colaborador</summary>
-            <p class="mt-2 text-slate-400">Colaborador ID: {{ debug_absence_employee_id }}</p>
-            <div class="mt-2 grid gap-1">
-                {% for item in debug_absence_diagnostic %}
-                <div>• {{ item.date }} · {{ item.group }} · {{ item.source }} · #{{ item.record_id }}</div>
-                {% endfor %}
-            </div>
-        </details>
-        {% endif %}
-
-        <!-- ============================================ -->
-        <!-- MODAL DEBUG DE CÁLCULOS -->
-        <!-- ============================================ -->
-        {% if calculation_debug %}
-        <div x-show="showDebugPanel" class="fixed inset-0 z-50 flex items-center justify-center px-4" style="display: none;" x-cloak>
-            <!-- Backdrop -->
-            <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm" 
-                 x-show="showDebugPanel" 
-                 x-transition.opacity 
-                 @click="showDebugPanel = false"></div>
-
-            <!-- Modal Window -->
-            <div class="bg-slate-900 w-full max-w-6xl max-h-[95vh] flex flex-col relative z-10 rounded-3xl shadow-2xl border border-emerald-500/20 overflow-hidden"
-                 x-show="showDebugPanel"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 scale-95"
-                 x-transition:enter-end="opacity-100 scale-100">
-
-                <!-- Header -->
-                <div class="shrink-0 bg-gradient-to-r from-emerald-900/50 to-slate-900 border-b border-emerald-500/20 px-6 py-4 flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h2 class="text-lg font-bold text-white">Debug de Cálculos</h2>
-                            <p class="text-xs text-slate-400">Validação das métricas e fórmulas utilizadas</p>
-                        </div>
-                    </div>
-                    <button @click="showDebugPanel = false" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Tabs -->
-                <div class="shrink-0 flex items-center gap-1 px-6 pt-4 border-b border-slate-700/50">
-                    <button @click="activeDebugTab = 'formulas'" 
-                            :class="activeDebugTab === 'formulas' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 border-transparent hover:bg-slate-700/50'"
-                            class="px-4 py-2 rounded-t-lg text-sm font-semibold border-b-2 transition-all">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                            </svg>
-                            Fórmulas
-                        </span>
-                    </button>
-                    <button @click="activeDebugTab = 'team'" 
-                            :class="activeDebugTab === 'team' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 border-transparent hover:bg-slate-700/50'"
-                            class="px-4 py-2 rounded-t-lg text-sm font-semibold border-b-2 transition-all">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                            </svg>
-                            Métricas do Time
-                        </span>
-                    </button>
-                    <button @click="activeDebugTab = 'individual'" 
-                            :class="activeDebugTab === 'individual' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50' : 'bg-slate-800/50 text-slate-400 border-transparent hover:bg-slate-700/50'"
-                            class="px-4 py-2 rounded-t-lg text-sm font-semibold border-b-2 transition-all">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-                            </svg>
-                            Por Colaborador
-                        </span>
-                    </button>
-                </div>
-
-                <!-- Content -->
-                <div class="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                    
-                    <!-- TAB: Fórmulas -->
-                    <div x-show="activeDebugTab === 'formulas'" class="space-y-4">
-                        <div class="grid gap-4 md:grid-cols-2">
-                            {% for key, formula in calculation_debug.formulas.items() %}
-                            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:border-emerald-500/30 transition-colors">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                                    <h4 class="text-sm font-bold text-white">{{ formula.name }}</h4>
-                                </div>
-                                <div class="bg-slate-900/50 rounded-lg p-3 mb-2 border border-slate-700/50">
-                                    <code class="text-xs text-emerald-300 font-mono">{{ formula.formula }}</code>
-                                </div>
-                                <p class="text-xs text-slate-400 mb-2">{{ formula.description }}</p>
-                                {% if formula.example %}
-                                <div class="text-[10px] text-slate-500 border-t border-slate-700/50 pt-2 mt-2">
-                                    <span class="text-slate-400">Exemplo:</span> {{ formula.example }}
-                                </div>
-                                {% endif %}
-                                {% if formula.weights %}
-                                <div class="text-[10px] text-slate-500 border-t border-slate-700/50 pt-2 mt-2">
-                                    <span class="text-slate-400">Pesos:</span>
-                                    {% for pillar, weight in formula.weights.items() %}
-                                    <span class="ml-1">{{ pillar }}: {{ (weight * 100)|int }}%</span>{% if not loop.last %},{% endif %}
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <!-- TAB: Métricas do Time -->
-                    <div x-show="activeDebugTab === 'team'" class="space-y-4">
-                        <!-- Período -->
-                        <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                            <h4 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                </svg>
-                                Período Analisado
-                            </h4>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <div class="bg-slate-900/50 rounded-lg p-3 text-center">
-                                    <p class="text-2xl font-bold text-white">{{ calculation_debug.period_info.total_days }}</p>
-                                    <p class="text-[10px] text-slate-500">Dias no Período</p>
-                                </div>
-                                <div class="bg-slate-900/50 rounded-lg p-3 text-center">
-                                    <p class="text-sm font-mono text-slate-300">{{ calculation_debug.period_info.start_date }}</p>
-                                    <p class="text-[10px] text-slate-500">Data Início</p>
-                                </div>
-                                <div class="bg-slate-900/50 rounded-lg p-3 text-center">
-                                    <p class="text-sm font-mono text-slate-300">{{ calculation_debug.period_info.end_date }}</p>
-                                    <p class="text-[10px] text-slate-500">Data Fim</p>
-                                </div>
-                                <div class="bg-slate-900/50 rounded-lg p-3 text-center">
-                                    <p class="text-sm font-bold text-blue-300">{{ calculation_debug.period_info.period_type|capitalize }}</p>
-                                    <p class="text-[10px] text-slate-500">Tipo de Período</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Cálculos do Time -->
-                        <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                            <h4 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                                </svg>
-                                Cálculos Agregados do Time
-                            </h4>
-                            <div class="space-y-3">
-                                <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs text-slate-400">Presença Ajustada do Time</span>
-                                        <span class="text-lg font-bold text-emerald-300">{{ (calculation_debug.team_calculations.avg_presence_adjusted * 100)|round(1) }}%</span>
-                                    </div>
-                                    <code class="text-[10px] text-slate-500 font-mono block">{{ calculation_debug.team_calculations.avg_presence_calculation }}</code>
-                                </div>
-                                <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs text-slate-400">Taxa de Disciplina do Time</span>
-                                        <span class="text-lg font-bold text-blue-300">{{ (calculation_debug.team_calculations.discipline_rate * 100)|round(1) }}%</span>
-                                    </div>
-                                    <code class="text-[10px] text-slate-500 font-mono block">{{ calculation_debug.team_calculations.discipline_calculation }}</code>
-                                </div>
-                                <div class="grid grid-cols-3 gap-3">
-                                    <div class="bg-slate-900/50 rounded-lg p-3 text-center">
-                                        <p class="text-xl font-bold text-white">{{ calculation_debug.team_calculations.total_employees }}</p>
-                                        <p class="text-[10px] text-slate-500">Colaboradores</p>
-                                    </div>
-                                    <div class="bg-slate-900/50 rounded-lg p-3 text-center">
-                                        <p class="text-xl font-bold text-rose-300">{{ calculation_debug.team_calculations.total_unjustified }}</p>
-                                        <p class="text-[10px] text-slate-500">Faltas (total)</p>
-                                    </div>
-                                    <div class="bg-slate-900/50 rounded-lg p-3 text-center">
-                                        <p class="text-xl font-bold text-cyan-300">{{ calculation_debug.team_calculations.sum_regularity_adjusted|round(2) }}</p>
-                                        <p class="text-[10px] text-slate-500">Soma Presenças</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB: Por Colaborador -->
-                    <div x-show="activeDebugTab === 'individual'" class="space-y-4">
-                        <!-- Busca -->
-                        <div class="relative">
-                            <input type="text" 
-                                   x-model="debugSearchTerm" 
-                                   placeholder="Buscar colaborador..."
-                                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 pl-10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50">
-                            <svg class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                        </div>
-
-                        <!-- Lista de Colaboradores -->
-                        <div class="grid gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                            {% for emp in calculation_debug.employees %}
-                            <div class="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden hover:border-emerald-500/30 transition-colors"
-                                 x-show="!debugSearchTerm || '{{ emp.name|lower }}'.includes(debugSearchTerm.toLowerCase())"
-                                 x-data="{ expanded: false }">
-                                
-                                <!-- Header do Colaborador -->
-                                <button @click="expanded = !expanded" class="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-700/30 transition-colors">
-                                    <div class="flex items-center gap-3">
-                                        <span class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">
-                                            {{ emp.name[:2]|upper }}
-                                        </span>
-                                        <div class="text-left">
-                                            <p class="text-sm font-semibold text-white">{{ emp.name|emp_name }}</p>
-                                            <p class="text-[10px] text-slate-500">ID: {{ emp.id }}</p>
-                                        </div>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <div class="text-right">
-                                            <p class="text-sm font-bold text-emerald-300">{{ (emp.calculations.presence.regularity_adjusted * 100)|round(1) }}%</p>
-                                            <p class="text-[10px] text-slate-500">Presença</p>
-                                        </div>
-                                        <svg class="w-4 h-4 text-slate-400 transition-transform" :class="expanded ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                        </svg>
-                                    </div>
-                                </button>
-
-                                <!-- Detalhes Expandidos -->
-                                <div x-show="expanded" x-transition class="border-t border-slate-700/50">
-                                    <div class="p-4 grid gap-3 md:grid-cols-2">
-                                        
-                                        <!-- Cálculo de Presença -->
-                                        <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                                            <h5 class="text-xs font-bold text-emerald-300 mb-2 flex items-center gap-1">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                                                Presença Ajustada
-                                            </h5>
-                                            <div class="grid grid-cols-2 gap-2 text-[10px] mb-2">
-                                                <div><span class="text-slate-500">Dias Trabalhados:</span> <span class="text-white font-mono">{{ emp.calculations.presence.days_active }}</span></div>
-                                                <div><span class="text-slate-500">Total Dias:</span> <span class="text-white font-mono">{{ emp.calculations.presence.total_days }}</span></div>
-                                                <div><span class="text-slate-500">Atestados:</span> <span class="text-cyan-300 font-mono">{{ emp.calculations.presence.justified_days }}</span></div>
-                                                <div><span class="text-slate-500">Afastamentos:</span> <span class="text-orange-300 font-mono">{{ emp.calculations.presence.leave_days }}</span></div>
-                                                <div><span class="text-slate-500">Folgas:</span> <span class="text-purple-300 font-mono">{{ emp.calculations.presence.offday_days }}</span></div>
-                                                <div><span class="text-slate-500">Faltas:</span> <span class="text-rose-300 font-mono">{{ emp.calculations.presence.unjustified_days }}</span></div>
-                                            </div>
-                                            <div class="bg-slate-800 rounded p-2 text-[10px]">
-                                                <span class="text-slate-400">Fórmula:</span>
-                                                <code class="text-emerald-300 font-mono ml-1">{{ emp.calculations.presence.formula_applied }}</code>
-                                            </div>
-                                        </div>
-
-                                        <!-- Cálculo de Disciplina -->
-                                        <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                                            <h5 class="text-xs font-bold text-blue-300 mb-2 flex items-center gap-1">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                                                Taxa de Disciplina
-                                            </h5>
-                                            <div class="grid grid-cols-2 gap-2 text-[10px] mb-2">
-                                                <div><span class="text-slate-500">Faltas N/J:</span> <span class="text-rose-300 font-mono">{{ emp.calculations.discipline.unjustified_days }}</span></div>
-                                                <div><span class="text-slate-500">Total Dias:</span> <span class="text-white font-mono">{{ emp.calculations.discipline.total_days }}</span></div>
-                                                <div class="col-span-2"><span class="text-slate-500">Resultado:</span> <span class="text-blue-300 font-bold">{{ (emp.calculations.discipline.discipline_rate * 100)|round(1) }}%</span></div>
-                                            </div>
-                                            <div class="bg-slate-800 rounded p-2 text-[10px]">
-                                                <span class="text-slate-400">Fórmula:</span>
-                                                <code class="text-blue-300 font-mono ml-1">{{ emp.calculations.discipline.formula_applied }}</code>
-                                            </div>
-                                        </div>
-
-                                        <!-- Cálculo de Produtividade -->
-                                        <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                                            <h5 class="text-xs font-bold text-amber-300 mb-2 flex items-center gap-1">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                                                Produtividade (Kg/h)
-                                            </h5>
-                                            <div class="grid grid-cols-2 gap-2 text-[10px] mb-2">
-                                                <div><span class="text-slate-500">Tonelagem:</span> <span class="text-white font-mono">{{ emp.calculations.productivity.total_tonnage|round(0)|int }} kg</span></div>
-                                                <div><span class="text-slate-500">Horas:</span> <span class="text-white font-mono">{{ emp.calculations.productivity.total_hours|round(1) }}h</span></div>
-                                                <div class="col-span-2"><span class="text-slate-500">Resultado:</span> <span class="text-amber-300 font-bold">{{ emp.calculations.productivity.avg_kgh|round(0)|int }} kg/h</span></div>
-                                            </div>
-                                            <div class="bg-slate-800 rounded p-2 text-[10px]">
-                                                <span class="text-slate-400">Fórmula:</span>
-                                                <code class="text-amber-300 font-mono ml-1">{{ emp.calculations.productivity.formula_applied }}</code>
-                                            </div>
-                                        </div>
-
-                                        <!-- Cálculo de Consistência -->
-                                        <div class="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
-                                            <h5 class="text-xs font-bold text-purple-300 mb-2 flex items-center gap-1">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-                                                Consistência
-                                            </h5>
-                                            <div class="grid grid-cols-2 gap-2 text-[10px] mb-2">
-                                                <div><span class="text-slate-500">CV:</span> <span class="text-white font-mono">{{ emp.calculations.consistency.cv|round(4) }}</span></div>
-                                                <div><span class="text-slate-500">Desvio:</span> <span class="text-white font-mono">{{ emp.calculations.consistency.daily_std|round(1) }}</span></div>
-                                                <div class="col-span-2"><span class="text-slate-500">Resultado:</span> <span class="text-purple-300 font-bold">{{ (emp.calculations.consistency.consistency_score * 100)|round(1) }}%</span></div>
-                                            </div>
-                                            <div class="bg-slate-800 rounded p-2 text-[10px]">
-                                                <span class="text-slate-400">Fórmula:</span>
-                                                <code class="text-purple-300 font-mono ml-1">{{ emp.calculations.consistency.formula_applied }}</code>
-                                            </div>
-                                        </div>
-
-                                        <!-- Score Final -->
-                                        <div class="md:col-span-2 bg-gradient-to-r from-emerald-900/30 to-blue-900/30 rounded-lg p-3 border border-emerald-500/20">
-                                            <h5 class="text-xs font-bold text-white mb-2 flex items-center gap-1">
-                                                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
-                                                Score Final
-                                            </h5>
-                                            <div class="flex items-center gap-4 flex-wrap">
-                                                <div class="text-3xl font-bold text-emerald-300">{{ emp.calculations.score.final_score|round(1) }}</div>
-                                                {% if emp.calculations.score.badge %}
-                                                <span class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 border border-slate-600 text-white">
-                                                    {{ emp.calculations.score.badge }}
-                                                </span>
-                                                {% endif %}
-                                                {% if emp.calculations.score.pillar_scores %}
-                                                <div class="text-[10px] text-slate-400 ml-auto">
-                                                    P: {{ emp.calculations.score.pillar_scores.productivity|default(0)|round(0) }} |
-                                                    Q: {{ emp.calculations.score.pillar_scores.quality|default(0)|round(0) }} |
-                                                    D: {{ emp.calculations.score.pillar_scores.discipline|default(0)|round(0) }} |
-                                                    E: {{ emp.calculations.score.pillar_scores.evolution|default(0)|round(0) }} |
-                                                    C: {{ emp.calculations.score.pillar_scores.context|default(0)|round(0) }}
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                            {% if emp.calculations.score.badge_reason %}
-                                            <p class="text-[10px] text-slate-500 mt-2">{{ emp.calculations.score.badge_reason }}</p>
-                                            {% endif %}
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Footer -->
-                <div class="shrink-0 bg-slate-800/50 border-t border-slate-700 px-6 py-3 flex items-center justify-between">
-                    <p class="text-[10px] text-slate-500">
-                        Dados calculados em tempo real • {{ calculation_debug.employees|length }} colaboradores analisados
-                    </p>
-                    <button @click="showDebugPanel = false" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold transition-colors">
-                        Fechar
-                    </button>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-
-        
-        <!-- NEW PERFORMANCE DETAIL MODAL (Refactored) -->
-        <div x-show="showModal" class="fixed inset-0 z-50 flex items-center justify-center px-4" style="display: none;" x-cloak>
-            <!-- Backdrop -->
-            <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" 
-                 x-show="showModal" 
-                 x-transition.opacity 
-                 @click="showModal = false"></div>
-
-            <!-- Modal Window -->
-            <div class="bg-slate-900 w-full max-w-4xl max-h-[90vh] flex flex-col relative z-10 rounded-3xl shadow-2xl border border-white/10 overflow-hidden"
-                 x-show="showModal"
-                 x-transition:enter="transition ease-out duration-300"
-                 x-transition:enter-start="opacity-0 scale-95 translate-y-4"
-                 x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-                 x-data="{ activeTab: 'overview' }">
-
-                <!-- Loading Overlay -->
-                <div x-show="loading" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/80 z-50 backdrop-blur-sm">
-                    <div class="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-3"></div>
-                    <div class="text-blue-400 font-bold text-sm animate-pulse">Carregando análise...</div>
-                </div>
-
-                <!-- 1. Modal Header -->
-                <div class="shrink-0 bg-slate-800/50 border-b border-white/5 p-6 flex items-start justify-between">
-                    <div class="flex items-center gap-4">
-                        <!-- Avatar -->
-                        <div class="w-16 h-16 rounded-2xl bg-slate-700/50 flex shrink-0 items-center justify-center overflow-hidden border border-white/10 shadow-lg">
-                            <img :src="empDetails?.employee?.photo_url || 'https://ui-avatars.com/api/?background=0f172a&color=fff&size=128&name=' + (empDetails?.employee?.name || 'User')" 
-                                 class="w-full h-full object-cover">
-                        </div>
-                        
-                        <!-- Info -->
-                        <div>
-                            <h2 class="text-xl md:text-2xl font-bold text-white leading-tight" x-text="empDetails?.employee?.name"></h2>
-                            <div class="flex flex-wrap items-center gap-2 mt-1.5">
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-slate-700/50 border-slate-600 text-slate-300">
-                                    <span x-text="empDetails?.summary?.tenure_band || 'N/A'"></span>
-                                    <span class="opacity-50 ml-1" x-text="'(' + (empDetails?.summary?.tenure_months || 0) + 'm)'"></span>
-                                </span>
-                                
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border"
-                                      :class="empDetails?.analysis?.badge ? 'bg-blue-500/10 border-blue-500/20 text-blue-300' : 'bg-slate-700/30 border-slate-600/30 text-slate-400'">
-                                    <span x-text="empDetails?.analysis?.badge || 'Sem Selo'"></span>
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button @click="showModal = false" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                    </button>
-                </div>
-
-                <!-- 2. Tabs Navigation -->
-                <div class="shrink-0 px-6 border-b border-white/5 flex gap-6 overflow-x-auto">
-                    <button @click="activeTab = 'overview'" 
-                            class="py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
-                            :class="activeTab === 'overview' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-300'">
-                        Visão Geral
-                    </button>
-                    <button @click="activeTab = 'analysis'" 
-                            class="py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
-                            :class="activeTab === 'analysis' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-500 hover:text-slate-300'">
-                        Análise IA
-                    </button>
-                    <button @click="activeTab = 'history'" 
-                            class="py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
-                            :class="activeTab === 'history' ? 'border-amber-500 text-amber-400' : 'border-transparent text-slate-500 hover:text-slate-300'">
-                        Histórico
-                    </button>
-                     <button @click="activeTab = 'routes'" 
-                            class="py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap"
-                            :class="activeTab === 'routes' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-slate-500 hover:text-slate-300'">
-                        Rotas (<span x-text="empDetails?.routes?.length || 0"></span>)
-                    </button>
-                </div>
-
-                <!-- 3. Modal Content Body -->
-                <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-slate-900">
-
-                    <!-- TAB: OVERVIEW -->
-                    <div x-show="activeTab === 'overview'" class="space-y-6">
-                        
-                        <!-- High Level Cards -->
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
-                                <p class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1">Score</p>
-                                <p class="text-3xl font-black text-white" x-text="formatNumber(empDetails?.analysis?.weighted_score)"></p>
-                                <p class="text-xs text-slate-400 mt-1">Geral</p>
-                            </div>
-                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
-                                <p class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1">Média Kg/h</p>
-                                <p class="text-3xl font-black text-emerald-400" x-text="formatNumber(empDetails?.summary?.avg_kgh)"></p>
-                                <p class="text-xs text-slate-400 mt-1">Produtividade</p>
-                            </div>
-                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
-                                <p class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1">Volume</p>
-                                <p class="text-3xl font-black text-blue-400" x-text="formatNumber(empDetails?.summary?.total_tonnage)"></p>
-                                <p class="text-xs text-slate-400 mt-1">Total Kg</p>
-                            </div>
-                            <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5">
-                                <p class="text-[10px] uppercase text-slate-500 font-bold tracking-wider mb-1">Faltas</p>
-                                <p class="text-3xl font-black" 
-                                   :class="(empDetails?.summary?.absences?.days?.unjustified || 0) > 0 ? 'text-red-400' : 'text-slate-200'"
-                                   x-text="empDetails?.summary?.absences?.days?.unjustified || 0"></p>
-                                <p class="text-xs text-slate-400 mt-1">Injustificadas</p>
-                            </div>
-                        </div>
-
-                        <!-- Pillars Bars -->
-                        <div class="bg-slate-800/30 rounded-3xl p-5 border border-white/5">
-                            <h3 class="text-sm font-bold text-white mb-4">Composição do Score</h3>
-                            <div class="space-y-4">
-                                <template x-for="(pilar, pilarIndex) in [
-                                    {label: 'Produtividade', key: 'productivity', color: 'bg-emerald-500'},
-                                    {label: 'Qualidade', key: 'quality', color: 'bg-blue-500'},
-                                    {label: 'Disciplina', key: 'discipline', color: 'bg-amber-500'},
-                                    {label: 'Evolução', key: 'evolution', color: 'bg-purple-500'},
-                                    {label: 'Contexto', key: 'context', color: 'bg-slate-500'}
-                                ]" :key="'pilar-' + pilarIndex">
-                                    <div>
-                                        <div class="flex justify-between text-xs mb-1.5">
-                                            <span class="text-slate-300 font-medium" x-text="pilar.label"></span>
-                                            <span class="text-white font-bold" x-text="formatNumber(empDetails?.analysis?.pillars?.[pilar.key]) + '%'"></span>
-                                        </div>
-                                        <div class="h-2 w-full bg-slate-700/50 rounded-full overflow-hidden">
-                                            <div class="h-full rounded-full transition-all duration-500"
-                                                 :class="pilar.color"
-                                                 :style="'width: ' + (empDetails?.analysis?.pillars?.[pilar.key] || 0) + '%'"></div>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-
-                        <!-- Notices -->
-                        <div class="space-y-2">
-                             <div class="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 flex items-start gap-3" x-show="empDetails?.analysis?.routine_missing">
-                                <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-400 shrink-0"></i>
-                                <div>
-                                    <p class="text-xs font-bold text-rose-300">Atenção: Ausência de Rotina</p>
-                                    <p class="text-[10px] text-rose-200/70" x-text="empDetails?.analysis?.routine_missing_label"></p>
-                                </div>
-                            </div>
-                            
-                            <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-3" x-show="empDetails?.analysis?.sample_small">
-                                <i data-lucide="info" class="w-5 h-5 text-amber-400 shrink-0"></i>
-                                <div>
-                                    <p class="text-xs font-bold text-amber-300">Amostra Pequena</p>
-                                    <p class="text-[10px] text-amber-200/70" x-text="empDetails?.analysis?.sample_note"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB: ANALYSIS -->
-                    <div x-show="activeTab === 'analysis'" class="space-y-6">
-                        
-                        <!-- Recommendations Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Promotion -->
-                            <div class="bg-slate-800/40 rounded-2xl p-5 border border-white/5">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="trending-up" class="w-4 h-4"></i></div>
-                                    <h3 class="text-sm font-bold text-white">Prontidão</h3>
-                                </div>
-                                <p class="text-xs text-slate-300 mb-2">
-                                    Nível: <strong class="text-white" x-text="empDetails?.analysis?.readiness_for_promotion || '-'"></strong>
-                                </p>
-                                <div class="space-y-2">
-                                    <template x-for="(item, itemIdx) in empDetails?.analysis?.recommendations?.promotion || []" :key="'promo-' + itemIdx">
-                                        <div class="text-[10px] bg-emerald-500/5 p-2 rounded border border-emerald-500/10">
-                                            <p class="font-bold text-emerald-300" x-text="item.label"></p>
-                                            <ul class="mt-1 list-disc list-inside text-emerald-200/60">
-                                                <template x-for="(ev, evIdx) in item.evidence" :key="'ev-' + evIdx"><li x-text="ev"></li></template>
-                                            </ul>
-                                        </div>
-                                    </template>
-                                    <div x-show="!(empDetails?.analysis?.recommendations?.promotion || []).length" class="text-[10px] text-slate-500 italic">Nada consta.</div>
-                                </div>
-                            </div>
-
-                            <!-- Risk -->
-                            <div class="bg-slate-800/40 rounded-2xl p-5 border border-white/5">
-                                <div class="flex items-center gap-2 mb-3">
-                                    <div class="p-2 rounded-lg bg-rose-500/10 text-rose-400"><i data-lucide="alert-octagon" class="w-4 h-4"></i></div>
-                                    <h3 class="text-sm font-bold text-white">Risco Operacional</h3>
-                                </div>
-                                <p class="text-xs text-slate-300 mb-2">
-                                    Nível: <strong class="text-white" x-text="empDetails?.analysis?.risk_flag || '-'"></strong>
-                                </p>
-                                <div class="space-y-2">
-                                    <template x-for="(item, riskIdx) in empDetails?.analysis?.recommendations?.risk || []" :key="'risk-' + riskIdx">
-                                        <div class="text-[10px] bg-rose-500/5 p-2 rounded border border-rose-500/10">
-                                            <p class="font-bold text-rose-300" x-text="item.label"></p>
-                                            <ul class="mt-1 list-disc list-inside text-rose-200/60">
-                                                <template x-for="(ev, evIdx) in item.evidence" :key="'rev-' + evIdx"><li x-text="ev"></li></template>
-                                            </ul>
-                                        </div>
-                                    </template>
-                                     <div x-show="!(empDetails?.analysis?.recommendations?.risk || []).length" class="text-[10px] text-slate-500 italic">Nada consta.</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Strengths & Weaknesses -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div class="bg-slate-800/40 rounded-2xl p-5 border border-white/5">
-                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Pontos Fortes</h3>
-                                <ul class="space-y-2">
-                                    <template x-for="(str, strIdx) in empDetails?.analysis?.strengths || []" :key="'str-' + strIdx">
-                                        <li class="flex items-start gap-2 text-xs text-slate-300">
-                                            <i data-lucide="check" class="w-3 h-3 text-emerald-500 mt-0.5"></i>
-                                            <span x-text="str"></span>
-                                        </li>
-                                    </template>
-                                     <div x-show="!(empDetails?.analysis?.strengths || []).length" class="text-[10px] text-slate-500 italic">Sem dados.</div>
-                                </ul>
-                            </div>
-                            
-                            <div class="bg-slate-800/40 rounded-2xl p-5 border border-white/5">
-                                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Pontos de Atenção</h3>
-                                <ul class="space-y-2">
-                                    <template x-for="(loss, lossIdx) in empDetails?.analysis?.losses || []" :key="'loss-' + lossIdx">
-                                        <li class="flex items-start gap-2 text-xs text-slate-300">
-                                            <i data-lucide="x" class="w-3 h-3 text-rose-500 mt-0.5"></i>
-                                            <span x-text="loss"></span>
-                                        </li>
-                                    </template>
-                                     <div x-show="!(empDetails?.analysis?.losses || []).length" class="text-[10px] text-slate-500 italic">Sem dados.</div>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- TAB: HISTORY -->
-                    <div x-show="activeTab === 'history'" class="space-y-6">
-                        
-                        <!-- Header Stats -->
-                         <div class="grid grid-cols-4 gap-2">
-                            <div class="bg-slate-800/40 p-3 rounded-xl border border-white/5 text-center">
-                                <span class="block text-xl font-bold text-slate-200" x-text="empDetails?.summary?.count"></span>
-                                <span class="text-[10px] text-slate-500 uppercase">Viagens</span>
-                            </div>
-                             <div class="bg-slate-800/40 p-3 rounded-xl border border-white/5 text-center">
-                                <span class="block text-xl font-bold text-slate-200" x-text="empDetails?.summary?.routine_days_logged"></span>
-                                <span class="text-[10px] text-slate-500 uppercase">Rotinas</span>
-                            </div>
-                             <div class="bg-slate-800/40 p-3 rounded-xl border border-white/5 text-center">
-                                <span class="block text-xl font-bold text-slate-200" x-text="empDetails?.summary?.total_hours"></span>
-                                <span class="text-[10px] text-slate-500 uppercase">Horas</span>
-                            </div>
-                             <div class="bg-slate-800/40 p-3 rounded-xl border border-white/5 text-center">
-                                <span class="block text-xl font-bold text-slate-200" x-text="empDetails?.analysis?.time_reliability_rate + '%'"></span>
-                                <span class="text-[10px] text-slate-500 uppercase">Confiab.</span>
-                            </div>
-                        </div>
-
-                        <!-- Timeline Chart Substitute (Day by day table) -->
-                        <div class="bg-slate-800/40 rounded-2xl border border-white/5 overflow-hidden">
-                            <table class="w-full text-left text-xs">
-                                <thead class="bg-slate-900/50 text-slate-500 uppercase tracking-wider font-semibold">
-                                    <tr>
-                                        <th class="px-4 py-3">Data</th>
-                                        <th class="px-4 py-3 text-right">Kg/h</th>
-                                        <th class="px-4 py-3 text-right">Ocorrência</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-white/5">
-                                    <template x-for="(day, dayIdx) in empDetails?.analysis?.timeline?.kgh_by_day || []" :key="'day-' + dayIdx">
-                                        <tr class="hover:bg-slate-800/30">
-                                            <td class="px-4 py-3 font-medium text-slate-300" x-text="day.date"></td>
-                                            <td class="px-4 py-3 text-right font-mono text-emerald-400" x-text="day.kgh ? formatNumber(day.kgh) : '-'"></td>
-                                            <td class="px-4 py-3 text-right text-slate-500">-</td> 
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                             <div x-show="!(empDetails?.analysis?.timeline?.kgh_by_day || []).length" class="p-6 text-center text-xs text-slate-500 italic">Sem histórico diário.</div>
-                        </div>
-
-                         <!-- Absences List -->
-                         <div class="bg-slate-800/40 rounded-2xl border border-white/5 p-4" x-show="(empDetails?.analysis?.timeline?.absences_by_day || []).length > 0">
-                            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Histórico de Ausências</h3>
-                            <div class="space-y-2">
-                                <template x-for="(abs, absIdx) in empDetails?.analysis?.timeline?.absences_by_day || []" :key="'abs-' + absIdx">
-                                    <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900/50 border border-white/5">
-                                        <div class="flex items-center gap-3">
-                                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-800 text-slate-400 text-[10px] font-bold">
-                                                <span x-text="abs.date_br.split('/')[0]"></span>
-                                            </div>
-                                            <div>
-                                                <p class="text-xs font-bold text-white" x-text="abs.type_label"></p>
-                                                <p class="text-[10px] text-slate-500" x-text="abs.source_label"></p>
-                                            </div>
-                                        </div>
-                                         <div x-show="abs.logs_count > 1" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-                                            <span x-text="abs.logs_count"></span> logs
-                                         </div>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-
-                    </div>
-
-
-                    <!-- TAB: ROUTES -->
-                    <div x-show="activeTab === 'routes'">
-                        <div class="bg-slate-800/40 rounded-2xl border border-white/5 overflow-hidden">
-                             <table class="w-full text-left text-xs">
-                                <thead class="bg-slate-900/50 text-slate-500 uppercase tracking-wider font-semibold">
-                                    <tr>
-                                        <th class="px-4 py-3">Cliente / Horário</th>
-                                        <th class="px-4 py-3 text-right">Volume</th>
-                                        <th class="px-4 py-3 text-right">Vel.</th>
-                                        <th class="px-4 py-3 text-right">Duração</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-white/5">
-                                    <template x-for="(route, routeIndex) in (empDetails?.routes || [])" :key="'route-' + routeIndex">
-                                        <tr class="hover:bg-slate-800/30 transition-colors">
-                                            <td class="px-4 py-3">
-                                                <p class="font-bold text-white mb-0.5" x-text="route.client"></p>
-                                                <p class="text-[10px] text-slate-500 font-mono" x-text="route.start + ' ➝ ' + route.end"></p>
-                                            </td>
-                                            <td class="px-4 py-3 text-right font-mono text-blue-300" x-text="formatNumber(route.tonnage)"></td>
-                                            <td class="px-4 py-3 text-right font-mono text-emerald-300" x-text="route.kgh"></td>
-                                            <td class="px-4 py-3 text-right font-mono text-slate-400" x-text="route.duration"></td>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                            <div x-show="!(empDetails?.routes || []).length" class="p-8 text-center text-slate-500 text-xs italic">
-                                Nenhuma rota encontrada neste período.
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
+      </div>
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <button type="button" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" @click="openImportModal()">
+          <span class="employees-cta__icon">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          </span>
+          <span class="employees-cta__label">Importar metas</span>
+        </button>
+        <button type="button" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" @click="exportVisibleCsv()">
+          <span class="employees-cta__icon">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m0 0l-4-4m4 4l4-4M5 19h14"></path></svg>
+          </span>
+          <span class="employees-cta__label">Exportar CSV</span>
+        </button>
+        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" @click="openBatchModal()">
+          <span class="employees-cta__icon">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"></path></svg>
+          </span>
+          <span class="employees-cta__label">Ação em lote</span>
+        </button>
+      </div>
     </div>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row">
+      <button class="sys-kpi-card employees-kpi ops-card--interactive" type="button" @click="setQuickFilter('all')">
+        <span class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label">Total monitorado</span>
+          <span class="employees-kpi__value" x-text="summary.totalRows"></span>
+          <span class="employees-kpi__meta">Escopo atual</span>
+        </span>
+      </button>
+      <button class="sys-kpi-card employees-kpi ops-card--interactive" type="button" @click="setQuickFilter('reference')">
+        <span class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label">Referência</span>
+          <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--blue" x-text="summary.reference"></span>
+          <span class="employees-kpi__meta">Alta consistência</span>
+        </span>
+      </button>
+      <button class="sys-kpi-card employees-kpi ops-card--interactive" type="button" @click="setQuickFilter('evolving')">
+        <span class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label">Em evolução</span>
+          <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber" x-text="summary.evolving"></span>
+          <span class="employees-kpi__meta">Performance em crescimento</span>
+        </span>
+      </button>
+      <button class="sys-kpi-card employees-kpi ops-card--interactive" type="button" @click="setQuickFilter('attention')">
+        <span class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label">Atenção</span>
+          <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red" x-text="summary.attention"></span>
+          <span class="employees-kpi__meta">Prioridade de ação</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+    <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+      <div class="employees-filter-bar__inner">
+        <div class="employees-filter-bar__primary">
+          <div class="employees-filter-bar__primary-scroll">
+            <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+            <div class="ops-toolbar-search employees-filter-bar__search">
+              <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" class="ops-toolbar-search__input" placeholder="Nome, ID, top cliente..." x-model="searchInput" @input="queueSearch()">
+            </div>
+            <select class="ops-toolbar-control px-3" x-model="filters.cost_center">
+              <template x-for="center in costCenterOptions" :key="center"><option :value="center" x-text="center"></option></template>
+            </select>
+            <select class="ops-toolbar-control px-3" x-model="filters.period">
+              <option value="daily">Diário</option>
+              <option value="weekly">Semanal</option>
+              <option value="monthly">Mensal</option>
+            </select>
+            <input type="date" class="ops-toolbar-control px-3" x-model="filters.date">
+          </div>
+        </div>
+        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+        <div class="employees-filter-bar__secondary">
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" :class="{ 'filter-btn--active filter-btn--status-active': quickFilter === 'all' }" @click="setQuickFilter('all')">Todos</button>
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" :class="{ 'filter-btn--active filter-btn--status-active': quickFilter === 'attention' }" @click="setQuickFilter('attention')">Críticos</button>
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" :class="{ 'filter-btn--active filter-btn--status-active': quickFilter === 'evolving' }" @click="setQuickFilter('evolving')">Em evolução</button>
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" :class="{ 'filter-btn--active filter-btn--status-active': quickFilter === 'potential' }" @click="setQuickFilter('potential')">Potencial</button>
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" @click="resetFilters()">Limpar filtros</button>
+          <button type="button" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar" @click="applyServerFilters()">Aplicar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+      <div class="min-w-0 flex-1">
+        <p class="employees-table-panel__kicker">Acompanhamento</p>
+        <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista operacional</h3>
+        <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No mobile, cada linha vira card com informações essenciais e ações rápidas.</p>
+      </div>
+      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+        <span class="employees-text-caption" x-text="stateMessage"></span>
+      </div>
+    </div>
+
+    <template x-if="state === 'loading'">
+      <div class="p-6 text-sm text-slate-500">Carregando dados...</div>
+    </template>
+    <template x-if="state === 'error'">
+      <div class="p-6 text-sm text-rose-600">Erro ao carregar dados da operação.</div>
+    </template>
+    <template x-if="state === 'empty'">
+      <div class="p-6 text-sm text-slate-500">Nenhum colaborador elegível para os filtros atuais.</div>
+    </template>
+    <template x-if="state === 'no-results'">
+      <div class="p-6 text-sm text-slate-500">Nenhum resultado encontrado com esta busca/filtro.</div>
+    </template>
+
+    <div class="sys-table-wrap sys-table-wrap--x-scroll" x-show="state === 'ready'">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]" id="operationsPerformanceTable">
+        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+          <tr>
+            <th class="employees-data-table__th px-2 py-2 pl-5"><input type="checkbox" @change="toggleSelectAll($event.target.checked)" :checked="allVisibleSelected"></th>
+            <th class="employees-data-table__th employees-data-table__th--col-name px-3 py-2">Colaborador</th>
+            <th class="employees-data-table__th px-2 py-2">Score</th>
+            <th class="employees-data-table__th px-2 py-2">Kg/h</th>
+            <th class="employees-data-table__th px-2 py-2">Volume</th>
+            <th class="employees-data-table__th px-2 py-2">Regularidade</th>
+            <th class="employees-data-table__th px-2 py-2">Status</th>
+            <th class="employees-data-table__th employees-data-table__th--col-actions px-2 py-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="employees-data-table__body divide-y">
+          <template x-for="item in paginatedRows" :key="item.id">
+            <tr class="employee-row employees-data-table__row">
+              <td class="employees-data-table__cell px-2 py-2 pl-5" data-label="Lote"><input type="checkbox" :checked="selectedIds.has(item.id)" @change="toggleSelected(item.id)"></td>
+              <td class="employee-cell-primary employees-data-table__td--col-name px-3 py-2" data-label="Colaborador">
+                <div class="employee-primary-content min-w-0">
+                  <span class="employee-name employees-data-table__name-link block truncate font-medium employees-text-strong" x-text="item.name"></span>
+                  <span class="text-[11px] text-slate-500" x-text="'ID ' + item.id"></span>
+                </div>
+              </td>
+              <td class="employees-data-table__cell px-2 py-2 tabular-nums" data-label="Score" x-text="formatNumber(item.score, 2)"></td>
+              <td class="employees-data-table__cell px-2 py-2 tabular-nums" data-label="Kg/h" x-text="formatNumber(item.avg_kgh, 0)"></td>
+              <td class="employees-data-table__cell px-2 py-2" data-label="Volume" x-text="formatTons(item.total_tonnage)"></td>
+              <td class="employees-data-table__cell px-2 py-2" data-label="Regularidade" x-text="formatPercent(item.regularity_adjusted)"></td>
+              <td class="employees-data-table__cell px-2 py-2" data-label="Status">
+                <span class="sys-badge" :class="badgeClass(item.badge)" x-text="item.badge || 'Sem classificação'"></span>
+              </td>
+              <td class="employee-actions-cell employees-data-table__td--col-actions px-2 py-2" data-label="Ações">
+                <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                  <button type="button" class="employee-action-btn" title="Detalhes" @click="openDetailsModal(item.id)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0A9 9 0 113 12a9 9 0 0118 0z"></path></svg>
+                  </button>
+                  <button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar observação" @click="openEditModal(item.id)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex items-center justify-between border-t px-4 py-3 text-xs text-slate-500">
+      <span x-text="paginationLabel"></span>
+      <div class="flex items-center gap-2">
+        <button type="button" class="ops-toolbar-ghost-btn h-8 px-3 text-xs" @click="prevPage()" :disabled="page <= 1">Anterior</button>
+        <button type="button" class="ops-toolbar-ghost-btn h-8 px-3 text-xs" @click="nextPage()" :disabled="page >= totalPages">Próxima</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" x-show="modals.details" x-cloak>
+    <div class="emp-modal-backdrop absolute inset-0" @click="closeModal('details')"></div>
+    <div class="sys-card relative z-10 w-full max-w-3xl p-0">
+      <div class="flex items-center justify-between border-b px-5 py-4">
+        <h3 class="text-base font-semibold text-slate-800">Detalhes da performance</h3>
+        <button class="emp-modal-close" @click="closeModal('details')">✕</button>
+      </div>
+      <div class="p-5">
+        <template x-if="detailsLoading"><p class="text-sm text-slate-500">Carregando detalhes...</p></template>
+        <template x-if="detailsError"><p class="text-sm text-rose-600" x-text="detailsError"></p></template>
+        <template x-if="detailsData">
+          <div class="space-y-3 text-sm">
+            <p><strong>Colaborador:</strong> <span x-text="detailsData.employee?.name || detailsData.employee_name || '-'"></span></p>
+            <p><strong>Resumo:</strong> <span x-text="detailsData.summary || 'Sem resumo detalhado.'"></span></p>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <div class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" x-show="modals.edit" x-cloak>
+    <div class="emp-modal-backdrop absolute inset-0" @click="closeModal('edit')"></div>
+    <div class="sys-card relative z-10 w-full max-w-xl p-0">
+      <div class="flex items-center justify-between border-b px-5 py-4">
+        <h3 class="text-base font-semibold text-slate-800">Editar observação operacional</h3>
+        <button class="emp-modal-close" @click="closeModal('edit')">✕</button>
+      </div>
+      <form class="space-y-4 p-5" @submit.prevent="saveNote()">
+        <label class="sys-label">Observação</label>
+        <textarea class="sys-input w-full" rows="5" x-model="form.note" placeholder="Ex: precisa reforço no início do turno..."></textarea>
+        <div class="flex justify-end gap-2">
+          <button type="button" class="sys-btn sys-btn--secondary" @click="closeModal('edit')">Cancelar</button>
+          <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" x-show="modals.import" x-cloak>
+    <div class="emp-modal-backdrop absolute inset-0" @click="closeModal('import')"></div>
+    <div class="sys-card relative z-10 w-full max-w-2xl p-0">
+      <div class="flex items-center justify-between border-b px-5 py-4">
+        <h3 class="text-base font-semibold text-slate-800">Importar metas operacionais</h3>
+        <button class="emp-modal-close" @click="closeModal('import')">✕</button>
+      </div>
+      <div class="space-y-4 p-5">
+        <p class="text-xs text-slate-500">Colunas obrigatórias: <code>employee_id, score_target, kgh_target, period</code>.</p>
+        <input type="file" accept=".csv" @change="handleImportFile($event)">
+        <template x-if="importMessage"><p class="text-sm" :class="importError ? 'text-rose-600' : 'text-emerald-600'" x-text="importMessage"></p></template>
+      </div>
+    </div>
+  </div>
+
+  <div class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" x-show="modals.batch" x-cloak>
+    <div class="emp-modal-backdrop absolute inset-0" @click="closeModal('batch')"></div>
+    <div class="sys-card relative z-10 w-full max-w-xl p-0">
+      <div class="flex items-center justify-between border-b px-5 py-4">
+        <h3 class="text-base font-semibold text-slate-800">Operação em lote</h3>
+        <button class="emp-modal-close" @click="closeModal('batch')">✕</button>
+      </div>
+      <form class="space-y-4 p-5" @submit.prevent="confirmBatch()">
+        <p class="text-sm text-slate-600"><span x-text="selectedIds.size"></span> colaborador(es) selecionado(s).</p>
+        <textarea class="sys-input w-full" rows="4" x-model="form.batchNote" placeholder="Observação para os selecionados"></textarea>
+        <div class="flex justify-end gap-2">
+          <button type="button" class="sys-btn sys-btn--secondary" @click="closeModal('batch')">Cancelar</button>
+          <button type="submit" class="sys-btn sys-btn--primary">Aplicar</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
+{% endblock %}
 
-<script>
-    function performanceController() {
-        return {
-            showModal: false,
-            showFilters: false,
-            showGuide: false,
-            showDebugPanel: false,
-            activeDebugTab: 'formulas',
-            selectedDebugEmployee: null,
-            debugSearchTerm: "",
-            loading: false,
-            empDetails: null,
-            searchTerm: "",
-            compactMode: false,
-            showDiscipline: true,
-
-            normalizeText(value) {
-                if (!value) return "";
-                return value
-                    .toString()
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "")
-                    .toLowerCase();
-            },
-
-            matchesSearch(value) {
-                const term = this.normalizeText(this.searchTerm);
-                if (!term) return true;
-                return this.normalizeText(value).includes(term);
-            },
-
-            formatAbsenceSource(source) {
-                const map = {
-                    routine: "Rotina",
-                    event_fallback: "Evento (fallback)",
-                    mixed: "Rotina + fallback"
-                };
-                return map[source] || "-";
-            },
-
-            formatNumber(num) {
-                if (num === undefined || num === null) return '-';
-                return new Intl.NumberFormat('pt-BR').format(num);
-            },
-
-            async openDetails(empId) {
-                this.showModal = true;
-                this.loading = true;
-                this.empDetails = null;
-
-                const params = new URLSearchParams(window.location.search);
-                const date = params.get('date') || document.querySelector('input[name="date"]').value;
-                const period = params.get('period') || 'daily';
-                const costCenter = params.get('cost_center')
-                    || document.querySelector('select[name="cost_center"]')?.value
-                    || 'Todos';
-                const routeBand = params.get('route_band')
-                    || document.querySelector('select[name="route_band"]')?.value
-                    || 'Todos';
-                const tenureBand = params.get('tenure_band')
-                    || document.querySelector('select[name="tenure_band"]')?.value
-                    || 'Todos';
-
-                try {
-                    const res = await fetch(`/api/rankings/employee/${empId}/details?date=${encodeURIComponent(date)}&period=${encodeURIComponent(period)}&cost_center=${encodeURIComponent(costCenter)}&route_band=${encodeURIComponent(routeBand)}&tenure_band=${encodeURIComponent(tenureBand)}`);
-                    if (!res.ok) {
-                        const msg = res.status >= 500 ? 'Erro 500. Verifique logs.' : 'Falha ao buscar detalhes';
-                        throw new Error(msg);
-                    }
-                    this.empDetails = await res.json();
-                    if (!Array.isArray(this.empDetails?.routes)) {
-                        this.empDetails.routes = [];
-                    }
-                } catch (e) {
-                    console.error(e);
-                    alert(e.message || 'Erro ao carregar detalhes.');
-                    this.showModal = false;
-                } finally {
-                    this.loading = false;
-                }
-            }
-        }
-    }
-
-    // Controller para Relatórios IA
-    function aiReportController(config = {}) {
-        return {
-            geminiAvailable: Boolean(config.geminiAvailable),
-            reportType: 'executive',
-            selectedEmployeeId: '',
-            showIndividualSelect: false,
-            loading: false,
-            report: '',
-            error: '',
-            generatedAt: '',
-            
-            getReportTypeLabel() {
-                const labels = {
-                    'executive': 'Resumo Executivo',
-                    'detailed': 'Relatório Detalhado',
-                    'individual': 'Análise Individual',
-                    'recommendations': 'Recomendações'
-                };
-                return labels[this.reportType] || this.reportType;
-            },
-            
-            async generateReport() {
-                if (!this.geminiAvailable) {
-                    this.error = 'Relatório com IA não disponível. Configure GEMINI_API_KEY no servidor.';
-                    return;
-                }
-
-                if (this.reportType === 'individual' && !this.selectedEmployeeId) {
-                    this.error = 'Selecione um colaborador para o relatório individual.';
-                    return;
-                }
-                
-                this.loading = true;
-                this.error = '';
-                this.report = '';
-                
-                const params = new URLSearchParams(window.location.search);
-                
-                // Preparar dados do contexto
-                const teamStats = {
-                    total_tonnage: {{ team_stats.total_tonnage|default(0) }},
-                    avg_kgh: {{ team_stats.avg_kgh|default(0) }},
-                    avg_trip_minutes: {{ team_stats.avg_trip_minutes|default(0) }},
-                    active_employees: {{ team_stats.active_employees|default(0) }},
-                    avg_presence_adjusted: {{ team_stats.avg_presence_adjusted|default(0) }},
-                    discipline_rate: {{ team_stats.discipline_rate|default(0) }},
-                    unjustified_total: {{ team_stats.unjustified_total|default(0) }}
-                };
-                
-                const rows = [
-                    {% for row in rows %}
-                    {
-                        id: {{ row.id }},
-                        name: "{{ row.name }}",
-                        score: {{ row.score|default(0) }},
-                        avg_kgh: {{ row.avg_kgh|default(0) }},
-                        total_tonnage: {{ row.total_tonnage|default(0) }},
-                        count: {{ row.count|default(0) }},
-                        regularity_adjusted: {{ row.regularity_adjusted|default(0) }},
-                        cv: {{ row.cv|default(0) }},
-                        trend_label: "{{ row.trend_label|default('') }}",
-                        badge: "{{ row.badge|default('') }}",
-                        badge_reason: "{{ row.badge_reason|default('')|replace('"', '\\"') }}",
-                        unjustified_absences: {{ row.unjustified_absences|default(0) }},
-                        tenure_months: {{ row.tenure_months|default(0) }},
-                        tenure_band: "{{ row.tenure_band|default('') }}"
-                    },
-                    {% endfor %}
-                ];
-                
-                const insights = {
-                    {% if insights.best %}best: { name: "{{ insights.best.name }}", detail: "{{ insights.best.detail }}" },{% endif %}
-                    {% if insights.improved %}improved: { name: "{{ insights.improved.name }}", detail: "{{ insights.improved.detail }}" },{% endif %}
-                    {% if insights.consistent %}consistent: { name: "{{ insights.consistent.name }}", detail: "{{ insights.consistent.detail }}" },{% endif %}
-                    {% if insights.bottleneck %}bottleneck: { name: "{{ insights.bottleneck.name }}", detail: "{{ insights.bottleneck.detail }}" },{% endif %}
-                    {% if insights.presence %}presence: { name: "{{ insights.presence.name }}", detail: "{{ insights.presence.detail }}" },{% endif %}
-                    {% if insights.absences %}absences: { name: "{{ insights.absences.name }}", detail: "{{ insights.absences.detail }}" },{% endif %}
-                };
-                
-                try {
-                    const res = await fetch('/api/rankings/ai-report', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            report_type: this.reportType,
-                            employee_id: this.selectedEmployeeId ? parseInt(this.selectedEmployeeId) : null,
-                            date: params.get('date') || '{{ filters.date }}',
-                            period: params.get('period') || '{{ filters.period }}',
-                            cost_center: params.get('cost_center') || '{{ filters.cost_center }}',
-                            team_stats: teamStats,
-                            rows: rows,
-                            insights: insights
-                        })
-                    });
-                    
-                    let data = {};
-                    try { data = await res.json(); } catch (_) {}
-                    
-                    if (!res.ok || data.error) {
-                        this.error = data.error || (res.status === 503 ? 'Relatório com IA não disponível. Configure GEMINI_API_KEY no servidor.' : 'Erro ao gerar relatório. Tente novamente.');
-                    } else {
-                        this.report = data.report;
-                        this.generatedAt = new Date(data.generated_at).toLocaleString('pt-BR');
-                    }
-                } catch (e) {
-                    console.error(e);
-                    this.error = 'Erro ao gerar relatório. Tente novamente.';
-                } finally {
-                    this.loading = false;
-                }
-            },
-            
-            copyReport() {
-                if (this.report) {
-                    navigator.clipboard.writeText(this.report);
-                    alert('Relatório copiado!');
-                }
-            },
-            
-            exportPDF() {
-                const params = new URLSearchParams(window.location.search);
-                const url = `/operations/performance/report?date=${params.get('date') || '{{ filters.date }}'}&period=${params.get('period') || '{{ filters.period }}'}&cost_center=${params.get('cost_center') || '{{ filters.cost_center }}'}`;
-                window.open(url, '_blank');
-            }
-        }
-    }
-
-    // Inicializar gráficos quando a página carregar
-    document.addEventListener('DOMContentLoaded', function() {
-        initCharts();
-    });
-
-    function initCharts() {
-        // Dados dos colaboradores
-        const rowsData = [
-            {% for row in rows[:10] %}
-            { name: "{{ row.name|truncate(15, True, '...') }}", score: {{ row.score|default(0) }}, badge: "{{ row.badge }}" },
-            {% endfor %}
-        ];
-
-        // Dados para gráfico de badges
-        const badgeCounts = {
-            'Referência': {{ rows|selectattr('badge', 'equalto', 'Referência')|list|length }},
-            'Em evolução': {{ rows|selectattr('badge', 'equalto', 'Em evolução')|list|length }},
-            'Potencial': {{ rows|selectattr('badge', 'equalto', 'Potencial')|list|length }},
-            'Atenção': {{ rows|selectattr('badge', 'equalto', 'Atenção')|list|length }}
-        };
-
-        // Dados médios dos pilares
-        const pillarAvgs = {
-            productivity: {{ (rows|map(attribute='pillar_scores.productivity')|select('defined')|list|sum / [rows|length, 1]|max)|round(1) if rows else 0 }},
-            quality: {{ (rows|map(attribute='pillar_scores.quality')|select('defined')|list|sum / [rows|length, 1]|max)|round(1) if rows else 0 }},
-            discipline: {{ (rows|map(attribute='pillar_scores.discipline')|select('defined')|list|sum / [rows|length, 1]|max)|round(1) if rows else 0 }},
-            evolution: {{ (rows|map(attribute='pillar_scores.evolution')|select('defined')|list|sum / [rows|length, 1]|max)|round(1) if rows else 0 }},
-            context: {{ (rows|map(attribute='pillar_scores.context')|select('defined')|list|sum / [rows|length, 1]|max)|round(1) if rows else 0 }}
-        };
-
-        // Top performer pilares
-        {% if rows and rows[0].pillar_scores %}
-        const topPillars = {
-            productivity: {{ rows[0].pillar_scores.productivity|default(0) }},
-            quality: {{ rows[0].pillar_scores.quality|default(0) }},
-            discipline: {{ rows[0].pillar_scores.discipline|default(0) }},
-            evolution: {{ rows[0].pillar_scores.evolution|default(0) }},
-            context: {{ rows[0].pillar_scores.context|default(0) }}
-        };
-        {% else %}
-        const topPillars = { productivity: 0, quality: 0, discipline: 0, evolution: 0, context: 0 };
-        {% endif %}
-
-        // 1. Gráfico de Barras - Top 10
-        const ctxBar = document.getElementById('chartBarTop10');
-        if (ctxBar && rowsData.length > 0) {
-            new Chart(ctxBar.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: rowsData.map(r => r.name),
-                    datasets: [{
-                        label: 'Score',
-                        data: rowsData.map(r => r.score),
-                        backgroundColor: rowsData.map(r => {
-                            if (r.badge === 'Referência') return 'rgba(16, 185, 129, 0.7)';
-                            if (r.badge === 'Em evolução') return 'rgba(59, 130, 246, 0.7)';
-                            if (r.badge === 'Atenção') return 'rgba(239, 68, 68, 0.7)';
-                            return 'rgba(251, 191, 36, 0.7)';
-                        }),
-                        borderRadius: 6,
-                        barThickness: 20
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#1e293b',
-                            titleColor: '#fff',
-                            bodyColor: '#cbd5e1',
-                            borderColor: '#334155',
-                            borderWidth: 1
-                        }
-                    },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            max: 100,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#94a3b8', font: { size: 10 } }
-                        },
-                        y: {
-                            grid: { display: false },
-                            ticks: { color: '#fff', font: { size: 10 } }
-                        }
-                    }
-                }
-            });
-        }
-
-        // 2. Gráfico Pizza - Distribuição por Badges
-        const ctxPie = document.getElementById('chartPieBadges');
-        if (ctxPie) {
-            new Chart(ctxPie.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Referência', 'Em evolução', 'Potencial', 'Atenção'],
-                    datasets: [{
-                        data: [badgeCounts['Referência'], badgeCounts['Em evolução'], badgeCounts['Potencial'], badgeCounts['Atenção']],
-                        backgroundColor: [
-                            'rgba(16, 185, 129, 0.8)',
-                            'rgba(59, 130, 246, 0.8)',
-                            'rgba(251, 191, 36, 0.8)',
-                            'rgba(239, 68, 68, 0.8)'
-                        ],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '60%',
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { color: '#94a3b8', font: { size: 11 }, padding: 15 }
-                        },
-                        tooltip: {
-                            backgroundColor: '#1e293b',
-                            titleColor: '#fff',
-                            bodyColor: '#cbd5e1'
-                        }
-                    }
-                }
-            });
-        }
-
-        // 3. Gráfico Radar - 5 Pilares
-        const ctxRadar = document.getElementById('chartRadarPillars');
-        if (ctxRadar) {
-            new Chart(ctxRadar.getContext('2d'), {
-                type: 'radar',
-                data: {
-                    labels: ['Produtividade', 'Qualidade', 'Disciplina', 'Evolução', 'Contexto'],
-                    datasets: [
-                        {
-                            label: 'Média do Time',
-                            data: [pillarAvgs.productivity, pillarAvgs.quality, pillarAvgs.discipline, pillarAvgs.evolution, pillarAvgs.context],
-                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                            borderColor: 'rgba(59, 130, 246, 0.8)',
-                            borderWidth: 2,
-                            pointBackgroundColor: 'rgba(59, 130, 246, 1)'
-                        },
-                        {
-                            label: 'Top Performer',
-                            data: [topPillars.productivity, topPillars.quality, topPillars.discipline, topPillars.evolution, topPillars.context],
-                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                            borderColor: 'rgba(16, 185, 129, 0.8)',
-                            borderWidth: 2,
-                            pointBackgroundColor: 'rgba(16, 185, 129, 1)'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        r: {
-                            beginAtZero: true,
-                            max: 100,
-                            grid: { color: 'rgba(255,255,255,0.1)' },
-                            angleLines: { color: 'rgba(255,255,255,0.1)' },
-                            pointLabels: { color: '#94a3b8', font: { size: 11 } },
-                            ticks: { display: false }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { color: '#94a3b8', font: { size: 11 }, padding: 20 }
-                        }
-                    }
-                }
-            });
-        }
-    }
-</script>
+{% block body_scripts %}
+<script src="/static/js/pages/operations-performance-page.js"></script>
 {% endblock %}

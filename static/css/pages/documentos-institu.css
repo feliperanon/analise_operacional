@@ -1,0 +1,93 @@
+/* Página /documentos — escopo GA + employees shell */
+
+.ga-employee-theme.employees-page[data-page="documentos"].documentos-page--navigating #employees-table-panel,
+.ga-employee-theme.employees-page[data-page="documentos-novo"].documentos-page--navigating #employees-table-panel {
+  opacity: 0.72;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.ga-employee-theme.employees-page[data-page="documentos"] .employees-filter-bar__secondary--wrap {
+  flex-wrap: wrap;
+  row-gap: 0.5rem;
+}
+
+.ga-employee-theme.employees-page[data-page="documentos"] .doc-tipo-shortcuts summary {
+  list-style: none;
+}
+
+.ga-employee-theme.employees-page[data-page="documentos"] .doc-tipo-shortcuts summary::-webkit-details-marker {
+  display: none;
+}
+
+.ga-employee-theme.employees-page[data-page="documentos"] .emp-modal-shell {
+  z-index: 2000 !important;
+  isolation: isolate;
+}
+
+.ga-employee-theme.employees-page[data-page="documentos"] .doc-modal-card {
+  max-height: min(90vh, 880px);
+  overflow: auto;
+}
+
+.ga-employee-theme.employees-page[data-page="documentos-novo"] .doc-modal-card {
+  max-height: min(90vh, 880px);
+  overflow: auto;
+}
+
+/* Mobile: título antes do código (mesmo padrão devoluções) */
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page[data-page="documentos"] #employeesTable tr.employee-row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos-novo"] #employeesTable tr.employee-row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos"] #employeesTable tr.employee-row > td {
+    border-top: 1px solid rgb(241 245 249);
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos-novo"] #employeesTable tr.employee-row > td {
+    border-top: 1px solid rgb(241 245 249);
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos"] #employeesTable tr.employee-row > td.employee-cell-primary {
+    order: -20;
+    border-top: 0;
+    padding-top: 1rem;
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos-novo"] #employeesTable tr.employee-row > td.employee-cell-primary {
+    order: -20;
+    border-top: 0;
+    padding-top: 1rem;
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos"] #employeesTable tr.employee-row > td[data-label="Código"] {
+    order: -10;
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos-novo"] #employeesTable tr.employee-row > td[data-label="Código"] {
+    order: -10;
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos"] #employeesTable tr.employee-row > td.employee-actions-cell {
+    order: 90;
+  }
+
+  .ga-employee-theme.employees-page[data-page="documentos-novo"] #employeesTable tr.employee-row > td.employee-actions-cell {
+    order: 90;
+  }
+}
+
+html.dark .ga-employee-theme.employees-page[data-page="documentos"] #employeesTable tr.employee-row > td {
+  border-top-color: rgb(51 65 85 / 0.65);
+}
+
+html.dark .ga-employee-theme.employees-page[data-page="documentos-novo"] #employeesTable tr.employee-row > td {
+  border-top-color: rgb(51 65 85 / 0.65);
+}

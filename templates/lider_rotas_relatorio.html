@@ -1,361 +1,305 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <title>Relatorio de Ausencias - {{ period_label }}</title>
-    <link rel="stylesheet" href="/static/styles.css">
-    <style>
-        @media print {
-            body {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                background: white !important;
-                color: #1e293b !important;
-            }
-            .no-print { display: none !important; }
-            .page-break { page-break-before: always; }
-            @page {
-                size: A4;
-                margin: 8mm;
-            }
-        }
+{% extends "base_gestao_avista.html" %}
 
-        body {
-            font-family: 'Inter', 'Segoe UI', sans-serif;
-            font-size: 11px;
-            color: #1e293b;
-            background: white;
-            margin: 0;
-            padding: 0;
-        }
+{% block title %}Relatório de ausências de rota · Gestão Avista{% endblock %}
 
-        .print-container {
-            max-width: 210mm;
-            margin: 0 auto;
-            padding: 15px;
-        }
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Líder / Relatório de rotas</p>
+{% endblock %}
 
-        h1 { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-        h2 { font-size: 14px; font-weight: bold; margin: 15px 0 8px 0; border-bottom: 2px solid #3b82f6; padding-bottom: 4px; }
-        h3 { font-size: 12px; font-weight: 600; margin: 10px 0 5px 0; }
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Relatório de ausências de rota</h1>
+{% endblock %}
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #e2e8f0;
-        }
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Colaboradores com falta de registro, sem app ou justificativas no período</p>
+{% endblock %}
 
-        .header-title { font-size: 20px; font-weight: bold; color: #1e40af; }
-        .header-subtitle { font-size: 11px; color: #64748b; margin-top: 2px; }
-        .header-info { text-align: right; font-size: 10px; color: #64748b; }
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/lider-rotas-relatorio.css">
+{% endblock %}
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            margin-bottom: 15px;
-        }
+{% block content %}
 
-        .stat-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            padding: 8px;
-            text-align: center;
-        }
+{% set base_qs = (
+  "start_date=" ~ start_date ~ "&end_date=" ~ end_date
+  ~ "&shift=" ~ (shift | urlencode)
+  ~ "&q=" ~ (q | urlencode)
+  ~ "&view=" ~ view
+  ~ "&per_page=" ~ per_page
+) %}
 
-        .stat-label { font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; }
-        .stat-value { font-size: 18px; font-weight: bold; color: #1e293b; }
-        .stat-value.red { color: #dc2626; }
-        .stat-value.green { color: #16a34a; }
-        .stat-value.blue { color: #2563eb; }
-        .stat-value.orange { color: #ea580c; }
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium lider-rotas-relatorio-page space-y-5 pt-2 md:pt-3">
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 10px;
-        }
-
-        th, td {
-            border: 1px solid #e2e8f0;
-            padding: 6px 8px;
-            text-align: left;
-        }
-
-        th {
-            background: #f1f5f9;
-            font-weight: 600;
-            color: #475569;
-            font-size: 9px;
-            text-transform: uppercase;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 9px;
-            font-weight: 600;
-        }
-
-        .badge-red { background: #fecaca; color: #991b1b; }
-        .badge-green { background: #dcfce7; color: #166534; }
-        .badge-blue { background: #dbeafe; color: #1e40af; }
-        .badge-orange { background: #fed7aa; color: #9a3412; }
-        .badge-gray { background: #e2e8f0; color: #475569; }
-
-        .day-chip {
-            display: inline-block;
-            padding: 1px 5px;
-            margin: 1px;
-            border-radius: 3px;
-            font-size: 9px;
-            font-weight: 500;
-        }
-
-        .day-missing { background: #fecaca; color: #991b1b; }
-        .day-justified { background: #dbeafe; color: #1e40af; }
-        .day-noapp { background: #fed7aa; color: #9a3412; }
-
-        .employee-row:nth-child(even) { background: #f8fafc; }
-        .employee-row:hover { background: #f1f5f9; }
-
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .font-bold { font-weight: bold; }
-
-        .days-cell { max-width: 200px; }
-
-        .footer {
-            margin-top: 20px;
-            padding-top: 10px;
-            border-top: 1px solid #e2e8f0;
-            text-align: center;
-            font-size: 9px;
-            color: #94a3b8;
-        }
-
-        .legend {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 10px;
-            font-size: 10px;
-        }
-
-        .legend-item { display: flex; align-items: center; gap: 5px; }
-
-        /* Dark mode for screen */
-        @media screen {
-            body.dark-mode {
-                background: #0f172a;
-                color: #e2e8f0;
-            }
-            body.dark-mode .print-container { background: #1e293b; border-radius: 12px; }
-            body.dark-mode .header { border-color: #334155; }
-            body.dark-mode .header-title { color: #60a5fa; }
-            body.dark-mode .header-subtitle, body.dark-mode .header-info { color: #94a3b8; }
-            body.dark-mode .stat-card { background: #0f172a; border-color: #334155; }
-            body.dark-mode .stat-label { color: #94a3b8; }
-            body.dark-mode .stat-value { color: #f1f5f9; }
-            body.dark-mode th { background: #0f172a; color: #94a3b8; border-color: #334155; }
-            body.dark-mode td { border-color: #334155; }
-            body.dark-mode .employee-row:nth-child(even) { background: #0f172a; }
-            body.dark-mode .employee-row:hover { background: #334155; }
-            body.dark-mode .footer { border-color: #334155; color: #64748b; }
-            body.dark-mode h2 { border-color: #3b82f6; color: #60a5fa; }
-        }
-
-        .filter-bar {
-            background: #1e293b;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: flex-end;
-        }
-
-        .filter-bar label { color: #94a3b8; font-size: 10px; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 4px; }
-        .filter-bar input, .filter-bar select {
-            background: #0f172a;
-            border: 1px solid #334155;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-        }
-        .filter-bar button {
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 12px;
-            cursor: pointer;
-            border: none;
-        }
-        .btn-primary { background: #3b82f6; color: white; }
-        .btn-primary:hover { background: #2563eb; }
-        .btn-success { background: #16a34a; color: white; }
-        .btn-success:hover { background: #15803d; }
-        .btn-secondary { background: #475569; color: white; }
-        .btn-secondary:hover { background: #334155; }
-    </style>
-</head>
-
-<body class="dark-mode">
-    <!-- Filtros (nao imprime) -->
-    <div class="no-print" style="max-width: 210mm; margin: 15px auto;">
-        <form method="GET" class="filter-bar">
-            <div>
-                <label>Data Inicio</label>
-                <input type="date" name="start_date" value="{{ start_date }}">
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Operação · Rotas</span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Painel do período</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Leitura rápida de faltas registradas, dias sem abertura do app e justificativas. Use os filtros e a busca para achar casos críticos.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            Período: {{ period_label }}
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            Turno: {{ shift }}
+                        </span>
+                    </div>
+                </div>
             </div>
-            <div>
-                <label>Data Fim</label>
-                <input type="date" name="end_date" value="{{ end_date }}">
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-lg xl:flex-shrink-0 xl:justify-end print-hidden">
+                <a href="/smart-flow" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__label">Voltar ao Smart Flow</span>
+                </a>
+                <a href="/lider/rotas/relatorio?{{ base_qs }}&imprimir=1" target="_blank" rel="noopener noreferrer" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__label">Versão para impressão</span>
+                </a>
+                <button type="button" id="rr-btn-print" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__label">Imprimir esta tela</span>
+                </button>
             </div>
-            <div>
-                <label>Turno</label>
-                <select name="shift">
-                    <option value="Todos" {% if shift == "Todos" %}selected{% endif %}>Todos</option>
-                    <option value="Manhã" {% if shift == "Manhã" %}selected{% endif %}>Manhã</option>
-                    <option value="Tarde" {% if shift == "Tarde" %}selected{% endif %}>Tarde</option>
-                    <option value="Noite" {% if shift == "Noite" %}selected{% endif %}>Noite</option>
-                </select>
-            </div>
-            <button type="submit" class="btn-primary">Filtrar</button>
-            <button type="button" onclick="window.print()" class="btn-success">Imprimir</button>
-            <a href="/smart-flow" class="btn-secondary" style="text-decoration: none; display: inline-block;">Voltar</a>
-        </form>
+        </div>
     </div>
 
-    <div class="print-container">
-        <!-- Cabecalho -->
-        <div class="header">
-            <div>
-                <div class="header-title">RELATORIO DE AUSENCIAS DE ROTA</div>
-                <div class="header-subtitle">Colaboradores sem registro de rota no periodo</div>
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row rr-kpi-grid" aria-label="Resumo do relatório">
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">Dias analisados</span>
+                    <span class="employees-kpi__value tabular-nums mt-1">{{ total_days }}</span>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Janela do filtro</span></div>
+                </div>
             </div>
-            <div class="header-info">
-                <div><strong>Periodo:</strong> {{ period_label }}</div>
-                <div><strong>Turno:</strong> {{ shift }}</div>
-                <div><strong>Gerado:</strong> {{ generated_at }}</div>
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label">Com ocorrência</span>
+                    <span class="employees-kpi__value tabular-nums mt-1">{{ report_full_count }}</span>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">de {{ total_employees }} no recorte</span></div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-red-600 dark:text-red-300">Faltas (sem rota)</span>
+                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums mt-1">{{ total_missing }}</span>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Dias com rotina “ausente”</span></div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Sem app</span>
+                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums mt-1">{{ total_no_app }}</span>
+                    <div class="employees-kpi__meta"><span class="employees-text-muted">Sem rota nem rotina</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="rr-filter-form" method="get" action="/lider/rotas/relatorio" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar print-hidden">
+        <input type="hidden" name="view" id="rr-input-view" value="{{ view }}">
+        <input type="hidden" name="page" id="rr-input-page" value="{{ page }}">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner flex-col gap-4 lg:flex-row lg:items-end">
+                <div class="employees-filter-bar__primary flex w-full flex-1 flex-col gap-3 sm:flex-row sm:flex-wrap">
+                    <div class="min-w-[140px] flex-1">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Início</span>
+                        <input type="date" name="start_date" value="{{ start_date }}" class="sys-input mt-1 w-full min-h-[2.25rem] py-2 text-sm">
+                    </div>
+                    <div class="min-w-[140px] flex-1">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Fim</span>
+                        <input type="date" name="end_date" value="{{ end_date }}" class="sys-input mt-1 w-full min-h-[2.25rem] py-2 text-sm">
+                    </div>
+                    <div class="min-w-[140px] flex-1">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Turno</span>
+                        <select name="shift" class="sys-select mt-1 w-full min-h-[2.25rem] text-sm">
+                            <option value="Todos" {% if shift == "Todos" %}selected{% endif %}>Todos</option>
+                            <option value="Manhã" {% if shift == "Manhã" %}selected{% endif %}>Manhã</option>
+                            <option value="Tarde" {% if shift == "Tarde" %}selected{% endif %}>Tarde</option>
+                            <option value="Noite" {% if shift == "Noite" %}selected{% endif %}>Noite</option>
+                        </select>
+                    </div>
+                    <div class="min-w-[180px] flex-[2]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search mt-1 w-full">
+                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="search" name="q" id="rr-search-input" value="{{ q }}" autocomplete="off" placeholder="Nome, matrícula ou função" class="ops-toolbar-search__input">
+                        </div>
+                    </div>
+                    <div class="min-w-[100px]">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Por página</span>
+                        <select name="per_page" class="sys-select mt-1 w-full min-h-[2.25rem] text-sm">
+                            {% for n in [20, 40, 60, 100] %}
+                            <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider lg:hidden" aria-hidden="true"></div>
+                <div class="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+                    <button type="submit" class="sys-btn sys-btn--primary px-4 py-2 text-sm">Aplicar filtros</button>
+                    <a href="/lider/rotas/relatorio" class="ops-toolbar-ghost-btn employees-filter-bar__btn px-3 py-2 text-sm">Limpar tudo</a>
+                </div>
+            </div>
+        </div>
+        <div class="border-t border-slate-200/80 px-4 py-3 dark:border-slate-700/80">
+            <p class="employees-filter-bar__label employees-filter-bar__label--compact mb-2">Visão rápida</p>
+            <div class="flex flex-wrap gap-2">
+                <a href="/lider/rotas/relatorio?start_date={{ start_date }}&end_date={{ end_date }}&shift={{ shift | urlencode }}&q={{ q | urlencode }}&view=all&per_page={{ per_page }}&page=1" class="rr-quick-btn filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs {% if view == 'all' %}filter-btn--active{% endif %}">Todos</a>
+                <a href="/lider/rotas/relatorio?start_date={{ start_date }}&end_date={{ end_date }}&shift={{ shift | urlencode }}&q={{ q | urlencode }}&view=critical&per_page={{ per_page }}&page=1" class="rr-quick-btn filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs {% if view == 'critical' %}filter-btn--active{% endif %}">Críticos</a>
+                <a href="/lider/rotas/relatorio?start_date={{ start_date }}&end_date={{ end_date }}&shift={{ shift | urlencode }}&q={{ q | urlencode }}&view=faltas&per_page={{ per_page }}&page=1" class="rr-quick-btn filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs {% if view == 'faltas' %}filter-btn--active{% endif %}">Com falta</a>
+                <a href="/lider/rotas/relatorio?start_date={{ start_date }}&end_date={{ end_date }}&shift={{ shift | urlencode }}&q={{ q | urlencode }}&view=sem_app&per_page={{ per_page }}&page=1" class="rr-quick-btn filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs {% if view == 'sem_app' %}filter-btn--active{% endif %}">Sem app</a>
+                <a href="/lider/rotas/relatorio?start_date={{ start_date }}&end_date={{ end_date }}&shift={{ shift | urlencode }}&q={{ q | urlencode }}&view=justificados&per_page={{ per_page }}&page=1" class="rr-quick-btn filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn text-xs {% if view == 'justificados' %}filter-btn--active{% endif %}">Justificados</a>
+            </div>
+        </div>
+    </form>
+
+    <div id="rr-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Detalhamento</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Colaboradores com ocorrência</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">
+                    {% if report_filtered_count %}
+                    Exibindo {{ report_data|length }} de {{ report_filtered_count }} filtrados
+                    {% if not is_print_all and total_pages > 1 %}(página {{ page }} de {{ total_pages }}){% endif %}
+                    {% else %}
+                    Nenhum registro com os filtros atuais.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span class="employees-text-caption">Gerado em {{ generated_at }} · Total justificados (dias): {{ total_justified }}</span>
             </div>
         </div>
 
-        <!-- Resumo -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">Dias Analisados</div>
-                <div class="stat-value">{{ total_days }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Colaboradores</div>
-                <div class="stat-value">{{ total_employees }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Com Ocorrencia</div>
-                <div class="stat-value orange">{{ report_data|length }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Ausencias</div>
-                <div class="stat-value red">{{ total_missing }}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Nao Abriram App</div>
-                <div class="stat-value orange">{{ total_no_app }}</div>
-            </div>
+        {% if report_filtered_count == 0 %}
+        <div class="sys-empty-state mx-auto max-w-md px-6 py-16 text-center">
+            <p class="text-base font-semibold text-slate-800 dark:text-slate-100">Nada para mostrar aqui</p>
+            <p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                {% if report_full_count == 0 %}
+                Nenhuma ausência no período — todos registraram rota ou estão justificados.
+                {% else %}
+                Ajuste a busca ou a visão rápida — os filtros não encontraram linhas.
+                {% endif %}
+            </p>
         </div>
-
-        <!-- Legenda -->
-        <div class="legend">
-            <div class="legend-item"><span class="day-chip day-missing">00/00</span> Falta (sem rota)</div>
-            <div class="legend-item"><span class="day-chip day-noapp">00/00</span> Nao abriu app</div>
-            <div class="legend-item"><span class="day-chip day-justified">00/00</span> Justificado</div>
-        </div>
-
-        {% if report_data %}
-        <!-- Tabela Principal -->
-        <h2>Detalhamento por Colaborador</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 25%;">Colaborador</th>
-                    <th class="text-center" style="width: 8%;">Turno</th>
-                    <th class="text-center" style="width: 8%;">Trabalhou</th>
-                    <th class="text-center" style="width: 8%;">Faltas</th>
-                    <th class="text-center" style="width: 8%;">Sem App</th>
-                    <th class="text-center" style="width: 8%;">Justif.</th>
-                    <th style="width: 35%;">Dias com Ocorrencia</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in report_data %}
-                <tr class="employee-row">
-                    <td>
-                        <strong>{{ item.employee.name|emp_name }}</strong><br>
-                        <span style="font-size: 9px; color: #64748b;">#{{ item.employee.registration_id }} - {{ item.employee.role or '-' }}</span>
-                    </td>
-                    <td class="text-center">
-                        {% if item.employee.work_shift == 'Manhã' %}
-                        <span class="badge badge-blue">M</span>
-                        {% elif item.employee.work_shift == 'Tarde' %}
-                        <span class="badge badge-orange">T</span>
-                        {% else %}
-                        <span class="badge badge-gray">N</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center font-bold" style="color: #16a34a;">{{ item.total_worked }}</td>
-                    <td class="text-center font-bold" style="color: #dc2626;">{{ item.total_missing }}</td>
-                    <td class="text-center font-bold" style="color: #ea580c;">{{ item.total_no_app }}</td>
-                    <td class="text-center font-bold" style="color: #2563eb;">{{ item.total_justified }}</td>
-                    <td class="days-cell">
-                        {% for day in item.missing_days %}
-                        {% set dp = day.split('-') %}
-                        <span class="day-chip day-missing">{{ dp[2] }}/{{ dp[1] }}</span>
-                        {% endfor %}
-                        {% for day in item.no_app_days %}
-                        {% set dp = day.split('-') %}
-                        <span class="day-chip day-noapp">{{ dp[2] }}/{{ dp[1] }}</span>
-                        {% endfor %}
-                        {% for day in item.justified_days %}
-                        {% set dp = day.date.split('-') %}
-                        <span class="day-chip day-justified" title="{{ day.reason }}">{{ dp[2] }}/{{ dp[1] }}</span>
-                        {% endfor %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
         {% else %}
-        <div style="text-align: center; padding: 40px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; margin: 20px 0;">
-            <div style="font-size: 40px; margin-bottom: 10px;">✓</div>
-            <h3 style="color: #166534; margin: 0;">Nenhuma ausencia encontrada</h3>
-            <p style="color: #15803d; font-size: 11px; margin-top: 5px;">Todos os colaboradores registraram rota ou estao justificados no periodo.</p>
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+            <table id="rotasRelatorioTable" class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[880px]">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-3 py-2 pl-5">Colaborador</th>
+                        <th class="employees-data-table__th px-2 py-2 text-center">Turno</th>
+                        <th class="employees-data-table__th px-2 py-2 text-center">Trabalhou</th>
+                        <th class="employees-data-table__th px-2 py-2 text-center">Faltas</th>
+                        <th class="employees-data-table__th px-2 py-2 text-center">Sem app</th>
+                        <th class="employees-data-table__th px-2 py-2 text-center">Justif.</th>
+                        <th class="employees-data-table__th px-2 py-2">Dias</th>
+                        <th class="employees-data-table__th px-2 py-2">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y">
+                    {% for item in report_data %}
+                    {% set emp = item.employee %}
+                    <tr class="employee-row employees-data-table__row rr-row transition-colors"
+                        data-rr-missing='{{ item.missing_days | tojson }}'
+                        data-rr-noapp='{{ item.no_app_days | tojson }}'
+                        data-rr-just='{{ item.justified_days | tojson }}'>
+                        <td class="employee-cell-primary employees-data-table__td--col-name px-3 py-2 pl-5 align-middle" data-label="Colaborador">
+                            <div class="employee-primary-content min-w-0">
+                                <span class="employee-name employees-data-table__name-link block font-medium employees-text-strong">{{ emp.name | emp_name }}</span>
+                                <span class="employees-text-caption text-xs">#{{ emp.registration_id }} · {{ emp.role or "—" }}</span>
+                            </div>
+                        </td>
+                        <td class="employees-data-table__cell px-2 py-2 text-center align-middle" data-label="Turno">
+                            {% if emp.work_shift == 'Manhã' %}
+                            <span class="sys-badge sys-badge--neutral">M</span>
+                            {% elif emp.work_shift == 'Tarde' %}
+                            <span class="sys-badge sys-badge--alert">T</span>
+                            {% else %}
+                            <span class="sys-badge sys-badge--neutral">N</span>
+                            {% endif %}
+                        </td>
+                        <td class="employees-data-table__cell px-2 py-2 text-center align-middle font-semibold tabular-nums text-emerald-600 dark:text-emerald-400" data-label="Trabalhou">{{ item.total_worked }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 text-center align-middle font-semibold tabular-nums text-red-600 dark:text-red-400" data-label="Faltas">{{ item.total_missing }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 text-center align-middle font-semibold tabular-nums text-amber-600 dark:text-amber-400" data-label="Sem app">{{ item.total_no_app }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 text-center align-middle font-semibold tabular-nums text-blue-600 dark:text-blue-400" data-label="Justif.">{{ item.total_justified }}</td>
+                        <td class="employees-data-table__cell px-2 py-2 align-middle rr-days-cell" data-label="Dias">
+                            <div class="rr-day-chips flex flex-wrap gap-1">
+                                {% for day in item.missing_days %}
+                                {% set dp = day.split('-') %}
+                                <span class="rr-chip rr-chip--missing" title="Falta">{{ dp[2] }}/{{ dp[1] }}</span>
+                                {% endfor %}
+                                {% for day in item.no_app_days %}
+                                {% set dp = day.split('-') %}
+                                <span class="rr-chip rr-chip--noapp" title="Não abriu app">{{ dp[2] }}/{{ dp[1] }}</span>
+                                {% endfor %}
+                                {% for day in item.justified_days %}
+                                {% set dp = day.date.split('-') %}
+                                <span class="rr-chip rr-chip--just" title="{{ day.reason }}">{{ dp[2] }}/{{ dp[1] }}</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="employees-data-table__cell employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
+                            <div class="employee-actions employees-action-strip flex flex-wrap items-center gap-1">
+                                <a href="/employees/{{ emp.id }}" class="sys-btn sys-btn--secondary px-2.5 py-1.5 text-xs">Ficha</a>
+                                <button type="button" class="rr-detail-btn sys-btn sys-btn--sky px-2.5 py-1.5 text-xs" data-name="{{ (emp.name | emp_name) | e }}">Ver dias</button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if not is_print_all and total_pages > 1 %}
+        <div class="flex flex-col items-center justify-between gap-3 border-t px-4 py-4 sm:flex-row sm:px-6 print-hidden">
+            <p class="text-xs text-slate-500 dark:text-slate-400">Página {{ page }} de {{ total_pages }}</p>
+            <div class="flex flex-wrap items-center gap-2">
+                {% if page > 1 %}
+                <a class="sys-btn sys-btn--secondary text-xs" href="/lider/rotas/relatorio?{{ base_qs }}&page={{ page - 1 }}">Anterior</a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a class="sys-btn sys-btn--secondary text-xs" href="/lider/rotas/relatorio?{{ base_qs }}&page={{ page + 1 }}">Próxima</a>
+                {% endif %}
+            </div>
         </div>
         {% endif %}
-
-        <!-- Rodape -->
-        <div class="footer">
-            <p>Relatorio gerado automaticamente pelo Sistema de Operacao Inteligente</p>
-            <p>{{ period_label }} | Turno: {{ shift }} | {{ generated_at }}</p>
-        </div>
+        {% endif %}
     </div>
 
-    <script>
-        // Remove dark mode para impressao
-        window.addEventListener('beforeprint', function() {
-            document.body.classList.remove('dark-mode');
-        });
-        window.addEventListener('afterprint', function() {
-            document.body.classList.add('dark-mode');
-        });
-    </script>
-</body>
-</html>
+    <p class="employees-text-caption text-center text-xs print-only rr-print-footer">Relatório de ausências de rota · {{ period_label }} · Turno {{ shift }} · {{ generated_at }}</p>
+</div>
+
+<div id="rr-detail-modal" class="emp-modal-shell fixed inset-0 z-[80] hidden items-end justify-center p-4 sm:items-center print-hidden" role="dialog" aria-modal="true" aria-labelledby="rr-detail-title">
+    <div class="absolute inset-0 emp-modal-backdrop" data-rr-modal-close></div>
+    <div class="relative z-10 w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-600 dark:bg-slate-900">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-700">
+            <div>
+                <h4 id="rr-detail-title" class="text-base font-semibold text-slate-900 dark:text-white">Dias com ocorrência</h4>
+                <p id="rr-detail-sub" class="mt-1 text-sm text-slate-500 dark:text-slate-400"></p>
+            </div>
+            <button type="button" class="emp-modal-close" data-rr-modal-close aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div id="rr-detail-body" class="max-h-[min(70vh,28rem)] overflow-y-auto px-5 py-4 text-sm"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block body_scripts %}
+<script src="/static/js/pages/lider-rotas-relatorio-page.js" defer></script>
+{% endblock %}

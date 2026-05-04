@@ -1,106 +1,319 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="p-6 max-w-5xl mx-auto">
-    <h1 class="text-2xl font-bold text-white mb-2">Autorizações de entrega (fora de 300 m)</h1>
-    <p class="text-slate-400 text-sm mb-6">Motoristas longe do cliente solicitam liberação aqui. Aprovar libera uma única tentativa de “Iniciar”.</p>
+{% extends "base_gestao_avista.html" %}
 
-    <div class="mb-8">
-        <h2 class="text-lg font-semibold text-amber-400 mb-3 flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-            Pendentes (<span id="dac-pending-count">0</span>)
-        </h2>
-        <div id="dac-pending-list" class="space-y-3"></div>
-        <p id="dac-pending-empty" class="text-slate-500 text-sm hidden">Nenhuma solicitação pendente.</p>
+{% block title %}Autorizações de entrega · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Operação / Autorizações de entrega</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Autorizações de entrega</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Fora do raio de 300&nbsp;m — aprovação para uma tentativa de iniciar a parada</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/delivery-auth-requests.css">
+{% endblock %}
+
+{% block content %}
+<script type="application/json" id="dac-initial-stats">{{ dac_stats | tojson }}</script>
+
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium delivery-auth-page space-y-5 pt-2 md:pt-3">
+
+    <div id="dac-alert-slot" class="contents" aria-live="polite"></div>
+
+    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+            <div class="flex min-w-0 items-start gap-4">
+                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                        Painel operacional
+                    </span>
+                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Solicitações dos motoristas</h2>
+                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+                        Quando o motorista está longe do cliente, ele pede liberação aqui. Aprovar autoriza uma única tentativa de “Iniciar” na parada.
+                    </p>
+                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+                        <span class="employees-hero__chip employees-hero__chip--warning inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-amber-500"></span>
+                            <span id="dac-hero-pending-chip">{{ dac_stats.pending_count }} pendente(s)</span>
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            Raio padrão 300&nbsp;m
+                        </span>
+                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+                            Até 80 respostas recentes na lista
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+                <button type="button" id="dac-btn-refresh" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                    </span>
+                    <span class="employees-cta__label">Atualizar lista</span>
+                </button>
+                <a href="/employees" class="employees-cta sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+                    <span class="employees-cta__icon" aria-hidden="true">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </span>
+                    <span class="employees-cta__label">Colaboradores</span>
+                </a>
+            </div>
+        </div>
     </div>
 
-    <div>
-        <h2 class="text-lg font-semibold text-slate-300 mb-3">Respondidas recentemente</h2>
-        <div id="dac-recent-list" class="space-y-2 text-sm"></div>
+    <div class="sys-kpi-shell w-full">
+        <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de autorizações">
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Pendentes</span>
+                            <span id="dac-kpi-pending" class="employees-kpi__value mt-1 tabular-nums">{{ dac_stats.pending_count }}</span>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted">Aguardando decisão</span>
+                    </div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(239, 68, 68, 0.65);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-red-600 dark:text-red-300">Críticos</span>
+                            <span id="dac-kpi-critical" class="employees-kpi__value mt-1 tabular-nums">{{ dac_stats.critical_pending_count }}</span>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted">Pendente ≥ 500&nbsp;m</span>
+                    </div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Aprovados hoje</span>
+                            <span id="dac-kpi-approved-today" class="employees-kpi__value mt-1 tabular-nums">{{ dac_stats.approved_today }}</span>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted">Fuso São Paulo</span>
+                    </div>
+                </div>
+            </div>
+            <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.68);">
+                <div class="sys-kpi-cell-inner employees-kpi__inner">
+                    <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Negados hoje</span>
+                            <span id="dac-kpi-denied-today" class="employees-kpi__value mt-1 tabular-nums">{{ dac_stats.denied_today }}</span>
+                        </div>
+                        <svg class="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </div>
+                    <div class="employees-kpi__meta">
+                        <span class="employees-text-muted">Registro do dia</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+            <div class="employees-filter-bar__inner">
+                <div class="employees-filter-bar__primary">
+                    <div class="employees-filter-bar__primary-scroll">
+                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+                        <div class="ops-toolbar-search employees-filter-bar__search">
+                            <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input type="search" id="dac-search" autocomplete="off" placeholder="Motorista, cliente, motivo ou ID" class="ops-toolbar-search__input" aria-label="Buscar solicitações">
+                        </div>
+                    </div>
+                </div>
+                <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+                <div class="employees-filter-bar__secondary flex flex-wrap gap-2">
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" data-dac-quick="all" aria-pressed="true">Todos</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-dac-quick="pending" aria-pressed="false">Pendentes</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-dac-quick="approved" aria-pressed="false">Aprovados</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-dac-quick="denied" aria-pressed="false">Negados</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-dac-quick="today" aria-pressed="false">Hoje</button>
+                    <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-dac-quick="critical" aria-pressed="false">Críticos</button>
+                    <button type="button" id="dac-clear-filters" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="dac-bulk-bar" class="dac-bulk-bar sys-card sys-card--surface hidden" role="region" aria-label="Ações em lote">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm employees-text-strong">
+                <span id="dac-bulk-count">0</span> pendente(s) selecionado(s)
+            </p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" id="dac-bulk-approve" class="sys-btn sys-btn--success text-sm">Aprovar selecionadas</button>
+                <button type="button" id="dac-bulk-deny" class="sys-btn sys-btn--ghost-danger text-sm">Negar selecionadas</button>
+                <button type="button" id="dac-bulk-clear" class="sys-btn sys-btn--secondary text-sm">Limpar seleção</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+            <div class="min-w-0 flex-1">
+                <p class="employees-table-panel__kicker">Fila operacional</p>
+                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Solicitações</h3>
+                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No celular, cada linha vira um card. Pendentes podem ser selecionadas para ação em lote.</p>
+            </div>
+            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+                <span id="dac-result-count" class="employees-text-caption">Carregando…</span>
+            </div>
+        </div>
+
+        <div id="dac-loading" class="px-5 py-12 text-center text-sm employees-text-muted sm:px-6">
+            Carregando solicitações…
+        </div>
+        <div id="dac-error-wrap" class="hidden px-5 py-6 sm:px-6"></div>
+        <div id="dac-empty-wrap" class="hidden px-5 py-10 sm:px-6"></div>
+
+        <div id="dac-table-wrap" class="hidden sys-table-wrap sys-table-wrap--x-scroll">
+            <table class="employees-data-table employees-data-table--compact dac-auth-table w-full min-w-full border-collapse text-left text-sm md:min-w-[880px]" id="dacAuthTable">
+                <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+                    <tr>
+                        <th class="employees-data-table__th px-2 py-2 pl-4 w-10">
+                            <input type="checkbox" id="dac-select-page" class="dac-checkbox h-4 w-4 rounded border-slate-300" title="Selecionar pendentes desta página" aria-label="Selecionar pendentes visíveis nesta página">
+                        </th>
+                        <th class="employees-data-table__th px-2 py-2">ID</th>
+                        <th class="employees-data-table__th px-2 py-2">Motorista</th>
+                        <th class="employees-data-table__th px-2 py-2">Cliente</th>
+                        <th class="employees-data-table__th px-2 py-2">Distância</th>
+                        <th class="employees-data-table__th px-2 py-2">Solicitado</th>
+                        <th class="employees-data-table__th px-2 py-2">Status</th>
+                        <th class="employees-data-table__th px-2 py-2">Rota</th>
+                        <th class="employees-data-table__th employees-data-table__th--static px-2 py-2 pr-4">Ações</th>
+                    </tr>
+                </thead>
+                <tbody class="employees-data-table__body divide-y" id="dacTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="dac-pagination" class="hidden flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <p class="text-xs employees-text-muted" id="dac-page-info"></p>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" id="dac-page-prev" class="sys-btn sys-btn--secondary text-sm">Anterior</button>
+                <button type="button" id="dac-page-next" class="sys-btn sys-btn--secondary text-sm">Próxima</button>
+            </div>
+        </div>
     </div>
 </div>
 
-<script>
-(function() {
-    function esc(s) {
-        if (!s) return '';
-        const d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
-    }
-    function fmtDist(m) {
-        if (m == null || m === '') return '—';
-        const n = Number(m);
-        if (n >= 1000) return (n / 1000).toFixed(1).replace('.', ',') + ' km';
-        return Math.round(n) + ' m';
-    }
-    function cardPending(row) {
-        return `
-        <div class="rounded-xl border border-amber-500/30 bg-slate-800/80 p-4" data-id="${row.id}">
-            <div class="flex flex-wrap justify-between gap-2 mb-2">
-                <span class="font-bold text-white">${esc(row.driver_name)}</span>
-                <span class="text-slate-400 text-xs">${esc(row.requested_at || '')}</span>
+<!-- Detalhe (somente leitura) -->
+<div id="dac-detail-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="dac-detail-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg">
+        <div class="mb-4 flex items-start justify-between gap-3">
+            <div class="flex min-w-0 items-start gap-3">
+                <div class="emp-modal-icon-ring border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-500/30 dark:bg-slate-800/60 dark:text-slate-200">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <h3 class="sys-section-heading text-lg" id="dac-detail-title">Detalhe da solicitação</h3>
+                    <p class="mt-1 text-sm employees-text-muted" id="dac-detail-sub"></p>
+                </div>
             </div>
-            <p class="text-slate-300 text-sm mb-1"><strong>Cliente:</strong> ${esc(row.client_name || '—')}</p>
-            <p class="text-slate-400 text-sm mb-1"><strong>Distância:</strong> ${fmtDist(row.distancia_metros)}</p>
-            <p class="text-slate-300 text-sm mb-3"><strong>Motivo:</strong> ${esc(row.motivo || '—')}</p>
-            <div class="flex flex-wrap gap-2">
-                <button type="button" data-action="approve" data-id="${row.id}" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">Aprovar</button>
-                <button type="button" data-action="deny" data-id="${row.id}" class="px-4 py-2 rounded-lg bg-rose-600/80 hover:bg-rose-500 text-white text-sm font-semibold">Negar</button>
+            <button type="button" class="dac-modal-close emp-modal-close shrink-0 p-1" data-close-modal="dac-detail-modal" aria-label="Fechar">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <dl class="space-y-3 text-sm" id="dac-detail-body"></dl>
+        <div class="mt-6 flex justify-end">
+            <button type="button" class="sys-btn sys-btn--secondary dac-modal-close" data-close-modal="dac-detail-modal">Fechar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Negar (unitário ou lote) -->
+<div id="dac-deny-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="dac-deny-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-start gap-3">
+            <div class="emp-modal-icon-ring--lg border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-500/30 dark:bg-rose-950/40 dark:text-rose-400">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
             </div>
-        </div>`;
-    }
-    function cardRecent(row) {
-        const ok = row.status === 'approved';
-        return `<div class="rounded-lg border px-3 py-2 ${ok ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-rose-500/20 bg-rose-500/5'}">
-            <span class="font-medium ${ok ? 'text-emerald-400' : 'text-rose-400'}">${ok ? 'Aprovado' : 'Negado'}</span>
-            · ${esc(row.driver_name)} · ${esc(row.client_name || '')}
-            ${row.obs ? '<span class="text-slate-500"> — ' + esc(row.obs) + '</span>' : ''}
-        </div>`;
-    }
-    async function load() {
-        const r = await fetch('/api/admin/delivery-auth-requests', { credentials: 'same-origin' });
-        if (!r.ok) return;
-        const data = await r.json();
-        const pend = data.pending || [];
-        document.getElementById('dac-pending-count').textContent = pend.length;
-        const pl = document.getElementById('dac-pending-list');
-        const empty = document.getElementById('dac-pending-empty');
-        if (pend.length === 0) {
-            pl.innerHTML = '';
-            empty.classList.remove('hidden');
-        } else {
-            empty.classList.add('hidden');
-            pl.innerHTML = pend.map(cardPending).join('');
-        }
-        document.getElementById('dac-recent-list').innerHTML = (data.recent || []).map(cardRecent).join('') || '<p class="text-slate-500">Nenhum registro.</p>';
-    }
-    document.getElementById('dac-pending-list').addEventListener('click', async function(e) {
-        const btn = e.target.closest('[data-action]');
-        if (!btn) return;
-        const id = btn.getAttribute('data-id');
-        const action = btn.getAttribute('data-action');
-        let obs = '';
-        if (action === 'deny') {
-            obs = prompt('Motivo da negativa (opcional):') || '';
-        }
-        btn.disabled = true;
-        try {
-            const r = await fetch('/api/admin/delivery-auth-requests/' + id, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ status: action === 'approve' ? 'approved' : 'denied', obs: obs || null })
-            });
-            const j = await r.json();
-            if (!r.ok) alert(j.error || 'Erro');
-            await load();
-        } catch (err) {
-            alert('Erro de rede');
-        }
-        btn.disabled = false;
-    });
-    load();
-    setInterval(load, 25000);
-})();
-</script>
+            <div class="min-w-0">
+                <h3 class="sys-section-heading text-lg" id="dac-deny-title">Negar solicitação</h3>
+                <p class="mt-1 text-sm employees-text-muted" id="dac-deny-lead"></p>
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="sys-section__label sys-section__label--field" for="dac-deny-obs">Observação (opcional)</label>
+            <textarea id="dac-deny-obs" class="sys-input w-full min-h-[5rem] resize-y" maxlength="1000" placeholder="Ex.: Endereço incorreto, cliente ausente…"></textarea>
+            <p class="mt-1 text-xs employees-text-muted">Até 1000 caracteres. Visível no histórico interno.</p>
+        </div>
+        <div id="dac-deny-error" class="mb-3 hidden text-sm text-red-600 dark:text-red-400" role="alert"></div>
+        <div class="flex flex-wrap justify-end gap-3">
+            <button type="button" class="sys-btn sys-btn--secondary dac-modal-close" data-close-modal="dac-deny-modal">Cancelar</button>
+            <button type="button" id="dac-deny-confirm" class="sys-btn sys-btn--ghost-danger">Confirmar negação</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmar aprovação em lote -->
+<div id="dac-approve-bulk-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="dac-approve-bulk-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-4 flex items-start gap-3">
+            <div class="emp-modal-icon-ring--lg border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="min-w-0">
+                <h3 class="sys-section-heading text-lg" id="dac-approve-bulk-title">Aprovar em lote</h3>
+                <p class="mt-1 text-sm employees-text-muted" id="dac-approve-bulk-lead"></p>
+            </div>
+        </div>
+        <div class="flex flex-wrap justify-end gap-3">
+            <button type="button" class="sys-btn sys-btn--secondary dac-modal-close" data-close-modal="dac-approve-bulk-modal">Cancelar</button>
+            <button type="button" id="dac-approve-bulk-confirm" class="sys-btn sys-btn--success">Confirmar aprovação</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block body_scripts %}
+<script src="/static/js/pages/delivery-auth-requests-page.js" defer></script>
 {% endblock %}

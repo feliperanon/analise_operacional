@@ -1,200 +1,472 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Documentos institucionais · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Processos e Padronização / Documentos</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Documentos institucionais</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">POP, IT, FOR, REL e demais tipos — emissão, controle e rastreabilidade</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/documentos-institu.css">
+<script src="/static/js/pages/documentos-page.js" defer></script>
+{% endblock %}
 
 {% block content %}
-<div class="p-8">
-    <div class="max-w-6xl mx-auto">
-        <!-- Header institucional -->
-        <div class="mb-10">
-            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-white mb-2 tracking-tight">Documentos Institucionais</h1>
-                    <p class="text-slate-400 max-w-2xl">Sistema unificado de padronização documental. Emissão, controle e rastreabilidade de POP, IT, FOR, COM, POL, CHK e REL com identidade visual institucional única.</p>
-                </div>
-                <div class="flex items-center gap-3 shrink-0">
-                    <a href="/documentos/novo" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors border border-blue-500">
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                        Novo documento
-                    </a>
-                </div>
-            </div>
+{% set _f = filtros or {} %}
+{% set _vis = (_f.get('visao') or 'todos') %}
+{% set _pg = pagination or {} %}
+{% set _k = kpi or {} %}
+{% set _links = links or {} %}
+
+<div
+  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3"
+  data-page="documentos"
+  lang="pt-BR"
+>
+  {% if message %}
+  <div id="page-alert" class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center gap-3" role="alert">
+    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      {% if level == 'success' %}
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      {% else %}
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      {% endif %}
+    </svg>
+    <span class="min-w-0 flex-1">{{ message }}</span>
+    <button type="button" class="emp-modal-close shrink-0" data-dismiss-alert aria-label="Fechar">×</button>
+  </div>
+  {% else %}
+  <div id="page-alert" class="hidden"></div>
+  {% endif %}
+
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Padronização</span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Biblioteca documental</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
+            Mesma experiência operacional da gestão de colaboradores: busca rápida, filtros claros e ações diretas.
+          </p>
+          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              Código: TIPO-SETOR-NNN
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              {{ (_k.get('total') or 0)|int }} no filtro atual
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+          <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+            <span class="employees-cta__icon" aria-hidden="true">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+            </span>
+            <span class="employees-cta__label">Importar</span>
+            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div x-show="open" x-cloak x-transition @click.outside="open = false" class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+            <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importação</p>
+            <button type="button" class="employees-menu-item" @click="open = false" data-open-modal="importCsvModal">
+              <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">CSV (rascunhos)</span>
+                <span class="employees-menu-item__hint">Validação de colunas e tipos</span>
+              </span>
+            </button>
+            <button type="button" class="employees-menu-item" @click="open = false" data-open-modal="batchModal">
+              <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Exportar listagem</span>
+                <span class="employees-menu-item__hint">CSV com filtros atuais</span>
+              </span>
+            </button>
+            <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
+            <a href="/documentos/import-template.csv" class="employees-menu-item" download @click="open = false">
+              <span class="employees-menu-item__icon employees-menu-item__icon--slate" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Baixar modelo CSV</span>
+                <span class="employees-menu-item__hint">Cabeçalhos esperados</span>
+              </span>
+            </a>
+          </div>
         </div>
 
-        <!-- Duas frentes do sistema -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- Área 1: Documentos Padronizados Operacionais -->
-            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
-                <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/80">
-                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                            <i data-lucide="file-text" class="w-4 h-4 text-blue-400"></i>
-                        </span>
-                        Documentos Padronizados Operacionais
-                    </h2>
-                    <p class="text-slate-400 text-sm mt-1">Documentos internos e normativos com estrutura previsível e padronizada.</p>
-                </div>
-                <div class="p-5 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <a href="/documentos/novo?tipo=POP" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
-                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">POP</span>
-                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Procedimento Operacional Padrão</p>
-                        <p class="text-xs text-slate-500 mt-1">Processos, rotinas e fluxo operacional</p>
-                    </a>
-                    <a href="/documentos/novo?tipo=IT" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
-                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">IT</span>
-                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Instrução de Trabalho</p>
-                        <p class="text-xs text-slate-500 mt-1">Tarefa específica passo a passo</p>
-                    </a>
-                    <a href="/documentos/novo?tipo=FOR" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
-                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">FOR</span>
-                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Formulário</p>
-                        <p class="text-xs text-slate-500 mt-1">Coleta e validação de dados</p>
-                    </a>
-                    <a href="/documentos/novo?tipo=COM" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
-                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">COM</span>
-                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Comunicado</p>
-                        <p class="text-xs text-slate-500 mt-1">Orientações, avisos e alinhamentos</p>
-                    </a>
-                    <a href="/documentos/novo?tipo=POL" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
-                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">POL</span>
-                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Política Interna</p>
-                        <p class="text-xs text-slate-500 mt-1">Diretrizes e posicionamentos</p>
-                    </a>
-                    <a href="/documentos/novo?tipo=CHK" class="block p-4 rounded-xl bg-slate-800 border border-slate-600/80 hover:border-blue-500/50 hover:bg-slate-700/80 transition-all group">
-                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-400 mb-2">CHK</span>
-                        <p class="text-sm font-semibold text-white group-hover:text-blue-300">Checklist</p>
-                        <p class="text-xs text-slate-500 mt-1">Verificação e conferência</p>
-                    </a>
-                </div>
-            </div>
+        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" data-open-modal="novoDocModal">
+          <span class="employees-cta__icon" aria-hidden="true">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          </span>
+          <span class="employees-cta__label">Novo documento</span>
+        </button>
 
-            <!-- Área 2: Relatórios -->
-            <div class="bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
-                <div class="px-6 py-4 border-b border-slate-700 bg-slate-800/80">
-                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                            <i data-lucide="bar-chart-2" class="w-4 h-4 text-amber-400"></i>
-                        </span>
-                        Relatórios
-                    </h2>
-                    <p class="text-slate-400 text-sm mt-1">Análises, resultados, acompanhamentos e avaliações com conteúdo flexível.</p>
-                </div>
-                <div class="p-5">
-                    <a href="/documentos/novo?tipo=REL" class="block p-5 rounded-xl bg-slate-800 border-2 border-dashed border-slate-600 hover:border-amber-500/50 hover:bg-slate-700/80 transition-all group">
-                        <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 mb-3">REL</span>
-                        <p class="text-base font-semibold text-white group-hover:text-amber-300">Relatório</p>
-                        <p class="text-sm text-slate-500 mt-2">Registrar análises, fatos, resultados, ocorrências, auditorias ou contextos variáveis. Mesmo padrão institucional, conteúdo adaptável.</p>
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Filtros e listagem -->
-        <div class="mt-8 bg-slate-800/60 border border-slate-700 rounded-2xl overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-700 flex flex-wrap items-center gap-4">
-                <form method="get" action="/documentos" class="flex flex-wrap items-center gap-3">
-                    <select name="tipo" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">Todos os tipos</option>
-                        {% for t in doc_tipos or [] %}
-                        <option value="{{ t }}" {{ 'selected' if (filtros or {}).get('tipo') == t else '' }}>{{ t }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="setor" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">Todos os setores</option>
-                        {% for s in setores or [] %}
-                        <option value="{{ s.sigla }}" {{ 'selected' if (filtros or {}).get('setor') == s.sigla else '' }}>{{ s.sigla }} – {{ s.nome }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="status" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500">
-                        <option value="">Todos os status</option>
-                        <option value="rascunho" {{ 'selected' if (filtros or {}).get('status') == 'rascunho' else '' }}>Rascunho</option>
-                        <option value="em_revisao" {{ 'selected' if (filtros or {}).get('status') == 'em_revisao' else '' }}>Em revisão</option>
-                        <option value="aprovado" {{ 'selected' if (filtros or {}).get('status') == 'aprovado' else '' }}>Aprovado</option>
-                        <option value="obsoleto" {{ 'selected' if (filtros or {}).get('status') == 'obsoleto' else '' }}>Obsoleto</option>
-                        <option value="arquivado" {{ 'selected' if (filtros or {}).get('status') == 'arquivado' else '' }}>Arquivado</option>
-                    </select>
-                    <input type="search" name="q" value="{{ (filtros or {}).get('q', '') }}" placeholder="Buscar por título ou código…" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:ring-2 focus:ring-blue-500 min-w-[200px]">
-                    <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">
-                        <i data-lucide="search" class="w-4 h-4"></i>
-                        Filtrar
-                    </button>
-                </form>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-700">
-                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Código</th>
-                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Título</th>
-                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Tipo</th>
-                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Setor</th>
-                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Status</th>
-                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Versão</th>
-                            <th class="text-left px-6 py-3 text-slate-400 font-medium">Atualizado</th>
-                            <th class="text-left px-6 py-3 text-slate-400 font-medium"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for d in documentos or [] %}
-                        <tr class="border-b border-slate-700/80 hover:bg-slate-800/60 transition-colors">
-                            <td class="px-6 py-3"><code class="text-blue-400 font-mono text-xs">{{ d.codigo }}</code></td>
-                            <td class="px-6 py-3 text-white font-medium">{{ d.titulo[:60] }}{% if d.titulo|length > 60 %}…{% endif %}</td>
-                            <td class="px-6 py-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold {{ 'bg-amber-500/20 text-amber-400' if d.tipo_documento == 'REL' else 'bg-blue-500/20 text-blue-400' }}">{{ d.tipo_documento }}</span></td>
-                            <td class="px-6 py-3 text-slate-400">{{ d.area_responsavel }}</td>
-                            <td class="px-6 py-3">
-                                {% if d.status == 'rascunho' %}<span class="text-slate-400">Rascunho</span>{% endif %}
-                                {% if d.status == 'em_revisao' %}<span class="text-amber-400">Em revisão</span>{% endif %}
-                                {% if d.status == 'aprovado' %}<span class="text-emerald-400">Aprovado</span>{% endif %}
-                                {% if d.status == 'obsoleto' %}<span class="text-slate-500">Obsoleto</span>{% endif %}
-                                {% if d.status == 'arquivado' %}<span class="text-slate-500">Arquivado</span>{% endif %}
-                            </td>
-                            <td class="px-6 py-3 text-slate-400">v{{ d.versao }}</td>
-                            <td class="px-6 py-3 text-slate-500 text-xs">{{ d.updated_at.strftime('%d/%m/%Y %H:%M') if d.updated_at else '-' }}</td>
-                            <td class="px-6 py-3"><a href="/documentos/{{ d.id }}" class="text-blue-400 hover:text-blue-300 text-sm">Abrir</a></td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="8" class="px-6 py-8 text-center text-slate-500">Nenhum documento encontrado. <a href="/documentos/novo" class="text-blue-400 hover:underline">Criar o primeiro</a></td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Padrão de código e regras -->
-        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
-                <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Padrão de código documental</h3>
-                <p class="text-slate-400 text-sm mb-3">Exemplo: <code class="px-2 py-0.5 rounded bg-slate-700 text-blue-400 font-mono text-xs">POP-LOG-001</code>, <code class="px-2 py-0.5 rounded bg-slate-700 text-blue-400 font-mono text-xs">REL-OP-004</code></p>
-                <ul class="text-xs text-slate-500 space-y-1">
-                    <li><strong class="text-slate-400">Sigla inicial:</strong> tipo documental (POP, IT, FOR, REL, COM, POL, CHK)</li>
-                    <li><strong class="text-slate-400">Sigla do meio:</strong> área/setor (LOG, RH, OP, DIR, ADM, EXP, MAN…)</li>
-                    <li><strong class="text-slate-400">Número final:</strong> sequencial por setor</li>
-                </ul>
-            </div>
-            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
-                <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3">Status padronizados</h3>
-                <div class="flex flex-wrap gap-2">
-                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-slate-700 text-slate-400">Rascunho</span>
-                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-amber-500/20 text-amber-400">Em revisão</span>
-                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400">Aprovado</span>
-                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-slate-600 text-slate-500">Obsoleto</span>
-                    <span class="px-2 py-1 rounded text-[10px] font-medium bg-slate-700 text-slate-500">Arquivado</span>
-                </div>
-                <p class="text-xs text-slate-500 mt-3">Todos os documentos compartilham identidade visual, cabeçalho, rodapé e controle de revisão.</p>
-            </div>
-        </div>
-
-        <!-- Link para arquitetura completa -->
-        <div class="mt-8 p-4 rounded-xl bg-slate-800/40 border border-slate-700/80">
-            <p class="text-slate-400 text-sm">
-                <i data-lucide="info" class="w-4 h-4 inline-block align-middle mr-1 text-slate-500"></i>
-                A arquitetura completa do módulo — banco de dados, regras de negócio, fluxos e exemplos — está documentada em <code class="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 text-xs">docs/ARQUITETURA_DOCUMENTOS_INSTITUCIONAIS.md</code>
-            </p>
-        </div>
+        <a href="/documentos/novo" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Formulário completo</a>
+      </div>
     </div>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo documental">
+      <a href="{{ _links.get('todos', '/documentos') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _vis == 'todos' and not _f.get('status') %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Catálogo</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value tabular-nums">{{ _k.get('total') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Com tipo, setor e busca atuais</span></div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('pendentes', '/documentos') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _vis == 'pendentes' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Em elaboração</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ _k.get('pendentes') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Rascunho + em revisão</span></div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('aprovados', '/documentos') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _vis == 'aprovados' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Aprovados</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value tabular-nums">{{ _k.get('aprovado') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Vigentes na base</span></div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('criticos', '/documentos') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _vis == 'criticos' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Em revisão</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ _k.get('em_revisao') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Precisam de trâmite</span></div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('obsoletos', '/documentos') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _vis == 'obsoletos' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(148, 163, 184, 0.68);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Obsoleto / arquivado</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value tabular-nums">{{ _k.get('obsoleto_arquivado') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-slate-400 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Histórico</span></div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <details class="doc-tipo-shortcuts sys-card sys-card--surface px-4 py-3 sm:px-5">
+    <summary class="cursor-pointer list-none text-sm font-semibold text-slate-800 dark:text-slate-100 [&::-webkit-details-marker]:hidden">
+      <span class="inline-flex items-center gap-2">
+        <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Novo por tipo (atalho)
+      </span>
+    </summary>
+    <div class="mt-3 flex flex-wrap gap-2">
+      {% for t in doc_tipos or [] %}
+      <a href="/documentos/novo?tipo={{ t }}" class="employees-pill employees-pill--neutral text-xs no-underline hover:opacity-90">{{ t }}</a>
+      {% endfor %}
+    </div>
+  </details>
+
+  <form id="documentosFilterForm" method="GET" action="/documentos" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+    <input type="hidden" name="page" value="1">
+    <input type="hidden" name="visao" value="{{ _vis if _vis != 'todos' else '' }}">
+    <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+      <div class="employees-filter-bar__inner">
+        <div class="employees-filter-bar__primary">
+          <div class="employees-filter-bar__primary-scroll">
+            <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+            <div class="ops-toolbar-search employees-filter-bar__search">
+              <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="search" name="q" value="{{ _f.get('q') or '' }}" placeholder="Título ou código" class="ops-toolbar-search__input" data-debounce-submit="true" autocomplete="off">
+            </div>
+            <select name="tipo" class="ops-toolbar-control px-3" aria-label="Tipo">
+              <option value="">Todos os tipos</option>
+              {% for t in doc_tipos or [] %}
+              <option value="{{ t }}" {% if _f.get('tipo') == t %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+            <select name="setor" class="ops-toolbar-control px-3" aria-label="Setor">
+              <option value="">Todos os setores</option>
+              {% for s in setores or [] %}
+              <option value="{{ s.sigla }}" {% if _f.get('setor') == s.sigla %}selected{% endif %}>{{ s.sigla }} — {{ s.nome }}</option>
+              {% endfor %}
+            </select>
+            <select name="status" class="ops-toolbar-control px-3" aria-label="Status exato">
+              <option value="">Qualquer status</option>
+              <option value="rascunho" {% if _f.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
+              <option value="em_revisao" {% if _f.get('status') == 'em_revisao' %}selected{% endif %}>Em revisão</option>
+              <option value="aprovado" {% if _f.get('status') == 'aprovado' %}selected{% endif %}>Aprovado</option>
+              <option value="obsoleto" {% if _f.get('status') == 'obsoleto' %}selected{% endif %}>Obsoleto</option>
+              <option value="arquivado" {% if _f.get('status') == 'arquivado' %}selected{% endif %}>Arquivado</option>
+            </select>
+            <select name="per_page" class="ops-toolbar-control px-3">
+              {% for n in [25, 50, 100] %}
+              <option value="{{ n }}" {% if _pg.get('per_page') == n %}selected{% endif %}>{{ n }} por página</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+        <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap">
+          <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
+          <a href="{{ _links.get('hoje', '/documentos') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _vis == 'hoje' %}filter-btn--active{% endif %}">Hoje</a>
+          <a href="{{ _links.get('todos', '/documentos') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _vis == 'todos' and not _f.get('status') %}filter-btn--active{% endif %}">Todos</a>
+          <a href="{{ _links.get('clear', '/documentos') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar filtros</a>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+      <div class="min-w-0 flex-1">
+        <p class="employees-table-panel__kicker">Listagem</p>
+        <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Documentos</h3>
+        <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No mobile, cada linha vira card. Edição completa só em rascunho.</p>
+      </div>
+      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+        {% if _pg.get('total_count', 0) %}
+        Exibindo <strong>{{ _pg.get('page_start', 0) }}</strong>–<strong>{{ _pg.get('page_end', 0) }}</strong> de <strong>{{ _pg.get('total_count', 0) }}</strong>.
+        {% else %}
+        Nenhum resultado para o filtro.
+        {% endif %}
+        <div class="mt-2 flex flex-wrap justify-end gap-2">
+          <a href="{{ _pg.get('prev_href', '#') }}" class="sys-btn sys-btn--secondary {% if not _pg.get('has_prev') %}pointer-events-none opacity-50{% endif %}">Anterior</a>
+          <span class="employees-text-caption inline-flex items-center px-1.5">Pág. {{ _pg.get('page', 1) }} / {{ _pg.get('total_pages', 1) }}</span>
+          <a href="{{ _pg.get('next_href', '#') }}" class="sys-btn sys-btn--secondary {% if not _pg.get('has_next') %}pointer-events-none opacity-50{% endif %}">Próxima</a>
+        </div>
+      </div>
+    </div>
+
+    {% if documentos %}
+    <div class="sys-table-wrap sys-table-wrap--x-scroll">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]" id="employeesTable">
+        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+          <tr>
+            <th class="employees-data-table__th px-2 py-2 pl-5">Código</th>
+            <th class="employees-data-table__th px-2 py-2">Título</th>
+            <th class="employees-data-table__th px-2 py-2">Tipo</th>
+            <th class="employees-data-table__th px-2 py-2">Setor</th>
+            <th class="employees-data-table__th px-2 py-2">Status</th>
+            <th class="employees-data-table__th px-2 py-2">Ver.</th>
+            <th class="employees-data-table__th px-2 py-2">Atualizado</th>
+            <th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="employees-data-table__body divide-y" id="tableBody">
+          {% for d in documentos %}
+          <tr class="group employee-row employees-data-table__row transition-colors" id="doc-row-{{ d.id }}">
+            <td class="employees-data-table__cell px-2 py-2 pl-5 align-middle font-mono text-xs text-sky-600 dark:text-sky-300" data-label="Código">{{ d.codigo }}</td>
+            <td class="employee-cell-primary px-2 py-2 align-middle" data-label="Título">
+              <div class="employee-primary-content min-w-0">
+                <span class="employee-name block truncate font-medium employees-text-strong">{{ d.titulo[:72] }}{% if d.titulo|length > 72 %}…{% endif %}</span>
+              </div>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Tipo">
+              {% if d.tipo_documento == 'REL' %}
+              <span class="employees-pill employees-pill--status employees-pill--pending">{{ d.tipo_documento }}</span>
+              {% else %}
+              <span class="employees-pill employees-pill--neutral">{{ d.tipo_documento }}</span>
+              {% endif %}
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Setor">{{ d.area_responsavel }}</td>
+            <td class="px-2 py-2 align-middle whitespace-nowrap" data-label="Status">
+              {% if d.status == 'aprovado' %}
+              <span class="sys-badge sys-badge--ok">Aprovado</span>
+              {% elif d.status == 'em_revisao' %}
+              <span class="sys-badge sys-badge--alert">Em revisão</span>
+              {% elif d.status == 'rascunho' %}
+              <span class="employees-pill employees-pill--status employees-pill--pending">Rascunho</span>
+              {% elif d.status == 'obsoleto' %}
+              <span class="employees-pill employees-pill--neutral">Obsoleto</span>
+              {% elif d.status == 'arquivado' %}
+              <span class="employees-pill employees-pill--neutral">Arquivado</span>
+              {% else %}
+              <span class="employees-pill employees-pill--neutral">{{ d.status }}</span>
+              {% endif %}
+            </td>
+            <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle tabular-nums" data-label="Versão">v{{ d.versao }}</td>
+            <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle text-xs whitespace-nowrap" data-label="Atualizado">{{ d.updated_at.strftime('%d/%m/%Y %H:%M') if d.updated_at else '—' }}</td>
+            <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
+              <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                <a href="/documentos/{{ d.id }}" class="employee-action-btn employee-action-btn--edit" title="Abrir">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </a>
+                {% if d.status == 'rascunho' %}
+                <a href="/documentos/{{ d.id }}/editar" class="employee-action-btn employee-action-btn--vacation" title="Editar">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5a2.121 2.121 0 10-3-3L5 17v3z"></path></svg>
+                </a>
+                {% endif %}
+                <a href="/documentos/{{ d.id }}/print" target="_blank" rel="noopener" class="employee-action-btn employee-action-btn--return" title="Imprimir">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="sys-empty-state m-6">
+      <p class="font-medium text-slate-800 dark:text-slate-100">Nenhum documento encontrado.</p>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Ajuste filtros ou crie um novo registro.</p>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button type="button" class="sys-btn sys-btn--primary" data-open-modal="novoDocModal">Novo documento</button>
+        <a href="/documentos/novo" class="sys-btn sys-btn--secondary">Formulário completo</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <p class="text-center text-[11px] text-slate-500 dark:text-slate-500 px-2">
+    Arquitetura do módulo: <code class="rounded bg-slate-100 px-1 dark:bg-slate-800">docs/ARQUITETURA_DOCUMENTOS_INSTITUCIONAIS.md</code>
+  </p>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-});
-</script>
+<div id="novoDocModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-20 md:pt-16" role="dialog" aria-modal="true" aria-labelledby="novo-doc-title">
+  <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg doc-modal-card">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <p class="employees-text-caption text-[11px] font-semibold uppercase tracking-wider text-slate-500">Criação rápida</p>
+        <h3 id="novo-doc-title" class="sys-section-heading mt-1 text-lg">Novo documento</h3>
+        <p class="employees-text-muted mt-1 text-xs">Gera código automaticamente e abre o detalhe após salvar.</p>
+      </div>
+      <button type="button" class="emp-modal-close shrink-0" data-close-modal="novoDocModal" aria-label="Fechar">×</button>
+    </div>
+    <form method="post" action="/documentos" class="space-y-4">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label class="sys-section__label sys-section__label--field" for="nd-tipo">Tipo</label>
+          <select id="nd-tipo" name="tipo_documento" required class="sys-select mt-1 w-full">
+            <option value="">Selecione…</option>
+            {% for t in doc_tipos or [] %}
+            <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="sys-section__label sys-section__label--field" for="nd-setor">Área responsável</label>
+          <select id="nd-setor" name="area_responsavel" required class="sys-select mt-1 w-full">
+            <option value="">Selecione…</option>
+            {% for s in setores or [] %}
+            <option value="{{ s.sigla }}">{{ s.sigla }} — {{ s.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="sys-section__label sys-section__label--field" for="nd-titulo">Título</label>
+          <input id="nd-titulo" type="text" name="titulo" required class="sys-input mt-1 w-full" placeholder="Ex.: Procedimento de separação" maxlength="255">
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="nd-elab">Elaborado por</label>
+          <input id="nd-elab" type="text" name="elaborado_por" required class="sys-input mt-1 w-full" maxlength="100">
+        </div>
+        <div>
+          <label class="sys-section__label sys-section__label--field" for="nd-class">Classificação</label>
+          <select id="nd-class" name="classificacao" class="sys-select mt-1 w-full">
+            <option value="Interno">Interno</option>
+            <option value="Confidencial">Confidencial</option>
+            <option value="Restrito">Restrito</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="novoDocModal">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary">Criar e abrir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="importCsvModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-20 md:pt-16" role="dialog" aria-modal="true" aria-labelledby="import-csv-title">
+  <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-lg doc-modal-card">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <p class="employees-text-caption text-[11px] font-semibold uppercase tracking-wider text-slate-500">Importação</p>
+        <h3 id="import-csv-title" class="sys-section-heading mt-1 text-lg">CSV para rascunhos</h3>
+      </div>
+      <button type="button" class="emp-modal-close shrink-0" data-close-modal="importCsvModal" aria-label="Fechar">×</button>
+    </div>
+    <p class="text-xs text-slate-600 dark:text-slate-400">Colunas obrigatórias: <code class="text-[11px]">tipo_documento, titulo, area_responsavel, elaborado_por</code>. Opcional: <code class="text-[11px]">classificacao</code>.</p>
+    <div class="mt-4 space-y-3">
+      <input type="file" id="doc-import-file" accept=".csv,text/csv" class="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white dark:text-slate-300">
+      <div id="doc-import-result" class="hidden rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/50"></div>
+    </div>
+    <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+      <a href="/documentos/import-template.csv" class="sys-btn sys-btn--secondary" download>Modelo</a>
+      <button type="button" id="doc-import-submit" class="sys-btn sys-btn--primary">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<div id="batchModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-md doc-modal-card">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <h3 class="sys-section-heading text-lg">Exportar listagem</h3>
+      <button type="button" class="emp-modal-close shrink-0" data-close-modal="batchModal" aria-label="Fechar">×</button>
+    </div>
+    <p class="text-sm text-slate-600 dark:text-slate-400">Baixe um CSV com até 5.000 linhas usando os mesmos filtros da tela (tipo, setor, busca, visão e status).</p>
+    <p class="employees-text-muted mt-2 text-xs">Alterações em lote na base não estão disponíveis nesta versão.</p>
+    <div class="mt-4 flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+      <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="batchModal">Fechar</button>
+      <a id="doc-export-link" href="/documentos/export.csv" class="sys-btn sys-btn--primary">Baixar CSV</a>
+    </div>
+  </div>
+</div>
 {% endblock %}

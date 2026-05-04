@@ -1,0 +1,26 @@
+<section class="bi-dev-kpis">
+  <article class="sys-card sys-card--surface bi-dev-kpi">
+    <p>Total devolvido</p>
+    <strong>{{ total_qtd|fmt_br_int }}</strong>
+  </article>
+  <article class="sys-card sys-card--surface bi-dev-kpi">
+    <p>% de devolução</p>
+    <strong>{{ pct_devolucao_valor|fmt_br_1 }}%</strong>
+  </article>
+  <article class="sys-card sys-card--surface bi-dev-kpi">
+    <p>Valor devolvido</p>
+    <strong>{{ total_valor|fmt_br_moeda }}</strong>
+  </article>
+  <article class="sys-card sys-card--surface bi-dev-kpi">
+    <p>Clientes impactados</p>
+    <strong>{{ total_clientes_afetados|fmt_br_int }}</strong>
+  </article>
+  <article class="sys-card sys-card--surface bi-dev-kpi">
+    <p>Principal motivo</p>
+    <strong>{{ top_motivos[0].motivo if top_motivos else '—' }}</strong>
+  </article>
+  <article class="sys-card sys-card--surface bi-dev-kpi">
+    <p>Maior responsável</p>
+    <strong>{{ resp_breakdown[0].responsabilidade if resp_breakdown else '—' }}</strong>
+  </article>
+</section>
