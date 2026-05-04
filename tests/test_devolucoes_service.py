@@ -641,3 +641,182 @@ def test_sync_route_to_devolucao_preserves_existing_excel_source_for_same_route(
         assert refreshed is not None
         assert refreshed.id == existing.id
         assert refreshed.source == "EXCEL"
+
+
+def test_sync_route_to_devolucao_preserves_ajudante_when_route_has_no_helpers():
+    """Ajudante informado/editado na devolução não some ao sincronizar rota sem delivery_helpers_json."""
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        motorista = models.Employee(
+            registration_id="EMP-DEV-M",
+            name="Motorista Sync Aju",
+            role="Motorista",
+            status="active",
+        )
+        ajudante = models.Employee(
+            registration_id="EMP-DEV-A",
+            name="Ajudante Sync Aju",
+            role="Ajudante",
+            status="active",
+        )
+        client = models.Client(name="Cliente Sync Aju")
+        resp = models.DevolucaoResponsabilidade(nome="MERCADO")
+        session.add(motorista)
+        session.add(ajudante)
+        session.add(client)
+        session.add(resp)
+        session.commit()
+        session.refresh(motorista)
+        session.refresh(ajudante)
+        session.refresh(client)
+        session.refresh(resp)
+
+        motivo = models.DevolucaoMotivo(
+            nome="SEM DINHEIRO / CHEQUE",
+            responsabilidade_id=resp.id,
+            nome_normalizado="sem dinheiro cheque",
+        )
+        route = models.Route(
+            date="2026-05-10",
+            shift="Manhã",
+            employee_id=motorista.id,
+            client_id=client.id,
+            start_time="08:00",
+            end_time="12:00",
+            tonnage=40.0,
+            type="delivery",
+            valor_financeiro=100.0,
+            valor_devolucao=100.0,
+            delivery_status="devolucao",
+            status="completed",
+            delivery_return_reason="SEM DINHEIRO / CHEQUE",
+            delivery_return_category="MERCADO",
+        )
+        session.add(motivo)
+        session.add(route)
+        session.commit()
+        session.refresh(motivo)
+        session.refresh(route)
+
+        existing = models.Devolucao(
+            route_id=route.id,
+            data_romaneio="2026-05-10",
+            data_entrega="2026-05-10",
+            client_id=client.id,
+            vendedor_id=motorista.id,
+            motorista_id=motorista.id,
+            ajudante_id=ajudante.id,
+            valor=100.0,
+            motivo_id=motivo.id,
+            responsabilidade_id=resp.id,
+            dia=10,
+            semana=19,
+            acima_300="NAO",
+            cluster="0-50",
+            source="WEB",
+        )
+        session.add(existing)
+        session.commit()
+
+        sync_route_to_devolucao(session, route, source="WEB")
+        session.commit()
+
+        refreshed = session.get(models.Devolucao, existing.id)
+        assert refreshed is not None
+        assert refreshed.ajudante_id == ajudante.id
+
+
+def test_sync_route_to_devolucao_sets_ajudante_when_route_gains_helpers():
+    """Quando a rota passa a listar ajudantes, o sync preenche Devolucao.ajudante_id."""
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        motorista = models.Employee(
+            registration_id="EMP-DEV-M2",
+            name="Motorista Sync Aju 2",
+            role="Motorista",
+            status="active",
+        )
+        ajudante = models.Employee(
+            registration_id="EMP-DEV-A2",
+            name="Ajudante Sync Aju 2",
+            role="Ajudante",
+            status="active",
+        )
+        client = models.Client(name="Cliente Sync Aju 2")
+        resp = models.DevolucaoResponsabilidade(nome="MERCADO")
+        session.add(motorista)
+        session.add(ajudante)
+        session.add(client)
+        session.add(resp)
+        session.commit()
+        session.refresh(motorista)
+        session.refresh(ajudante)
+        session.refresh(client)
+        session.refresh(resp)
+
+        motivo = models.DevolucaoMotivo(
+            nome="SEM DINHEIRO / CHEQUE",
+            responsabilidade_id=resp.id,
+            nome_normalizado="sem dinheiro cheque",
+        )
+        route = models.Route(
+            date="2026-05-11",
+            shift="Manhã",
+            employee_id=motorista.id,
+            client_id=client.id,
+            start_time="08:00",
+            end_time="12:00",
+            tonnage=30.0,
+            type="delivery",
+            valor_financeiro=90.0,
+            valor_devolucao=90.0,
+            delivery_status="devolucao",
+            status="completed",
+            delivery_return_reason="SEM DINHEIRO / CHEQUE",
+            delivery_return_category="MERCADO",
+            delivery_helpers_json=None,
+        )
+        session.add(motivo)
+        session.add(route)
+        session.commit()
+        session.refresh(motivo)
+        session.refresh(route)
+
+        existing = models.Devolucao(
+            route_id=route.id,
+            data_romaneio="2026-05-11",
+            data_entrega="2026-05-11",
+            client_id=client.id,
+            vendedor_id=motorista.id,
+            motorista_id=motorista.id,
+            ajudante_id=None,
+            valor=90.0,
+            motivo_id=motivo.id,
+            responsabilidade_id=resp.id,
+            dia=11,
+            semana=19,
+            acima_300="NAO",
+            cluster="0-50",
+            source="WEB",
+        )
+        session.add(existing)
+        session.commit()
+
+        sync_route_to_devolucao(session, route, source="WEB")
+        session.commit()
+        assert session.get(models.Devolucao, existing.id).ajudante_id is None
+
+        route.delivery_helpers_json = f"[{ajudante.id}]"
+        session.add(route)
+        session.commit()
+
+        sync_route_to_devolucao(session, route, source="WEB")
+        session.commit()
+
+        refreshed = session.get(models.Devolucao, existing.id)
+        assert refreshed is not None
+        assert refreshed.ajudante_id == ajudante.id

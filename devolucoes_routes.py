@@ -5,7 +5,7 @@ Rotas e lógica de inicialização do módulo Devoluções.
 from datetime import datetime, timedelta
 from calendar import monthrange
 import unicodedata
-from typing import Optional, List, Any, Callable, Dict
+from typing import Optional, List, Any, Callable, Dict, Tuple
 import io
 import json
 from urllib.parse import urlencode
@@ -186,6 +186,140 @@ def _devolucao_status_meta(duplicate_of_id: Optional[int], validation_status: Op
         "tone": "ok",
         "hint": "Registro consolidado e liberado para uso nas demais visões.",
     }
+
+
+def _norm_plate_escala_ord(v: Any) -> str:
+    """Mesma normalização de placa usada em `escalas_routes._build_escala_groups`."""
+    if v is None:
+        return ""
+    s = str(v).strip().upper().replace("-", "").replace(" ", "").replace(".", "")
+    return s
+
+
+def _delivery_escala_group_order_map(session: Session, date_from: str, date_to: str) -> Dict[Tuple[str, int, str], int]:
+    """Ordem dos grupos (data, motorista, placa) como na escala: primeira aparição na lista de rotas delivery."""
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date >= date_from)
+        .where(models.Route.date <= date_to)
+        .order_by(models.Route.date, models.Route.employee_id, models.Route.id)
+    ).all()
+    order: Dict[Tuple[str, int, str], int] = {}
+    i = 0
+    for r in routes:
+        plate_norm = _norm_plate_escala_ord(getattr(r, "delivery_vehicle_plate", None)) or "-"
+        emp_id = int(r.employee_id or 0)
+        key = (r.date, emp_id, plate_norm)
+        if key not in order:
+            order[key] = i
+            i += 1
+    return order
+
+
+def _ajudante_first_seen_day_order(session: Session, day_str: str) -> Dict[int, int]:
+    """Ordem do dia: primeiro ajudante visto nas rotas delivery (mesma ordem de leitura da escala por motorista/placa)."""
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == day_str)
+        .order_by(models.Route.date, models.Route.employee_id, models.Route.id)
+    ).all()
+    order: Dict[int, int] = {}
+    pos = 0
+    for r in routes:
+        emp_id = int(r.employee_id or 0)
+        raw = getattr(r, "delivery_helpers_json", None)
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw) if isinstance(raw, str) else (raw or [])
+        except Exception:
+            data = []
+        if not isinstance(data, list):
+            continue
+        for x in data:
+            if x is None or not str(x).strip().isdigit():
+                continue
+            hid = int(x)
+            if not hid or hid == emp_id:
+                continue
+            if hid not in order:
+                order[hid] = pos
+                pos += 1
+    return order
+
+
+def _motorista_first_seen_day_order(session: Session, day_str: str) -> Dict[int, int]:
+    """Ordem do dia: primeira aparição de cada motorista nas rotas delivery (alinhado à escala)."""
+    routes = session.exec(
+        select(models.Route)
+        .where(models.Route.type == "delivery")
+        .where(models.Route.date == day_str)
+        .order_by(models.Route.date, models.Route.employee_id, models.Route.id)
+    ).all()
+    order: Dict[int, int] = {}
+    pos = 0
+    for r in routes:
+        mid = int(r.employee_id or 0)
+        if mid and mid not in order:
+            order[mid] = pos
+            pos += 1
+    return order
+
+
+def _devolucao_card_escala_group_key(
+    card: Dict[str, Any],
+    routes_by_id: Dict[int, models.Route],
+) -> Tuple[str, int, str]:
+    rid = card.get("route_id")
+    r = routes_by_id.get(int(rid)) if rid is not None else None
+    if r:
+        plate_norm = _norm_plate_escala_ord(getattr(r, "delivery_vehicle_plate", None)) or "-"
+        return (r.date, int(r.employee_id or 0), plate_norm)
+    dr = card.get("data_romaneio")
+    day = str(dr)[:10] if dr else ""
+    mid = int(card.get("motorista_id") or 0)
+    plate_norm = _norm_plate_escala_ord(card.get("vehicle_plate")) or "-"
+    return (day, mid, plate_norm)
+
+
+def _sort_avaliar_cards_por_escala(session: Session, cards: List[Dict[str, Any]], date_from: str, date_to: str) -> None:
+    """Ordena in-place: mesma ordem de caminhões/motoristas da escala operacional; desempate por horário e id."""
+    df = (date_from or "2020-01-01")[:10]
+    dt = (date_to or "2099-12-31")[:10]
+    escala_order = _delivery_escala_group_order_map(session, df, dt)
+    route_ids = [int(c["route_id"]) for c in cards if c.get("route_id") is not None]
+    routes_by_id: Dict[int, models.Route] = {}
+    if route_ids:
+        uniq = list(dict.fromkeys(route_ids))
+        for rr in session.exec(select(models.Route).where(models.Route.id.in_(uniq))).all():
+            routes_by_id[int(rr.id)] = rr
+
+    def _rom_day_ord(c: Dict[str, Any]) -> int:
+        s = str(c.get("data_romaneio") or "")[:10]
+        try:
+            return datetime.strptime(s, "%Y-%m-%d").toordinal()
+        except Exception:
+            return 0
+
+    def _time_tie(c: Dict[str, Any]) -> str:
+        for k in ("returned_at", "finished_at", "started_at"):
+            v = c.get(k)
+            if v:
+                return str(v)
+        return ""
+
+    def sort_key(c: Dict[str, Any]) -> Tuple[Any, ...]:
+        gkey = _devolucao_card_escala_group_key(c, routes_by_id)
+        ei = escala_order.get(gkey)
+        sid = int(c.get("id") or 0)
+        tt = _time_tie(c)
+        if ei is not None:
+            return (0, ei, tt, sid)
+        return (1, -_rom_day_ord(c), -sid)
+
+    cards.sort(key=sort_key)
 
 
 def _build_devolucoes_href(params: Dict[str, Any]) -> str:
@@ -1910,6 +2044,7 @@ def init_devolucoes_router(
             c["responsavel_motorista"] = pair[0] if isinstance(pair, tuple) else pair
             c["responsavel_ajudante"] = pair[1] if isinstance(pair, tuple) else True
             c["edited"] = c["id"] in ajustes
+        _sort_avaliar_cards_por_escala(session, cards, (date_from or "2020-01-01")[:10], (date_to or "2099-12-31")[:10])
         return JSONResponse({"ok": True, "data": cards})
 
     class DevolucaoPatchPayload(BaseModel):

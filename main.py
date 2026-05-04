@@ -3394,6 +3394,64 @@ def _is_operational_route_devolucao(route: Any) -> bool:
     )
 
 
+def _employee_ids_for_informativo_devolucao_kpi(session: Session) -> List[int]:
+    """Motoristas/empregados ativos (não demitidos) para agregar rotas e devoluções no índice mensal."""
+    try:
+        raw = session.exec(
+            select(models.Employee.id).where(models.Employee.status != "fired")
+        ).all()
+    except Exception:
+        return []
+    out: List[int] = []
+    for item in raw or []:
+        if item is None:
+            continue
+        try:
+            eid = int(item[0]) if isinstance(item, (list, tuple)) else int(item)
+        except (TypeError, ValueError, IndexError):
+            continue
+        out.append(eid)
+    return out
+
+
+def _month_date_range_str(year: int, month: int) -> Tuple[str, str]:
+    start = date(year, month, 1)
+    if month == 12:
+        end = date(year, 12, 31)
+    else:
+        end = date(year, month + 1, 1) - timedelta(days=1)
+    return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+
+
+def _devolucao_mensal_system_month_values(session: Session, year: int, month: int) -> Dict[str, Optional[float]]:
+    """% devolução (rotas concluídas) e valor R$ (soma Devolucao no mês) — alinhado ao painel operacional."""
+    ms, me = _month_date_range_str(year, month)
+    emp_ids = _employee_ids_for_informativo_devolucao_kpi(session)
+    if not emp_ids:
+        return {"pct": None, "valor": None}
+    try:
+        routes_month = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date >= ms)
+            .where(models.Route.date <= me)
+            .where(models.Route.employee_id.in_(emp_ids))
+        ).all()
+    except Exception:
+        routes_month = []
+    try:
+        p_raw = pct_devolucao_sobre_rotas_concluidas(routes_month)
+        p = round(float(p_raw), 2)
+    except Exception:
+        p = None
+    try:
+        valor_v, _cnt = _kpi_devolucao_mes_registros(session, ms, me, emp_ids)
+        v = round(float(valor_v), 2)
+    except Exception:
+        v = None
+    return {"pct": p, "valor": v}
+
+
 def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]:
     """Dados para o gráfico de índice de devolução mensal (meta 2% com base na receita informada)."""
     try:
@@ -3410,8 +3468,14 @@ def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]
     receita_m: List[Optional[float]] = []
     for m in range(1, 13):
         r = by_m.get(m)
-        p = float(r.pct_devolucao) if r and r.pct_devolucao is not None else None
-        v = float(r.valor_devolucao) if r and r.valor_devolucao is not None else None
+        use_sys = bool(r and getattr(r, "use_system_kpi", False))
+        if use_sys:
+            sysv = _devolucao_mensal_system_month_values(session, year, m)
+            p = sysv.get("pct")
+            v = sysv.get("valor")
+        else:
+            p = float(r.pct_devolucao) if r and r.pct_devolucao is not None else None
+            v = float(r.valor_devolucao) if r and r.valor_devolucao is not None else None
         rec = float(r.receita) if r and r.receita is not None else None
         mv = round(rec * 0.02, 2) if rec is not None and rec > 0 else None
         pct.append(round(p, 2) if p is not None else None)
@@ -3579,14 +3643,18 @@ def _build_informativo_extras(
                     continue
             except (TypeError, ValueError):
                 continue
+        try:
+            mid_int = int(mid) if mid is not None else 0
+        except (TypeError, ValueError):
+            mid_int = 0
         devolucao_ranking.append({
+            "motorista_id": mid_int,
             "name": (row.get("motorista_name") or "").strip() or (f"Motorista #{mid}" if mid else "—"),
             "pct_ajustado": float(row.get("pct_ajustado") or 0),
             "valor_ajustado": float(row.get("valor_ajustado") or 0),
             "pct_original": float(row.get("pct_original") or 0),
             "valor_original": float(row.get("valor_original") or 0),
         })
-    devolucao_ranking.sort(key=lambda x: (x.get("name") or "").casefold())
 
     # Ajudantes: sempre listar todos com devolução no mês (mesmo com filtro de motorista/CC no painel).
     # Filtrar por helper_ids_scoped removia nomes de quem só aparecia com motoristas fora do recorte.
@@ -3595,14 +3663,33 @@ def _build_informativo_extras(
         if int(row.get("devolucoes_total") or 0) <= 0:
             continue
         hid = row.get("ajudante_id")
+        try:
+            hid_int = int(hid) if hid is not None else 0
+        except (TypeError, ValueError):
+            hid_int = 0
         devolucao_ranking_helper.append({
+            "ajudante_id": hid_int,
             "name": (row.get("ajudante_name") or "").strip() or (f"Ajudante #{hid}" if hid else "—"),
             "pct_ajustado": float(row.get("pct_ajustado") or 0),
             "valor_ajustado": float(row.get("valor_ajustado") or 0),
             "pct_original": float(row.get("pct_original") or 0),
             "valor_original": float(row.get("valor_original") or 0),
         })
-    devolucao_ranking_helper.sort(key=lambda x: (x.get("name") or "").casefold())
+    _mot_ord: Dict[int, int] = {}
+    _ajd_ord: Dict[int, int] = {}
+    try:
+        from devolucoes_routes import _ajudante_first_seen_day_order, _motorista_first_seen_day_order
+
+        _mot_ord = _motorista_first_seen_day_order(session, selected_date_str)
+        _ajd_ord = _ajudante_first_seen_day_order(session, selected_date_str)
+    except Exception:
+        pass
+    devolucao_ranking.sort(
+        key=lambda x: (_mot_ord.get(int(x.get("motorista_id") or 0), 10**6), (x.get("name") or "").casefold())
+    )
+    devolucao_ranking_helper.sort(
+        key=lambda x: (_ajd_ord.get(int(x.get("ajudante_id") or 0), 10**6), (x.get("name") or "").casefold())
+    )
 
     devs_prev_q = (
         select(models.Devolucao)
@@ -4764,11 +4851,13 @@ async def admin_informativo_page(
     except (TypeError, ValueError):
         pass
     dr_rows: Dict[int, Dict[str, Optional[float]]] = {m: {} for m in range(1, 13)}
+    dr_use_system: Dict[int, bool] = {}
     try:
         dr_db = session.exec(
             select(models.InformativeMonthlyReturn).where(models.InformativeMonthlyReturn.year == dry_year)
         ).all()
         for r in dr_db:
+            dr_use_system[r.month] = bool(getattr(r, "use_system_kpi", False))
             dr_rows[r.month] = {
                 "pct": r.pct_devolucao,
                 "valor": r.valor_devolucao,
@@ -4776,13 +4865,21 @@ async def admin_informativo_page(
             }
     except Exception:
         pass
-    dr_display: Dict[int, Dict[str, str]] = {}
+    dr_display: Dict[int, Any] = {}
     for m in range(1, 13):
         row = dr_rows.get(m) or {}
+        use_sys = dr_use_system.get(m, False)
+        pct_src: Any = row.get("pct")
+        valor_src: Any = row.get("valor")
+        if use_sys:
+            sysv = _devolucao_mensal_system_month_values(session, dry_year, m)
+            pct_src = sysv.get("pct")
+            valor_src = sysv.get("valor")
         dr_display[m] = {
-            "pct": _format_br_pct_form(row.get("pct")),
-            "valor": _format_br_money_form(row.get("valor")),
+            "pct": _format_br_pct_form(pct_src),
+            "valor": _format_br_money_form(valor_src),
             "receita": _format_br_money_form(row.get("receita")),
+            "use_system": use_sys,
         }
     bulletin_admin_rows: List[Dict[str, Any]] = []
     for b in rows:
@@ -4944,7 +5041,14 @@ async def admin_informativo_devolucao_mensal(
         year = int(form.get("dry_year") or datetime.now().year)
     except (TypeError, ValueError):
         year = datetime.now().year
+    def _form_flag_sistema(val: Any) -> bool:
+        if val is None:
+            return False
+        s = str(val).strip().lower()
+        return s in ("1", "on", "true", "yes")
+
     for m in range(1, 13):
+        use_sys = _form_flag_sistema(form.get(f"dr_m{m}_sistema"))
         pct = _parse_br_float_form(form.get(f"dr_m{m}_pct"))
         val = _parse_br_float_form(form.get(f"dr_m{m}_valor"))
         rec = _parse_br_float_form(form.get(f"dr_m{m}_receita"))
@@ -4954,11 +5058,33 @@ async def admin_informativo_devolucao_mensal(
                 models.InformativeMonthlyReturn.month == m,
             )
         ).first()
+        if use_sys:
+            if existing:
+                existing.use_system_kpi = True
+                existing.pct_devolucao = None
+                existing.valor_devolucao = None
+                existing.receita = rec
+                existing.updated_at = datetime.now()
+                session.add(existing)
+            else:
+                session.add(
+                    models.InformativeMonthlyReturn(
+                        year=year,
+                        month=m,
+                        pct_devolucao=None,
+                        valor_devolucao=None,
+                        receita=rec,
+                        use_system_kpi=True,
+                        updated_at=datetime.now(),
+                    )
+                )
+            continue
         if pct is None and val is None and rec is None:
             if existing:
                 session.delete(existing)
             continue
         if existing:
+            existing.use_system_kpi = False
             existing.pct_devolucao = pct
             existing.valor_devolucao = val
             existing.receita = rec
@@ -4972,6 +5098,7 @@ async def admin_informativo_devolucao_mensal(
                     pct_devolucao=pct,
                     valor_devolucao=val,
                     receita=rec,
+                    use_system_kpi=False,
                     updated_at=datetime.now(),
                 )
             )

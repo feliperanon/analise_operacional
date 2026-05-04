@@ -1198,6 +1198,7 @@ class InformativeMonthlyReturn(SQLModel, table=True):
     pct_devolucao: Optional[float] = Field(default=None)  # % sobre receita (informado)
     valor_devolucao: Optional[float] = Field(default=None)  # R$ devolvido
     receita: Optional[float] = Field(default=None)  # R$ receita (não exibida no gráfico; meta = 2% disso)
+    use_system_kpi: bool = Field(default=False)  # % e valor R$ vindos de rotas + devoluções (empresa); receita manual
     updated_at: datetime = Field(default_factory=datetime.now)
 
 

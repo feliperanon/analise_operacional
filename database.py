@@ -199,6 +199,7 @@ def create_db_and_tables():
     _migrate_informative_bulletin_uploaded_image_path()
     _migrate_informative_panel_config()
     _migrate_informative_panel_config_audio()
+    _migrate_informative_monthly_return_use_system_kpi()
     _migrate_client_vendedor_id()
 
 
@@ -374,6 +375,31 @@ def _migrate_informative_panel_config():
                         VALUES (1, 8)
                         ON CONFLICT (id) DO NOTHING
                         """
+                    )
+                )
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _migrate_informative_monthly_return_use_system_kpi():
+    """Coluna use_system_kpi em informative_monthly_return (índice mensal: dados do sistema vs manual)."""
+    table = "informative_monthly_return"
+    col = "use_system_kpi"
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                cur = conn.execute(text(f"PRAGMA table_info({table})"))
+                existing = [r[1] for r in list(cur) if len(r) > 1]
+                if col not in existing:
+                    conn.execute(
+                        text(f"ALTER TABLE {table} ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0")
+                    )
+            else:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} "
+                        "BOOLEAN NOT NULL DEFAULT FALSE"
                     )
                 )
             conn.commit()

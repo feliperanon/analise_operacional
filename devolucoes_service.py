@@ -1549,7 +1549,10 @@ def sync_route_to_devolucao(
         existing.valor = valor
         existing.motivo_id = motivo.id
         existing.responsabilidade_id = resp.id
-        existing.ajudante_id = ajudante_id
+        # Não apagar ajudante já gravado quando a rota ainda não lista ajudantes (cadastro tardio na
+        # devolução/escala). Quando a rota passa a ter ajudante(s), sincroniza a partir dela.
+        if ajudante_id is not None:
+            existing.ajudante_id = ajudante_id
         session.add(existing)
         session.flush()
         link_excel_rows_to_canonical(session, existing)
