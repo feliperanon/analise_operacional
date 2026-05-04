@@ -18473,6 +18473,14 @@ def _validate_delivery_assignment(
     exclude_route_id: Optional[int] = None,
     ignore_employee_id: Optional[int] = None,
 ) -> Optional[str]:
+    emp = session.get(models.Employee, employee_id)
+    if not emp:
+        return "Colaborador não encontrado."
+    if getattr(emp, "status", None) == "fired":
+        return "Colaborador inativo."
+    if not getattr(emp, "mobile_access_separation", False):
+        return "O motorista precisa ter Entregas habilitado no cadastro."
+
     plate_norm = _norm_plate(vehicle_plate)
     if not plate_norm:
         logger.warning(f"🚫 Validação falhou: Placa inválida '{vehicle_plate}'")
@@ -19589,6 +19597,15 @@ async def separacao_page(
         session.exec(select(models.Employee).where(models.Employee.status != "fired")).all(),
         key=lambda x: x.name
     )
+    delivery_driver_employees = sorted(
+        session.exec(
+            select(models.Employee).where(
+                models.Employee.status != "fired",
+                models.Employee.mobile_access_separation == True,
+            )
+        ).all(),
+        key=lambda x: (x.name or "").casefold(),
+    )
     delivery_vehicles = sorted(
         session.exec(select(models.Vehicle).where(models.Vehicle.is_active == True)).all(),
         key=lambda x: x.placa
@@ -19621,6 +19638,7 @@ async def separacao_page(
         "delivery_import": delivery_import,
         "delivery_return_reasons": DELIVERY_RETURN_REASONS,
         "delivery_employees": delivery_employees,
+        "delivery_driver_employees": delivery_driver_employees,
         "delivery_vehicles": delivery_vehicles,
         "delivery_whatsapp_operator": delivery_whatsapp_operator,
         "delivery_whatsapp_can_manage": bool(delivery_whatsapp_operator),
@@ -20238,6 +20256,68 @@ async def delete_separacao(
     return RedirectResponse(url="/separacao", status_code=status.HTTP_303_SEE_OTHER)
 
 
+def _delivery_import_match_key(
+    employee_id: Optional[int],
+    client_id: Optional[int],
+    route_code: Optional[str],
+    order_number: Optional[str],
+) -> Tuple[int, int, str, str]:
+    return (
+        int(employee_id or 0),
+        int(client_id or 0),
+        str(route_code or "").strip().upper(),
+        str(order_number or "").strip().upper(),
+    )
+
+
+def _delivery_import_match_key_from_row(row: dict) -> Tuple[int, int, str, str]:
+    return _delivery_import_match_key(
+        row.get("employee_id"),
+        row.get("client_id"),
+        row.get("route_code"),
+        row.get("order_number"),
+    )
+
+
+def _delivery_import_match_key_from_route(route: models.Route) -> Tuple[int, int, str, str]:
+    return _delivery_import_match_key(
+        route.employee_id,
+        route.client_id,
+        route.delivery_route_code,
+        route.delivery_order_number,
+    )
+
+
+def _apply_delivery_import_row_to_route(
+    route: models.Route,
+    row: dict,
+    *,
+    date: str,
+    shift: str,
+    source_filename: str,
+) -> None:
+    """Atualiza parada existente com dados da planilha (preserva status mobile e histórico)."""
+    route.date = date
+    route.shift = shift
+    route.employee_id = row["employee_id"]
+    route.client_id = row["client_id"]
+    route.tonnage = row["peso_pedido"]
+    route.valor_financeiro = row["valor"]
+    route.delivery_route_code = row["route_code"]
+    route.delivery_order_number = row["order_number"]
+    route.delivery_client_code = row["client_code"]
+    route.delivery_vehicle_plate = row["plate"]
+    route.delivery_cep = row["cep"]
+    route.delivery_address = row["address"]
+    route.delivery_neighborhood = row["bairro"]
+    route.delivery_city = row["city"]
+    route.delivery_state = row["state"]
+    route.delivery_type = row["tipo"]
+    route.delivery_total_weight = row["peso_total"]
+    route.delivery_order_date = row["order_date"]
+    route.delivery_source_file = source_filename
+
+
 @app.post("/separacao/import-entregas", response_class=HTMLResponse)
 async def import_entregas_separacao(
     request: Request,
@@ -20245,6 +20325,7 @@ async def import_entregas_separacao(
     shift: str = Form("Manhã"),
     input_date: Optional[str] = Form(None),
     import_auth_password: Optional[str] = Form(None),
+    import_full_replace: Optional[str] = Form(None),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
 ):
@@ -20254,10 +20335,12 @@ async def import_entregas_separacao(
         "ok": False,
         "message": "",
         "created": 0,
+        "updated": 0,
         "issues": [],
         "warnings": [],
         "pre_registered_clients": 0,
     }
+    replace_stale = (import_full_replace or "").strip().lower() in ("1", "true", "on", "yes")
 
     today_br = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
     if date != today_br:
@@ -20436,9 +20519,8 @@ async def import_entregas_separacao(
         rows_deleted_prior = 0
         rows_locked_preserved = 0
         locked_row_keys = set()
+        existing_replaceable: List[models.Route] = []
         if imported_route_codes and employee_ids_in_import:
-            # Só remove entregas do(s) motorista(s) deste arquivo — mesmo Nº ROTA em outro motorista não pode apagar o outro.
-            # Importante: rotas já concluídas (entregue/devolucao) não devem ser sobrescritas por nova importação.
             base_existing_stmt = (
                 select(models.Route)
                 .where(models.Route.date == date)
@@ -20448,75 +20530,90 @@ async def import_entregas_separacao(
                 .where(models.Route.employee_id.in_(employee_ids_in_import))
             )
             replaceable_status_expr = func.lower(func.coalesce(models.Route.delivery_status, ""))
-            existing = session.exec(
-                base_existing_stmt.where(replaceable_status_expr.in_(["", "pendente", "iniciada", "reaberta"]))
-            ).all()
+            existing_replaceable = list(
+                session.exec(
+                    base_existing_stmt.where(replaceable_status_expr.in_(["", "pendente", "iniciada", "reaberta"]))
+                ).all()
+            )
             locked_existing = session.exec(
                 base_existing_stmt.where(~replaceable_status_expr.in_(["", "pendente", "iniciada", "reaberta"]))
             ).all()
-            rows_deleted_prior = len(existing)
             rows_locked_preserved = len(locked_existing)
             for locked in locked_existing:
-                locked_row_keys.add(
-                    (
-                        int(getattr(locked, "employee_id", 0) or 0),
-                        int(getattr(locked, "client_id", 0) or 0),
-                        str(getattr(locked, "delivery_route_code", "") or "").strip().upper(),
-                        str(getattr(locked, "delivery_order_number", "") or "").strip().upper(),
-                    )
-                )
-            existing_route_ids = [row.id for row in existing if row.id]
-            if existing_route_ids:
-                # Evita violação de FK: routeinsertlog.route_id -> route.id
-                session.execute(
-                    delete(models.RouteInsertLog).where(models.RouteInsertLog.route_id.in_(existing_route_ids))
-                )
-            for old_row in existing:
-                session.delete(old_row)
-            session.flush()
+                locked_row_keys.add(_delivery_import_match_key_from_route(locked))
+
+        match_pools = defaultdict(list)
+        for ex in existing_replaceable:
+            match_pools[_delivery_import_match_key_from_route(ex)].append(ex)
 
         routes_created: List[models.Route] = []
+        routes_updated: List[models.Route] = []
+        consumed_ids: set = set()
         skipped_locked_duplicates = 0
+        _fn_safe = (file.filename or "").strip()
+
         for row in parsed_rows:
-            row_key = (
-                int(row.get("employee_id") or 0),
-                int(row.get("client_id") or 0),
-                str(row.get("route_code") or "").strip().upper(),
-                str(row.get("order_number") or "").strip().upper(),
-            )
+            row_key = _delivery_import_match_key_from_row(row)
             if row_key in locked_row_keys:
                 skipped_locked_duplicates += 1
                 continue
-            route = models.Route(
-                date=date,
-                shift=shift,
-                employee_id=row["employee_id"],
-                client_id=row["client_id"],
-                start_time="00:00",
-                end_time=None,
-                tonnage=row["peso_pedido"],
-                type="delivery",
-                status="pending",
-                valor_financeiro=row["valor"],
-                delivery_status="pendente",
-                delivery_route_code=row["route_code"],
-                delivery_order_number=row["order_number"],
-                delivery_client_code=row["client_code"],
-                delivery_vehicle_plate=row["plate"],
-                delivery_cep=row["cep"],
-                delivery_address=row["address"],
-                delivery_neighborhood=row["bairro"],
-                delivery_city=row["city"],
-                delivery_state=row["state"],
-                delivery_type=row["tipo"],
-                delivery_total_weight=row["peso_total"],
-                delivery_order_date=row["order_date"],
-                delivery_source_file=file.filename,
-            )
-            session.add(route)
-            routes_created.append(route)
+            pool = match_pools.get(row_key)
+            target = pool.pop(0) if pool else None
+            if target is not None:
+                _apply_delivery_import_row_to_route(
+                    target,
+                    row,
+                    date=date,
+                    shift=shift,
+                    source_filename=_fn_safe or (file.filename or ""),
+                )
+                session.add(target)
+                if target.id:
+                    consumed_ids.add(target.id)
+                routes_updated.append(target)
+            else:
+                route = models.Route(
+                    date=date,
+                    shift=shift,
+                    employee_id=row["employee_id"],
+                    client_id=row["client_id"],
+                    start_time="00:00",
+                    end_time=None,
+                    tonnage=row["peso_pedido"],
+                    type="delivery",
+                    status="pending",
+                    valor_financeiro=row["valor"],
+                    delivery_status="pendente",
+                    delivery_route_code=row["route_code"],
+                    delivery_order_number=row["order_number"],
+                    delivery_client_code=row["client_code"],
+                    delivery_vehicle_plate=row["plate"],
+                    delivery_cep=row["cep"],
+                    delivery_address=row["address"],
+                    delivery_neighborhood=row["bairro"],
+                    delivery_city=row["city"],
+                    delivery_state=row["state"],
+                    delivery_type=row["tipo"],
+                    delivery_total_weight=row["peso_total"],
+                    delivery_order_date=row["order_date"],
+                    delivery_source_file=_fn_safe or (file.filename or ""),
+                )
+                session.add(route)
+                routes_created.append(route)
 
         session.flush()
+
+        if replace_stale and existing_replaceable:
+            orphans = [r for r in existing_replaceable if r.id and r.id not in consumed_ids]
+            rows_deleted_prior = len(orphans)
+            orphan_ids = [int(r.id) for r in orphans if r.id]
+            if orphan_ids:
+                session.execute(
+                    delete(models.RouteInsertLog).where(models.RouteInsertLog.route_id.in_(orphan_ids))
+                )
+            for o in orphans:
+                session.delete(o)
+            session.flush()
         _username = (request.session.get("username") or str(request.session.get("user_id") or "") or None)
         _now = datetime.now(ZoneInfo("America/Sao_Paulo"))
         for _route in routes_created:
@@ -20552,6 +20649,7 @@ async def import_entregas_separacao(
         session.commit()
         import_result["ok"] = True
         import_result["created"] = len(routes_created)
+        import_result["updated"] = len(routes_updated)
         if skipped_locked_duplicates:
             import_result["warnings"].append({
                 "route": "-",
@@ -20568,16 +20666,33 @@ async def import_entregas_separacao(
                     "pela importação."
                 ),
             })
+        if replace_stale and rows_deleted_prior:
+            import_result["warnings"].append({
+                "route": "-",
+                "reason": (
+                    f"{rows_deleted_prior} parada(s) removida(s): constavam no portal para esta data/rota/motorista "
+                    "e não vieram na planilha (substituição completa)."
+                ),
+            })
         logger.info("info log")
         
         date_br = _fmt_br_date(date)
+        ins_ct = len(routes_created)
+        upd_ct = len(routes_updated)
+        tail_replace = (
+            f" {rows_deleted_prior} parada(s) extra(s) removida(s) (substituição completa)."
+            if replace_stale and rows_deleted_prior
+            else ""
+        )
         if import_result["issues"]:
             import_result["message"] = (
-                f"Importação parcial concluída. {len(parsed_rows)} entregas criadas para {date_br}. "
+                f"Importação parcial concluída. {ins_ct} nova(s), {upd_ct} atualizada(s) para {date_br}.{tail_replace} "
                 f"{len(import_result['issues'])} linha(s) pendente(s) de cadastro."
             )
         else:
-            import_result["message"] = f"Importação concluída com sucesso. {len(parsed_rows)} entregas criadas para {date_br}."
+            import_result["message"] = (
+                f"Importação concluída com sucesso. {ins_ct} nova(s), {upd_ct} atualizada(s) para {date_br}.{tail_replace}"
+            )
         if import_result["pre_registered_clients"] > 0:
             import_result["message"] += (
                 f" {import_result['pre_registered_clients']} cliente(s) foram pré-cadastrados automaticamente."
@@ -21613,6 +21728,12 @@ async def delivery_add_stop(
     emp = session.get(models.Employee, employee_id)
     if not emp:
         feedback_encoded = urlencode({"delivery_feedback": "Motorista não encontrado.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+    if not getattr(emp, "mobile_access_separation", False):
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Motorista sem Entregas habilitado no cadastro.",
+            "delivery_feedback_level": "error",
+        })
         return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
 
     now = datetime.now(ZoneInfo("America/Sao_Paulo"))

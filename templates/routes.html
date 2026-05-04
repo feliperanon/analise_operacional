@@ -50,7 +50,7 @@
                 <p>
                     {{ delivery_import.message }}
                     {% if delivery_import.ok %}
-                    <span class="font-semibold">({{ delivery_import.created }} linhas)</span>
+                    <span class="font-semibold">({{ delivery_import.created }} nova(s), {{ delivery_import.updated | default(0) }} atualizada(s))</span>
                     {% endif %}
                 </p>
                 {% if delivery_import.issues %}
@@ -178,6 +178,11 @@
                                     class="sys-input w-full text-sm"
                                 >
                             </div>
+
+                            <label class="flex cursor-pointer items-start gap-2 text-xs leading-snug text-slate-600 dark:text-slate-300">
+                                <input type="checkbox" name="import_full_replace" value="1" class="mt-0.5 rounded border-slate-400">
+                                <span><span class="font-semibold">Substituição completa</span> — apaga paradas já no dia (mesma data, turno, motorista da planilha e nº de rota) que não estão no arquivo (comportamento antigo). <span class="font-semibold">Sem marcar</span>, o sistema <span class="font-semibold">mescla</span>: atualiza/inclui pela planilha e mantém o restante (ex.: rota alterada de data ou parada manual).</span>
+                            </label>
 
                             <button type="submit" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center">
                                 <span class="employees-cta__label">Enviar importação</span>
@@ -732,7 +737,7 @@
                                                 <div class="delivery-admin-field delivery-admin-field--driver">
                                                     <label class="delivery-admin-label" for="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}">Motorista</label>
                                                     <select id="reassign-driver-{{ group.employee_id }}-{{ group.vehicle_plate | replace(' ', '') }}" name="new_employee_id" class="delivery-mini-select delivery-admin-select--driver">
-                                                        {% for emp in delivery_employees %}
+                                                        {% for emp in delivery_driver_employees %}
                                                         <option value="{{ emp.id }}" {% if emp.id == group.employee_id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
                                                         {% endfor %}
                                                     </select>
@@ -1231,7 +1236,7 @@
                 <div>
                     <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Novo motorista</label>
                     <select name="new_employee_id" id="move-employee-id" required class="modal-input text-sm">
-                        {% for emp in delivery_employees %}
+                        {% for emp in delivery_driver_employees %}
                         <option value="{{ emp.id }}">{{ emp.name|emp_name }}</option>
                         {% endfor %}
                     </select>
@@ -2077,7 +2082,11 @@
             }
         }
 
-        return confirm(`Confirma a importação das entregas para a data ${deliveryDate}?`);
+        const fullReplace = !!(form.querySelector('input[name="import_full_replace"]') && form.querySelector('input[name="import_full_replace"]').checked);
+        const msg = fullReplace
+            ? `Substituição completa: paradas no portal que não estiverem na planilha (mesma data, turno, motorista e nº de rota) serão apagadas. Confirma importação para ${deliveryDate}?`
+            : `Importação em modo mesclar: paradas já no dia que não estiverem na planilha serão mantidas. Confirma importação para ${deliveryDate}?`;
+        return confirm(msg);
     }
 
     function handleDeliveryFileSelect(input) {
