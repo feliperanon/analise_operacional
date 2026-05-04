@@ -2489,8 +2489,18 @@ def informativo_local_upload_file_missing(resolved_image_url: Optional[str]) -> 
 
 
 def _tpl_resolve_bulletin_image(b: Any) -> Optional[str]:
-    """Jinja: aceita InformativeBulletin, dict com image_url/uploaded_image_path ou string."""
-    return resolve_bulletin_display_image(b)
+    """Jinja: aceita InformativeBulletin, dict com image_url/uploaded_image_path ou string.
+
+    Uploads locais sem ficheiro no disco (ex.: deploy sem volume) não devolvem URL — o GET
+    legado responde 200 com PNG 1×1 transparente, o que quebraria o onerror do <img> e deixaria
+    o cartão com faixa em branco; omitir a tag evita isso.
+    """
+    url = resolve_bulletin_display_image(b)
+    if not url:
+        return None
+    if _is_local_informativo_asset_url(url) and informativo_local_upload_file_missing(url):
+        return None
+    return url
 
 
 templates.env.globals["resolve_bulletin_image"] = _tpl_resolve_bulletin_image
