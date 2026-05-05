@@ -1,14 +1,26 @@
-<section class="bi-dev-analysis">
-  <div class="sys-card sys-card--surface">
-    <h3>Evolução no período</h3>
-    <canvas id="bi-dev-chart-evolution" height="160"></canvas>
+<section class="grid gap-4 lg:grid-cols-3">
+  <div class="sys-card sys-card--surface sys-card--comfort overflow-hidden lg:col-span-2">
+    <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
+      <p class="employees-table-panel__kicker">Tendência</p>
+      <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Evolução no período</h3>
+      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Últimos dias do intervalo selecionado (até 20 pontos na linha).</p>
+    </div>
+    <div class="bi-dev-chart-wrap px-2 pb-3 pt-2 sm:px-4">
+      <canvas id="bi-dev-chart-evolution" height="200" aria-label="Gráfico de evolução diária"></canvas>
+    </div>
   </div>
-  <div class="sys-card sys-card--surface">
-    <h3>Ranking de motivos</h3>
-    <ol id="bi-dev-top-motivos" class="bi-dev-ranking"></ol>
+  <div class="sys-card sys-card--surface sys-card--comfort flex flex-col">
+    <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
+      <p class="employees-table-panel__kicker">Causas</p>
+      <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Ranking de motivos</h3>
+    </div>
+    <ol id="bi-dev-top-motivos" class="bi-dev-ranking flex-1 list-none space-y-2 p-4 sm:p-5"></ol>
   </div>
-  <div class="sys-card sys-card--surface">
-    <h3>Ranking vendedor/motorista</h3>
-    <ol id="bi-dev-top-owners" class="bi-dev-ranking"></ol>
+  <div class="sys-card sys-card--surface sys-card--comfort flex flex-col lg:col-span-3">
+    <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
+      <p class="employees-table-panel__kicker">Pessoas</p>
+      <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Ranking motorista (entregas)</h3>
+    </div>
+    <ol id="bi-dev-top-owners" class="bi-dev-ranking list-none space-y-2 p-4 sm:p-5 md:columns-2 md:gap-8"></ol>
   </div>
 </section>

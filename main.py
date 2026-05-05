@@ -19074,25 +19074,101 @@ def _create_pre_client(
     return client
 
 
+def _portaria_search_conditions(q: Optional[str]):
+    """Condições ILIKE para busca (motorista, ajudantes, placa, nome do porteiro)."""
+    if not q or not str(q).strip():
+        return None
+    term = f"%{str(q).strip()}%"
+    sub_pe = select(models.Employee.id).where(models.Employee.name.ilike(term))
+    return or_(
+        models.PortariaCheck.driver_name.ilike(term),
+        models.PortariaCheck.helpers_text.ilike(term),
+        models.PortariaCheck.vehicle_plate.ilike(term),
+        models.PortariaCheck.porteiro_employee_id.in_(sub_pe),
+    )
+
+
+def _portaria_url(**params) -> str:
+    """Monta query string para /portaria omitindo valores vazios."""
+    cleaned = {}
+    for k, v in params.items():
+        if v is None or v == "":
+            continue
+        if k == "page" and (v == 1 or v == "1"):
+            continue
+        if k == "per_page" and str(v) == "25":
+            continue
+        cleaned[k] = str(v)
+    qs = urlencode(cleaned)
+    return f"/portaria?{qs}" if qs else "/portaria"
+
+
 @app.get("/portaria", response_class=HTMLResponse)
 async def portaria_desktop_page(
     request: Request,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    q: Optional[str] = None,
+    check_type: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 25,
     session: Session = Depends(get_session),
 ):
     """Página desktop com histórico de saídas (azul) e chegadas (verde) confirmadas pela portaria."""
     require_login(request)
     today = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
-    df = date_from or today.strftime("%Y-%m-%d")
+    today_str = today.strftime("%Y-%m-%d")
+    df = date_from or today_str
     dt = date_to or df
     if df > dt:
         df, dt = dt, df
+    q_clean = (q or "").strip()
+    ct = (check_type or "").strip().lower()
+    if ct not in ("", "saida", "chegada"):
+        ct = ""
+    per_page = max(5, min(int(per_page or 25), 100))
+    page = max(1, int(page or 1))
+
+    base_scope = [
+        models.PortariaCheck.date >= df,
+        models.PortariaCheck.date <= dt,
+    ]
+    search_expr = _portaria_search_conditions(q_clean)
+    if search_expr is not None:
+        base_scope.append(search_expr)
+
+    def _count_extra(extra=None):
+        conds = list(base_scope)
+        if extra is not None:
+            conds.append(extra)
+        stmt = select(func.count()).select_from(models.PortariaCheck).where(*conds)
+        return int(session.exec(stmt).one())
+
+    kpi_total = _count_extra()
+    kpi_saidas = _count_extra(models.PortariaCheck.check_type == "saida")
+    kpi_chegadas = _count_extra(models.PortariaCheck.check_type == "chegada")
+    kpi_hoje = _count_extra(models.PortariaCheck.date == today_str) if df <= today_str <= dt else 0
+
+    list_scope = list(base_scope)
+    if ct:
+        list_scope.append(models.PortariaCheck.check_type == ct)
+
+    total_filtered = int(
+        session.exec(
+            select(func.count()).select_from(models.PortariaCheck).where(*list_scope)
+        ).one()
+    )
+    total_pages = max(1, math.ceil(total_filtered / per_page)) if total_filtered else 1
+    if page > total_pages:
+        page = total_pages
+    offset = (page - 1) * per_page
+
     checks = session.exec(
         select(models.PortariaCheck)
-        .where(models.PortariaCheck.date >= df)
-        .where(models.PortariaCheck.date <= dt)
+        .where(*list_scope)
         .order_by(desc(models.PortariaCheck.porteiro_confirmed_at))
+        .offset(offset)
+        .limit(per_page)
     ).all()
     porteiro_ids = list({pc.porteiro_employee_id for pc in checks if pc.porteiro_employee_id})
     emp_map = {}
@@ -19104,22 +19180,58 @@ async def portaria_desktop_page(
         hora = fmt_hhmm(pc.porteiro_confirmed_at)
         data_fmt = (pc.date[:10] if len(pc.date) >= 10 else pc.date) if pc.date else "—"
         porteiro_name = emp_map.get(pc.porteiro_employee_id, "")
+        v = pc.valor_total
+        if v is None:
+            valor_fmt = "—"
+        else:
+            valor_fmt = f"R$ {float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        card_lbl = "Saída" if pc.check_type == "saida" else "Chegada"
+        detail_payload = {
+            "id": pc.id,
+            "delivery_session_id": pc.delivery_session_id,
+            "check_type": pc.check_type,
+            "card_label": card_lbl,
+            "date_fmt": data_fmt,
+            "hora": hora,
+            "driver_name": pc.driver_name or "—",
+            "helpers_text": pc.helpers_text or "",
+            "plate": pc.vehicle_plate or "",
+            "km": pc.km,
+            "peso_kg": pc.peso_total_kg,
+            "valor_fmt": valor_fmt,
+            "porteiro_name": porteiro_name or "—",
+        }
         entries.append({
             "id": pc.id,
+            "delivery_session_id": pc.delivery_session_id,
             "check_type": pc.check_type,
             "date": pc.date,
             "date_fmt": data_fmt,
-            "driver_name": pc.driver_name,
-            "helpers_text": pc.helpers_text,
-            "plate": pc.vehicle_plate,
+            "driver_name": pc.driver_name or "—",
+            "helpers_text": pc.helpers_text or "",
+            "plate": pc.vehicle_plate or "",
             "km": pc.km,
             "peso_kg": pc.peso_total_kg,
             "valor_total": pc.valor_total,
+            "valor_fmt": valor_fmt,
             "porteiro_confirmed_at": hora,
-            "porteiro_name": porteiro_name,
-            "card_style": "bg-blue-500/10 border-l-4 border-blue-500" if pc.check_type == "saida" else "bg-emerald-500/10 border-l-4 border-emerald-500",
-            "card_label": "Saída" if pc.check_type == "saida" else "Chegada",
+            "porteiro_name": porteiro_name or "—",
+            "card_label": card_lbl,
+            "detail_json": json.dumps(detail_payload, ensure_ascii=False),
         })
+
+    common_nav = {"date_from": df, "date_to": dt, "q": q_clean, "check_type": ct, "per_page": per_page}
+    pagination = {
+        "page": page,
+        "per_page": per_page,
+        "total": total_filtered,
+        "total_pages": total_pages,
+        "prev": _portaria_url(**{**common_nav, "page": page - 1}) if page > 1 else None,
+        "next": _portaria_url(**{**common_nav, "page": page + 1}) if page < total_pages else None,
+    }
+    export_params = {k: v for k, v in {"date_from": df, "date_to": dt, "q": q_clean or None, "check_type": ct or None}.items() if v}
+    export_qs = urlencode(export_params) if export_params else ""
+
     return templates.TemplateResponse(
         "portaria.html",
         {
@@ -19127,7 +19239,108 @@ async def portaria_desktop_page(
             "entries": entries,
             "date_from": df,
             "date_to": dt,
+            "q": q_clean,
+            "check_type": ct,
+            "kpis": {
+                "total": kpi_total,
+                "saidas": kpi_saidas,
+                "chegadas": kpi_chegadas,
+                "hoje": kpi_hoje,
+            },
+            "pagination": pagination,
+            "portaria_url": _portaria_url,
+            "today_str": today_str,
+            "export_qs": export_qs,
         },
+    )
+
+
+@app.get("/portaria/export")
+async def portaria_export_csv(
+    request: Request,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    q: Optional[str] = None,
+    check_type: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    """Exporta conferências filtradas em CSV (limite operacional de 5 mil linhas)."""
+    require_login(request)
+    today = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    today_str = today.strftime("%Y-%m-%d")
+    df = date_from or today_str
+    dt = date_to or df
+    if df > dt:
+        df, dt = dt, df
+    q_clean = (q or "").strip()
+    ct = (check_type or "").strip().lower()
+    if ct not in ("", "saida", "chegada"):
+        ct = ""
+
+    list_scope = [
+        models.PortariaCheck.date >= df,
+        models.PortariaCheck.date <= dt,
+    ]
+    search_expr = _portaria_search_conditions(q_clean)
+    if search_expr is not None:
+        list_scope.append(search_expr)
+    if ct:
+        list_scope.append(models.PortariaCheck.check_type == ct)
+
+    checks = session.exec(
+        select(models.PortariaCheck)
+        .where(*list_scope)
+        .order_by(desc(models.PortariaCheck.porteiro_confirmed_at))
+        .limit(5000)
+    ).all()
+    porteiro_ids = list({pc.porteiro_employee_id for pc in checks if pc.porteiro_employee_id})
+    emp_map = {}
+    if porteiro_ids:
+        emps = session.exec(select(models.Employee).where(models.Employee.id.in_(porteiro_ids))).all()
+        emp_map = {e.id: (e.name or "").strip() for e in emps if e.id}
+
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";", lineterminator="\n")
+    w.writerow(
+        [
+            "data",
+            "hora",
+            "tipo",
+            "session_id",
+            "motorista",
+            "ajudantes",
+            "placa",
+            "km",
+            "peso_kg",
+            "valor_total",
+            "porteiro",
+        ]
+    )
+    for pc in checks:
+        hora = fmt_hhmm(pc.porteiro_confirmed_at)
+        data_fmt = (pc.date[:10] if len(pc.date) >= 10 else pc.date) if pc.date else ""
+        tipo = "saida" if pc.check_type == "saida" else "chegada"
+        w.writerow(
+            [
+                data_fmt,
+                hora,
+                tipo,
+                pc.delivery_session_id,
+                pc.driver_name or "",
+                pc.helpers_text or "",
+                pc.vehicle_plate or "",
+                pc.km or 0,
+                pc.peso_total_kg or 0,
+                pc.valor_total or 0,
+                emp_map.get(pc.porteiro_employee_id, ""),
+            ]
+        )
+    raw = buf.getvalue().encode("utf-8-sig")
+    filename = f"portaria_{df}_{dt}.csv"
+    return Response(
+        content=raw,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

@@ -1,36 +1,94 @@
-<section class="sys-card sys-card--surface bi-dev-filters">
-  <button type="button" class="sys-btn sys-btn--secondary bi-dev-filters__toggle" data-toggle-filters>Filtros</button>
-  <form method="get" action="/bi/devolucoes" id="bi-dev-form">
-    <div class="bi-dev-filters__grid" data-filters-body>
-      <input type="date" name="date_from" value="{{ filters.date_from }}" class="sys-input" />
-      <input type="date" name="date_to" value="{{ filters.date_to }}" class="sys-input" />
-      <select name="client_id" class="sys-select">
-        <option value="">Cliente</option>
-        {% for c in clients_filter %}<option value="{{ c.id }}" {% if filters.client_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-      </select>
-      <select name="motorista_id" class="sys-select">
-        <option value="">Motorista</option>
-        {% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.motorista_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
-      </select>
-      <select name="motivo_id" class="sys-select">
-        <option value="">Motivo</option>
-        {% for m in motivos_filter %}<option value="{{ m.id }}" {% if filters.motivo_id==m.id %}selected{% endif %}>{{ m.nome }}</option>{% endfor %}
-      </select>
-      <select name="responsabilidade_id" class="sys-select">
-        <option value="">Responsabilidade</option>
-        {% for r in resps_filter %}<option value="{{ r.id }}" {% if filters.responsabilidade_id==r.id %}selected{% endif %}>{{ r.nome }}</option>{% endfor %}
-      </select>
-      <input type="search" id="bi-dev-search" class="sys-input bi-dev-search" placeholder="Busca geral" />
-      <button type="submit" class="sys-btn sys-btn--primary">Aplicar</button>
-      <a href="/bi/devolucoes" class="sys-btn sys-btn--secondary">Limpar filtros</a>
+<div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+  <div class="flex flex-col gap-3 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5 sm:flex-row sm:items-center sm:justify-between">
+    <div class="min-w-0">
+      <p class="sys-section-title text-[11px]">Filtros do relatório</p>
+      <p class="text-xs text-slate-500 dark:text-slate-400">Período e cadastros. A busca geral atua na lista abaixo sem recarregar a página.</p>
     </div>
-    <div class="bi-dev-quick">
-      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="today">Hoje</button>
-      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="week">Semana</button>
-      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="month">Mês</button>
-      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="pendentes">Pendentes</button>
-      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="criticas">Críticas</button>
-      <button type="button" class="sys-btn sys-btn--secondary" data-quick-filter="resolvidas">Resolvidas</button>
+    <button type="button" class="sys-btn sys-btn--secondary bi-dev-filters__toggle sm:hidden" data-toggle-filters aria-expanded="true">
+      Mostrar / ocultar campos
+    </button>
+  </div>
+
+  <form method="get" action="/bi/devolucoes" id="bi-dev-form" class="m-0">
+    <div class="px-4 py-4 sm:px-5">
+      <div class="bi-dev-filters__collapsible" data-filters-body>
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div class="flex flex-col gap-1">
+          <label class="sys-section__label sys-section__label--field" for="bi-dev-date-from">De</label>
+          <input id="bi-dev-date-from" type="date" name="date_from" value="{{ filters.date_from }}" class="sys-input w-full" autocomplete="off" />
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="sys-section__label sys-section__label--field" for="bi-dev-date-to">Até</label>
+          <input id="bi-dev-date-to" type="date" name="date_to" value="{{ filters.date_to }}" class="sys-input w-full" autocomplete="off" />
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
+          <label class="sys-section__label sys-section__label--field" for="bi-dev-client">Cliente</label>
+          <select id="bi-dev-client" name="client_id" class="sys-select w-full">
+            <option value="">Todos</option>
+            {% for c in clients_filter %}<option value="{{ c.id }}" {% if filters.client_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="sys-section__label sys-section__label--field" for="bi-dev-scope">Escopo loja</label>
+          <select id="bi-dev-scope" name="client_scope" class="sys-select w-full" title="Ao filtrar cliente: só a loja ou todo o grupo">
+            <option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só a loja</option>
+            <option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Grupo econômico</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
+          <label class="sys-section__label sys-section__label--field" for="bi-dev-driver">Motorista</label>
+          <select id="bi-dev-driver" name="motorista_id" class="sys-select w-full">
+            <option value="">Todos</option>
+            {% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.motorista_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
+          <label class="sys-section__label sys-section__label--field" for="bi-dev-motivo">Motivo</label>
+          <select id="bi-dev-motivo" name="motivo_id" class="sys-select w-full">
+            <option value="">Todos</option>
+            {% for m in motivos_filter %}<option value="{{ m.id }}" {% if filters.motivo_id==m.id %}selected{% endif %}>{{ m.nome }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
+          <label class="sys-section__label sys-section__label--field" for="bi-dev-resp">Responsabilidade</label>
+          <select id="bi-dev-resp" name="responsabilidade_id" class="sys-select w-full">
+            <option value="">Todas</option>
+            {% for r in resps_filter %}<option value="{{ r.id }}" {% if filters.responsabilidade_id==r.id %}selected{% endif %}>{{ r.nome }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip mt-4 border-0 bg-transparent p-0 shadow-none">
+        <div class="employees-filter-bar__inner flex-col gap-4 lg:flex-row">
+          <div class="employees-filter-bar__primary w-full min-w-0">
+            <div class="employees-filter-bar__primary-scroll w-full">
+              <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na lista</span>
+              <div class="ops-toolbar-search employees-filter-bar__search w-full max-w-xl">
+                <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <input type="search" id="bi-dev-search" class="ops-toolbar-search__input" placeholder="Cliente, vendedor, motorista, motivo…" autocomplete="off" />
+              </div>
+            </div>
+          </div>
+          <div class="employees-filter-bar__divider hidden lg:block" aria-hidden="true"></div>
+          <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+            <button type="submit" class="sys-btn sys-btn--primary employees-filter-bar__btn">Aplicar filtros</button>
+            <a href="/bi/devolucoes" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Limpar</a>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="mt-4 flex flex-wrap gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
+        <span class="self-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Visão rápida</span>
+        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="today">Hoje</button>
+        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="week">Semana</button>
+        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="month">Mês</button>
+        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="pendentes">Pendentes</button>
+        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="criticas">Críticas</button>
+        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="resolvidas">Resolvidas</button>
+      </div>
     </div>
   </form>
-</section>
+</div>

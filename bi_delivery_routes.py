@@ -2807,6 +2807,7 @@ def _build_relatorio_avaliacao_motorista(
 
             emp = emp_map.get(drv_id)
             by_driver[drv_id] = {
+                "driver_id": drv_id,
                 "motorista": emp.name if emp else f"Motorista #{drv_id}",
                 "ajudantes": helpers,
                 "km_inicial": ds.km_departure if ds else None,
@@ -2814,6 +2815,7 @@ def _build_relatorio_avaliacao_motorista(
                 "km_total": (float(ds.km_return or 0) - float(ds.km_departure or 0)) if ds and ds.km_return and ds.km_departure else None,
                 "placa": placa or "-",
                 "modelo": modelo,
+                "turnos": set(),
                 "hora_inicio": None,
                 "hora_fim": None,
                 "tempo_operando_min": None,
@@ -2827,6 +2829,7 @@ def _build_relatorio_avaliacao_motorista(
             }
 
         d = by_driver[drv_id]
+        d["turnos"].add((r.shift or "").strip() or "-")
         st = (r.delivery_status or "pendente").strip().lower()
         planned_kg = float(r.tonnage or 0.0)
         planned_val = float(r.valor_financeiro or 0.0)
@@ -2985,6 +2988,7 @@ def _build_relatorio_avaliacao_motorista(
             "meta_pct": meta_pct,
             "dentro_meta": dentro_meta,
             "fez_checklist_caminhao": fez_checklist,
+            "turnos": sorted(d["turnos"]),
         })
 
     # Motoristas que tiveram rotas na data (não a lista completa)
@@ -2998,31 +3002,735 @@ def _build_relatorio_avaliacao_motorista(
     }
 
 
+_RELATORIO_DRIVER_STATUS_ORDER = {
+    "critico": 0,
+    "pendente": 1,
+    "atencao": 2,
+    "concluido": 3,
+}
+
+
+def _coerce_relatorio_date(raw_date: Optional[str]) -> str:
+    tz = ZoneInfo("America/Sao_Paulo")
+    today_str = datetime.now(tz).date().strftime("%Y-%m-%d")
+    value = (raw_date or "").strip() or today_str
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return today_str
+    return value
+
+
+def _parse_relatorio_driver_ids(raw_values) -> Optional[List[int]]:
+    if not raw_values:
+        return None
+    values = raw_values if isinstance(raw_values, list) else [raw_values]
+    parsed: list[int] = []
+    seen: set[int] = set()
+    for raw in values:
+        text = str(raw or "").strip()
+        if not text.isdigit():
+            continue
+        number = int(text)
+        if number <= 0 or number in seen:
+            continue
+        seen.add(number)
+        parsed.append(number)
+    return parsed or None
+
+
+def _normalize_relatorio_view(raw_view: Optional[str]) -> str:
+    view = _norm_text(raw_view)
+    if view in {"pendentes", "concluidos", "criticos", "hoje"}:
+        return view
+    return "todos"
+
+
+def _normalize_relatorio_status(raw_status: Optional[str]) -> str:
+    status_code = _norm_text(raw_status)
+    if status_code in {"concluido", "atencao", "pendente", "critico"}:
+        return status_code
+    return ""
+
+
+def _normalize_relatorio_checklist(raw_checklist: Optional[str]) -> str:
+    checklist = _norm_text(raw_checklist)
+    if checklist in {"com", "sem"}:
+        return checklist
+    return ""
+
+
+def _coerce_relatorio_page_size(raw_per_page: Optional[int]) -> int:
+    try:
+        per_page = int(raw_per_page or 10)
+    except (TypeError, ValueError):
+        return 10
+    return max(5, min(per_page, 100))
+
+
+def _is_relatorio_driver_employee(emp) -> bool:
+    role = _norm_text(getattr(emp, "role", None))
+    return ("motorista" in role) and ("ajudante" not in role)
+
+
+def _list_relatorio_driver_options(
+    session: Session,
+    selected_driver_ids: Optional[List[int]] = None,
+) -> list[models.Employee]:
+    selected_set = {int(x) for x in (selected_driver_ids or []) if str(x).isdigit()}
+    employees = list(session.exec(select(models.Employee)).all())
+    options = []
+    seen: set[int] = set()
+    for emp in sorted(employees, key=lambda item: ((getattr(item, "name", None) or "").casefold(), getattr(item, "id", 0) or 0)):
+        emp_id = getattr(emp, "id", None)
+        if not emp_id or emp_id in seen:
+            continue
+        status_code = _norm_text(getattr(emp, "status", None))
+        if not _is_relatorio_driver_employee(emp) and emp_id not in selected_set:
+            continue
+        if status_code in {"fired", "demitido"} and emp_id not in selected_set:
+            continue
+        seen.add(emp_id)
+        options.append(emp)
+    return options
+
+
+def _relatorio_driver_status(report: dict) -> dict:
+    devolucao_pct = float(report.get("devolucao_pct") or 0.0)
+    meta_pct = float(report.get("meta_pct") or 0.0)
+    has_checklist = bool(report.get("fez_checklist_caminhao"))
+    has_session_gap = (
+        report.get("tempo_operando_min") is None
+        or report.get("km_total") is None
+        or (report.get("hora_inicio") or "--:--") == "--:--"
+        or (report.get("hora_fim") or "--:--") == "--:--"
+    )
+
+    reasons: list[str] = []
+    code = "concluido"
+    label = "Concluido"
+    badge = "ok"
+
+    if devolucao_pct > meta_pct:
+        code = "critico"
+        label = "Critico"
+        badge = "critical"
+        reasons.append(
+            f"Devolucao em {_fmt_br_2(devolucao_pct)}% acima da meta de {_fmt_br_2(meta_pct)}%."
+        )
+
+    if not has_checklist:
+        reasons.append("Checklist do caminhao nao encontrado para o dia.")
+        if code != "critico":
+            code = "pendente"
+            label = "Pendente"
+            badge = "alert"
+
+    if code not in {"critico", "pendente"} and has_session_gap:
+        code = "atencao"
+        label = "Atencao"
+        badge = "alert"
+        reasons.append("Sessao com horario ou quilometragem incompletos.")
+
+    if not reasons:
+        reasons.append("Meta, checklist e sessao dentro do esperado.")
+
+    return {
+        "code": code,
+        "label": label,
+        "badge": badge,
+        "reasons": reasons,
+        "has_checklist": has_checklist,
+    }
+
+
+def _relatorio_build_url(path: str, params: dict) -> str:
+    payload = {}
+    for key, value in (params or {}).items():
+        if value is None:
+            continue
+        if isinstance(value, list):
+            cleaned = [str(item).strip() for item in value if str(item or "").strip()]
+            if cleaned:
+                payload[key] = cleaned
+            continue
+        text = str(value).strip()
+        if text:
+            payload[key] = text
+    query = urlencode(payload, doseq=True)
+    return f"{path}?{query}" if query else path
+
+
+def _build_relatorio_summary_row(report: dict, date_str: str) -> dict:
+    status_data = _relatorio_driver_status(report)
+    clients = report.get("clientes_resumo") or []
+    client_names = [str(item.get("cliente") or "").strip() for item in clients if str(item.get("cliente") or "").strip()]
+    search_parts = [
+        report.get("motorista") or "",
+        " ".join(report.get("ajudantes") or []),
+        report.get("placa") or "",
+        report.get("modelo") or "",
+        " ".join(client_names[:12]),
+    ]
+    top_stop = (report.get("top5_tempo") or [{}])[0] or {}
+    driver_id = int(report.get("driver_id") or 0)
+    km_total = report.get("km_total")
+    return {
+        "driver_id": driver_id,
+        "motorista": report.get("motorista") or f"Motorista #{driver_id}",
+        "ajudantes_label": ", ".join(report.get("ajudantes") or []) or "Sem ajudantes",
+        "placa": report.get("placa") or "-",
+        "modelo": report.get("modelo") or "-",
+        "turnos_label": " / ".join(report.get("turnos") or []) or "-",
+        "total_clientes": int(report.get("total_clientes") or 0),
+        "total_paradas": int(report.get("total_paradas") or 0),
+        "top_cliente": client_names[0] if client_names else "-",
+        "top_parada_label": top_stop.get("cliente") or "-",
+        "hora_inicio": report.get("hora_inicio") or "--:--",
+        "hora_fim": report.get("hora_fim") or "--:--",
+        "tempo_operando_fmt": report.get("tempo_operando_fmt") or "—",
+        "saiu_valor": round(float(report.get("saiu_valor") or 0.0), 2),
+        "saiu_valor_fmt": _fmt_br_moeda(report.get("saiu_valor") or 0.0),
+        "entregue_valor_fmt": _fmt_br_moeda(report.get("entregue_valor") or 0.0),
+        "devolucao_valor": round(float(report.get("devolucao_valor") or 0.0), 2),
+        "devolucao_valor_fmt": _fmt_br_moeda(report.get("devolucao_valor") or 0.0),
+        "devolucao_pct": round(float(report.get("devolucao_pct") or 0.0), 2),
+        "devolucao_pct_fmt": f"{_fmt_br_2(report.get('devolucao_pct') or 0.0)}%",
+        "meta_pct_fmt": f"{_fmt_br_2(report.get('meta_pct') or 0.0)}%",
+        "meta_pct": round(float(report.get("meta_pct") or 0.0), 2),
+        "checklist_label": "Conferido" if status_data["has_checklist"] else "Pendente",
+        "checklist_badge": "ok" if status_data["has_checklist"] else "critical",
+        "status_code": status_data["code"],
+        "status_label": status_data["label"],
+        "status_badge": status_data["badge"],
+        "status_reason": status_data["reasons"][0],
+        "status_reasons": status_data["reasons"],
+        "km_total": km_total,
+        "km_total_fmt": (f"{_fmt_br_1(km_total)} km" if km_total is not None else "—"),
+        "has_checklist": status_data["has_checklist"],
+        "date": date_str,
+        "print_href": _relatorio_build_url(
+            "/relatorio-avaliacao-motorista/impressao",
+            {"date": date_str, "driver_id": [driver_id]},
+        ),
+        "search_blob": " ".join(search_parts).casefold(),
+    }
+
+
+def _make_relatorio_links(
+    date_str: str,
+    selected_driver_ids: Optional[List[int]],
+    q: str,
+    status_filter: str,
+    checklist_filter: str,
+    per_page: int,
+    page: int,
+    view: str,
+) -> dict:
+    base_params = {
+        "date": date_str,
+        "driver_id": selected_driver_ids or [],
+        "q": q,
+        "status": status_filter,
+        "checklist": checklist_filter,
+        "per_page": per_page,
+    }
+    paged_params = {**base_params, "page": page}
+    links = {
+        "todos": _relatorio_build_url("/relatorio-avaliacao-motorista", base_params),
+        "pendentes": _relatorio_build_url("/relatorio-avaliacao-motorista", {**base_params, "view": "pendentes"}),
+        "concluidos": _relatorio_build_url("/relatorio-avaliacao-motorista", {**base_params, "view": "concluidos"}),
+        "criticos": _relatorio_build_url("/relatorio-avaliacao-motorista", {**base_params, "view": "criticos"}),
+        "hoje": _relatorio_build_url(
+            "/relatorio-avaliacao-motorista",
+            {**base_params, "date": _coerce_relatorio_date(None), "view": "hoje"},
+        ),
+        "clear": "/relatorio-avaliacao-motorista",
+        "current": _relatorio_build_url("/relatorio-avaliacao-motorista", {**paged_params, "view": ("" if view == "todos" else view)}),
+        "export": _relatorio_build_url(
+            "/relatorio-avaliacao-motorista/export.csv",
+            {**base_params, "view": ("" if view == "todos" else view)},
+        ),
+        "print": _relatorio_build_url(
+            "/relatorio-avaliacao-motorista/impressao",
+            {"date": date_str, "driver_id": selected_driver_ids or []},
+        ),
+    }
+    return links
+
+
+def _build_relatorio_page_fallback(
+    session: Session,
+    date_str: str,
+    selected_driver_ids: Optional[List[int]],
+    q: str,
+    view: str,
+    status_filter: str,
+    checklist_filter: str,
+    page: int,
+    per_page: int,
+    load_error: Optional[str] = None,
+) -> dict:
+    driver_options = _list_relatorio_driver_options(session, selected_driver_ids)
+    selected_map = {int(emp.id): emp for emp in driver_options if getattr(emp, "id", None)}
+    selected_names = [
+        selected_map[driver_id].name
+        for driver_id in (selected_driver_ids or [])
+        if driver_id in selected_map and getattr(selected_map[driver_id], "name", None)
+    ]
+    return {
+        "date": date_str,
+        "date_fmt": _fmt_br_data(date_str),
+        "today_str": _coerce_relatorio_date(None),
+        "filters": {
+            "q": q,
+            "status": status_filter,
+            "checklist": checklist_filter,
+            "page": 1,
+            "per_page": per_page,
+        },
+        "view": view,
+        "rows": [],
+        "rows_all_filtered": [],
+        "has_any_rows": False,
+        "has_filtered_rows": False,
+        "kpi": {
+            "total": 0,
+            "concluidos": 0,
+            "criticos": 0,
+            "pendentes": 0,
+            "sem_checklist": 0,
+        },
+        "links": _make_relatorio_links(
+            date_str=date_str,
+            selected_driver_ids=selected_driver_ids,
+            q=q,
+            status_filter=status_filter,
+            checklist_filter=checklist_filter,
+            per_page=per_page,
+            page=page,
+            view=view,
+        ),
+        "pagination": {
+            "page": 1,
+            "per_page": per_page,
+            "total_count": 0,
+            "total_pages": 1,
+            "page_start": 0,
+            "page_end": 0,
+            "has_prev": False,
+            "has_next": False,
+            "prev_href": "#",
+            "next_href": "#",
+        },
+        "motoristas": driver_options,
+        "selected_driver_ids": selected_driver_ids or [],
+        "selected_driver_names": selected_names[:6],
+        "selected_driver_names_more": max(0, len(selected_names) - 6),
+        "load_error": load_error,
+    }
+
+
+def _build_relatorio_avaliacao_page_data(
+    session: Session,
+    date_str: str,
+    selected_driver_ids: Optional[List[int]],
+    q: str,
+    view: str,
+    status_filter: str,
+    checklist_filter: str,
+    page: int,
+    per_page: int,
+) -> dict:
+    base_data = _build_relatorio_avaliacao_motorista(session, date_str, selected_driver_ids)
+    rows_all = [_build_relatorio_summary_row(report, date_str) for report in base_data.get("reports") or []]
+    rows_all.sort(
+        key=lambda row: (
+            _RELATORIO_DRIVER_STATUS_ORDER.get(row["status_code"], 99),
+            -float(row.get("devolucao_pct") or 0.0),
+            (row.get("motorista") or "").casefold(),
+        )
+    )
+
+    q_norm = _norm_text(q)
+    rows_scoped = rows_all
+    if q_norm:
+        rows_scoped = [row for row in rows_all if q_norm in row.get("search_blob", "")]
+
+    kpi = {
+        "total": len(rows_scoped),
+        "concluidos": sum(1 for row in rows_scoped if row["status_code"] == "concluido"),
+        "criticos": sum(1 for row in rows_scoped if row["status_code"] == "critico"),
+        "pendentes": sum(1 for row in rows_scoped if row["status_code"] == "pendente"),
+        "sem_checklist": sum(1 for row in rows_scoped if not row["has_checklist"]),
+    }
+
+    filtered_rows = list(rows_scoped)
+    if status_filter:
+        filtered_rows = [row for row in filtered_rows if row["status_code"] == status_filter]
+    if checklist_filter == "com":
+        filtered_rows = [row for row in filtered_rows if row["has_checklist"]]
+    elif checklist_filter == "sem":
+        filtered_rows = [row for row in filtered_rows if not row["has_checklist"]]
+
+    if view == "pendentes":
+        filtered_rows = [row for row in filtered_rows if row["status_code"] == "pendente"]
+    elif view == "concluidos":
+        filtered_rows = [row for row in filtered_rows if row["status_code"] == "concluido"]
+    elif view == "criticos":
+        filtered_rows = [row for row in filtered_rows if row["status_code"] == "critico"]
+
+    total_count = len(filtered_rows)
+    total_pages = max(1, (total_count + per_page - 1) // per_page)
+    current_page = max(1, min(page, total_pages))
+    start_idx = (current_page - 1) * per_page
+    end_idx = start_idx + per_page
+    rows_page = filtered_rows[start_idx:end_idx]
+
+    driver_options = _list_relatorio_driver_options(session, selected_driver_ids)
+    selected_map = {int(emp.id): emp for emp in driver_options if getattr(emp, "id", None)}
+    selected_names = [
+        selected_map[driver_id].name
+        for driver_id in (selected_driver_ids or [])
+        if driver_id in selected_map and getattr(selected_map[driver_id], "name", None)
+    ]
+
+    links = _make_relatorio_links(
+        date_str=date_str,
+        selected_driver_ids=selected_driver_ids,
+        q=q,
+        status_filter=status_filter,
+        checklist_filter=checklist_filter,
+        per_page=per_page,
+        page=current_page,
+        view=view,
+    )
+
+    def _page_href(target_page: int) -> str:
+        return _relatorio_build_url(
+            "/relatorio-avaliacao-motorista",
+            {
+                "date": date_str,
+                "driver_id": selected_driver_ids or [],
+                "q": q,
+                "status": status_filter,
+                "checklist": checklist_filter,
+                "per_page": per_page,
+                "page": target_page,
+                "view": ("" if view == "todos" else view),
+            },
+        )
+
+    page_start = (start_idx + 1) if total_count else 0
+    page_end = min(end_idx, total_count) if total_count else 0
+
+    return {
+        "date": date_str,
+        "date_fmt": _fmt_br_data(date_str),
+        "today_str": _coerce_relatorio_date(None),
+        "filters": {
+            "q": q,
+            "status": status_filter,
+            "checklist": checklist_filter,
+            "page": current_page,
+            "per_page": per_page,
+        },
+        "view": view,
+        "rows": rows_page,
+        "rows_all_filtered": filtered_rows,
+        "has_any_rows": bool(rows_all),
+        "has_filtered_rows": bool(filtered_rows),
+        "kpi": kpi,
+        "links": links,
+        "pagination": {
+            "page": current_page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "page_start": page_start,
+            "page_end": page_end,
+            "has_prev": current_page > 1,
+            "has_next": current_page < total_pages,
+            "prev_href": _page_href(current_page - 1) if current_page > 1 else "#",
+            "next_href": _page_href(current_page + 1) if current_page < total_pages else "#",
+        },
+        "motoristas": driver_options,
+        "selected_driver_ids": selected_driver_ids or [],
+        "selected_driver_names": selected_names[:6],
+        "selected_driver_names_more": max(0, len(selected_names) - 6),
+        "load_error": None,
+    }
+
+
+def _build_relatorio_detail_payload(report: dict, date_str: str) -> dict:
+    status_data = _relatorio_driver_status(report)
+    top_time = []
+    for item in report.get("top5_tempo") or []:
+        top_time.append(
+            {
+                "cliente": item.get("cliente") or "-",
+                "tipo": item.get("tipo") or "-",
+                "duracao": item.get("duracao_fmt") or "—",
+            }
+        )
+
+    clients = []
+    for item in report.get("clientes_resumo") or []:
+        clients.append(
+            {
+                "cliente": item.get("cliente") or "-",
+                "tipos": item.get("tipos") or "-",
+                "paradas": int(item.get("paradas") or 0),
+                "duracao": item.get("duracao_total_fmt") or "—",
+                "janela": f"{item.get('hora_primeira') or '--:--'} -> {item.get('hora_ultima') or '--:--'}",
+                "valor": _fmt_br_moeda(item.get("valor_total") or 0.0),
+            }
+        )
+
+    stops = []
+    for item in report.get("paradas_ordenadas") or []:
+        stops.append(
+            {
+                "cliente": item.get("cliente") or "-",
+                "tipo": item.get("tipo") or "-",
+                "inicio": item.get("hora_inicio") or "--:--",
+                "fim": item.get("hora_fim") or "--:--",
+                "duracao": item.get("duracao_fmt") or "—",
+                "kg": f"{_fmt_br_1(item.get('kg') or 0.0)} kg",
+                "valor": _fmt_br_moeda(item.get("valor") or 0.0),
+            }
+        )
+
+    driver_id = int(report.get("driver_id") or 0)
+    km_total = report.get("km_total")
+    return {
+        "driver_id": driver_id,
+        "date": date_str,
+        "date_fmt": _fmt_br_data(date_str),
+        "motorista": report.get("motorista") or f"Motorista #{driver_id}",
+        "ajudantes": report.get("ajudantes") or [],
+        "placa": report.get("placa") or "-",
+        "modelo": report.get("modelo") or "-",
+        "turnos_label": " / ".join(report.get("turnos") or []) or "-",
+        "hora_inicio": report.get("hora_inicio") or "--:--",
+        "hora_fim": report.get("hora_fim") or "--:--",
+        "tempo_operando": report.get("tempo_operando_fmt") or "—",
+        "km_inicial": (_fmt_br_1(report.get("km_inicial")) if report.get("km_inicial") is not None else "—"),
+        "km_final": (_fmt_br_1(report.get("km_final")) if report.get("km_final") is not None else "—"),
+        "km_total": (f"{_fmt_br_1(km_total)} km" if km_total is not None else "—"),
+        "saiu_valor": _fmt_br_moeda(report.get("saiu_valor") or 0.0),
+        "entregue_valor": _fmt_br_moeda(report.get("entregue_valor") or 0.0),
+        "devolucao_valor": _fmt_br_moeda(report.get("devolucao_valor") or 0.0),
+        "devolucao_pct": f"{_fmt_br_2(report.get('devolucao_pct') or 0.0)}%",
+        "meta_pct": f"{_fmt_br_2(report.get('meta_pct') or 0.0)}%",
+        "checklist_label": ("Checklist enviado" if report.get("fez_checklist_caminhao") else "Checklist pendente"),
+        "checklist_badge": ("ok" if report.get("fez_checklist_caminhao") else "critical"),
+        "status_label": status_data["label"],
+        "status_badge": status_data["badge"],
+        "status_reasons": status_data["reasons"],
+        "total_clientes": int(report.get("total_clientes") or 0),
+        "total_paradas": int(report.get("total_paradas") or 0),
+        "top_time": top_time,
+        "clients": clients,
+        "stops": stops,
+        "print_href": _relatorio_build_url(
+            "/relatorio-avaliacao-motorista/impressao",
+            {"date": date_str, "driver_id": [driver_id]},
+        ),
+    }
+
+
 @router.get("/relatorio-avaliacao-motorista", response_class=HTMLResponse)
 async def relatorio_avaliacao_motorista_page(
+    request: Request,
+    date: Optional[str] = None,
+    q: str = "",
+    view: str = "todos",
+    status: str = "",
+    checklist: str = "",
+    page: int = 1,
+    per_page: int = 10,
+    driver_id: Optional[List[str]] = Query(None, alias="driver_id"),
+    session: Session = Depends(get_session),
+):
+    """Pagina operacional do relatorio de avaliacao diaria do motorista."""
+    view_norm = _normalize_relatorio_view(view)
+    date_str = _coerce_relatorio_date(date)
+    if view_norm == "hoje":
+        date_str = _coerce_relatorio_date(None)
+    q_value = (q or "").strip()
+    parsed_ids = _parse_relatorio_driver_ids(driver_id)
+    status_filter = _normalize_relatorio_status(status)
+    checklist_filter = _normalize_relatorio_checklist(checklist)
+    current_page = max(1, int(page or 1))
+    page_size = _coerce_relatorio_page_size(per_page)
+
+    try:
+        data = _build_relatorio_avaliacao_page_data(
+            session=session,
+            date_str=date_str,
+            selected_driver_ids=parsed_ids,
+            q=q_value,
+            view=view_norm,
+            status_filter=status_filter,
+            checklist_filter=checklist_filter,
+            page=current_page,
+            per_page=page_size,
+        )
+        status_code = 200
+    except Exception:
+        data = _build_relatorio_page_fallback(
+            session=session,
+            date_str=date_str,
+            selected_driver_ids=parsed_ids,
+            q=q_value,
+            view=view_norm,
+            status_filter=status_filter,
+            checklist_filter=checklist_filter,
+            page=current_page,
+            per_page=page_size,
+            load_error="Nao foi possivel carregar a avaliacao agora. Tente novamente com outro filtro ou recarregue a pagina.",
+        )
+        status_code = 500
+
+    return templates.TemplateResponse(
+        "relatorio_avaliacao_motorista_operacional.html",
+        {
+            "request": request,
+            **data,
+            "message": request.query_params.get("message"),
+            "level": request.query_params.get("level") or "info",
+        },
+        status_code=status_code,
+    )
+
+
+@router.get("/relatorio-avaliacao-motorista/impressao", response_class=HTMLResponse)
+async def relatorio_avaliacao_motorista_print_page(
     request: Request,
     date: Optional[str] = None,
     driver_id: Optional[List[str]] = Query(None, alias="driver_id"),
     session: Session = Depends(get_session),
 ):
-    """Página do relatório de avaliação diária do motorista (imprimível)."""
-    tz = ZoneInfo("America/Sao_Paulo")
-    today_str = datetime.now(tz).date().strftime("%Y-%m-%d")
-    date_str = (date or "").strip() or today_str
-    try:
-        datetime.strptime(date_str, "%Y-%m-%d")
-    except ValueError:
-        date_str = today_str
+    """Mantem a visao imprimivel do relatorio por motorista."""
+    date_str = _coerce_relatorio_date(date)
+    parsed_ids = _parse_relatorio_driver_ids(driver_id)
+    data = _build_relatorio_avaliacao_motorista(session, date_str, parsed_ids)
+    data["motoristas"] = _list_relatorio_driver_options(session, parsed_ids)
+    return templates.TemplateResponse("relatorio_avaliacao_motorista.html", {"request": request, **data})
 
-    parsed_ids: Optional[List[int]] = None
-    if driver_id:
-        raw = driver_id if isinstance(driver_id, list) else [driver_id]
-        parsed_ids = [int(x) for x in raw if str(x).strip().isdigit()]
-        if not parsed_ids:
-            parsed_ids = None
+
+@router.get("/api/relatorio-avaliacao-motorista/detail", response_class=JSONResponse)
+async def relatorio_avaliacao_motorista_detail_api(
+    date: Optional[str] = None,
+    driver_id: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    """Detalhe lazy do motorista para modal operacional."""
+    date_str = _coerce_relatorio_date(date)
+    parsed_ids = _parse_relatorio_driver_ids(driver_id)
+    if not parsed_ids:
+        return JSONResponse({"error": "Motorista invalido."}, status_code=400)
 
     data = _build_relatorio_avaliacao_motorista(session, date_str, parsed_ids)
-    return templates.TemplateResponse("relatorio_avaliacao_motorista.html", {"request": request, **data})
+    report = next(
+        (item for item in data.get("reports") or [] if int(item.get("driver_id") or 0) == int(parsed_ids[0])),
+        None,
+    )
+    if not report:
+        return JSONResponse({"error": "Nenhum relatorio encontrado para este motorista."}, status_code=404)
+
+    return JSONResponse(_build_relatorio_detail_payload(report, date_str))
+
+
+@router.get("/relatorio-avaliacao-motorista/export.csv")
+async def relatorio_avaliacao_motorista_export_csv(
+    date: Optional[str] = None,
+    q: str = "",
+    view: str = "todos",
+    status: str = "",
+    checklist: str = "",
+    per_page: int = 5000,
+    driver_id: Optional[List[str]] = Query(None, alias="driver_id"),
+    session: Session = Depends(get_session),
+):
+    """Exporta a visao filtrada da avaliacao operacional."""
+    view_norm = _normalize_relatorio_view(view)
+    date_str = _coerce_relatorio_date(date)
+    if view_norm == "hoje":
+        date_str = _coerce_relatorio_date(None)
+
+    data = _build_relatorio_avaliacao_page_data(
+        session=session,
+        date_str=date_str,
+        selected_driver_ids=_parse_relatorio_driver_ids(driver_id),
+        q=(q or "").strip(),
+        view=view_norm,
+        status_filter=_normalize_relatorio_status(status),
+        checklist_filter=_normalize_relatorio_checklist(checklist),
+        page=1,
+        per_page=_coerce_relatorio_page_size(per_page),
+    )
+
+    rows = data.get("rows_all_filtered") or []
+    stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M")
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";")
+    writer.writerow(
+        [
+            "data",
+            "motorista",
+            "turnos",
+            "ajudantes",
+            "placa",
+            "modelo",
+            "clientes",
+            "paradas",
+            "inicio",
+            "fim",
+            "tempo_operando",
+            "km_total",
+            "valor_expedido",
+            "valor_entregue",
+            "valor_devolvido",
+            "pct_devolucao",
+            "meta_pct",
+            "checklist",
+            "status",
+            "observacao",
+        ]
+    )
+    for row in rows:
+        writer.writerow(
+            [
+                _fmt_br_data(row.get("date")),
+                row.get("motorista") or "",
+                row.get("turnos_label") or "",
+                row.get("ajudantes_label") or "",
+                row.get("placa") or "",
+                row.get("modelo") or "",
+                row.get("total_clientes") or 0,
+                row.get("total_paradas") or 0,
+                row.get("hora_inicio") or "",
+                row.get("hora_fim") or "",
+                row.get("tempo_operando_fmt") or "",
+                row.get("km_total_fmt") or "",
+                row.get("saiu_valor_fmt") or "",
+                row.get("entregue_valor_fmt") or "",
+                row.get("devolucao_valor_fmt") or "",
+                row.get("devolucao_pct_fmt") or "",
+                row.get("meta_pct_fmt") or "",
+                row.get("checklist_label") or "",
+                row.get("status_label") or "",
+                row.get("status_reason") or "",
+            ]
+        )
+    buffer = io.BytesIO(out.getvalue().encode("utf-8-sig"))
+    return StreamingResponse(
+        buffer,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=avaliacao_motoristas_{stamp}.csv"},
+    )
 
 
 def _build_bi_vendedor_dataset(

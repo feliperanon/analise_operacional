@@ -1,625 +1,343 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block html_class_extra %} ga-devolucoes-html{% endblock %}
+{% block title %}Avaliar devoluções · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Processos / Avaliação de devoluções</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Avaliar devoluções</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Revisão operacional com ajuste de responsabilidade, edição rápida e consolidado por equipe</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/devolucoes.css">
+<script src="/static/js/pages/devolucoes-avaliar-page.js" defer></script>
+{% endblock %}
 
 {% block content %}
-<div class="p-6 md:p-8" x-data='devolucoesAvaliar({{ {"avaliar_employees": avaliar_employees, "avaliar_clients": avaliar_clients} | tojson }})' x-init="loadList(); loadResumo();">
-    <div class="max-w-6xl mx-auto space-y-6">
-        <!-- Cabeçalho -->
-        <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h1 class="text-xl md:text-2xl font-bold text-white mb-1">Avaliar devoluções</h1>
-                <p class="text-slate-400 text-sm">Edite motivos, motorista, ajudante e responsabilidades; consulte o consolidado por motorista e ajudante.</p>
-            </div>
-            <a href="/devolucoes" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition-colors">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Voltar
-            </a>
+<div
+  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3"
+  data-page="devolucoes-avaliar"
+  x-data='devolucoesAvaliarPage({{ {"avaliar_employees": avaliar_employees, "avaliar_clients": avaliar_clients, "date_from": date_from, "date_to": date_to} | tojson | safe }})'
+  x-init="init()"
+>
+  <div id="page-alert" class="hidden"></div>
+
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"></path></svg>
         </div>
-
-        <!-- Filtros -->
-        <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5 space-y-4">
-            <div class="flex flex-wrap items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <label class="text-sm text-slate-400">De</label>
-                    <input type="date" x-model="dateFrom" @change="loadList(); loadResumo();" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div class="flex items-center gap-2">
-                    <label class="text-sm text-slate-400">Até</label>
-                    <input type="date" x-model="dateTo" @change="loadList(); loadResumo();" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div class="flex items-center gap-2">
-                    <label class="text-sm text-slate-400">Nome do cliente</label>
-                    <input type="text" x-model="filterClienteNome" placeholder="Buscar por nome" class="bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white w-48 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-slate-500">
-                </div>
-                <div class="relative" x-data="{ open: false }">
-                    <button type="button" @click="open = !open" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        Pesquisar motorista <span x-show="filterMotoristaIds.length" class="bg-blue-600 text-white text-xs px-1.5 rounded" x-text="filterMotoristaIds.length"></span>
-                    </button>
-                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-hidden rounded-xl border border-slate-600 bg-slate-800 shadow-xl flex flex-col">
-                        <input type="text" x-model="searchMotorista" placeholder="Filtrar motorista..." class="m-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500">
-                        <div class="overflow-y-auto p-2 space-y-1">
-                            <template x-for="emp in (avaliar_employees.filter(e => (e.name || '').toLowerCase().includes((searchMotorista || '').toLowerCase())))" :key="emp.id">
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/50 rounded-lg px-2 py-1.5 text-sm text-slate-200">
-                                    <input type="checkbox" :checked="filterMotoristaIds.includes(emp.id)" @change="toggleFilterMotorista(emp.id)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
-                                    <span x-text="emp.name"></span>
-                                </label>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-                <div class="relative" x-data="{ open: false }">
-                    <button type="button" @click="open = !open" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        Pesquisar cliente <span x-show="filterClientIds.length" class="bg-blue-600 text-white text-xs px-1.5 rounded" x-text="filterClientIds.length"></span>
-                    </button>
-                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-hidden rounded-xl border border-slate-600 bg-slate-800 shadow-xl flex flex-col">
-                        <input type="text" x-model="searchCliente" placeholder="Filtrar cliente..." class="m-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500">
-                        <div class="overflow-y-auto p-2 space-y-1">
-                            <template x-for="c in (avaliar_clients.filter(cl => (clienteLabel(cl).toLowerCase().includes((searchCliente || '').toLowerCase()))))" :key="c.id">
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/50 rounded-lg px-2 py-1.5 text-sm text-slate-200">
-                                    <input type="checkbox" :checked="filterClientIds.includes(c.id)" @change="toggleFilterCliente(c.id)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
-                                    <span x-text="clienteLabel(c)"></span>
-                                </label>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-                <div class="relative" x-data="{ open: false }">
-                    <button type="button" @click="open = !open" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-200 hover:bg-slate-600 text-sm font-medium transition-colors">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                        Pesquisar ajudante <span x-show="filterAjudanteIds.length" class="bg-blue-600 text-white text-xs px-1.5 rounded" x-text="filterAjudanteIds.length"></span>
-                    </button>
-                    <div x-show="open" @click.outside="open = false" x-cloak class="absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-hidden rounded-xl border border-slate-600 bg-slate-800 shadow-xl flex flex-col">
-                        <input type="text" x-model="searchAjudante" placeholder="Filtrar ajudante..." class="m-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500">
-                        <div class="overflow-y-auto p-2 space-y-1">
-                            <template x-for="emp in (avaliar_employees.filter(e => (e.name || '').toLowerCase().includes((searchAjudante || '').toLowerCase())))" :key="emp.id">
-                                <label class="flex items-center gap-2 cursor-pointer hover:bg-slate-700/50 rounded-lg px-2 py-1.5 text-sm text-slate-200">
-                                    <input type="checkbox" :checked="filterAjudanteIds.includes(emp.id)" @change="toggleFilterAjudante(emp.id)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
-                                    <span x-text="emp.name"></span>
-                                </label>
-                            </template>
-                        </div>
-                    </div>
-                </div>
-                <button type="button" @click="loadList(); loadResumo();" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    Atualizar
-                </button>
-                <span x-show="list.length" class="text-slate-500 text-sm" x-text="list.length + ' devolução(ões)'"></span>
-            </div>
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Painel operacional</span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Avaliação de devoluções</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">Tela de decisão rápida para editar devoluções, atribuir responsabilidade e acompanhar consolidado por motorista e ajudante.</p>
         </div>
+      </div>
 
-        <!-- Abas -->
-        <div class="flex gap-1 p-1 rounded-xl border border-slate-700 bg-slate-800/50 w-fit" role="tablist">
-            <button type="button" @click="tab = 'lista'" :class="tab === 'lista' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-4 py-2.5 rounded-lg font-medium text-sm transition-colors">Lista e edição</button>
-            <button type="button" @click="tab = 'consolidada'" :class="tab === 'consolidada' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'" class="px-4 py-2.5 rounded-lg font-medium text-sm transition-colors">Consolidado</button>
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <button type="button" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" @click="window.location.href='/devolucoes'">
+          <span class="employees-cta__label">Importar / cadastrar</span>
+        </button>
+        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" @click="loadAll()">
+          <span class="employees-cta__label">Atualizar agora</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row">
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="{ 'ops-card--selected': quickView === 'all' }" @click="setQuickView('all')" style="--employees-kpi-accent: rgba(59,130,246,.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Todos</span>
+          <span class="employees-kpi__value tabular-nums" x-text="stats.total"></span>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Total no período</span></div>
         </div>
-
-        <!-- Tab Lista e edição -->
-        <div x-show="tab === 'lista'" class="space-y-4">
-            <template x-if="loading"><p class="text-slate-500 py-4">Carregando...</p></template>
-            <template x-if="!loading && list.length === 0"><p class="text-slate-500 py-4">Nenhuma devolução no período.</p></template>
-            <div class="space-y-2" x-show="!loading && list.length">
-                <template x-for="item in list" :key="item.id">
-                    <article class="rounded-xl overflow-hidden shadow-sm transition-all duration-300"
-                        :class="item.cardFeedbackKind === 'resp' ? 'border-2 border-emerald-500/70 bg-emerald-950/25' : (item.cardFeedbackKind === 'edit' ? 'border-2 border-violet-500/70 bg-violet-950/25' : (item.edited ? 'border-2 border-emerald-500/80 bg-emerald-950/30' : 'border border-slate-700/80 bg-slate-800/70'))"
-                        :style="item.cardFeedbackKind === 'resp' ? 'border-left-width: 4px; border-left-color: rgb(16, 185, 129);' : (item.cardFeedbackKind === 'edit' ? 'border-left-width: 4px; border-left-color: rgb(139, 92, 246);' : (item.edited ? 'border-left-width: 4px; border-left-color: rgb(16, 185, 129);' : 'border-left-width: 3px; border-left-color: rgba(249, 115, 22, 0.5);'))">
-                        <div class="p-3 flex flex-col gap-2">
-                            <p x-show="item.cardFeedbackMsg" class="text-xs font-medium px-2 py-1.5 rounded-lg mb-0.5"
-                               :class="item.cardFeedbackKind === 'resp' ? 'text-emerald-200 bg-emerald-900/50 border border-emerald-500/40' : 'text-violet-200 bg-violet-900/50 border border-violet-500/40'"
-                               x-text="item.cardFeedbackMsg"></p>
-                            <div class="flex items-start justify-between gap-2">
-                                <div class="min-w-0 flex-1">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <p class="text-sm font-semibold text-white truncate" x-text="item.client_name"></p>
-                                        <span x-show="item.edited && !item.cardFeedbackKind" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-600/80 text-emerald-100 border border-emerald-500/50">Alterado</span>
-                                        <span x-show="item.cardFeedbackKind === 'resp'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-600/80 text-emerald-100 border border-emerald-500/50">M/A salvo</span>
-                                        <span x-show="item.cardFeedbackKind === 'edit'" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-violet-600/80 text-violet-100 border border-violet-500/50">Edição salva</span>
-                                    </div>
-                                    <p class="text-xs text-slate-500 mt-0.5" x-text="'Cod ' + (item.client_code || '-') + ' · Pedido ' + (item.order_number || '-') + (item.data_romaneio_pt ? ' · ' + item.data_romaneio_pt : '')"></p>
-                                </div>
-                                <button type="button" @click="openEdit(item)" class="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-600 bg-slate-700/80 text-slate-300 hover:bg-slate-600 hover:text-white text-xs font-medium transition-colors">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                                    Editar
-                                </button>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
-                                <span><span class="text-slate-500">Motorista:</span> <span class="text-white font-medium" x-text="item.motorista_name"></span></span>
-                                <span class="text-slate-600">·</span>
-                                <span><span class="text-slate-500">Ajudante(s):</span> <span class="text-white" x-text="(item.ajudantes_display && item.ajudantes_display !== '-') ? item.ajudantes_display : '—'"></span></span>
-                                <template x-if="item.vehicle_plate"><span class="text-slate-500 font-mono" x-text="' · ' + item.vehicle_plate"></span></template>
-                            </div>
-                            <p class="text-xs font-medium text-orange-300/90" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></p>
-                            <p class="text-xs text-slate-400 truncate" x-text="(item.address || '-') + (item.bairro || item.city ? ' · ' + (item.bairro || '') + (item.city ? ' ' + item.city + (item.state ? '/' + item.state : '') : '') : '')"></p>
-                            <div class="flex flex-wrap items-center gap-2 pt-0.5">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-700/80 text-slate-200" x-text="formatKg(item.weight_kg) + ' kg'"></span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-700/80 text-white" x-text="'R$ ' + formatValor(item.value)"></span>
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-orange-900/30 text-orange-300 border border-orange-500/30">Devolução</span>
-                                <template x-if="item.responsavel_motorista !== undefined">
-                                    <span class="flex items-center gap-2">
-                                        <label class="inline-flex items-center gap-1 text-xs text-slate-400 cursor-pointer"><input type="checkbox" :checked="item.responsavel_motorista" @change="setResponsavel(item.id, $event.target.checked, item.responsavel_ajudante)" class="rounded border-slate-600 bg-slate-800 text-blue-500"> M</label>
-                                        <label class="inline-flex items-center gap-1 text-xs text-slate-400 cursor-pointer"><input type="checkbox" :checked="item.responsavel_ajudante" @change="setResponsavel(item.id, item.responsavel_motorista, $event.target.checked)" class="rounded border-slate-600 bg-slate-800 text-blue-500"> A</label>
-                                    </span>
-                                </template>
-                                <span class="text-slate-500 text-xs" x-show="item.started_at_pt || item.finished_at_pt" x-text="(item.started_at_pt || item.started_at || '') + (item.returned_at_pt || item.finished_at_pt ? ' → ' + (item.returned_at_pt || item.finished_at_pt || '') : '')"></span>
-                            </div>
-                            <p x-show="item.observacao" class="text-xs text-slate-500 truncate" x-text="'Obs: ' + item.observacao"></p>
-                            <p x-show="item.observacao_gestor" class="text-xs text-amber-200/90 truncate" x-text="'Gestor: ' + item.observacao_gestor"></p>
-                        </div>
-                    </article>
-                </template>
-            </div>
+      </button>
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="{ 'ops-card--selected': quickView === 'pendentes' }" @click="setQuickView('pendentes')" style="--employees-kpi-accent: rgba(251,191,36,.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Pendentes</span>
+          <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums" x-text="stats.pendentes"></span>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Sem ajuste salvo</span></div>
         </div>
-
-        <!-- Tab Consolidado -->
-        <div x-show="tab === 'consolidada'" class="space-y-6">
-            <p class="text-slate-400 text-sm">Use os checkboxes em cada card na aba <strong class="text-white">Lista e edição</strong> para marcar responsabilidade. Nenhum dado real é alterado.</p>
-
-            <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
-                <h2 class="text-base font-semibold text-white mb-1">Resumo por motorista</h2>
-                <p class="text-slate-500 text-xs mb-1">
-                    <span x-text="'Período: ' + formatPeriodo(dateFrom, dateTo)"></span>
-                </p>
-                <p class="text-slate-500 text-xs mb-3">Original vs ajustado (apenas devoluções marcadas como resp. do motorista). Clique na linha para ver as devoluções (data, motivo e observação).</p>
-                <template x-if="resumoLoading"><p class="text-slate-500 py-2">Carregando resumo...</p></template>
-                <div class="overflow-x-auto rounded-lg border border-slate-700" x-show="!resumoLoading && resumo.length">
-                    <table class="w-full text-left border-collapse min-w-[640px]">
-                        <thead class="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider">
-                            <tr>
-                                <th class="px-4 py-3 font-semibold">Motorista</th>
-                                <th class="px-4 py-3 text-right">Entregues</th>
-                                <th class="px-4 py-3 text-right">Dev. total</th>
-                                <th class="px-4 py-3 text-right">% original</th>
-                                <th class="px-4 py-3 text-right">% ajustado</th>
-                                <th class="px-4 py-3 text-right">Valor original</th>
-                                <th class="px-4 py-3 text-right">Valor ajustado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-700/80 text-sm">
-                            <template x-for="r in resumo" :key="r.motorista_id">
-                                <tr class="hover:bg-slate-700/20 transition-colors outline-none"
-                                    :class="Number(r.devolucoes_total) > 0 ? 'cursor-pointer active:bg-slate-700/40' : ''"
-                                    role="button"
-                                    :tabindex="Number(r.devolucoes_total) > 0 ? 0 : -1"
-                                    @click="openResumoMotorista(r)"
-                                    @keydown.enter.prevent="openResumoMotorista(r)"
-                                    @keydown.space.prevent="openResumoMotorista(r)">
-                                    <td class="px-4 py-3 font-medium text-white" x-text="r.motorista_name"></td>
-                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.entregues"></td>
-                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_total"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-amber-400" x-text="r.pct_original + '%'"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-emerald-400" x-text="r.pct_ajustado + '%'"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-slate-300" x-text="'R$ ' + formatValor(r.valor_original)"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-white font-medium" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="text-slate-500 text-sm mt-2" x-show="!resumoLoading && !resumo.length">Nenhum dado no período.</p>
-            </div>
-
-            <!-- Modal: detalhes das devoluções do motorista (data, motivo, observação) -->
-            <div x-show="resumoDetailOpen" x-cloak class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60" @keydown.escape.window="fecharResumoMotorista()" @click.self="fecharResumoMotorista()">
-                <div class="rounded-xl border border-slate-700 bg-slate-800 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col shadow-xl" @click.stop>
-                    <div class="p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
-                        <h2 class="text-base font-semibold text-white"
-                            x-text="resumoDetailMotorista
-                                ? ((resumoDetailMotorista.motorista_name
-                                    ? ('Devoluções do motorista · ' + resumoDetailMotorista.motorista_name)
-                                    : ('Devoluções do ajudante · ' + (resumoDetailMotorista.ajudante_name || ''))))
-                                : 'Devoluções'"></h2>
-                        <button type="button" @click="fecharResumoMotorista()" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition text-lg leading-none">×</button>
-                    </div>
-                    <div class="p-3 text-slate-500 text-xs border-b border-slate-700 shrink-0" x-text="'Período: ' + formatPeriodo(dateFrom, dateTo)"></div>
-                    <div class="overflow-y-auto flex-1 min-h-0 p-3 space-y-2">
-                        <p x-show="resumoDetailLoading" class="text-slate-400 text-sm py-6 text-center">Carregando devoluções…</p>
-                        <template x-if="!resumoDetailLoading && resumoDetailMotorista && resumoDetailList.length === 0">
-                            <p class="text-slate-500 text-sm py-4">Nenhuma devolução encontrada para este colaborador no período.</p>
-                        </template>
-                        <p class="text-slate-400 text-xs mb-2 px-1" x-show="!resumoDetailLoading && resumoDetailList.length">Marque responsabilidade (M = motorista, A = ajudante). Clique na linha para abrir edição completa.</p>
-                        <template x-for="item in resumoDetailList" :key="item.id">
-                            <div class="rounded-lg border p-3 transition-all duration-300 text-left flex flex-col gap-2"
-                                 :class="item.cardFeedbackKind === 'resp' ? 'border-emerald-500/70 bg-emerald-950/25 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]' : (item.cardFeedbackKind === 'edit' ? 'border-violet-500/70 bg-violet-950/25 shadow-[0_0_0_1px_rgba(139,92,246,0.2)]' : (item.edited ? 'border-emerald-500/60 bg-emerald-950/20 shadow-[0_0_0_1px_rgba(16,185,129,0.15)]' : 'border-slate-600 bg-slate-800/80'))">
-                                <p x-show="item.cardFeedbackMsg" class="text-xs font-medium px-2 py-1 rounded-md order-first"
-                                   :class="item.cardFeedbackKind === 'resp' ? 'text-emerald-200 bg-emerald-900/45 border border-emerald-500/35' : 'text-violet-200 bg-violet-900/45 border border-violet-500/35'"
-                                   x-text="item.cardFeedbackMsg"></p>
-                                <div @click="resumoDetailOpen = false; openEdit(item)" class="cursor-pointer flex-1 min-w-0">
-                                    <div class="flex flex-wrap items-center gap-2 mb-1">
-                                        <span class="font-mono text-xs text-amber-400 font-medium" x-text="item.data_romaneio_pt || item.data_romaneio || '-'"></span>
-                                        <span class="text-slate-500">·</span>
-                                        <span class="text-white font-medium truncate flex-1" x-text="item.client_name"></span>
-                                        <span class="text-slate-400 text-xs" x-text="'R$ ' + formatValor(item.value)"></span>
-                                    </div>
-                                    <p class="text-orange-300/90 text-xs font-medium" x-text="item.motivo_nome + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></p>
-                                    <p x-show="item.observacao" class="text-slate-400 text-xs mt-1" x-text="'Obs: ' + item.observacao"></p>
-                                    <p x-show="item.observacao_gestor" class="text-amber-200/80 text-xs mt-0.5" x-text="'Gestor: ' + item.observacao_gestor"></p>
-                                </div>
-                                <div class="flex items-center gap-4 pt-1 border-t border-slate-700/80" @click.stop>
-                                    <span class="text-slate-500 text-xs">Responsabilidade:</span>
-                                    <label class="inline-flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
-                                        <input type="checkbox" :checked="item.responsavel_motorista" @change="setResponsavel(item.id, $event.target.checked, item.responsavel_ajudante)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
-                                        <span>Motorista (M)</span>
-                                    </label>
-                                    <label class="inline-flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer">
-                                        <input type="checkbox" :checked="item.responsavel_ajudante" @change="setResponsavel(item.id, item.responsavel_motorista, $event.target.checked)" class="rounded border-slate-600 bg-slate-800 text-blue-500">
-                                        <span>Ajudante (A)</span>
-                                    </label>
-                                    <span class="text-slate-500 text-xs">Clique na linha para editar</span>
-                                </div>
-                            </div>
-                        </template>
-                    </div>
-                    <div class="p-3 border-t border-slate-700 shrink-0 flex justify-between items-center gap-2 flex-wrap">
-                        <p class="text-slate-500 text-xs">Alterações são salvas ao marcar M/A. Use Atualizar resumo para recarregar a tabela.</p>
-                        <div class="flex gap-2">
-                            <button type="button" @click="loadResumo()" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors">Atualizar resumo</button>
-                            <button type="button" @click="tab = 'lista'; fecharResumoMotorista(); loadList();" class="px-4 py-2 rounded-lg border border-slate-600 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors">Ver na lista</button>
-                            <button type="button" @click="fecharResumoMotorista()" class="px-4 py-2 rounded-lg bg-slate-600 hover:bg-slate-500 text-white text-sm font-medium transition-colors">Fechar</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="rounded-xl border border-slate-700 bg-slate-800/80 p-4 md:p-5">
-                <h2 class="text-base font-semibold text-white mb-1">Resumo por ajudante</h2>
-                <p class="text-slate-500 text-xs mb-3"><strong>Entregues</strong> = paradas <em>entregue</em> em que o ajudante entra pela rota, pela sessão do dia ou por outra parada do mesmo motorista/data. % original = devoluções ÷ (entregues + devoluções); % ajustado = só devoluções com resp. do ajudante.</p>
-                <template x-if="resumoLoading"><p class="text-slate-500 py-2">Carregando...</p></template>
-                <div class="overflow-x-auto rounded-lg border border-slate-700" x-show="!resumoLoading && resumoAjudantes.length">
-                    <table class="w-full text-left border-collapse min-w-[720px]">
-                        <thead class="bg-slate-800 text-slate-400 text-xs uppercase tracking-wider">
-                            <tr>
-                                <th class="px-4 py-3 font-semibold">Ajudante</th>
-                                <th class="px-4 py-3 text-right">Entregues</th>
-                                <th class="px-4 py-3 text-right">Dev. total</th>
-                                <th class="px-4 py-3 text-right">Dev. atr. A</th>
-                                <th class="px-4 py-3 text-right">% original</th>
-                                <th class="px-4 py-3 text-right">% ajustado</th>
-                                <th class="px-4 py-3 text-right">Valor original</th>
-                                <th class="px-4 py-3 text-right">Valor ajustado</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-700/80 text-sm">
-                            <template x-for="r in resumoAjudantes" :key="r.ajudante_id">
-                                <tr class="hover:bg-slate-700/20 transition-colors outline-none"
-                                    :class="Number(r.devolucoes_total) > 0 ? 'cursor-pointer active:bg-slate-700/40' : ''"
-                                    role="button"
-                                    :tabindex="Number(r.devolucoes_total) > 0 ? 0 : -1"
-                                    @click="openResumoAjudante(r)"
-                                    @keydown.enter.prevent="openResumoAjudante(r)"
-                                    @keydown.space.prevent="openResumoAjudante(r)">
-                                    <td class="px-4 py-3 font-medium text-white" x-text="r.ajudante_name"></td>
-                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.entregues != null ? r.entregues : 0"></td>
-                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_total"></td>
-                                    <td class="px-4 py-3 text-right text-slate-300" x-text="r.devolucoes_attributed"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-amber-400" x-text="(r.pct_original != null ? r.pct_original : 0) + '%'"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-emerald-400" x-text="(r.pct_ajustado != null ? r.pct_ajustado : 0) + '%'"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-slate-300" x-text="'R$ ' + formatValor(r.valor_original)"></td>
-                                    <td class="px-4 py-3 text-right font-mono text-white font-medium" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <p class="text-slate-500 text-sm mt-2" x-show="!resumoLoading && !resumoAjudantes.length">Nenhum ajudante com devoluções no período.</p>
-            </div>
+      </button>
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="{ 'ops-card--selected': quickView === 'concluidos' }" @click="setQuickView('concluidos')" style="--employees-kpi-accent: rgba(16,185,129,.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Concluídos</span>
+          <span class="employees-kpi__value tabular-nums" x-text="stats.concluidos"></span>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Com ajuste registrado</span></div>
         </div>
+      </button>
+      <button type="button" class="sys-kpi-card employees-kpi ops-card--interactive" :class="{ 'ops-card--selected': quickView === 'hoje' }" @click="setQuickView('hoje')" style="--employees-kpi-accent: rgba(56,189,248,.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label text-sky-600 dark:text-sky-300">Hoje</span>
+          <span class="employees-kpi__value tabular-nums" x-text="stats.hoje"></span>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Data do romaneio atual</span></div>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+    <div class="employees-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+      <div class="employees-filter-bar__inner">
+        <div class="employees-filter-bar__primary">
+          <div class="employees-filter-bar__primary-scroll">
+            <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+            <div class="ops-toolbar-search employees-filter-bar__search">
+              <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="search" x-model="filterClienteNome" @input="debouncedLoad()" placeholder="Cliente, código ou pedido" class="ops-toolbar-search__input">
+            </div>
+            <input type="date" class="ops-toolbar-control px-3" x-model="dateFrom" @change="loadAll()">
+            <input type="date" class="ops-toolbar-control px-3" x-model="dateTo" @change="loadAll()">
+            <select class="ops-toolbar-control px-3" x-model="perPage" @change="page = 1; loadList()">
+              <option value="10">10 por página</option>
+              <option value="20">20 por página</option>
+              <option value="40">40 por página</option>
+            </select>
+          </div>
+        </div>
+        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+        <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap">
+          <button type="button" class="ops-toolbar-ghost-btn employees-filter-bar__btn" @click="clearFilters()">Limpar filtros</button>
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" :class="{ 'filter-btn--active': quickView === 'all' }" @click="setQuickView('all')">Todos</button>
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" :class="{ 'filter-btn--active': quickView === 'pendentes' }" @click="setQuickView('pendentes')">Pendentes</button>
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" :class="{ 'filter-btn--active': quickView === 'concluidos' }" @click="setQuickView('concluidos')">Concluídos</button>
+          <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" :class="{ 'filter-btn--active': quickView === 'hoje' }" @click="setQuickView('hoje')">Hoje</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sys-card sys-card--surface sys-card--comfort devolucoes-selection-toolbar">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+        <input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" :checked="allVisibleSelected" @change="toggleSelectVisible($event.target.checked)">
+        <span>Selecionar visíveis</span>
+      </label>
+      <div class="flex items-center gap-2">
+        <span class="employees-filter-counter employees-filter-counter--toolbar">Selecionados: <strong class="ml-1" x-text="selectedIds.length"></strong></span>
+        <button type="button" class="sys-btn sys-btn--secondary employees-filter-bar__btn" :disabled="!selectedIds.length || savingBatch" @click="openBatchModal()">Operações em lote</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+      <div class="min-w-0 flex-1">
+        <p class="employees-table-panel__kicker">Operação diária</p>
+        <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista de avaliação</h3>
+        <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No desktop, tabela completa com ações por linha; no mobile, os itens viram cards automaticamente no mesmo padrão da gestão.</p>
+      </div>
+      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+        <template x-if="!loading && totalCount">
+          <span>Exibindo <strong x-text="pageStart"></strong>–<strong x-text="pageEnd"></strong> de <strong x-text="totalCount"></strong> resultado(s).</span>
+        </template>
+      </div>
     </div>
 
-    <!-- Modal Editar -->
-    <div x-show="editOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" @keydown.escape.window="editOpen = false">
-        <div class="rounded-xl border border-slate-700 bg-slate-800 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl" @click.stop>
-            <div class="p-4 border-b border-slate-700 flex justify-between items-center">
-                <h2 class="text-base font-semibold text-white">Editar devolução</h2>
-                <button type="button" @click="editOpen = false; editItem = null" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition text-lg leading-none">×</button>
-            </div>
-            <template x-if="editItem">
-                <form @submit.prevent="saveEdit()" class="p-4">
-                <input type="hidden" x-model="editItem.id">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Motivo</label>
-                        <select x-model="editItem.motivo_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
-                            {% for m in motivos %}
-                            <option value="{{ m.id }}">{{ m.nome }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Motorista</label>
-                        <select x-model="editItem.motorista_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
-                            {% for e in employees %}
-                            <option value="{{ e.id }}">{{ e.name|emp_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Ajudantes (múltipla escolha)</label>
-                        <div class="rounded-lg border border-slate-600 bg-slate-900 max-h-44 overflow-y-auto p-2 space-y-1">
-                            <template x-for="e in avaliar_employees" :key="e.id">
-                                <label class="flex items-center gap-2 cursor-pointer rounded px-2 py-1.5 hover:bg-slate-800/80 text-sm text-slate-200">
-                                    <input type="checkbox"
-                                           x-model="editItem.ajudante_ids"
-                                           :value="String(e.id)"
-                                           class="rounded border-slate-600 bg-slate-800 text-blue-500">
-                                    <span x-text="e.name"></span>
-                                </label>
-                            </template>
-                        </div>
-                        <div class="mt-1.5 flex items-center justify-between gap-2">
-                            <p class="text-[11px] text-slate-500" x-text="(editItem.ajudante_ids || []).length + ' selecionado(s)'"></p>
-                            <button type="button"
-                                    @click="editItem.ajudante_ids = []"
-                                    class="text-[11px] text-slate-400 hover:text-white transition">
-                                Limpar seleção
-                            </button>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Peso (kg)</label>
-                        <input type="number" step="0.01" min="0" x-model="editPeso" placeholder="Opcional" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-400 mb-1">Valor (R$)</label>
-                        <input type="text" x-model="editValor" placeholder="0,00" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm">
-                    </div>
+    <template x-if="loading">
+      <div class="sys-empty-state m-6">Carregando devoluções...</div>
+    </template>
+    <template x-if="!loading && errorMsg">
+      <div class="sys-empty-state m-6" x-text="errorMsg"></div>
+    </template>
+    <template x-if="!loading && !errorMsg && !totalCount">
+      <div class="sys-empty-state m-6">Nenhum resultado encontrado para os filtros aplicados.</div>
+    </template>
+
+    <div class="sys-table-wrap sys-table-wrap--x-scroll" x-show="!loading && !errorMsg && totalCount">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1160px]" id="employeesTable">
+        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+          <tr>
+            <th class="employees-data-table__th px-2 py-2 pl-3">Cliente</th>
+            <th class="employees-data-table__th px-2 py-2">Data</th>
+            <th class="employees-data-table__th px-2 py-2">Motorista</th>
+            <th class="employees-data-table__th px-2 py-2">Motivo</th>
+            <th class="employees-data-table__th px-2 py-2">Valor</th>
+            <th class="employees-data-table__th px-2 py-2">Resp.</th>
+            <th class="employees-data-table__th px-2 py-2">Status</th>
+            <th class="employees-data-table__th px-2 py-2">Sel.</th>
+            <th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Ações</th>
+          </tr>
+        </thead>
+        <tbody class="employees-data-table__body divide-y">
+          <template x-for="item in pagedList" :key="item.id">
+            <tr class="employee-row employees-data-table__row">
+              <td class="employee-cell-primary px-2 py-2 pl-3 align-middle" data-label="Cliente">
+                <div class="employee-primary-content min-w-0">
+                  <span class="employee-name block truncate font-medium employees-text-strong" x-text="item.client_name || '-'"></span>
+                  <span class="employees-text-caption block truncate text-xs" x-text="'Cod ' + (item.client_code || '-') + ' · Pedido ' + (item.order_number || '-')"></span>
                 </div>
-                <div class="mb-3" x-show="editItem.observacao">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Obs. motorista (somente leitura)</label>
-                    <p class="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-slate-300 text-sm" x-text="editItem.observacao"></p>
+              </td>
+              <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle whitespace-nowrap" data-label="Data" x-text="item.data_romaneio_pt || item.data_romaneio || '-'"></td>
+              <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motorista" x-text="item.motorista_name || '-'"></td>
+              <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motivo">
+                <span class="employees-data-table__role-ellipsis block max-w-[14rem]" :title="(item.motivo_nome || '-') + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')" x-text="(item.motivo_nome || '-') + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></span>
+              </td>
+              <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap font-semibold text-sky-600 dark:text-sky-300" data-label="Valor" x-text="'R$ ' + formatValor(item.value || item.valor)"></td>
+              <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap" data-label="Resp.">
+                <div class="inline-flex items-center gap-2">
+                  <label class="inline-flex items-center gap-1 text-xs"><input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" :checked="!!item.responsavel_motorista" @change="setResponsavel(item.id, $event.target.checked, item.responsavel_ajudante)">M</label>
+                  <label class="inline-flex items-center gap-1 text-xs"><input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" :checked="!!item.responsavel_ajudante" @change="setResponsavel(item.id, item.responsavel_motorista, $event.target.checked)">A</label>
                 </div>
-                <div class="mb-4">
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Obs. gestor (motivo da alteração)</label>
-                    <textarea x-model="editItem.observacao_gestor" rows="2" placeholder="O sistema registrará seu usuário e a data." class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-2 focus:ring-blue-500 text-sm placeholder-slate-500 resize-y min-h-[56px]"></textarea>
+              </td>
+              <td class="px-2 py-2 align-middle whitespace-nowrap" data-label="Status">
+                <span class="employees-pill employees-pill--status" :class="item.edited ? 'employees-pill--emerald' : 'employees-pill--pending'" x-text="item.edited ? 'Concluído' : 'Pendente'"></span>
+              </td>
+              <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Selecionar">
+                <input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" :checked="selectedIds.includes(item.id)" @change="toggleSelection(item.id, $event.target.checked)">
+              </td>
+              <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Ações">
+                <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                  <button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar" @click="openEdit(item)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5a2.121 2.121 0 10-3-3L5 17v3z"></path></svg>
+                  </button>
+                  <button type="button" class="employee-action-btn employee-action-btn--return" title="Detalhar consolidado" @click="openResumoFromItem(item)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  </button>
                 </div>
-                <div class="flex justify-end gap-2 pt-3 border-t border-slate-700">
-                    <button type="button" @click="editOpen = false; editItem = null" class="px-3 py-2 text-sm text-slate-400 hover:text-white transition">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors">Salvar</button>
-                </div>
-                </form>
-            </template>
-        </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
     </div>
+
+    <div class="flex flex-wrap items-center justify-end gap-2 border-t px-5 py-3 sm:px-6" x-show="!loading && !errorMsg && totalCount">
+      <button type="button" class="sys-btn sys-btn--secondary" :disabled="page <= 1" @click="if (page > 1) { page = page - 1; loadList(); }">Anterior</button>
+      <span class="employees-text-caption text-xs" x-text="'Pág. ' + page + ' / ' + totalPages"></span>
+      <button type="button" class="sys-btn sys-btn--secondary" :disabled="page >= totalPages" @click="if (page < totalPages) { page = page + 1; loadList(); }">Próxima</button>
+    </div>
+  </div>
+
+  <div class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-2 border-b px-5 py-5 sm:px-6">
+      <p class="employees-table-panel__kicker">Consolidado</p>
+      <h3 class="sys-section-heading employees-table-panel__title text-lg">Resumo por motorista e ajudante</h3>
+      <p class="employees-table-panel__lede text-sm">Clique em uma linha para abrir as devoluções do colaborador e ajustar responsabilidade sem sair da tela.</p>
+    </div>
+    <div class="grid gap-4 p-5 sm:p-6 lg:grid-cols-2">
+      <div class="space-y-2">
+        <p class="text-sm font-semibold">Motoristas</p>
+        <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          <table class="w-full min-w-[620px] text-left text-sm">
+            <thead class="employees-data-table__head">
+              <tr>
+                <th class="px-3 py-2">Motorista</th><th class="px-3 py-2 text-right">Dev.</th><th class="px-3 py-2 text-right">% orig</th><th class="px-3 py-2 text-right">% ajust</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              <template x-if="resumoLoading"><tr><td colspan="4" class="px-3 py-3 text-sm text-slate-500">Carregando...</td></tr></template>
+              <template x-for="r in resumo" :key="'m-' + r.motorista_id">
+                <tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="openResumoMotorista(r)">
+                  <td class="px-3 py-2 font-medium" x-text="r.motorista_name"></td>
+                  <td class="px-3 py-2 text-right" x-text="r.devolucoes_total"></td>
+                  <td class="px-3 py-2 text-right" x-text="r.pct_original + '%'"></td>
+                  <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300" x-text="r.pct_ajustado + '%'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <p class="text-sm font-semibold">Ajudantes</p>
+        <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
+          <table class="w-full min-w-[620px] text-left text-sm">
+            <thead class="employees-data-table__head">
+              <tr>
+                <th class="px-3 py-2">Ajudante</th><th class="px-3 py-2 text-right">Dev.</th><th class="px-3 py-2 text-right">% orig</th><th class="px-3 py-2 text-right">% ajust</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y">
+              <template x-if="resumoLoading"><tr><td colspan="4" class="px-3 py-3 text-sm text-slate-500">Carregando...</td></tr></template>
+              <template x-for="r in resumoAjudantes" :key="'a-' + r.ajudante_id">
+                <tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="openResumoAjudante(r)">
+                  <td class="px-3 py-2 font-medium" x-text="r.ajudante_name"></td>
+                  <td class="px-3 py-2 text-right" x-text="r.devolucoes_total"></td>
+                  <td class="px-3 py-2 text-right" x-text="(r.pct_original || 0) + '%'"></td>
+                  <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300" x-text="(r.pct_ajustado || 0) + '%'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="batchModalOpen" x-cloak class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="batchModalOpen = false">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-lg devolucoes-modal-card">
+      <div class="mb-5 flex items-center justify-between gap-2">
+        <h3 class="sys-section-heading text-lg">Operação em lote</h3>
+        <button type="button" class="emp-modal-close" @click="batchModalOpen = false">&times;</button>
+      </div>
+      <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">Aplicar responsabilidade para <strong x-text="selectedIds.length"></strong> devolução(ões) visível(is).</p>
+      <div class="mb-4 flex items-center gap-4">
+        <label class="inline-flex items-center gap-2"><input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" x-model="batchResponsavelMotorista"> Motorista</label>
+        <label class="inline-flex items-center gap-2"><input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" x-model="batchResponsavelAjudante"> Ajudante</label>
+      </div>
+      <div class="flex justify-end gap-2 border-t pt-4">
+        <button type="button" class="sys-btn sys-btn--secondary" @click="batchModalOpen = false">Cancelar</button>
+        <button type="button" class="sys-btn sys-btn--primary" :disabled="savingBatch || !selectedIds.length" @click="saveBatchResponsavel()">Salvar lote</button>
+      </div>
+    </div>
+  </div>
+
+  <div x-show="editOpen" x-cloak class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="closeEdit()">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-2xl devolucoes-modal-card max-h-[90vh] overflow-y-auto">
+      <div class="mb-5 flex items-center justify-between gap-2">
+        <div><p class="employees-text-section-label">Edição</p><h3 class="sys-section-heading mt-1 text-lg">Editar devolução</h3></div>
+        <button type="button" class="emp-modal-close" @click="closeEdit()">&times;</button>
+      </div>
+      <template x-if="editItem">
+        <form @submit.prevent="saveEdit()" class="space-y-4">
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div><label class="sys-section__label sys-section__label--field">Motivo</label><select x-model="editItem.motivo_id" class="sys-select mt-1 w-full">{% for m in motivos %}<option value="{{ m.id }}">{{ m.nome }}</option>{% endfor %}</select></div>
+            <div><label class="sys-section__label sys-section__label--field">Motorista</label><select x-model="editItem.motorista_id" class="sys-select mt-1 w-full">{% for e in employees %}<option value="{{ e.id }}">{{ e.name|emp_name }}</option>{% endfor %}</select></div>
+            <div><label class="sys-section__label sys-section__label--field">Valor (R$)</label><input type="text" x-model="editValor" class="sys-input mt-1 w-full"></div>
+            <div><label class="sys-section__label sys-section__label--field">Peso (kg)</label><input type="number" step="0.01" min="0" x-model="editPeso" class="sys-input mt-1 w-full"></div>
+            <div class="md:col-span-2"><label class="sys-section__label sys-section__label--field">Obs. gestor</label><textarea x-model="editItem.observacao_gestor" rows="3" class="sys-input mt-1 w-full resize-y"></textarea></div>
+          </div>
+          <div class="flex justify-end gap-2 border-t pt-4">
+            <button type="button" class="sys-btn sys-btn--secondary" @click="closeEdit()">Cancelar</button>
+            <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
+          </div>
+        </form>
+      </template>
+    </div>
+  </div>
+
+  <div x-show="resumoDetailOpen" x-cloak class="emp-modal-shell fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="fecharResumoMotorista()">
+    <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-2xl devolucoes-modal-card max-h-[85vh] overflow-hidden flex flex-col">
+      <div class="mb-2 flex items-center justify-between gap-2">
+        <h3 class="sys-section-heading text-lg" x-text="resumoDetailTitle"></h3>
+        <button type="button" class="emp-modal-close" @click="fecharResumoMotorista()">&times;</button>
+      </div>
+      <p class="employees-text-muted text-xs mb-2" x-text="'Período: ' + formatPeriodo(dateFrom, dateTo)"></p>
+      <div class="overflow-y-auto space-y-2">
+        <template x-if="resumoDetailLoading"><p class="text-sm text-slate-500">Carregando devoluções...</p></template>
+        <template x-if="!resumoDetailLoading && !resumoDetailList.length"><p class="text-sm text-slate-500">Nenhuma devolução encontrada para o colaborador.</p></template>
+        <template x-for="item in resumoDetailList" :key="'d-' + item.id">
+          <button type="button" class="w-full text-left rounded-lg border border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="fecharResumoMotorista(); openEdit(item)">
+            <p class="text-sm font-medium" x-text="item.client_name"></p>
+            <p class="text-xs text-slate-500" x-text="(item.data_romaneio_pt || item.data_romaneio || '-') + ' · ' + (item.motivo_nome || '-') + ' · R$ ' + formatValor(item.value || item.valor)"></p>
+          </button>
+        </template>
+      </div>
+    </div>
+  </div>
 </div>
-
-<script>
-function devolucoesAvaliar(init) {
-    init = init || {};
-    return {
-        tab: 'lista',
-        list: [],
-        resumo: [],
-        resumoAjudantes: [],
-        loading: false,
-        resumoLoading: false,
-        editOpen: false,
-        editItem: null,
-        editPeso: '',
-        editValor: '',
-        resumoDetailOpen: false,
-        resumoDetailMotorista: null,
-        resumoDetailList: [],
-        resumoDetailLoading: false,
-        dateFrom: '{{ date_from }}',
-        dateTo: '{{ date_to }}',
-        filterClienteNome: '',
-        filterMotoristaIds: [],
-        filterClientIds: [],
-        filterAjudanteIds: [],
-        searchMotorista: '',
-        searchCliente: '',
-        searchAjudante: '',
-        avaliar_employees: init.avaliar_employees || [],
-        avaliar_clients: init.avaliar_clients || [],
-        clienteLabel(c) {
-            if (!c) return '';
-            return (c.razao_social && c.razao_social.trim()) ? c.razao_social.trim() : (c.name || '').trim() || ('Cliente #' + c.id);
-        },
-        toggleFilterMotorista(id) {
-            const i = this.filterMotoristaIds.indexOf(id);
-            if (i >= 0) this.filterMotoristaIds.splice(i, 1);
-            else this.filterMotoristaIds.push(id);
-        },
-        toggleFilterCliente(id) {
-            const i = this.filterClientIds.indexOf(id);
-            if (i >= 0) this.filterClientIds.splice(i, 1);
-            else this.filterClientIds.push(id);
-        },
-        toggleFilterAjudante(id) {
-            const i = this.filterAjudanteIds.indexOf(id);
-            if (i >= 0) this.filterAjudanteIds.splice(i, 1);
-            else this.filterAjudanteIds.push(id);
-        },
-        formatPeriodo(from, to) {
-            if (!from || !to) return '—';
-            const fmt = (s) => {
-                if (!s || s.length < 10) return s;
-                const p = String(s).substring(0, 10).split('-');
-                return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s;
-            };
-            return fmt(from) + ' a ' + fmt(to);
-        },
-        formatKg(v) {
-            if (v == null || v === '') return '0';
-            return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        },
-        formatValor(v) {
-            if (v == null || v === '') return '0,00';
-            return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        },
-        touchCardFeedback(item, kind, msg) {
-            if (!item) return;
-            if (item._cardFbT) clearTimeout(item._cardFbT);
-            item.cardFeedbackKind = kind;
-            item.cardFeedbackMsg = msg;
-            item._cardFbT = setTimeout(() => {
-                item.cardFeedbackKind = null;
-                item.cardFeedbackMsg = '';
-                item._cardFbT = null;
-            }, 5000);
-        },
-        loadList() {
-            this.loading = true;
-            let url = '/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo);
-            if (this.filterClienteNome && this.filterClienteNome.trim()) url += '&q=' + encodeURIComponent(this.filterClienteNome.trim());
-            if (this.filterMotoristaIds.length) url += '&motorista_ids=' + this.filterMotoristaIds.join(',');
-            if (this.filterClientIds.length) url += '&client_ids=' + this.filterClientIds.join(',');
-            if (this.filterAjudanteIds.length) url += '&ajudante_ids=' + this.filterAjudanteIds.join(',');
-            fetch(url, { credentials: 'same-origin' })
-                .then(r => r.json())
-                .then(j => {
-                    this.loading = false;
-                    if (j.ok) this.list = j.data || [];
-                    else this.list = [];
-                })
-                .catch(() => { this.loading = false; this.list = []; });
-        },
-        loadResumo() {
-            this.resumoLoading = true;
-            fetch('/api/devolucoes/avaliar/consolidado/resumo?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo), { credentials: 'same-origin' })
-                .then(r => r.json())
-                .then(j => {
-                    this.resumoLoading = false;
-                    if (j.ok) {
-                        this.resumo = j.data || [];
-                        this.resumoAjudantes = j.data_ajudantes || [];
-                    } else {
-                        this.resumo = [];
-                        this.resumoAjudantes = [];
-                    }
-                })
-                .catch(() => { this.resumoLoading = false; this.resumo = []; this.resumoAjudantes = []; });
-        },
-        openResumoMotorista(r) {
-            const n = Number(r && r.devolucoes_total);
-            if (!r || r.motorista_id == null || n <= 0) return;
-            this.resumoDetailMotorista = r;
-            this.resumoDetailOpen = true;
-            this.resumoDetailList = [];
-            this.resumoDetailLoading = true;
-            const url = '/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo) + '&motorista_ids=' + encodeURIComponent(String(r.motorista_id));
-            fetch(url, { credentials: 'same-origin' })
-                .then(x => x.json())
-                .then(j => {
-                    this.resumoDetailLoading = false;
-                    if (j.ok) this.resumoDetailList = j.data || [];
-                    else this.resumoDetailList = [];
-                })
-                .catch(() => { this.resumoDetailLoading = false; this.resumoDetailList = []; });
-        },
-        openResumoAjudante(r) {
-            const n = Number(r && r.devolucoes_total);
-            if (!r || r.ajudante_id == null || n <= 0) return;
-            this.resumoDetailMotorista = r;
-            this.resumoDetailOpen = true;
-            this.resumoDetailList = [];
-            this.resumoDetailLoading = true;
-            const url = '/api/devolucoes/avaliar/list?date_from=' + encodeURIComponent(this.dateFrom) + '&date_to=' + encodeURIComponent(this.dateTo) + '&ajudante_ids=' + encodeURIComponent(String(r.ajudante_id));
-            fetch(url, { credentials: 'same-origin' })
-                .then(x => x.json())
-                .then(j => {
-                    this.resumoDetailLoading = false;
-                    if (j.ok) this.resumoDetailList = j.data || [];
-                    else this.resumoDetailList = [];
-                })
-                .catch(() => { this.resumoDetailLoading = false; this.resumoDetailList = []; });
-        },
-        fecharResumoMotorista() {
-            this.resumoDetailOpen = false;
-            this.resumoDetailMotorista = null;
-            this.resumoDetailList = [];
-            this.resumoDetailLoading = false;
-        },
-        setResponsavel(devolucaoId, responsavelMotorista, responsavelAjudante) {
-            const ra = responsavelAjudante !== undefined ? responsavelAjudante : true;
-            fetch('/api/devolucoes/avaliar/consolidado', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    devolucao_id: devolucaoId,
-                    responsavel_motorista: !!responsavelMotorista,
-                    responsavel_ajudante: !!ra
-                }),
-                credentials: 'same-origin'
-            }).then(r => r.json()).then(j => {
-                if (j.ok) {
-                    const patch = (item) => {
-                        if (!item) return;
-                        item.responsavel_motorista = !!responsavelMotorista;
-                        item.responsavel_ajudante = !!ra;
-                        item.edited = true;
-                        const m = !!responsavelMotorista, a = !!ra;
-                        this.touchCardFeedback(item, 'resp', 'Responsabilidade salva — Motorista: ' + (m ? 'marcado' : 'desmarcado') + ' · Ajudante: ' + (a ? 'marcado' : 'desmarcado'));
-                    };
-                    patch(this.list.find(x => x.id === devolucaoId));
-                    patch(this.resumoDetailList.find(x => x.id === devolucaoId));
-                    this.loadResumo();
-                }
-            }).catch(() => {});
-        },
-        openEdit(item) {
-            const ajudanteIds = Array.isArray(item.ajudante_ids)
-                ? item.ajudante_ids.map(x => String(x)).filter(Boolean)
-                : ((item.ajudante_id != null && item.ajudante_id !== '' && item.ajudante_id !== undefined)
-                    ? [String(item.ajudante_id)]
-                    : []);
-            this.editItem = {
-                id: item.id,
-                motivo_id: item.motivo_id != null ? String(item.motivo_id) : '',
-                motorista_id: item.motorista_id != null ? String(item.motorista_id) : '',
-                ajudante_id: (item.ajudante_id != null && item.ajudante_id !== '' && item.ajudante_id !== undefined) ? String(item.ajudante_id) : '',
-                ajudante_ids: ajudanteIds,
-                observacao: item.observacao || '',
-                observacao_gestor: item.observacao_gestor || ''
-            };
-            this.editPeso = item.weight_kg != null && item.weight_kg !== '' ? String(item.weight_kg) : '';
-            this.editValor = this.formatValor(item.valor);
-            this.editOpen = true;
-            setTimeout(() => typeof lucide !== 'undefined' && lucide.createIcons(), 50);
-        },
-        saveEdit() {
-            const id = this.editItem.id;
-            const ajudanteIds = Array.from(
-                new Set(
-                    (Array.isArray(this.editItem.ajudante_ids) ? this.editItem.ajudante_ids : [])
-                        .map(x => parseInt(x, 10))
-                        .filter(x => !isNaN(x) && x > 0)
-                )
-            );
-            const payload = {
-                motivo_id: this.editItem.motivo_id ? parseInt(this.editItem.motivo_id, 10) : null,
-                motorista_id: this.editItem.motorista_id ? parseInt(this.editItem.motorista_id, 10) : null,
-                ajudante_id: ajudanteIds.length ? ajudanteIds[0] : null,
-                ajudante_ids: ajudanteIds,
-                observacao_gestor: (this.editItem.observacao_gestor || '').trim() || null
-            };
-            const v = this.editValor.replace(/\./g, '').replace(',', '.');
-            if (v !== '' && !isNaN(parseFloat(v))) payload.valor = parseFloat(v);
-            if (this.editPeso !== '' && !isNaN(parseFloat(this.editPeso))) payload.peso_kg = parseFloat(this.editPeso);
-            fetch('/api/devolucoes/' + id, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                credentials: 'same-origin'
-            }).then(r => r.json()).then(j => {
-                if (j.ok) {
-                    this.editOpen = false;
-                    this.editItem = null;
-                    const apply = (arr, i) => {
-                        if (i >= 0 && j.data) {
-                            arr[i] = j.data;
-                            arr[i].edited = true;
-                            this.touchCardFeedback(arr[i], 'edit', 'Cadastro atualizado (motivo, motorista, ajudantes, valores ou observação).');
-                        }
-                    };
-                    apply(this.list, this.list.findIndex(x => x.id === id));
-                    apply(this.resumoDetailList, this.resumoDetailList.findIndex(x => x.id === id));
-                    this.loadResumo();
-                } else alert(j.error || 'Erro ao salvar');
-            });
-        }
-    };
-}
-if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
-</script>
 {% endblock %}

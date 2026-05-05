@@ -219,3 +219,25 @@ html.dark.ga-devolucoes-html .sys-btn.sys-btn--danger:hover,
 html.dark .ga-employee-theme.employees-page[data-page="devolucoes"] .sys-btn.sys-btn--danger:hover {
   background: rgb(153 27 27 / 0.4);
 }
+
+/* Página de avaliação: reaproveita shell de /employees com pequenos ajustes. */
+.ga-employee-theme.employees-page[data-page="devolucoes-avaliar"] .devolucoes-selection-toolbar {
+  border: 1px solid var(--dev-border);
+}
+
+.ga-employee-theme.employees-page[data-page="devolucoes-avaliar"] #employeesTable .employee-actions {
+  justify-content: flex-start;
+}
+
+.ga-employee-theme.employees-page[data-page="devolucoes-avaliar"] .employees-pill--status {
+  min-width: 5.5rem;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .ga-employee-theme.employees-page[data-page="devolucoes-avaliar"] #employeesTable .employee-action-btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    touch-action: manipulation;
+  }
+}

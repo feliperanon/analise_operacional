@@ -1,26 +1,119 @@
-<section class="bi-dev-kpis">
-  <article class="sys-card sys-card--surface bi-dev-kpi">
-    <p>Total devolvido</p>
-    <strong>{{ total_qtd|fmt_br_int }}</strong>
-  </article>
-  <article class="sys-card sys-card--surface bi-dev-kpi">
-    <p>% de devolução</p>
-    <strong>{{ pct_devolucao_valor|fmt_br_1 }}%</strong>
-  </article>
-  <article class="sys-card sys-card--surface bi-dev-kpi">
-    <p>Valor devolvido</p>
-    <strong>{{ total_valor|fmt_br_moeda }}</strong>
-  </article>
-  <article class="sys-card sys-card--surface bi-dev-kpi">
-    <p>Clientes impactados</p>
-    <strong>{{ total_clientes_afetados|fmt_br_int }}</strong>
-  </article>
-  <article class="sys-card sys-card--surface bi-dev-kpi">
-    <p>Principal motivo</p>
-    <strong>{{ top_motivos[0].motivo if top_motivos else '—' }}</strong>
-  </article>
-  <article class="sys-card sys-card--surface bi-dev-kpi">
-    <p>Maior responsável</p>
-    <strong>{{ resp_breakdown[0].responsabilidade if resp_breakdown else '—' }}</strong>
-  </article>
-</section>
+<div class="sys-kpi-shell w-full">
+  <div class="sys-kpi-grid employees-kpi-row bi-dev-kpi-grid" aria-label="Resumo do período">
+    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+      <div class="sys-kpi-cell-inner employees-kpi__inner">
+        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Total devolvido</span>
+            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+              <span class="employees-kpi__value tabular-nums">{{ total_qtd|fmt_br_int }}</span>
+              <span class="employees-kpi__denom text-sm">ocorrências</span>
+            </div>
+          </div>
+          <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 001 1h14a1 1 0 001-1V4"></path>
+          </svg>
+        </div>
+        <div class="employees-kpi__meta">
+          <span class="employees-text-muted">No período filtrado</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);">
+      <div class="sys-kpi-cell-inner employees-kpi__inner">
+        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">% sobre rotas concluídas</span>
+            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+              <span class="employees-kpi__value tabular-nums">{{ pct_devolucao_valor|fmt_br_1 }}%</span>
+            </div>
+          </div>
+          <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+          </svg>
+        </div>
+        <div class="employees-kpi__meta">
+          <span class="employees-text-muted">Critério operacional consolidado</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);">
+      <div class="sys-kpi-cell-inner employees-kpi__inner">
+        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Valor devolvido</span>
+            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+              <span class="employees-kpi__value tabular-nums text-base sm:text-lg">{{ total_valor|fmt_br_moeda }}</span>
+            </div>
+          </div>
+          <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <div class="employees-kpi__meta">
+          <span class="employees-text-muted">Soma das devoluções listadas</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(56, 189, 248, 0.72);">
+      <div class="sys-kpi-cell-inner employees-kpi__inner">
+        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="sys-kpi-label text-sky-600 dark:text-sky-300">Clientes impactados</span>
+            <div class="mt-1 flex flex-wrap items-baseline gap-1">
+              <span class="employees-kpi__value tabular-nums">{{ total_clientes_afetados|fmt_br_int }}</span>
+            </div>
+          </div>
+          <svg class="h-4 w-4 shrink-0 text-sky-500 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+          </svg>
+        </div>
+        <div class="employees-kpi__meta">
+          <span class="employees-text-muted">Lojas distintas com devolução</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.68);">
+      <div class="sys-kpi-cell-inner employees-kpi__inner">
+        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Principal motivo</span>
+            <div class="mt-1 min-w-0">
+              <span class="employees-kpi__value block truncate text-base font-semibold leading-snug">{{ top_motivos[0].motivo if top_motivos else '—' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="employees-kpi__meta">
+          <span class="employees-text-muted">Mais frequente no período</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(239, 68, 68, 0.65);">
+      <div class="sys-kpi-cell-inner employees-kpi__inner">
+        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+          <div class="min-w-0">
+            <span class="sys-kpi-label text-red-600 dark:text-red-300">Maior responsável</span>
+            <div class="mt-1 min-w-0">
+              <span class="employees-kpi__value block truncate text-base font-semibold leading-snug">{{ resp_breakdown[0].responsabilidade if resp_breakdown else '—' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="employees-kpi__meta">
+          {% if pct_acima_300 and pct_acima_300 > 0 %}
+          <span class="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-500/15 dark:text-red-300">
+            {{ pct_acima_300|fmt_br_1 }}% acima de R$ 300
+          </span>
+          {% else %}
+          <span class="employees-text-muted">Classificação no período</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

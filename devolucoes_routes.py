@@ -1951,6 +1951,9 @@ def init_devolucoes_router(
         q: Optional[str] = None,
         ajudante_ids: Optional[str] = None,
         colaborador_ids: Optional[str] = None,
+        status_view: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 20,
         session: Session = Depends(get_session),
     ):
         require_login(request)
@@ -2049,8 +2052,37 @@ def init_devolucoes_router(
             c["responsavel_motorista"] = pair[0] if isinstance(pair, tuple) else pair
             c["responsavel_ajudante"] = pair[1] if isinstance(pair, tuple) else True
             c["edited"] = c["id"] in ajustes
+        view = (status_view or "all").strip().lower()
+        today_iso = datetime.now().strftime("%Y-%m-%d")
+        if view == "pendentes":
+            cards = [c for c in cards if not c.get("edited")]
+        elif view == "concluidos":
+            cards = [c for c in cards if c.get("edited")]
+        elif view == "hoje":
+            cards = [c for c in cards if str(c.get("data_romaneio") or "")[:10] == today_iso]
         _sort_avaliar_cards_por_escala(session, cards, (date_from or "2020-01-01")[:10], (date_to or "2099-12-31")[:10])
-        return JSONResponse({"ok": True, "data": cards})
+        safe_per_page = max(1, min(int(per_page or 20), 100))
+        safe_page = max(1, int(page or 1))
+        total_count = len(cards)
+        total_pages = max(1, (total_count + safe_per_page - 1) // safe_per_page)
+        if safe_page > total_pages:
+            safe_page = total_pages
+        start = (safe_page - 1) * safe_per_page
+        end = start + safe_per_page
+        return JSONResponse(
+            {
+                "ok": True,
+                "data": cards[start:end],
+                "pagination": {
+                    "page": safe_page,
+                    "per_page": safe_per_page,
+                    "total_count": total_count,
+                    "total_pages": total_pages,
+                    "page_start": (start + 1) if total_count else 0,
+                    "page_end": min(end, total_count) if total_count else 0,
+                },
+            }
+        )
 
     class DevolucaoPatchPayload(BaseModel):
         motivo_id: Optional[int] = None
