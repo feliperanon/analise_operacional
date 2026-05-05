@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 from sqlmodel import Session, select, func
 
 import models
+from utils.business_calendar import competence_date_str
 
 
 def _iter_days_inclusive(date_from: str, date_to: str) -> List[str]:
@@ -357,36 +358,59 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
     """
     date_from = date_from or "2020-01-01"
     date_to = date_to or "2099-12-31"
+    try:
+        d0 = datetime.strptime(str(date_from)[:10], "%Y-%m-%d").date()
+        d1 = datetime.strptime(str(date_to)[:10], "%Y-%m-%d").date()
+    except Exception:
+        d0 = datetime.strptime("2020-01-01", "%Y-%m-%d").date()
+        d1 = datetime.strptime("2099-12-31", "%Y-%m-%d").date()
+    if d1 < d0:
+        d0, d1 = d1, d0
+    # Janela estendida para capturar virada de mês via competência operacional.
+    window_start = (d0 - timedelta(days=10)).strftime("%Y-%m-%d")
+    window_end = (d1 + timedelta(days=10)).strftime("%Y-%m-%d")
+    period_start = d0.strftime("%Y-%m-%d")
+    period_end = d1.strftime("%Y-%m-%d")
+
+    def _competencia_in_period(raw_date: Optional[str]) -> bool:
+        comp = competence_date_str(raw_date) or str(raw_date or "")[:10]
+        return period_start <= comp <= period_end
 
     devolucoes = session.exec(
         select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= date_from)
-        .where(models.Devolucao.data_romaneio <= date_to)
+        .where(models.Devolucao.data_romaneio >= window_start)
+        .where(models.Devolucao.data_romaneio <= window_end)
         .order_by(models.Devolucao.motorista_id, models.Devolucao.id)
     ).all()
     devolucoes = [d for d in devolucoes if not getattr(d, "duplicate_of_id", None)]
+    devolucoes = [
+        d for d in devolucoes
+        if _competencia_in_period(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None))
+    ]
 
     ajustes = load_ajustes_map(session)
 
     routes_delivered = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date >= date_from)
-        .where(models.Route.date <= date_to)
+        .where(models.Route.date >= window_start)
+        .where(models.Route.date <= window_end)
         .where(models.Route.delivery_status == "entregue")
     ).all()
+    routes_delivered = [r for r in routes_delivered if _competencia_in_period(getattr(r, "date", None))]
 
     route_helpers, route_by_client_driver_date, session_helpers_by_driver_date, emp_by_name = _build_helper_maps(
-        session, date_from, date_to
+        session, window_start, window_end
     )
 
     routes_in_range = session.exec(
         select(models.Route)
-        .where(models.Route.date >= date_from)
-        .where(models.Route.date <= date_to)
+        .where(models.Route.date >= window_start)
+        .where(models.Route.date <= window_end)
         .where(models.Route.client_id.is_not(None))
         .where(models.Route.employee_id.is_not(None))
     ).all()
+    routes_in_range = [r for r in routes_in_range if _competencia_in_period(getattr(r, "date", None))]
 
     effective_ajudante_ids = set()
     for d in devolucoes:

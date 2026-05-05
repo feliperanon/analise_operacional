@@ -3809,23 +3809,29 @@ def _kpi_devolucao_mes_registros(
     month_end_str: str,
     motorista_ids: Optional[List[int]],
 ) -> tuple[float, int]:
-    """Soma e quantidade na tabela Devolucao (data romaneio no mês) — alinha com /devolucoes."""
+    """Soma e quantidade na tabela Devolucao no mês por competência operacional."""
+    from utils.business_calendar import competence_date_str
+
     if not motorista_ids:
         return 0.0, 0
-    q_sum = (
-        select(func.coalesce(func.sum(models.Devolucao.valor), 0.0))
-        .where(models.Devolucao.data_romaneio >= month_start_str)
-        .where(models.Devolucao.data_romaneio <= month_end_str)
+    d0 = datetime.strptime(month_start_str, "%Y-%m-%d").date()
+    d1 = datetime.strptime(month_end_str, "%Y-%m-%d").date()
+    window_start = (d0 - timedelta(days=10)).strftime("%Y-%m-%d")
+    window_end = (d1 + timedelta(days=10)).strftime("%Y-%m-%d")
+    q = (
+        select(models.Devolucao)
+        .where(models.Devolucao.data_romaneio >= window_start)
+        .where(models.Devolucao.data_romaneio <= window_end)
         .where(models.Devolucao.motorista_id.in_(motorista_ids))
     )
-    q_cnt = (
-        select(func.count(models.Devolucao.id))
-        .where(models.Devolucao.data_romaneio >= month_start_str)
-        .where(models.Devolucao.data_romaneio <= month_end_str)
-        .where(models.Devolucao.motorista_id.in_(motorista_ids))
-    )
-    total_v = float(session.exec(q_sum).one() or 0.0)
-    cnt = int(session.exec(q_cnt).one() or 0)
+    devs = session.exec(q).all()
+    filtered = []
+    for d in devs:
+        comp = competence_date_str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None)) or str(getattr(d, "data_romaneio", "") or "")[:10]
+        if month_start_str <= comp <= month_end_str:
+            filtered.append(d)
+    total_v = float(sum(float(getattr(d, "valor", 0) or 0.0) for d in filtered))
+    cnt = int(len(filtered))
     return total_v, cnt
 
 
@@ -4237,13 +4243,21 @@ async def dashboard_entry(
         next_month_start = selected_date.replace(month=selected_date.month + 1, day=1)
     month_start_str = month_start.strftime("%Y-%m-%d")
     month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
-    routes_month = session.exec(
+    from utils.business_calendar import competence_date_str
+    window_start = (month_start - timedelta(days=10)).strftime("%Y-%m-%d")
+    window_end = (next_month_start + timedelta(days=10)).strftime("%Y-%m-%d")
+    routes_month_window = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date >= month_start_str)
-        .where(models.Route.date <= month_end_str)
+        .where(models.Route.date >= window_start)
+        .where(models.Route.date <= window_end)
         .where(models.Route.employee_id.in_(employee_ids))
     ).all()
+    routes_month = []
+    for r in routes_month_window:
+        comp = competence_date_str(getattr(r, "date", None)) or str(getattr(r, "date", "") or "")[:10]
+        if month_start_str <= comp <= month_end_str:
+            routes_month.append(r)
     _, n_done_mes = counts_devolucao_rotas_concluidas(routes_month)
     mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(
         session, month_start_str, month_end_str, employee_id_list if employee_id_list else None
@@ -4626,13 +4640,21 @@ async def api_dashboard_tv_data(
         next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1) if selected_date.month == 12 else selected_date.replace(month=selected_date.month + 1, day=1)
         month_start_str = month_start.strftime("%Y-%m-%d")
         month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
-        routes_month = session.exec(
+        from utils.business_calendar import competence_date_str
+        window_start = (month_start - timedelta(days=10)).strftime("%Y-%m-%d")
+        window_end = (next_month_start + timedelta(days=10)).strftime("%Y-%m-%d")
+        routes_month_window = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
-            .where(models.Route.date >= month_start_str)
-            .where(models.Route.date <= month_end_str)
+            .where(models.Route.date >= window_start)
+            .where(models.Route.date <= window_end)
             .where(models.Route.employee_id.in_(employee_ids))
         ).all()
+        routes_month = []
+        for r in routes_month_window:
+            comp = competence_date_str(getattr(r, "date", None)) or str(getattr(r, "date", "") or "")[:10]
+            if month_start_str <= comp <= month_end_str:
+                routes_month.append(r)
         _, n_done_mes_tv = counts_devolucao_rotas_concluidas(routes_month)
         mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(session, month_start_str, month_end_str, employee_ids if employee_ids else None)
         devolucao_mes = {
