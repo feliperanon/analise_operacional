@@ -15,10 +15,13 @@
 <p class="text-xs text-gray-500 dark:text-gray-400">Revisão operacional com ajuste de responsabilidade, edição rápida e consolidado por equipe</p>
 {% endblock %}
 
+{% block head_pre_alpine %}
+<script src="/static/js/pages/devolucoes-avaliar-page.js" defer></script>
+{% endblock %}
+
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
 <link rel="stylesheet" href="/static/css/pages/devolucoes.css">
-<script src="/static/js/pages/devolucoes-avaliar-page.js" defer></script>
 {% endblock %}
 
 {% block content %}
