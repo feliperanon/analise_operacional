@@ -1,0 +1,208 @@
+.ga-employee-theme.employees-page.relatorio-driver-page {
+  position: relative;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-table-wrap {
+  position: relative;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page [data-page-loading] {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(2px);
+  z-index: 20;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page.relatorio-driver-page--navigating [data-page-loading] {
+  display: flex;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-page__selected {
+  align-items: center;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  max-height: 21rem;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-picker-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-lg);
+  background: var(--sys-bg-subtle);
+  padding: 0.8rem 0.9rem;
+  color: var(--sys-text-body);
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-picker-option:hover {
+  border-color: var(--sys-border-strong);
+  background: rgb(239 246 255 / 0.45);
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-picker-option input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-picker-option__text {
+  line-height: 1.35;
+  font-size: 0.92rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-modal-card {
+  box-shadow: var(--sys-shadow-sm);
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-card {
+  overflow: hidden;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-stat {
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-lg);
+  background: var(--sys-bg-subtle);
+  padding: 0.85rem 0.95rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-stat__label {
+  display: block;
+  color: var(--sys-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-stat__value {
+  display: block;
+  margin-top: 0.28rem;
+  color: var(--sys-text-primary);
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1.32;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-section {
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-lg);
+  background: var(--sys-surface);
+  padding: 1rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-section__title {
+  color: var(--sys-text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-section__subtitle {
+  margin-top: 0.35rem;
+  color: var(--sys-text-muted);
+  font-size: 0.84rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-reasons span {
+  border-radius: 9999px;
+  border: 1px solid var(--sys-border);
+  background: var(--sys-bg-subtle);
+  color: var(--sys-text-body);
+  font-size: 0.78rem;
+  padding: 0.42rem 0.7rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.9rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-table th,
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-table td {
+  padding: 0.72rem 0.5rem;
+  border-top: 1px solid var(--sys-border);
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.84rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-table thead th {
+  border-top: 0;
+  color: var(--sys-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-empty {
+  margin-top: 0.9rem;
+  color: var(--sys-text-muted);
+  font-size: 0.92rem;
+}
+
+.ga-employee-theme.employees-page.relatorio-driver-page .line-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-picker-grid,
+  .ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-table th,
+  .ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-detail-table td {
+    font-size: 0.79rem;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+  }
+}
+
+html.dark .ga-employee-theme.employees-page.relatorio-driver-page [data-page-loading] {
+  background: rgb(3 7 18 / 0.62);
+}
+
+html.dark .ga-employee-theme.employees-page.relatorio-driver-page .relatorio-driver-picker-option:hover {
+  background: rgb(30 58 138 / 0.18);
+}

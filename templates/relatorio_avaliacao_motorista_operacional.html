@@ -1,0 +1,531 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Avaliacao operacional de motoristas · Gestao Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / BI &amp; Metricas / Avaliacao de motoristas</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Avaliacao operacional de motoristas</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Resumo diario de meta de devolucao, checklist e operacao por motorista</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/relatorio-avaliacao-motorista.css">
+<script src="/static/js/pages/relatorio-avaliacao-motorista-page.js" defer></script>
+{% endblock %}
+
+{% block content %}
+{% set _f = filters or {} %}
+{% set _pg = pagination or {} %}
+{% set _k = kpi or {} %}
+{% set _links = links or {} %}
+{% set _view = view or 'todos' %}
+
+<div
+  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3 relatorio-driver-page"
+  data-page="relatorio-avaliacao-motorista"
+  data-current-date="{{ date }}"
+  data-detail-endpoint="/api/relatorio-avaliacao-motorista/detail"
+  lang="pt-BR"
+>
+  {% if load_error %}
+  <div id="page-alert" class="sys-alert sys-alert--danger flex items-center gap-3" role="alert">
+    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <span class="min-w-0 flex-1">{{ load_error }}</span>
+    <button type="button" class="emp-modal-close shrink-0" data-dismiss-alert aria-label="Fechar">×</button>
+  </div>
+  {% elif message %}
+  <div id="page-alert" class="sys-alert {% if level == 'error' %}sys-alert--danger{% elif level == 'success' %}sys-alert--success{% else %}sys-alert--info{% endif %} flex items-center gap-3" role="alert">
+    <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      {% if level == 'success' %}
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+      {% else %}
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      {% endif %}
+    </svg>
+    <span class="min-w-0 flex-1">{{ message }}</span>
+    <button type="button" class="emp-modal-close shrink-0" data-dismiss-alert aria-label="Fechar">×</button>
+  </div>
+  {% else %}
+  <div id="page-alert" class="hidden"></div>
+  {% endif %}
+
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-6m3 6v-4m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+            BI operacional
+          </span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Leitura rapida da operacao do dia</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
+            Mesmo fluxo visual da pagina de colaboradores, agora com foco em meta de devolucao, checklist e operacao por motorista.
+          </p>
+          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              Data: {{ date_fmt }}
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              {{ _k.get('total') or 0 }} motorista(s) no recorte
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              {% if selected_driver_ids %}
+              {{ (selected_driver_ids or [])|length }} selecionado(s)
+              {% else %}
+              Todos os motoristas
+              {% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+          <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+            <span class="employees-cta__icon" aria-hidden="true">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+            </span>
+            <span class="employees-cta__label">Operacoes</span>
+            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </button>
+          <div x-show="open" x-cloak x-transition @click.outside="open = false" class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+            <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Acoes do recorte</p>
+            <button type="button" class="employees-menu-item" @click="open = false" data-open-modal="batchModal">
+              <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 12h10m-10 5h16"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Operacoes em lote</span>
+                <span class="employees-menu-item__hint">Impressao e CSV do filtro atual</span>
+              </span>
+            </button>
+            <a href="{{ _links.get('export', '/relatorio-avaliacao-motorista/export.csv') }}" class="employees-menu-item" @click="open = false">
+              <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Exportar CSV</span>
+                <span class="employees-menu-item__hint">Resumo filtrado</span>
+              </span>
+            </a>
+            <a href="{{ _links.get('print', '/relatorio-avaliacao-motorista/impressao') }}" target="_blank" rel="noopener" class="employees-menu-item" @click="open = false">
+              <span class="employees-menu-item__icon employees-menu-item__icon--slate" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 18H5a2 2 0 01-2-2v-5a2 2 0 012-2h14a2 2 0 012 2v5a2 2 0 01-2 2h-1M6 14h12v8H6v-8z"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Imprimir recorte</span>
+                <span class="employees-menu-item__hint">Visao detalhada por motorista</span>
+              </span>
+            </a>
+          </div>
+        </div>
+
+        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" data-open-modal="gerarRelatorioModal">
+          <span class="employees-cta__icon" aria-hidden="true">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          </span>
+          <span class="employees-cta__label">Gerar avaliacao</span>
+        </button>
+
+        <a href="{{ _links.get('print', '/relatorio-avaliacao-motorista/impressao') }}" target="_blank" rel="noopener" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">Impressao</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo da avaliacao">
+      <a href="{{ _links.get('todos', '/relatorio-avaliacao-motorista') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _view == 'todos' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Avaliados</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value tabular-nums">{{ _k.get('total') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-6m3 6v-4m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Com busca e filtros atuais</span></div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('concluidos', '/relatorio-avaliacao-motorista') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _view == 'concluidos' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Concluidos</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value tabular-nums">{{ _k.get('concluidos') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Meta e checklist em ordem</span></div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('pendentes', '/relatorio-avaliacao-motorista') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _view == 'pendentes' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Pendentes</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ _k.get('pendentes') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M12 8V4m0 16v-4"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Checklist pendente</span></div>
+        </div>
+      </a>
+
+      <a href="{{ _links.get('criticos', '/relatorio-avaliacao-motorista') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _view == 'criticos' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Criticos</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ _k.get('criticos') or 0 }}</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Acima da meta de devolucao</span></div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <form id="relatorioFilterForm" method="GET" action="/relatorio-avaliacao-motorista" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+    <input type="hidden" name="page" value="1">
+    <input type="hidden" name="view" value="{{ _view if _view != 'todos' else '' }}">
+    {% for item in selected_driver_ids or [] %}
+    <input type="hidden" name="driver_id" value="{{ item }}">
+    {% endfor %}
+    <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+      <div class="employees-filter-bar__inner">
+        <div class="employees-filter-bar__primary">
+          <div class="employees-filter-bar__primary-scroll">
+            <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
+            <div class="ops-toolbar-search employees-filter-bar__search">
+              <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="search" name="q" value="{{ _f.get('q') or '' }}" placeholder="Motorista, placa, ajudante ou cliente" class="ops-toolbar-search__input" data-debounce-submit="true" autocomplete="off">
+            </div>
+            <input type="date" name="date" value="{{ date }}" class="ops-toolbar-control px-3" aria-label="Data">
+            <select name="status" class="ops-toolbar-control px-3" aria-label="Status">
+              <option value="">Todos os status</option>
+              <option value="concluido" {% if _f.get('status') == 'concluido' %}selected{% endif %}>Concluido</option>
+              <option value="atencao" {% if _f.get('status') == 'atencao' %}selected{% endif %}>Atencao</option>
+              <option value="pendente" {% if _f.get('status') == 'pendente' %}selected{% endif %}>Pendente</option>
+              <option value="critico" {% if _f.get('status') == 'critico' %}selected{% endif %}>Critico</option>
+            </select>
+            <select name="checklist" class="ops-toolbar-control px-3" aria-label="Checklist">
+              <option value="">Checklist: todos</option>
+              <option value="com" {% if _f.get('checklist') == 'com' %}selected{% endif %}>Com checklist</option>
+              <option value="sem" {% if _f.get('checklist') == 'sem' %}selected{% endif %}>Sem checklist</option>
+            </select>
+            <select name="per_page" class="ops-toolbar-control px-3" aria-label="Itens por pagina">
+              {% for n in [10, 25, 50] %}
+              <option value="{{ n }}" {% if _pg.get('per_page') == n %}selected{% endif %}>{{ n }} por pagina</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="ops-toolbar-control px-3 text-left" data-open-modal="gerarRelatorioModal" aria-label="Selecionar motoristas">
+              {% if selected_driver_ids %}
+              Motoristas: {{ (selected_driver_ids or [])|length }}
+              {% else %}
+              Filtrar motoristas
+              {% endif %}
+            </button>
+          </div>
+        </div>
+        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
+        <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap">
+          <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
+          <a href="{{ _links.get('hoje', '/relatorio-avaliacao-motorista') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _view == 'hoje' %}filter-btn--active{% endif %}">Hoje</a>
+          <a href="{{ _links.get('todos', '/relatorio-avaliacao-motorista') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _view == 'todos' %}filter-btn--active{% endif %}">Todos</a>
+          <a href="{{ _links.get('pendentes', '/relatorio-avaliacao-motorista') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _view == 'pendentes' %}filter-btn--active{% endif %}">Pendentes</a>
+          <a href="{{ _links.get('concluidos', '/relatorio-avaliacao-motorista') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _view == 'concluidos' %}filter-btn--active{% endif %}">Concluidos</a>
+          <a href="{{ _links.get('criticos', '/relatorio-avaliacao-motorista') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _view == 'criticos' %}filter-btn--active{% endif %}">Criticos</a>
+          <a href="{{ _links.get('clear', '/relatorio-avaliacao-motorista') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar filtros</a>
+        </div>
+      </div>
+    </div>
+    {% if selected_driver_names %}
+    <div class="relatorio-driver-page__selected mt-3 flex flex-wrap gap-2 text-xs">
+      {% for name in selected_driver_names %}
+      <span class="employees-pill employees-pill--neutral">{{ name }}</span>
+      {% endfor %}
+      {% if selected_driver_names_more %}
+      <span class="employees-pill employees-pill--neutral">+{{ selected_driver_names_more }} outros</span>
+      {% endif %}
+    </div>
+    {% endif %}
+  </form>
+
+  <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+      <div class="min-w-0 flex-1">
+        <p class="employees-table-panel__kicker">Listagem</p>
+        <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Motoristas do dia</h3>
+        <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No mobile, cada linha vira card. O detalhe completo abre em modal sem recarregar a tela.</p>
+      </div>
+      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+        {% if _pg.get('total_count', 0) %}
+        Exibindo <strong>{{ _pg.get('page_start', 0) }}</strong>-<strong>{{ _pg.get('page_end', 0) }}</strong> de <strong>{{ _pg.get('total_count', 0) }}</strong>.
+        {% elif has_any_rows %}
+        Nenhum resultado encontrado com os filtros atuais.
+        {% else %}
+        Nenhuma avaliacao encontrada para a data selecionada.
+        {% endif %}
+        <div class="mt-2 flex flex-wrap justify-end gap-2">
+          {% if has_any_rows %}
+          <button type="button" class="sys-btn sys-btn--secondary" data-open-modal="batchModal">Operacoes em lote</button>
+          {% endif %}
+          <a href="{{ _pg.get('prev_href', '#') }}" class="sys-btn sys-btn--secondary {% if not _pg.get('has_prev') %}pointer-events-none opacity-50{% endif %}">Anterior</a>
+          <span class="employees-text-caption inline-flex items-center px-1.5">Pag. {{ _pg.get('page', 1) }} / {{ _pg.get('total_pages', 1) }}</span>
+          <a href="{{ _pg.get('next_href', '#') }}" class="sys-btn sys-btn--secondary {% if not _pg.get('has_next') %}pointer-events-none opacity-50{% endif %}">Proxima</a>
+        </div>
+      </div>
+    </div>
+
+    {% if rows %}
+    <div class="sys-table-wrap sys-table-wrap--x-scroll relatorio-driver-table-wrap">
+      <div class="relatorio-driver-page__loading hidden" data-page-loading>
+        <p class="text-sm employees-text-muted">Aplicando filtros...</p>
+      </div>
+      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[980px]" id="employeesTable">
+        <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+          <tr>
+            <th class="employees-data-table__th px-2 py-2 pl-5">Motorista</th>
+            <th class="employees-data-table__th px-2 py-2">Veiculo</th>
+            <th class="employees-data-table__th px-2 py-2">Operacao</th>
+            <th class="employees-data-table__th px-2 py-2">Expedido</th>
+            <th class="employees-data-table__th px-2 py-2">Devolucao</th>
+            <th class="employees-data-table__th px-2 py-2">Checklist</th>
+            <th class="employees-data-table__th px-2 py-2">Status</th>
+            <th class="employees-data-table__th employees-data-table__th--static px-2 py-2">Acoes</th>
+          </tr>
+        </thead>
+        <tbody class="employees-data-table__body divide-y" id="tableBody">
+          {% for row in rows %}
+          <tr class="group employee-row employees-data-table__row transition-colors" id="driver-row-{{ row.driver_id }}">
+            <td class="employee-cell-primary px-2 py-2 pl-5 align-middle" data-label="Motorista">
+              <div class="employee-primary-content min-w-0">
+                <span class="employee-name block truncate font-medium employees-text-strong">{{ row.motorista }}</span>
+                <div class="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs employees-text-muted">
+                  <span>{{ row.turnos_label }}</span>
+                  <span>&middot;</span>
+                  <span>{{ row.total_clientes }} clientes</span>
+                  <span>&middot;</span>
+                  <span>{{ row.total_paradas }} paradas</span>
+                </div>
+                <p class="mt-1 truncate text-xs employees-text-muted">Top cliente: {{ row.top_cliente }}</p>
+              </div>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Veiculo">
+              <div class="flex min-w-0 flex-col">
+                <span class="font-medium employees-text-strong">{{ row.placa }}</span>
+                <span class="employees-text-caption truncate text-xs">{{ row.modelo }}</span>
+              </div>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Operacao">
+              <div class="flex min-w-0 flex-col">
+                <span class="font-medium employees-text-strong">{{ row.hora_inicio }} → {{ row.hora_fim }}</span>
+                <span class="employees-text-caption text-xs">{{ row.tempo_operando_fmt }}</span>
+                <span class="employees-text-caption text-xs">KM: {{ row.km_total_fmt }}</span>
+              </div>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle tabular-nums" data-label="Expedido">
+              <div class="flex min-w-0 flex-col">
+                <span class="font-medium employees-text-strong">{{ row.saiu_valor_fmt }}</span>
+                <span class="employees-text-caption text-xs">Ajudantes: {{ row.ajudantes_label }}</span>
+              </div>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Devolucao">
+              <div class="flex min-w-0 flex-col">
+                <span class="font-medium {% if row.status_code == 'critico' %}text-orange-700 dark:text-orange-300{% else %}employees-text-strong{% endif %}">{{ row.devolucao_valor_fmt }}</span>
+                <span class="employees-text-caption text-xs">{{ row.devolucao_pct_fmt }} / meta {{ row.meta_pct_fmt }}</span>
+              </div>
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap" data-label="Checklist">
+              {% if row.checklist_badge == 'ok' %}
+              <span class="sys-badge sys-badge--ok">{{ row.checklist_label }}</span>
+              {% else %}
+              <span class="sys-badge sys-badge--critical">{{ row.checklist_label }}</span>
+              {% endif %}
+            </td>
+            <td class="employees-data-table__cell px-2 py-2 align-middle" data-label="Status">
+              <div class="flex min-w-0 flex-col gap-1">
+                {% if row.status_badge == 'critical' %}
+                <span class="sys-badge sys-badge--critical w-fit">{{ row.status_label }}</span>
+                {% elif row.status_badge == 'alert' %}
+                <span class="sys-badge sys-badge--alert w-fit">{{ row.status_label }}</span>
+                {% else %}
+                <span class="sys-badge sys-badge--ok w-fit">{{ row.status_label }}</span>
+                {% endif %}
+                <span class="employees-text-caption line-clamp-2 text-xs">{{ row.status_reason }}</span>
+              </div>
+            </td>
+            <td class="employee-actions-cell px-2 py-2 align-middle" data-label="Acoes">
+              <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
+                <button type="button" class="employee-action-btn employee-action-btn--edit" title="Detalhes" data-open-detail data-driver-id="{{ row.driver_id }}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                </button>
+                <a href="{{ row.print_href }}" target="_blank" rel="noopener" class="employee-action-btn employee-action-btn--return" title="Imprimir">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 18H5a2 2 0 01-2-2v-5a2 2 0 012-2h14a2 2 0 012 2v5a2 2 0 01-2 2h-1M6 14h12v8H6v-8z"></path></svg>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif has_any_rows %}
+    <div class="sys-empty-state m-6">
+      <p class="font-medium text-slate-800 dark:text-slate-100">Nenhum motorista encontrado neste recorte.</p>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Ajuste busca, status, checklist ou a selecao de motoristas.</p>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <a href="{{ _links.get('clear', '/relatorio-avaliacao-motorista') }}" class="sys-btn sys-btn--secondary">Limpar filtros</a>
+        <button type="button" class="sys-btn sys-btn--primary" data-open-modal="gerarRelatorioModal">Reabrir filtros</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="sys-empty-state m-6">
+      <p class="font-medium text-slate-800 dark:text-slate-100">Nenhuma avaliacao encontrada para {{ date_fmt }}.</p>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Selecione outra data, ajuste os motoristas ou volte para hoje.</p>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <a href="{{ _links.get('hoje', '/relatorio-avaliacao-motorista') }}" class="sys-btn sys-btn--primary">Ir para hoje</a>
+        <button type="button" class="sys-btn sys-btn--secondary" data-open-modal="gerarRelatorioModal">Escolher data</button>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div id="gerarRelatorioModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-20 md:pt-16" role="dialog" aria-modal="true" aria-labelledby="gerar-relatorio-title">
+  <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-4xl relatorio-driver-modal-card">
+    <div class="mb-4 flex items-start justify-between gap-3">
+      <div>
+        <p class="employees-text-caption text-[11px] font-semibold uppercase tracking-wider text-slate-500">Filtros avancados</p>
+        <h3 id="gerar-relatorio-title" class="sys-section-heading mt-1 text-lg">Gerar avaliacao</h3>
+        <p class="employees-text-muted mt-1 text-xs">Refina data, recorte de motoristas e mantem o restante dos filtros da tela.</p>
+      </div>
+      <button type="button" class="emp-modal-close shrink-0" data-close-modal="gerarRelatorioModal" aria-label="Fechar">×</button>
+    </div>
+    <form method="get" action="/relatorio-avaliacao-motorista" class="space-y-4">
+      <input type="hidden" name="q" value="{{ _f.get('q') or '' }}">
+      <input type="hidden" name="status" value="{{ _f.get('status') or '' }}">
+      <input type="hidden" name="checklist" value="{{ _f.get('checklist') or '' }}">
+      <input type="hidden" name="per_page" value="{{ _pg.get('per_page', 10) }}">
+      <input type="hidden" name="view" value="{{ _view if _view != 'todos' else '' }}">
+      <input type="hidden" name="page" value="1">
+
+      <div class="grid gap-4 lg:grid-cols-[15rem,minmax(0,1fr)]">
+        <section class="sys-section">
+          <label class="sys-section__label sys-section__label--field" for="ram-date">Data</label>
+          <input id="ram-date" type="date" name="date" value="{{ date }}" class="sys-input mt-1 w-full">
+          <p class="mt-3 text-xs employees-text-muted">O recorte principal do relatorio sempre parte de um unico dia operacional.</p>
+          <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-700 dark:bg-slate-900/40">
+            <p class="font-semibold employees-text-strong">Recorte atual</p>
+            <p class="mt-1 employees-text-muted">{{ _k.get('total') or 0 }} motorista(s) no filtro.</p>
+            <p class="mt-1 employees-text-muted">{{ _k.get('criticos') or 0 }} critico(s) e {{ _k.get('pendentes') or 0 }} pendente(s).</p>
+          </div>
+        </section>
+
+        <section class="sys-section min-h-0">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p class="sys-section__label mb-0">Motoristas</p>
+              <p class="mt-1 text-xs employees-text-muted">Toque para selecionar. Deixe sem marcar para considerar todos.</p>
+            </div>
+            <button type="button" class="sys-btn sys-btn--secondary text-xs" data-clear-driver-picker>Limpar selecao</button>
+          </div>
+          <input type="search" class="sys-input mb-3 w-full" placeholder="Filtrar por nome" data-driver-picker-search autocomplete="off">
+          <div class="relatorio-driver-picker-grid" data-driver-picker-list>
+            {% for motorista in motoristas or [] %}
+            <label class="relatorio-driver-picker-option" data-driver-picker-option data-driver-label="{{ (motorista.name or '')|lower }}">
+              <input type="checkbox" name="driver_id" value="{{ motorista.id }}" {% if motorista.id in (selected_driver_ids or []) %}checked{% endif %}>
+              <span class="relatorio-driver-picker-option__text">{{ motorista.name }}</span>
+            </label>
+            {% endfor %}
+            {% if not motoristas %}
+            <p class="text-sm employees-text-muted">Nenhum motorista disponivel para selecionar.</p>
+            {% endif %}
+          </div>
+        </section>
+      </div>
+
+      <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+        <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="gerarRelatorioModal">Cancelar</button>
+        <button type="submit" class="sys-btn sys-btn--primary">Aplicar recorte</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="batchModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="batch-modal-title">
+  <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-md relatorio-driver-modal-card">
+    <div class="mb-4 flex items-center justify-between gap-3">
+      <div>
+        <h3 id="batch-modal-title" class="sys-section-heading text-lg">Operacoes em lote</h3>
+        <p class="mt-1 text-sm employees-text-muted">A acao usa exatamente o mesmo recorte da tela.</p>
+      </div>
+      <button type="button" class="emp-modal-close shrink-0" data-close-modal="batchModal" aria-label="Fechar">×</button>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-900/40">
+      <p class="employees-text-strong">{{ _pg.get('total_count', 0) }} motorista(s) no recorte atual</p>
+      <p class="mt-2 employees-text-muted">Data base: {{ date_fmt }}. Se quiser mudar o universo antes de imprimir ou exportar, ajuste os filtros da tela.</p>
+    </div>
+
+    <div class="mt-4 space-y-2 text-xs employees-text-muted">
+      <p>CSV: exporta o resumo operacional filtrado.</p>
+      <p>Impressao: abre a visao detalhada por motorista em nova aba para uso operacional e assinatura, se necessario.</p>
+    </div>
+
+    <div class="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+      <button type="button" class="sys-btn sys-btn--secondary" data-close-modal="batchModal">Fechar</button>
+      <a href="{{ _links.get('export', '/relatorio-avaliacao-motorista/export.csv') }}" class="sys-btn sys-btn--secondary {% if not _pg.get('total_count', 0) %}pointer-events-none opacity-50{% endif %}">Exportar CSV</a>
+      <a href="{{ _links.get('print', '/relatorio-avaliacao-motorista/impressao') }}" target="_blank" rel="noopener" class="sys-btn sys-btn--primary {% if not _pg.get('total_count', 0) %}pointer-events-none opacity-50{% endif %}">Imprimir recorte</a>
+    </div>
+  </div>
+</div>
+
+<div id="detailModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-20 md:pt-16" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title">
+  <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-5xl relatorio-driver-detail-card">
+    <div class="mb-4 flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <p class="employees-text-caption text-[11px] font-semibold uppercase tracking-wider text-slate-500">Detalhes do motorista</p>
+        <h3 id="detail-modal-title" class="sys-section-heading mt-1 text-lg">Carregando detalhes...</h3>
+        <p class="mt-1 text-sm employees-text-muted" data-detail-subtitle>Resumo de operacao, top clientes e paradas.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="#" target="_blank" rel="noopener" class="sys-btn sys-btn--secondary hidden" data-detail-print>Imprimir</a>
+        <button type="button" class="emp-modal-close shrink-0" data-close-modal="detailModal" aria-label="Fechar">×</button>
+      </div>
+    </div>
+    <div data-detail-body class="relatorio-driver-detail-body">
+      <div class="sys-empty-state">
+        <p class="font-medium text-slate-800 dark:text-slate-100">Selecione um motorista para abrir o detalhe.</p>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">O modal carrega apenas quando necessario para manter a pagina leve.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -15,7 +15,7 @@ from fastapi import APIRouter, Request, Depends, Query
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from sqlmodel import Session, select
-from sqlalchemy import func
+from sqlalchemy import func, or_, and_
 from typing import List
 
 import models
@@ -4269,17 +4269,31 @@ def _build_bi_devolucoes_dataset(
     if date_i > date_f:
         date_i, date_f = date_f, date_i
 
+    period_start, period_end, window_start, window_end = _competence_period_window(date_i, date_f)
+    date_str_i = window_start
+    date_str_f = window_end
+
     # --- carregar cadastros ---
     motivos_all = session.exec(select(models.DevolucaoMotivo)).all()
     resps_all = session.exec(select(models.DevolucaoResponsabilidade)).all()
     mot_map = {m.id: m for m in motivos_all}
     rsp_map = {r.id: r for r in resps_all}
 
-    # --- query principal ---
+    # --- query principal (janela alargada; corte real = competência em [period_start, period_end]) ---
     q = (
         select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= date_i.strftime("%Y-%m-%d"))
-        .where(models.Devolucao.data_romaneio <= date_f.strftime("%Y-%m-%d"))
+        .where(
+            or_(
+                and_(
+                    models.Devolucao.data_romaneio >= window_start,
+                    models.Devolucao.data_romaneio <= window_end,
+                ),
+                and_(
+                    models.Devolucao.data_entrega >= window_start,
+                    models.Devolucao.data_entrega <= window_end,
+                ),
+            )
+        )
     )
     if responsabilidade_id:
         q = q.where(models.Devolucao.responsabilidade_id == responsabilidade_id)
@@ -4309,7 +4323,16 @@ def _build_bi_devolucoes_dataset(
         else:
             q = q.where(models.Devolucao.client_id.in_(client_ids_dev))
 
-    devs = session.exec(q.order_by(models.Devolucao.data_romaneio.desc())).all()
+    devs_raw = session.exec(q.order_by(models.Devolucao.data_romaneio.desc())).all()
+
+    def _dev_op_date_raw(d: models.Devolucao) -> str:
+        return str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None) or "").strip()[:10]
+
+    devs = [d for d in devs_raw if _in_competence_period(_dev_op_date_raw(d), period_start, period_end)]
+    devs.sort(
+        key=lambda x: (_competence_date_or_self(_dev_op_date_raw(x)), x.data_romaneio or ""),
+        reverse=True,
+    )
 
     def _parse_route_helper_ids(helpers_json: Optional[str]) -> List[int]:
         """Parse delivery_helpers_json da rota para lista de employee_id."""
@@ -4371,8 +4394,6 @@ def _build_bi_devolucoes_dataset(
     # Busca rotas de entrega no período com helpers e monta lookup para casar com devoluções
     route_by_client_driver_date: dict = {}  # (client_id, employee_id, date_str) -> [helper_ids]
     try:
-        date_str_i = date_i.strftime("%Y-%m-%d")
-        date_str_f = date_f.strftime("%Y-%m-%d")
         routes_in_range = session.exec(
             select(models.Route)
             .where(models.Route.date >= date_str_i)
@@ -4442,13 +4463,11 @@ def _build_bi_devolucoes_dataset(
 
     # Mesmo critério da Central de Comando (dashboard TV / devolucao_mes em main.py):
     # % = paradas com status "devolucao" / paradas concluídas ("entregue" + "devolucao"), só rotas type=delivery.
-    date_str_i = date_i.strftime("%Y-%m-%d")
-    date_str_f = date_f.strftime("%Y-%m-%d")
     rq_base = (
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date >= date_str_i)
-        .where(models.Route.date <= date_str_f)
+        .where(models.Route.date >= window_start)
+        .where(models.Route.date <= window_end)
     )
     if motorista_id:
         rq_base = rq_base.where(models.Route.employee_id == motorista_id)
@@ -4458,6 +4477,10 @@ def _build_bi_devolucoes_dataset(
         else:
             rq_base = rq_base.where(models.Route.client_id.in_(client_ids_dev))
     routes_delivery_period = session.exec(rq_base).all()
+    routes_delivery_period = [
+        r for r in routes_delivery_period
+        if _in_competence_period(getattr(r, "date", None), period_start, period_end)
+    ]
     pct_devolucao_valor = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
     # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
@@ -4549,7 +4572,7 @@ def _build_bi_devolucoes_dataset(
         vendedor_nome = vendedor.name if vendedor else "—"
 
         val = float(d.valor or 0)
-        dt_str = str(d.data_romaneio or "")[:10]
+        dt_str = _competence_date_or_self(_dev_op_date_raw(d))
 
         # per_day
         slot = per_day.setdefault(dt_str, {"data": dt_str, "qtd": 0, "valor": 0.0})
