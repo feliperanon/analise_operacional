@@ -154,6 +154,49 @@ def effective_ajudante_id(
     return aid
 
 
+def effective_ajudante_ids_for_summary(
+    d: models.Devolucao,
+    route_helpers: dict,
+    route_by_client_driver_date: dict,
+    session_helpers_by_driver_date: dict,
+) -> List[int]:
+    """Retorna TODOS os ajudantes efetivos da devolução para o resumo por ajudante."""
+    out: List[int] = []
+    seen = set()
+
+    def _add_many(ids: Optional[List[int]], motorista_id: Optional[int]) -> None:
+        if not ids:
+            return
+        drv = int(motorista_id) if motorista_id else 0
+        for raw in ids:
+            try:
+                hid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if hid <= 0 or hid == drv or hid in seen:
+                continue
+            seen.add(hid)
+            out.append(hid)
+
+    if d.ajudante_id:
+        _add_many([d.ajudante_id], d.motorista_id)
+
+    helper_ids = None
+    if getattr(d, "route_id", None) and route_helpers.get(d.route_id):
+        helper_ids = route_helpers[d.route_id]
+    if not helper_ids and d.client_id and d.motorista_id and d.data_romaneio:
+        dt_key = str(d.data_romaneio)[:10]
+        key = (d.client_id, d.motorista_id, dt_key)
+        helper_ids = route_by_client_driver_date.get(key)
+    if not helper_ids and d.motorista_id and d.data_romaneio:
+        dt_key = str(d.data_romaneio)[:10]
+        session_key = (dt_key, d.motorista_id)
+        helper_ids = session_helpers_by_driver_date.get(session_key)
+
+    _add_many(helper_ids, d.motorista_id)
+    return out
+
+
 def load_ajustes_map(session: Session) -> Dict[int, Tuple[bool, bool]]:
     ajustes: Dict[int, Tuple[bool, bool]] = {}
     for aj in session.exec(select(models.DevolucaoAjusteResponsabilidade)).all():
@@ -229,6 +272,34 @@ def _build_helper_maps(session: Session, date_from: str, date_to: str) -> Tuple[
         for e in all_employees
         if e and getattr(e, "name", None) and getattr(e, "id", None)
     }
+    emp_by_registration = {
+        str(getattr(e, "registration_id", "") or "").strip(): e.id
+        for e in all_employees
+        if e and getattr(e, "id", None) and str(getattr(e, "registration_id", "") or "").strip()
+    }
+    valid_employee_ids = {int(e.id) for e in all_employees if getattr(e, "id", None) is not None}
+
+    def _resolve_helper_ids(raw_value: Optional[str]) -> List[int]:
+        parsed_ids = parse_route_helper_ids(raw_value)
+        parsed_by_name = parse_helpers_to_ids(raw_value, emp_by_name)
+        out: List[int] = []
+        seen = set()
+        for raw in (parsed_ids + parsed_by_name):
+            try:
+                hid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            resolved = hid
+            if resolved not in valid_employee_ids:
+                reg_key = str(resolved)
+                mapped = emp_by_registration.get(reg_key)
+                if mapped:
+                    resolved = int(mapped)
+            if resolved not in valid_employee_ids or resolved in seen:
+                continue
+            seen.add(resolved)
+            out.append(resolved)
+        return out
 
     devolucoes = session.exec(
         select(models.Devolucao)
@@ -242,7 +313,7 @@ def _build_helper_maps(session: Session, date_from: str, date_to: str) -> Tuple[
         routes_linked = session.exec(select(models.Route).where(models.Route.id.in_(route_ids))).all()
         for r in routes_linked:
             raw = getattr(r, "delivery_helpers_json", None)
-            ids = parse_route_helper_ids(raw) or parse_helpers_to_ids(raw, emp_by_name)
+            ids = _resolve_helper_ids(raw)
             if ids:
                 route_helpers[r.id] = ids
 
@@ -256,7 +327,7 @@ def _build_helper_maps(session: Session, date_from: str, date_to: str) -> Tuple[
     ).all()
     for r in routes_in_range:
         raw = getattr(r, "delivery_helpers_json", None)
-        ids = parse_route_helper_ids(raw) or parse_helpers_to_ids(raw, emp_by_name)
+        ids = _resolve_helper_ids(raw)
         if ids and r.client_id and r.employee_id:
             key = (r.client_id, r.employee_id, str(r.date)[:10])
             if key not in route_by_client_driver_date:
@@ -270,7 +341,7 @@ def _build_helper_maps(session: Session, date_from: str, date_to: str) -> Tuple[
     ).all()
     for ds in sessions_in_range:
         raw = getattr(ds, "helpers_json", None)
-        ids = parse_route_helper_ids(raw) or parse_helpers_to_ids(raw, emp_by_name)
+        ids = _resolve_helper_ids(raw)
         if ids and ds.employee_id:
             key = (str(getattr(ds, "date", "") or "")[:10], ds.employee_id)
             if key not in session_helpers_by_driver_date:
@@ -317,11 +388,12 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
         .where(models.Route.employee_id.is_not(None))
     ).all()
 
-    effective_ajudante_ids = {
-        effective_ajudante_id(d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date)
-        for d in devolucoes
-    }
-    effective_ajudante_ids.discard(None)
+    effective_ajudante_ids = set()
+    for d in devolucoes:
+        for hid in effective_ajudante_ids_for_summary(
+            d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date
+        ):
+            effective_ajudante_ids.add(hid)
 
     emp_ids = list(
         {d.motorista_id for d in devolucoes}
@@ -352,14 +424,12 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
     out.sort(key=lambda x: (-x["devolucoes_total"], x["motorista_name"]))
 
     day_union_helpers: Dict[tuple, List[int]] = {}
-    for r in routes_in_range:
-        key_d = (str(r.date)[:10], r.employee_id)
-        raw_u = getattr(r, "delivery_helpers_json", None)
-        ids_u = parse_route_helper_ids(raw_u) or parse_helpers_to_ids(raw_u, emp_by_name)
-        drv_u = int(r.employee_id) if r.employee_id else 0
+    for (_cid, mid, dtk), hlist in route_by_client_driver_date.items():
+        key_d = (dtk, mid)
+        drv_u = int(mid) if mid else 0
         acc = day_union_helpers.setdefault(key_d, [])
         seen_u = set(acc)
-        for hid in ids_u or []:
+        for hid in hlist or []:
             try:
                 hu = int(hid)
             except (TypeError, ValueError):
@@ -371,10 +441,11 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
 
     def _helpers_for_entregue_stop(route_ent: models.Route) -> List[int]:
         key_e = (str(route_ent.date)[:10], route_ent.employee_id)
-        raw_e = getattr(route_ent, "delivery_helpers_json", None)
-        ids_e = parse_route_helper_ids(raw_e) or parse_helpers_to_ids(raw_e, emp_by_name)
-        if ids_e:
-            return ids_e
+        if getattr(route_ent, "client_id", None) and getattr(route_ent, "employee_id", None):
+            exact_key = (route_ent.client_id, route_ent.employee_id, str(route_ent.date)[:10])
+            exact_ids = route_by_client_driver_date.get(exact_key) or []
+            if exact_ids:
+                return list(exact_ids)
         sess = session_helpers_by_driver_date.get(key_e) or []
         if sess:
             return list(sess)
@@ -421,14 +492,22 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
 
     devs_by_ajudante: Dict[int, List[models.Devolucao]] = defaultdict(list)
     for d in devolucoes:
-        eid = effective_ajudante_id(d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date)
-        if eid is None:
-            continue
-        devs_by_ajudante[int(eid)].append(d)
+        helper_ids = effective_ajudante_ids_for_summary(
+            d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date
+        )
+        for eid in helper_ids:
+            devs_by_ajudante[int(eid)].append(d)
 
     out_ajudantes = []
     # Inclui ajudantes com devoluções e também os que só tiveram entregas no período.
     all_ajudante_ids = sorted(set(devs_by_ajudante.keys()) | set(ent_daily_by_ajudante.keys()))
+    # Garante nome dos ajudantes que só aparecem nas entregas (sem devolução no período).
+    missing_emp_ids = [eid for eid in all_ajudante_ids if eid not in employees]
+    if missing_emp_ids:
+        extra_emps = session.exec(select(models.Employee).where(models.Employee.id.in_(missing_emp_ids))).all()
+        for emp in extra_emps:
+            if getattr(emp, "id", None) is not None:
+                employees[int(emp.id)] = emp
     for eid in all_ajudante_ids:
         mine = devs_by_ajudante[eid]
         ent_by_d = dict(ent_daily_by_ajudante.get(eid, {}))
