@@ -32,6 +32,23 @@ _BI_MOT_RSP_CACHE: dict = {"ts": 0.0, "mot": None, "rsp": None}
 _BI_MOT_RSP_TTL_SEC = 300.0
 
 
+def _competence_period_window(date_i: date, date_f: date, pad_days: int = 10) -> tuple[str, str, str, str]:
+    start = date_i.strftime("%Y-%m-%d")
+    end = date_f.strftime("%Y-%m-%d")
+    window_start = (date_i - timedelta(days=pad_days)).strftime("%Y-%m-%d")
+    window_end = (date_f + timedelta(days=pad_days)).strftime("%Y-%m-%d")
+    return start, end, window_start, window_end
+
+
+def _competence_date_or_self(raw_date: Optional[str]) -> str:
+    return competence_date_str(raw_date) or str(raw_date or "")[:10]
+
+
+def _in_competence_period(raw_date: Optional[str], start: str, end: str) -> bool:
+    comp = _competence_date_or_self(raw_date)
+    return bool(comp) and start <= comp <= end
+
+
 def _get_cached_mot_rsp_maps(session: Session):
     now = time.monotonic()
     if _BI_MOT_RSP_CACHE["mot"] is not None and (now - _BI_MOT_RSP_CACHE["ts"]) < _BI_MOT_RSP_TTL_SEC:
@@ -896,6 +913,7 @@ def _build_bi_delivery_dataset(
     date_f = _d(date_to) or today
     if date_i > date_f:
         date_i, date_f = date_f, date_i
+    period_start, period_end, window_start, window_end = _competence_period_window(date_i, date_f)
 
     st = (status or "Todos").strip().lower()
     pl = (plate or "Todos").strip().upper()
@@ -904,8 +922,8 @@ def _build_bi_delivery_dataset(
     q = (
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date >= date_i.strftime("%Y-%m-%d"))
-        .where(models.Route.date <= date_f.strftime("%Y-%m-%d"))
+        .where(models.Route.date >= window_start)
+        .where(models.Route.date <= window_end)
     )
     if shift and shift != "Todos":
         q = q.where(models.Route.shift == shift)
@@ -916,13 +934,14 @@ def _build_bi_delivery_dataset(
     if st and st != "todos":
         q = q.where(func.lower(models.Route.delivery_status) == st)
     routes = session.exec(q.order_by(models.Route.date, models.Route.created_at)).all()
+    routes = [r for r in routes if _in_competence_period(getattr(r, "date", None), period_start, period_end)]
 
     # % devolução operacional oficial (rotas concluídas): ignora filtro de status — mesmo critério Central / informativo
     q_rotas_kpi = (
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date >= date_i.strftime("%Y-%m-%d"))
-        .where(models.Route.date <= date_f.strftime("%Y-%m-%d"))
+        .where(models.Route.date >= window_start)
+        .where(models.Route.date <= window_end)
     )
     if shift and shift != "Todos":
         q_rotas_kpi = q_rotas_kpi.where(models.Route.shift == shift)
@@ -931,6 +950,10 @@ def _build_bi_delivery_dataset(
     if pl and pl != "TODOS":
         q_rotas_kpi = q_rotas_kpi.where(models.Route.delivery_vehicle_plate == pl)
     routes_for_kpi_rotas = session.exec(q_rotas_kpi.order_by(models.Route.date, models.Route.created_at)).all()
+    routes_for_kpi_rotas = [
+        r for r in routes_for_kpi_rotas
+        if _in_competence_period(getattr(r, "date", None), period_start, period_end)
+    ]
     rotas_devolucao_count, rotas_concluidas_count = counts_devolucao_rotas_concluidas(routes_for_kpi_rotas)
     return_rate_rotas = pct_devolucao_sobre_rotas_concluidas(routes_for_kpi_rotas)
 
@@ -938,13 +961,21 @@ def _build_bi_delivery_dataset(
     if (st in ("todos", "devolucao")) and pl == "TODOS":
         qm = (
             select(models.Devolucao)
-            .where(models.Devolucao.data_romaneio >= date_i.strftime("%Y-%m-%d"))
-            .where(models.Devolucao.data_romaneio <= date_f.strftime("%Y-%m-%d"))
+            .where(models.Devolucao.data_romaneio >= window_start)
+            .where(models.Devolucao.data_romaneio <= window_end)
             .where(models.Devolucao.route_id.is_(None))
         )
         if driver_id:
             qm = qm.where(models.Devolucao.motorista_id == driver_id)
         manual = session.exec(qm.order_by(models.Devolucao.data_romaneio, models.Devolucao.created_at)).all()
+        manual = [
+            d for d in manual
+            if _in_competence_period(
+                getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None),
+                period_start,
+                period_end,
+            )
+        ]
 
     emp_ids = sorted({r.employee_id for r in routes if r.employee_id} | {d.motorista_id for d in manual if d.motorista_id})
     cli_ids = sorted({r.client_id for r in routes if r.client_id} | {d.client_id for d in manual if d.client_id})
@@ -1024,6 +1055,7 @@ def _build_bi_delivery_dataset(
         cr["valor"] += val
 
     for r in routes:
+        comp_date = _competence_date_or_self(getattr(r, "date", None)) or str(getattr(r, "date", "") or "")
         status_raw = (r.delivery_status or "pendente").strip().lower()
         # Legacy: encerramento automático foi marcado como devolução por engano → tratar como entregue
         if status_raw == "devolucao" and (r.delivery_return_reason or "").strip().upper() == "ENCERRAMENTO TARDIO AUTOMATICO":
@@ -1055,14 +1087,14 @@ def _build_bi_delivery_dataset(
                 dur_list.append(dur)
         if status_raw == "devolucao":
             returned_kg += ret_w
-            _acc_devol(r.date, driver, client, (r.delivery_return_reason or "Nao informado"), (r.delivery_return_category or "Nao informado"), "Sem Cluster", ret_v)
+            _acc_devol(comp_date, driver, client, (r.delivery_return_reason or "Nao informado"), (r.delivery_return_category or "Nao informado"), "Sem Cluster", ret_v)
         if (r.delivery_reopen_count or 0) > 0:
             reopen_routes += 1
-            reopen_heat.setdefault(r.date, {})
-            reopen_heat[r.date][driver] = reopen_heat[r.date].get(driver, 0) + int(r.delivery_reopen_count or 0)
+            reopen_heat.setdefault(comp_date, {})
+            reopen_heat[comp_date][driver] = reopen_heat[comp_date].get(driver, 0) + int(r.delivery_reopen_count or 0)
 
-        per_day.setdefault(r.date, {"date": r.date, "planned_stops": 0, "started_stops": 0, "realized_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "returned_value": 0.0})
-        d = per_day[r.date]
+        per_day.setdefault(comp_date, {"date": comp_date, "planned_stops": 0, "started_stops": 0, "realized_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "returned_value": 0.0})
+        d = per_day[comp_date]
         d["planned_stops"] += 1
         d["planned_kg"] += planned_w
         d["planned_value"] += planned_v
@@ -1108,11 +1140,11 @@ def _build_bi_delivery_dataset(
         client_window = ""
         if cli and getattr(cli, "janela_horario_inicio", None) and getattr(cli, "janela_horario_fim", None):
             client_window = f"{cli.janela_horario_inicio} - {cli.janela_horario_fim}"
-        row = {"route_id": r.id, "date": r.date, "shift": r.shift, "driver_id": r.employee_id, "driver_name": driver, "client_id": r.client_id, "client_name": client, "client_city": client_city, "client_bairro": client_bairro, "client_segmento": client_segmento, "client_prioridade": client_prioridade, "client_status_operacional": client_status_operacional, "client_status_cadastro": client_status_cadastro, "client_address": client_address, "client_window": client_window, "visit_time": (start_ref or ""), "status": status_raw, "planned_kg": round(planned_w, 2), "planned_value": round(planned_v, 2), "delivered_kg": round(del_w, 2), "delivered_value": round(del_v, 2), "returned_kg": round(ret_w if status_raw == "devolucao" else 0.0, 2), "returned_value": round(ret_v if status_raw == "devolucao" else 0.0, 2), "reopen_count": r.delivery_reopen_count or 0, "duration_m": dur, "plate": (r.delivery_vehicle_plate or "-").upper(), "order_number": r.delivery_order_number or "-", "motivo": r.delivery_return_reason or "-", "responsabilidade": r.delivery_return_category or "-", "cluster": "Sem Cluster", "acima_300": ("SIM" if ret_v >= 300 and status_raw == "devolucao" else "NAO"), "source": "ROTA", "possible_duplicate": False}
+        row = {"route_id": r.id, "date": comp_date, "shift": r.shift, "driver_id": r.employee_id, "driver_name": driver, "client_id": r.client_id, "client_name": client, "client_city": client_city, "client_bairro": client_bairro, "client_segmento": client_segmento, "client_prioridade": client_prioridade, "client_status_operacional": client_status_operacional, "client_status_cadastro": client_status_cadastro, "client_address": client_address, "client_window": client_window, "visit_time": (start_ref or ""), "status": status_raw, "planned_kg": round(planned_w, 2), "planned_value": round(planned_v, 2), "delivered_kg": round(del_w, 2), "delivered_value": round(del_v, 2), "returned_kg": round(ret_w if status_raw == "devolucao" else 0.0, 2), "returned_value": round(ret_v if status_raw == "devolucao" else 0.0, 2), "reopen_count": r.delivery_reopen_count or 0, "duration_m": dur, "plate": (r.delivery_vehicle_plate or "-").upper(), "order_number": r.delivery_order_number or "-", "motivo": r.delivery_return_reason or "-", "responsabilidade": r.delivery_return_category or "-", "cluster": "Sem Cluster", "acima_300": ("SIM" if ret_v >= 300 and status_raw == "devolucao" else "NAO"), "source": "ROTA", "possible_duplicate": False}
         route_rows.append(row)
         score = (55 if status_raw == "devolucao" else 20 if status_raw == "iniciada" else 25 if status_raw in ("pendente", "reaberta") else 0) + min(20, (r.delivery_reopen_count or 0) * 6) + (10 if (dur or 0) > 120 else 0) + (8 if planned_w >= 500 else 0)
         if score >= 30:
-            ex_rows.append({"score": score, "date": r.date, "shift": r.shift, "driver_name": driver, "driver_id": r.employee_id, "client_name": client, "status": status_raw, "planned_kg": round(planned_w, 2), "planned_value": round(planned_v, 2), "returned_kg": round(ret_w if status_raw == "devolucao" else 0.0, 2), "returned_value": round(ret_v if status_raw == "devolucao" else 0.0, 2), "reopen_count": r.delivery_reopen_count or 0, "duration_m": dur, "source": "ROTA"})
+            ex_rows.append({"score": score, "date": comp_date, "shift": r.shift, "driver_name": driver, "driver_id": r.employee_id, "client_name": client, "status": status_raw, "planned_kg": round(planned_w, 2), "planned_value": round(planned_v, 2), "returned_kg": round(ret_w if status_raw == "devolucao" else 0.0, 2), "returned_value": round(ret_v if status_raw == "devolucao" else 0.0, 2), "reopen_count": r.delivery_reopen_count or 0, "duration_m": dur, "source": "ROTA"})
 
     rota_devol_keys_for_dup: set[tuple] = {
         (r["date"], r["client_id"], r["driver_id"], round(float(r.get("returned_value") or 0), 2))

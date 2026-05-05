@@ -3618,12 +3618,18 @@ def _build_informativo_extras(
 
     devs_curr_q = (
         select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= month_start_str)
-        .where(models.Devolucao.data_romaneio <= month_end_str)
+        .where(models.Devolucao.data_romaneio >= (prev_month_start - timedelta(days=10)).strftime("%Y-%m-%d"))
+        .where(models.Devolucao.data_romaneio <= (next_month_start + timedelta(days=10)).strftime("%Y-%m-%d"))
     )
     if motorista_ids_scope:
         devs_curr_q = devs_curr_q.where(models.Devolucao.motorista_id.in_(motorista_ids_scope))
-    devs_curr = session.exec(devs_curr_q).all()
+    from utils.business_calendar import competence_date_str
+    devs_curr_raw = session.exec(devs_curr_q).all()
+    devs_curr = []
+    for d in devs_curr_raw:
+        comp = competence_date_str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None)) or str(getattr(d, "data_romaneio", "") or "")[:10]
+        if month_start_str <= comp <= month_end_str:
+            devs_curr.append(d)
     try:
         resumo_mes = consolidado_avaliar_resumo(session, month_start_str, month_end_str)
     except Exception:
@@ -3695,12 +3701,17 @@ def _build_informativo_extras(
 
     devs_prev_q = (
         select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= prev_month_start_str)
-        .where(models.Devolucao.data_romaneio <= prev_month_end_str)
+        .where(models.Devolucao.data_romaneio >= (prev_month_start - timedelta(days=10)).strftime("%Y-%m-%d"))
+        .where(models.Devolucao.data_romaneio <= (prev_month_end + timedelta(days=10)).strftime("%Y-%m-%d"))
     )
     if motorista_ids_scope:
         devs_prev_q = devs_prev_q.where(models.Devolucao.motorista_id.in_(motorista_ids_scope))
-    devs_prev = session.exec(devs_prev_q).all()
+    devs_prev_raw = session.exec(devs_prev_q).all()
+    devs_prev = []
+    for d in devs_prev_raw:
+        comp = competence_date_str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None)) or str(getattr(d, "data_romaneio", "") or "")[:10]
+        if prev_month_start_str <= comp <= prev_month_end_str:
+            devs_prev.append(d)
     prev_valor = sum(float(d.valor or 0) for d in devs_prev)
     curr_valor = sum(float(d.valor or 0) for d in devs_curr)
 
