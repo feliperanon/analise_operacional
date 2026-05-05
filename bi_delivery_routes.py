@@ -22,6 +22,7 @@ import models
 from database import get_session
 from route_duration import route_duration_minutes, route_duration_minutes_mobile_only
 from devolucao_kpi_canonical import counts_devolucao_rotas_concluidas, pct_devolucao_sobre_rotas_concluidas
+from utils.business_calendar import competence_date_str
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -670,9 +671,10 @@ def _load_financial_devolucao_rows(
         return [], set()
 
     pl = (plate or "Todos").strip().upper()
+    lookback_start = date_i - timedelta(days=7)
     q = (
         select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= date_i.strftime("%Y-%m-%d"))
+        .where(models.Devolucao.data_romaneio >= lookback_start.strftime("%Y-%m-%d"))
         .where(models.Devolucao.data_romaneio <= date_f.strftime("%Y-%m-%d"))
     )
     if driver_id:
@@ -692,6 +694,10 @@ def _load_financial_devolucao_rows(
 
     filtered: list[models.Devolucao] = []
     for d in devolucoes:
+        comp_date = competence_date_str(str(d.data_entrega or d.data_romaneio or ""))
+        if comp_date:
+            if not (date_i.strftime("%Y-%m-%d") <= comp_date <= date_f.strftime("%Y-%m-%d")):
+                continue
         route = route_map.get(d.route_id) if d.route_id is not None else None
         if shift and shift != "Todos" and route is not None and (route.shift or "").strip() != shift:
             continue
@@ -704,7 +710,7 @@ def _load_financial_devolucao_rows(
         return [], set()
 
     def _effective_date(dev: models.Devolucao) -> str:
-        return str(dev.data_entrega or dev.data_romaneio or "").strip()
+        return competence_date_str(str(dev.data_entrega or dev.data_romaneio or "").strip()) or str(dev.data_romaneio or "").strip()
 
     excel_cutoff = max(
         (_effective_date(d) for d in filtered if str(d.source or "").strip().upper() == "EXCEL" and _effective_date(d)),

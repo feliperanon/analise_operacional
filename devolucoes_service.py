@@ -28,6 +28,7 @@ from models import (
     DevolucaoStaging,
     Route,
 )
+from utils.business_calendar import competence_date_str
 
 # Constantes de CLUSTER (faixas de valor)
 CLUSTER_BOUNDARIES = [
@@ -1568,16 +1569,18 @@ def sync_route_to_devolucao(
         session.add(represented)
         session.flush()
         return represented
+    competencia = competence_date_str(route.date) if isinstance(route.date, str) else None
+    data_romaneio_ref = competencia or (route.date if isinstance(route.date, str) else datetime.now().strftime("%Y-%m-%d"))
     try:
-        dt = datetime.strptime(route.date, "%Y-%m-%d") if isinstance(route.date, str) else datetime.now()
+        dt = datetime.strptime(data_romaneio_ref, "%Y-%m-%d")
     except (ValueError, TypeError):
         dt = datetime.now()
-    h = make_idempotency_hash(route.date, route.client_id, vendedor_id, motorista_id, valor, motivo.id)
+    h = make_idempotency_hash(data_romaneio_ref, route.client_id, vendedor_id, motorista_id, valor, motivo.id)
     if session.exec(select(Devolucao).where(Devolucao.idempotency_hash == h)).first():
         return None
     dev = Devolucao(
         route_id=route.id,
-        data_romaneio=route.date,
+        data_romaneio=data_romaneio_ref,
         data_entrega=route.date,
         client_id=route.client_id,
         vendedor_id=vendedor_id,
@@ -1769,9 +1772,10 @@ def save_batch(
             route_id = _reconcile_devolucao_with_route(session, r, motivo_nome, resp_nome)
         if (source or "").upper() == "EXCEL" and not route_id and not dup_of_id:
             val_stat = "ORPHAN_ROUTE"
+        competencia = competence_date_str(r.get("data_entrega") or r.get("data_romaneio")) or r["data_romaneio"]
         dev = Devolucao(
             route_id=route_id,
-            data_romaneio=r["data_romaneio"],
+            data_romaneio=competencia,
             data_entrega=r["data_entrega"],
             client_id=r["client_id"],
             vendedor_id=r["vendedor_id"],
@@ -1781,11 +1785,18 @@ def save_batch(
             motivo_id=r["motivo_id"],
             observacao=r.get("observacao"),
             responsabilidade_id=r["responsabilidade_id"],
-            dia=r["dia"],
-            semana=r["semana"],
+            dia=compute_dia(datetime.strptime(competencia, "%Y-%m-%d")),
+            semana=compute_semana(datetime.strptime(competencia, "%Y-%m-%d")),
             acima_300=r["acima_300"],
             cluster=r["cluster"],
-            idempotency_hash=r["idempotency_hash"],
+            idempotency_hash=make_idempotency_hash(
+                competencia,
+                r["client_id"],
+                r["vendedor_id"],
+                r["motorista_id"],
+                float(r["valor"] or 0.0),
+                r["motivo_id"],
+            ),
             source=source,
             created_by=created_by,
             duplicate_of_id=dup_of_id,

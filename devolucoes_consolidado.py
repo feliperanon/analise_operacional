@@ -427,7 +427,9 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
         devs_by_ajudante[int(eid)].append(d)
 
     out_ajudantes = []
-    for eid in sorted(devs_by_ajudante.keys()):
+    # Inclui ajudantes com devoluções e também os que só tiveram entregas no período.
+    all_ajudante_ids = sorted(set(devs_by_ajudante.keys()) | set(ent_daily_by_ajudante.keys()))
+    for eid in all_ajudante_ids:
         mine = devs_by_ajudante[eid]
         ent_by_d = dict(ent_daily_by_ajudante.get(eid, {}))
         emp = employees.get(eid)

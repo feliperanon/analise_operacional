@@ -46,6 +46,7 @@ from devolucoes_service import (
 )
 from devolucoes_service import _load_cadastros as devolucoes_load_cadastros
 from devolucoes_consolidado import consolidado_avaliar_resumo
+from utils.business_calendar import competence_date_str
 
 
 def _normalized_employee_role_text(role: Optional[str]) -> str:
@@ -1663,13 +1664,15 @@ def init_devolucoes_router(
             user = session.get(models.User, uid) if uid else None
             created_by = user.username if user else None
 
-            dt = datetime.strptime(payload.data_romaneio, "%Y-%m-%d")
+            operation_date = payload.data_entrega or payload.data_romaneio
+            competencia = competence_date_str(operation_date) or payload.data_romaneio
+            dt = datetime.strptime(competencia, "%Y-%m-%d")
             motivo = session.get(models.DevolucaoMotivo, payload.motivo_id)
             resp = session.get(models.DevolucaoResponsabilidade, payload.responsabilidade_id)
             motivo_nome = motivo.nome if motivo else "Importado"
             resp_nome = resp.nome if resp else "IMPORT"
             r_dict = {
-                "data_romaneio": payload.data_romaneio,
+                "data_romaneio": competencia,
                 "data_entrega": payload.data_entrega,
                 "client_id": payload.client_id,
                 "motorista_id": payload.motorista_id,
@@ -1678,7 +1681,7 @@ def init_devolucoes_router(
             route_id = _reconcile_devolucao_with_route(session, r_dict, motivo_nome, resp_nome)
             dev = models.Devolucao(
                 route_id=route_id,
-                data_romaneio=payload.data_romaneio,
+                data_romaneio=competencia,
                 data_entrega=payload.data_entrega,
                 client_id=payload.client_id,
                 vendedor_id=payload.vendedor_id,
@@ -1693,7 +1696,7 @@ def init_devolucoes_router(
                 acima_300=compute_acima_300(payload.valor),
                 cluster=compute_cluster(payload.valor),
                 idempotency_hash=make_idempotency_hash(
-                    payload.data_romaneio,
+                    competencia,
                     payload.client_id,
                     payload.vendedor_id,
                     payload.motorista_id,
@@ -1864,8 +1867,10 @@ def init_devolucoes_router(
             dev = session.get(models.Devolucao, devolucao_id)
             if not dev:
                 return JSONResponse({"ok": False, "error": "Devolução não encontrada"}, status_code=404)
-            dt = datetime.strptime(payload.data_romaneio, "%Y-%m-%d")
-            dev.data_romaneio = payload.data_romaneio
+            operation_date = payload.data_entrega or payload.data_romaneio
+            competencia = competence_date_str(operation_date) or payload.data_romaneio
+            dt = datetime.strptime(competencia, "%Y-%m-%d")
+            dev.data_romaneio = competencia
             dev.data_entrega = payload.data_entrega
             dev.client_id = payload.client_id
             dev.vendedor_id = payload.vendedor_id
