@@ -3557,6 +3557,8 @@ def _build_informativo_extras(
     motorista_ids_scope: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     """Dados do painel Informativo: aniversários, férias, ranking devolução, avisos, comparativo de meses."""
+    from utils.business_calendar import competence_date_str
+
     month_start = selected_date.replace(day=1)
     if selected_date.month == 12:
         next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1)
@@ -3702,23 +3704,27 @@ def _build_informativo_extras(
     prev_valor = sum(float(d.valor or 0) for d in devs_prev)
     curr_valor = sum(float(d.valor or 0) for d in devs_curr)
 
-    routes_prev_q = (
+    # Janela estendida para classificar por competência operacional na virada de mês.
+    window_start = (prev_month_start - timedelta(days=10)).strftime("%Y-%m-%d")
+    window_end = (next_month_start + timedelta(days=10)).strftime("%Y-%m-%d")
+    routes_window_q = (
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date >= prev_month_start_str)
-        .where(models.Route.date <= prev_month_end_str)
-    )
-    routes_curr_q = (
-        select(models.Route)
-        .where(models.Route.type == "delivery")
-        .where(models.Route.date >= month_start_str)
-        .where(models.Route.date <= month_end_str)
+        .where(models.Route.date >= window_start)
+        .where(models.Route.date <= window_end)
     )
     if motorista_ids_scope:
-        routes_prev_q = routes_prev_q.where(models.Route.employee_id.in_(motorista_ids_scope))
-        routes_curr_q = routes_curr_q.where(models.Route.employee_id.in_(motorista_ids_scope))
-    routes_prev = session.exec(routes_prev_q).all()
-    routes_curr_m = session.exec(routes_curr_q).all()
+        routes_window_q = routes_window_q.where(models.Route.employee_id.in_(motorista_ids_scope))
+    routes_window = session.exec(routes_window_q).all()
+
+    routes_prev = []
+    routes_curr_m = []
+    for r in routes_window:
+        comp = competence_date_str(getattr(r, "date", None)) or str(getattr(r, "date", "") or "")[:10]
+        if prev_month_start_str <= comp <= prev_month_end_str:
+            routes_prev.append(r)
+        if month_start_str <= comp <= month_end_str:
+            routes_curr_m.append(r)
 
     pct_prev = pct_devolucao_sobre_rotas_concluidas(routes_prev)
     pct_curr = pct_devolucao_sobre_rotas_concluidas(routes_curr_m)
