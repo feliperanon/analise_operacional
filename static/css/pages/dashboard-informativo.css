@@ -210,19 +210,21 @@ body.dashboard-app .gv-body {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  overflow: hidden;
+  /* Página fixa (TV): sem rolagem interna na coluna de rankings */
+  overflow: visible;
 }
 
 .gv-dev-cards {
   display: grid;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: auto auto;
   gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
   max-width: none;
   align-items: stretch;
+  align-content: start;
 }
 
 .gv-dev-cards .sys-card.sys-card--surface {
@@ -233,8 +235,8 @@ body.dashboard-app .gv-body {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  flex: 1 1 0;
-  overflow: hidden;
+  flex: 0 1 auto;
+  overflow: visible;
   padding: 10px 11px;
 }
 
@@ -267,23 +269,34 @@ body.dashboard-app .gv-body {
   font-size: 0.6875rem;
 }
 
-/* Rolagem só na área da tabela — lista completa visível */
+.gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-premio-none {
+  color: #94a3b8;
+  font-weight: 500;
+  font-size: 0.625rem;
+  letter-spacing: 0.02em;
+}
+
+html.dark .gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-premio-none {
+  color: rgb(148 163 184 / 0.85);
+}
+
+/* Sem rolagem: lista inteira na página fixa (sem scrollbar na tabela) */
 .gv-dev-cards .gv-rank-table-wrap {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 1 auto;
+  min-height: auto;
   overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow-y: visible;
 }
 
 .gv-dev-cards .gv-dev-ranking-table thead th:nth-child(1),
 .gv-dev-cards .gv-dev-ranking-table tbody td:nth-child(1) {
-  width: 27%;
+  width: 34%;
+  padding-right: 0.5rem !important;
 }
 
 .gv-dev-cards .gv-dev-ranking-table thead th:nth-child(2),
 .gv-dev-cards .gv-dev-ranking-table tbody td:nth-child(2) {
-  width: 17%;
+  width: 19%;
 }
 
 .gv-dev-cards .gv-dev-ranking-table thead th:nth-child(3),
@@ -293,7 +306,7 @@ body.dashboard-app .gv-body {
 
 .gv-dev-cards .gv-dev-ranking-table thead th:nth-child(4),
 .gv-dev-cards .gv-dev-ranking-table tbody td:nth-child(4) {
-  width: 38%;
+  width: 29%;
 }
 
 .gv-dev-cards .gv-table-wrap thead th,
@@ -760,10 +773,10 @@ body.dashboard-app .sys-kpi-grid #info-date {
 }
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap.gv-rank-table-wrap {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 0 1 auto;
+  min-height: auto;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table {
@@ -1419,7 +1432,7 @@ body.dashboard-app .ta-dash-header .ta-dash-header__inner {
 body.dashboard-app .gv-dev-cards {
   flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 body.dashboard-app .gv-body .gv-dev-cards .sys-card.sys-card--surface {
