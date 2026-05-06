@@ -179,7 +179,7 @@ body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel
   max-height: 100%;
 }
 
-/* Rankings: cards partilham altura; tabela com scroll interno para listar todos os colaboradores */
+/* Rankings: mesma altura da coluna do gráfico — duas faixas 50/50, cards esticam */
 .dashboard-informativo-ga .gv-dev-cards {
   min-height: 0 !important;
   flex: 1 1 auto;
@@ -187,22 +187,23 @@ body.dashboard-app #informativo-root.dashboard-informativo-ga .informativo-panel
 }
 
 .dashboard-informativo-ga .gv-dev-cards .sys-card.sys-card--surface {
-  flex: 0 1 auto !important;
+  flex: 1 1 0 !important;
   min-height: 0 !important;
-  overflow: visible;
+  height: 100%;
+  overflow: hidden;
 }
 
 .dashboard-informativo-ga .gv-dev-cards .gv-table-wrap {
-  flex: 0 1 auto;
-  min-height: auto;
-  overflow: visible;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .dashboard-informativo-ga .gv-dev-cards .gv-table-wrap.gv-rank-table-wrap {
   overflow-x: hidden !important;
   overflow-y: visible !important;
-  flex: 0 1 auto !important;
-  min-height: auto !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
 }
 
 /* Gráfico: ocupa o corpo do card (altura vem do flex; JS do Apex sincroniza chart.height) */

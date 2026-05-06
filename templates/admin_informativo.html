@@ -206,7 +206,7 @@
                 <details class="admin-inf-collapse admin-inf-monthly-collapse"{% if request.query_params.get('saved_devolucao') == '1' %} open{% endif %}>
                     <summary>Índice de devolução mensal</summary>
                     <div class="admin-inf-monthly-inner">
-                        <p class="admin-inf-subtext admin-inf-monthly-lead">Base do gráfico mensal do dashboard · números no padrão brasileiro. Com <strong class="font-medium">dados do sistema</strong>, o % usa <strong class="font-medium">todas</strong> as rotas de entrega com data no mês (1º ao último dia): concluídas = entregue + devolução (critério canônico do BI). O valor (R$) é a soma das devoluções cadastradas com <strong class="font-medium">data romaneio</strong> nesse mesmo intervalo. A receita (meta 2%) continua manual. Desmarque para lançar % e valor à mão.</p>
+                        <p class="admin-inf-subtext admin-inf-monthly-lead">Base do gráfico mensal do dashboard · números no padrão brasileiro. Com <strong class="font-medium">dados do sistema</strong>, o % usa as rotas de entrega com <strong class="font-medium">data da rota</strong> no mês civil (1º ao último dia), critério canônico do BI. O valor (R$) é a soma das devoluções com <strong class="font-medium">data romaneio</strong> nesse intervalo. A <strong class="font-medium">receita</strong> (meta 2%) vem da soma do <strong class="font-medium">valor financeiro</strong> das rotas de entrega, da <strong class="font-medium">data do 1º dia útil do mês</strong> até o fim do mês — no mês em curso, até hoje. Desmarque “Sist.” para lançar %, valor e receita à mão.</p>
                         <form method="get" action="/admin/informativo" class="admin-inf-year-form">
                             <div class="min-w-0">
                                 <label class="sys-section__label sys-section__label--field" for="dry_year">Ano</label>
@@ -221,7 +221,7 @@
                                     <thead>
                                         <tr class="border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-600 dark:text-gray-400">
                                             <th class="py-2.5 pr-3">Mês</th>
-                                            <th class="py-2.5 pr-2 w-12 text-center" title="Usar % e valor R$ do sistema">Sist.</th>
+                                            <th class="py-2.5 pr-2 w-12 text-center" title="Usar %, valor R$ e receita do sistema">Sist.</th>
                                             <th class="py-2.5 pr-3">% devolução</th>
                                             <th class="py-2.5 pr-3">Valor (R$)</th>
                                             <th class="py-2.5 pr-3">Receita (R$) <span class="font-normal normal-case text-gray-400">— meta 2%</span></th>
@@ -235,11 +235,11 @@
                                         <tr class="border-b border-gray-100 dark:border-gray-700/80">
                                             <td class="py-2.5 pr-3 font-medium text-gray-900 dark:text-white">{{ mes_nome }}</td>
                                             <td class="py-2 pr-2 align-middle text-center">
-                                                <input type="checkbox" name="dr_m{{ m }}_sistema" value="1" class="admin-inf-monthly-sys h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-800" title="Usar % e valor R$ calculados do sistema (rotas + devoluções)" {% if dd.get('use_system') %}checked{% endif %}>
+                                                <input type="checkbox" name="dr_m{{ m }}_sistema" value="1" class="admin-inf-monthly-sys h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-800" title="Usar %, valor R$ e receita calculados do sistema" {% if dd.get('use_system') %}checked{% endif %}>
                                             </td>
                                             <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_pct" value="{{ dd.get('pct', '') }}" class="sys-input max-w-[9rem] tabular-nums{% if dd.get('use_system') %} opacity-80{% endif %}" placeholder="—" inputmode="decimal" autocomplete="off" {% if dd.get('use_system') %}readonly{% endif %}></td>
                                             <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_valor" value="{{ dd.get('valor', '') }}" class="sys-input max-w-[11rem] tabular-nums{% if dd.get('use_system') %} opacity-80{% endif %}" placeholder="—" inputmode="decimal" autocomplete="off" {% if dd.get('use_system') %}readonly{% endif %}></td>
-                                            <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ dd.get('receita', '') }}" class="sys-input max-w-[11rem] tabular-nums" placeholder="—" inputmode="decimal" autocomplete="off"></td>
+                                            <td class="py-2 pr-2"><input type="text" name="dr_m{{ m }}_receita" value="{{ dd.get('receita', '') }}" class="sys-input max-w-[11rem] tabular-nums{% if dd.get('use_system') %} opacity-80{% endif %}" placeholder="—" inputmode="decimal" autocomplete="off" {% if dd.get('use_system') %}readonly{% endif %}></td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -278,17 +278,26 @@
                 if (!tr) return;
                 var pct = tr.querySelector('input[name$="_pct"]');
                 var val = tr.querySelector('input[name$="_valor"]');
+                var rec = tr.querySelector('input[name$="_receita"]');
                 if (!pct || !val) return;
                 if (cb.checked) {
                     pct.setAttribute('readonly', 'readonly');
                     val.setAttribute('readonly', 'readonly');
                     pct.classList.add('opacity-80');
                     val.classList.add('opacity-80');
+                    if (rec) {
+                        rec.setAttribute('readonly', 'readonly');
+                        rec.classList.add('opacity-80');
+                    }
                 } else {
                     pct.removeAttribute('readonly');
                     val.removeAttribute('readonly');
                     pct.classList.remove('opacity-80');
                     val.classList.remove('opacity-80');
+                    if (rec) {
+                        rec.removeAttribute('readonly');
+                        rec.classList.remove('opacity-80');
+                    }
                 }
             }
             cb.addEventListener('change', sync);

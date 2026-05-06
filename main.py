@@ -3423,6 +3423,43 @@ def _month_date_range_str(year: int, month: int) -> Tuple[str, str]:
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
 
+def _last_calendar_day_date(year: int, month: int) -> date:
+    _, last = calendar.monthrange(year, month)
+    return date(year, month, last)
+
+
+def _receita_mensal_delivery_sistema(session: Session, year: int, month: int) -> Optional[float]:
+    """
+    Receita (R$) para meta 2%: soma de valor_financeiro das rotas type=delivery com Route.date
+    entre o 1º dia útil do mês (calendário comercial) e o fim do período —
+    último dia do mês se o mês já passou; se for o mês corrente, até hoje (inclusive).
+    """
+    from utils.business_calendar import first_business_day_of_month
+
+    today = date.today()
+    if year > today.year or (year == today.year and month > today.month):
+        return None
+    end_d = _last_calendar_day_date(year, month)
+    if year == today.year and month == today.month:
+        end_d = min(end_d, today)
+    start_d = first_business_day_of_month(year, month)
+    if start_d > end_d:
+        return None
+    ms = start_d.strftime("%Y-%m-%d")
+    me = end_d.strftime("%Y-%m-%d")
+    try:
+        routes = session.exec(
+            select(models.Route)
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date >= ms)
+            .where(models.Route.date <= me)
+        ).all()
+    except Exception:
+        return None
+    total = sum(float(getattr(r, "valor_financeiro", None) or 0.0) for r in (routes or []))
+    return round(float(total), 2)
+
+
 def _kpi_devolucao_mes_romaneio_calendario(
     session: Session, month_start_str: str, month_end_str: str
 ) -> tuple[float, int]:
@@ -3443,10 +3480,12 @@ def _kpi_devolucao_mes_romaneio_calendario(
 
 def _devolucao_mensal_system_month_values(session: Session, year: int, month: int) -> Dict[str, Optional[float]]:
     """
-    % e valor R$ só do sistema, mês civil (primeiro ↔ último dia):
-    - %: critério canônico (devoluções ÷ rotas concluídas) sobre todas as rotas type=delivery
-      com Route.date no intervalo [início, fim] do mês.
-    - Valor R$: soma cadastro Devolucao com data_romaneio no mesmo intervalo (sem janela de competência).
+    KPIs só do sistema para o índice mensal:
+    - %: critério canônico (devoluções ÷ rotas concluídas) sobre rotas type=delivery com Route.date
+      no mês civil (1º ao último dia).
+    - Valor R$: soma Devolucao.valor com data_romaneio nesse mesmo intervalo civil.
+    - Receita R$: soma Route.valor_financeiro das entregas com Route.date do 1º dia útil do mês
+      até o último dia do mês (mês fechado) ou até hoje (mês corrente).
     """
     ms, me = _month_date_range_str(year, month)
     try:
@@ -3468,7 +3507,11 @@ def _devolucao_mensal_system_month_values(session: Session, year: int, month: in
         v = round(float(valor_v), 2)
     except Exception:
         v = None
-    return {"pct": p, "valor": v}
+    try:
+        rec = _receita_mensal_delivery_sistema(session, year, month)
+    except Exception:
+        rec = None
+    return {"pct": p, "valor": v, "receita": rec}
 
 
 def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]:
@@ -3492,10 +3535,11 @@ def _devolucao_mensal_kpi_payload(session: Session, year: int) -> Dict[str, Any]
             sysv = _devolucao_mensal_system_month_values(session, year, m)
             p = sysv.get("pct")
             v = sysv.get("valor")
+            rec = sysv.get("receita")
         else:
             p = float(r.pct_devolucao) if r and r.pct_devolucao is not None else None
             v = float(r.valor_devolucao) if r and r.valor_devolucao is not None else None
-        rec = float(r.receita) if r and r.receita is not None else None
+            rec = float(r.receita) if r and r.receita is not None else None
         mv = round(rec * 0.02, 2) if rec is not None and rec > 0 else None
         pct.append(round(p, 2) if p is not None else None)
         valor_dev.append(round(v, 2) if v is not None else None)
@@ -4978,14 +5022,16 @@ async def admin_informativo_page(
         use_sys = dr_use_system.get(m, False)
         pct_src: Any = row.get("pct")
         valor_src: Any = row.get("valor")
+        receita_src: Any = row.get("receita")
         if use_sys:
             sysv = _devolucao_mensal_system_month_values(session, dry_year, m)
             pct_src = sysv.get("pct")
             valor_src = sysv.get("valor")
+            receita_src = sysv.get("receita")
         dr_display[m] = {
             "pct": _format_br_pct_form(pct_src),
             "valor": _format_br_money_form(valor_src),
-            "receita": _format_br_money_form(row.get("receita")),
+            "receita": _format_br_money_form(receita_src),
             "use_system": use_sys,
         }
     bulletin_admin_rows: List[Dict[str, Any]] = []
@@ -5166,6 +5212,8 @@ async def admin_informativo_devolucao_mensal(
             )
         ).first()
         if use_sys:
+            sysv = _devolucao_mensal_system_month_values(session, year, m)
+            rec = sysv.get("receita")
             if existing:
                 existing.use_system_kpi = True
                 existing.pct_devolucao = None

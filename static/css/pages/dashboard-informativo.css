@@ -208,23 +208,24 @@ body.dashboard-app .gv-body {
 .gv-col-dev {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  /* Página fixa (TV): sem rolagem interna na coluna de rankings */
-  overflow: visible;
+  overflow: hidden;
 }
 
 .gv-dev-cards {
   display: grid;
-  grid-template-rows: auto auto;
+  /* Mesma altura útil que a coluna central (comunicado + gráfico): reparte 50/50 entre os dois rankings */
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
   width: 100%;
   max-width: none;
   align-items: stretch;
-  align-content: start;
+  align-content: stretch;
 }
 
 .gv-dev-cards .sys-card.sys-card--surface {
@@ -235,9 +236,13 @@ body.dashboard-app .gv-body {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  flex: 0 1 auto;
-  overflow: visible;
+  height: 100%;
+  overflow: hidden;
   padding: 10px 11px;
+}
+
+.gv-dev-cards .gv-card-head {
+  flex-shrink: 0;
 }
 
 .gv-dev-cards .gv-card-title {
@@ -280,10 +285,10 @@ html.dark .gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-premio-none {
   color: rgb(148 163 184 / 0.85);
 }
 
-/* Sem rolagem: lista inteira na página fixa (sem scrollbar na tabela) */
+/* Corpo do card preenche o espaço abaixo do título; tabela no topo (sem rolagem interna) */
 .gv-dev-cards .gv-rank-table-wrap {
-  flex: 0 1 auto;
-  min-height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: visible;
 }
@@ -768,13 +773,13 @@ body.dashboard-app .sys-kpi-grid #info-date {
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap {
   overflow: hidden;
-  flex: 0 1 auto;
-  min-height: min-content;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap.gv-rank-table-wrap {
-  flex: 0 1 auto;
-  min-height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: visible;
 }
@@ -1432,7 +1437,7 @@ body.dashboard-app .ta-dash-header .ta-dash-header__inner {
 body.dashboard-app .gv-dev-cards {
   flex: 1 1 0;
   min-height: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 body.dashboard-app .gv-body .gv-dev-cards .sys-card.sys-card--surface {

@@ -1197,8 +1197,8 @@ class InformativeMonthlyReturn(SQLModel, table=True):
     month: int = Field(ge=1, le=12, index=True)  # 1=jan … 12=dez
     pct_devolucao: Optional[float] = Field(default=None)  # % sobre receita (informado)
     valor_devolucao: Optional[float] = Field(default=None)  # R$ devolvido
-    receita: Optional[float] = Field(default=None)  # R$ receita (não exibida no gráfico; meta = 2% disso)
-    use_system_kpi: bool = Field(default=False)  # % e valor R$: rotas delivery no mês civil + Devolucao por data_romaneio; receita manual
+    receita: Optional[float] = Field(default=None)  # R$ receita (meta 2%); manual ou soma valor_financeiro (1º dia útil → fim/hoje) se use_system_kpi
+    use_system_kpi: bool = Field(default=False)  # %, valor dev. e receita vindos do sistema (regras alinhadas ao admin / gráfico)
     updated_at: datetime = Field(default_factory=datetime.now)
 
 
