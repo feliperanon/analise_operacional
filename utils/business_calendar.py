@@ -59,12 +59,31 @@ def previous_business_day(d: date) -> date:
     return cur
 
 
+def first_business_day_of_month(y: int, m: int) -> date:
+    """Primeiro dia útil do calendário (dia 1 em diante) no mês y-m."""
+    d = date(y, m, 1)
+    while is_non_working_day(d):
+        d += timedelta(days=1)
+    return d
+
+
 def competence_date_for_operation(d: date) -> date:
     """
     Regra comercial:
-    - toda operação do dia D pertence ao último dia útil anterior.
+    - Se D for dia não útil, competência = último dia útil anterior.
+    - Virada de mês: o primeiro dia útil do mês de D sempre fecha no último
+      dia útil do mês anterior (ciclo contábil do mês anterior).
+    - Demais dias úteis: se o dia calendário anterior for não útil,
+      competência = último dia útil antes de D; senão mantém D.
     """
-    return previous_business_day(d)
+    if is_non_working_day(d):
+        return previous_business_day(d)
+    if d == first_business_day_of_month(d.year, d.month):
+        return previous_business_day(date(d.year, d.month, 1))
+    prev_day = d - timedelta(days=1)
+    if is_non_working_day(prev_day):
+        return previous_business_day(d)
+    return d
 
 
 def competence_date_str(operation_date_str: Optional[str]) -> Optional[str]:
