@@ -243,9 +243,9 @@ window.addEventListener("error", function (evt) {
                                 <thead>
                                     <tr>
                                         <th class="py-1 px-0.5">Colaborador</th>
+                                        <th class="py-1 px-0.5 text-right">Prêmio</th>
                                         <th class="py-1 px-0.5 text-right">% devolução</th>
                                         <th class="py-1 px-0.5 text-right">R$ devolução</th>
-                                        <th class="py-1 px-0.5 text-right">Prêmio</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ranking-body">
@@ -254,9 +254,9 @@ window.addEventListener("error", function (evt) {
                                         <td class="gv-name-cell py-1 px-0.5" data-fit-container>
                                             <span class="gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(r.name) }}</span>
                                         </td>
+                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">R$ {{ '{:,.2f}'.format((r.premio if (r.premio is defined and r.premio is not none) else gv_premio_por_pct(r.pct_ajustado))|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                         <td class="py-1 px-0.5 text-right tabular-nums align-middle {{ 'gv-pct-attn' if (r.pct_ajustado|default(0)|float) > 2 else 'gv-pct-good' }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</td>
                                         <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">R$ {{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
-                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">R$ {{ '{:,.2f}'.format((r.premio if (r.premio is defined and r.premio is not none) else gv_premio_por_pct(r.pct_ajustado))|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                     </tr>
                                     {% else %}
                                     <tr><td colspan="4" class="gv-table-empty text-center">Sem colaboradores no período.</td></tr>
@@ -275,9 +275,9 @@ window.addEventListener("error", function (evt) {
                                 <thead>
                                     <tr>
                                         <th class="py-1 px-0.5">Colaborador</th>
+                                        <th class="py-1 px-0.5 text-right">Prêmio</th>
                                         <th class="py-1 px-0.5 text-right">% devolução</th>
                                         <th class="py-1 px-0.5 text-right">R$ devolução</th>
-                                        <th class="py-1 px-0.5 text-right">Prêmio</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -286,9 +286,9 @@ window.addEventListener("error", function (evt) {
                                         <td class="gv-name-cell py-1 px-0.5" data-fit-container>
                                             <span class="gv-fit-oneline" data-fit-min="7" data-fit-max="11">{{ gv_dois_nomes(r.name) }}</span>
                                         </td>
+                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">R$ {{ '{:,.2f}'.format((r.premio if (r.premio is defined and r.premio is not none) else gv_premio_por_pct(r.pct_ajustado))|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                         <td class="py-1 px-0.5 text-right tabular-nums align-middle {{ 'gv-pct-attn' if (r.pct_ajustado|default(0)|float) > 2 else 'gv-pct-good' }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</td>
                                         <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">R$ {{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
-                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">R$ {{ '{:,.2f}'.format((r.premio if (r.premio is defined and r.premio is not none) else gv_premio_por_pct(r.pct_ajustado))|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                     </tr>
                                     {% else %}
                                     <tr><td colspan="4" class="gv-table-empty text-center">Sem colaboradores no período.</td></tr>
