@@ -123,6 +123,19 @@
         return secondInitial ? (first + " " + secondInitial + ".") : first;
       },
 
+      /** Motorista + ajudante(s) para exibição no detalhe do resumo (cada devolução pode ter equipe distinta). */
+      equipeLabel(item) {
+        item = item || {};
+        var m = String(item.motorista_name || "").trim() || "-";
+        var adj = String(item.ajudantes_display || item.ajudante_name || "").trim();
+        if (!adj || adj === "-") return m;
+        var mLow = m.toLowerCase();
+        var parts = adj.split(",").map(function (s) { return String(s || "").trim(); }).filter(Boolean);
+        parts = parts.filter(function (p) { return p.toLowerCase() !== mLow; });
+        if (!parts.length) return m;
+        return m + " · " + parts.join(", ");
+      },
+
       async loadAll() {
         this.loading = true;
         this.errorMsg = "";
