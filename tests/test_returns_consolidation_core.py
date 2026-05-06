@@ -462,3 +462,77 @@ def test_period_with_empty_days_keeps_iso_axis_and_zero_bars():
         assert b["chart_adjusted_values"][i3] == 0.0
         assert b["_series_checks"]["sum_original_matches"] is True
         assert b["_series_checks"]["sum_adjusted_matches"] is True
+
+
+def test_resumo_ajudante_nao_duplica_mesma_devolucao_em_multiplos_helpers():
+    engine = create_engine("sqlite://")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        mot = models.Employee(registration_id="M2", name="Motorista Dois", role="Motorista", status="active")
+        aj1 = models.Employee(registration_id="A2", name="Ajudante Dois", role="Ajudante", status="active")
+        aj2 = models.Employee(registration_id="A3", name="Ajudante Tres", role="Ajudante", status="active")
+        vend = models.Employee(registration_id="V2", name="Vendedor Dois", role="Vendedor", status="active")
+        cli = models.Client(name="Cliente Y")
+        session.add(mot)
+        session.add(aj1)
+        session.add(aj2)
+        session.add(vend)
+        session.add(cli)
+        session.commit()
+        session.refresh(mot)
+        session.refresh(aj1)
+        session.refresh(aj2)
+        session.refresh(vend)
+        session.refresh(cli)
+
+        resp = models.DevolucaoResponsabilidade(nome="R_TEST_2")
+        session.add(resp)
+        session.commit()
+        session.refresh(resp)
+        motivo = models.DevolucaoMotivo(
+            nome="Motivo 2", responsabilidade_id=resp.id, nome_normalizado="motivo2"
+        )
+        session.add(motivo)
+        session.commit()
+        session.refresh(motivo)
+
+        session.add(
+            models.Route(
+                date="2026-12-15",
+                shift="Manhã",
+                employee_id=mot.id,
+                client_id=cli.id,
+                start_time="08:00",
+                end_time="09:00",
+                tonnage=60.0,
+                type="delivery",
+                valor_financeiro=400.0,
+                delivery_status="entregue",
+                status="completed",
+                delivery_helpers_json=f"[{aj1.id}, {aj2.id}]",
+            )
+        )
+        session.add(
+            models.Devolucao(
+                data_romaneio="2026-12-15",
+                data_entrega="2026-12-15",
+                client_id=cli.id,
+                vendedor_id=vend.id,
+                motorista_id=mot.id,
+                valor=80.0,
+                motivo_id=motivo.id,
+                responsabilidade_id=motivo.responsabilidade_id,
+                dia=1,
+                semana=1,
+                source="TEST",
+            )
+        )
+        session.commit()
+
+        resumo = consolidado_avaliar_resumo(session, "2026-12-10", "2026-12-20")
+        row_aj1 = next((r for r in resumo["data_ajudantes"] if r["ajudante_id"] == aj1.id), None)
+        row_aj2 = next((r for r in resumo["data_ajudantes"] if r["ajudante_id"] == aj2.id), None)
+        assert row_aj1 is not None
+        assert row_aj2 is not None
+        assert row_aj1["devolucoes_total"] == 1
+        assert row_aj2["devolucoes_total"] == 0
