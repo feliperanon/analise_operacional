@@ -221,6 +221,7 @@
                                         <th class="py-1 px-0.5">Colaborador</th>
                                         <th class="py-1 px-0.5 text-right">% ajustado</th>
                                         <th class="py-1 px-0.5 text-right">Valor ajustado</th>
+                                        <th class="py-1 px-0.5 text-right">Prêmio</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ranking-body">
@@ -231,9 +232,10 @@
                                         </td>
                                         <td class="py-1 px-0.5 text-right tabular-nums align-middle {{ 'gv-pct-attn' if (r.pct_ajustado|default(0)|float) > 2 else 'gv-pct-good' }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</td>
                                         <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
+                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.premio|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                     </tr>
                                     {% else %}
-                                    <tr><td colspan="3" class="gv-table-empty text-center">Sem devoluções no mês.</td></tr>
+                                    <tr><td colspan="4" class="gv-table-empty text-center">Sem colaboradores no período.</td></tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -251,6 +253,7 @@
                                         <th class="py-1 px-0.5">Colaborador</th>
                                         <th class="py-1 px-0.5 text-right">% ajustado</th>
                                         <th class="py-1 px-0.5 text-right">Valor ajustado</th>
+                                        <th class="py-1 px-0.5 text-right">Prêmio</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -261,9 +264,10 @@
                                         </td>
                                         <td class="py-1 px-0.5 text-right tabular-nums align-middle {{ 'gv-pct-attn' if (r.pct_ajustado|default(0)|float) > 2 else 'gv-pct-good' }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</td>
                                         <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
+                                        <td class="py-1 px-0.5 text-right tabular-nums align-middle gv-table-val">{{ '{:,.2f}'.format(r.premio|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                     </tr>
                                     {% else %}
-                                    <tr><td colspan="3" class="gv-table-empty text-center">Sem devoluções no mês.</td></tr>
+                                    <tr><td colspan="4" class="gv-table-empty text-center">Sem colaboradores no período.</td></tr>
                                     {% endfor %}
                                 </tbody>
                             </table>

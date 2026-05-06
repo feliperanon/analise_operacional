@@ -3642,8 +3642,6 @@ def _build_informativo_extras(
 
     devolucao_ranking = []
     for row in rows_m:
-        if int(row.get("devolucoes_total") or 0) <= 0:
-            continue
         mid = row.get("motorista_id")
         if scope_set is not None:
             try:
@@ -3660,6 +3658,7 @@ def _build_informativo_extras(
             "name": (row.get("motorista_name") or "").strip() or (f"Motorista #{mid}" if mid else "—"),
             "pct_ajustado": float(row.get("pct_ajustado") or 0),
             "valor_ajustado": float(row.get("valor_ajustado") or 0),
+            "premio": float(_return_rate_to_prize(float(row.get("pct_ajustado") or 0.0))),
             "pct_original": float(row.get("pct_original") or 0),
             "valor_original": float(row.get("valor_original") or 0),
         })
@@ -3668,8 +3667,6 @@ def _build_informativo_extras(
     # Filtrar por helper_ids_scoped removia nomes de quem só aparecia com motoristas fora do recorte.
     devolucao_ranking_helper = []
     for row in rows_h:
-        if int(row.get("devolucoes_total") or 0) <= 0:
-            continue
         hid = row.get("ajudante_id")
         try:
             hid_int = int(hid) if hid is not None else 0
@@ -3680,6 +3677,7 @@ def _build_informativo_extras(
             "name": (row.get("ajudante_name") or "").strip() or (f"Ajudante #{hid}" if hid else "—"),
             "pct_ajustado": float(row.get("pct_ajustado") or 0),
             "valor_ajustado": float(row.get("valor_ajustado") or 0),
+            "premio": float(_return_rate_to_prize(float(row.get("pct_ajustado") or 0.0))),
             "pct_original": float(row.get("pct_original") or 0),
             "valor_original": float(row.get("valor_original") or 0),
         })
