@@ -235,20 +235,22 @@
       <div class="space-y-2">
         <p class="text-sm font-semibold">Motoristas</p>
         <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-          <table class="w-full min-w-[620px] text-left text-sm">
+          <table class="w-full min-w-[860px] text-left text-sm">
             <thead class="employees-data-table__head">
               <tr>
-                <th class="px-3 py-2">Motorista</th><th class="px-3 py-2 text-right">Dev.</th><th class="px-3 py-2 text-right">% orig</th><th class="px-3 py-2 text-right">% ajust</th>
+                <th class="px-3 py-2">Motorista</th><th class="px-3 py-2 text-right">Dev.</th><th class="px-3 py-2 text-right">% orig</th><th class="px-3 py-2 text-right">% ajust</th><th class="px-3 py-2 text-right">R$ orig</th><th class="px-3 py-2 text-right">R$ ajust</th>
               </tr>
             </thead>
             <tbody class="divide-y">
-              <template x-if="resumoLoading"><tr><td colspan="4" class="px-3 py-3 text-sm text-slate-500">Carregando...</td></tr></template>
+              <template x-if="resumoLoading"><tr><td colspan="6" class="px-3 py-3 text-sm text-slate-500">Carregando...</td></tr></template>
               <template x-for="r in resumo" :key="'m-' + r.motorista_id">
                 <tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="openResumoMotorista(r)">
                   <td class="px-3 py-2 font-medium" x-text="r.motorista_name"></td>
                   <td class="px-3 py-2 text-right" x-text="r.devolucoes_total"></td>
                   <td class="px-3 py-2 text-right" x-text="r.pct_original + '%'"></td>
                   <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300" x-text="r.pct_ajustado + '%'"></td>
+                  <td class="px-3 py-2 text-right tabular-nums" x-text="'R$ ' + formatValor(r.valor_original)"></td>
+                  <td class="px-3 py-2 text-right tabular-nums font-semibold text-emerald-600 dark:text-emerald-300" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
                 </tr>
               </template>
             </tbody>
@@ -258,20 +260,22 @@
       <div class="space-y-2">
         <p class="text-sm font-semibold">Ajudantes</p>
         <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
-          <table class="w-full min-w-[620px] text-left text-sm">
+          <table class="w-full min-w-[860px] text-left text-sm">
             <thead class="employees-data-table__head">
               <tr>
-                <th class="px-3 py-2">Ajudante</th><th class="px-3 py-2 text-right">Dev.</th><th class="px-3 py-2 text-right">% orig</th><th class="px-3 py-2 text-right">% ajust</th>
+                <th class="px-3 py-2">Ajudante</th><th class="px-3 py-2 text-right">Dev.</th><th class="px-3 py-2 text-right">% orig</th><th class="px-3 py-2 text-right">% ajust</th><th class="px-3 py-2 text-right">R$ orig</th><th class="px-3 py-2 text-right">R$ ajust</th>
               </tr>
             </thead>
             <tbody class="divide-y">
-              <template x-if="resumoLoading"><tr><td colspan="4" class="px-3 py-3 text-sm text-slate-500">Carregando...</td></tr></template>
+              <template x-if="resumoLoading"><tr><td colspan="6" class="px-3 py-3 text-sm text-slate-500">Carregando...</td></tr></template>
               <template x-for="r in resumoAjudantes" :key="'a-' + r.ajudante_id">
                 <tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="openResumoAjudante(r)">
                   <td class="px-3 py-2 font-medium" x-text="r.ajudante_name"></td>
                   <td class="px-3 py-2 text-right" x-text="r.devolucoes_total"></td>
                   <td class="px-3 py-2 text-right" x-text="(r.pct_original || 0) + '%'"></td>
                   <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300" x-text="(r.pct_ajustado || 0) + '%'"></td>
+                  <td class="px-3 py-2 text-right tabular-nums" x-text="'R$ ' + formatValor(r.valor_original)"></td>
+                  <td class="px-3 py-2 text-right tabular-nums font-semibold text-emerald-600 dark:text-emerald-300" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
                 </tr>
               </template>
             </tbody>

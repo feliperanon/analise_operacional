@@ -439,7 +439,9 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
             dev_by_motorista[int(d.motorista_id)].append(d)
 
     ent_all_motoristas = motorista_entregues_by_motorista_all(session, date_from, date_to)
-    all_motorista_ids = sorted(set(dev_by_motorista.keys()) | set(ent_all_motoristas.keys()))
+    all_motorista_ids = sorted(
+        (set(dev_by_motorista.keys()) | set(ent_all_motoristas.keys())) & set(employees.keys())
+    )
 
     out = []
     for eid in all_motorista_ids:
@@ -471,6 +473,10 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
 
     def _helpers_for_entregue_stop(route_ent: models.Route) -> List[int]:
         key_e = (str(route_ent.date)[:10], route_ent.employee_id)
+        raw_e = getattr(route_ent, "delivery_helpers_json", None)
+        ids_e = parse_route_helper_ids(raw_e) or parse_helpers_to_ids(raw_e, emp_by_name)
+        if ids_e:
+            return ids_e
         if getattr(route_ent, "client_id", None) and getattr(route_ent, "employee_id", None):
             exact_key = (route_ent.client_id, route_ent.employee_id, str(route_ent.date)[:10])
             exact_ids = route_by_client_driver_date.get(exact_key) or []
@@ -538,6 +544,8 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
         for emp in extra_emps:
             if getattr(emp, "id", None) is not None:
                 employees[int(emp.id)] = emp
+    # Evita exibir linhas órfãs ("Motorista/Ajudante #id") no resumo quando o colaborador não existe mais.
+    all_ajudante_ids = [eid for eid in all_ajudante_ids if eid in employees]
     for eid in all_ajudante_ids:
         mine = devs_by_ajudante[eid]
         ent_by_d = dict(ent_daily_by_ajudante.get(eid, {}))

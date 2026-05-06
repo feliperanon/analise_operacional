@@ -305,7 +305,7 @@
                                     {% if bulletin_image %}
                                     <div class="gv-bulletin-media gv-bulletin-media--contain">
                                         {# eager em todos os slides: evita aviso do Edge sobre lazy+placeholder e garante carrossel estável em TV #}
-                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image" loading="eager" decoding="async"{% if loop.first %} fetchpriority="high"{% endif %} onerror="this.onerror=null;console.warn('Imagem do informativo não encontrada:',this.src);var media=this.closest('.gv-bulletin-media');var split=this.closest('.gv-bulletin-split');if(media){media.classList.add('gv-bulletin-media--missing');}if(split){split.classList.add('gv-bulletin-split--no-media');}if(media){media.remove();}">
+                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image" loading="eager" decoding="async"{% if loop.first %} fetchpriority="high"{% endif %} onerror="var img=this;var media=img.closest('.gv-bulletin-media');var split=img.closest('.gv-bulletin-split');var tries=parseInt(img.dataset.retryCount||'0',10)||0;if(tries<2){img.dataset.retryCount=String(tries+1);setTimeout(function(){var sep=img.src.indexOf('?')>=0?'&':'?';img.src=img.src.split('?')[0]+sep+'retry='+(Date.now());},900);return;}img.onerror=null;console.warn('Imagem do informativo indisponível:',img.src);if(media){media.classList.add('gv-bulletin-media--missing');}if(split){split.classList.add('gv-bulletin-split--no-media');}img.style.opacity='0.4';img.style.filter='grayscale(1)';">
                                     </div>
                                     {% endif %}
                                 </div>
@@ -435,20 +435,13 @@
                                 toolbar: { show: false },
                                 zoom: { enabled: false },
                                 animations: {
-                                    enabled: true,
-                                    easing: 'easeinout',
-                                    speed: 650,
+                                    enabled: false,
                                 },
                                 parentHeightOffset: 0,
                                 redrawOnParentResize: true,
                                 redrawOnWindowResize: true,
                                 dropShadow: {
-                                    enabled: true,
-                                    top: 1,
-                                    left: 0,
-                                    blur: 10,
-                                    opacity: 0.14,
-                                    color: '#4338ca',
+                                    enabled: false,
                                 },
                             },
                             colors: ['#4f46e5', '#ea580c'],
@@ -819,9 +812,8 @@
                 var dh = data.informativo.devolucao_hoje_pct;
                 if (hj != null && dh != null) hj.textContent = dh;
                 if (hjl != null && dh != null) hjl.className = 'gv-kpi-value-line employees-kpi__value font-black text-kpi mt-1 ' + devolucaoHojeLineClass(dh);
-                if (data.informativo.devolucao_mensal_kpi && typeof window._gvRebuildDevolucaoKpi === 'function') {
-                    window._gvRebuildDevolucaoKpi(data.informativo.devolucao_mensal_kpi);
-                }
+                // Em Smart TVs, reconstruir o gráfico a cada refresh periódico pode causar travadas/intermitência visual.
+                // Mantemos o gráfico estável e evitamos rebuild automático em background.
                 gvScheduleFit();
             })
             .catch(function() {});

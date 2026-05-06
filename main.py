@@ -3648,7 +3648,12 @@ def _build_informativo_extras(
         first = parts[0]
         if len(parts) == 1:
             return first
-        return f"{first} {parts[1][0].upper()}"
+        second = parts[1]
+        # Mantém identificadores técnicos legíveis (ex.: "Motorista #713"),
+        # evitando truncar para "Motorista #".
+        if first.lower() in {"motorista", "ajudante"} and second.startswith("#"):
+            return txt
+        return f"{first} {second[0].upper()}"
 
     motorista_ids_from_rows: set[int] = set()
     for row in rows_m:
