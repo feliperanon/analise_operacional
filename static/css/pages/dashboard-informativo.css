@@ -208,9 +208,34 @@ body.dashboard-app .gv-body {
 .gv-col-dev {
   display: flex;
   flex-direction: column;
+  gap: 0.45rem;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+}
+
+.gv-col-dev .gv-rank-unified-head {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-radius: var(--sys-radius-lg, 12px);
+  border: 1px solid rgb(15 23 42 / 0.08);
+}
+
+.gv-col-dev .gv-rank-unified-head .gv-rank-legend--unified {
+  margin: 0 0 0.4rem;
+}
+
+.gv-col-dev .gv-rank-summary--unified {
+  margin-bottom: 0;
+}
+
+.gv-col-dev .gv-dev-cards {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.gv-dev-cards .gv-rank-card-head--table-only {
+  margin-bottom: 0.25rem;
 }
 
 .gv-dev-cards {
@@ -328,13 +353,25 @@ body.dashboard-app .gv-body {
   border-spacing: 0;
 }
 
+/* Lista completa: rolagem vertical no card (TV/celular); sem cortar linhas. */
 .gv-dev-cards .gv-rank-table-wrap {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
   border-radius: var(--sys-radius-md, 10px);
   border: 1px solid rgb(15 23 42 / 0.06);
   background: rgb(255 255 255 / 0.45);
+}
+
+.gv-dev-cards .gv-rank-table-wrap thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: 0 1px 0 rgb(15 23 42 / 0.08);
 }
 
 .gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-th {
@@ -499,6 +536,10 @@ body.dashboard-app .gv-body {
   border-color: rgb(148 163 184 / 0.18);
 }
 
+.dark .gv-col-dev .gv-rank-unified-head {
+  border-color: rgb(148 163 184 / 0.18);
+}
+
 .dark .gv-dev-cards .gv-rank-summary {
   background: rgb(255 255 255 / 0.04);
   border-color: rgb(148 163 184 / 0.14);
@@ -514,7 +555,7 @@ body.dashboard-app .gv-body {
 }
 
 .dark .gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-th {
-  background: rgb(15 23 42 / 0.75);
+  background: rgb(30 41 59 / 0.96);
   color: rgb(203 213 225);
   border-bottom-color: rgb(148 163 184 / 0.2);
 }
@@ -999,6 +1040,13 @@ body.dashboard-app .sys-kpi-grid #info-date {
   overflow: hidden;
   flex: 0 1 auto;
   min-height: min-content;
+}
+
+.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap.gv-rank-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table {

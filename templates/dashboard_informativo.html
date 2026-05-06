@@ -121,6 +121,9 @@ window.addEventListener("error", function (evt) {
 {% set _rank_a_ns.premio = _rank_a_ns.premio + (gv_rank_premio_num(r)|float) %}
 {% if (r.pct_ajustado|default(0)|float) > 2 %}{% set _rank_a_ns.fora = _rank_a_ns.fora + 1 %}{% endif %}
 {% endfor %}
+{% set _rank_u_n = _rank_m_ns.n + _rank_a_ns.n %}
+{% set _rank_u_premio = _rank_m_ns.premio + _rank_a_ns.premio %}
+{% set _rank_u_fora = _rank_m_ns.fora + _rank_a_ns.fora %}
 
 {# RH (aniversariantes / férias): primeiro nome + inicial do segundo, ex. Felipe A. #}
 {% macro gv_nome_primeiro_e_inicial(n) -%}
@@ -268,27 +271,29 @@ window.addEventListener("error", function (evt) {
         <div class="gv-panel-stack gv-panel-stack-inner informativo-panel-inner flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <div class="gv-body gv-dashboard-grid gv-content-grid gv-main-grid">
             <div class="gv-col gv-col-dev">
+                <div class="gv-rank-unified-head sys-card sys-card--surface">
+                    <p class="gv-rank-legend gv-rank-legend--unified">Meta ideal: até 2,00% de devolução · motoristas e ajudantes</p>
+                    <div class="gv-rank-summary gv-rank-summary--unified" role="group" aria-label="Resumo devolução rankings">
+                        <div class="gv-rank-summary-item">
+                            <span class="gv-rank-summary-label">Colaboradores</span>
+                            <span class="gv-rank-summary-value tabular-nums">{{ _rank_u_n }}</span>
+                        </div>
+                        <div class="gv-rank-summary-item">
+                            <span class="gv-rank-summary-label">Total prêmios</span>
+                            <span class="gv-rank-summary-value tabular-nums">R$ {{ '{:,.2f}'.format(_rank_u_premio).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                        </div>
+                        <div class="gv-rank-summary-item gv-rank-summary-item--alert">
+                            <span class="gv-rank-summary-label">Fora da meta (&gt;2%)</span>
+                            <span class="gv-rank-summary-value tabular-nums">{{ _rank_u_fora }}</span>
+                        </div>
+                    </div>
+                </div>
                 <div class="gv-dev-cards">
                     <article class="sys-card sys-card--surface gv-rank-card">
-                        <header class="gv-rank-card-head">
+                        <header class="gv-rank-card-head gv-rank-card-head--table-only">
                             <div class="gv-card-head gv-rank-card-title-row">
                                 <h2 class="gv-card-title gv-rank-card-title">Ranking Motoristas</h2>
                                 <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
-                            </div>
-                            <p class="gv-rank-legend">Meta ideal: até 2,00% de devolução</p>
-                            <div class="gv-rank-summary" role="group" aria-label="Resumo motoristas">
-                                <div class="gv-rank-summary-item">
-                                    <span class="gv-rank-summary-label">Colaboradores</span>
-                                    <span class="gv-rank-summary-value tabular-nums">{{ _rank_m_ns.n }}</span>
-                                </div>
-                                <div class="gv-rank-summary-item">
-                                    <span class="gv-rank-summary-label">Total prêmios</span>
-                                    <span class="gv-rank-summary-value tabular-nums">R$ {{ '{:,.2f}'.format(_rank_m_ns.premio).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
-                                </div>
-                                <div class="gv-rank-summary-item gv-rank-summary-item--alert">
-                                    <span class="gv-rank-summary-label">Fora da meta (&gt;2%)</span>
-                                    <span class="gv-rank-summary-value tabular-nums">{{ _rank_m_ns.fora }}</span>
-                                </div>
                             </div>
                         </header>
                         <div class="gv-table-wrap gv-rank-table-wrap">
@@ -328,25 +333,10 @@ window.addEventListener("error", function (evt) {
                         </div>
                     </article>
                     <article class="sys-card sys-card--surface gv-rank-card">
-                        <header class="gv-rank-card-head">
+                        <header class="gv-rank-card-head gv-rank-card-head--table-only">
                             <div class="gv-card-head gv-rank-card-title-row">
                                 <h2 class="gv-card-title gv-rank-card-title">Ranking Ajudantes</h2>
                                 <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-                            </div>
-                            <p class="gv-rank-legend">Meta ideal: até 2,00% de devolução</p>
-                            <div class="gv-rank-summary" role="group" aria-label="Resumo ajudantes">
-                                <div class="gv-rank-summary-item">
-                                    <span class="gv-rank-summary-label">Colaboradores</span>
-                                    <span class="gv-rank-summary-value tabular-nums">{{ _rank_a_ns.n }}</span>
-                                </div>
-                                <div class="gv-rank-summary-item">
-                                    <span class="gv-rank-summary-label">Total prêmios</span>
-                                    <span class="gv-rank-summary-value tabular-nums">R$ {{ '{:,.2f}'.format(_rank_a_ns.premio).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
-                                </div>
-                                <div class="gv-rank-summary-item gv-rank-summary-item--alert">
-                                    <span class="gv-rank-summary-label">Fora da meta (&gt;2%)</span>
-                                    <span class="gv-rank-summary-value tabular-nums">{{ _rank_a_ns.fora }}</span>
-                                </div>
                             </div>
                         </header>
                         <div class="gv-table-wrap gv-rank-table-wrap">
