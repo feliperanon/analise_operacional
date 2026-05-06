@@ -771,23 +771,24 @@ body.dashboard-app .sys-kpi-grid #info-date {
   line-height: 1.18;
 }
 
-.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table.gv-dev-ranking-table.gv-rank-table {
-  font-size: clamp(0.74rem, 1vw, 0.84rem);
-  letter-spacing: -0.01em;
-  line-height: 1.35;
+.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table.gv-dev-ranking-table {
+  font-size: 12px;
+  line-height: 1.1;
 }
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap thead th.gv-dev-ranking-th {
-  font-size: clamp(0.62rem, 0.88vw, 0.72rem);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.12;
   white-space: nowrap;
-  padding: 0.45rem 0.35rem 0.35rem !important;
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
 }
 
-.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table.gv-dev-ranking-table.gv-rank-table tbody td {
-  padding: 0.42rem 0.35rem !important;
+.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table.gv-dev-ranking-table tbody td {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
 }
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap thead th {
@@ -801,10 +802,6 @@ body.dashboard-app .sys-kpi-grid #info-date {
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap tbody td {
   padding-top: 0.1rem !important;
   padding-bottom: 0.08rem !important;
-}
-
-.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap tbody tr.gv-rank-row td {
-  padding: 0.42rem 0.35rem !important;
 }
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap .gv-table-empty {
