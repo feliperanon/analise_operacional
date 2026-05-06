@@ -185,7 +185,7 @@
                 </div>
               </td>
               <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle whitespace-nowrap" data-label="Data" x-text="item.data_romaneio_pt || item.data_romaneio || '-'"></td>
-              <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motorista" x-text="item.motorista_name || '-'"></td>
+              <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motorista" x-text="shortDisplayName(item.motorista_name)"></td>
               <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motivo">
                 <span class="employees-data-table__role-ellipsis block max-w-[14rem]" :title="(item.motivo_nome || '-') + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')" x-text="(item.motivo_nome || '-') + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></span>
               </td>
@@ -245,7 +245,7 @@
               <template x-if="resumoLoading"><tr><td colspan="6" class="px-3 py-3 text-sm text-slate-500">Carregando...</td></tr></template>
               <template x-for="r in resumo" :key="'m-' + r.motorista_id">
                 <tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="openResumoMotorista(r)">
-                  <td class="px-3 py-2 font-medium" x-text="r.motorista_name"></td>
+                  <td class="px-3 py-2 font-medium" x-text="shortDisplayName(r.motorista_name)"></td>
                   <td class="px-3 py-2 text-right" x-text="r.devolucoes_total"></td>
                   <td class="px-3 py-2 text-right" x-text="r.pct_original + '%'"></td>
                   <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300" x-text="r.pct_ajustado + '%'"></td>
@@ -270,7 +270,7 @@
               <template x-if="resumoLoading"><tr><td colspan="6" class="px-3 py-3 text-sm text-slate-500">Carregando...</td></tr></template>
               <template x-for="r in resumoAjudantes" :key="'a-' + r.ajudante_id">
                 <tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="openResumoAjudante(r)">
-                  <td class="px-3 py-2 font-medium" x-text="r.ajudante_name"></td>
+                  <td class="px-3 py-2 font-medium" x-text="shortDisplayName(r.ajudante_name)"></td>
                   <td class="px-3 py-2 text-right" x-text="r.devolucoes_total"></td>
                   <td class="px-3 py-2 text-right" x-text="(r.pct_original || 0) + '%'"></td>
                   <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300" x-text="(r.pct_ajustado || 0) + '%'"></td>

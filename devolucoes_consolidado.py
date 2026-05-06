@@ -29,6 +29,20 @@ from sqlmodel import Session, select, func
 import models
 from utils.business_calendar import competence_date_str
 
+DELIVERY_GAMIFICATION_RETURN_PRIZE_TIERS: List[Tuple[float, float]] = [
+    (1.5, 300.0),
+    (2.0, 250.0),
+    (2.5, 180.0),
+]
+
+
+def _return_rate_to_prize(return_rate_pct: float) -> float:
+    """Retorna o prêmio conforme a faixa da taxa de devolução ajustada."""
+    for limit, prize in DELIVERY_GAMIFICATION_RETURN_PRIZE_TIERS:
+        if float(return_rate_pct or 0.0) <= float(limit):
+            return float(prize)
+    return 0.0
+
 
 def _iter_days_inclusive(date_from: str, date_to: str) -> List[str]:
     """Lista YYYY-MM-DD do início ao fim (inclusive), ordem cronológica crescente."""
@@ -372,51 +386,38 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
         d1 = datetime.strptime("2099-12-31", "%Y-%m-%d").date()
     if d1 < d0:
         d0, d1 = d1, d0
-    # Janela estendida para capturar virada de mês via competência operacional.
-    window_start = (d0 - timedelta(days=10)).strftime("%Y-%m-%d")
-    window_end = (d1 + timedelta(days=10)).strftime("%Y-%m-%d")
     period_start = d0.strftime("%Y-%m-%d")
     period_end = d1.strftime("%Y-%m-%d")
 
-    def _competencia_in_period(raw_date: Optional[str]) -> bool:
-        comp = competence_date_str(raw_date) or str(raw_date or "")[:10]
-        return period_start <= comp <= period_end
-
     devolucoes = session.exec(
         select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= window_start)
-        .where(models.Devolucao.data_romaneio <= window_end)
+        .where(models.Devolucao.data_romaneio >= period_start)
+        .where(models.Devolucao.data_romaneio <= period_end)
         .order_by(models.Devolucao.motorista_id, models.Devolucao.id)
     ).all()
     devolucoes = [d for d in devolucoes if not getattr(d, "duplicate_of_id", None)]
-    devolucoes = [
-        d for d in devolucoes
-        if _competencia_in_period(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None))
-    ]
 
     ajustes = load_ajustes_map(session)
 
     routes_delivered = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
-        .where(models.Route.date >= window_start)
-        .where(models.Route.date <= window_end)
+        .where(models.Route.date >= period_start)
+        .where(models.Route.date <= period_end)
         .where(models.Route.delivery_status == "entregue")
     ).all()
-    routes_delivered = [r for r in routes_delivered if _competencia_in_period(getattr(r, "date", None))]
 
     route_helpers, route_by_client_driver_date, session_helpers_by_driver_date, emp_by_name = _build_helper_maps(
-        session, window_start, window_end
+        session, period_start, period_end
     )
 
     routes_in_range = session.exec(
         select(models.Route)
-        .where(models.Route.date >= window_start)
-        .where(models.Route.date <= window_end)
+        .where(models.Route.date >= period_start)
+        .where(models.Route.date <= period_end)
         .where(models.Route.client_id.is_not(None))
         .where(models.Route.employee_id.is_not(None))
     ).all()
-    routes_in_range = [r for r in routes_in_range if _competencia_in_period(getattr(r, "date", None))]
 
     effective_ajudante_ids = set()
     for d in devolucoes:
@@ -583,6 +584,7 @@ def motorista_consolidado_row_dict(
     pct_original = (dev_t / total_paradas * 100) if total_paradas else 0.0
     total_attributed = ent + dev_a
     pct_ajustado = (dev_a / total_attributed * 100) if total_attributed else 0.0
+    premio = _return_rate_to_prize(pct_ajustado)
     return {
         "motorista_id": motorista_id,
         "motorista_name": motorista_name,
@@ -595,6 +597,7 @@ def motorista_consolidado_row_dict(
         "pct_ajustado": round(pct_ajustado, 2),
         "valor_original": round(vtot, 2),
         "valor_ajustado": round(vadj, 2),
+        "premio": round(float(premio), 2),
     }
 
 
@@ -617,6 +620,7 @@ def ajudante_consolidado_row_dict(
     pct_original = (dev_t / total_paradas * 100) if total_paradas > 0 else (100.0 if dev_t else 0.0)
     total_ajust = ent + dev_a
     pct_ajustado = (dev_a / total_ajust * 100) if total_ajust > 0 else 0.0
+    premio = _return_rate_to_prize(pct_ajustado)
     return {
         "ajudante_id": ajudante_id,
         "ajudante_name": ajudante_name,
@@ -629,6 +633,7 @@ def ajudante_consolidado_row_dict(
         "pct_ajustado": round(pct_ajustado, 2),
         "valor_original": round(vtot, 2),
         "valor_ajustado": round(vadj, 2),
+        "premio": round(float(premio), 2),
     }
 
 

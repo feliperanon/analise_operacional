@@ -112,6 +112,17 @@
         return from.split("-").reverse().join("/") + " a " + to.split("-").reverse().join("/");
       },
 
+      shortDisplayName(name) {
+        var raw = String(name || "").trim();
+        if (!raw) return "-";
+        var parts = raw.split(/\s+/).filter(Boolean);
+        if (!parts.length) return "-";
+        if (parts.length === 1) return parts[0].toUpperCase();
+        var first = parts[0].toUpperCase();
+        var secondInitial = (parts[1] || "").charAt(0).toUpperCase();
+        return secondInitial ? (first + " " + secondInitial + ".") : first;
+      },
+
       async loadAll() {
         this.loading = true;
         this.errorMsg = "";
@@ -291,19 +302,19 @@
 
       async openResumoMotorista(row) {
         if (!row || row.motorista_id == null) return;
-        this.resumoDetailTitle = "Devoluções do motorista · " + (row.motorista_name || "");
+        this.resumoDetailTitle = "Devoluções do motorista · " + this.shortDisplayName(row.motorista_name);
         await this.openResumoDetalhe("motorista_ids", row.motorista_id);
       },
 
       async openResumoAjudante(row) {
         if (!row || row.ajudante_id == null) return;
-        this.resumoDetailTitle = "Devoluções do ajudante · " + (row.ajudante_name || "");
+        this.resumoDetailTitle = "Devoluções do ajudante · " + this.shortDisplayName(row.ajudante_name);
         await this.openResumoDetalhe("ajudante_ids", row.ajudante_id);
       },
 
       async openResumoFromItem(item) {
         if (!item || item.motorista_id == null) return;
-        this.resumoDetailTitle = "Devoluções do motorista · " + (item.motorista_name || "");
+        this.resumoDetailTitle = "Devoluções do motorista · " + this.shortDisplayName(item.motorista_name);
         await this.openResumoDetalhe("motorista_ids", item.motorista_id);
       },
 
