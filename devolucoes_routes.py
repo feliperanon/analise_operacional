@@ -71,6 +71,19 @@ def _is_motorista_cargo(role: Optional[str]) -> bool:
     return ("MOTORISTA" in r) and ("AJUDANTE" not in r)
 
 
+def _parse_optional_query_int(value: Any) -> Optional[int]:
+    """GET com campos vazios (ex.: motorista_id='' em 'Todos') não deve gerar 422 no FastAPI."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
 def _fmt_data_hora_pt_br(s: Optional[str]) -> str:
     """Formata data/hora para pt-BR (dd/MM/yyyy HH:mm ou dd/MM/yyyy)."""
     if not s or not str(s).strip():
@@ -758,14 +771,16 @@ def init_devolucoes_router(
         q: Optional[str] = None,
         source: Optional[str] = None,
         status_view: str = Query(default="all"),
-        motorista_id: Optional[int] = None,
+        motorista_id: Optional[str] = Query(default=None),
         sort: str = Query(default="data"),
         dir: str = Query(default="desc"),
-        page: int = 1,
-        per_page: Optional[int] = None,
+        page: Optional[str] = Query(default="1"),
+        per_page: Optional[str] = Query(default=None),
         session: Session = Depends(get_session),
     ):
         require_login(request)
+        motorista_id = _parse_optional_query_int(motorista_id)
+        page = max(1, _parse_optional_query_int(page) or 1)
         now = datetime.now()
         today = now.date()
         today_active = False
@@ -825,8 +840,7 @@ def init_devolucoes_router(
         sort_dir = (dir or "").strip().lower()
         if sort_dir not in {"asc", "desc"}:
             sort_dir = "desc" if sort_key in {"data", "valor"} else "asc"
-        page = max(1, int(page or 1))
-        per_page_effective = min(max(25, int(per_page or 50)), 200)
+        per_page_effective = min(max(25, _parse_optional_query_int(per_page) or 50), 200)
 
         # Só colunas usadas nos selects (menos tráfego Redis/Postgres que ORM completo)
         er = session.exec(
