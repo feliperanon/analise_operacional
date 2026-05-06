@@ -69,21 +69,6 @@ window.addEventListener("error", function (evt) {
 {% endif %}
 {% set b_all = ((b_sp or []) + (b_ex or []))|sort(attribute='day') %}
 
-{% set _rank_m = inf.get('devolucao_ranking_motoristas') or inf.get('devolucao_ranking') or [] %}
-{% set _rank_a = inf.get('devolucao_ranking_ajudantes') or [] %}
-{% set _rank_m_ns = namespace(n=0, premio=0.0, fora=0) %}
-{% for r in _rank_m %}
-{% set _rank_m_ns.n = _rank_m_ns.n + 1 %}
-{% set _rank_m_ns.premio = _rank_m_ns.premio + (gv_rank_premio_num(r)|float) %}
-{% if (r.pct_ajustado|default(0)|float) > 2 %}{% set _rank_m_ns.fora = _rank_m_ns.fora + 1 %}{% endif %}
-{% endfor %}
-{% set _rank_a_ns = namespace(n=0, premio=0.0, fora=0) %}
-{% for r in _rank_a %}
-{% set _rank_a_ns.n = _rank_a_ns.n + 1 %}
-{% set _rank_a_ns.premio = _rank_a_ns.premio + (gv_rank_premio_num(r)|float) %}
-{% if (r.pct_ajustado|default(0)|float) > 2 %}{% set _rank_a_ns.fora = _rank_a_ns.fora + 1 %}{% endif %}
-{% endfor %}
-
 {% macro gv_dois_nomes(n) -%}
 {%- set t = (n|string)|trim -%}
 {%- if t -%}
@@ -121,6 +106,21 @@ window.addEventListener("error", function (evt) {
 {%- else -%}gv-rank-tier--bad
 {%- endif -%}
 {%- endmacro %}
+
+{% set _rank_m = inf.get('devolucao_ranking_motoristas') or inf.get('devolucao_ranking') or [] %}
+{% set _rank_a = inf.get('devolucao_ranking_ajudantes') or [] %}
+{% set _rank_m_ns = namespace(n=0, premio=0.0, fora=0) %}
+{% for r in _rank_m %}
+{% set _rank_m_ns.n = _rank_m_ns.n + 1 %}
+{% set _rank_m_ns.premio = _rank_m_ns.premio + (gv_rank_premio_num(r)|float) %}
+{% if (r.pct_ajustado|default(0)|float) > 2 %}{% set _rank_m_ns.fora = _rank_m_ns.fora + 1 %}{% endif %}
+{% endfor %}
+{% set _rank_a_ns = namespace(n=0, premio=0.0, fora=0) %}
+{% for r in _rank_a %}
+{% set _rank_a_ns.n = _rank_a_ns.n + 1 %}
+{% set _rank_a_ns.premio = _rank_a_ns.premio + (gv_rank_premio_num(r)|float) %}
+{% if (r.pct_ajustado|default(0)|float) > 2 %}{% set _rank_a_ns.fora = _rank_a_ns.fora + 1 %}{% endif %}
+{% endfor %}
 
 {# RH (aniversariantes / férias): primeiro nome + inicial do segundo, ex. Felipe A. #}
 {% macro gv_nome_primeiro_e_inicial(n) -%}
