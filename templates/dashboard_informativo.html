@@ -69,6 +69,21 @@ window.addEventListener("error", function (evt) {
 {% endif %}
 {% set b_all = ((b_sp or []) + (b_ex or []))|sort(attribute='day') %}
 
+{% set _rank_m = inf.get('devolucao_ranking_motoristas') or inf.get('devolucao_ranking') or [] %}
+{% set _rank_a = inf.get('devolucao_ranking_ajudantes') or [] %}
+{% set _rank_m_ns = namespace(n=0, premio=0.0, fora=0) %}
+{% for r in _rank_m %}
+{% set _rank_m_ns.n = _rank_m_ns.n + 1 %}
+{% set _rank_m_ns.premio = _rank_m_ns.premio + (gv_rank_premio_num(r)|float) %}
+{% if (r.pct_ajustado|default(0)|float) > 2 %}{% set _rank_m_ns.fora = _rank_m_ns.fora + 1 %}{% endif %}
+{% endfor %}
+{% set _rank_a_ns = namespace(n=0, premio=0.0, fora=0) %}
+{% for r in _rank_a %}
+{% set _rank_a_ns.n = _rank_a_ns.n + 1 %}
+{% set _rank_a_ns.premio = _rank_a_ns.premio + (gv_rank_premio_num(r)|float) %}
+{% if (r.pct_ajustado|default(0)|float) > 2 %}{% set _rank_a_ns.fora = _rank_a_ns.fora + 1 %}{% endif %}
+{% endfor %}
+
 {% macro gv_dois_nomes(n) -%}
 {%- set t = (n|string)|trim -%}
 {%- if t -%}
@@ -83,6 +98,27 @@ window.addEventListener("error", function (evt) {
 {%- elif p <= 2.0 -%}250
 {%- elif p <= 2.5 -%}180
 {%- else -%}0
+{%- endif -%}
+{%- endmacro %}
+
+{% macro gv_rank_premio_num(r) -%}
+{%- set pr = (r.premio if (r.premio is defined and r.premio is not none) else gv_premio_por_pct(r.pct_ajustado))|float -%}
+{{- pr -}}
+{%- endmacro %}
+
+{% macro gv_rank_pct_class(pct) -%}
+{%- set p = pct|default(0)|float -%}
+{%- if p <= 2.0 -%}gv-rank-pct--ok
+{%- elif p <= 2.5 -%}gv-rank-pct--warn
+{%- else -%}gv-rank-pct--bad
+{%- endif -%}
+{%- endmacro %}
+
+{% macro gv_rank_row_tier(pct) -%}
+{%- set p = pct|default(0)|float -%}
+{%- if p <= 2.0 -%}gv-rank-tier--ok
+{%- elif p <= 2.5 -%}gv-rank-tier--warn
+{%- else -%}gv-rank-tier--bad
 {%- endif -%}
 {%- endmacro %}
 
@@ -233,30 +269,56 @@ window.addEventListener("error", function (evt) {
             <div class="gv-body gv-dashboard-grid gv-content-grid gv-main-grid">
             <div class="gv-col gv-col-dev">
                 <div class="gv-dev-cards">
-                    <article class="sys-card sys-card--surface">
-                        <div class="gv-card-head">
-                            <h2 class="gv-card-title">Devolução Motorista</h2>
-                            <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
-                        </div>
-                        <div class="gv-table-wrap">
-                            <table class="gv-dev-ranking-table w-full text-left">
+                    <article class="sys-card sys-card--surface gv-rank-card">
+                        <header class="gv-rank-card-head">
+                            <div class="gv-card-head gv-rank-card-title-row">
+                                <h2 class="gv-card-title gv-rank-card-title">Ranking Motoristas</h2>
+                                <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg></span>
+                            </div>
+                            <p class="gv-rank-legend">Meta ideal: até 2,00% de devolução</p>
+                            <div class="gv-rank-summary" role="group" aria-label="Resumo motoristas">
+                                <div class="gv-rank-summary-item">
+                                    <span class="gv-rank-summary-label">Colaboradores</span>
+                                    <span class="gv-rank-summary-value tabular-nums">{{ _rank_m_ns.n }}</span>
+                                </div>
+                                <div class="gv-rank-summary-item">
+                                    <span class="gv-rank-summary-label">Total prêmios</span>
+                                    <span class="gv-rank-summary-value tabular-nums">R$ {{ '{:,.2f}'.format(_rank_m_ns.premio).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                                </div>
+                                <div class="gv-rank-summary-item gv-rank-summary-item--alert">
+                                    <span class="gv-rank-summary-label">Fora da meta (&gt;2%)</span>
+                                    <span class="gv-rank-summary-value tabular-nums">{{ _rank_m_ns.fora }}</span>
+                                </div>
+                            </div>
+                        </header>
+                        <div class="gv-table-wrap gv-rank-table-wrap">
+                            <table class="gv-dev-ranking-table gv-rank-table w-full text-left">
                                 <thead>
                                     <tr>
-                                        <th class="gv-dev-ranking-th py-0.5 px-0.5">Colab.</th>
-                                        <th class="gv-dev-ranking-th py-0.5 px-0.5 text-right" title="Prêmio">Prêmio</th>
-                                        <th class="gv-dev-ranking-th py-0.5 px-0.5 text-right" title="% devolução">% dev.</th>
-                                        <th class="gv-dev-ranking-th py-0.5 px-0.5 text-right" title="R$ devolução">R$ dev.</th>
+                                        <th class="gv-dev-ranking-th gv-rank-th-name">Colaborador</th>
+                                        <th class="gv-dev-ranking-th gv-rank-th-pct text-right" title="Percentual de devolução">% dev.</th>
+                                        <th class="gv-dev-ranking-th gv-rank-th-chip text-center" title="Prêmio previsto">Prêmio</th>
+                                        <th class="gv-dev-ranking-th gv-rank-th-val text-right gv-rank-th-muted" title="Valor devolvido">R$ dev.</th>
                                     </tr>
                                 </thead>
                                 <tbody id="ranking-body">
-                                    {% for r in (inf.get('devolucao_ranking_motoristas') or inf.get('devolucao_ranking') or []) %}
-                                    <tr>
-                                        <td class="gv-name-cell py-0.5 px-0.5" data-fit-container>
-                                            <span class="gv-fit-oneline" data-fit-min="6" data-fit-max="10">{{ gv_dois_nomes(r.name) }}</span>
+                                    {% for r in _rank_m %}
+                                    {% set _prm = gv_rank_premio_num(r)|float %}
+                                    <tr class="gv-rank-row {{ gv_rank_row_tier(r.pct_ajustado) }}">
+                                        <td class="gv-name-cell gv-rank-td-name" data-fit-container>
+                                            <span class="gv-fit-oneline gv-rank-name" data-fit-min="7" data-fit-max="12">{{ gv_dois_nomes(r.name) }}</span>
                                         </td>
-                                        <td class="py-0.5 px-0.5 text-right tabular-nums align-middle gv-table-val gv-dev-ranking-num">R$ {{ '{:,.2f}'.format((r.premio if (r.premio is defined and r.premio is not none) else gv_premio_por_pct(r.pct_ajustado))|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
-                                        <td class="py-0.5 px-0.5 text-right tabular-nums align-middle gv-dev-ranking-pct {{ 'gv-pct-attn' if (r.pct_ajustado|default(0)|float) > 2 else 'gv-pct-good' }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</td>
-                                        <td class="py-0.5 px-0.5 text-right tabular-nums align-middle gv-table-val gv-dev-ranking-num">R$ {{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
+                                        <td class="gv-rank-td-pct text-right align-middle tabular-nums">
+                                            <span class="gv-rank-pct {{ gv_rank_pct_class(r.pct_ajustado) }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</span>
+                                        </td>
+                                        <td class="gv-rank-td-chip text-center align-middle">
+                                            {% if _prm > 0 %}
+                                            <span class="gv-rank-chip gv-rank-chip--yes tabular-nums">R$ {{ '{:,.2f}'.format(_prm).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                                            {% else %}
+                                            <span class="gv-rank-chip gv-rank-chip--no">Sem prêmio</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="gv-rank-td-val text-right tabular-nums align-middle gv-rank-val-rs">R$ {{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                     </tr>
                                     {% else %}
                                     <tr><td colspan="4" class="gv-table-empty text-center">Sem colaboradores no período.</td></tr>
@@ -265,30 +327,56 @@ window.addEventListener("error", function (evt) {
                             </table>
                         </div>
                     </article>
-                    <article class="sys-card sys-card--surface">
-                        <div class="gv-card-head">
-                            <h2 class="gv-card-title">Devolução Ajudante</h2>
-                            <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-                        </div>
-                        <div class="gv-table-wrap">
-                            <table class="gv-dev-ranking-table w-full text-left">
+                    <article class="sys-card sys-card--surface gv-rank-card">
+                        <header class="gv-rank-card-head">
+                            <div class="gv-card-head gv-rank-card-title-row">
+                                <h2 class="gv-card-title gv-rank-card-title">Ranking Ajudantes</h2>
+                                <span class="gv-card-icon shrink-0" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                            </div>
+                            <p class="gv-rank-legend">Meta ideal: até 2,00% de devolução</p>
+                            <div class="gv-rank-summary" role="group" aria-label="Resumo ajudantes">
+                                <div class="gv-rank-summary-item">
+                                    <span class="gv-rank-summary-label">Colaboradores</span>
+                                    <span class="gv-rank-summary-value tabular-nums">{{ _rank_a_ns.n }}</span>
+                                </div>
+                                <div class="gv-rank-summary-item">
+                                    <span class="gv-rank-summary-label">Total prêmios</span>
+                                    <span class="gv-rank-summary-value tabular-nums">R$ {{ '{:,.2f}'.format(_rank_a_ns.premio).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                                </div>
+                                <div class="gv-rank-summary-item gv-rank-summary-item--alert">
+                                    <span class="gv-rank-summary-label">Fora da meta (&gt;2%)</span>
+                                    <span class="gv-rank-summary-value tabular-nums">{{ _rank_a_ns.fora }}</span>
+                                </div>
+                            </div>
+                        </header>
+                        <div class="gv-table-wrap gv-rank-table-wrap">
+                            <table class="gv-dev-ranking-table gv-rank-table w-full text-left">
                                 <thead>
                                     <tr>
-                                        <th class="gv-dev-ranking-th py-0.5 px-0.5">Colab.</th>
-                                        <th class="gv-dev-ranking-th py-0.5 px-0.5 text-right" title="Prêmio">Prêmio</th>
-                                        <th class="gv-dev-ranking-th py-0.5 px-0.5 text-right" title="% devolução">% dev.</th>
-                                        <th class="gv-dev-ranking-th py-0.5 px-0.5 text-right" title="R$ devolução">R$ dev.</th>
+                                        <th class="gv-dev-ranking-th gv-rank-th-name">Colaborador</th>
+                                        <th class="gv-dev-ranking-th gv-rank-th-pct text-right" title="Percentual de devolução">% dev.</th>
+                                        <th class="gv-dev-ranking-th gv-rank-th-chip text-center" title="Prêmio previsto">Prêmio</th>
+                                        <th class="gv-dev-ranking-th gv-rank-th-val text-right gv-rank-th-muted" title="Valor devolvido">R$ dev.</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for r in (inf.get('devolucao_ranking_ajudantes') or []) %}
-                                    <tr>
-                                        <td class="gv-name-cell py-0.5 px-0.5" data-fit-container>
-                                            <span class="gv-fit-oneline" data-fit-min="6" data-fit-max="10">{{ gv_dois_nomes(r.name) }}</span>
+                                    {% for r in _rank_a %}
+                                    {% set _pra = gv_rank_premio_num(r)|float %}
+                                    <tr class="gv-rank-row {{ gv_rank_row_tier(r.pct_ajustado) }}">
+                                        <td class="gv-name-cell gv-rank-td-name" data-fit-container>
+                                            <span class="gv-fit-oneline gv-rank-name" data-fit-min="7" data-fit-max="12">{{ gv_dois_nomes(r.name) }}</span>
                                         </td>
-                                        <td class="py-0.5 px-0.5 text-right tabular-nums align-middle gv-table-val gv-dev-ranking-num">R$ {{ '{:,.2f}'.format((r.premio if (r.premio is defined and r.premio is not none) else gv_premio_por_pct(r.pct_ajustado))|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
-                                        <td class="py-0.5 px-0.5 text-right tabular-nums align-middle gv-dev-ranking-pct {{ 'gv-pct-attn' if (r.pct_ajustado|default(0)|float) > 2 else 'gv-pct-good' }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</td>
-                                        <td class="py-0.5 px-0.5 text-right tabular-nums align-middle gv-table-val gv-dev-ranking-num">R$ {{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
+                                        <td class="gv-rank-td-pct text-right align-middle tabular-nums">
+                                            <span class="gv-rank-pct {{ gv_rank_pct_class(r.pct_ajustado) }}">{{ '%.2f'|format(r.pct_ajustado|default(0)|float)|replace('.', ',') }}%</span>
+                                        </td>
+                                        <td class="gv-rank-td-chip text-center align-middle">
+                                            {% if _pra > 0 %}
+                                            <span class="gv-rank-chip gv-rank-chip--yes tabular-nums">R$ {{ '{:,.2f}'.format(_pra).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                                            {% else %}
+                                            <span class="gv-rank-chip gv-rank-chip--no">Sem prêmio</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="gv-rank-td-val text-right tabular-nums align-middle gv-rank-val-rs">R$ {{ '{:,.2f}'.format(r.valor_ajustado|default(0)|float).replace(',', 'X').replace('.', ',').replace('X', '.') }}</td>
                                     </tr>
                                     {% else %}
                                     <tr><td colspan="4" class="gv-table-empty text-center">Sem colaboradores no período.</td></tr>

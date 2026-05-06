@@ -206,7 +206,7 @@
                 <details class="admin-inf-collapse admin-inf-monthly-collapse"{% if request.query_params.get('saved_devolucao') == '1' %} open{% endif %}>
                     <summary>Índice de devolução mensal</summary>
                     <div class="admin-inf-monthly-inner">
-                        <p class="admin-inf-subtext admin-inf-monthly-lead">Base do gráfico mensal do dashboard · números no padrão brasileiro. Em cada mês, marque <strong class="font-medium">dados do sistema</strong> para preencher % e valor (R$) a partir de rotas de entrega e do cadastro de devoluções (empresa inteira). A receita (meta 2%) continua manual. Desmarque para lançar tudo à mão, como antes.</p>
+                        <p class="admin-inf-subtext admin-inf-monthly-lead">Base do gráfico mensal do dashboard · números no padrão brasileiro. Com <strong class="font-medium">dados do sistema</strong>, o % usa <strong class="font-medium">todas</strong> as rotas de entrega com data no mês (1º ao último dia): concluídas = entregue + devolução (critério canônico do BI). O valor (R$) é a soma das devoluções cadastradas com <strong class="font-medium">data romaneio</strong> nesse mesmo intervalo. A receita (meta 2%) continua manual. Desmarque para lançar % e valor à mão.</p>
                         <form method="get" action="/admin/informativo" class="admin-inf-year-form">
                             <div class="min-w-0">
                                 <label class="sys-section__label sys-section__label--field" for="dry_year">Ano</label>

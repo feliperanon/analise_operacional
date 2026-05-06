@@ -3423,19 +3423,38 @@ def _month_date_range_str(year: int, month: int) -> Tuple[str, str]:
     return start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
 
 
+def _kpi_devolucao_mes_romaneio_calendario(
+    session: Session, month_start_str: str, month_end_str: str
+) -> tuple[float, int]:
+    """Soma R$ e quantidade de devoluções no mês civil (data_romaneio entre 1º e último dia), empresa inteira."""
+    try:
+        q = (
+            select(models.Devolucao)
+            .where(models.Devolucao.data_romaneio >= month_start_str)
+            .where(models.Devolucao.data_romaneio <= month_end_str)
+        )
+        devs = session.exec(q).all()
+    except Exception:
+        return 0.0, 0
+    filtered = [d for d in devs if not getattr(d, "duplicate_of_id", None)]
+    total_v = float(sum(float(getattr(d, "valor", 0) or 0.0) for d in filtered))
+    return total_v, int(len(filtered))
+
+
 def _devolucao_mensal_system_month_values(session: Session, year: int, month: int) -> Dict[str, Optional[float]]:
-    """% devolução (rotas concluídas) e valor R$ (soma Devolucao no mês) — alinhado ao painel operacional."""
+    """
+    % e valor R$ só do sistema, mês civil (primeiro ↔ último dia):
+    - %: critério canônico (devoluções ÷ rotas concluídas) sobre todas as rotas type=delivery
+      com Route.date no intervalo [início, fim] do mês.
+    - Valor R$: soma cadastro Devolucao com data_romaneio no mesmo intervalo (sem janela de competência).
+    """
     ms, me = _month_date_range_str(year, month)
-    emp_ids = _employee_ids_for_informativo_devolucao_kpi(session)
-    if not emp_ids:
-        return {"pct": None, "valor": None}
     try:
         routes_month = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
             .where(models.Route.date >= ms)
             .where(models.Route.date <= me)
-            .where(models.Route.employee_id.in_(emp_ids))
         ).all()
     except Exception:
         routes_month = []
@@ -3445,7 +3464,7 @@ def _devolucao_mensal_system_month_values(session: Session, year: int, month: in
     except Exception:
         p = None
     try:
-        valor_v, _cnt = _kpi_devolucao_mes_registros(session, ms, me, emp_ids)
+        valor_v, _cnt = _kpi_devolucao_mes_romaneio_calendario(session, ms, me)
         v = round(float(valor_v), 2)
     except Exception:
         v = None
