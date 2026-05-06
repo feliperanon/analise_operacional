@@ -132,8 +132,14 @@ def effective_ajudante_id(
     session_helpers_by_driver_date: dict,
 ) -> Optional[int]:
     """Ajudante efetivo: Devolucao.ajudante_id ou da rota/sessão (igual ao desktop)."""
-    if d.ajudante_id:
-        return d.ajudante_id
+    aid_raw = getattr(d, "ajudante_id", None)
+    if aid_raw is not None:
+        try:
+            aid_int = int(aid_raw)
+        except (TypeError, ValueError):
+            aid_int = 0
+        if aid_int > 0:
+            return aid_int
     helper_ids = None
     if getattr(d, "route_id", None) and route_helpers.get(d.route_id):
         helper_ids = route_helpers[d.route_id]
@@ -516,10 +522,10 @@ def consolidado_avaliar_resumo(session: Session, date_from: str, date_to: str) -
 
     devs_by_ajudante: Dict[int, List[models.Devolucao]] = defaultdict(list)
     for d in devolucoes:
-        helper_ids = effective_ajudante_ids_for_summary(
+        eid = effective_ajudante_id(
             d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date
         )
-        for eid in helper_ids:
+        if eid is not None:
             devs_by_ajudante[int(eid)].append(d)
 
     out_ajudantes = []

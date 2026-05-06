@@ -3638,6 +3638,52 @@ def _build_informativo_extras(
     rows_m = list(resumo_mes.get("data") or [])
     rows_h = list(resumo_mes.get("data_ajudantes") or [])
 
+    def _short_name_first_and_initial(raw_name: Optional[str]) -> str:
+        txt = str(raw_name or "").strip()
+        if not txt:
+            return ""
+        parts = [p for p in txt.split() if p]
+        if not parts:
+            return ""
+        first = parts[0]
+        if len(parts) == 1:
+            return first
+        return f"{first} {parts[1][0].upper()}"
+
+    motorista_ids_from_rows: set[int] = set()
+    for row in rows_m:
+        try:
+            mid = int(row.get("motorista_id") or 0)
+        except (TypeError, ValueError):
+            mid = 0
+        if mid > 0:
+            motorista_ids_from_rows.add(mid)
+
+    ajudante_ids_from_rows: set[int] = set()
+    for row in rows_h:
+        try:
+            hid = int(row.get("ajudante_id") or 0)
+        except (TypeError, ValueError):
+            hid = 0
+        if hid > 0:
+            ajudante_ids_from_rows.add(hid)
+
+    all_rank_ids = motorista_ids_from_rows | ajudante_ids_from_rows
+    employee_name_by_id: Dict[int, str] = {}
+    if all_rank_ids:
+        try:
+            emps_rank = session.exec(select(models.Employee).where(models.Employee.id.in_(list(all_rank_ids)))).all()
+        except Exception:
+            emps_rank = []
+        for emp in emps_rank:
+            try:
+                eid = int(getattr(emp, "id", 0) or 0)
+            except (TypeError, ValueError):
+                eid = 0
+            if eid <= 0:
+                continue
+            employee_name_by_id[eid] = str(getattr(emp, "name", "") or "").strip()
+
     scope_set = {int(x) for x in motorista_ids_scope} if motorista_ids_scope else None
 
     devolucao_ranking = []
@@ -3653,9 +3699,11 @@ def _build_informativo_extras(
             mid_int = int(mid) if mid is not None else 0
         except (TypeError, ValueError):
             mid_int = 0
+        row_name = (row.get("motorista_name") or "").strip()
+        resolved_name = row_name or employee_name_by_id.get(mid_int, "")
         devolucao_ranking.append({
             "motorista_id": mid_int,
-            "name": (row.get("motorista_name") or "").strip() or (f"Motorista #{mid}" if mid else "—"),
+            "name": _short_name_first_and_initial(resolved_name) or (f"Motorista #{mid}" if mid else "—"),
             "pct_ajustado": float(row.get("pct_ajustado") or 0),
             "valor_ajustado": float(row.get("valor_ajustado") or 0),
             "premio": float(_return_rate_to_prize(float(row.get("pct_ajustado") or 0.0))),
@@ -3672,29 +3720,22 @@ def _build_informativo_extras(
             hid_int = int(hid) if hid is not None else 0
         except (TypeError, ValueError):
             hid_int = 0
+        row_name = (row.get("ajudante_name") or "").strip()
+        resolved_name = row_name or employee_name_by_id.get(hid_int, "")
         devolucao_ranking_helper.append({
             "ajudante_id": hid_int,
-            "name": (row.get("ajudante_name") or "").strip() or (f"Ajudante #{hid}" if hid else "—"),
+            "name": _short_name_first_and_initial(resolved_name) or (f"Ajudante #{hid}" if hid else "—"),
             "pct_ajustado": float(row.get("pct_ajustado") or 0),
             "valor_ajustado": float(row.get("valor_ajustado") or 0),
             "premio": float(_return_rate_to_prize(float(row.get("pct_ajustado") or 0.0))),
             "pct_original": float(row.get("pct_original") or 0),
             "valor_original": float(row.get("valor_original") or 0),
         })
-    _mot_ord: Dict[int, int] = {}
-    _ajd_ord: Dict[int, int] = {}
-    try:
-        from devolucoes_routes import _ajudante_first_seen_day_order, _motorista_first_seen_day_order
-
-        _mot_ord = _motorista_first_seen_day_order(session, selected_date_str)
-        _ajd_ord = _ajudante_first_seen_day_order(session, selected_date_str)
-    except Exception:
-        pass
     devolucao_ranking.sort(
-        key=lambda x: (_mot_ord.get(int(x.get("motorista_id") or 0), 10**6), (x.get("name") or "").casefold())
+        key=lambda x: ((x.get("name") or "").casefold(), int(x.get("motorista_id") or 0))
     )
     devolucao_ranking_helper.sort(
-        key=lambda x: (_ajd_ord.get(int(x.get("ajudante_id") or 0), 10**6), (x.get("name") or "").casefold())
+        key=lambda x: ((x.get("name") or "").casefold(), int(x.get("ajudante_id") or 0))
     )
 
     devs_prev_q = (
