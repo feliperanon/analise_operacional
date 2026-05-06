@@ -49,6 +49,9 @@ from devolucoes_service import _load_cadastros as devolucoes_load_cadastros
 from devolucoes_consolidado import consolidado_avaliar_resumo
 from utils.business_calendar import competence_date_str
 
+# Período padrão em /devolucoes/avaliar: somente a partir deste dia do mês (competência operacional).
+AVALIAR_DEFAULT_MONTH_START_DAY = 5
+
 
 def _normalized_employee_role_text(role: Optional[str]) -> str:
     """Alinha a `main._normalized_employee_role` / cargo motorista vs ajudante."""
@@ -1984,11 +1987,13 @@ def init_devolucoes_router(
         current_year = now.year
         current_month = now.month
         month_last_day = monthrange(current_year, current_month)[1]
-        month_start_str = now.replace(day=1).strftime("%Y-%m-%d")
         month_end_str = now.replace(day=month_last_day).strftime("%Y-%m-%d")
-        # Sem filtros na URL: período = primeiro ao último dia do mês corrente.
+        avaliar_default_from = now.replace(
+            day=min(AVALIAR_DEFAULT_MONTH_START_DAY, month_last_day)
+        ).strftime("%Y-%m-%d")
+        # Sem filtros na URL: do dia 5 (padrão) ao último dia do mês corrente.
         if not date_from and not date_to:
-            date_from = month_start_str
+            date_from = avaliar_default_from
             date_to = month_end_str
         else:
             # Com uma data só, completa a outra ponta no mesmo mês informado.
@@ -1997,8 +2002,9 @@ def init_devolucoes_router(
                 ref_dt = datetime.strptime(str(ref_raw)[:10], "%Y-%m-%d")
             except Exception:
                 ref_dt = now
-            ref_first = ref_dt.replace(day=1).strftime("%Y-%m-%d")
-            ref_last = ref_dt.replace(day=monthrange(ref_dt.year, ref_dt.month)[1]).strftime("%Y-%m-%d")
+            ref_ml = monthrange(ref_dt.year, ref_dt.month)[1]
+            ref_first = ref_dt.replace(day=min(AVALIAR_DEFAULT_MONTH_START_DAY, ref_ml)).strftime("%Y-%m-%d")
+            ref_last = ref_dt.replace(day=ref_ml).strftime("%Y-%m-%d")
             if not date_from:
                 date_from = ref_first
             if not date_to:

@@ -132,7 +132,7 @@ body.dashboard-app .gv-body {
 .gv-content-grid,
 .gv-main-grid {
   display: grid;
-  grid-template-columns: clamp(300px, 22vw, 440px) minmax(640px, 1fr) clamp(320px, 20vw, 400px);
+  grid-template-columns: clamp(318px, 24vw, 465px) minmax(520px, 1fr) clamp(296px, 18.5vw, 388px);
   gap: 12px;
   flex: 1 1 auto;
   min-height: 0;
@@ -235,18 +235,39 @@ body.dashboard-app .gv-body {
   flex-direction: column;
   flex: 1 1 0;
   overflow: hidden;
-  padding: 14px 16px;
+  padding: 10px 11px;
 }
 
 .gv-dev-cards .gv-card-title {
-  font-size: 15px;
-  line-height: 1.1;
+  font-size: 13px;
+  line-height: 1.08;
+  letter-spacing: 0.055em;
 }
 
-.gv-dev-cards .gv-table-wrap table {
+.gv-dev-cards .gv-card-head .gv-card-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Ranking devolução motorista/ajudante: 4 colunas em table-layout fixed */
+.gv-dev-cards .gv-dev-ranking-table {
   table-layout: fixed;
   width: 100%;
-  font-size: 12px;
+  font-size: 0.6875rem;
+  letter-spacing: -0.012em;
+}
+
+.gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-th {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.12;
+  white-space: nowrap;
+}
+
+.gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-num,
+.gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-pct {
+  font-size: 0.6875rem;
 }
 
 .gv-dev-cards .gv-table-wrap thead th,
@@ -256,19 +277,37 @@ body.dashboard-app .gv-body {
   line-height: 1.1;
 }
 
-.gv-dev-cards .gv-table-wrap thead th:nth-child(1),
-.gv-dev-cards .gv-table-wrap tbody td:nth-child(1) {
-  width: 48%;
+.gv-dev-cards .gv-dev-ranking-table thead th,
+.gv-dev-cards .gv-dev-ranking-table tbody td {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+  line-height: 1.12;
 }
 
-.gv-dev-cards .gv-table-wrap thead th:nth-child(2),
-.gv-dev-cards .gv-table-wrap tbody td:nth-child(2) {
-  width: 20%;
+.gv-dev-cards .gv-dev-ranking-table thead th:nth-child(1),
+.gv-dev-cards .gv-dev-ranking-table tbody td:nth-child(1) {
+  width: 27%;
 }
 
-.gv-dev-cards .gv-table-wrap thead th:nth-child(3),
-.gv-dev-cards .gv-table-wrap tbody td:nth-child(3) {
-  width: 32%;
+.gv-dev-cards .gv-dev-ranking-table thead th:nth-child(2),
+.gv-dev-cards .gv-dev-ranking-table tbody td:nth-child(2) {
+  width: 17%;
+}
+
+.gv-dev-cards .gv-dev-ranking-table thead th:nth-child(3),
+.gv-dev-cards .gv-dev-ranking-table tbody td:nth-child(3) {
+  width: 18%;
+}
+
+.gv-dev-cards .gv-dev-ranking-table thead th:nth-child(4),
+.gv-dev-cards .gv-dev-ranking-table tbody td:nth-child(4) {
+  width: 38%;
+}
+
+.gv-dev-cards .gv-table-wrap table:not(.gv-dev-ranking-table) {
+  table-layout: fixed;
+  width: 100%;
+  font-size: 12px;
 }
 
 .gv-dev-cards .gv-name-cell,
@@ -724,6 +763,27 @@ body.dashboard-app .sys-kpi-grid #info-date {
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table {
   font-size: var(--gv-card-text-fs);
   line-height: 1.18;
+}
+
+.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table.gv-dev-ranking-table {
+  font-size: 0.6875rem;
+  letter-spacing: -0.012em;
+  line-height: 1.12;
+}
+
+.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap thead th.gv-dev-ranking-th {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.12;
+  white-space: nowrap;
+  padding-top: 0.08rem !important;
+  padding-bottom: 0.06rem !important;
+}
+
+.gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap table.gv-dev-ranking-table tbody td {
+  padding-top: 0.08rem !important;
+  padding-bottom: 0.06rem !important;
 }
 
 .gv-body .gv-dev-cards .sys-card.sys-card--surface .gv-table-wrap thead th {
@@ -1358,7 +1418,7 @@ body.dashboard-app .gv-dev-cards {
 }
 
 body.dashboard-app .gv-body .gv-dev-cards .sys-card.sys-card--surface {
-  padding: 14px 16px;
+  padding: 10px 11px;
 }
 
 body.dashboard-app .gv-body .sys-card.sys-card--surface {
