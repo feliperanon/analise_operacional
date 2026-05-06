@@ -28,7 +28,22 @@
 {# Smart TV / rede lenta: reduz latência de origens usadas pelo painel (áudio YouTube, imagens externas) #}
 <link rel="dns-prefetch" href="https://www.youtube.com">
 <link rel="dns-prefetch" href="https://i.ytimg.com">
-<script src="/static/vendor/apexcharts/apexcharts-3.45.2.min.js"></script>
+<script src="/static/vendor/apexcharts/apexcharts-3.45.2.min.js?v=20260506"></script>
+<script>
+window.addEventListener("error", function (evt) {
+    var target = evt && evt.target;
+    if (!target || target.tagName !== "SCRIPT") return;
+    var src = String(target.src || "");
+    if (!src.includes("/static/vendor/apexcharts/apexcharts-3.45.2.min.js")) return;
+    if (window.ApexCharts) return;
+    if (document.querySelector('script[data-apex-fallback="1"]')) return;
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js";
+    s.defer = true;
+    s.setAttribute("data-apex-fallback", "1");
+    document.head.appendChild(s);
+}, true);
+</script>
 {% endblock %}
 
 {% block content %}

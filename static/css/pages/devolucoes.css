@@ -174,6 +174,26 @@ html.dark #confirmActionModal.emp-modal-shell {
   font-variant-numeric: tabular-nums;
 }
 
+.ga-employee-theme.employees-page[data-page="devolucoes"] .employee-action-btn--whatsapp {
+  color: rgb(22 163 74);
+  border-color: rgb(134 239 172 / 0.9);
+  background: rgb(240 253 244 / 0.95);
+}
+
+.ga-employee-theme.employees-page[data-page="devolucoes"] .employee-action-btn--whatsapp:hover {
+  color: rgb(21 128 61);
+  border-color: rgb(74 222 128);
+  background: rgb(220 252 231 / 1);
+}
+
+.ga-employee-theme.employees-page[data-page="devolucoes"] .employee-action-btn--disabled,
+.ga-employee-theme.employees-page[data-page="devolucoes"] .employee-action-btn--disabled:hover {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+  box-shadow: var(--sys-shadow-xs);
+}
+
 @media (max-width: 768px) {
   .ga-employee-theme.employees-page[data-page="devolucoes"] .employees-hero__toolbar {
     width: 100%;
@@ -206,6 +226,18 @@ html.dark #confirmActionModal.emp-modal-shell {
 
 html.dark .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucao-row--selected {
   background: rgb(30 58 138 / 0.18);
+}
+
+html.dark .ga-employee-theme.employees-page[data-page="devolucoes"] .employee-action-btn--whatsapp {
+  color: rgb(134 239 172);
+  border-color: rgb(21 128 61 / 0.9);
+  background: rgb(20 83 45 / 0.34);
+}
+
+html.dark .ga-employee-theme.employees-page[data-page="devolucoes"] .employee-action-btn--whatsapp:hover {
+  color: rgb(187 247 208);
+  border-color: rgb(74 222 128);
+  background: rgb(21 128 61 / 0.46);
 }
 
 html.dark.ga-devolucoes-html .sys-btn.sys-btn--danger,

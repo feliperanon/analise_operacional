@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 from database import get_session, engine as db_engine
 import models
+from client_import_utils import normalize_phone_br
 from devolucoes_service import (
     _reconcile_devolucao_with_route,
     reconcile_all_devolucoes_with_routes,
@@ -137,6 +138,54 @@ def _fmt_nb_br(value: Any) -> str:
         except Exception:
             return raw
     return raw
+
+
+def _employee_phone_whatsapp_pair(stored: Optional[str]) -> Tuple[str, str]:
+    """Converte Employee.phone legado em (wa_digits, friendly_display)."""
+    raw = str(stored or "").strip()
+    if not raw:
+        return "", ""
+
+    digits = "".join(ch for ch in raw if ch.isdigit()).lstrip("0")
+    if digits.startswith("55") and len(digits) > 11:
+        digits = digits[2:]
+    if len(digits) > 11:
+        digits = digits[-11:]
+
+    if len(digits) in (10, 11):
+        phone_e164, phone_display = normalize_phone_br("+55" + digits)
+    else:
+        phone_e164, phone_display = normalize_phone_br(raw)
+
+    wa_digits = "".join(ch for ch in str(phone_e164 or "") if ch.isdigit())
+    return wa_digits, str(phone_display or raw).strip()
+
+
+def _build_devolucao_whatsapp_text(
+    *,
+    client_name: str,
+    client_code: str,
+    valor_fmt: str,
+    motivo_label: str,
+    data_display: str,
+    motorista_name: str,
+    motorista_phone_display: str,
+) -> str:
+    motorista_phone_label = motorista_phone_display or "Nao informado"
+    nb_label = client_code or "-"
+    return (
+        "Ola, tudo bem?\n\n"
+        "Segue informacao de devolucao:\n\n"
+        f"Cliente: {client_name}\n"
+        f"NB: {nb_label}\n"
+        f"Valor: {valor_fmt}\n"
+        f"Motivo: {motivo_label}\n"
+        f"Data: {data_display}\n"
+        f"Motorista: {motorista_name or '-'}\n"
+        f"Telefone motorista: {motorista_phone_label}\n\n"
+        "Por gentileza, verificar o caso e alinhar com o cliente, se necessario.\n\n"
+        "Obrigado."
+    )
 
 
 def _normalize_devolucao_source(value: Optional[str]) -> str:
@@ -1030,17 +1079,22 @@ def init_devolucoes_router(
         ).all()
 
         client_ids = {d.client_id for d in devolucoes}
-        motorista_ids = {d.motorista_id for d in devolucoes}
+        motorista_ids = {d.motorista_id for d in devolucoes if d.motorista_id}
+        vendedor_ids = {d.vendedor_id for d in devolucoes if d.vendedor_id}
+        employee_contact_ids = motorista_ids | vendedor_ids
         route_ids = {d.route_id for d in devolucoes if d.route_id}
         client_map = {c.id: c for c in session.exec(select(models.Client).where(models.Client.id.in_(client_ids))).all()} if client_ids else {}
-        emp_map = {e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(motorista_ids))).all()} if motorista_ids else {}
+        employee_contact_map = {
+            e.id: e for e in session.exec(select(models.Employee).where(models.Employee.id.in_(employee_contact_ids))).all()
+        } if employee_contact_ids else {}
         route_map = {r.id: r for r in session.exec(select(models.Route).where(models.Route.id.in_(route_ids))).all()} if route_ids else {}
         plate_by_cmd = _plate_by_client_motorista_date(session, devolucoes, route_map)
 
         rows = []
         for dev in devolucoes:
             c = client_map.get(dev.client_id)
-            m = emp_map.get(dev.motorista_id)
+            m = employee_contact_map.get(dev.motorista_id)
+            vendedor = employee_contact_map.get(dev.vendedor_id)
             dup_of = getattr(dev, "duplicate_of_id", None)
             vstat = (getattr(dev, "validation_status", None) or "").strip()
             data_efetiva = str(dev.data_entrega or dev.data_romaneio or "")[:10]
@@ -1055,6 +1109,23 @@ def init_devolucoes_router(
             client_code = getattr(c, "nb", None) or ""
             client_fantasia = (getattr(c, "nome_fantasia", None) or "").strip() if c else ""
             client_razao_social = (getattr(c, "razao_social", None) or "").strip() if c else ""
+            motorista_name = (m.name if m else "-") or "-"
+            motorista_wa_phone, motorista_phone_display = _employee_phone_whatsapp_pair(getattr(m, "phone", None))
+            vendedor_wa_phone, _ = _employee_phone_whatsapp_pair(getattr(vendedor, "phone", None))
+            data_display = _fmt_data_hora_pt_br(data_efetiva) or data_efetiva or "-"
+            valor_fmt = _fmt_moeda_br(float(dev.valor or 0.0))
+            whatsapp_url = ""
+            if vendedor_wa_phone:
+                whatsapp_text = _build_devolucao_whatsapp_text(
+                    client_name=cname,
+                    client_code=str(client_code or "").strip(),
+                    valor_fmt=valor_fmt,
+                    motivo_label=motivo_label,
+                    data_display=data_display,
+                    motorista_name=motorista_name,
+                    motorista_phone_display=motorista_phone_display,
+                )
+                whatsapp_url = f"https://wa.me/{vendedor_wa_phone}?{urlencode({'text': whatsapp_text})}"
             secondary_parts = []
             if client_code:
                 secondary_parts.append(f"NB {_fmt_nb_br(client_code)}")
@@ -1078,25 +1149,34 @@ def init_devolucoes_router(
                 "client_fantasia": client_fantasia,
                 "client_razao_social": client_razao_social,
                 "motorista_id": dev.motorista_id,
-                "motorista_name": (m.name if m else "-") or "",
+                "motorista_name": motorista_name,
+                "motorista_phone": motorista_wa_phone,
+                "motorista_phone_display": motorista_phone_display,
                 "vehicle_plate": plate or "—",
             }
             rows.append(
                 {
                     "id": dev.id,
-                    "data_display": _fmt_data_hora_pt_br(data_efetiva) or data_efetiva or "-",
+                    "data_display": data_display,
                     "client_name": cname,
                     "client_secondary": " · ".join(secondary_parts) if secondary_parts else "Sem complemento cadastrado",
-                    "motorista_name": (m.name if m else "-") or "-",
+                    "motorista_name": motorista_name,
                     "motivo_label": motivo_label,
                     "vehicle_plate": plate or "—",
                     "valor": float(dev.valor) if dev.valor is not None else 0.0,
-                    "valor_fmt": _fmt_moeda_br(float(dev.valor or 0.0)),
+                    "valor_fmt": valor_fmt,
                     "source_label": _normalize_devolucao_source(dev.source),
                     "status_key": status_meta["key"],
                     "status_label": status_meta["label"],
                     "status_tone": status_meta["tone"],
                     "status_hint": status_meta["hint"],
+                    "whatsapp_url": whatsapp_url,
+                    "whatsapp_enabled": bool(whatsapp_url),
+                    "whatsapp_title": (
+                        f"Enviar devolucao por WhatsApp para {(vendedor.name or 'o vendedor').strip()}"
+                        if vendedor
+                        else "Enviar devolucao por WhatsApp"
+                    ),
                     "can_approve": status_meta["key"] in {"aguardando", "duplicata", "orfao"},
                     "can_delete": True,
                     "payload_json": json.dumps(row_payload, ensure_ascii=False),
@@ -2235,7 +2315,12 @@ def init_devolucoes_router(
         require_login(request)
         date_from = date_from or "2020-01-01"
         date_to = date_to or "2099-12-31"
-        payload = consolidado_avaliar_resumo(session, date_from, date_to)
+        payload = consolidado_avaliar_resumo(
+            session,
+            date_from,
+            date_to,
+            use_competence_window=False,
+        )
         return JSONResponse(
             {"ok": True, "data": payload["data"], "data_ajudantes": payload["data_ajudantes"]}
         )

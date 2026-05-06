@@ -3631,7 +3631,12 @@ def _build_informativo_extras(
         if month_start_str <= comp <= month_end_str:
             devs_curr.append(d)
     try:
-        resumo_mes = consolidado_avaliar_resumo(session, month_start_str, month_end_str)
+        resumo_mes = consolidado_avaliar_resumo(
+            session,
+            month_start_str,
+            month_end_str,
+            use_competence_window=True,
+        )
     except Exception:
         resumo_mes = {"data": [], "data_ajudantes": []}
 

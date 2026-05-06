@@ -488,6 +488,15 @@
                 <button type="button" class="employee-action-btn employee-action-btn--edit" title="Editar" data-action="edit" data-row="{{ row.payload_json | forceescape }}">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5a2.121 2.121 0 10-3-3L5 17v3z"></path></svg>
                 </button>
+                {% if row.whatsapp_enabled %}
+                <a href="{{ row.whatsapp_url }}" target="_blank" rel="noopener noreferrer" class="employee-action-btn employee-action-btn--whatsapp" title="{{ row.whatsapp_title }}" aria-label="{{ row.whatsapp_title }}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.94 9.94 0 01-4.255-.949L3 20l1.228-3.275A7.488 7.488 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                </a>
+                {% else %}
+                <button type="button" class="employee-action-btn employee-action-btn--whatsapp employee-action-btn--disabled" title="WhatsApp indisponivel: vendedor sem telefone cadastrado" aria-label="WhatsApp indisponivel" disabled>
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.94 9.94 0 01-4.255-.949L3 20l1.228-3.275A7.488 7.488 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                </button>
+                {% endif %}
                 {% if row.can_approve %}
                 <button type="button" class="employee-action-btn employee-action-btn--return" title="Aprovar" data-action="approve" data-id="{{ row.id }}" data-label="{{ row.client_name|e }}">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
