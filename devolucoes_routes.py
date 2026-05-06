@@ -1981,17 +1981,28 @@ def init_devolucoes_router(
     ):
         require_login(request)
         now = datetime.now()
-        today_str = now.strftime("%Y-%m-%d")
+        current_year = now.year
+        current_month = now.month
+        month_last_day = monthrange(current_year, current_month)[1]
         month_start_str = now.replace(day=1).strftime("%Y-%m-%d")
-        # Sem filtros na URL: período = início do mês até hoje (ex.: 01/03 → 18/03)
+        month_end_str = now.replace(day=month_last_day).strftime("%Y-%m-%d")
+        # Sem filtros na URL: período = primeiro ao último dia do mês corrente.
         if not date_from and not date_to:
             date_from = month_start_str
-            date_to = today_str
+            date_to = month_end_str
         else:
+            # Com uma data só, completa a outra ponta no mesmo mês informado.
+            ref_raw = date_from or date_to
+            try:
+                ref_dt = datetime.strptime(str(ref_raw)[:10], "%Y-%m-%d")
+            except Exception:
+                ref_dt = now
+            ref_first = ref_dt.replace(day=1).strftime("%Y-%m-%d")
+            ref_last = ref_dt.replace(day=monthrange(ref_dt.year, ref_dt.month)[1]).strftime("%Y-%m-%d")
             if not date_from:
-                date_from = today_str
+                date_from = ref_first
             if not date_to:
-                date_to = today_str
+                date_to = ref_last
         clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
         employees = session.exec(
             select(models.Employee).where(models.Employee.status != "fired").order_by(models.Employee.name)
