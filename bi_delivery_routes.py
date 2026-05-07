@@ -67,7 +67,10 @@ def _fmt_br_1(val):
     if val is None:
         return "0,0"
     try:
-        return f"{float(val):,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        n = float(val)
+        if not math.isfinite(n):
+            return "0,0"
+        return f"{n:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except Exception:
         return str(val)
 
@@ -90,7 +93,10 @@ def _fmt_br_int(val):
     if val is None:
         return "0"
     try:
-        return f"{int(float(val)):,}".replace(",", ".")
+        n = float(val)
+        if not math.isfinite(n):
+            return "0"
+        return f"{int(n):,}".replace(",", ".")
     except Exception:
         return str(val)
 
@@ -162,9 +168,10 @@ def _norm_text(value: Optional[str]) -> str:
 
 def _safe_pct(numerator: float, denominator: float) -> float:
     den = float(denominator or 0.0)
-    if den <= 0:
+    num = float(numerator or 0.0)
+    if not math.isfinite(den) or not math.isfinite(num) or den <= 0:
         return 0.0
-    return (float(numerator or 0.0) / den) * 100.0
+    return (num / den) * 100.0
 
 
 # Custo operacional estimado (R$/hora) — parâmetro explicável no tooltip
@@ -2207,10 +2214,11 @@ def _build_bi_clientes_dataset(
 
     def _delta_pct_exec(a, b):
         try:
-            b = float(b or 0)
-            if b <= 0:
+            a_f = float(a or 0)
+            b_f = float(b or 0)
+            if not math.isfinite(a_f) or not math.isfinite(b_f) or b_f <= 0:
                 return None
-            return round((float(a) - b) / b * 100.0, 1)
+            return round((a_f - b_f) / b_f * 100.0, 1)
         except Exception:
             return None
 

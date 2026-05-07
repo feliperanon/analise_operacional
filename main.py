@@ -3772,6 +3772,9 @@ def _build_informativo_extras(
             mid_int = int(mid) if mid is not None else 0
         except (TypeError, ValueError):
             mid_int = 0
+        emp_m = emp_by_id.get(mid_int)
+        if not emp_m or not _is_delivery_driver_role(emp_m):
+            continue
         row_name = (row.get("motorista_name") or "").strip()
         resolved_name = row_name or employee_name_by_id.get(mid_int, "")
         devolucao_ranking.append({
@@ -3793,6 +3796,10 @@ def _build_informativo_extras(
             hid_int = int(hid) if hid is not None else 0
         except (TypeError, ValueError):
             hid_int = 0
+        emp_h = emp_by_id.get(hid_int)
+        role_h = _normalized_employee_role(emp_h)
+        if not emp_h or not role_h.startswith("AJUDANTE"):
+            continue
         row_name = (row.get("ajudante_name") or "").strip()
         resolved_name = row_name or employee_name_by_id.get(hid_int, "")
         devolucao_ranking_helper.append({
@@ -33138,7 +33145,7 @@ async def update_employee(
     seller_code: str = Form(None),
     phone: str = Form(None),
     role: str = Form(...),
-    work_shift: str = Form(...),
+    work_shift: Optional[str] = Form(None),
     cost_center: str = Form(...),
     admission_date: str = Form(None),
     birthday: str = Form(None),
@@ -33158,10 +33165,12 @@ async def update_employee(
     require_login(request)
     emp = session.get(models.Employee, emp_id)
     if emp:
+        ws_in = (work_shift or "").strip() if work_shift is not None else ""
+        work_shift_resolved = ws_in or (emp.work_shift or "Manhã")
         # Log Shift Change
-        if emp.work_shift != work_shift:
+        if emp.work_shift != work_shift_resolved:
             session.add(models.Event(
-                text=f"Troca de Turno: {emp.work_shift} para {work_shift}",
+                text=f"Troca de Turno: {emp.work_shift} para {work_shift_resolved}",
                 type="alteracao_cadastro",
                 category="pessoas",
                 employee_id=emp.id
@@ -33190,7 +33199,7 @@ async def update_employee(
         phone_e164, _ = normalize_phone_br(phone)
         emp.phone = phone_e164[3:] if (phone_e164 and len(phone_e164) >= 13) else None
         emp.role = (role or "").strip().upper()
-        emp.work_shift = work_shift
+        emp.work_shift = work_shift_resolved
         emp.cost_center = cost_center
         emp.work_schedule = work_schedule
         emp.mobile_access_separation = mobile_access_separation

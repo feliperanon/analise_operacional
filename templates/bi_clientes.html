@@ -1,4 +1,23 @@
-{% extends "base.html" %}
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}BI Clientes · Gestão Avista{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / BI / Clientes</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">BI Clientes</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Custo operacional, devolução e prioridade de ação por cliente</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/bi_delivery_premium.css">
+<link rel="stylesheet" href="/static/css/bi_clientes_co.css">
+{% endblock %}
 
 {% macro kpi_card(title, value, subtitle="", tip="", icon="users") -%}
 <article class="bi-cliente-kpi">
@@ -25,10 +44,8 @@
 
 {% block content %}
 {% include "mobile/_design_tokens.html" %}
-<link rel="stylesheet" href="/static/css/bi_delivery_premium.css">
-<link rel="stylesheet" href="/static/css/bi_clientes_co.css">
 
-<div class="bi-co-page" x-data="{
+<div class="ga-page-shell bi-co-page" x-data="{
   view: (new URLSearchParams(location.search).get('detail_client_id') ? 'operacao' : 'estrategia'),
   meeting: false,
   heatTab: 'dur'
