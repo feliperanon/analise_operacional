@@ -2,6 +2,7 @@
 """Rotas de BI de Entregas e Devoluções."""
 
 from datetime import datetime, timedelta, date
+import math
 from typing import Optional
 import io
 import time
@@ -76,7 +77,10 @@ def _fmt_br_2(val):
     if val is None:
         return "0,00"
     try:
-        return f"{float(val):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        n = float(val)
+        if not math.isfinite(n):
+            return "0,00"
+        return f"{n:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except Exception:
         return str(val)
 
@@ -1721,6 +1725,8 @@ def _build_bi_clientes_dataset(
     city: str = "Todos",
     priority: str = "Todos",
     client_status: str = "Todos",
+    segmentos: Optional[list[str]] = None,
+    returns_filter: str = "Todos",
     detail_client_id: Optional[int] = None,
     client_filter_scope: str = "solo",
 ) -> dict:
@@ -1802,6 +1808,8 @@ def _build_bi_clientes_dataset(
         else:
             client_ids_filter = {int(client_id)}
 
+    selected_segmentos = [str(s or "").strip() for s in (segmentos or []) if str(s or "").strip()]
+    segmento_norm_set = {_norm_text(s) for s in selected_segmentos if _norm_text(s) and _norm_text(s) != _norm_text("Todos")}
     city_norm = "" if (city or "Todos").strip() == "Todos" else _norm_text(city)
     priority_norm = "" if (priority or "Todos").strip() == "Todos" else str(priority or "").strip().upper()
     client_status_norm = "" if (client_status or "Todos").strip() == "Todos" else _norm_text(client_status)
@@ -1810,6 +1818,7 @@ def _build_bi_clientes_dataset(
     cities_filter = set()
     priorities_filter = set()
     client_statuses_filter = set()
+    segmentos_filter = set()
     for row in base_rows:
         row_client_id = row.get("client_id")
         if row_client_id is not None:
@@ -1817,12 +1826,15 @@ def _build_bi_clientes_dataset(
         row_city = str(row.get("client_city") or "").strip()
         row_priority = str(row.get("client_prioridade") or "").strip().upper()
         row_client_status = str(row.get("client_status_operacional") or "").strip()
+        row_segmento = str(row.get("client_segmento") or "").strip()
         if row_city:
             cities_filter.add(row_city)
         if row_priority:
             priorities_filter.add(row_priority)
         if row_client_status:
             client_statuses_filter.add(row_client_status)
+        if row_segmento:
+            segmentos_filter.add(row_segmento)
 
     def _apply_client_filters(rows: list[dict]) -> list[dict]:
         filtered = []
@@ -1831,6 +1843,7 @@ def _build_bi_clientes_dataset(
             row_city = _norm_text(row.get("client_city"))
             row_priority = str(row.get("client_prioridade") or "").strip().upper()
             row_client_status = _norm_text(row.get("client_status_operacional"))
+            row_segmento = _norm_text(row.get("client_segmento"))
             if client_ids_filter is not None:
                 if row_client_id is None or int(row_client_id) not in client_ids_filter:
                     continue
@@ -1839,6 +1852,8 @@ def _build_bi_clientes_dataset(
             if priority_norm and row_priority != priority_norm:
                 continue
             if client_status_norm and row_client_status != client_status_norm:
+                continue
+            if segmento_norm_set and row_segmento not in segmento_norm_set:
                 continue
             filtered.append(row)
         return filtered
@@ -2132,6 +2147,12 @@ def _build_bi_clientes_dataset(
         ),
         reverse=True,
     )
+
+    rf = str(returns_filter or "Todos").strip().lower()
+    if rf == "com_devolucao":
+        ranking_rows = [row for row in ranking_rows if float(row.get("returned_value") or 0) > 0 or int(row.get("returned_occurrences") or 0) > 0]
+    elif rf == "acima_meta":
+        ranking_rows = [row for row in ranking_rows if float(row.get("return_rate_value") or 0) >= 2.0]
 
     total_visits = sum(int(row.get("visits", 0) or 0) for row in ranking_rows)
     critical_clients = [row for row in ranking_rows if (row.get("risk_score", 0) >= 70 or row.get("return_rate_value", 0.0) >= 2.0)]
@@ -2612,6 +2633,8 @@ def _build_bi_clientes_dataset(
         "city": city,
         "priority": priority,
         "client_status": client_status,
+        "segmentos": selected_segmentos,
+        "returns_filter": returns_filter,
         "detail_client_id": detail_client_id,
         "client_scope": scope if client_id else "solo",
         "group_filter_note": group_filter_note,
@@ -2627,11 +2650,13 @@ def _build_bi_clientes_dataset(
         "city": filters.get("city") or "Todos",
         "priority": filters.get("priority") or "Todos",
         "client_status": filters.get("client_status") or "Todos",
+        "returns_filter": filters.get("returns_filter") or "Todos",
         "client_scope": filters.get("client_scope") or "solo",
     }
+    _fq["segmentos"] = filters.get("segmentos") or []
     if filters.get("detail_client_id"):
         _fq["detail_client_id"] = str(filters["detail_client_id"])
-    filters_query = urlencode(_fq)
+    filters_query = urlencode(_fq, doseq=True)
 
     kpis = {
         "monitored_clients": len(ranking_rows),
@@ -2683,6 +2708,7 @@ def _build_bi_clientes_dataset(
         "cities_filter": sorted(cities_filter),
         "priorities_filter": sorted(priorities_filter),
         "client_statuses_filter": sorted(client_statuses_filter),
+        "segmentos_filter": sorted(segmentos_filter),
         "chart_payload_json": json.dumps(chart_payload, ensure_ascii=False),
         "all_client_rows": ranking_rows,
         "executive_kpis": executive_kpis,
@@ -3975,6 +4001,8 @@ async def bi_clientes_page(
     city: str = "Todos",
     priority: str = "Todos",
     client_status: str = "Todos",
+    segmentos: Optional[list[str]] = Query(default=None),
+    returns_filter: str = "Todos",
     detail_client_id: Optional[str] = None,
     client_scope: Optional[str] = None,
     session: Session = Depends(get_session),
@@ -4000,6 +4028,8 @@ async def bi_clientes_page(
         city=city,
         priority=priority,
         client_status=client_status,
+        segmentos=segmentos,
+        returns_filter=returns_filter,
         detail_client_id=parsed_detail_client_id,
         client_filter_scope=(client_scope or "solo").strip().lower(),
     )
@@ -4109,6 +4139,8 @@ async def bi_clientes_export(
     city: str = "Todos",
     priority: str = "Todos",
     client_status: str = "Todos",
+    segmentos: Optional[list[str]] = Query(default=None),
+    returns_filter: str = "Todos",
     client_scope: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
@@ -4126,6 +4158,8 @@ async def bi_clientes_export(
         city=city,
         priority=priority,
         client_status=client_status,
+        segmentos=segmentos,
+        returns_filter=returns_filter,
         client_filter_scope=(client_scope or "solo").strip().lower(),
     )
     rows = dataset["all_client_rows"]

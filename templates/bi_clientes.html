@@ -60,8 +60,19 @@
           <div class="bi-filter-field"><label>Cliente</label><select name="client_id"><option value="">Todos</option>{% for item in clients_filter %}<option value="{{ item.id }}" {% if filters.client_id == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
           <div class="bi-filter-field"><label>Escopo do cliente</label><select name="client_scope" title="Com grupo: agrega todas as lojas do mesmo grupo comercial"><option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só este cliente</option><option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Todo o grupo (agregado)</option></select></div>
           <div class="bi-filter-field"><label>Cidade</label><select name="city"><option value="Todos">Todas</option>{% for item in cities_filter %}<option value="{{ item }}" {% if filters.city == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+          <div class="bi-filter-field"><label>Devolução</label><select name="returns_filter"><option value="Todos" {% if (filters.returns_filter or 'Todos') == 'Todos' %}selected{% endif %}>Todos</option><option value="com_devolucao" {% if filters.returns_filter == 'com_devolucao' %}selected{% endif %}>Com devolução</option><option value="acima_meta" {% if filters.returns_filter == 'acima_meta' %}selected{% endif %}>Acima da meta (2%)</option></select></div>
           <div class="bi-filter-field"><label>Prioridade</label><select name="priority"><option value="Todos">Todas</option>{% for item in priorities_filter %}<option value="{{ item }}" {% if filters.priority == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
           <div class="bi-filter-field"><label>Status cliente</label><select name="client_status"><option value="Todos">Todos</option>{% for item in client_statuses_filter %}<option value="{{ item }}" {% if filters.client_status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="bi-filter-row">
+          <div class="bi-filter-field" style="grid-column: span 2;">
+            <label>Segmento (1 ou vários)</label>
+            <select name="segmentos" multiple size="4" title="Segure Ctrl (ou Cmd no Mac) para selecionar múltiplos">
+              {% for item in segmentos_filter %}
+              <option value="{{ item }}" {% if item in (filters.segmentos or []) %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
         {% if filters.group_filter_note %}
         <p class="text-amber-400/90 text-sm mt-2 px-1">{{ filters.group_filter_note }}</p>
@@ -590,11 +601,15 @@
             ? { callbacks: { label: options.tooltip } }
             : undefined
         },
-        scales: {
-          x: { beginAtZero: true, max: options.xMax, grid: { color: 'rgba(148,163,184,0.14)' } },
-          y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,0.14)' } },
-          y1: options.secondaryAxis ? { type: 'linear', display: true, beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } : undefined
-        }
+        scales: Object.assign(
+          {
+            x: { beginAtZero: true, max: options.xMax, grid: { color: 'rgba(148,163,184,0.14)' } },
+            y: { beginAtZero: true, grid: { color: 'rgba(148,163,184,0.14)' } },
+          },
+          options.secondaryAxis
+            ? { y1: { type: 'linear', display: true, beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } }
+            : {}
+        )
       }
     });
   }
@@ -688,7 +703,7 @@
             ]
           },
           options: {
-            responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false, indexAxis: 'x',
             interaction: { mode: 'index', intersect: false },
             plugins: {
               legend: { display: true },
