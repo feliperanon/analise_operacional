@@ -208,7 +208,8 @@ def parse_fechamento_ponto_excel(contents: bytes, filename: str = "") -> List[di
         idx_faltas = None
         header_row = -1
 
-        for row_idx in range(min(20, len(df))):
+        # Planilhas novas (ex.: Fechamento 2025+) costumam ter cabeçalho após blocos de resumo (linha 10+).
+        for row_idx in range(min(45, len(df))):
             row = df.iloc[row_idx]
             tmp_func, tmp_atest, tmp_faltas = None, None, None
             candidates_atest, candidates_faltas = [], []
@@ -226,8 +227,8 @@ def parse_fechamento_ponto_excel(contents: bytes, filename: str = "") -> List[di
                         tmp_atest = col_idx  # preferir coluna com datas
                     else:
                         candidates_atest.append(col_idx)
-                # FALTAS: priorizar "DIAS (FALTAS)" ou "FALTAS S/J" sobre "NÚMERO DE FALTAS"
-                if "falta" in v:
+                # FALTAS: priorizar coluna com datas (DIAS / S/J), não "NÚMERO DE FALTAS" (só contagem).
+                if "falta" in v and "dsr" not in v:
                     if "dias" in v or "s/j" in v:
                         tmp_faltas = col_idx
                     else:

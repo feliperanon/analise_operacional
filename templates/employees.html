@@ -1978,8 +1978,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             const result = await response.json().catch(() => ({}));
-            if (response.ok && result.success) {
-                alert(result.message || `Importadas ${result.success} ocorrências.`);
+            const imported = (typeof result.imported_count === 'number')
+                ? result.imported_count
+                : (typeof result.success === 'number' ? result.success : null);
+            const done = response.ok && (result.ok === true || result.success === true || (imported !== null && imported >= 0));
+            if (done) {
+                alert(result.message || (imported !== null ? `Importadas ${imported} ocorrências.` : 'Importação concluída.'));
                 document.getElementById('bulk-occurrences-modal').classList.add('hidden');
                 fileInput.value = '';
                 document.getElementById('bulk-occurrences-file-name').textContent = '';

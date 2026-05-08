@@ -24618,10 +24618,11 @@ def fetch_absences_agg(session: Session, employee_ids: List[int], start_dt: date
         day_key = str(ev_day)
         if day_key in per_employee_routine_days.get(emp_id, set()):
             continue
-        # Ignorar eventos que são gerados automaticamente pelo sistema de rotinas
-        # Esses eventos existem para histórico mas não devem ser contados como ausência
+        # Ignorar eventos espelho de rotina (evitam contagem dupla). Exceção: importação em massa
+        # (category=import) — se não houve EmployeeRoutine naquele dia, o evento deve contar.
         ev_type_lower = (ev_type or "").lower().strip()
-        if ev_type_lower in ROUTINE_GENERATED_EVENT_TYPES:
+        ev_cat_lower = (ev_category or "").lower().strip()
+        if ev_type_lower in ROUTINE_GENERATED_EVENT_TYPES and ev_cat_lower != "import":
             continue
         group = normalize_event_status(ev_type, ev_category, ev_text)
         if group == "unknown":
@@ -33397,8 +33398,9 @@ def _apply_occurrence_entries(session: Session, pending_entries: list) -> dict:
                 routine_map[key].routine = entry["routine_type"]
                 session.add(routine_map[key])
             else:
+                shift_val = (getattr(emp, "work_shift", None) or "").strip() or "Manhã"
                 r = models.EmployeeRoutine(
-                    date=iso_date, shift=emp.work_shift, employee_id=emp.id, routine=entry["routine_type"]
+                    date=iso_date, shift=shift_val, employee_id=emp.id, routine=entry["routine_type"]
                 )
                 session.add(r)
                 routine_map[key] = r
@@ -33763,21 +33765,27 @@ async def import_occurrences_from_fechamento(
         if stats["sample_unknown"]:
             hint = f" Exemplos não encontrados: {', '.join(list(stats['sample_unknown'])[:5])}. Cadastre esses colaboradores antes de importar."
         return JSONResponse({
+            "ok": True,
             "success": True,
+            "imported_count": 0,
             "message": f"Nenhuma ocorrência para importar. {stats['skipped_unknown']} registros ignorados (colaborador não cadastrado).{hint}",
             "total": 0,
-            "success": 0,
+            "skipped_unknown": stats["skipped_unknown"],
+            "sample_unknown": list(stats["sample_unknown"])[:15],
         })
 
     apply_stats = _apply_occurrence_entries(session, pending_entries)
     hint = ""
     if stats["skipped_unknown"] > 0 and stats["sample_unknown"]:
-        hint = f" Exemplos ignorados: {', '.join(list(stats['sample_unknown'])[:5])}. Cadastre-os em Colaboradores se necessário."
+        hint = f" Exemplos ignorados (nome não bate com cadastro): {', '.join(list(stats['sample_unknown'])[:5])}. Cadastre-os ou ajuste o nome."
     return JSONResponse({
+        "ok": True,
         "success": True,
+        "imported_count": apply_stats["success"],
         "message": f"Importadas {apply_stats['success']} ocorrências. {stats['skipped_unknown']} ignorados (não cadastrados).{hint}",
         "total": apply_stats["total"],
-        "success": apply_stats["success"],
+        "skipped_unknown": stats["skipped_unknown"],
+        "sample_unknown": list(stats["sample_unknown"])[:15],
     })
 
 
