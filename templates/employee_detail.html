@@ -176,9 +176,24 @@
     </div>
     {% endif %}
 
-    <p class="text-xs text-slate-500 dark:text-slate-400">
-        Período de ausências: <span class="font-medium text-slate-700 dark:text-slate-300">{{ absence_period_range.start }} a {{ absence_period_range.end }}</span> ({{ absence_period_label }})
-    </p>
+    <div class="flex flex-col gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+        <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span class="font-medium text-slate-600 dark:text-slate-300">{{ absence_month_year_pt }}</span>
+            <span class="text-slate-400">·</span>
+            <span>Resumo: <span class="font-medium text-slate-700 dark:text-slate-300">{{ absence_period_range.start }} a {{ absence_period_range.end }}</span></span>
+            <span class="flex items-center gap-1.5 ms-auto">
+                <a href="{{ absence_month_nav.prev_url }}" class="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">← Mês anterior</a>
+                <a href="{{ absence_month_nav.next_url }}" class="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Próximo mês →</a>
+                {% if request.query_params.get('date') %}
+                <a href="{{ absence_month_nav.today_url }}" class="rounded border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">Mês atual</a>
+                {% endif %}
+            </span>
+        </p>
+        <p class="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+            Os números de <strong class="font-medium text-slate-600 dark:text-slate-300">Faltas</strong> e <strong class="font-medium text-slate-600 dark:text-slate-300">Atestados</strong> contam só ocorrências <strong class="font-medium text-slate-600 dark:text-slate-300">dentro deste intervalo</strong>.
+            A linha do tempo abaixo pode mostrar meses diferentes (ex.: importação de abas de março/abril) — use os links do mês para conferir.
+        </p>
+    </div>
 
     <div class="sys-kpi-shell w-full" aria-label="Resumo do colaborador">
     <div class="sys-kpi-grid employees-kpi-row">

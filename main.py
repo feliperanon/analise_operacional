@@ -32644,6 +32644,39 @@ async def employee_detail(
     emp_phone_e164, _emp_phone_disp = normalize_phone_br(getattr(employee, "phone", None))
     employee_phone_input = emp_phone_e164 or ""
 
+    _meses_pt = (
+        "",
+        "Janeiro",
+        "Fevereiro",
+        "Março",
+        "Abril",
+        "Maio",
+        "Junho",
+        "Julho",
+        "Agosto",
+        "Setembro",
+        "Outubro",
+        "Novembro",
+        "Dezembro",
+    )
+
+    def _first_of_previous_month(d: date) -> date:
+        first = d.replace(day=1)
+        return (first - timedelta(days=1)).replace(day=1)
+
+    def _first_of_next_month(d: date) -> date:
+        first = d.replace(day=1)
+        if first.month == 12:
+            return first.replace(year=first.year + 1, month=1, day=1)
+        return first.replace(month=first.month + 1, day=1)
+
+    absence_month_year_pt = f"{_meses_pt[absence_start_date.month]} de {absence_start_date.year}"
+    absence_month_nav = {
+        "prev_url": f"/employees/{employee_id}?date={_first_of_previous_month(absence_start_date).isoformat()}",
+        "next_url": f"/employees/{employee_id}?date={_first_of_next_month(absence_start_date).isoformat()}",
+        "today_url": f"/employees/{employee_id}",
+    }
+
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
         "emp": employee, 
@@ -32657,6 +32690,8 @@ async def employee_detail(
         "xp_stats": xp_stats,
         "xp_ledger": xp_ledger,
         "absence_period_label": absence_period_label,
+        "absence_month_year_pt": absence_month_year_pt,
+        "absence_month_nav": absence_month_nav,
         "absence_period_range": {
             "start": absence_start_date.strftime("%d/%m/%Y"),
             "end": absence_end_date.strftime("%d/%m/%Y")
@@ -33404,8 +33439,13 @@ def _apply_occurrence_entries(session: Session, pending_entries: list) -> dict:
                 )
                 session.add(r)
                 routine_map[key] = r
+        ts = entry["date_obj"]
+        if isinstance(ts, datetime) and ts.tzinfo is None:
+            ts = ts.replace(tzinfo=ZoneInfo("America/Sao_Paulo"))
+        elif isinstance(ts, datetime):
+            ts = ts.replace(hour=8, minute=0)
         new_event = models.Event(
-            timestamp=entry["date_obj"].replace(hour=8, minute=0),
+            timestamp=ts,
             text=f"Importação em Massa: {entry.get('raw_occ', '')}",
             type=entry.get("event_type", "outros"),
             category="import",
@@ -33746,11 +33786,15 @@ async def import_occurrences_from_fechamento(
         occ = (item.get("ocorrencia") or "").strip()
         routine_type = "absent" if "falta" in occ.lower() else "sick"
         event_type = "falta" if "falta" in occ.lower() else "atestado"
-        if hasattr(d, "replace") and hasattr(d, "hour"):
-            date_obj = d.replace(hour=8, minute=0)
+        if isinstance(d, datetime):
+            day = d.date()
+        elif isinstance(d, date):
+            day = d
         else:
-            date_obj = datetime(d.year, d.month, d.day, 8, 0)
-        iso_date = date_obj.strftime("%Y-%m-%d")
+            continue
+        brt = ZoneInfo("America/Sao_Paulo")
+        date_obj = datetime.combine(day, time(8, 0), tzinfo=brt)
+        iso_date = day.strftime("%Y-%m-%d")
         pending_entries.append({
             "employee": emp,
             "iso_date": iso_date,
@@ -34058,27 +34102,33 @@ def get_people_intelligence_metrics(session: Session, cost_center: Optional[str]
     today = datetime.now()
     
     # Date range filter (flexible: can be month, year,  or custom range)
+    end_exclusive_events: datetime
     if start_date and end_date:
         try:
-            start_dt = datetime.fromisoformat(start_date)
-            end_dt = datetime.fromisoformat(end_date)
-        except:
+            d_start = date.fromisoformat(str(start_date)[:10])
+            d_end = date.fromisoformat(str(end_date)[:10])
+            start_dt = datetime.combine(d_start, time.min)
+            end_dt = datetime.combine(d_end, time.min)
+            # Incluir o dia final inteiro nos timestamps (end_date às 23:59:59)
+            end_exclusive_events = datetime.combine(d_end, time.min) + timedelta(days=1)
+        except Exception:
             # Fallback to current month
             start_dt = datetime(today.year, today.month, 1)
             if today.month == 12:
                 end_dt = datetime(today.year + 1, 1, 1)
             else:
                 end_dt = datetime(today.year, today.month + 1, 1)
+            end_exclusive_events = end_dt
     else:
         # Default: Current Year to Date
         start_dt = datetime(today.year, 1, 1)
         end_dt = today
-    
-    
+        end_exclusive_events = end_dt + timedelta(days=1)
+
     events = session.exec(
         select(models.Event)
         .where(models.Event.timestamp >= start_dt)
-        .where(models.Event.timestamp < end_dt)
+        .where(models.Event.timestamp < end_exclusive_events)
         .where(col(models.Event.type).in_(['falta', 'atestado', 'advertencia', 'afastamento']))
     ).all()
     
@@ -34120,7 +34170,48 @@ def get_people_intelligence_metrics(session: Session, cost_center: Optional[str]
             priority = {'falta': 3, 'atestado': 2, 'afastamento': 1}
             if priority.get(normalized, 0) > priority.get(unique_days[key], 0):
                 unique_days[key] = normalized
-    
+
+    # Eventos (ex.: importação em massa) podem existir sem EmployeeRoutine; o resumo da ficha
+    # já considera isso — aqui alinhamos People Intelligence ao mesmo critério.
+    period_lo = start_dt.strftime("%Y-%m-%d")
+    period_hi = end_dt.strftime("%Y-%m-%d")
+    tz_sp = ZoneInfo("America/Sao_Paulo")
+
+    def _event_day_key(ev: models.Event) -> Optional[str]:
+        ts = getattr(ev, "timestamp", None)
+        if not ts:
+            return None
+        try:
+            if getattr(ts, "tzinfo", None):
+                ts = ts.astimezone(tz_sp)
+            return ts.strftime("%Y-%m-%d")
+        except Exception:
+            try:
+                return ts.strftime("%Y-%m-%d")
+            except Exception:
+                return None
+
+    filtered_for_abs = [e for e in events if e.employee_id in employee_ids]
+    for e in filtered_for_abs:
+        et = (e.type or "").lower().strip()
+        if et not in ("falta", "atestado", "afastamento"):
+            continue
+        empid = e.employee_id
+        if not empid:
+            continue
+        day_key = _event_day_key(e)
+        if not day_key or day_key < period_lo or day_key > period_hi:
+            continue
+        rkey = (empid, day_key)
+        if rkey in unique_days:
+            continue
+        if et == "falta":
+            unique_days[rkey] = "falta"
+        elif et == "atestado":
+            unique_days[rkey] = "atestado"
+        else:
+            unique_days[rkey] = "afastamento"
+
     # Contadores gerais (Dias ÚNICOS)
     total_absences = sum(1 for v in unique_days.values() if v == 'falta')
     total_sick = sum(1 for v in unique_days.values() if v == 'atestado')
@@ -34306,9 +34397,15 @@ async def people_intelligence_page(
     if sort_dir not in {"asc", "desc"}:
         sort_dir = "desc" if sort_key in {"risk", "combined"} else "asc"
 
-    rows = []
-    source_rows = data.get("chronic_offenders") or []
-    for item in source_rows:
+    def _status_from_risk(combined: int, risk_score: float) -> tuple:
+        if risk_score >= 10 or combined >= 8:
+            return "critical", "Crítico", "critical"
+        if risk_score >= 5 or combined >= 4:
+            return "attention", "Atenção", "alert"
+        return "stable", "Estável", "ok"
+
+    rows_by_id: dict = {}
+    for item in data.get("chronic_offenders") or []:
         falta = int(item.get("falta", 0) or 0)
         atestado = int(item.get("atestado", 0) or 0)
         afastamento = int(item.get("afastamento", 0) or 0)
@@ -34316,22 +34413,12 @@ async def people_intelligence_page(
         risk_score = float(item.get("risk_score", 0) or 0)
         utilization_rate = float(item.get("utilization_rate", 0) or 0)
         presence_rate = max(0.0, min(100.0, utilization_rate))
-
-        if risk_score >= 10 or combined >= 8:
-            status_key = "critical"
-            status_label = "Crítico"
-            status_tone = "critical"
-        elif risk_score >= 5 or combined >= 4:
-            status_key = "attention"
-            status_label = "Atenção"
-            status_tone = "alert"
-        else:
-            status_key = "stable"
-            status_label = "Estável"
-            status_tone = "ok"
-
-        rows.append({
-            "employee_id": item.get("employee_id"),
+        sk, sl, st = _status_from_risk(combined, risk_score)
+        eid = item.get("employee_id")
+        if not eid:
+            continue
+        rows_by_id[eid] = {
+            "employee_id": eid,
             "name": (item.get("name") or "-").strip() or "-",
             "sector": (item.get("sector") or "Não informado").strip() or "Não informado",
             "falta": falta,
@@ -34342,40 +34429,40 @@ async def people_intelligence_page(
             "presence_rate": round(presence_rate, 1),
             "utilization_rate": round(utilization_rate, 1),
             "tenure_months": int(item.get("tenure_months", 0) or 0),
-            "status_key": status_key,
-            "status_label": status_label,
-            "status_tone": status_tone,
-        })
+            "status_key": sk,
+            "status_label": sl,
+            "status_tone": st,
+        }
 
-    if not rows:
-        merged = {}
-        for bucket, key in ((data.get("top_absent", []), "falta"), (data.get("top_sick", []), "atestado"), (data.get("top_away", []), "afastamento")):
-            for item in bucket:
-                eid = item.get("employee_id")
-                if not eid:
-                    continue
-                row = merged.setdefault(eid, {
-                    "employee_id": eid,
-                    "name": (item.get("name") or "-").strip() or "-",
-                    "sector": (item.get("sector") or "Não informado").strip() or "Não informado",
-                    "falta": 0,
-                    "atestado": 0,
-                    "afastamento": 0,
-                    "tenure_months": int(item.get("tenure_months", 0) or 0),
-                })
-                row[key] = int(item.get(key, 0) or 0)
-        for row in merged.values():
-            row["combined_events"] = int(row["falta"] + row["atestado"] + row["afastamento"])
-            row["risk_score"] = round(row["combined_events"] * 1.2, 1)
-            row["presence_rate"] = max(0.0, round(100.0 - (row["combined_events"] * 2.5), 1))
-            row["utilization_rate"] = row["presence_rate"]
-            if row["risk_score"] >= 10 or row["combined_events"] >= 8:
-                row["status_key"], row["status_label"], row["status_tone"] = "critical", "Crítico", "critical"
-            elif row["risk_score"] >= 5 or row["combined_events"] >= 4:
-                row["status_key"], row["status_label"], row["status_tone"] = "attention", "Atenção", "alert"
-            else:
-                row["status_key"], row["status_label"], row["status_tone"] = "stable", "Estável", "ok"
-            rows.append(row)
+    # Crônicos usam limiar 3+ dias (falta+atestado). Incluir também quem tem 1–2 dias
+    # (ex.: importação pontual), senão a lista fica só nos “piores” quando há algum crônico.
+    merged_tops: dict = {}
+    for bucket, key in ((data.get("top_absent", []), "falta"), (data.get("top_sick", []), "atestado"), (data.get("top_away", []), "afastamento")):
+        for item in bucket:
+            eid = item.get("employee_id")
+            if not eid or eid in rows_by_id:
+                continue
+            row = merged_tops.setdefault(eid, {
+                "employee_id": eid,
+                "name": (item.get("name") or "-").strip() or "-",
+                "sector": (item.get("sector") or "Não informado").strip() or "Não informado",
+                "falta": 0,
+                "atestado": 0,
+                "afastamento": 0,
+                "tenure_months": int(item.get("tenure_months", 0) or 0),
+            })
+            row[key] = max(int(row.get(key, 0) or 0), int(item.get(key, 0) or 0))
+
+    for row in merged_tops.values():
+        row["combined_events"] = int(row["falta"] + row["atestado"] + row["afastamento"])
+        row["risk_score"] = round(row["combined_events"] * 1.2, 1)
+        row["presence_rate"] = max(0.0, round(100.0 - (row["combined_events"] * 2.5), 1))
+        row["utilization_rate"] = row["presence_rate"]
+        sk, sl, st = _status_from_risk(row["combined_events"], row["risk_score"])
+        row["status_key"], row["status_label"], row["status_tone"] = sk, sl, st
+        rows_by_id[row["employee_id"]] = row
+
+    rows = list(rows_by_id.values())
 
     def _matches(row: dict) -> bool:
         if status_view != "all" and row["status_key"] != status_view:
