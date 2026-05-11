@@ -3,14 +3,16 @@
 {% block title %}Planejamento de férias · Inteligência de Pessoas{% endblock %}
 
 {% block header_breadcrumb %}
-<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Pessoas / Férias</p>
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Inteligência de pessoas / Planejamento de férias</p>
 {% endblock %}
 
 {% block header_title %}
-<h1 class="text-lg font-bold tracking-tight text-gray-800 dark:text-white/90">Férias</h1>
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Planejamento de férias</h1>
 {% endblock %}
 
-{% block header_subtitle %}{% endblock %}
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Fila, prazos e lançamento no mesmo fluxo operacional do cadastro</p>
+{% endblock %}
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
@@ -19,130 +21,294 @@
 {% endblock %}
 
 {% block content %}
-<div class="ga-employee-theme employees-shell vp-page space-y-6 pt-2 md:pt-3" data-page="vacation-planning">
+<div class="ga-employee-theme employees-shell employees-page employees-page--premium vp-page space-y-5 pt-2 md:pt-3" data-page="vacation-planning">
+
   <div id="vp-alert" class="hidden sys-alert flex items-center gap-3" role="alert"></div>
 
-  <header class="vp-op-header">
-    <div class="vp-op-header__titles">
-      <h1 class="vp-op-header__title">Planejamento inteligente de férias</h1>
-      <p class="vp-op-header__sub">Quem precisa sair, quando pode sair e qual risco isso gera — em um painel.</p>
-    </div>
-    <div class="vp-op-header__controls">
-      <div class="vp-op-header__filters">
-        <label class="vp-field-label vp-field-label--inline">
-          Ano
-          <input type="number" id="vp-year" class="ops-toolbar-control w-24 px-2.5" min="2020" max="2035" value="">
-        </label>
-        <label class="vp-field-label vp-field-label--inline">
-          Mês
-          <select id="vp-month" class="ops-toolbar-control px-2.5 min-w-[9.5rem]">
-            <option value="1">Janeiro</option>
-            <option value="2">Fevereiro</option>
-            <option value="3">Março</option>
-            <option value="4">Abril</option>
-            <option value="5">Maio</option>
-            <option value="6">Junho</option>
-            <option value="7">Julho</option>
-            <option value="8">Agosto</option>
-            <option value="9">Setembro</option>
-            <option value="10">Outubro</option>
-            <option value="11">Novembro</option>
-            <option value="12">Dezembro</option>
-          </select>
-        </label>
-        <label class="vp-field-label vp-field-label--inline">
-          Empresa
-          <select id="vp-cost-center" class="ops-toolbar-control px-2.5 min-w-[11rem]" title="Filtra colaboradores por Souza Pinto ou Exemplar (campo centro de custo no cadastro)">
-            {% for opt in vacation_empresa_options or cost_center_options or ['Todos'] %}
-            <option value="{{ opt }}">{{ opt }}</option>
-            {% endfor %}
-          </select>
-        </label>
+  <!-- Hero (paridade /employees) -->
+  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
+    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
+    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
+    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
+      <div class="flex min-w-0 items-start gap-4">
+        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
+          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+            Painel operacional
+          </span>
+          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Planejamento inteligente de férias</h2>
+          <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
+            Quem precisa sair, quando pode sair e qual risco isso gera — com a mesma linguagem visual do quadro de colaboradores.
+          </p>
+          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
+            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              <span class="h-2 w-2 shrink-0 rounded-full bg-slate-400"></span>
+              <span id="vp-hero-chip-period">Período: —</span>
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              <span class="h-2 w-2 shrink-0 rounded-full bg-sky-500"></span>
+              <span id="vp-hero-chip-company">Empresa: Todos</span>
+            </span>
+            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+              <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+              <span id="vp-hero-chip-queue">Fila: —</span>
+            </span>
+          </div>
+        </div>
       </div>
-      <div class="vp-op-header__actions">
-        <button type="button" id="vp-refresh" class="sys-btn sys-btn--primary text-sm">Atualizar painel</button>
-        <button type="button" id="vp-suggest" class="sys-btn sys-btn--secondary text-sm">Sugestão inteligente</button>
-        <a href="/people-intelligence" class="sys-btn sys-btn--secondary text-sm hidden sm:inline-flex">People Intelligence</a>
-      </div>
-    </div>
-  </header>
 
-  <section id="vp-month-strip" class="vp-month-strip vp-month-strip--yellow" aria-label="Situação do mês">
-    <div class="vp-month-strip__status">
-      <span id="vp-strip-dot" class="vp-strip-dot" aria-hidden="true"></span>
-      <div>
-        <p class="vp-month-strip__label">Situação do mês</p>
-        <p id="vp-strip-decision" class="vp-month-strip__decision">—</p>
+      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+        <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
+          <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+            <span class="employees-cta__icon" aria-hidden="true">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+              </svg>
+            </span>
+            <span class="employees-cta__label">Importar</span>
+            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+          <div x-show="open" @click.away="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+            <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importar planilha</p>
+            <button type="button" onclick="document.getElementById('vpImportModal').classList.remove('hidden')" class="employees-menu-item">
+              <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              </span>
+              <span class="employees-menu-item__text">
+                <span class="employees-menu-item__title">Excel de férias</span>
+                <span class="employees-menu-item__hint">Atualiza perfil e prazos (.xls / .xlsx)</span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <button type="button" id="vp-refresh" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
+          <span class="employees-cta__icon" aria-hidden="true">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          </span>
+          <span class="employees-cta__label">Atualizar painel</span>
+        </button>
+
+        <button type="button" id="vp-suggest" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
+          <span class="employees-cta__icon" aria-hidden="true">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+          </span>
+          <span class="employees-cta__label">Sugestão inteligente</span>
+        </button>
+
+        <a href="/people-intelligence" class="employees-cta sys-btn sys-btn--secondary w-full justify-center sm:w-auto hidden sm:inline-flex">
+          <span class="employees-cta__label">People Intelligence</span>
+        </a>
       </div>
     </div>
-    <div class="vp-month-strip__metrics">
-      <div class="vp-month-strip__metric"><span class="vp-month-strip__k">Risco operacional</span><span id="vp-strip-risk" class="vp-month-strip__v tabular-nums">—</span></div>
-      <div class="vp-month-strip__metric"><span class="vp-month-strip__k">Capacidade</span><span id="vp-strip-cap" class="vp-month-strip__v tabular-nums">—</span></div>
-      <div class="vp-month-strip__metric"><span class="vp-month-strip__k">Programadas</span><span id="vp-strip-sched" class="vp-month-strip__v tabular-nums">—</span></div>
-    </div>
-    <p id="vp-strip-guidance" class="vp-month-strip__guidance">Carregue o painel para ver a orientação.</p>
-  </section>
+  </div>
 
-  <section class="vp-kpi-row" aria-label="Indicadores">
-    <div class="vp-kpi-tile"><span class="vp-kpi-tile__l">Vencidas</span><span id="vp-kpi-expired" class="vp-kpi-tile__v tabular-nums">—</span></div>
-    <div class="vp-kpi-tile"><span class="vp-kpi-tile__l">Vencem em 30 dias</span><span id="vp-kpi-d30" class="vp-kpi-tile__v tabular-nums">—</span></div>
-    <div class="vp-kpi-tile"><span class="vp-kpi-tile__l">Vencem em 60 / 90 dias</span><span id="vp-kpi-d6090" class="vp-kpi-tile__v tabular-nums">—</span></div>
-    <div class="vp-kpi-tile"><span class="vp-kpi-tile__l">Programadas no mês</span><span id="vp-kpi-sched" class="vp-kpi-tile__v tabular-nums">—</span></div>
-  </section>
+  <!-- Situação do mês -->
+  <div class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0">
+    <section id="vp-month-strip" class="vp-month-strip vp-month-strip--yellow border-0 rounded-none bg-transparent" aria-label="Situação do mês">
+      <div class="vp-month-strip__status">
+        <span id="vp-strip-dot" class="vp-strip-dot" aria-hidden="true"></span>
+        <div>
+          <p class="vp-month-strip__label">Situação do mês</p>
+          <p id="vp-strip-decision" class="vp-month-strip__decision">—</p>
+        </div>
+      </div>
+      <div class="vp-month-strip__metrics">
+        <div class="vp-month-strip__metric"><span class="vp-month-strip__k">Risco operacional</span><span id="vp-strip-risk" class="vp-month-strip__v tabular-nums">—</span></div>
+        <div class="vp-month-strip__metric"><span class="vp-month-strip__k">Capacidade</span><span id="vp-strip-cap" class="vp-month-strip__v tabular-nums">—</span></div>
+        <div class="vp-month-strip__metric"><span class="vp-month-strip__k">Programadas</span><span id="vp-strip-sched" class="vp-month-strip__v tabular-nums">—</span></div>
+      </div>
+      <p id="vp-strip-guidance" class="vp-month-strip__guidance">Carregue o painel para ver a orientação.</p>
+    </section>
+  </div>
+
+  <!-- KPIs (sys-kpi-card como /employees) -->
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de férias">
+      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(244, 63, 94, 0.65);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-rose-600 dark:text-rose-300">Vencidas</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span id="vp-kpi-expired" class="employees-kpi__value tabular-nums">—</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-rose-500 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Exigem decisão imediata</span></div>
+        </div>
+      </div>
+      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Vencem em 30 dias</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span id="vp-kpi-d30" class="employees-kpi__value tabular-nums">—</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Janela curta para programar</span></div>
+        </div>
+      </div>
+      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-blue-600 dark:text-blue-300">60 / 90 dias</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span id="vp-kpi-d6090" class="employees-kpi__value tabular-nums">—</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">Planejamento antecipado</span></div>
+        </div>
+      </div>
+      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+            <div class="min-w-0">
+              <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Programadas no mês</span>
+              <div class="mt-1 flex flex-wrap items-baseline gap-1">
+                <span id="vp-kpi-sched" class="employees-kpi__value tabular-nums">—</span>
+              </div>
+            </div>
+            <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+          </div>
+          <div class="employees-kpi__meta"><span class="employees-text-muted">No mês em foco</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="vp-main-split">
-    <section class="vp-queue" aria-labelledby="vp-queue-heading">
-      <div class="vp-queue__head">
-        <h2 id="vp-queue-heading" class="vp-section-title">Fila de prioridade</h2>
-        <p class="vp-queue__hint">Por padrão, só quem exige decisão. Use os filtros ou busca para ampliar.</p>
-        <div class="vp-chip-row" role="toolbar" aria-label="Filtros rápidos">
-          <button type="button" class="vp-chip vp-chip--active" data-vp-filter="critical">Todos críticos</button>
-          <button type="button" class="vp-chip" data-vp-filter="expired">Vencidas</button>
-          <button type="button" class="vp-chip" data-vp-filter="d30">30 dias</button>
-          <button type="button" class="vp-chip" data-vp-filter="d6090">60 / 90 dias</button>
-          <button type="button" class="vp-chip" data-vp-filter="no_sub">Sem substituto</button>
-          <button type="button" class="vp-chip" data-vp-filter="high_pri">Alta prioridade</button>
-          <button type="button" class="vp-chip" data-vp-filter="all">Todos</button>
+    <div class="vp-queue flex min-w-0 flex-1 flex-col gap-4">
+      <!-- Filtros globais (ano / mês / empresa) + busca na fila -->
+      <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+        <div class="flex flex-col gap-4 border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
+          <div class="flex flex-wrap items-end gap-3">
+            <label class="vp-field-label vp-field-label--inline text-xs">
+              Ano
+              <input type="number" id="vp-year" class="ops-toolbar-control w-24 px-2.5" min="2020" max="2035" value="">
+            </label>
+            <label class="vp-field-label vp-field-label--inline text-xs">
+              Mês
+              <select id="vp-month" class="ops-toolbar-control px-2.5 min-w-[9.5rem]">
+                <option value="1">Janeiro</option>
+                <option value="2">Fevereiro</option>
+                <option value="3">Março</option>
+                <option value="4">Abril</option>
+                <option value="5">Maio</option>
+                <option value="6">Junho</option>
+                <option value="7">Julho</option>
+                <option value="8">Agosto</option>
+                <option value="9">Setembro</option>
+                <option value="10">Outubro</option>
+                <option value="11">Novembro</option>
+                <option value="12">Dezembro</option>
+              </select>
+            </label>
+            <label class="vp-field-label vp-field-label--inline text-xs">
+              Empresa
+              <select id="vp-cost-center" class="ops-toolbar-control px-2.5 min-w-[11rem]" title="Filtra colaboradores por Souza Pinto ou Exemplar (centro de custo no cadastro)">
+                {% for opt in vacation_empresa_options or cost_center_options or ['Todos'] %}
+                <option value="{{ opt }}">{{ opt }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          </div>
         </div>
-        <label class="vp-field-label vp-queue__search">
-          Buscar
-          <input type="search" id="vp-queue-search" class="ops-toolbar-control px-3 text-sm max-w-md" placeholder="Nome ou função…" autocomplete="off">
-        </label>
+        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
+          <div class="employees-filter-bar__inner px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+            <div class="employees-filter-bar__primary min-w-0 flex-1">
+              <div class="employees-filter-bar__primary-scroll flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na fila</span>
+                <div class="ops-toolbar-search employees-filter-bar__search min-w-0 max-w-md flex-1">
+                  <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                  </svg>
+                  <input type="search" id="vp-queue-search" class="ops-toolbar-search__input" placeholder="Nome ou função…" autocomplete="off" aria-label="Buscar na fila">
+                </div>
+              </div>
+              <div class="mt-3 flex flex-wrap gap-2" role="toolbar" aria-label="Filtros rápidos da fila">
+                <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" data-vp-filter="critical" aria-pressed="true">Todos críticos</button>
+                <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-vp-filter="expired" aria-pressed="false">Vencidas</button>
+                <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-vp-filter="d30" aria-pressed="false">30 dias</button>
+                <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-vp-filter="d6090" aria-pressed="false">60 / 90 dias</button>
+                <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-vp-filter="no_sub" aria-pressed="false">Sem substituto</button>
+                <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-vp-filter="high_pri" aria-pressed="false">Alta prioridade</button>
+                <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-vp-filter="all" aria-pressed="false">Todos</button>
+              </div>
+            </div>
+            <div class="employees-filter-bar__divider my-3 sm:my-0 sm:mx-1" aria-hidden="true"></div>
+            <div class="employees-filter-bar__secondary flex flex-wrap items-center gap-2">
+              <button type="button" id="vp-clear-filters" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar filtros</button>
+              <a href="/employees" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar" title="Abrir cadastro de colaboradores">
+                <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <span class="employees-filter-bar__link-sub-text">Colaboradores</span>
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="vp-table-shell sys-table-wrap sys-table-wrap--x-scroll">
-        <table class="vp-queue-table w-full min-w-[640px] text-left text-sm">
-          <thead>
-            <tr>
-              <th>Colaborador</th>
-              <th>Função</th>
-              <th>Status</th>
-              <th>Prazo</th>
-              <th>Prioridade</th>
-              <th>Melhor janela</th>
-              <th class="vp-queue-table__actions">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="vp-rows-body"></tbody>
-        </table>
-      </div>
-      <div id="vp-queue-empty" class="vp-empty hidden sys-empty-state text-sm">Nenhum colaborador neste filtro. Ajuste filtros ou clique em "Todos".</div>
-      <div class="vp-queue__footer">
-        <span id="vp-queue-count" class="text-xs text-slate-500"></span>
-        <button type="button" id="vp-queue-show-all" class="sys-btn sys-btn--secondary text-xs hidden">Ver todos</button>
-      </div>
-    </section>
 
-    <aside class="vp-sim-aside" id="vp-sim-aside" aria-label="Simular e lançar férias">
-      <div class="vp-sim-aside__inner">
+      <!-- Tabela da fila (desktop) / cards (mobile) -->
+      <div id="vp-queue-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+          <div class="min-w-0 flex-1">
+            <p class="employees-table-panel__kicker">Prioridade operacional</p>
+            <h3 id="vp-queue-heading" class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Fila de colaboradores</h3>
+            <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Por padrão, quem exige decisão. Em telas menores, cada linha vira um card com rótulos claros.</p>
+          </div>
+          <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+            <span id="vp-queue-count" class="employees-text-caption block"></span>
+            <button type="button" id="vp-queue-show-all" class="sys-btn sys-btn--secondary mt-2 hidden text-xs">Ver todos na tabela</button>
+          </div>
+        </div>
+
+        <div id="vp-queue-loading" class="hidden border-b px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400" role="status">Carregando fila…</div>
+        <div id="vp-queue-error" class="hidden border-b px-5 py-6 text-center text-sm text-rose-600 dark:text-rose-400" role="alert"></div>
+
+        <div class="sys-table-wrap sys-table-wrap--x-scroll">
+          <table class="employees-data-table employees-data-table--compact vp-queue-table w-full min-w-full border-collapse text-left text-sm md:min-w-[720px]" id="vpVacationTable">
+            <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
+              <tr>
+                <th class="employees-data-table__th px-3 py-2 pl-5">Colaborador</th>
+                <th class="employees-data-table__th px-2 py-2">Função</th>
+                <th class="employees-data-table__th px-2 py-2">Status</th>
+                <th class="employees-data-table__th px-2 py-2">Prazo</th>
+                <th class="employees-data-table__th px-2 py-2">Prioridade</th>
+                <th class="employees-data-table__th px-2 py-2">Melhor janela</th>
+                <th class="employees-data-table__th px-3 py-2 pr-5 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="vp-rows-body"></tbody>
+          </table>
+        </div>
+        <div id="vp-queue-empty" class="vp-empty hidden sys-empty-state px-5 py-10 text-center text-sm">Nenhum colaborador neste filtro. Ajuste a busca ou use «Limpar filtros».</div>
+      </div>
+    </div>
+
+    <aside class="vp-sim-aside sys-card sys-card--surface sys-card--comfort" id="vp-sim-aside" aria-label="Simular e lançar férias">
+      <div class="vp-sim-aside__inner p-4 sm:p-5">
         <h2 class="vp-section-title">Lançar férias</h2>
         <p class="text-xs text-slate-500 dark:text-slate-400 leading-snug">
           Escolha o colaborador e o período. <strong>Lançar férias</strong> grava no histórico do planejamento e, se marcar, sincroniza <code class="text-[11px]">vacation_start</code>/<code class="text-[11px]">vacation_end</code> no cadastro. Use <strong>Simular antes</strong> para ver alertas e recomendação.
         </p>
-        <label class="vp-field-label">
+        <label class="vp-field-label mt-3">
           Colaborador
           <select id="vp-sim-employee" class="ops-toolbar-control px-3 text-sm w-full"></select>
         </label>
-        <div class="vp-sim-dates">
+        <div class="vp-sim-dates mt-2">
           <label class="vp-field-label">
             Início
             <input type="date" id="vp-sim-start" class="ops-toolbar-control px-2 text-sm w-full">
@@ -152,20 +318,20 @@
             <input type="date" id="vp-sim-end" class="ops-toolbar-control px-2 text-sm w-full">
           </label>
         </div>
-        <div id="vp-sim-highlight" class="vp-sim-highlight hidden">
+        <div id="vp-sim-highlight" class="vp-sim-highlight mt-3 hidden rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-600 dark:bg-slate-800/40">
           <p id="vp-sim-label" class="text-sm font-semibold text-slate-800 dark:text-slate-100"></p>
           <p id="vp-sim-explanation" class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300"></p>
         </div>
-        <pre id="vp-sim-result" class="vp-pre text-xs hidden"></pre>
-        <label class="vp-field-label">
+        <pre id="vp-sim-result" class="vp-pre text-xs mt-2 hidden max-h-40 overflow-auto rounded-md bg-slate-900/90 p-3 text-slate-100"></pre>
+        <label class="vp-field-label mt-3">
           Motivo / observação
           <input type="text" id="vp-schedule-reason" class="ops-toolbar-control px-3 text-xs w-full" placeholder="Opcional — aparece no histórico">
         </label>
-        <label class="vp-check">
+        <label class="vp-check mt-2">
           <input type="checkbox" id="vp-sync-employee" class="rounded border-slate-300">
           <span>Sincronizar férias no cadastro do colaborador</span>
         </label>
-        <div class="flex flex-col gap-2">
+        <div class="mt-4 flex flex-col gap-2">
           <button type="button" id="vp-schedule-save" class="sys-btn sys-btn--primary w-full text-sm">Lançar férias</button>
           <button type="button" id="vp-sim-run" class="sys-btn sys-btn--secondary w-full text-sm">Simular antes</button>
         </div>
@@ -173,55 +339,28 @@
     </aside>
   </div>
 
-  <section class="vp-year-map" aria-labelledby="vp-year-map-heading">
+  <section class="vp-year-map sys-card sys-card--surface sys-card--comfort p-4 sm:p-5" aria-labelledby="vp-year-map-heading">
     <h2 id="vp-year-map-heading" class="vp-section-title">Mapa anual</h2>
     <p class="vp-year-map__sub text-xs text-slate-500 mb-3">Clique no mês para focar o painel.</p>
     <div id="vp-year-grid" class="vp-year-grid"></div>
   </section>
 
-  <section class="vp-secondary" aria-labelledby="vp-secondary-heading">
+  <section class="vp-secondary sys-card sys-card--surface sys-card--comfort p-4 sm:p-6" aria-labelledby="vp-secondary-heading">
     <h2 id="vp-secondary-heading" class="vp-section-title vp-secondary__title">Configurações e histórico</h2>
     <p id="vp-tabs-placeholder" class="vp-tabs__placeholder text-xs text-slate-500 mb-2">
-      Abra uma seção para importar planilha, calibrar demanda, editar perfil, sugestões em lote ou histórico.
+      Abra uma seção para calibrar demanda, editar perfil, sugestões em lote ou histórico. A importação por Excel está no menu <strong>Importar</strong> no topo.
     </p>
     <div class="vp-tabs" role="tablist">
-      <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="import">Importar planilha</button>
+      <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="import">Importar (atalho)</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="cal">Calibragem mensal</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="profile">Perfil operacional</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="suggest">Sugestão automática</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="history">Histórico de decisões</button>
     </div>
-    <div class="vp-tabs__panels">
+    <div class="vp-tabs__panels mt-4">
       <div id="vp-panel-import" class="vp-tabs__panel hidden" role="tabpanel">
-        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3 max-w-2xl">
-          Envie o Excel de acompanhamento (modelo com <strong>COLABORADOR</strong>, <strong>FUNÇÃO</strong> e colunas <strong>1º PERÍODO …</strong> com datas).
-          Cada linha é associada ao <strong>cadastro ativo</strong> pelo nome (igual ao cadastro) ou pela coluna de matrícula, quando existir.
-          O sistema grava o fim do período aquisitivo no <strong>perfil de férias</strong> do colaborador — o mesmo usado pelo painel e pelo simulador.
-          Ao marcar a opção abaixo, também atualiza a <strong>data de admissão</strong> no cadastro.
-        </p>
-        <form id="vp-import-form" class="flex flex-col gap-3 max-w-xl">
-          <label class="vp-field-label">
-            Arquivo (.xls ou .xlsx)
-            <input type="file" id="vp-import-file" name="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="text-sm">
-          </label>
-          <fieldset class="border border-slate-200 dark:border-slate-600 rounded-lg p-3">
-            <legend class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-1">Significado das datas nas colunas de período</legend>
-            <label class="flex items-start gap-2 text-sm mt-2 cursor-pointer">
-              <input type="radio" name="vp-import-interpret" value="acquisition_end" checked class="mt-1">
-              <span>Fim do <strong>período aquisitivo</strong> (recomendado se a planilha marca o término da aquisição)</span>
-            </label>
-            <label class="flex items-start gap-2 text-sm mt-2 cursor-pointer">
-              <input type="radio" name="vp-import-interpret" value="concessive_deadline" class="mt-1">
-              <span>Data limite do <strong>período concessivo</strong> (último dia para gozar; o sistema converte para o campo interno de aquisição)</span>
-            </label>
-          </fieldset>
-          <label class="vp-check text-sm">
-            <input type="checkbox" id="vp-import-admission" checked>
-            <span>Atualizar data de admissão no cadastro do colaborador (coluna de admissão da planilha)</span>
-          </label>
-          <button type="submit" id="vp-import-submit" class="sys-btn sys-btn--primary text-sm w-fit">Importar e gravar</button>
-        </form>
-        <pre id="vp-import-result" class="vp-pre mt-4 text-xs max-h-64 hidden"></pre>
+        <p class="text-sm text-slate-600 dark:text-slate-300 mb-3">Use o botão <strong>Importar</strong> no cartão principal para enviar a planilha com segurança (modal com validações).</p>
+        <button type="button" class="sys-btn sys-btn--primary text-sm" onclick="document.getElementById('vpImportModal').classList.remove('hidden')">Abrir importação</button>
       </div>
       <div id="vp-panel-cal" class="vp-tabs__panel hidden" role="tabpanel">
         <p class="text-xs text-slate-500 mb-3">Índice 0–100 por mês e limites por função (JSON opcional).</p>
@@ -318,17 +457,66 @@
       </div>
     </div>
   </section>
-</div>
 
-<div id="vp-detail-backdrop" class="vp-modal-backdrop hidden" aria-hidden="true"></div>
-<div id="vp-detail-modal" class="vp-modal hidden" role="dialog" aria-modal="true" aria-labelledby="vp-detail-title">
-  <div class="vp-modal__card">
-    <div class="vp-modal__head">
-      <h3 id="vp-detail-title" class="text-base font-semibold text-slate-800 dark:text-slate-100">Detalhes</h3>
-      <button type="button" id="vp-detail-close" class="vp-modal__close" aria-label="Fechar">×</button>
+  <!-- Modal importação (padrão emp-modal /employees) -->
+  <div id="vpImportModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg overflow-hidden rounded-xl">
+      <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+        <h3 class="sys-section-heading text-lg">Importar planilha de férias</h3>
+        <button type="button" onclick="document.getElementById('vpImportModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="max-h-[min(70vh,calc(100dvh-8rem))] overflow-y-auto overscroll-contain px-5 py-4">
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">
+          Modelo com <strong>COLABORADOR</strong>, <strong>FUNÇÃO</strong> e colunas <strong>1º PERÍODO …</strong> com datas.
+          Associação ao cadastro ativo por nome ou matrícula. Validação de colunas obrigatórias, tipos, linhas vazias e duplicidades no servidor.
+        </p>
+        <form id="vp-import-form" class="flex flex-col gap-4">
+          <div class="emp-modal-dropzone text-left">
+            <label class="text-sm font-medium text-slate-700 dark:text-slate-200">Arquivo (.xls ou .xlsx)</label>
+            <input type="file" id="vp-import-file" name="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="mt-2 w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700 dark:text-slate-300">
+          </div>
+          <fieldset class="rounded-lg border border-slate-200 p-3 dark:border-slate-600">
+            <legend class="px-1 text-xs font-semibold text-slate-600 dark:text-slate-300">Significado das datas nas colunas de período</legend>
+            <label class="mt-2 flex cursor-pointer items-start gap-2 text-sm">
+              <input type="radio" name="vp-import-interpret" value="acquisition_end" checked class="mt-1">
+              <span>Fim do <strong>período aquisitivo</strong> (recomendado)</span>
+            </label>
+            <label class="mt-2 flex cursor-pointer items-start gap-2 text-sm">
+              <input type="radio" name="vp-import-interpret" value="concessive_deadline" class="mt-1">
+              <span>Data limite do <strong>período concessivo</strong> (o sistema converte para o campo interno)</span>
+            </label>
+          </fieldset>
+          <label class="flex items-start gap-2 text-sm">
+            <input type="checkbox" id="vp-import-admission" checked class="mt-1 rounded border-slate-300">
+            <span>Atualizar data de admissão no cadastro (coluna de admissão da planilha)</span>
+          </label>
+          <div class="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
+            <button type="button" onclick="document.getElementById('vpImportModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+            <button type="submit" id="vp-import-submit" class="sys-btn sys-btn--primary">Importar e gravar</button>
+          </div>
+        </form>
+        <pre id="vp-import-result" class="vp-pre mt-4 max-h-48 hidden overflow-auto rounded-md bg-slate-900/90 p-3 text-xs text-slate-100"></pre>
+      </div>
     </div>
-    <div id="vp-detail-body" class="vp-modal__body text-sm text-slate-600 dark:text-slate-300"></div>
+  </div>
+
+  <!-- Modal detalhes -->
+  <div id="vp-detail-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="vp-detail-title">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg overflow-hidden rounded-xl">
+      <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+        <h3 id="vp-detail-title" class="sys-section-heading text-lg">Detalhes</h3>
+        <button type="button" id="vp-detail-close" class="emp-modal-close shrink-0" aria-label="Fechar">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div id="vp-detail-body" class="vp-modal__body max-h-[min(75vh,calc(100dvh-10rem))] overflow-y-auto overscroll-contain px-5 py-4 text-sm text-slate-600 dark:text-slate-300"></div>
+    </div>
   </div>
 </div>
-
 {% endblock %}

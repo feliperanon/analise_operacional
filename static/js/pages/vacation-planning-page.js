@@ -9,6 +9,11 @@
   var cachedRows = [];
   var activeFilter = "critical";
   var showAllRows = false;
+  var queueSearchRaw = "";
+  var queueSearchDebounced = "";
+  var queueSearchTimer = null;
+  var SEARCH_DEBOUNCE_MS = 280;
+  var queueRowClickBound = false;
 
   function byId(id) {
     return document.getElementById(id);
@@ -210,6 +215,48 @@
     });
   }
 
+  function scheduleQueueSearchRender() {
+    if (queueSearchTimer) clearTimeout(queueSearchTimer);
+    queueSearchTimer = setTimeout(function () {
+      queueSearchTimer = null;
+      queueSearchDebounced = queueSearchRaw.trim();
+      showAllRows = false;
+      renderQueueTable(cachedRows);
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  function updateHeroChips() {
+    var q = qs();
+    var monthNames = [
+      "",
+      "Jan",
+      "Fev",
+      "Mar",
+      "Abr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Set",
+      "Out",
+      "Nov",
+      "Dez",
+    ];
+    var pel = byId("vp-hero-chip-period");
+    var cel = byId("vp-hero-chip-company");
+    var qel = byId("vp-hero-chip-queue");
+    if (pel)
+      pel.textContent =
+        "Período: " + (monthNames[q.month] || "") + "/" + String(q.year);
+    if (cel) cel.textContent = "Empresa: " + (q.cost_center || "Todos");
+    if (qel) {
+      var n = cachedRows ? cachedRows.length : 0;
+      var f = filterRows(cachedRows || [], activeFilter, queueSearchDebounced);
+      qel.textContent =
+        "Fila: " + f.length + (n ? " de " + n + " carregados" : "");
+    }
+  }
+
   function prazoLabel(row) {
     var d = row.days_until_deadline;
     if (d == null) return "—";
@@ -238,7 +285,6 @@
 
   function openDetailModal(row) {
     var modal = byId("vp-detail-modal");
-    var back = byId("vp-detail-backdrop");
     var body = byId("vp-detail-body");
     var title = byId("vp-detail-title");
     if (!modal || !body || !title) return;
@@ -284,14 +330,11 @@
       "</dd>" +
       "</dl>";
     modal.classList.remove("hidden");
-    back.classList.remove("hidden");
   }
 
   function closeDetailModal() {
     var modal = byId("vp-detail-modal");
-    var back = byId("vp-detail-backdrop");
     if (modal) modal.classList.add("hidden");
-    if (back) back.classList.add("hidden");
   }
 
   function setSimulatorEmployee(employeeId) {
@@ -316,11 +359,8 @@
     var btnAll = byId("vp-queue-show-all");
     if (!rb) return;
 
-    var filtered = filterRows(
-      rows,
-      activeFilter,
-      byId("vp-queue-search") ? byId("vp-queue-search").value : ""
-    );
+    var searchQ = queueSearchDebounced;
+    var filtered = filterRows(rows, activeFilter, searchQ);
     var limited = showAllRows ? filtered : filtered.slice(0, INITIAL_TABLE_LIMIT);
 
     rb.innerHTML = "";
@@ -334,67 +374,74 @@
 
     limited.forEach(function (row) {
       var tr = document.createElement("tr");
-      tr.className = rowHighlightClass(row);
+      var rowExtra = (rowHighlightClass(row) || "").trim();
+      tr.className =
+        "vp-vacation-row employee-row" + (rowExtra ? " " + rowExtra : "");
       var eid = row.employee_id;
-      tr.innerHTML =
-        "<td>" +
+      var nameHtml =
+        "<span class=\"employee-name font-medium text-slate-800 dark:text-slate-100\">" +
         escapeHtml(row.name) +
+        "</span>";
+      tr.innerHTML =
+        "<td class=\"employees-data-table__td employees-data-table__td--col-name employee-cell-primary px-3 py-2 pl-5\" data-label=\"Colaborador\">" +
+        nameHtml +
         "</td>" +
-        "<td class=\"text-xs text-slate-600 dark:text-slate-400\">" +
+        "<td class=\"employees-data-table__td employees-data-table__td--col-role px-2 py-2 text-xs text-slate-600 dark:text-slate-400\" data-label=\"Função\">" +
         escapeHtml(row.role) +
         "</td>" +
-        "<td class=\"text-xs\">" +
+        "<td class=\"employees-data-table__td px-2 py-2 text-xs\" data-label=\"Status\">" +
         escapeHtml(row.vacation_status_label) +
         "</td>" +
-        "<td class=\"tabular-nums text-xs\">" +
+        "<td class=\"employees-data-table__td px-2 py-2 text-xs tabular-nums\" data-label=\"Prazo\">" +
         escapeHtml(prazoLabel(row)) +
         "</td>" +
-        "<td class=\"text-xs\">" +
+        "<td class=\"employees-data-table__td px-2 py-2 text-xs\" data-label=\"Prioridade\">" +
         prioridadeLabel(row) +
         "</td>" +
-        "<td class=\"text-xs\">" +
+        "<td class=\"employees-data-table__td px-2 py-2 text-xs\" data-label=\"Melhor janela\">" +
         escapeHtml(row.best_period_hint || "—") +
         "</td>" +
-        "<td class=\"vp-queue-table__actions\">" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-xs py-1 px-2 vp-btn-launch\" data-eid=\"" +
+        "<td class=\"employees-data-table__td employee-actions-cell vp-queue-table__actions px-3 py-2 pr-5 text-right\" data-label=\"Ações\">" +
+        "<span class=\"employee-actions inline-flex flex-wrap items-center justify-end gap-1.5\">" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-xs py-1.5 px-2.5 vp-btn-launch\" data-eid=\"" +
         eid +
-        "\">Lançar</button> " +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs py-1 px-2 vp-btn-sim\" data-eid=\"" +
+        "\">Lançar</button>" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-btn-sim\" data-eid=\"" +
         eid +
-        "\">Simular</button> " +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs py-1 px-2 vp-btn-det\" data-eid=\"" +
+        "\">Simular</button>" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-btn-det\" data-eid=\"" +
         eid +
-        "\">Ver detalhes</button>" +
+        "\">Detalhes</button>" +
+        "</span>" +
         "</td>";
       rb.appendChild(tr);
     });
 
-    rb.querySelectorAll(".vp-btn-launch").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var id = parseInt(b.getAttribute("data-eid"), 10);
-        if (id) {
-          setSimulatorEmployee(id);
-          hideAlert();
-          showAlert(
-            "Colaborador selecionado no painel «Lançar férias». Informe início e fim e clique em Lançar férias.",
-            "success"
-          );
+    if (!queueRowClickBound) {
+      queueRowClickBound = true;
+      rb.addEventListener("click", function (ev) {
+        var btn = ev.target && ev.target.closest("button");
+        if (!btn || !rb.contains(btn)) return;
+        var id = parseInt(btn.getAttribute("data-eid"), 10);
+        if (btn.classList.contains("vp-btn-launch")) {
+          if (id) {
+            setSimulatorEmployee(id);
+            hideAlert();
+            showAlert(
+              "Colaborador selecionado no painel «Lançar férias». Informe início e fim e clique em Lançar férias.",
+              "success"
+            );
+          }
+        } else if (btn.classList.contains("vp-btn-sim")) {
+          if (id) setSimulatorEmployee(id);
+        } else if (btn.classList.contains("vp-btn-det")) {
+          var found = cachedRows.find(function (r) {
+            return r.employee_id === id;
+          });
+          if (found) openDetailModal(found);
         }
       });
-    });
-    rb.querySelectorAll(".vp-btn-sim").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var id = parseInt(b.getAttribute("data-eid"), 10);
-        if (id) setSimulatorEmployee(id);
-      });
-    });
-    rb.querySelectorAll(".vp-btn-det").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var id = parseInt(b.getAttribute("data-eid"), 10);
-        var found = rows.find(function (r) { return r.employee_id === id; });
-        if (found) openDetailModal(found);
-      });
-    });
+    }
 
     if (countEl) {
       countEl.textContent =
@@ -402,8 +449,9 @@
         limited.length +
         " de " +
         filtered.length +
-        (filtered.length !== rows.length ? " (filtrado)" : "");
+        (filtered.length !== rows.length ? " (após filtro na fila)" : "");
     }
+    updateHeroChips();
     if (btnAll) {
       if (filtered.length > INITIAL_TABLE_LIMIT && !showAllRows) {
         btnAll.classList.remove("hidden");
@@ -446,14 +494,44 @@
   function applyFilterChip(name) {
     activeFilter = name;
     showAllRows = false;
-    root.querySelectorAll(".vp-chip").forEach(function (c) {
-      c.classList.toggle("vp-chip--active", c.getAttribute("data-vp-filter") === name);
+    root.querySelectorAll("[data-vp-filter]").forEach(function (c) {
+      var on = c.getAttribute("data-vp-filter") === name;
+      c.classList.toggle("filter-btn--active", on);
+      c.setAttribute("aria-pressed", on ? "true" : "false");
     });
     renderQueueTable(cachedRows);
   }
 
+  function setQueueLoading(on) {
+    var el = byId("vp-queue-loading");
+    var err = byId("vp-queue-error");
+    var wrap = document.querySelector("#vpVacationTable");
+    if (el) el.classList.toggle("hidden", !on);
+    if (wrap) wrap.classList.toggle("opacity-50", !!on);
+    if (on && err) {
+      err.classList.add("hidden");
+      err.textContent = "";
+    }
+  }
+
+  function setQueueError(msg) {
+    var err = byId("vp-queue-error");
+    if (!err) return;
+    if (msg) {
+      err.textContent = msg;
+      err.classList.remove("hidden");
+    } else {
+      err.classList.add("hidden");
+      err.textContent = "";
+    }
+  }
+
   function loadOverview() {
     hideAlert();
+    setQueueError("");
+    setQueueLoading(true);
+    var rb0 = byId("vp-rows-body");
+    if (rb0) rb0.innerHTML = "";
     var q = qs();
     var url =
       "/api/vacation-planning/overview?year=" +
@@ -468,6 +546,7 @@
         return r.json();
       })
       .then(function (data) {
+        setQueueLoading(false);
         var k = data.kpis || {};
         byId("vp-kpi-expired").textContent = String(k.expired ?? "0");
         byId("vp-kpi-d30").textContent = String(k.due_30 ?? "0");
@@ -482,13 +561,18 @@
         renderYearGrid(data);
 
         cachedRows = data.rows || [];
+        queueSearchDebounced = queueSearchRaw.trim();
         renderQueueTable(cachedRows);
 
         employeeOptionsFull = data.employees_options || [];
         rebuildEmployeeSelects(byId("vp-p-search") ? byId("vp-p-search").value : "");
+        updateHeroChips();
       })
       .catch(function (e) {
-        showAlert(e.message || "Erro", "error");
+        setQueueLoading(false);
+        var msg = e.message || "Erro";
+        setQueueError(msg);
+        showAlert(msg, "error");
       });
   }
 
@@ -1047,18 +1131,33 @@
     loadOverview();
   });
 
-  root.querySelectorAll(".vp-chip").forEach(function (chip) {
+  root.querySelectorAll("[data-vp-filter]").forEach(function (chip) {
     chip.addEventListener("click", function () {
       var name = chip.getAttribute("data-vp-filter");
       if (name) applyFilterChip(name);
     });
   });
 
+  var clearBtn = byId("vp-clear-filters");
+  if (clearBtn) {
+    clearBtn.addEventListener("click", function () {
+      var si = byId("vp-queue-search");
+      if (si) si.value = "";
+      queueSearchRaw = "";
+      queueSearchDebounced = "";
+      if (queueSearchTimer) {
+        clearTimeout(queueSearchTimer);
+        queueSearchTimer = null;
+      }
+      applyFilterChip("critical");
+    });
+  }
+
   var searchEl = byId("vp-queue-search");
   if (searchEl) {
     searchEl.addEventListener("input", function () {
-      showAllRows = false;
-      renderQueueTable(cachedRows);
+      queueSearchRaw = searchEl.value;
+      scheduleQueueSearchRender();
     });
   }
 
@@ -1071,9 +1170,24 @@
   }
 
   byId("vp-detail-close").addEventListener("click", closeDetailModal);
-  byId("vp-detail-backdrop").addEventListener("click", closeDetailModal);
+  var detModal = byId("vp-detail-modal");
+  if (detModal) {
+    detModal.addEventListener("click", function (ev) {
+      if (ev.target === detModal) closeDetailModal();
+    });
+  }
+  var impModal = byId("vpImportModal");
+  if (impModal) {
+    impModal.addEventListener("click", function (ev) {
+      if (ev.target === impModal) impModal.classList.add("hidden");
+    });
+  }
   document.addEventListener("keydown", function (ev) {
-    if (ev.key === "Escape") closeDetailModal();
+    if (ev.key === "Escape") {
+      closeDetailModal();
+      var im = byId("vpImportModal");
+      if (im && !im.classList.contains("hidden")) im.classList.add("hidden");
+    }
   });
 
   root.querySelectorAll(".vp-tabs__btn").forEach(function (btn) {
@@ -1148,6 +1262,8 @@
               " perfil(is) atualizado(s).",
             "success"
           );
+          var impModal = document.getElementById("vpImportModal");
+          if (impModal) impModal.classList.add("hidden");
           loadOverview();
         })
         .catch(function () {
