@@ -17,7 +17,6 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from sqlmodel import Session, select
 from sqlalchemy import func, or_, and_
-from typing import List
 
 import models
 from database import get_session
@@ -4575,16 +4574,18 @@ def _build_bi_devolucoes_dataset(
 
     # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
     valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
-    total_valor_pre_meta = sum(float(d.valor or 0) for d in devs)
+    devs_pre_acima: List[models.Devolucao] = list(devs)
+    total_valor_kpi = sum(float(d.valor or 0) for d in devs_pre_acima)
+    total_qtd_kpi = len(devs_pre_acima)
     pct_devolucao_financeiro: Optional[float] = (
-        round(100.0 * total_valor_pre_meta / valor_base_rotas, 2) if valor_base_rotas > 0 else None
+        round(100.0 * total_valor_kpi / valor_base_rotas, 2) if valor_base_rotas > 0 else None
     )
     meta_pp = 2.0
     valor_meta_permitido: Optional[float] = (
         round(valor_base_rotas * (meta_pp / 100.0), 2) if valor_base_rotas > 0 else None
     )
     excedente_sobre_meta: Optional[float] = (
-        round(max(0.0, total_valor_pre_meta - (valor_meta_permitido or 0.0)), 2)
+        round(max(0.0, total_valor_kpi - (valor_meta_permitido or 0.0)), 2)
         if valor_meta_permitido is not None
         else None
     )
@@ -4605,22 +4606,24 @@ def _build_bi_devolucoes_dataset(
         faixa_alerta_meta = "danger"
 
     acima_meta_filter_note: Optional[str] = None
+    ids_listagem: set[int] = {d.id for d in devs_pre_acima if getattr(d, "id", None)}
     if somente_acima_meta:
         if pct_devolucao_financeiro is None or pct_devolucao_financeiro <= meta_pp:
-            devs = []
+            ids_listagem = set()
             acima_meta_filter_note = (
                 "Filtro «somente acima da meta» ativo: o período está dentro ou na meta de 2% "
                 "(ou não há valor base de rotas). A lista foi esvaziada."
             )
         else:
-            devs_alto = [d for d in devs if float(d.valor or 0) >= 300.0]
+            devs_alto = [d for d in devs_pre_acima if float(d.valor or 0) >= 300.0]
             if devs_alto:
-                devs = devs_alto
+                ids_listagem = {d.id for d in devs_alto if getattr(d, "id", None)}
             else:
                 acima_meta_filter_note = "Nenhuma ocorrência ≥ R$ 300; exibindo todas as devoluções do período."
-    # --- agregações ---
-    total_qtd = len(devs)
-    total_valor = sum(float(d.valor or 0) for d in devs)
+    devs = list(devs_pre_acima)
+    # --- agregações (gráficos e rankings usam o período completo após faixa/críticas; lista respeita ids_listagem) ---
+    total_qtd = int(total_qtd_kpi)
+    total_valor = float(total_valor_kpi)
 
     # Cores em hexadecimal (layout claro GA; sem depender de --color-* do tema escuro)
     _RESP_HEX_DETAIL = {"MERCADO": "#dc2626", "COMERCIAL": "#d97706"}
@@ -4671,7 +4674,26 @@ def _build_bi_devolucoes_dataset(
 
     rows_detail: list[dict] = []
 
-    for d in devs:
+    def _classificacao_impacto_valor(v: float) -> str:
+        if v <= 100:
+            return "Baixo impacto"
+        if v <= 300:
+            return "Médio impacto"
+        if v <= 800:
+            return "Alto impacto"
+        return "Crítico"
+
+    def _acao_corretiva_sugerida(resp_nome: str) -> str:
+        n = (resp_nome or "").upper()
+        if "COMERCIAL" in n:
+            return "Revisar pedido, cadastro e alinhamento com o cliente antes da expedição."
+        if "LOG" in n:
+            return "Auditar separação, carga e conferência na entrega."
+        if "MERCADO" in n:
+            return "Verificar qualidade percebida e acordo comercial de troca."
+        return "Registrar causa raiz e acionar o responsável pela área."
+
+    for d in devs_pre_acima:
         motivo = mot_map.get(d.motivo_id)
         resp = rsp_map.get(d.responsabilidade_id)
         cli = cli_map.get(d.client_id)
@@ -4780,10 +4802,15 @@ def _build_bi_devolucoes_dataset(
         sm["valor"] = round(sm["valor"] + val, 2)
 
         # per_cliente
-        cls_ = per_cliente.setdefault(cli_nome, {"cliente": cli_nome, "qtd": 0, "valor": 0.0, "motivos": {}})
+        cls_ = per_cliente.setdefault(
+            cli_nome,
+            {"cliente": cli_nome, "qtd": 0, "valor": 0.0, "motivos": {}, "ultima_data": dt_str},
+        )
         cls_["qtd"] += 1
         cls_["valor"] = round(cls_["valor"] + val, 2)
         cls_["motivos"][motivo_nome] = cls_["motivos"].get(motivo_nome, 0) + 1
+        if dt_str > cls_.get("ultima_data", ""):
+            cls_["ultima_data"] = dt_str
 
         # heatmap semanal
         hw = heatmap_week.setdefault(wk, {i: 0 for i in range(7)})
@@ -4792,31 +4819,48 @@ def _build_bi_devolucoes_dataset(
         # heatmap dia-da-semana × dia-do-mês
         heatmap_dow_dom[dow][dom] = heatmap_dow_dom[dow].get(dom, 0) + 1
 
-        rows_detail.append({
-            "id": d.id,
-            "data": dt_str,
-            "cliente": cli_nome,
-            "vendedor": vendedor_nome,
-            "motorista": motorista_nome,
-            "ajudante": ajudante_nome,
-            "motivo": motivo_nome,
-            "responsabilidade": resp_nome,
-            "responsabilidade_hex": _resp_hex(resp_nome),
-            "responsabilidade_tom": _resp_tom(resp_nome),
-            "cluster": cluster,
-            "valor": val,
-            "acima_300": d.acima_300 or "NAO",
-            "semana": d.semana or 0,
-            "dia": d.dia or 0,
-            "source": d.source or "—",
-        })
+        did = getattr(d, "id", None)
+        if did is not None and did in ids_listagem:
+            obs_parts = [
+                (getattr(d, "observacao", None) or "").strip(),
+                (getattr(d, "observacao_gestor", None) or "").strip(),
+            ]
+            obs_txt = " — ".join([p for p in obs_parts if p]) or "—"
+            pct_imp = round(100.0 * val / total_valor_kpi, 2) if total_valor_kpi > 0 else 0.0
+            rows_detail.append({
+                "id": did,
+                "data": dt_str,
+                "cliente": cli_nome,
+                "vendedor": vendedor_nome,
+                "motorista": motorista_nome,
+                "ajudante": ajudante_nome,
+                "motivo": motivo_nome,
+                "responsabilidade": resp_nome,
+                "responsabilidade_hex": _resp_hex(resp_nome),
+                "responsabilidade_tom": _resp_tom(resp_nome),
+                "cluster": cluster,
+                "valor": val,
+                "acima_300": d.acima_300 or "NAO",
+                "semana": d.semana or 0,
+                "dia": d.dia or 0,
+                "source": d.source or "—",
+                "observacao": obs_txt,
+                "pct_impacto": pct_imp,
+                "impacto_classificacao": _classificacao_impacto_valor(val),
+                "acao_corretiva": _acao_corretiva_sugerida(resp_nome),
+                "status_operacional": (
+                    "Crítica"
+                    if (d.acima_300 or "").upper() == "SIM"
+                    else ("Pendente" if (str(d.source or "").upper() == "EXCEL") else "Resolvida")
+                ),
+            })
 
-    # --- top N ---
-    top_clientes = sorted(per_cliente.values(), key=lambda x: x["qtd"], reverse=True)[:20]
-    top_motoristas = sorted(per_motorista.values(), key=lambda x: x["qtd"], reverse=True)[:20]
-    top_motivos = sorted(per_motivo.values(), key=lambda x: x["qtd"], reverse=True)[:15]
-    top_vendedores = sorted(per_vendedor.values(), key=lambda x: x["qtd"], reverse=True)[:15]
-    top_clusters = sorted(per_cluster.values(), key=lambda x: x["qtd"], reverse=True)[:15]
+    # --- top N (prioriza valor financeiro) ---
+    top_clientes = sorted(per_cliente.values(), key=lambda x: x["valor"], reverse=True)[:20]
+    top_motoristas = sorted(per_motorista.values(), key=lambda x: x["valor"], reverse=True)[:20]
+    top_motivos = sorted(per_motivo.values(), key=lambda x: x["valor"], reverse=True)[:15]
+    top_vendedores = sorted(per_vendedor.values(), key=lambda x: x["valor"], reverse=True)[:15]
+    top_clusters = sorted(per_cluster.values(), key=lambda x: x["valor"], reverse=True)[:15]
 
     # Drill-down por vendedor: responsabilidade e motivos para detalhe no clique
     vendedor_drill: dict[str, dict] = {}
@@ -4839,6 +4883,15 @@ def _build_bi_devolucoes_dataset(
     # Evolução diária (últimos 90 dias no período)
     days_sorted = sorted(per_day.keys())
     evolucao_diaria = [per_day[k] for k in days_sorted]
+    try:
+        n_cal = max(1, (date_f - date_i).days + 1)
+    except Exception:
+        n_cal = 1
+    meta_valor_dia_ref: Optional[float] = (
+        round((valor_meta_permitido or 0) / n_cal, 2) if valor_meta_permitido is not None else None
+    )
+    for _ed in evolucao_diaria:
+        _ed["meta_valor_dia_ref"] = meta_valor_dia_ref
 
     # Evolução semanal
     weeks_sorted = sorted(per_week.keys())
@@ -4848,7 +4901,7 @@ def _build_bi_devolucoes_dataset(
     for _rk, _rv in per_resp.items():
         _rv["color"] = _resp_hex(_rk)
         _rv["tom"] = _resp_tom(_rk)
-    resp_breakdown = sorted(per_resp.values(), key=lambda x: x["qtd"], reverse=True)
+    resp_breakdown = sorted(per_resp.values(), key=lambda x: x["valor"], reverse=True)
 
     # Drill-down por responsabilidade: motivos com qtd, valor e % (para modal ao clicar no card)
     resp_drill: dict[str, dict] = {}
@@ -4887,7 +4940,7 @@ def _build_bi_devolucoes_dataset(
             heatmap_dom_dow.append({"dom": dom, "values": vals})
 
     # acima_300 breakdown
-    total_acima_300 = sum(1 for d in devs if (d.acima_300 or "NAO") == "SIM")
+    total_acima_300 = sum(1 for d in devs_pre_acima if (d.acima_300 or "NAO") == "SIM")
     pct_acima_300 = round(total_acima_300 / total_qtd * 100, 1) if total_qtd else 0.0
 
     # média por dia (dias com devolução)
@@ -4895,29 +4948,56 @@ def _build_bi_devolucoes_dataset(
     media_valor_dia = round(total_valor / len(days_sorted), 2) if days_sorted else 0.0
 
     analise_destaque: list[str] = []
-    if top_motivos:
-        m0 = top_motivos[0]
+    if total_valor_kpi > 0 and top_motivos:
+        m_fin = max(top_motivos, key=lambda x: float(x.get("valor") or 0))
+        vm = float(m_fin.get("valor") or 0)
+        if vm > 0:
+            analise_destaque.append(
+                f"O principal impacto financeiro veio do motivo {m_fin.get('motivo', '—')}, somando {_fmt_br_moeda(vm)}."
+            )
+    if total_valor_kpi > 0 and resp_breakdown:
+        r_fin = max(resp_breakdown, key=lambda x: float(x.get("valor") or 0))
+        rv = float(r_fin.get("valor") or 0)
+        pct_r = round(100.0 * rv / total_valor_kpi, 1) if total_valor_kpi else 0.0
+        if rv > 0:
+            analise_destaque.append(
+                f"A área {r_fin.get('responsabilidade', '—')} concentra {pct_r:.1f}% do valor devolvido no período."
+            )
+    crit_n = sum(1 for d in devs_pre_acima if float(d.valor or 0) >= 800.0)
+    crit_v = sum(float(d.valor or 0) for d in devs_pre_acima if float(d.valor or 0) >= 800.0)
+    if crit_n > 0 and total_valor_kpi > 0:
+        pct_crit_v = round(100.0 * crit_v / total_valor_kpi, 1)
+        if crit_n <= max(1, int(total_qtd_kpi * 0.25)) and pct_crit_v >= 30.0:
+            analise_destaque.append(
+                f"As devoluções acima de R$ 800 somam {crit_n} ocorrência(s), mas concentram cerca de {pct_crit_v:.0f}% do valor."
+            )
+    if desvio_pp is not None and desvio_pp > 0 and pct_devolucao_financeiro is not None:
         analise_destaque.append(
-            f"Motivo mais frequente: {m0.get('motivo', '—')} ({int(m0.get('qtd') or 0)} ocorrências; "
-            f"{_fmt_br_moeda(float(m0.get('valor') or 0))} em valor)."
+            f"O período está {desvio_pp:.2f} pontos percentuais acima da meta de 2% sobre valor base de rotas."
         )
-    if float(pct_devolucao_valor or 0) >= 2.0:
+    elif desvio_pp is not None and desvio_pp < 0 and pct_devolucao_financeiro is not None:
         analise_destaque.append(
-            f"Devolução sobre rotas concluídas em {float(pct_devolucao_valor):.1f}% — acima da referência operacional de 2%."
+            f"O período está {abs(desvio_pp):.2f} pontos percentuais abaixo da meta de 2%."
         )
-    if resp_breakdown:
-        r0 = resp_breakdown[0]
+    if excedente_sobre_meta is not None and excedente_sobre_meta > 0:
         analise_destaque.append(
-            f"Maior volume por responsabilidade: {r0.get('responsabilidade', '—')} "
-            f"({int(r0.get('qtd') or 0)} ocorrências)."
+            f"O excedente financeiro sobre a meta permitida é de {_fmt_br_moeda(excedente_sobre_meta)}."
         )
-    if top_clusters:
-        c0 = top_clusters[0]
+    if float(pct_devolucao_rotas or 0) >= 2.0 and pct_devolucao_financeiro is None:
         analise_destaque.append(
-            f"Cluster com mais ocorrências: {c0.get('cluster', '—')} ({int(c0.get('qtd') or 0)})."
+            f"Indicador operacional (paradas): {float(pct_devolucao_rotas):.1f}% de devoluções sobre rotas concluídas — "
+            "sem valor base financeiro para calcular % sobre faturamento."
         )
     if not analise_destaque:
-        analise_destaque.append("Período sem alertas automáticos adicionais; use os filtros e a lista para detalhar.")
+        if total_qtd_kpi == 0:
+            analise_destaque.append("Sem devoluções no período com os filtros aplicados.")
+        else:
+            analise_destaque.append("Use os rankings e a lista para priorizar ações corretivas no período.")
+
+    for m in top_motivos:
+        m["pct_valor_total"] = round(100.0 * float(m["valor"]) / total_valor_kpi, 1) if total_valor_kpi else 0.0
+    for r in resp_breakdown:
+        r["pct_valor_total"] = round(100.0 * float(r["valor"]) / total_valor_kpi, 1) if total_valor_kpi else 0.0
 
     filters_query = urlencode({
         k: str(v) for k, v in {
@@ -4926,9 +5006,13 @@ def _build_bi_devolucoes_dataset(
             "responsabilidade_id": responsabilidade_id or "",
             "motivo_id": motivo_id or "",
             "motorista_id": motorista_id or "",
+            "vendedor_id": vendedor_id or "",
             "client_id": client_id or "",
             "client_scope": cfs if client_id else "",
-        }.items() if v not in ("", None)
+            "valor_faixa": (valor_faixa or "").strip().lower() if valor_faixa else "",
+            "criticas": "1" if somente_criticas else "",
+            "acima_meta": "1" if somente_acima_meta else "",
+        }.items() if v not in ("", None, False, 0)
     })
 
     return {
@@ -4938,9 +5022,14 @@ def _build_bi_devolucoes_dataset(
             "responsabilidade_id": responsabilidade_id,
             "motivo_id": motivo_id,
             "motorista_id": motorista_id,
+            "vendedor_id": vendedor_id,
             "client_id": client_id,
             "client_scope": cfs if client_id else "solo",
+            "valor_faixa": (valor_faixa or "all").strip().lower(),
+            "somente_criticas": somente_criticas,
+            "somente_acima_meta": somente_acima_meta,
             "group_filter_note": group_filter_note_dev,
+            "acima_meta_filter_note": acima_meta_filter_note,
         },
         "filters_query": filters_query,
         # KPIs
@@ -4953,7 +5042,17 @@ def _build_bi_devolucoes_dataset(
         "total_clientes_afetados": len(per_cliente),
         "total_motoristas_envolvidos": len(per_motorista),
         "valor_base_rotas": round(valor_base_rotas, 2),
-        "pct_devolucao_valor": pct_devolucao_valor,
+        "valor_base_disponivel": bool(valor_base_rotas and valor_base_rotas > 0),
+        "pct_devolucao_rotas": pct_devolucao_rotas,
+        "pct_devolucao_financeiro": pct_devolucao_financeiro,
+        "meta_pp": meta_pp,
+        "valor_meta_permitido": valor_meta_permitido,
+        "excedente_sobre_meta": excedente_sobre_meta,
+        "desvio_pp": desvio_pp,
+        "situacao_meta": situacao_meta,
+        "faixa_alerta_meta": faixa_alerta_meta,
+        "meta_valor_dia_ref": meta_valor_dia_ref,
+        "generated_at": datetime.now(tz).strftime("%d/%m/%Y %H:%M"),
         # evolução
         "evolucao_diaria": evolucao_diaria,
         "evolucao_semanal": evolucao_semanal,
@@ -4977,6 +5076,7 @@ def _build_bi_devolucoes_dataset(
         "resps_filter": sorted(resps_all, key=lambda r: r.nome),
         "drivers_filter": drivers_filter,
         "clients_filter": clients_filter,
+        "vendedores_filter": vendedores_filter,
         # json para charts
         "evolucao_diaria_json": json.dumps(evolucao_diaria, ensure_ascii=False, default=str),
         "evolucao_semanal_json": json.dumps(evolucao_semanal, ensure_ascii=False, default=str),
@@ -5005,14 +5105,21 @@ async def bi_devolucoes_page(
     responsabilidade_id: Optional[str] = None,
     motivo_id: Optional[str] = None,
     motorista_id: Optional[str] = None,
+    vendedor_id: Optional[str] = None,
     client_id: Optional[str] = None,
     client_scope: Optional[str] = None,
+    valor_faixa: Optional[str] = None,
+    criticas: Optional[str] = None,
+    acima_meta: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     parsed_resp_id: Optional[int] = int(responsabilidade_id) if (responsabilidade_id or "").strip().isdigit() else None
     parsed_motivo_id: Optional[int] = int(motivo_id) if (motivo_id or "").strip().isdigit() else None
     parsed_motorista_id: Optional[int] = int(motorista_id) if (motorista_id or "").strip().isdigit() else None
+    parsed_vendedor_id: Optional[int] = int(vendedor_id) if (vendedor_id or "").strip().isdigit() else None
     parsed_client_id: Optional[int] = int(client_id) if (client_id or "").strip().isdigit() else None
+    somente_criticas = (criticas or "").strip().lower() in ("1", "true", "on", "yes", "sim")
+    somente_acima_meta = (acima_meta or "").strip().lower() in ("1", "true", "on", "yes", "sim")
     dataset = _build_bi_devolucoes_dataset(
         session=session,
         date_from=date_from,
@@ -5020,8 +5127,12 @@ async def bi_devolucoes_page(
         responsabilidade_id=parsed_resp_id,
         motivo_id=parsed_motivo_id,
         motorista_id=parsed_motorista_id,
+        vendedor_id=parsed_vendedor_id,
         client_id=parsed_client_id,
         client_filter_scope=(client_scope or "solo").strip().lower(),
+        valor_faixa=valor_faixa,
+        somente_criticas=somente_criticas,
+        somente_acima_meta=somente_acima_meta,
     )
     return templates.TemplateResponse("bi_devolucoes_refactor.html", {"request": request, **dataset})
 
@@ -5034,14 +5145,21 @@ async def bi_devolucoes_export(
     responsabilidade_id: Optional[str] = None,
     motivo_id: Optional[str] = None,
     motorista_id: Optional[str] = None,
+    vendedor_id: Optional[str] = None,
     client_id: Optional[str] = None,
     client_scope: Optional[str] = None,
+    valor_faixa: Optional[str] = None,
+    criticas: Optional[str] = None,
+    acima_meta: Optional[str] = None,
     session: Session = Depends(get_session),
 ):
     parsed_resp_id: Optional[int] = int(responsabilidade_id) if (responsabilidade_id or "").strip().isdigit() else None
     parsed_motivo_id: Optional[int] = int(motivo_id) if (motivo_id or "").strip().isdigit() else None
     parsed_motorista_id: Optional[int] = int(motorista_id) if (motorista_id or "").strip().isdigit() else None
+    parsed_vendedor_id: Optional[int] = int(vendedor_id) if (vendedor_id or "").strip().isdigit() else None
     parsed_client_id: Optional[int] = int(client_id) if (client_id or "").strip().isdigit() else None
+    somente_criticas = (criticas or "").strip().lower() in ("1", "true", "on", "yes", "sim")
+    somente_acima_meta = (acima_meta or "").strip().lower() in ("1", "true", "on", "yes", "sim")
     dataset = _build_bi_devolucoes_dataset(
         session=session,
         date_from=date_from,
@@ -5049,8 +5167,12 @@ async def bi_devolucoes_export(
         responsabilidade_id=parsed_resp_id,
         motivo_id=parsed_motivo_id,
         motorista_id=parsed_motorista_id,
+        vendedor_id=parsed_vendedor_id,
         client_id=parsed_client_id,
         client_filter_scope=(client_scope or "solo").strip().lower(),
+        valor_faixa=valor_faixa,
+        somente_criticas=somente_criticas,
+        somente_acima_meta=somente_acima_meta,
     )
     rows = dataset["rows_detail"]
     stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M")

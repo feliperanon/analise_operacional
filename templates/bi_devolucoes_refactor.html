@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block header_subtitle %}
-<p class="text-xs text-gray-500 dark:text-gray-400">Análise de devoluções por período, cliente, vendedor, motorista, motivo e valor.</p>
+<p class="text-xs text-gray-500 dark:text-gray-400">Controle financeiro, meta de 2% e priorização por valor.</p>
 {% endblock %}
 
 {% block head_extra %}
@@ -34,6 +34,7 @@
   lang="pt-BR"
 >
   {% include "bi/devolucoes/_header.html" %}
+  {% include "bi/devolucoes/_decision_strip.html" %}
   {% include "bi/devolucoes/_kpis.html" %}
   {% if filters.group_filter_note %}
   <div class="sys-alert sys-alert--info flex items-start gap-3" role="status">
@@ -43,12 +44,20 @@
     <span class="text-sm">{{ filters.group_filter_note }}</span>
   </div>
   {% endif %}
+  {% if filters.acima_meta_filter_note %}
+  <div class="sys-alert sys-alert--warn flex items-start gap-3" role="status">
+    <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+    </svg>
+    <span class="text-sm">{{ filters.acima_meta_filter_note }}</span>
+  </div>
+  {% endif %}
   {% include "bi/devolucoes/_filters.html" %}
   {% include "bi/devolucoes/_analysis.html" %}
   {% include "bi/devolucoes/_analysis_depth.html" %}
   {% include "bi/devolucoes/_list.html" %}
 
-  <div id="bi-dev-detail-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="bi-dev-detail-title">
+  <div id="bi-dev-detail-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="bi-dev-detail-title" data-bi-dev-modal>
     <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg">
       <div class="mb-4 flex items-start justify-between gap-3">
         <div class="min-w-0">
@@ -78,7 +87,11 @@
       "topVendedores": {{ top_vendedores_json|safe }},
       "topClientes": {{ top_clientes_json|safe }},
       "exportCsv": {{ _export_csv|tojson }},
-      "exportXlsx": {{ _export_xlsx|tojson }}
+      "exportXlsx": {{ _export_xlsx|tojson }},
+      "metaValorDiaRef": {{ meta_valor_dia_ref|tojson }},
+      "valorBaseDisponivel": {{ valor_base_disponivel|tojson }},
+      "pctFinanceiro": {{ pct_devolucao_financeiro|tojson }},
+      "situacaoMeta": {{ situacao_meta|tojson }}
     }
   </script>
 </div>

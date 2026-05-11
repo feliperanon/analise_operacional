@@ -1,0 +1,56 @@
+<div
+  id="bi-dev-decision-strip"
+  class="bi-dev-decision-strip sys-card sys-card--comfort overflow-hidden border-2 {% if faixa_alerta_meta == 'ok' %}bi-dev-decision-strip--ok{% elif faixa_alerta_meta == 'warn' %}bi-dev-decision-strip--warn{% elif faixa_alerta_meta == 'danger' %}bi-dev-decision-strip--danger{% else %}bi-dev-decision-strip--neutral{% endif %}"
+  role="region"
+  aria-label="Situação do período frente à meta de 2%"
+>
+  <div class="bi-dev-decision-strip__inner flex flex-col gap-4 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+    <div class="min-w-0 flex-1">
+      <p class="employees-table-panel__kicker">Situação do período</p>
+      <p class="bi-dev-decision-strip__headline mt-1 text-lg font-semibold tracking-tight sm:text-xl">
+        {% if situacao_meta == 'acima' %}
+          ACIMA DA META
+        {% elif situacao_meta == 'dentro' %}
+          DENTRO DA META
+        {% else %}
+          BASE FINANCEIRA INDISPONÍVEL
+        {% endif %}
+      </p>
+      <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+        {% if valor_base_disponivel %}
+          % devolução valor = valor devolvido ÷ valor base das rotas ({{ valor_base_rotas|fmt_br_moeda }}).
+        {% else %}
+          Não há soma de valor financeiro nas rotas do período para calcular o percentual sobre valor.
+        {% endif %}
+      </p>
+    </div>
+    <dl class="bi-dev-decision-strip__metrics grid flex-none gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+      <div class="bi-dev-decision-strip__metric">
+        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Meta</dt>
+        <dd class="mt-0.5 tabular-nums text-base font-semibold">{{ meta_pp|fmt_br_2 }}%</dd>
+      </div>
+      <div class="bi-dev-decision-strip__metric">
+        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Realizado</dt>
+        <dd class="mt-0.5 tabular-nums text-base font-semibold">
+          {% if pct_devolucao_financeiro is not none %}{{ pct_devolucao_financeiro|fmt_br_2 }}%{% else %}—{% endif %}
+        </dd>
+      </div>
+      <div class="bi-dev-decision-strip__metric">
+        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Desvio</dt>
+        <dd class="mt-0.5 tabular-nums text-base font-semibold">
+          {% if desvio_pp is not none %}
+            {% if desvio_pp > 0 %}+{{ desvio_pp|fmt_br_2 }} p.p.{% elif desvio_pp < 0 %}{{ desvio_pp|fmt_br_2 }} p.p.{% else %}0,00 p.p.{% endif %}
+          {% else %}
+            —
+          {% endif %}
+        </dd>
+      </div>
+      <div class="bi-dev-decision-strip__metric sm:col-span-2 lg:col-span-1">
+        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Excedente estimado</dt>
+        <dd class="mt-0.5 tabular-nums text-base font-semibold">
+          {% if excedente_sobre_meta is not none %}{{ excedente_sobre_meta|fmt_br_moeda }}{% else %}—{% endif %}
+        </dd>
+      </div>
+    </dl>
+  </div>
+</div>

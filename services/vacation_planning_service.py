@@ -221,9 +221,11 @@ def vacation_profile_get(session: Session, employee_id: int) -> Optional[Dict[st
     }
 
     def _deadline_preview() -> Dict[str, Any]:
-        acq, basis = effective_acquisition_period_end(prof, emp)
-        conc = concessive_deadline_effective(prof, emp)
-        dleft = days_until_deadline(prof, emp, date.today())
+        lv_prev = last_approved_vacation_by_employee(session, [int(emp.id)])
+        sch_end = _coerce_iso_date((lv_prev.get(int(emp.id)) or {}).get("end"))
+        acq, basis = effective_acquisition_period_end(prof, emp, sch_end)
+        conc = concessive_deadline_effective(prof, emp, sch_end)
+        dleft = days_until_deadline(prof, emp, date.today(), sch_end)
         return {
             "deadline_basis": basis,
             "deadline_basis_label": deadline_basis_public_label(basis),
@@ -357,22 +359,58 @@ def add_months(d: date, months: int) -> date:
     return date(year, month, day)
 
 
-def _anchor_start_current_acquisition(
+def _coerce_iso_date(val: Any) -> Optional[date]:
+    """Converte string ISO (YYYY-MM-DD) ou date em ``date``, ou None."""
+    if val is None:
+        return None
+    if isinstance(val, date) and not isinstance(val, datetime):
+        return val
+    s = str(val).strip()[:10]
+    if len(s) < 10:
+        return None
+    try:
+        return date.fromisoformat(s)
+    except ValueError:
+        return None
+
+
+def _latest_completed_vacation_end(
     employee: models.Employee,
     profile: Optional[models.EmployeeVacationProfile],
-) -> Tuple[Optional[date], str]:
+    schedule_last_vacation_end: Optional[date],
+) -> Optional[date]:
     """
-    Início do período aquisitivo atual: após últimas férias concluídas ou, na falta, data de admissão.
-    Retorna (data, tag) para explicar a origem na API.
+    Maior data de fim de férias já concluídas entre: lançamentos aprovados no planejamento,
+    perfil de férias e cadastro do colaborador (somente períodos já encerrados).
     """
     ref = date.today()
+    candidates: List[date] = []
+    if schedule_last_vacation_end:
+        candidates.append(schedule_last_vacation_end)
     if profile and profile.last_vacation_end:
         lv = _d(profile.last_vacation_end)
         if lv:
-            return lv + timedelta(days=1), "pos_ferias_perfil"
+            candidates.append(lv)
     ve = _d(employee.vacation_end) if employee.vacation_end else None
     if ve and ve < ref:
-        return ve + timedelta(days=1), "pos_ferias_cadastro"
+        candidates.append(ve)
+    if not candidates:
+        return None
+    return max(candidates)
+
+
+def _anchor_start_current_acquisition(
+    employee: models.Employee,
+    profile: Optional[models.EmployeeVacationProfile],
+    schedule_last_vacation_end: Optional[date] = None,
+) -> Tuple[Optional[date], str]:
+    """
+    Primeiro dia do período aquisitivo atual: após o fim da última folga concluída
+    (consolidando perfil, cadastro e planejamento) ou, na falta, data de admissão.
+    """
+    latest = _latest_completed_vacation_end(employee, profile, schedule_last_vacation_end)
+    if latest:
+        return latest + timedelta(days=1), "pos_ferias_consolidado"
     adm = _d(employee.admission_date) if employee.admission_date else None
     if adm:
         return adm, "admissao"
@@ -382,19 +420,26 @@ def _anchor_start_current_acquisition(
 def effective_acquisition_period_end(
     profile: Optional[models.EmployeeVacationProfile],
     employee: models.Employee,
+    schedule_last_vacation_end: Optional[date] = None,
 ) -> Tuple[Optional[date], str]:
     """
     Fim do período aquisitivo usado pelo motor.
-    Prioriza ``acquisition_period_end`` do perfil; se vazio, estima 12 meses após o início
-    do aquisitivo atual (admissão ou retorno das férias).
+    Prioriza ``acquisition_period_end`` do perfil quando ainda coerente com as férias
+    já registradas; caso contrário estima 12 meses após o início do aquisitivo atual.
     """
+    latest_vac = _latest_completed_vacation_end(employee, profile, schedule_last_vacation_end)
     if profile and profile.acquisition_period_end:
         d = _d(profile.acquisition_period_end)
         if d:
-            return d, "cadastro_perfil"
-    anchor, tag = _anchor_start_current_acquisition(employee, profile)
+            if latest_vac is not None and latest_vac > d:
+                pass
+            else:
+                return d, "cadastro_perfil"
+    anchor, tag = _anchor_start_current_acquisition(
+        employee, profile, schedule_last_vacation_end
+    )
     if not anchor:
-        return None, "sem_dados"
+        return None, tag
     acq_end = add_months(anchor, 12) - timedelta(days=1)
     return acq_end, tag
 
@@ -402,9 +447,12 @@ def effective_acquisition_period_end(
 def concessive_deadline_effective(
     profile: Optional[models.EmployeeVacationProfile],
     employee: models.Employee,
+    schedule_last_vacation_end: Optional[date] = None,
 ) -> Optional[date]:
     """Último dia do período concessivo (aprox. 12 meses após o fim do aquisitivo)."""
-    acq_end, _ = effective_acquisition_period_end(profile, employee)
+    acq_end, _ = effective_acquisition_period_end(
+        profile, employee, schedule_last_vacation_end
+    )
     if not acq_end:
         return None
     return acq_end + timedelta(days=365)
@@ -414,8 +462,9 @@ def days_until_deadline(
     profile: Optional[models.EmployeeVacationProfile],
     employee: models.Employee,
     ref: date,
+    schedule_last_vacation_end: Optional[date] = None,
 ) -> Optional[int]:
-    dl = concessive_deadline_effective(profile, employee)
+    dl = concessive_deadline_effective(profile, employee, schedule_last_vacation_end)
     if not dl:
         return None
     return (dl - ref).days
@@ -426,6 +475,7 @@ _DEADLINE_BASIS_LABEL_PT = {
     "admissao": "Prazo estimado pela data de admissão no cadastro (ciclo aquisitivo de 12 meses + concessivo).",
     "pos_ferias_perfil": "Prazo estimado após o fim das férias registradas no perfil.",
     "pos_ferias_cadastro": "Prazo estimado após o fim das férias no cadastro do colaborador.",
+    "pos_ferias_consolidado": "Prazo estimado após o fim das férias (perfil, cadastro ou último lançamento aprovado no planejamento).",
     "sem_dados": "Sem data de admissão nem fim de aquisitivo no perfil — informe no perfil ou importe a planilha.",
 }
 
@@ -629,6 +679,7 @@ def best_future_vacation_month_label(
     role_b: str,
     headcount_by_role_map: Dict[str, int],
     cost_center: Optional[str],
+    schedule_last_vacation_end: Optional[date] = None,
 ) -> str:
     """
     Escolhe o melhor mês (pontuação do motor) entre meses ainda planejáveis a partir de `ref`
@@ -656,6 +707,7 @@ def best_future_vacation_month_label(
                 windows=windows,
                 month_start=ms2,
                 headcount_by_role_map=headcount_by_role_map,
+                schedule_last_vacation_end=schedule_last_vacation_end,
             )
             me = end_of_month(ms2)
             conc = count_role_overlapping(windows, role_b, ms2, me, employee.id)
@@ -733,10 +785,11 @@ def compute_four_scores(
     demand_index: int,
     concurrent_same_role: int,
     role_limit: int,
+    schedule_last_vacation_end: Optional[date] = None,
 ) -> ScoreBreakdown:
     """Quatro notas 0–100 + prioridade composta (interpretação para gestão)."""
     ref = date.today()
-    ddead = days_until_deadline(profile, employee, ref)
+    ddead = days_until_deadline(profile, employee, ref, schedule_last_vacation_end)
 
     urgency = 15.0
     if ddead is not None:
@@ -751,7 +804,7 @@ def compute_four_scores(
         else:
             urgency = max(15.0, 55.0 - ddead / 6.0)
 
-    lv = _d(profile.last_vacation_end) if profile else None
+    lv = _latest_completed_vacation_end(employee, profile, schedule_last_vacation_end)
     if lv:
         months_since = (ref - lv).days / 30.44
         urgency = min(100.0, urgency + min(25.0, months_since * 2.5))
@@ -810,13 +863,14 @@ def priority_index_for_month(
     windows: Sequence[Dict[str, Any]],
     month_start: date,
     headcount_by_role_map: Dict[str, int],
+    schedule_last_vacation_end: Optional[date] = None,
 ) -> Tuple[float, List[str]]:
     """Índice 0–100 estilo checklist (pesos explícitos para a UI)."""
     reasons: List[str] = []
     score = 0.0
     rb = role_bucket(employee.role)
     ref = date.today()
-    ddead = days_until_deadline(profile, employee, ref)
+    ddead = days_until_deadline(profile, employee, ref, schedule_last_vacation_end)
 
     if ddead is not None and ddead < 0:
         score += 40
@@ -925,7 +979,9 @@ def simulate(
     if route_conflict(windows, rt, start, end, employee_id):
         alerts.append("Conflito: outro colaborador da mesma rota/equipe já está de férias.")
 
-    _dd = days_until_deadline(profile, employee, date.today())
+    lv_sim = last_approved_vacation_by_employee(session, [employee_id])
+    sch_end_sim = _coerce_iso_date((lv_sim.get(employee_id) or {}).get("end"))
+    _dd = days_until_deadline(profile, employee, date.today(), sch_end_sim)
     if _dd is not None and _dd < -30:
         alerts.append("Férias muito atrasadas — priorizar negociação com RH.")
 
@@ -936,6 +992,7 @@ def simulate(
         demand_index=demand_max,
         concurrent_same_role=concurrent,
         role_limit=role_limit,
+        schedule_last_vacation_end=sch_end_sim,
     )
 
     recommendation = "aprovado"
@@ -989,12 +1046,14 @@ def _vacation_urgency_sort_key(
     employee: models.Employee,
     profile: Optional[models.EmployeeVacationProfile],
     ref: date,
+    last_approved_row: Optional[Dict[str, Any]] = None,
 ) -> Tuple[int, int]:
     """
     Ordenação crescente = mais urgente primeiro.
     Usa prazo concessivo (perfil, admissão ou pós-férias) como na fila do painel.
     """
-    ddead = days_until_deadline(profile, employee, ref)
+    sch_end = _coerce_iso_date((last_approved_row or {}).get("end"))
+    ddead = days_until_deadline(profile, employee, ref, sch_end)
     if ddead is None:
         return (5, 99999)
     if ddead < 0:
@@ -1038,6 +1097,7 @@ def _month_candidates_for_employee(
     windows: List[Dict[str, Any]],
     hc_map: Dict[str, int],
     default_duration_days: int,
+    schedule_last_vacation_end: Optional[date] = None,
 ) -> List[Tuple[float, int, int, date, date, List[str], int]]:
     """
     Meses viáveis para o colaborador, com (prioridade, mês, demanda, início, fim, motivos, concorrentes).
@@ -1056,6 +1116,7 @@ def _month_candidates_for_employee(
             windows=windows,
             month_start=ms,
             headcount_by_role_map=hc_map,
+            schedule_last_vacation_end=schedule_last_vacation_end,
         )
         conc = count_role_overlapping(windows, rb, ms, me, employee.id)
         lim = effective_role_limit(rb, di, rjo)
@@ -1089,8 +1150,11 @@ def suggest_vacations(
     base_windows = scheduled_windows(session, date(year, 1, 1), date(year, 12, 31), cost_center)
     sim_windows: List[Dict[str, Any]] = [dict(w) for w in base_windows]
 
+    last_vac_map_sg = last_approved_vacation_by_employee(session, [int(e.id) for e in employees])
     employees.sort(
-        key=lambda emp: _vacation_urgency_sort_key(emp, profiles.get(emp.id), ref)
+        key=lambda emp: _vacation_urgency_sort_key(
+            emp, profiles.get(emp.id), ref, last_vac_map_sg.get(emp.id)
+        )
     )
 
     for e in employees:
@@ -1099,6 +1163,7 @@ def suggest_vacations(
         prof = profiles.get(e.id)
         rb = role_bucket(e.role)
         rt = (prof.route_team if prof else None) or ""
+        sch_sg = _coerce_iso_date((last_vac_map_sg.get(e.id) or {}).get("end"))
         opts = _month_candidates_for_employee(
             session,
             year=year,
@@ -1107,6 +1172,7 @@ def suggest_vacations(
             windows=sim_windows,
             hc_map=hc_map,
             default_duration_days=default_duration_days,
+            schedule_last_vacation_end=sch_sg,
         )
         for prio, m, di, ds, de, rsn, _conc in opts:
             ms = date(year, m, 1)
@@ -1150,7 +1216,7 @@ def suggest_vacations(
 
 
 def last_approved_vacation_by_employee(session: Session, employee_ids: List[int]) -> Dict[int, Dict[str, Any]]:
-    """Último lançamento aprovado por colaborador (ordenado por data de criação)."""
+    """Último lançamento aprovado por colaborador (prioriza o período que termina mais tarde)."""
     if not employee_ids:
         return {}
     unique_ids = sorted({int(x) for x in employee_ids if x is not None})
@@ -1162,7 +1228,10 @@ def last_approved_vacation_by_employee(session: Session, employee_ids: List[int]
             col(models.VacationScheduleEntry.employee_id).in_(unique_ids),
             models.VacationScheduleEntry.status == "approved",
         )
-        .order_by(desc(models.VacationScheduleEntry.created_at))
+        .order_by(
+            desc(models.VacationScheduleEntry.end_date),
+            desc(models.VacationScheduleEntry.created_at),
+        )
     )
     found = session.exec(stmt).all()
     out: Dict[int, Dict[str, Any]] = {}
@@ -1199,13 +1268,18 @@ def dashboard_payload(
 
     windows_year = scheduled_windows(session, date(year, 1, 1), date(year, 12, 31), cost_center)
 
+    eids_for_last = [int(e.id) for e in employees if e.id]
+    last_vac_map = last_approved_vacation_by_employee(session, eids_for_last)
+
     for e in employees:
         if not e.id:
             continue
         prof = profiles.get(e.id)
-        acq_eff, deadline_basis = effective_acquisition_period_end(prof, e)
-        conc_eff = concessive_deadline_effective(prof, e)
-        ddead = days_until_deadline(prof, e, ref)
+        lv_row = last_vac_map.get(e.id)
+        schedule_end = _coerce_iso_date((lv_row or {}).get("end"))
+        acq_eff, deadline_basis = effective_acquisition_period_end(prof, e, schedule_end)
+        conc_eff = concessive_deadline_effective(prof, e, schedule_end)
+        ddead = days_until_deadline(prof, e, ref, schedule_end)
         status = "ok"
         status_label = "Em dia"
         if ddead is not None:
@@ -1231,6 +1305,7 @@ def dashboard_payload(
             windows=windows_year,
             month_start=ms,
             headcount_by_role_map=hc_map,
+            schedule_last_vacation_end=schedule_end,
         )
 
         rb = role_bucket(e.role)
@@ -1243,6 +1318,7 @@ def dashboard_payload(
             role_b=rb,
             headcount_by_role_map=hc_map,
             cost_center=cost_center,
+            schedule_last_vacation_end=schedule_end,
         )
 
         st_color, st_hint = vacation_window_status(di_view)
@@ -1281,8 +1357,6 @@ def dashboard_payload(
 
     rows.sort(key=lambda r: (-(r["priority_index"] or 0), r["days_until_deadline"] if r["days_until_deadline"] is not None else 9999))
 
-    eids = [int(r["employee_id"]) for r in rows if r.get("employee_id") is not None]
-    last_vac_map = last_approved_vacation_by_employee(session, eids)
     for r in rows:
         eid = int(r["employee_id"])
         r["last_approved_vacation"] = last_vac_map.get(eid)

@@ -36,6 +36,7 @@
   var detailModal = document.getElementById("bi-dev-detail-modal");
   var detailTitle = document.getElementById("bi-dev-detail-title");
   var detailDl = detailModal ? detailModal.querySelector(".bi-dev-detail-dl") : null;
+  var respSelect = document.getElementById("bi-dev-resp");
 
   function syncExportHrefs() {
     var csv = document.querySelector("[data-export-csv]");
@@ -48,6 +49,10 @@
     return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
 
+  function fmtPct(v) {
+    return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "%";
+  }
+
   function isoDateToBr(iso) {
     if (!iso || String(iso).length < 10) return "—";
     var p = String(iso).slice(0, 10).split("-");
@@ -56,6 +61,7 @@
   }
 
   function computeStatus(row) {
+    if (row.status_operacional) return String(row.status_operacional);
     if ((row.acima_300 || "").toUpperCase() === "SIM") return "Crítica";
     if ((row.source || "").toUpperCase() === "EXCEL") return "Pendente";
     return "Resolvida";
@@ -91,17 +97,19 @@
       detailDl.appendChild(dt);
       detailDl.appendChild(dd);
     }
+    addPair("Cliente", row.cliente);
     addPair("Data", isoDateToBr(row.data));
     addPair("Valor", fmtMoney(row.valor));
     addPair("Motivo", row.motivo);
     addPair("Responsabilidade", row.responsabilidade);
     addPair("Vendedor", row.vendedor);
     addPair("Motorista", row.motorista);
-    addPair("Ajudante", row.ajudante);
+    addPair("Observação", row.observacao);
+    addPair("Status", computeStatus(row));
+    addPair("Classificação de impacto", row.impacto_classificacao || "—");
+    addPair("Possível ação corretiva", row.acao_corretiva || "—");
+    addPair("% impacto no período", row.pct_impacto != null ? fmtPct(row.pct_impacto) : "—");
     addPair("Origem", row.source);
-    addPair("Cluster", row.cluster);
-    addPair("Acima de R$ 300", (row.acima_300 || "").toUpperCase() === "SIM" ? "Sim" : "Não");
-    addPair("Status operacional", computeStatus(row));
     detailModal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
   }
@@ -119,6 +127,10 @@
     if (typeof content === "string") td.textContent = content;
     else td.appendChild(content);
     tr.appendChild(td);
+  }
+
+  function isHighImpact(row) {
+    return Number(row.valor || 0) > 800;
   }
 
   function renderChunk(reset) {
@@ -143,7 +155,9 @@
       appendTd(tr, row.vendedor || "—");
       appendTd(tr, row.motorista || "—");
       appendTd(tr, row.motivo || "—");
+      appendTd(tr, row.responsabilidade || "—");
       appendTd(tr, fmtMoney(row.valor), { right: true });
+      appendTd(tr, row.pct_impacto != null ? fmtPct(row.pct_impacto) : "—", { right: true });
       appendTd(tr, statusEl);
       var actionTd = document.createElement("td");
       actionTd.className = "employees-data-table__cell px-2 py-2 pr-5 align-middle text-right";
@@ -164,6 +178,16 @@
       h.className = "bi-dev-card__title";
       h.textContent = row.cliente || "—";
       card.appendChild(h);
+      var valP = document.createElement("p");
+      valP.className = "bi-dev-card__valor";
+      valP.textContent = fmtMoney(row.valor);
+      card.appendChild(valP);
+      if (isHighImpact(row)) {
+        var hi = document.createElement("span");
+        hi.className = "sys-badge sys-badge--critical bi-dev-card__badge";
+        hi.textContent = "Alto impacto";
+        card.appendChild(hi);
+      }
       function addLine(label, val) {
         var p = document.createElement("p");
         p.className = "bi-dev-card__row";
@@ -173,8 +197,11 @@
         p.appendChild(document.createTextNode(val));
         card.appendChild(p);
       }
-      addLine("Valor", fmtMoney(row.valor));
       addLine("Motivo", row.motivo || "—");
+      addLine("Data", isoDateToBr(row.data));
+      addLine("Vendedor", row.vendedor || "—");
+      addLine("Motorista", row.motorista || "—");
+      addLine("Responsabilidade", row.responsabilidade || "—");
       var st = document.createElement("p");
       st.className = "bi-dev-card__row";
       st.appendChild(document.createTextNode("Status: "));
@@ -183,15 +210,13 @@
       sb.textContent = status;
       st.appendChild(sb);
       card.appendChild(st);
-      addLine("Data", isoDateToBr(row.data));
-      addLine("Vendedor / Motorista", (row.vendedor || "—") + " · " + (row.motorista || "—"));
       var act = document.createElement("div");
       act.className = "bi-dev-card__actions";
       var mb = document.createElement("button");
       mb.type = "button";
       mb.className = "sys-btn sys-btn--secondary bi-dev-detail-mobile";
       mb.setAttribute("data-idx", String(i));
-      mb.textContent = "Detalhes";
+      mb.textContent = "Ver detalhes";
       act.appendChild(mb);
       card.appendChild(act);
       cardsRoot.appendChild(card);
@@ -203,7 +228,7 @@
       if (allRows.length === 0) {
         stateText.textContent = "Não há devoluções no período selecionado.";
       } else {
-        stateText.textContent = "Nenhum resultado com os filtros atuais. Ajuste a busca ou as visões rápidas.";
+        stateText.textContent = "Nenhum resultado com os filtros atuais. Ajuste a busca ou os atalhos.";
       }
     } else {
       stateText.textContent = "Exibindo " + end + " de " + filteredRows.length + " registro(s) na lista.";
@@ -218,6 +243,9 @@
       if (currentQuickFilter === "pendentes" && stLower !== "pendente") return false;
       if (currentQuickFilter === "criticas" && stLower !== "crítica") return false;
       if (currentQuickFilter === "resolvidas" && stLower !== "resolvida") return false;
+      if (currentQuickFilter === "acima_meta") {
+        if (Number(row.valor || 0) < 300) return false;
+      }
       if (!term) return true;
       var bag = [
         row.cliente,
@@ -263,50 +291,26 @@
     form.requestSubmit();
   }
 
-  function escapeAttr(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;")
-      .replace(/"/g, "&quot;")
-      .replace(/</g, "&lt;");
+  function setRespByKeyword(keyword) {
+    if (!respSelect) return false;
+    var kw = (keyword || "").toUpperCase();
+    for (var i = 0; i < respSelect.options.length; i += 1) {
+      var opt = respSelect.options[i];
+      if (opt.value && (opt.text || "").toUpperCase().indexOf(kw) >= 0) {
+        respSelect.selectedIndex = i;
+        return true;
+      }
+    }
+    return false;
   }
 
-  function renderRankings() {
-    var motivos = Array.isArray(data.topMotivos) ? data.topMotivos.slice(0, 8) : [];
-    var owners = Array.isArray(data.topMotoristas) ? data.topMotoristas.slice(0, 12) : [];
-    var motivosRoot = document.getElementById("bi-dev-top-motivos");
-    var ownersRoot = document.getElementById("bi-dev-top-owners");
-    if (motivosRoot) {
-      motivosRoot.innerHTML = motivos.length
-        ? motivos
-            .map(function (m) {
-              return (
-                '<li class="bi-dev-rank-item"><span class="bi-dev-rank-item__label">' +
-                escapeAttr(m.motivo || "—") +
-                '</span><span class="bi-dev-rank-item__meta">' +
-                escapeAttr(m.qtd || 0) +
-                "</span></li>"
-              );
-            })
-            .join("")
-        : '<li class="text-sm text-slate-500 dark:text-slate-400">Sem dados para o período.</li>';
-    }
-    if (ownersRoot) {
-      ownersRoot.innerHTML = owners.length
-        ? owners
-            .map(function (item) {
-              var nome = item.motorista || "—";
-              var q = item.qtd || 0;
-              return (
-                '<li class="bi-dev-rank-item"><span class="bi-dev-rank-item__label">' +
-                escapeAttr(nome) +
-                '</span><span class="bi-dev-rank-item__meta">' +
-                escapeAttr(q) +
-                "</span></li>"
-              );
-            })
-            .join("")
-        : '<li class="text-sm text-slate-500 dark:text-slate-400">Sem dados para o período.</li>';
-    }
+  function submitAcimaMetaCriticas(criticas, acimaMeta) {
+    if (!form) return;
+    var c = form.querySelector('[name="criticas"]');
+    var a = form.querySelector('[name="acima_meta"]');
+    if (c) c.checked = !!criticas;
+    if (a) a.checked = !!acimaMeta;
+    form.requestSubmit();
   }
 
   function loadChartScript(done) {
@@ -338,6 +342,14 @@
     document.head.appendChild(s);
   }
 
+  function chartPointLimit() {
+    return window.matchMedia && window.matchMedia("(max-width: 639px)").matches ? 12 : 24;
+  }
+
+  function chartHeightPx() {
+    return window.matchMedia && window.matchMedia("(max-width: 639px)").matches ? 160 : 220;
+  }
+
   function lazyLoadChart() {
     var chartCanvas = document.getElementById("bi-dev-chart-evolution");
     if (!chartCanvas) return;
@@ -346,72 +358,86 @@
       if (chartCanvas.dataset.ready === "1") return;
       loadChartScript(function () {
         if (!window.Chart || chartCanvas.dataset.ready === "1") return;
-        var days = (data.evolucaoDiaria || []).slice(-20);
+        var allDays = Array.isArray(data.evolucaoDiaria) ? data.evolucaoDiaria.slice() : [];
+        var lim = chartPointLimit();
+        var days = allDays.slice(-lim);
         if (!days.length) {
           chartCanvas.dataset.ready = "1";
           return;
         }
         chartCanvas.dataset.ready = "1";
+        chartCanvas.parentElement.style.minHeight = chartHeightPx() + "px";
+        var metaRef = data.metaValorDiaRef;
+        var metaArr = days.map(function () {
+          return metaRef != null ? Number(metaRef) : null;
+        });
+        var hasMeta = metaRef != null && metaArr.every(function (x) {
+          return x != null && !isNaN(x);
+        });
+        var ds = [
+          {
+            label: "Valor devolvido (R$)",
+            data: days.map(function (d) {
+              return Number(d.valor || 0);
+            }),
+            borderColor: "#ea580c",
+            backgroundColor: "rgba(234,88,12,.08)",
+            fill: true,
+            tension: 0.22,
+            yAxisID: "y"
+          }
+        ];
+        if (hasMeta) {
+          ds.push({
+            label: "Referência 2% (proporcional/dia)",
+            data: metaArr,
+            borderColor: "#16a34a",
+            borderDash: [6, 4],
+            fill: false,
+            tension: 0,
+            pointRadius: 0,
+            yAxisID: "y"
+          });
+        }
         new window.Chart(chartCanvas, {
           type: "line",
           data: {
             labels: days.map(function (d) {
               return isoDateToBr(d.data);
             }),
-            datasets: [
-              {
-                label: "Qtd. devoluções",
-                data: days.map(function (d) {
-                  return Number(d.qtd || 0);
-                }),
-                borderColor: "#2563eb",
-                backgroundColor: "rgba(37,99,235,.08)",
-                fill: true,
-                tension: 0.25,
-                yAxisID: "y"
-              },
-              {
-                label: "Valor (R$)",
-                data: days.map(function (d) {
-                  return Number(d.valor || 0);
-                }),
-                borderColor: "#ea580c",
-                backgroundColor: "transparent",
-                tension: 0.2,
-                yAxisID: "y1",
-                pointRadius: 3
-              }
-            ]
+            datasets: ds
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
             plugins: {
               legend: {
                 display: true,
                 labels: { boxWidth: 10, font: { size: 11 } }
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (ctx) {
+                    var v = ctx.parsed.y;
+                    if (v == null) return ctx.dataset.label || "";
+                    return (ctx.dataset.label || "") + ": " + fmtMoney(v);
+                  }
+                }
               }
             },
             scales: {
-              x: { ticks: { maxRotation: 0, autoSkip: true } },
+              x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: lim } },
               y: {
                 id: "y",
                 position: "left",
                 beginAtZero: true,
-                ticks: { precision: 0 },
-                title: { display: true, text: "Quantidade" }
-              },
-              y1: {
-                id: "y1",
-                position: "right",
-                beginAtZero: true,
-                grid: { drawOnChartArea: false },
                 ticks: {
                   callback: function (value) {
                     return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
                   }
                 },
-                title: { display: true, text: "Valor (R$)" }
+                title: { display: true, text: "R$" }
               }
             }
           }
@@ -422,9 +448,11 @@
     if ("IntersectionObserver" in window) {
       var io = new IntersectionObserver(
         function (entries) {
-          if (entries.some(function (e) {
-            return e.isIntersecting;
-          })) {
+          if (
+            entries.some(function (e) {
+              return e.isIntersecting;
+            })
+          ) {
             io.disconnect();
             mount();
           }
@@ -440,6 +468,16 @@
   page.addEventListener(
     "click",
     function (event) {
+      var causeBtn = event.target.closest("[data-bi-cause-search]");
+      if (causeBtn && searchInput) {
+        searchInput.value = causeBtn.getAttribute("data-bi-cause-search") || "";
+        currentQuickFilter = "";
+        runClientFilters();
+        document.getElementById("bi-dev-table-panel") &&
+          document.getElementById("bi-dev-table-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+
       var detailBtn = event.target.closest(".bi-dev-detail, .bi-dev-detail-mobile");
       if (detailBtn) {
         var idx = Number(detailBtn.getAttribute("data-idx"));
@@ -452,11 +490,22 @@
         return;
       }
 
+      var setRespBtn = event.target.closest("[data-quick-set-resp]");
+      if (setRespBtn && form) {
+        var key = setRespBtn.getAttribute("data-quick-set-resp");
+        if (setRespByKeyword(key)) form.requestSubmit();
+        return;
+      }
+
       var quickBtn = event.target.closest("[data-quick-filter]");
       if (quickBtn) {
         var kind = quickBtn.getAttribute("data-quick-filter");
         if (kind === "today" || kind === "week" || kind === "month") {
           applyDateQuickFilter(kind);
+        } else if (kind === "acima_meta") {
+          submitAcimaMetaCriticas(false, true);
+        } else if (kind === "criticas") {
+          submitAcimaMetaCriticas(true, false);
         } else {
           currentQuickFilter = currentQuickFilter === kind ? "" : kind;
           runClientFilters();
@@ -499,11 +548,16 @@
       filterCollapsible.classList.toggle("is-collapsed");
       var collapsed = filterCollapsible.classList.contains("is-collapsed");
       toggleFiltersBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      toggleFiltersBtn.textContent = collapsed ? "Mostrar filtros" : "Ocultar filtros";
     });
+    if (window.matchMedia && window.matchMedia("(min-width: 640px)").matches) {
+      filterCollapsible.classList.remove("is-collapsed");
+      toggleFiltersBtn.setAttribute("aria-expanded", "true");
+      toggleFiltersBtn.textContent = "Ocultar filtros";
+    }
   }
 
   syncExportHrefs();
-  renderRankings();
   runClientFilters();
   lazyLoadChart();
 })();

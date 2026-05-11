@@ -14,9 +14,83 @@
   }
 }
 
+/* Faixa de decisão */
+.bi-dev-decision-strip {
+  border-radius: var(--sys-radius-lg, 0.75rem);
+}
+
+.bi-dev-decision-strip--ok {
+  border-color: rgb(34 197 94 / 0.55);
+  background: linear-gradient(135deg, rgb(240 253 244 / 0.95), rgb(255 255 255 / 0.98));
+}
+
+.bi-dev-decision-strip--warn {
+  border-color: rgb(245 158 11 / 0.65);
+  background: linear-gradient(135deg, rgb(255 251 235 / 0.95), rgb(255 255 255 / 0.98));
+}
+
+.bi-dev-decision-strip--danger {
+  border-color: rgb(239 68 68 / 0.55);
+  background: linear-gradient(135deg, rgb(254 242 242 / 0.95), rgb(255 255 255 / 0.98));
+}
+
+.bi-dev-decision-strip--neutral {
+  border-color: var(--sys-border, rgb(226 232 240));
+}
+
+html.dark .bi-dev-decision-strip--ok {
+  background: linear-gradient(135deg, rgb(6 78 59 / 0.35), rgb(15 23 42 / 0.55));
+}
+
+html.dark .bi-dev-decision-strip--warn {
+  background: linear-gradient(135deg, rgb(120 53 15 / 0.35), rgb(15 23 42 / 0.55));
+}
+
+html.dark .bi-dev-decision-strip--danger {
+  background: linear-gradient(135deg, rgb(127 29 29 / 0.35), rgb(15 23 42 / 0.55));
+}
+
+.bi-dev-decision-strip__headline {
+  letter-spacing: 0.02em;
+}
+
+/* Hero chip “acima da meta” (página BI) */
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .employees-hero__chip--warn {
+  border-color: rgb(245 158 11 / 0.45);
+  background: rgb(255 251 235 / 0.85);
+  color: rgb(120 53 15);
+}
+
+html.dark .ga-employee-theme.employees-page[data-page="bi-devolucoes"] .employees-hero__chip--warn {
+  border-color: rgb(245 158 11 / 0.35);
+  background: rgb(120 53 15 / 0.25);
+  color: rgb(254 243 199);
+}
+
 .bi-dev-chart-wrap {
   position: relative;
   min-height: 200px;
+}
+
+.bi-dev-chart-wrap--main {
+  min-height: 220px;
+}
+
+@media (max-width: 639px) {
+  .bi-dev-chart-wrap--main {
+    min-height: 160px;
+  }
+}
+
+.bi-dev-cause-table th,
+.bi-dev-cause-table td {
+  vertical-align: middle;
+}
+
+.bi-dev-cause-btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.7rem;
+  line-height: 1.2;
 }
 
 .bi-dev-ranking {
@@ -120,6 +194,19 @@ html.dark .bi-dev-card {
   color: var(--sys-text-primary, #0f172a);
 }
 
+.bi-dev-card__valor {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--sys-text-primary, #0f172a);
+}
+
+.bi-dev-card__badge {
+  margin-bottom: 0.5rem;
+  display: inline-flex;
+}
+
 .bi-dev-card__row {
   margin: 0.2rem 0;
   font-size: 0.8rem;
@@ -138,8 +225,19 @@ html.dark .bi-dev-card {
   gap: 0.5rem;
 }
 
+/* Mobile: filtros recolhidos por padrão; desktop sempre abertos */
 @media (max-width: 639px) {
   .bi-dev-filters__collapsible.is-collapsed {
     display: none;
+  }
+}
+
+@media (min-width: 640px) {
+  .bi-dev-filters__collapsible.is-collapsed {
+    display: block !important;
+  }
+
+  .bi-dev-filters__toggle {
+    display: none !important;
   }
 }

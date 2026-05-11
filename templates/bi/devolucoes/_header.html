@@ -14,15 +14,36 @@
         </span>
         <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">BI Devoluções</h2>
         <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
-          Leitura rápida do período, causas e responsáveis — mesmo padrão visual da gestão de colaboradores.
+          Controle financeiro das devoluções, causas, responsáveis e impacto contra a meta de 2%.
         </p>
         <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
           <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
             <span class="h-2 w-2 shrink-0 rounded-full bg-slate-400"></span>
             {{ period_label }}
           </span>
+          <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+            Meta: {{ meta_pp|fmt_br_2 }}%
+          </span>
+          {% if situacao_meta == 'acima' %}
+          <span class="employees-hero__chip employees-hero__chip--warn inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+            <span class="h-2 w-2 shrink-0 rounded-full bg-amber-500"></span>
+            Situação: Acima da meta
+          </span>
+          {% elif situacao_meta == 'dentro' %}
+          <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
+            Situação: Dentro da meta
+          </span>
+          {% else %}
+          <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+            Situação: Indicador indisponível
+          </span>
+          {% endif %}
+          <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
+            Atualizado: {{ generated_at }}
+          </span>
           <a href="/devolucoes" class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5 no-underline transition hover:opacity-90">
-            Ir para cadastro de devoluções
+            Cadastro
           </a>
         </div>
       </div>
@@ -35,7 +56,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
         </span>
-        <span class="employees-cta__label">Atualizar dados</span>
+        <span class="employees-cta__label">Atualizar</span>
       </button>
 
       <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
