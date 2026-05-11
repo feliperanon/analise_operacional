@@ -34813,6 +34813,11 @@ async def api_vacation_planning_simulate(
         e = date.fromisoformat(body.end[:10])
     except ValueError:
         raise HTTPException(status_code=400, detail="Datas inválidas (use YYYY-MM-DD).")
+    if s > e:
+        raise HTTPException(
+            status_code=400,
+            detail="A data de início não pode ser posterior à data de fim.",
+        )
     result = vacation_simulate(
         session,
         employee_id=body.employee_id,
