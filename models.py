@@ -1244,3 +1244,64 @@ class DocInstitucionalRevisao(SQLModel, table=True):
     alteracao: Optional[str] = Field(default=None)
     responsavel: str = Field(max_length=100)
     data_revisao: datetime = Field(default_factory=datetime.now)
+
+
+# --- Planejamento inteligente de férias (logística / bebidas) ---
+
+
+class EmployeeVacationProfile(SQLModel, table=True):
+    """Dados operacionais e trabalhistas complementares ao cadastro de Employee para férias."""
+    __tablename__ = "employee_vacation_profile"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", unique=True, index=True)
+    department_sector: Optional[str] = Field(default=None, max_length=120)
+    route_team: Optional[str] = Field(default=None, max_length=120)
+    criticality: str = Field(default="media", max_length=20)  # baixa, media, alta, muito_alta
+    substitute_employee_id: Optional[int] = Field(default=None, foreign_key="employee.id", index=True)
+    substitute_trained: bool = Field(default=False)
+    fixed_route: bool = Field(default=False)
+    specific_knowledge: bool = Field(default=False)
+    peak_area_worker: bool = Field(default=False)
+    same_role_headcount_override: Optional[int] = Field(default=None)
+
+    acquisition_period_end: Optional[datetime] = Field(default=None)
+    last_vacation_end: Optional[datetime] = Field(default=None)
+    vacation_days_available: Optional[int] = Field(default=None)
+
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class VacationMonthDemand(SQLModel, table=True):
+    """Demanda mensal calibrável (substitui parcialmente a régua fixa; futuro: alimentar via BI)."""
+    __tablename__ = "vacation_month_demand"
+    __table_args__ = (UniqueConstraint("year", "month", name="uq_vacation_month_demand_year_month"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    year: int = Field(index=True)
+    month: int = Field(ge=1, le=12, index=True)
+    demand_index: int = Field(default=50, ge=0, le=100)
+    risk_notes: Optional[str] = Field(default=None, max_length=500)
+    role_limits_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class VacationScheduleEntry(SQLModel, table=True):
+    """Programação / sugestão / histórico de férias planejadas."""
+    __tablename__ = "vacation_schedule_entry"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    employee_id: int = Field(foreign_key="employee.id", index=True)
+    start_date: datetime = Field(index=True)
+    end_date: datetime = Field(index=True)
+    status: str = Field(default="suggested", max_length=20, index=True)  # suggested, approved, cancelled
+    source: str = Field(default="system", max_length=20)  # system, manual
+    approved_by_user_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    decision_reason: Optional[str] = Field(default=None, max_length=2000)
+    leadership_notes: Optional[str] = Field(default=None, max_length=2000)
+    conflicts_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    priority_score: Optional[float] = Field(default=None)
+    employee_vacation_synced: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)

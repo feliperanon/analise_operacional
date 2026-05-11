@@ -46,6 +46,18 @@ from devolucoes_consolidado import (
     top_clients_ajudante,
     top_clients_motorista,
 )
+from services.vacation_planning_service import (
+    dashboard_payload,
+    list_history,
+    month_demand_calendar,
+    save_schedule_entry,
+    simulate as vacation_simulate,
+    suggest_vacations,
+    try_sync_employee_vacation_fields,
+    upsert_profile,
+    upsert_vacation_month_demand,
+    vacation_profile_get,
+)
 from game_achievements_routes import init_game_achievements_router
 from game_audit_routes import init_game_audit_router, parse_reason
 from routers.admin_geocoding import init_admin_geocoding_router
@@ -1699,7 +1711,7 @@ PAGE_OPTIONS = [
     {"key": "rotinas", "label": "Rotinas & Checklists", "path": "/admin/routine/checklists", "prefixes": ["/admin/routine/checklists", "/api/routine/checklists"]},
     {"key": "oficina", "label": "Oficina", "path": "/vehicles", "prefixes": ["/vehicles", "/api/vehicles", "/admin/equipment/tickets", "/workshop/service-orders"]},
     {"key": "cadastros", "label": "Cadastros", "path": "/clients", "prefixes": ["/clients", "/employees", "/funcoes", "/api/employees"]},
-    {"key": "pessoas", "label": "Pessoas & RH", "path": "/people-intelligence", "prefixes": ["/people-intelligence", "/admin/turnover-analysis"]},
+    {"key": "pessoas", "label": "Pessoas & RH", "path": "/people-intelligence", "prefixes": ["/people-intelligence", "/admin/turnover-analysis", "/api/vacation-planning"]},
     {"key": "bi", "label": "BI & Métricas", "path": "/strategy", "prefixes": ["/strategy", "/relatorio-avaliacao-motorista", "/bi", "/operations/performance", "/operations/performance/analysis", "/rankings", "/api/rankings", "/gamificacao/entregas"]},
     {"key": "sistema", "label": "Sistema", "path": "/admin/users", "prefixes": ["/admin/users", "/admin/substitutions", "/mobile/login", "/settings"]},
     {"key": "admin_game", "label": "Game Master", "path": "/admin/game", "prefixes": ["/admin/game", "/api/game"]}
@@ -19869,6 +19881,12 @@ async def separacao_page(
                 "Vamos reprogramar e, assim que tivermos a nova previsão, informamos para alinhamento com o cliente.\n\n"
                 "Obrigado."
             )
+            _drv_phone_raw = getattr(emp, "phone", None) if emp else None
+            _, _drv_phone_disp = normalize_phone_br(_drv_phone_raw)
+            driver_phone_label = _drv_phone_disp or "Não informado"
+            seller_name_label = (cli_seller_map.get(route.client_id, "") or "").strip() or "-"
+            _, _sel_phone_disp = normalize_phone_br(row_seller_phone_wa)
+            seller_phone_label = _sel_phone_disp or "Não informado"
             msg_comunicacao = (
                 "Olá, tudo bem?\n\n"
                 "Segue informação de devolução:\n\n"
@@ -19876,7 +19894,11 @@ async def separacao_page(
                 f"NB: {nb_devolucao}\n"
                 f"Valor: {valor_devolucao_br}\n"
                 f"Motivo: {motivo_devolucao}\n"
-                f"Data: {data_devolucao}\n\n"
+                f"Data: {data_devolucao}\n"
+                f"Motorista: {driver_name or '-'}\n"
+                f"Telefone motorista: {driver_phone_label}\n"
+                f"Vendedor: {seller_name_label}\n"
+                f"Telefone vendedor: {seller_phone_label}\n\n"
                 "Por gentileza, verificar o caso e alinhar com o cliente, se necessário.\n\n"
                 "Obrigado."
             )
@@ -32284,10 +32306,20 @@ async def employee_detail(
     # If server is UTC, now() might be tomorrow. If server is BRT, -3h is still same day (usually).
     today = datetime.now() - timedelta(hours=3)
     today_date = today.date()
-    base_date = safe_parse_iso_date(date) or today_date
+    today_date_br = datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    parsed_absence_anchor = safe_parse_iso_date(date)
 
-    absence_period_label = "Mês"
-    absence_start_date, absence_end_date = get_period_range(base_date, "monthly")
+    # Sem ?date=: resumo de ausências = últimos 30 dias (inclui importações de meses recentes).
+    # Com ?date=YYYY-MM-DD: mês civil que contém essa data (comportamento anterior).
+    if parsed_absence_anchor:
+        absence_period_mode = "monthly"
+        absence_period_label = "Mês"
+        absence_start_date, absence_end_date = get_period_range(parsed_absence_anchor, "monthly")
+    else:
+        absence_period_mode = "rolling30"
+        absence_period_label = "Últimos 30 dias"
+        absence_end_date = today_date_br
+        absence_start_date = today_date_br - timedelta(days=29)
     absence_summary = get_absence_summary(
         session,
         employee.id,
@@ -32670,12 +32702,24 @@ async def employee_detail(
             return first.replace(year=first.year + 1, month=1, day=1)
         return first.replace(month=first.month + 1, day=1)
 
-    absence_month_year_pt = f"{_meses_pt[absence_start_date.month]} de {absence_start_date.year}"
-    absence_month_nav = {
-        "prev_url": f"/employees/{employee_id}?date={_first_of_previous_month(absence_start_date).isoformat()}",
-        "next_url": f"/employees/{employee_id}?date={_first_of_next_month(absence_start_date).isoformat()}",
-        "today_url": f"/employees/{employee_id}",
-    }
+    cal_month_first = today_date_br.replace(day=1)
+    if absence_period_mode == "monthly":
+        absence_month_year_pt = f"{_meses_pt[absence_start_date.month]} de {absence_start_date.year}"
+        absence_month_nav = {
+            "mode": "monthly",
+            "prev_url": f"/employees/{employee_id}?date={_first_of_previous_month(absence_start_date).isoformat()}",
+            "next_url": f"/employees/{employee_id}?date={_first_of_next_month(absence_start_date).isoformat()}",
+            "rolling_url": f"/employees/{employee_id}",
+            "today_url": f"/employees/{employee_id}",
+        }
+    else:
+        absence_month_year_pt = "Últimos 30 dias"
+        absence_month_nav = {
+            "mode": "rolling30",
+            "rolling_url": f"/employees/{employee_id}",
+            "calendar_month_url": f"/employees/{employee_id}?date={cal_month_first.isoformat()}",
+            "calendar_label": f"{_meses_pt[cal_month_first.month]} de {cal_month_first.year}",
+        }
 
     return templates.TemplateResponse("employee_detail.html", {
         "request": request, 
@@ -32692,6 +32736,7 @@ async def employee_detail(
         "absence_period_label": absence_period_label,
         "absence_month_year_pt": absence_month_year_pt,
         "absence_month_nav": absence_month_nav,
+        "absence_period_mode": absence_period_mode,
         "absence_period_range": {
             "start": absence_start_date.strftime("%d/%m/%Y"),
             "end": absence_end_date.strftime("%d/%m/%Y")
@@ -34641,6 +34686,280 @@ async def people_intelligence_report(
         "selected_status_display": selected_status_display
     })
 
+
+def _vacation_cc(cost_center: Optional[str]) -> Optional[str]:
+    if not cost_center or str(cost_center).strip().lower() in ("todos", "all", ""):
+        return None
+    return str(cost_center).strip()
+
+
+class VacationSimulateBody(BaseModel):
+    employee_id: int
+    start: str
+    end: str
+    cost_center: Optional[str] = "Todos"
+
+
+class VacationScheduleBody(BaseModel):
+    employee_id: int
+    start: str
+    end: str
+    status: str = "approved"
+    source: str = "manual"
+    decision_reason: Optional[str] = None
+    leadership_notes: Optional[str] = None
+    cost_center: Optional[str] = "Todos"
+    sync_employee_vacation: bool = False
+
+
+class VacationMonthDemandBody(BaseModel):
+    year: int = Field(ge=2020, le=2038)
+    month: int = Field(ge=1, le=12)
+    demand_index: int = Field(ge=0, le=100)
+    risk_notes: Optional[str] = None
+    function_limits_json: Optional[Any] = None
+
+
+class VacationProfileBody(BaseModel):
+    department_sector: Optional[str] = None
+    route_team: Optional[str] = None
+    criticality: Optional[str] = None
+    substitute_employee_id: Optional[int] = None
+    substitute_trained: Optional[bool] = None
+    fixed_route: Optional[bool] = None
+    specific_knowledge: Optional[bool] = None
+    peak_area_worker: Optional[bool] = None
+    acquisition_period_end: Optional[str] = None
+    last_vacation_end: Optional[str] = None
+    vacation_days_available: Optional[int] = None
+    notes: Optional[str] = None
+
+
+@app.get("/people-intelligence/vacation-planning", response_class=HTMLResponse)
+async def vacation_planning_page(request: Request, session: Session = Depends(get_session)):
+    require_login(request)
+    data = get_people_intelligence_metrics(session, "Todos", None, None)
+    return templates.TemplateResponse(
+        "vacation_planning.html",
+        {
+            "request": request,
+            "cost_center_options": data.get("cost_center_options", ["Todos"]),
+        },
+    )
+
+
+@app.get("/api/vacation-planning/overview")
+async def api_vacation_planning_overview(
+    request: Request,
+    year: int,
+    cost_center: Optional[str] = "Todos",
+    month: Optional[int] = None,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    y = max(2020, min(2035, int(year)))
+    vm = int(month) if month and 1 <= int(month) <= 12 else None
+    payload = dashboard_payload(session, year=y, cost_center=_vacation_cc(cost_center), view_month=vm)
+    return JSONResponse(content=jsonable_encoder(payload))
+
+
+@app.get("/api/vacation-planning/month-demand")
+async def api_vacation_planning_month_demand(
+    request: Request,
+    year: int,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    y = max(2020, min(2035, int(year)))
+    return JSONResponse(content=jsonable_encoder(month_demand_calendar(session, y)))
+
+
+@app.post("/api/vacation-planning/month-demand")
+async def api_vacation_planning_month_demand_upsert(
+    request: Request,
+    body: VacationMonthDemandBody,
+    session: Session = Depends(get_session),
+):
+    require_leader(request)
+    row, err = upsert_vacation_month_demand(
+        session,
+        year=body.year,
+        month=body.month,
+        demand_index=body.demand_index,
+        risk_notes=body.risk_notes,
+        function_limits_json=body.function_limits_json,
+    )
+    if err:
+        raise HTTPException(status_code=400, detail=err)
+    if not row:
+        raise HTTPException(status_code=400, detail="Não foi possível salvar a calibragem.")
+    return JSONResponse(
+        content={
+            "ok": True,
+            "year": row.year,
+            "month": row.month,
+            "demand_index": row.demand_index,
+            "risk_notes": row.risk_notes,
+            "function_limits_json": row.role_limits_json,
+            "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        }
+    )
+
+
+@app.get("/api/vacation-planning/profile/{employee_id}")
+async def api_vacation_planning_profile_get(
+    request: Request,
+    employee_id: int,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    payload = vacation_profile_get(session, employee_id)
+    if not payload:
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado.")
+    return JSONResponse(content=jsonable_encoder(payload))
+
+
+@app.post("/api/vacation-planning/simulate")
+async def api_vacation_planning_simulate(
+    request: Request,
+    body: VacationSimulateBody,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    try:
+        s = date.fromisoformat(body.start[:10])
+        e = date.fromisoformat(body.end[:10])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Datas inválidas (use YYYY-MM-DD).")
+    result = vacation_simulate(
+        session,
+        employee_id=body.employee_id,
+        start=s,
+        end=e,
+        cost_center=_vacation_cc(body.cost_center),
+    )
+    return JSONResponse(content=jsonable_encoder(result))
+
+
+@app.post("/api/vacation-planning/suggest")
+async def api_vacation_planning_suggest(
+    request: Request,
+    year: int,
+    cost_center: Optional[str] = "Todos",
+    session: Session = Depends(get_session),
+):
+    require_leader(request)
+    y = max(2020, min(2035, int(year)))
+    result = suggest_vacations(session, year=y, cost_center=_vacation_cc(cost_center))
+    return JSONResponse(content=jsonable_encoder(result))
+
+
+@app.post("/api/vacation-planning/schedule")
+async def api_vacation_planning_schedule(
+    request: Request,
+    body: VacationScheduleBody,
+    session: Session = Depends(get_session),
+):
+    user = require_leader(request)
+    try:
+        s = date.fromisoformat(body.start[:10])
+        e = date.fromisoformat(body.end[:10])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Datas inválidas.")
+    sim = vacation_simulate(
+        session,
+        employee_id=body.employee_id,
+        start=s,
+        end=e,
+        cost_center=_vacation_cc(body.cost_center),
+    )
+    conflicts = {
+        "alerts": sim.get("alerts") if isinstance(sim, dict) else [],
+        "blocks": sim.get("blocks") if isinstance(sim, dict) else [],
+        "recommendation": sim.get("recommendation") if isinstance(sim, dict) else None,
+        "recommendation_label": sim.get("recommendation_label") if isinstance(sim, dict) else None,
+        "recommendation_explanation": sim.get("recommendation_explanation") if isinstance(sim, dict) else None,
+        "scores": sim.get("scores") if isinstance(sim, dict) else None,
+    }
+
+    sync_requested = bool(body.sync_employee_vacation)
+    sync_applied = False
+    sync_message = "Sincronização com o cadastro do colaborador não foi solicitada."
+    emp_obj = session.get(models.Employee, body.employee_id)
+    if sync_requested:
+        st = str(body.status or "").strip().lower()
+        if st != "approved":
+            sync_message = (
+                "Sincronização não aplicada: apenas registros com status 'approved' "
+                "atualizam vacation_start/vacation_end no cadastro."
+            )
+        elif not emp_obj:
+            sync_message = "Sincronização não aplicada: colaborador não encontrado."
+        else:
+            sync_applied, sync_message = try_sync_employee_vacation_fields(
+                session, emp_obj, s, e
+            )
+
+    conflicts["employee_vacation_sync"] = {
+        "requested": sync_requested,
+        "applied": sync_applied,
+        "message": sync_message,
+    }
+
+    uid = user.get("id") if isinstance(user, dict) else None
+    ent = save_schedule_entry(
+        session,
+        employee_id=body.employee_id,
+        start=s,
+        end=e,
+        status=body.status,
+        source=body.source,
+        approved_by_user_id=uid,
+        decision_reason=body.decision_reason,
+        leadership_notes=body.leadership_notes,
+        conflicts=conflicts,
+        priority_score=(sim.get("scores") or {}).get("prioridade_composta") if isinstance(sim, dict) else None,
+        employee_vacation_synced=sync_applied,
+    )
+    return JSONResponse(
+        content={
+            "ok": True,
+            "id": ent.id,
+            "conflicts": conflicts,
+            "employee_vacation_sync": {
+                "requested": sync_requested,
+                "applied": sync_applied,
+                "message": sync_message,
+            },
+        }
+    )
+
+
+@app.post("/api/vacation-planning/profile/{employee_id}")
+async def api_vacation_planning_profile_upsert(
+    request: Request,
+    employee_id: int,
+    body: VacationProfileBody,
+    session: Session = Depends(get_session),
+):
+    require_leader(request)
+    emp = session.get(models.Employee, employee_id)
+    if not emp:
+        raise HTTPException(status_code=404, detail="Colaborador não encontrado.")
+    data = body.model_dump(exclude_unset=True)
+    row = upsert_profile(session, employee_id, data)
+    return JSONResponse(content={"ok": True, "employee_id": row.employee_id})
+
+
+@app.get("/api/vacation-planning/history")
+async def api_vacation_planning_history(
+    request: Request,
+    limit: int = 60,
+    session: Session = Depends(get_session),
+):
+    require_login(request)
+    rows = list_history(session, limit=min(200, max(1, int(limit))))
+    return JSONResponse(content={"items": rows})
 
 
 @app.get("/smart-flow/load", response_class=JSONResponse, dependencies=[Depends(require_leader)])

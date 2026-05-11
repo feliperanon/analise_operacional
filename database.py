@@ -201,6 +201,7 @@ def create_db_and_tables():
     _migrate_informative_panel_config_audio()
     _migrate_informative_monthly_return_use_system_kpi()
     _migrate_client_vendedor_id()
+    _migrate_vacation_schedule_employee_sync()
 
 
 def _migrate_devolucao_observacao_gestor():
@@ -456,6 +457,31 @@ def _migrate_client_vendedor_id():
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}"))
             else:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+            conn.commit()
+    except Exception:
+        pass
+
+
+def _migrate_vacation_schedule_employee_sync():
+    """Adiciona vacation_schedule_entry.employee_vacation_synced."""
+    table = "vacation_schedule_entry"
+    col = "employee_vacation_synced"
+    try:
+        with engine.connect() as conn:
+            if "sqlite" in str(engine.url):
+                cur = conn.execute(text(f"PRAGMA table_info({table})"))
+                existing = [r[1] for r in list(cur) if len(r) > 1]
+                if col not in existing:
+                    conn.execute(
+                        text(f"ALTER TABLE {table} ADD COLUMN {col} BOOLEAN NOT NULL DEFAULT 0")
+                    )
+            else:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} "
+                        "BOOLEAN NOT NULL DEFAULT FALSE"
+                    )
+                )
             conn.commit()
     except Exception:
         pass

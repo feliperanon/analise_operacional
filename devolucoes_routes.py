@@ -186,8 +186,11 @@ def _build_devolucao_whatsapp_text(
     data_display: str,
     motorista_name: str,
     motorista_phone_display: str,
+    vendedor_name: str = "",
+    vendedor_phone_display: str = "",
 ) -> str:
     motorista_phone_label = motorista_phone_display or "Nao informado"
+    vendedor_phone_label = vendedor_phone_display or "Nao informado"
     nb_label = client_code or "-"
     return (
         "Ola, tudo bem?\n\n"
@@ -198,7 +201,9 @@ def _build_devolucao_whatsapp_text(
         f"Motivo: {motivo_label}\n"
         f"Data: {data_display}\n"
         f"Motorista: {motorista_name or '-'}\n"
-        f"Telefone motorista: {motorista_phone_label}\n\n"
+        f"Telefone motorista: {motorista_phone_label}\n"
+        f"Vendedor: {vendedor_name or '-'}\n"
+        f"Telefone vendedor: {vendedor_phone_label}\n\n"
         "Por gentileza, verificar o caso e alinhar com o cliente, se necessario.\n\n"
         "Obrigado."
     )
@@ -1128,7 +1133,8 @@ def init_devolucoes_router(
             client_razao_social = (getattr(c, "razao_social", None) or "").strip() if c else ""
             motorista_name = (m.name if m else "-") or "-"
             motorista_wa_phone, motorista_phone_display = _employee_phone_whatsapp_pair(getattr(m, "phone", None))
-            vendedor_wa_phone, _ = _employee_phone_whatsapp_pair(getattr(vendedor, "phone", None))
+            vendedor_wa_phone, vendedor_phone_display = _employee_phone_whatsapp_pair(getattr(vendedor, "phone", None))
+            vendedor_name = (vendedor.name if vendedor else "-") or "-"
             data_display = _fmt_data_hora_pt_br(data_efetiva) or data_efetiva or "-"
             valor_fmt = _fmt_moeda_br(float(dev.valor or 0.0))
             whatsapp_url = ""
@@ -1141,6 +1147,8 @@ def init_devolucoes_router(
                     data_display=data_display,
                     motorista_name=motorista_name,
                     motorista_phone_display=motorista_phone_display,
+                    vendedor_name=vendedor_name,
+                    vendedor_phone_display=vendedor_phone_display,
                 )
                 whatsapp_url = f"https://wa.me/{vendedor_wa_phone}?{urlencode({'text': whatsapp_text})}"
             secondary_parts = []

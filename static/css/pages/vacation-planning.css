@@ -1,0 +1,133 @@
+/* Planejamento de férias — complementa employees.css */
+.vp-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgb(71 85 105);
+}
+
+.dark .vp-field-label {
+  color: rgb(203 213 225);
+}
+
+.vp-details > summary.vp-details__summary {
+  list-style: none;
+}
+
+.vp-details > summary.vp-details__summary::-webkit-details-marker {
+  display: none;
+}
+
+.vp-details > summary.vp-details__summary::after {
+  content: "▸";
+  float: right;
+  opacity: 0.5;
+  font-size: 0.75rem;
+}
+
+.vp-details[open] > summary.vp-details__summary::after {
+  content: "▾";
+}
+
+.vp-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.vp-badge--ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: rgb(5 150 105);
+}
+
+.vp-badge--muted {
+  background: rgba(148, 163, 184, 0.2);
+  color: rgb(100 116 139);
+}
+
+.vp-sim-highlight {
+  border-radius: 0.5rem;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.06);
+  padding: 0.75rem 1rem;
+}
+
+.dark .vp-sim-highlight {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.vp-sim-card {
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
+}
+
+.vp-kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+@media (min-width: 1100px) {
+  .vp-kpi-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.vp-status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.vp-status-dot::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.vp-status-dot--green::before {
+  background: rgb(16 185 129);
+}
+
+.vp-status-dot--yellow::before {
+  background: rgb(245 158 11);
+}
+
+.vp-status-dot--red::before {
+  background: rgb(244 63 94);
+}
+
+.vp-pre {
+  max-height: 280px;
+  overflow: auto;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.dark .vp-pre {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(71, 85, 105, 0.5);
+}
+
+.vp-table th,
+.vp-table td {
+  vertical-align: top;
+  padding: 0.5rem 0.75rem;
+}
+
+.vp-table tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.dark .vp-table tbody tr:nth-child(even) {
+  background: rgba(30, 41, 59, 0.35);
+}

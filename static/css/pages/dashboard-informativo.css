@@ -285,6 +285,36 @@ html.dark .gv-dev-cards .gv-dev-ranking-table .gv-dev-ranking-premio-none {
   color: rgb(148 163 184 / 0.85);
 }
 
+/* Prêmio por faixa (alinhado a DELIVERY_GAMIFICATION_RETURN_PRIZE_TIERS: 300 / 250 / 180) */
+.gv-body .gv-dev-cards .gv-dev-ranking-table .gv-premio-tier {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.gv-body .gv-dev-cards .gv-dev-ranking-table .gv-premio-tier--300 {
+  color: rgb(5 122 85) !important;
+}
+
+.gv-body .gv-dev-cards .gv-dev-ranking-table .gv-premio-tier--250 {
+  color: rgb(29 78 216) !important;
+}
+
+.gv-body .gv-dev-cards .gv-dev-ranking-table .gv-premio-tier--180 {
+  color: rgb(194 65 12) !important;
+}
+
+html.dark .gv-body .gv-dev-cards .gv-dev-ranking-table .gv-premio-tier--300 {
+  color: rgb(52 211 153) !important;
+}
+
+html.dark .gv-body .gv-dev-cards .gv-dev-ranking-table .gv-premio-tier--250 {
+  color: rgb(96 165 250) !important;
+}
+
+html.dark .gv-body .gv-dev-cards .gv-dev-ranking-table .gv-premio-tier--180 {
+  color: rgb(251 146 60) !important;
+}
+
 /* Corpo do card preenche o espaço abaixo do título; tabela no topo (sem rolagem interna) */
 .gv-dev-cards .gv-rank-table-wrap {
   flex: 1 1 auto;

@@ -1,0 +1,278 @@
+{% extends "base_gestao_avista.html" %}
+
+{% block title %}Planejamento de férias · Inteligência de Pessoas{% endblock %}
+
+{% block header_breadcrumb %}
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Pessoas / Férias inteligentes</p>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Planejamento inteligente de férias</h1>
+{% endblock %}
+
+{% block header_subtitle %}
+<p class="text-xs text-gray-500 dark:text-gray-400">Prioridade trabalhista, sazonalidade, limites por função e simulação rápida antes de decidir.</p>
+{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/vacation-planning.css">
+<script src="/static/js/pages/vacation-planning-page.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="ga-employee-theme employees-shell space-y-4 pt-2 md:pt-3" data-page="vacation-planning">
+  <div id="vp-alert" class="hidden sys-alert flex items-center gap-3" role="alert"></div>
+
+  <div class="sys-card sys-card--surface sys-card--comfort flex flex-col gap-3 p-4 md:flex-row md:flex-wrap md:items-end md:justify-between">
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="vp-field-label">
+        Ano
+        <input type="number" id="vp-year" class="ops-toolbar-control w-28 px-3" min="2020" max="2035" value="">
+      </label>
+      <label class="vp-field-label">
+        Mês (KPIs)
+        <select id="vp-month" class="ops-toolbar-control px-3 min-w-[160px]">
+          <option value="1">Janeiro</option>
+          <option value="2">Fevereiro</option>
+          <option value="3">Março</option>
+          <option value="4">Abril</option>
+          <option value="5">Maio</option>
+          <option value="6">Junho</option>
+          <option value="7">Julho</option>
+          <option value="8">Agosto</option>
+          <option value="9">Setembro</option>
+          <option value="10">Outubro</option>
+          <option value="11">Novembro</option>
+          <option value="12">Dezembro</option>
+        </select>
+      </label>
+      <label class="vp-field-label">
+        Centro de custo
+        <select id="vp-cost-center" class="ops-toolbar-control px-3 min-w-[200px]">
+          {% for opt in cost_center_options or ['Todos'] %}
+          <option value="{{ opt }}">{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button type="button" id="vp-refresh" class="sys-btn sys-btn--primary">Atualizar painel</button>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a href="/people-intelligence" class="sys-btn sys-btn--secondary">People Intelligence</a>
+      <button type="button" id="vp-suggest" class="sys-btn sys-btn--secondary">Sugestão inteligente</button>
+    </div>
+  </div>
+
+  <div class="sys-kpi-shell w-full">
+    <div class="sys-kpi-grid employees-kpi-row vp-kpi-grid" aria-label="Resumo férias">
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-rose-600 dark:text-rose-300">Férias vencidas</span><div id="vp-kpi-expired" class="employees-kpi__value tabular-nums">—</div></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-amber-600 dark:text-amber-300">Vencem em 30 dias</span><div id="vp-kpi-d30" class="employees-kpi__value tabular-nums">—</div></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label text-amber-600 dark:text-amber-300">Vencem em 60 dias</span><div id="vp-kpi-d60" class="employees-kpi__value tabular-nums">—</div></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Vencem em 90 dias</span><div id="vp-kpi-d90" class="employees-kpi__value tabular-nums">—</div></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Programadas no mês</span><div id="vp-kpi-sched" class="employees-kpi__value tabular-nums">—</div></div></div>
+      <div class="sys-kpi-card employees-kpi"><div class="sys-kpi-cell-inner employees-kpi__inner"><span class="sys-kpi-label">Risco operacional</span><div id="vp-kpi-risk" class="employees-kpi__value tabular-nums">—</div></div></div>
+    </div>
+  </div>
+
+  <div class="sys-card sys-card--surface sys-card--comfort vp-sim-card border-l-4 border-l-emerald-500/80 p-4 md:p-5">
+    <div class="flex flex-col gap-1 md:flex-row md:items-start md:justify-between">
+      <div>
+        <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">Simulador</h2>
+        <p class="text-xs text-slate-500">Escolha colaborador e período. Veja recomendação e texto operacional antes de registrar.</p>
+      </div>
+      <button type="button" id="vp-sim-run" class="sys-btn sys-btn--primary mt-2 md:mt-0 shrink-0">Executar simulação</button>
+    </div>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <label class="vp-field-label sm:col-span-2">
+        Colaborador
+        <select id="vp-sim-employee" class="ops-toolbar-control px-3"></select>
+      </label>
+      <label class="vp-field-label">
+        Início
+        <input type="date" id="vp-sim-start" class="ops-toolbar-control px-3">
+      </label>
+      <label class="vp-field-label">
+        Fim
+        <input type="date" id="vp-sim-end" class="ops-toolbar-control px-3">
+      </label>
+    </div>
+    <div id="vp-sim-highlight" class="vp-sim-highlight hidden mt-4">
+      <p id="vp-sim-label" class="text-sm font-semibold text-slate-800 dark:text-slate-100"></p>
+      <p id="vp-sim-explanation" class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300"></p>
+    </div>
+    <pre id="vp-sim-result" class="vp-pre mt-4 hidden text-xs leading-relaxed"></pre>
+    <div class="mt-4 flex flex-col gap-3 border-t border-slate-200/80 pt-4 dark:border-slate-700/80 sm:flex-row sm:flex-wrap sm:items-center">
+      <label class="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+        <input type="checkbox" id="vp-sync-employee" class="rounded border-slate-300">
+        Sincronizar férias no cadastro do colaborador (vacation_start / vacation_end)
+      </label>
+      <input type="text" id="vp-schedule-reason" class="ops-toolbar-control min-w-[200px] flex-1 px-3 text-xs" placeholder="Motivo / observação (histórico)">
+      <button type="button" id="vp-schedule-save" class="sys-btn sys-btn--secondary text-xs shrink-0">Registrar decisão</button>
+    </div>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <div class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0">
+      <div class="border-b px-4 py-3">
+        <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Mapa mensal</h2>
+        <p class="text-xs text-slate-500">Demanda (0–100), capacidade estimada e ocupação.</p>
+      </div>
+      <div class="vp-table-wrap sys-table-wrap sys-table-wrap--x-scroll">
+        <table class="vp-table w-full min-w-[640px] text-left text-sm">
+          <thead>
+            <tr class="border-b text-xs uppercase tracking-wide text-slate-500">
+              <th class="px-3 py-2">Mês</th>
+              <th class="px-3 py-2">Demanda</th>
+              <th class="px-3 py-2">Capacidade</th>
+              <th class="px-3 py-2">Prog.</th>
+              <th class="px-3 py-2">Status</th>
+              <th class="px-3 py-2">Risco</th>
+            </tr>
+          </thead>
+          <tbody id="vp-monthly-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="sys-card sys-card--surface sys-card--comfort p-4 text-xs text-slate-500 dark:text-slate-400">
+      <p class="font-medium text-slate-700 dark:text-slate-200">Decisão rápida</p>
+      <ul class="mt-2 list-inside list-disc space-y-1">
+        <li>Use o simulador acima para validar o período.</li>
+        <li>Calibragem de demanda e perfis ficam nos painéis abaixo (fechados por padrão).</li>
+        <li>Registre decisões para manter histórico auditável.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0">
+    <div class="border-b px-4 py-3">
+      <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Colaboradores e prioridade</h2>
+      <p class="text-xs text-slate-500">Ordenado por índice de prioridade; janela de cor referente ao mês dos KPIs.</p>
+    </div>
+    <div class="sys-table-wrap sys-table-wrap--x-scroll">
+      <table class="employees-data-table w-full min-w-[960px] border-collapse text-left text-sm">
+        <thead class="sticky top-0 z-10 border-b bg-slate-50/95 text-xs font-semibold dark:bg-slate-900/95">
+          <tr>
+            <th class="px-3 py-2">Colaborador</th>
+            <th class="px-3 py-2">Função</th>
+            <th class="px-3 py-2">Status</th>
+            <th class="px-3 py-2">Dias</th>
+            <th class="px-3 py-2">Criticid.</th>
+            <th class="px-3 py-2">Substituto</th>
+            <th class="px-3 py-2">Melhor mês</th>
+            <th class="px-3 py-2">Prior.</th>
+            <th class="px-3 py-2">Janela</th>
+          </tr>
+        </thead>
+        <tbody id="vp-rows-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <details class="vp-details sys-card sys-card--surface sys-card--comfort overflow-hidden">
+    <summary class="vp-details__summary cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Calibrar demanda mensal</summary>
+    <div class="border-t border-slate-200/80 px-4 py-3 dark:border-slate-700/80">
+      <p class="text-xs text-slate-500">Ajuste o índice 0–100 por mês. Limites por função (JSON opcional) sobrescrevem a régua do motor para aquele mês. Valores vazios usam o padrão.</p>
+      <div class="mt-3 flex flex-wrap items-end gap-3">
+        <label class="vp-field-label">
+          Ano da régua
+          <input type="number" id="vp-cal-year" class="ops-toolbar-control w-28 px-3" min="2020" max="2035">
+        </label>
+        <button type="button" id="vp-cal-load" class="sys-btn sys-btn--secondary text-xs">Carregar 12 meses</button>
+      </div>
+      <div class="vp-table-wrap mt-3 sys-table-wrap sys-table-wrap--x-scroll">
+        <table class="vp-table w-full min-w-[920px] text-left text-sm">
+          <thead>
+            <tr class="border-b text-xs text-slate-500">
+              <th class="px-2 py-2">Mês</th>
+              <th class="px-2 py-2">Selo</th>
+              <th class="px-2 py-2">Índice</th>
+              <th class="px-2 py-2">Observação / risco</th>
+              <th class="px-2 py-2">Limites (JSON opcional)</th>
+              <th class="px-2 py-2"></th>
+            </tr>
+          </thead>
+          <tbody id="vp-cal-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="vp-details sys-card sys-card--surface sys-card--comfort overflow-hidden">
+    <summary class="vp-details__summary cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Perfil operacional (férias)</summary>
+    <div class="border-t border-slate-200/80 px-4 py-3 dark:border-slate-700/80">
+      <div class="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <label class="vp-field-label md:col-span-2">
+          Buscar colaborador
+          <input type="search" id="vp-p-search" class="ops-toolbar-control px-3 text-xs" placeholder="Filtrar por nome ou matrícula visível na lista…" autocomplete="off">
+        </label>
+        <label class="vp-field-label md:col-span-2 lg:col-span-3">
+          Selecionar
+          <select id="vp-profile-employee" class="ops-toolbar-control px-3 text-xs"></select>
+        </label>
+        <label class="vp-field-label">Setor operacional<input type="text" id="vp-p-sector" class="ops-toolbar-control px-2 text-xs"></label>
+        <label class="vp-field-label">Rota / equipe<input type="text" id="vp-p-route" class="ops-toolbar-control px-2 text-xs"></label>
+        <label class="vp-field-label">Criticidade
+          <select id="vp-p-criticality" class="ops-toolbar-control px-2 text-xs">
+            <option value="baixa">Baixa</option>
+            <option value="media" selected>Média</option>
+            <option value="alta">Alta</option>
+            <option value="muito_alta">Muito alta</option>
+          </select>
+        </label>
+        <label class="vp-field-label">ID substituto<input type="number" id="vp-p-sub-id" class="ops-toolbar-control px-2 text-xs"></label>
+        <label class="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300 lg:mt-7"><input type="checkbox" id="vp-p-sub-trained"> Substituto treinado</label>
+        <label class="vp-field-label">Fim período aquisitivo<input type="date" id="vp-p-aq-end" class="ops-toolbar-control px-2 text-xs"></label>
+        <label class="vp-field-label">Último fim de férias<input type="date" id="vp-p-last-v" class="ops-toolbar-control px-2 text-xs"></label>
+        <label class="vp-field-label">Saldo dias<input type="number" id="vp-p-days" class="ops-toolbar-control px-2 text-xs"></label>
+      </div>
+      <button type="button" id="vp-profile-save" class="sys-btn sys-btn--primary mt-3 text-xs">Salvar perfil</button>
+    </div>
+  </details>
+
+  <details class="vp-details sys-card sys-card--surface sys-card--comfort overflow-hidden">
+    <summary class="vp-details__summary cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Sugestão automática (até 40)</summary>
+    <div class="border-t border-slate-200/80 p-0 dark:border-slate-700/80">
+      <div class="sys-table-wrap sys-table-wrap--x-scroll">
+        <table class="vp-table w-full min-w-[800px] text-left text-sm">
+          <thead>
+            <tr class="border-b text-xs text-slate-500">
+              <th class="px-3 py-2">#</th>
+              <th class="px-3 py-2">Colaborador</th>
+              <th class="px-3 py-2">Função</th>
+              <th class="px-3 py-2">Período</th>
+              <th class="px-3 py-2">Motivos</th>
+            </tr>
+          </thead>
+          <tbody id="vp-suggest-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <details class="vp-details sys-card sys-card--surface sys-card--comfort overflow-hidden">
+    <summary class="vp-details__summary cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-100">Histórico de decisões</summary>
+    <div class="border-t border-slate-200/80 p-0 dark:border-slate-700/80">
+      <div class="flex justify-end border-b border-slate-100 px-3 py-2 dark:border-slate-800">
+        <button type="button" id="vp-history-refresh" class="sys-btn sys-btn--secondary text-xs">Recarregar</button>
+      </div>
+      <div class="sys-table-wrap sys-table-wrap--x-scroll">
+        <table class="vp-table w-full min-w-[860px] text-left text-sm">
+          <thead>
+            <tr class="border-b text-xs text-slate-500">
+              <th class="px-3 py-2">Quando</th>
+              <th class="px-3 py-2">Colaborador</th>
+              <th class="px-3 py-2">Período</th>
+              <th class="px-3 py-2">Status</th>
+              <th class="px-3 py-2">Origem</th>
+              <th class="px-3 py-2">Aprovador</th>
+              <th class="px-3 py-2">Cadastro</th>
+              <th class="px-3 py-2">Motivo</th>
+            </tr>
+          </thead>
+          <tbody id="vp-history-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+</div>
+{% endblock %}
