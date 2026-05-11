@@ -1149,6 +1149,37 @@ def suggest_vacations(
     return {"year": year, "suggestions": suggestions}
 
 
+def last_approved_vacation_by_employee(session: Session, employee_ids: List[int]) -> Dict[int, Dict[str, Any]]:
+    """Último lançamento aprovado por colaborador (ordenado por data de criação)."""
+    if not employee_ids:
+        return {}
+    unique_ids = sorted({int(x) for x in employee_ids if x is not None})
+    if not unique_ids:
+        return {}
+    stmt = (
+        select(models.VacationScheduleEntry)
+        .where(
+            col(models.VacationScheduleEntry.employee_id).in_(unique_ids),
+            models.VacationScheduleEntry.status == "approved",
+        )
+        .order_by(desc(models.VacationScheduleEntry.created_at))
+    )
+    found = session.exec(stmt).all()
+    out: Dict[int, Dict[str, Any]] = {}
+    for ent in found:
+        eid = int(ent.employee_id)
+        if eid in out:
+            continue
+        s_d = _d(ent.start_date)
+        e_d = _d(ent.end_date)
+        out[eid] = {
+            "start": s_d.isoformat() if s_d else "",
+            "end": e_d.isoformat() if e_d else "",
+            "created_at": ent.created_at.isoformat() if ent.created_at else "",
+        }
+    return out
+
+
 def dashboard_payload(
     session: Session,
     *,
@@ -1249,6 +1280,12 @@ def dashboard_payload(
         )
 
     rows.sort(key=lambda r: (-(r["priority_index"] or 0), r["days_until_deadline"] if r["days_until_deadline"] is not None else 9999))
+
+    eids = [int(r["employee_id"]) for r in rows if r.get("employee_id") is not None]
+    last_vac_map = last_approved_vacation_by_employee(session, eids)
+    for r in rows:
+        eid = int(r["employee_id"])
+        r["last_approved_vacation"] = last_vac_map.get(eid)
 
     ref_ms = date(year, cal_month, 1)
     ref_me = end_of_month(ref_ms)
@@ -1466,10 +1503,12 @@ def upsert_profile(
     return row
 
 
-def list_history(session: Session, limit: int = 80) -> List[Dict[str, Any]]:
-    rows = session.exec(
-        select(models.VacationScheduleEntry).order_by(desc(models.VacationScheduleEntry.created_at)).limit(limit)
-    ).all()
+def list_history(session: Session, limit: int = 80, employee_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    stmt = select(models.VacationScheduleEntry)
+    if employee_id is not None:
+        stmt = stmt.where(models.VacationScheduleEntry.employee_id == int(employee_id))
+    stmt = stmt.order_by(desc(models.VacationScheduleEntry.created_at)).limit(limit)
+    rows = session.exec(stmt).all()
     out = []
     for ent in rows:
         emp = session.get(models.Employee, ent.employee_id)
@@ -1480,6 +1519,7 @@ def list_history(session: Session, limit: int = 80) -> List[Dict[str, Any]]:
         out.append(
             {
                 "id": ent.id,
+                "employee_id": ent.employee_id,
                 "employee_name": emp.name if emp else str(ent.employee_id),
                 "start": _d(ent.start_date).isoformat() if _d(ent.start_date) else "",
                 "end": _d(ent.end_date).isoformat() if _d(ent.end_date) else "",

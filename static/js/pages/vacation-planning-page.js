@@ -28,6 +28,56 @@
       .replace(/"/g, "&quot;");
   }
 
+  /** yyyy-mm-dd ou prefixo → dd/mm/aaaa */
+  function formatDateBR(iso) {
+    if (!iso || typeof iso !== "string") return "—";
+    var d = iso.slice(0, 10);
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d);
+    if (!m) return iso;
+    return m[3] + "/" + m[2] + "/" + m[1];
+  }
+
+  /** ISO datetime → dd/mm/aaaa às HH:mm */
+  function formatDateTimeBR(iso) {
+    if (!iso || typeof iso !== "string") return "—";
+    var t = iso.replace("T", " ").replace(/\.\d{3}Z?$/, "").trim();
+    var datePart = t.slice(0, 10);
+    var timePart = t.slice(11, 16);
+    if (timePart && /^\d{2}:\d{2}$/.test(timePart)) {
+      return formatDateBR(datePart) + " às " + timePart;
+    }
+    return formatDateBR(datePart);
+  }
+
+  function formatMonthYearBR(year, month) {
+    var names = [
+      "",
+      "Janeiro",
+      "Fevereiro",
+      "Março",
+      "Abril",
+      "Maio",
+      "Junho",
+      "Julho",
+      "Agosto",
+      "Setembro",
+      "Outubro",
+      "Novembro",
+      "Dezembro",
+    ];
+    var mi = parseInt(month, 10) || 1;
+    var y = parseInt(year, 10);
+    if (isNaN(y)) return "—";
+    return (names[mi] || String(mi)) + "/" + y;
+  }
+
+  function fmtIntPt(v) {
+    if (v == null || v === "") return "—";
+    var n = Number(v);
+    if (isNaN(n)) return String(v);
+    return String(Math.round(n));
+  }
+
   /** Dias corridos entre início e fim (inclusive). */
   function inclusiveCalendarDays(startIso, endIso) {
     if (!startIso || !endIso) return null;
@@ -64,6 +114,7 @@
       panel.innerHTML = "";
       if (wrap) wrap.classList.add("hidden");
       if (cb) cb.checked = false;
+      updateLaunchDaysLine();
       return;
     }
     var rem = 30 - days;
@@ -77,6 +128,7 @@
         "<strong>" +
         escapeHtml(String(days)) +
         " dias corridos.</strong> Acima dos 30 dias padrão de férias (CLT); confirme com RH/DP (coletivas, regime diferenciado, etc.).";
+      updateLaunchDaysLine();
       return;
     }
     if (days === 30) {
@@ -84,6 +136,7 @@
       panel.classList.add("vp-vacation-legal-hint--ok");
       panel.innerHTML =
         "<strong>30 dias corridos.</strong> Equivale ao gozo integral típico (sem venda da 1ª fração de 1/3 como abono pecuniário).";
+      updateLaunchDaysLine();
       return;
     }
     panel.classList.remove("hidden");
@@ -102,6 +155,37 @@
         " Ajuste a data final, trate <strong>fracionamento de férias</strong> ou alinhe com RH/DP (o abono pecuniário na 1ª parcela é limitado a <strong>10 dias</strong>).";
     }
     panel.innerHTML = html;
+    updateLaunchDaysLine();
+  }
+
+  function updateLaunchDaysLine() {
+    var el = byId("vp-launch-days-line");
+    var stEl = byId("vp-sim-start");
+    var enEl = byId("vp-sim-end");
+    if (!el || !stEl || !enEl) return;
+    var start = stEl.value;
+    var end = enEl.value;
+    if (!start || !end) {
+      el.classList.add("hidden");
+      el.textContent = "";
+      return;
+    }
+    var d1 = new Date(start + "T12:00:00");
+    var d2 = new Date(end + "T12:00:00");
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime()) || d2 < d1) {
+      el.classList.remove("hidden");
+      el.textContent = "Período inválido: a data fim deve ser igual ou posterior ao início.";
+      el.classList.add("text-rose-600", "dark:text-rose-300");
+      return;
+    }
+    el.classList.remove("text-rose-600", "dark:text-rose-300");
+    var days = inclusiveCalendarDays(start, end);
+    if (days == null) {
+      el.classList.add("hidden");
+      return;
+    }
+    el.classList.remove("hidden");
+    el.textContent = "Resumo: " + days + " dias corridos";
   }
 
   function buildScheduleReasonFromForm() {
@@ -469,13 +553,11 @@
     );
   }
 
-  function updateAsideContextSummary() {
-    var wrap = byId("vp-aside-context");
+  function updateLaunchSummaryFromIds(employeeId) {
+    var wrap = byId("vp-launch-summary");
     if (!wrap) return;
-    var sel = byId("vp-sim-employee");
-    var id = sel && sel.value ? parseInt(sel.value, 10) : 0;
+    var id = parseInt(employeeId, 10);
     if (!id) {
-      wrap.classList.add("hidden");
       wrap.innerHTML = "";
       return;
     }
@@ -483,20 +565,69 @@
       return r.employee_id === id;
     });
     if (!row) {
-      wrap.classList.add("hidden");
-      wrap.innerHTML = "";
+      wrap.innerHTML =
+        "<p class=\"font-semibold text-slate-800 dark:text-slate-100\">Colaborador #" +
+        escapeHtml(String(id)) +
+        "</p>";
       return;
     }
-    wrap.classList.remove("hidden");
     wrap.innerHTML =
-      "<p class=\"vp-aside-context__name\">" +
+      "<p class=\"font-semibold text-slate-800 dark:text-slate-100\">" +
       escapeHtml(row.name || "—") +
       "</p>" +
-      "<p class=\"vp-aside-context__sub\">" +
+      "<p class=\"mt-1 text-slate-600 dark:text-slate-400\">" +
       escapeHtml(row.role || "—") +
       " · " +
       escapeHtml(displayStatusTitle(row)) +
       "</p>";
+  }
+
+  function openLaunchModal(employeeId, opts) {
+    opts = opts || {};
+    var m = byId("vp-launch-modal");
+    if (!m || !employeeId) return;
+    rebuildEmployeeSelects(byId("vp-p-search") ? byId("vp-p-search").value : "");
+    var sim = byId("vp-sim-employee");
+    if (sim) {
+      sim.value = String(employeeId);
+      sim.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    var st = byId("vp-sim-start");
+    var en = byId("vp-sim-end");
+    if (opts.clearDates) {
+      if (st) st.value = "";
+      if (en) en.value = "";
+    }
+    if (opts.suggestedStart && st) st.value = opts.suggestedStart;
+    if (opts.suggestedEnd && en) en.value = opts.suggestedEnd;
+    var hi = byId("vp-sim-highlight");
+    var pre = byId("vp-sim-result");
+    if (hi) hi.classList.add("hidden");
+    if (pre) {
+      pre.classList.add("hidden");
+      pre.textContent = "";
+    }
+    updateLaunchSummaryFromIds(employeeId);
+    updateVacationLegalHint();
+    updateLaunchDaysLine();
+    updateQueueRowSelection();
+    m.classList.remove("hidden");
+    if (opts.focusStart !== false) {
+      window.setTimeout(function () {
+        var ste = byId("vp-sim-start");
+        if (ste) {
+          try {
+            ste.focus();
+            if (typeof ste.select === "function") ste.select();
+          } catch (e2) {}
+        }
+      }, 140);
+    }
+  }
+
+  function closeLaunchModal() {
+    var m = byId("vp-launch-modal");
+    if (m) m.classList.add("hidden");
   }
 
   function openDetailModal(row) {
@@ -550,10 +681,10 @@
       (row.substitute_trained ? " (treinado)" : "") +
       "</dd>" +
       "<dt>Data de admissão</dt><dd>" +
-      escapeHtml(row.admission_date || "—") +
+      escapeHtml(row.admission_date ? formatDateBR(row.admission_date) : "—") +
       "</dd>" +
       "<dt>Prazo concessivo (cadastro)</dt><dd>" +
-      escapeHtml(row.concessive_deadline || "—") +
+      escapeHtml(row.concessive_deadline ? formatDateBR(row.concessive_deadline) : "—") +
       "</dd>" +
       "<dt>Origem do prazo</dt><dd class=\"text-xs leading-snug\">" +
       escapeHtml(row.deadline_basis_label || "—") +
@@ -578,8 +709,59 @@
       "<dt>Contexto da recomendação</dt><dd class=\"text-xs leading-snug\">" +
       escapeHtml(ctxLine || "—") +
       "</dd>" +
-      "</dl>";
+      "</dl>" +
+      "<div id=\"vp-detail-history-slot\" class=\"mt-4 border-t border-slate-200 pt-3 dark:border-slate-700\">" +
+      "<p class=\"text-[11px] font-bold uppercase tracking-wide text-slate-400\">Últimos lançamentos (planejamento)</p>" +
+      "<p id=\"vp-detail-history-loading\" class=\"mt-2 text-xs text-slate-500\">Carregando…</p>" +
+      "</div>";
     modal.classList.remove("hidden");
+    var eid = row.employee_id;
+    fetch("/api/vacation-planning/history?limit=12&employee_id=" + encodeURIComponent(eid), {
+      credentials: "same-origin",
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var slot = byId("vp-detail-history-slot");
+        var loading = byId("vp-detail-history-loading");
+        if (loading) loading.remove();
+        if (!slot) return;
+        var items = (data && data.items) || [];
+        if (!items.length) {
+          slot.innerHTML +=
+            "<p class=\"mt-2 text-xs text-slate-500\">Nenhum registro neste histórico para este colaborador.</p>";
+          return;
+        }
+        var html = items
+          .map(function (h) {
+            var sync = h.employee_vacation_synced ? "Sincronizado" : "Sem sync cadastro";
+            return (
+              "<div class=\"mt-2 rounded-md border border-slate-100 px-2 py-2 text-xs dark:border-slate-700\">" +
+              "<p class=\"font-medium text-slate-800 dark:text-slate-100\">" +
+              formatDateBR(h.start) +
+              " até " +
+              formatDateBR(h.end) +
+              "</p>" +
+              "<p class=\"mt-0.5 text-slate-500\">" +
+              escapeHtml(h.status || "") +
+              " · " +
+              escapeHtml(sync) +
+              (h.approved_by ? " · por " + escapeHtml(h.approved_by) : "") +
+              " · " +
+              escapeHtml(formatDateTimeBR(h.created_at || "")) +
+              "</p></div>"
+            );
+          })
+          .join("");
+        slot.innerHTML =
+          "<p class=\"text-[11px] font-bold uppercase tracking-wide text-slate-400\">Últimos lançamentos (planejamento)</p>" +
+          html;
+      })
+      .catch(function () {
+        var loading = byId("vp-detail-history-loading");
+        if (loading) loading.textContent = "Não foi possível carregar o histórico.";
+      });
   }
 
   function closeDetailModal() {

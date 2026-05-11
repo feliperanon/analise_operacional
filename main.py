@@ -34848,6 +34848,11 @@ async def api_vacation_planning_schedule(
         e = date.fromisoformat(body.end[:10])
     except ValueError:
         raise HTTPException(status_code=400, detail="Datas inválidas.")
+    if s > e:
+        raise HTTPException(
+            status_code=400,
+            detail="A data de início não pode ser posterior à data de fim.",
+        )
     sim = vacation_simulate(
         session,
         employee_id=body.employee_id,
@@ -34937,10 +34942,13 @@ async def api_vacation_planning_profile_upsert(
 async def api_vacation_planning_history(
     request: Request,
     limit: int = 60,
+    employee_id: Optional[int] = None,
     session: Session = Depends(get_session),
 ):
     require_login(request)
-    rows = list_history(session, limit=min(200, max(1, int(limit))))
+    lim = min(200, max(1, int(limit)))
+    eid = int(employee_id) if employee_id is not None and int(employee_id) > 0 else None
+    rows = list_history(session, limit=lim, employee_id=eid)
     return JSONResponse(content={"items": rows})
 
 
