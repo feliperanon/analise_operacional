@@ -3,7 +3,7 @@
 
 from datetime import datetime, timedelta, date
 import math
-from typing import Optional
+from typing import Any, Dict, List, Optional
 import io
 import time
 import csv
@@ -4307,8 +4307,12 @@ def _build_bi_devolucoes_dataset(
     responsabilidade_id: Optional[int] = None,
     motivo_id: Optional[int] = None,
     motorista_id: Optional[int] = None,
+    vendedor_id: Optional[int] = None,
     client_id: Optional[int] = None,
     client_filter_scope: str = "solo",
+    valor_faixa: Optional[str] = None,
+    somente_criticas: bool = False,
+    somente_acima_meta: bool = False,
 ) -> dict:
     tz = ZoneInfo("America/Sao_Paulo")
     today = datetime.now(tz).date()
@@ -4358,6 +4362,8 @@ def _build_bi_devolucoes_dataset(
         q = q.where(models.Devolucao.motivo_id == motivo_id)
     if motorista_id:
         q = q.where(models.Devolucao.motorista_id == motorista_id)
+    if vendedor_id:
+        q = q.where(models.Devolucao.vendedor_id == vendedor_id)
     cfs = (client_filter_scope or "solo").strip().lower()
     if cfs not in ("solo", "group"):
         cfs = "solo"
@@ -4385,11 +4391,37 @@ def _build_bi_devolucoes_dataset(
     def _dev_op_date_raw(d: models.Devolucao) -> str:
         return str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None) or "").strip()[:10]
 
-    devs = [d for d in devs_raw if _in_competence_period(_dev_op_date_raw(d), period_start, period_end)]
-    devs.sort(
+    devs_c = [d for d in devs_raw if _in_competence_period(_dev_op_date_raw(d), period_start, period_end)]
+    devs_c.sort(
         key=lambda x: (_competence_date_or_self(_dev_op_date_raw(x)), x.data_romaneio or ""),
         reverse=True,
     )
+
+    def _valor_faixa_ok(d: models.Devolucao, faixa: str) -> bool:
+        v = float(d.valor or 0)
+        f = (faixa or "all").strip().lower()
+        if f in ("", "all", "todos"):
+            return True
+        if f == "ate100":
+            return v <= 100
+        if f in ("100_300", "v100_300"):
+            return 100 < v <= 300
+        if f in ("300_800", "v300_800"):
+            return 300 < v <= 800
+        if f in ("acima800", "v800"):
+            return v > 800
+        return True
+
+    devs_work: List[models.Devolucao] = list(devs_c)
+    devs_work = [d for d in devs_work if _valor_faixa_ok(d, valor_faixa or "all")]
+    if somente_criticas:
+        devs_work = [
+            d
+            for d in devs_work
+            if float(d.valor or 0) >= 800.0 or (str(d.acima_300 or "").upper() == "SIM")
+        ]
+
+    devs: List[models.Devolucao] = list(devs_work)
 
     def _parse_route_helper_ids(helpers_json: Optional[str]) -> List[int]:
         """Parse delivery_helpers_json da rota para lista de employee_id."""
@@ -4505,18 +4537,19 @@ def _build_bi_devolucoes_dataset(
     # --- filtros para a UI ---
     drivers_filter = sorted(
         [e for e in session.exec(select(models.Employee)).all()
-         if any(d.motorista_id == e.id for d in devs)],
+         if any(d.motorista_id == e.id for d in devs_c)],
         key=lambda e: e.name,
     )
     clients_filter = sorted(
         [c for c in session.exec(select(models.Client)).all()
-         if any(d.client_id == c.id for d in devs)],
+         if any(d.client_id == c.id for d in devs_c)],
         key=lambda c: c.name,
     )
-
-    # --- agregações ---
-    total_qtd = len(devs)
-    total_valor = sum(d.valor for d in devs)
+    vendedores_filter = sorted(
+        [e for e in session.exec(select(models.Employee)).all()
+         if any(d.vendedor_id == e.id for d in devs_c)],
+        key=lambda e: e.name,
+    )
 
     # Mesmo critério da Central de Comando (dashboard TV / devolucao_mes em main.py):
     # % = paradas com status "devolucao" / paradas concluídas ("entregue" + "devolucao"), só rotas type=delivery.
@@ -4538,10 +4571,56 @@ def _build_bi_devolucoes_dataset(
         r for r in routes_delivery_period
         if _in_competence_period(getattr(r, "date", None), period_start, period_end)
     ]
-    pct_devolucao_valor = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
+    pct_devolucao_rotas = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
     # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
     valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
+    total_valor_pre_meta = sum(float(d.valor or 0) for d in devs)
+    pct_devolucao_financeiro: Optional[float] = (
+        round(100.0 * total_valor_pre_meta / valor_base_rotas, 2) if valor_base_rotas > 0 else None
+    )
+    meta_pp = 2.0
+    valor_meta_permitido: Optional[float] = (
+        round(valor_base_rotas * (meta_pp / 100.0), 2) if valor_base_rotas > 0 else None
+    )
+    excedente_sobre_meta: Optional[float] = (
+        round(max(0.0, total_valor_pre_meta - (valor_meta_permitido or 0.0)), 2)
+        if valor_meta_permitido is not None
+        else None
+    )
+    desvio_pp: Optional[float] = (
+        round(float(pct_devolucao_financeiro) - meta_pp, 2) if pct_devolucao_financeiro is not None else None
+    )
+    situacao_meta = "desconhecido"
+    if pct_devolucao_financeiro is not None:
+        situacao_meta = "dentro" if pct_devolucao_financeiro <= meta_pp else "acima"
+    faixa_alerta_meta = "neutral"
+    if pct_devolucao_financeiro is None:
+        faixa_alerta_meta = "neutral"
+    elif pct_devolucao_financeiro <= meta_pp:
+        faixa_alerta_meta = "ok"
+    elif pct_devolucao_financeiro <= 2.5:
+        faixa_alerta_meta = "warn"
+    else:
+        faixa_alerta_meta = "danger"
+
+    acima_meta_filter_note: Optional[str] = None
+    if somente_acima_meta:
+        if pct_devolucao_financeiro is None or pct_devolucao_financeiro <= meta_pp:
+            devs = []
+            acima_meta_filter_note = (
+                "Filtro «somente acima da meta» ativo: o período está dentro ou na meta de 2% "
+                "(ou não há valor base de rotas). A lista foi esvaziada."
+            )
+        else:
+            devs_alto = [d for d in devs if float(d.valor or 0) >= 300.0]
+            if devs_alto:
+                devs = devs_alto
+            else:
+                acima_meta_filter_note = "Nenhuma ocorrência ≥ R$ 300; exibindo todas as devoluções do período."
+    # --- agregações ---
+    total_qtd = len(devs)
+    total_valor = sum(float(d.valor or 0) for d in devs)
 
     # Cores em hexadecimal (layout claro GA; sem depender de --color-* do tema escuro)
     _RESP_HEX_DETAIL = {"MERCADO": "#dc2626", "COMERCIAL": "#d97706"}
