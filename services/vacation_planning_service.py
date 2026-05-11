@@ -611,6 +611,70 @@ def end_of_month(d: date) -> date:
     return date(d.year, d.month, last)
 
 
+def calendar_month_is_still_open(month_start: date, ref: date) -> bool:
+    """
+    False se o mês civil já terminou antes de `ref` (ex.: Abril/2026 quando hoje é maio/2026).
+    Usado para não sugerir «Melhor janela» em meses que já passaram.
+    """
+    return end_of_month(month_start) >= ref
+
+
+def best_future_vacation_month_label(
+    session: Session,
+    *,
+    planning_year: int,
+    ref: date,
+    profile: Optional[models.EmployeeVacationProfile],
+    employee: models.Employee,
+    role_b: str,
+    headcount_by_role_map: Dict[str, int],
+    cost_center: Optional[str],
+) -> str:
+    """
+    Escolhe o melhor mês (pontuação do motor) entre meses ainda planejáveis a partir de `ref`
+    e com folga no limite por função. Considera o ano do painel e, se necessário, o ano seguinte
+    até `max(ref.year + 1, planning_year + 1)` para não ficar sem resposta quando o ano focado
+    já passou quase todo.
+    """
+    end_scan_year = max(planning_year + 1, ref.year + 1)
+    win_from = date(planning_year, 1, 1)
+    win_to = date(end_scan_year, 12, 31)
+    windows = scheduled_windows(session, win_from, win_to, cost_center)
+
+    candidates: List[Tuple[float, int, int, int]] = []  # ps, neg_ordinal, y, m
+
+    for y in range(planning_year, end_scan_year + 1):
+        for m in range(1, 13):
+            ms2 = date(y, m, 1)
+            if not calendar_month_is_still_open(ms2, ref):
+                continue
+            di, _, rjo = get_month_demand(session, y, m)
+            ps, _ = priority_index_for_month(
+                profile=profile,
+                employee=employee,
+                demand_index=di,
+                windows=windows,
+                month_start=ms2,
+                headcount_by_role_map=headcount_by_role_map,
+            )
+            me = end_of_month(ms2)
+            conc = count_role_overlapping(windows, role_b, ms2, me, employee.id)
+            lim = effective_role_limit(role_b, di, rjo)
+            if conc >= lim:
+                continue
+            neg_ord = -(y * 12 + m)
+            candidates.append((float(ps), neg_ord, y, m))
+
+    if not candidates:
+        return ""
+
+    _ps, _no, best_y, best_m = max(candidates, key=lambda t: (t[0], t[1]))
+    label = f"{MONTH_NAMES_PT[best_m]}/{best_y}"
+    if best_y != planning_year:
+        label += " · próximo ano"
+    return label
+
+
 def count_role_overlapping(
     windows: Sequence[Dict[str, Any]],
     role_key: str,
@@ -1139,30 +1203,16 @@ def dashboard_payload(
         )
 
         rb = role_bucket(e.role)
-        best_month = None
-        best_label = ""
-        best_score = -1.0
-        for m in range(1, 13):
-            ms2 = date(year, m, 1)
-            di, _, rjo = get_month_demand(session, year, m)
-            ps, _ = priority_index_for_month(
-                profile=prof,
-                employee=e,
-                demand_index=di,
-                windows=windows_year,
-                month_start=ms2,
-                headcount_by_role_map=hc_map,
-            )
-            me = end_of_month(ms2)
-            conc = count_role_overlapping(windows_year, rb, ms2, me, e.id)
-            lim = effective_role_limit(rb, di, rjo)
-            if conc >= lim:
-                continue
-            if ps > best_score:
-                best_score = ps
-                best_month = m
-        if best_month:
-            best_label = f"{MONTH_NAMES_PT[best_month]}/{year}"
+        best_label = best_future_vacation_month_label(
+            session,
+            planning_year=year,
+            ref=ref,
+            profile=prof,
+            employee=e,
+            role_b=rb,
+            headcount_by_role_map=hc_map,
+            cost_center=cost_center,
+        )
 
         st_color, st_hint = vacation_window_status(di_view)
 
@@ -1189,7 +1239,8 @@ def dashboard_payload(
                 "criticality": (prof.criticality if prof else "media"),
                 "substitute": sub_name or "—",
                 "substitute_trained": bool(prof and prof.substitute_trained),
-                "best_period_hint": best_label or "Revisar limites por mês",
+                "best_period_hint": best_label
+                or "Sem mês futuro com folga — ajuste régua, limite por função ou o ano do painel",
                 "priority_index": round(prio, 1),
                 "window_color": st_color,
                 "window_hint": st_hint,
