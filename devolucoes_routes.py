@@ -355,6 +355,31 @@ def _devolucao_card_escala_group_key(
     return (day, mid, plate_norm)
 
 
+def _avaliar_card_romaneio_day_ord(c: Dict[str, Any]) -> int:
+    s = str(c.get("data_romaneio") or "")[:10]
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").toordinal()
+    except Exception:
+        return 0
+
+
+def _avaliar_card_time_tie_str(c: Dict[str, Any]) -> str:
+    for k in ("returned_at", "finished_at", "started_at"):
+        v = c.get(k)
+        if v:
+            return str(v)
+    return ""
+
+
+def _sort_avaliar_cards_por_romaneio(cards: List[Dict[str, Any]], *, ascending: bool) -> None:
+    """Ordena in-place por data do romaneio (dia), depois horário de rota/devolução, depois id."""
+
+    def sk(c: Dict[str, Any]) -> Tuple[int, str, int]:
+        return (_avaliar_card_romaneio_day_ord(c), _avaliar_card_time_tie_str(c), int(c.get("id") or 0))
+
+    cards.sort(key=sk, reverse=not ascending)
+
+
 def _sort_avaliar_cards_por_escala(session: Session, cards: List[Dict[str, Any]], date_from: str, date_to: str) -> None:
     """Ordena in-place: mesma ordem de caminhões/motoristas da escala operacional; desempate por horário e id."""
     df = (date_from or "2020-01-01")[:10]
@@ -367,28 +392,14 @@ def _sort_avaliar_cards_por_escala(session: Session, cards: List[Dict[str, Any]]
         for rr in session.exec(select(models.Route).where(models.Route.id.in_(uniq))).all():
             routes_by_id[int(rr.id)] = rr
 
-    def _rom_day_ord(c: Dict[str, Any]) -> int:
-        s = str(c.get("data_romaneio") or "")[:10]
-        try:
-            return datetime.strptime(s, "%Y-%m-%d").toordinal()
-        except Exception:
-            return 0
-
-    def _time_tie(c: Dict[str, Any]) -> str:
-        for k in ("returned_at", "finished_at", "started_at"):
-            v = c.get(k)
-            if v:
-                return str(v)
-        return ""
-
     def sort_key(c: Dict[str, Any]) -> Tuple[Any, ...]:
         gkey = _devolucao_card_escala_group_key(c, routes_by_id)
         ei = escala_order.get(gkey)
         sid = int(c.get("id") or 0)
-        tt = _time_tie(c)
+        tt = _avaliar_card_time_tie_str(c)
         if ei is not None:
             return (0, ei, tt, sid)
-        return (1, -_rom_day_ord(c), -sid)
+        return (1, -_avaliar_card_romaneio_day_ord(c), -sid)
 
     cards.sort(key=sort_key)
 
@@ -2071,6 +2082,7 @@ def init_devolucoes_router(
         ajudante_ids: Optional[str] = None,
         colaborador_ids: Optional[str] = None,
         status_view: Optional[str] = None,
+        sort: Optional[str] = None,
         page: int = 1,
         per_page: int = 20,
         session: Session = Depends(get_session),
@@ -2179,7 +2191,16 @@ def init_devolucoes_router(
             cards = [c for c in cards if c.get("edited")]
         elif view == "hoje":
             cards = [c for c in cards if str(c.get("data_romaneio") or "")[:10] == today_iso]
-        _sort_avaliar_cards_por_escala(session, cards, (date_from or "2020-01-01")[:10], (date_to or "2099-12-31")[:10])
+        sort_mode = (sort or "romaneio_desc").strip().lower()
+        d_from = (date_from or "2020-01-01")[:10]
+        d_to = (date_to or "2099-12-31")[:10]
+        if sort_mode in ("escala", "operacional"):
+            _sort_avaliar_cards_por_escala(session, cards, d_from, d_to)
+        elif sort_mode in ("romaneio_asc", "data_asc", "asc"):
+            _sort_avaliar_cards_por_romaneio(cards, ascending=True)
+        else:
+            # Padrão: romaneio_desc — mais recente primeiro (lançamentos do fim do período no topo).
+            _sort_avaliar_cards_por_romaneio(cards, ascending=False)
         safe_per_page = max(1, min(int(per_page or 20), 100))
         safe_page = max(1, int(page or 1))
         total_count = len(cards)

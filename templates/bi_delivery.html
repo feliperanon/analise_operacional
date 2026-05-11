@@ -11,14 +11,15 @@
         <div class="flex items-center gap-3">
           <div class="icon-wrap"><i data-lucide="layout-dashboard" class="w-5 h-5"></i></div>
           <div>
-            <h1 class="text-title-lg">BI Delivery - Entregas e Devoluções</h1>
-            <p class="text-caption mt-1">Dashboard unificado executivo, tático e operacional.</p>
+            <h1 class="text-title-lg">BI Delivery · Entregas</h1>
+            <p class="text-caption mt-1">Execução de rotas: volume, SLA e produtividade. Análise de devoluções fica no BI Devoluções.</p>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <button type="button" id="execModeToggle" class="btn-secondary" aria-pressed="false">
             Executivo
           </button>
+          <a href="/bi/devolucoes?date_from={{ filters.date_from }}&amp;date_to={{ filters.date_to }}{% if filters.driver_id %}&amp;motorista_id={{ filters.driver_id }}{% endif %}" class="btn-secondary">BI Devoluções</a>
           <a href="/bi/clientes" class="btn-secondary">BI Clientes</a>
           <a href="/bi/motorista" class="btn-secondary">BI Motorista</a>
           <a href="/bi/vendedor" class="btn-secondary">BI Vendedor</a>
@@ -80,105 +81,42 @@
       </form>
     </header>
 
-    <section class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-2">
-      {{ kpi_card("Paradas Planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
-      {{ kpi_card("Paradas Entregues", kpis.delivered_stops, "SLA " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
+    <section class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+      {{ kpi_card("Paradas planejadas", kpis.planned_stops, "Base do período", "route", "neutral") }}
+      {{ kpi_card("Paradas entregues", kpis.delivered_stops, "SLA conclusão " ~ (kpis.sla_finish|fmt_br_1) ~ "%",
       "check-circle-2", "success" if kpis.sla_finish >= 90 else "warning") }}
-      {{ kpi_card("Devolução % (rotas)", (kpis.return_rate_rotas|fmt_br_1) ~ "%",
-      kpis.rotas_devolucao_count ~ " / " ~ kpis.rotas_concluidas_count ~ " rotas concluídas (Central) · sobre planejado " ~ (kpis.return_rate_qtd|fmt_br_1) ~ "%",
-      "undo-2", "danger" if kpis.return_rate_rotas >= 4 else "warning" if kpis.return_rate_rotas >= 2 else "success") }}
-      {{ kpi_card("Devolução % Valor", (kpis.return_rate_value|fmt_br_1) ~ "%", "Meta financeira ≤ 2,0%",
-      "percent", "danger" if kpis.return_rate_value >= 4 else "warning" if kpis.return_rate_value >= 2 else "success") }}
-      {{ kpi_card("Valor Devolvido", kpis.valor_total_devolvido|fmt_br_moeda, "Excel até fechamento; sistema após", "wallet", "danger" if
-      kpis.return_rate_value >= 2 else "warning" if kpis.valor_total_devolvido > 0 else "neutral") }}
-      {{ kpi_card("% Acima de R$300", (kpis.devolucoes_acima_300_pct|fmt_br_1) ~ "%",
-      kpis.devolucoes_acima_300_count ~ " linhas", "alert-triangle", "warning" if kpis.devolucoes_acima_300_pct >= 35
-      else "success") }}
-      {{ kpi_card("Tempo Médio", kpis.avg_duration_m|fmt_br_duracao, "Rotas finalizadas", "timer", "warning" if
-      kpis.avg_duration_m >= 120 else "success") }}
-      {{ kpi_card("Risco Prox. Turno", kpis.risk_label, "Prev. devolucao em valor " ~
-      (kpis.forecast_next_return_rate_value|fmt_br_1) ~ "%", "shield-alert", kpis.risk_severity) }}
+      {{ kpi_card("Ainda não iniciadas", kpis.pending_stops, "Planejadas sem saída (pendentes)", "clock", "warning" if kpis.pending_stops > 0 else "success") }}
+      {{ kpi_card("Taxa de início", (kpis.sla_start|fmt_br_1) ~ "%", "Paradas com rota iniciada ÷ planejadas", "play-circle", "success" if kpis.sla_start >= 85 else "warning") }}
+      {{ kpi_card("KG entregues", kpis.realized_kg|fmt_br_2 ~ " kg", "De " ~ (kpis.planned_kg|fmt_br_2) ~ " kg planejados", "weight", "neutral") }}
+      {{ kpi_card("Tempo médio", kpis.avg_duration_m|fmt_br_duracao, "Rotas finalizadas (mobile)", "timer", "warning" if kpis.avg_duration_m >= 120 else "success") }}
     </section>
 
-    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      {{ chart_card("Tendência diária", "Quantidade e valor devolvido + médias móveis 7/30", "trendChart") }}
-      {{ chart_card("Motivos de devolução", "Valor por motivo e motorista. Passe o mouse para ver qtd, valor e % sobre
-      valor real.", "motivosChart") }}
-    </section>
-
-    <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-      {{ chart_card("Responsabilidade", "Mercado / Comercial / Logística", "respChart") }}
-      {{ chart_card("Cluster x Valor", "Concentração financeira por faixa", "clusterChart") }}
-      {{ chart_card("Eficiência por motorista", "Comparativo tático", "driverChart") }}
+    <section class="surface-shadow bi-card mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-4">
+      <div class="min-w-0">
+        <p class="text-section">Devoluções no período</p>
+        <p class="text-caption mt-1">Motivos, responsabilidade, valor, cadastro e tendências — use o painel dedicado.</p>
+        <p class="text-body mt-2 text-slate-600 dark:text-slate-300">{{ kpis.rotas_devolucao_count }} / {{ kpis.rotas_concluidas_count }} rotas com devolução (Central) · {{ kpis.valor_total_devolvido|fmt_br_moeda }} em valor devolvido.</p>
+      </div>
+      <a href="/bi/devolucoes?date_from={{ filters.date_from }}&amp;date_to={{ filters.date_to }}{% if filters.driver_id %}&amp;motorista_id={{ filters.driver_id }}{% endif %}" class="btn-primary shrink-0">Abrir BI Devoluções</a>
     </section>
 
     <section class="grid grid-cols-1 gap-4">
-      <section class="surface-shadow bi-card chart-card" data-chart-card="1" data-chart-id="driverRespChart">
-        <div class="bi-card-head bi-card-head-between">
-          <div>
-            <h3 class="text-section">Motorista x Responsabilidade x Valor</h3>
-            <p class="text-caption mt-1">Valor devolvido por motorista e responsabilidade. % devolução sobre valor real
-              (R$).</p>
-          </div>
-          <div class="flex items-center gap-2">
-            <button class="icon-wrap-sm" type="button" title="Ajuda">
-              <i data-lucide="info" class="w-4 h-4"></i>
-            </button>
-            <button class="icon-wrap-sm chart-expand-btn" type="button" title="Expandir gráfico"
-              data-chart-expand="driverRespChart">
-              <i data-lucide="maximize-2" class="w-4 h-4"></i>
-            </button>
-          </div>
-        </div>
-        <div class="mt-4" style="height: 360px;">
-          <canvas id="driverRespChart"></canvas>
-        </div>
-      </section>
-    </section>
-
-    <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      <section class="surface-shadow bi-card">
-        <div class="bi-card-head">
-          <div class="icon-wrap"><i data-lucide="siren" class="w-4 h-4"></i></div>
-          <h3 class="text-section">Anomalias detectadas</h3>
-        </div>
-        <div class="mt-4 space-y-2">
-          {% for item in anomaly_flags %}
-          <div class="insight-row insight-warning">{{ item }}</div>
-          {% else %}
-          <div class="insight-row">Nenhuma anomalia relevante no período.</div>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="surface-shadow bi-card">
-        <div class="bi-card-head">
-          <div class="icon-wrap"><i data-lucide="bot" class="w-4 h-4"></i></div>
-          <h3 class="text-section">Recomendações</h3>
-        </div>
-        <div class="mt-4 space-y-2">
-          {% for rec in recommendations %}
-          <div class="insight-row">{{ loop.index }}. {{ rec }}</div>
-          {% endfor %}
-        </div>
-      </section>
+      {{ chart_card("Volume diário de entregas", "Paradas planejadas × entregues × iniciadas por dia (competência)", "deliveryVolumeChart") }}
     </section>
 
     <div class="exec-hidden">
-      {% call table_section("Painel tático por motorista", "Clique no motorista para drill-down no período.",
+      {% call table_section("Desempenho por motorista (entregas)", "Clique no motorista para drill-down operacional no período.",
       "tacticalTable") %}
       <thead>
         <tr>
           <th>Motorista</th>
           <th>Paradas</th>
           <th>Eficiência</th>
-          <th>Devolução %</th>
           <th>KG pl.</th>
-          <th>KG real.</th>
-          <th>R$ devolvido</th>
-          <th>R$ % do valor</th>
+          <th>KG entregue</th>
           <th>Reaberturas</th>
           <th>Tempo médio</th>
+          <th>Devoluções</th>
         </tr>
       </thead>
       <tbody>
@@ -209,34 +147,27 @@
           <td><a class="table-link"
               href="/bi/delivery?{{ filters_query }}&detail_driver_id={{ row.driver_id }}#drilldown-section">{{
               row.driver_name }}</a></td>
-          <td>{% if row.planned_stops > 0 %}{{ row.delivered_stops }}/{{ row.planned_stops }}{% else %}— ({{
-            row.returned_stops }} dev.){% endif %}</td>
+          <td>{% if row.planned_stops > 0 %}{{ row.delivered_stops }}/{{ row.planned_stops }}{% else %}—{% endif %}</td>
           <td class="{{ 'tone-danger' if row.efficiency < 70 else 'tone-success' }}">{{ row.efficiency|fmt_br_1 }}%
           </td>
-          <td class="{{ 'tone-warning' if row.return_rate >= 10 else '' }}">{{ row.return_rate|fmt_br_1 }}%</td>
           <td>{{ row.planned_kg|fmt_br_2 }}</td>
           <td>{{ row.realized_kg|fmt_br_2 }}</td>
-          <td>{{ row.returned_value|fmt_br_moeda }}</td>
-          <td>{{ row.returned_value_pct|fmt_br_1 }}%</td>
           <td>{{ row.reopen_count }}</td>
           <td>{{ row.avg_duration|fmt_br_duracao }}</td>
+          <td><a class="table-link" href="/bi/devolucoes?date_from={{ filters.date_from }}&amp;date_to={{ filters.date_to }}&amp;motorista_id={{ row.driver_id }}">Ver</a></td>
         </tr>
         {% endfor %}
         {% set total_efficiency = ((ns.delivered_stops / ns.planned_stops) * 100) if ns.planned_stops > 0 else 0 %}
-        {% set total_return_rate = ((ns.returned_stops / ns.planned_stops) * 100) if ns.planned_stops > 0 else (100 if ns.returned_stops > 0 else 0) %}
-        {% set total_returned_value_pct = ((ns.returned_value / ns.planned_value) * 100) if ns.planned_value > 0 else 0 %}
         {% set total_avg_duration = (ns.duration_weight_sum / ns.realized_stops) if ns.realized_stops > 0 else 0 %}
         <tr class="table-total-row">
           <td>Total</td>
           <td>{{ ns.delivered_stops }}/{{ ns.planned_stops }}</td>
           <td class="{{ 'tone-danger' if total_efficiency < 70 else 'tone-success' }}">{{ total_efficiency|fmt_br_1 }}%</td>
-          <td class="{{ 'tone-warning' if total_return_rate >= 10 else '' }}">{{ total_return_rate|fmt_br_1 }}%</td>
           <td>{{ ns.planned_kg|fmt_br_2 }}</td>
           <td>{{ ns.realized_kg|fmt_br_2 }}</td>
-          <td>{{ ns.returned_value|fmt_br_moeda }}</td>
-          <td>{{ total_returned_value_pct|fmt_br_1 }}%</td>
           <td>{{ ns.reopen_count }}</td>
           <td>{{ total_avg_duration|fmt_br_duracao }}</td>
+          <td>—</td>
         </tr>
       </tbody>
       {% endcall %}
@@ -468,233 +399,42 @@
     const h = Math.floor(n / 60), mn = n % 60;
     return h + ':' + String(mn).padStart(2, '0') + ' hr';
   }
-  const trend = (chartData.trend && chartData.trend) || {};
-  const trendDates = trend.dates || [];
-  const trendLabels = trendDates.map(d => String(dataBR(d) !== '-' ? dataBR(d) : (d != null ? String(d) : '')));
-  const trendQtd = (trend.qtd || []).map(toChartNum).map(v => v !== null ? v : 0);
-  const trendValor = (trend.valor || []).map(toChartNum).map(v => v !== null ? v : 0);
-  const trendMa7 = (trend.ma7 || []).map(toChartNum);
-  const trendMa30 = (trend.ma30 || []).map(toChartNum);
-  const trendMeta2Pct = (trend.meta_2pct || []).map(toChartNum);
-  const trendLastMonth = (trend.last_month_valor || []).map(toChartNum);
-  const trendTotalValor = trendValor.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
-  safeChart('trendChart', {
+  const dd = Array.isArray(chartData.delivery_daily) ? chartData.delivery_daily : [];
+  const ddLabels = dd.map((row) => dataBR(row.date));
+  const isoByIdx = dd.map((row) => String(row.date || '').slice(0, 10));
+  safeChart('deliveryVolumeChart', {
     type: 'line',
     data: {
-      labels: trendLabels,
+      labels: ddLabels,
       datasets: [
-        { label: 'Qtd devoluções', data: trendQtd, borderColor: String(cWarn), backgroundColor: 'transparent', tension: .3, yAxisID: 'y', pointRadius: 4, pointHoverRadius: 6 },
-        { label: 'Valor devolvido', data: trendValor, borderColor: String(cDanger), backgroundColor: 'transparent', tension: .3, yAxisID: 'y1', pointRadius: 4, pointHoverRadius: 6 },
-        { label: 'Média 7', data: trendMa7, borderColor: String(cPrimary), borderDash: [5, 5], tension: .3, yAxisID: 'y1', pointRadius: 3, pointHoverRadius: 5 },
-        { label: 'Média 30', data: trendMa30, borderColor: String(cSuccess), borderDash: [3, 3], tension: .3, yAxisID: 'y1', pointRadius: 3, pointHoverRadius: 5 },
-        { label: 'Meta 2% (R$)', data: trendMeta2Pct, borderColor: '#22c55e', backgroundColor: 'transparent', borderDash: [10, 4], tension: .2, yAxisID: 'y1', pointRadius: 2, pointHoverRadius: 4 },
-        { label: 'Mês passado (R$)', data: trendLastMonth, borderColor: '#a78bfa', backgroundColor: 'transparent', borderDash: [2, 4], tension: .25, yAxisID: 'y1', pointRadius: 3, pointHoverRadius: 5 }
+        { label: 'Planejadas', data: dd.map((r) => Number(r.planned_stops || 0)), borderColor: String(cMuted), backgroundColor: 'transparent', tension: 0.25, pointRadius: 3 },
+        { label: 'Entregues', data: dd.map((r) => Number(r.delivered_stops || 0)), borderColor: String(cSuccess), backgroundColor: 'rgba(16,185,129,.12)', fill: true, tension: 0.25, pointRadius: 3 },
+        { label: 'Iniciadas', data: dd.map((r) => Number(r.started_stops || 0)), borderColor: String(cPrimary), backgroundColor: 'transparent', tension: 0.2, borderDash: [4, 4], pointRadius: 2 }
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { labels: { color: cMuted } },
         tooltip: {
           callbacks: {
-            label: (ctx) => {
-              if (ctx.dataset.yAxisID === 'y1') {
-                const v = Number(ctx.raw || 0);
-                const pct = trendTotalValor > 0 ? ((v / trendTotalValor) * 100).toFixed(1).replace('.', ',') : '0';
-                return `${ctx.dataset.label}: ${Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${pct}% do período)`;
-              }
-              return ctx.dataset.label + ': ' + (Number(ctx.raw || 0)).toLocaleString('pt-BR');
+            title: (items) => {
+              const i = items && items[0] ? items[0].dataIndex : 0;
+              const iso = isoByIdx[i] || '';
+              return iso ? `Dia ${dataBR(iso)}` : '';
             }
           }
         }
       },
       scales: {
-        x: { type: 'category', display: true, ticks: { color: cMuted }, grid: { color: cBorder } },
-        y: { type: 'linear', display: true, position: 'left', beginAtZero: true, ticks: { color: cMuted }, grid: { color: cBorder } },
-        y1: { type: 'linear', display: true, position: 'right', beginAtZero: true, ticks: { color: cMuted }, grid: { drawOnChartArea: false, color: cBorder } }
+        x: { ticks: { color: cMuted, maxRotation: 45 }, grid: { color: cBorder } },
+        y: { beginAtZero: true, ticks: { color: cMuted, precision: 0 }, grid: { color: cBorder }, title: { display: true, text: 'Paradas', color: cMuted } }
       }
     }
   });
 
-  const md = (chartData && chartData.motivos_detailed) ? chartData.motivos_detailed : [];
-  const motDrivers = (chartData && chartData.motivos_drivers) ? chartData.motivos_drivers : [];
-  const driverColors = ['#3b82f6', '#f59e0b', '#ef4444', '#10b981', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
-  safeChart('motivosChart', {
-    type: 'bar',
-    data: {
-      labels: md.map(x => String(safeStr(x.motivo))),
-      datasets: motDrivers.map((drv, i) => ({
-        label: String(safeStr(drv)),
-        data: md.map(m => (m.por_motorista && m.por_motorista[drv]) ? Number(m.por_motorista[drv].valor) : 0),
-        backgroundColor: String(driverColors[i % driverColors.length] || cPrimary),
-        stack: 'stack0'
-      }))
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      indexAxis: 'y',
-      plugins: {
-        legend: { labels: { color: cMuted } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const motivoIdx = ctx.dataIndex;
-              const driverIdx = ctx.datasetIndex;
-              const m = md[motivoIdx];
-              const drv = motDrivers[driverIdx];
-              if (!m || !m.por_motorista || !drv) return '';
-              const d = m.por_motorista[drv];
-              if (!d) return '';
-              const qtd = Number(d.qtd || 0).toLocaleString('pt-BR');
-              const valor = Number(d.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-              const pct = Number(d.pct_valor_real || 0).toFixed(1).replace('.', ',');
-              return `${drv} | Qtd: ${qtd} | Valor: ${valor} | % valor real: ${pct}%`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: cMuted } },
-        y: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true }
-      }
-    }
-  });
-
-  function aggregateClientsByResp(resp, rows) {
-    const r = (rows || []).filter(x => String(x?.responsabilidade || '').trim() === String(resp || '').trim());
-    const acc = new Map();
-    r.forEach(x => {
-      const client = String(x?.client_name || 'Sem cliente').trim() || 'Sem cliente';
-      const item = acc.get(client) || { qtd: 0, valor: 0 };
-      item.qtd += 1;
-      item.valor += Number(x?.returned_value) || 0;
-      acc.set(client, item);
-    });
-    const total = Array.from(acc.values()).reduce((s, x) => s + x.valor, 0) || 1;
-    return Array.from(acc.entries()).map(([client, x]) => ({ client, qtd: x.qtd, pctValor: (x.valor / total) * 100 })).sort((a, b) => b.pctValor - a.pctValor).slice(0, 5);
-  }
-  const respData = chartData.responsabilidade || [];
-  safeChart('respChart', {
-    type: 'doughnut',
-    data: {
-      labels: respData.map(x => String(safeStr(x.responsabilidade))),
-      datasets: [{ data: respData.map(x => { const v = toChartNum(x.valor); return v !== null ? v : 0; }), backgroundColor: [String(cPrimary), String(cWarn), String(cDanger), String(cSuccess)] }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: cMuted } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const idx = ctx?.dataIndex;
-              if (idx == null) return '';
-              const total = respData.reduce((s, x) => s + Number(x?.valor || 0), 0) || 1;
-              const item = respData[idx] || {};
-              const valor = Number(item.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-              const pct = ((Number(item.valor || 0) / total) * 100).toFixed(1).replace('.', ',');
-              return `${String(item.responsabilidade || '')}: ${valor} (${pct}% do valor)`;
-            },
-            afterBody: (items) => {
-              const idx = items?.[0]?.dataIndex;
-              if (idx == null) return '';
-              const label = (respData[idx] && respData[idx].responsabilidade) != null ? String(respData[idx].responsabilidade) : '';
-              if (!label) return '';
-              const ranked = aggregateClientsByResp(label, detailRows);
-              if (!ranked.length) return 'Sem clientes para esta responsabilidade.';
-              return ranked.map(rr => `${rr.qtd} - ${rr.client} - ${Number(rr.pctValor || 0).toFixed(1).replace('.', ',')}% do valor`).join('\n');
-            }
-          }
-        }
-      }
-    }
-  });
-
-  const clusterData = chartData.cluster || [];
-  const clusterTotalValor = clusterData.reduce((s, x) => s + (Number(x?.valor || 0)), 0) || 1;
-  safeChart('clusterChart', {
-    type: 'bar',
-    data: {
-      labels: clusterData.map(x => String(safeStr(x.cluster))),
-      datasets: [{ label: 'Valor devolvido', data: clusterData.map(x => { const v = toChartNum(x.valor); return v !== null ? v : 0; }), backgroundColor: String(cPrimary) }]
-    },
-    options: {
-      ...chartBaseOpt(),
-      plugins: {
-        ...chartBaseOpt().plugins,
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const v = Number(ctx.raw || 0);
-              const pct = ((v / clusterTotalValor) * 100).toFixed(1).replace('.', ',');
-              return `${Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} (${pct}% do valor total)`;
-            }
-          }
-        }
-      }
-    }
-  });
-
-  const driversData = chartData.drivers || [];
-  safeChart('driverChart', {
-    type: 'bar',
-    data: {
-      labels: driversData.map(x => String(safeStr(x.driver))),
-      datasets: [
-        { label: 'Eficiência %', data: driversData.map(x => { const v = toChartNum(x.eficiencia); return v !== null ? v : 0; }), backgroundColor: String(cSuccess) },
-        { label: 'Devolução % (qtd)', data: driversData.map(x => { const v = toChartNum(x.devolucao_pct); return v !== null ? v : 0; }), backgroundColor: String(cWarn) },
-        { label: 'Devolução % (valor)', data: driversData.map(x => { const v = toChartNum(x.devolucao_valor_pct); return v !== null ? v : 0; }), backgroundColor: String(cDanger) }
-      ]
-    },
-    options: chartBaseOpt()
-  });
-
-  const dr = (chartData && chartData.driver_resp_valor) ? chartData.driver_resp_valor : {};
-  const respColors = [cPrimary, cWarn, cDanger, cSuccess];
-  const drTotalValor = (dr.datasets || []).reduce((s, ds) => {
-    return s + (Array.isArray(ds.data) ? ds.data.reduce((a, v) => a + (Number(v) || 0), 0) : 0);
-  }, 0) || 1;
-  safeChart('driverRespChart', {
-    type: 'bar',
-    data: {
-      labels: (dr.drivers || []).map(d => String(safeStr(d))),
-      datasets: (dr.datasets || []).map((ds, i) => ({
-        label: String(safeStr(ds.resp)),
-        data: Array.isArray(ds.data) ? ds.data.map(v => { const n = toChartNum(v); return n !== null ? n : 0; }) : [],
-        backgroundColor: String(respColors[i % respColors.length] || cPrimary),
-        stack: 'stack0'
-      }))
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      indexAxis: 'y',
-      plugins: {
-        legend: { labels: { color: cMuted } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const v = Number(ctx.raw || 0);
-              if (v === 0) return ctx.dataset.label + ': R$ 0,00';
-              const pct = ((v / drTotalValor) * 100).toFixed(1).replace('.', ',');
-              return ctx.dataset.label + ': ' + Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + ' (' + pct + '% do total)';
-            },
-            afterBody: (items) => {
-              const idx = items[0]?.dataIndex;
-              if (idx == null || !dr.pct_devolucao_valor) return '';
-              const pct = Number(dr.pct_devolucao_valor[idx] || 0).toFixed(1).replace('.', ',');
-              return `% Devolução (valor real): ${pct}%`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true, title: { display: true, text: 'Valor devolvido (R$)', color: cMuted } },
-        y: { ticks: { color: cMuted }, grid: { color: cBorder }, stacked: true }
-      }
-    }
-  });
-
-  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', drillStack: [] };
+  let state = { rows: [...detailRows], page: 1, pageSize: 30, sortKey: 'date', sortDir: 'desc', search: '', drillStack: [], deliveryIsoByIdx: isoByIdx, externalFilter: null };
   const drillBody = document.getElementById('drillBody');
   const drillSummary = document.getElementById('drillSummary');
   const searchInput = document.getElementById('drillSearch');
@@ -728,6 +468,7 @@
     };
 
     const filtered = state.rows.filter(r => {
+      if (state.externalFilter && typeof state.externalFilter === 'function' && !state.externalFilter(r)) return false;
       if (!state.search) return true;
       const k = `${r.driver_name} ${r.client_name} ${r.status} ${r.order_number} ${r.plate}`.toLowerCase();
       return k.includes(state.search);
@@ -791,8 +532,60 @@
       interpretation: { good: "Acima da meta de SLA e estável.", attention: "Queda pontual em alguns dias/turnos.", critical: "Fica abaixo da meta por vários períodos." },
       operationalUse: "Atuar no turno com baixa entrega e corrigir causa no mesmo dia.",
       executiveUse: "Revisar produtividade por base, equipe e capacidade.",
-      relatedKpis: ["Paradas Planejadas", "Tempo Médio", "Taxa Devolução"],
+      relatedKpis: ["Paradas Planejadas", "Tempo Médio", "BI Devoluções"],
       quickTip: "Se entregas caem e tempo médio sobe, o problema costuma ser rota/processo."
+    },
+    "volume diario de entregas": {
+      summary: "Mostra dia a dia o ritmo de planejamento versus execução.",
+      whatIs: "Curvas de paradas planejadas, entregues (concluídas sem devolução) e iniciadas.",
+      howCalculated: "Agrega por data de competência as rotas de entrega filtradas.",
+      formulaText: "Por dia: soma de paradas planejadas; entregues = concluídas − devoluções; iniciadas = rotas com saída registrada.",
+      acronyms: [],
+      practicalMeaning: "Ajuda a ver gargalo de expedição (muitas planejadas e poucas iniciadas) ou queda de fechamento (muitas iniciadas e poucas entregues).",
+      interpretation: { good: "Entregues acompanham o planejado.", attention: "Abertura entre iniciadas e entregues.", critical: "Planejado alto com entregues estáveis em baixa." },
+      operationalUse: "Agir no turno com maior defasagem entre as linhas.",
+      executiveUse: "Ajustar capacidade e prioridade de rota.",
+      relatedKpis: ["Paradas entregues", "Taxa de início", "BI Devoluções"],
+      quickTip: "Clique no ponto do dia para filtrar o drill-through operacional naquela data."
+    },
+    "ainda nao iniciadas": {
+      summary: "Paradas planejadas que ainda não tiveram rota iniciada.",
+      whatIs: "Contagem de paradas em status pendente (sem saída) no período filtrado.",
+      howCalculated: "Planejadas menos paradas com status iniciada, entregue ou devolução.",
+      formulaText: "Pendentes = planejadas − iniciadas (na prática: paradas sem saída).",
+      acronyms: [],
+      practicalMeaning: "Indica fila na base ou atraso de liberação.",
+      interpretation: { good: "Zero ou baixo ao fim do turno.", attention: "Acúmulo em alguns dias.", critical: "Acúmulo persistente." },
+      operationalUse: "Priorizar liberação e conferência de carga.",
+      executiveUse: "Rever processo de despacho.",
+      relatedKpis: ["Taxa de início", "Paradas entregues"],
+      quickTip: "Cruze com turno e motorista no drill-through."
+    },
+    "taxa de inicio": {
+      summary: "Percentual de paradas que já saíram para rota.",
+      whatIs: "Mede aderência ao início da execução logística.",
+      howCalculated: "Paradas com status iniciada, entregue ou devolução ÷ paradas planejadas.",
+      formulaText: "(Iniciadas no sentido amplo ÷ planejadas) × 100.",
+      acronyms: [],
+      practicalMeaning: "Se é alto e entregues são baixas, o gargalo está no meio da rota; se é baixo, a base não está saindo.",
+      interpretation: { good: "Compatível com operação saudável.", attention: "Oscila por turno.", critical: "Muito abaixo da capacidade esperada." },
+      operationalUse: "Corrigir fila de liberação no mesmo dia.",
+      executiveUse: "Ajustar escala e processo de partida.",
+      relatedKpis: ["Ainda não iniciadas", "Paradas entregues"],
+      quickTip: "Compare com o gráfico diário no mesmo período."
+    },
+    "kg entregues": {
+      summary: "Peso efetivamente entregue versus planejado.",
+      whatIs: "Soma de kg entregues nas paradas concluídas com entrega (exclui devolução do peso entregue).",
+      howCalculated: "Soma kg realizados nas rotas concluídas; denominador é o planejado.",
+      formulaText: "Σ kg entregues no período; legenda mostra total planejado.",
+      acronyms: [],
+      practicalMeaning: "Indica perda de carga útil ou divergência de carregamento.",
+      interpretation: { good: "Próximo do planejado.", attention: "Diferença moderada.", critical: "Grande perda recorrente." },
+      operationalUse: "Auditar carregamento e conferência.",
+      executiveUse: "Rever política de tolerância de peso por cliente.",
+      relatedKpis: ["Paradas entregues", "Tempo médio"],
+      quickTip: "Valores muito abaixo do planejado merecem checagem de status nas rotas."
     },
     "taxa devolucao": {
       summary: "Mostra o percentual de entregas que voltaram como devolução.",
@@ -956,12 +749,7 @@
   };
 
   const helpByChartId = {
-    trendChart: "tendencia diaria",
-    motivosChart: "motivos de devolucao",
-    respChart: "responsabilidade",
-    clusterChart: "cluster x valor",
-    driverChart: "eficiencia por motorista",
-    driverRespChart: "motorista x responsabilidade x valor"
+    deliveryVolumeChart: "volume diario de entregas"
   };
 
   const normalizeHelpKey = (v) => String(v || '')

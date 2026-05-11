@@ -5,46 +5,23 @@
   const state = window.__biState;
   const renderDrill = window.__biRenderDrill;
 
-  if (!state || !renderDrill || typeof Chart === 'undefined') return;
+  if (!state || !renderDrill) return;
 
-  const chartIds = ["trendChart", "motivosChart", "respChart", "clusterChart", "driverChart", "driverRespChart", "driverClientCorrChart", "diaSemanaChart"];
+  const chartIds = ["deliveryVolumeChart"];
   const chartTitles = {
-    trendChart: "Tendência diária",
-    diaSemanaChart: "Dia da semana × Devoluções",
-    motivosChart: "Motivos de devolução",
-    respChart: "Responsabilidade",
-    clusterChart: "Cluster x Valor",
-    driverChart: "Eficiência por motorista",
-    driverRespChart: "Motorista x Responsabilidade x Valor",
-    driverClientCorrChart: "Correlação motorista x cliente x devoluções"
+    deliveryVolumeChart: "Volume diário de entregas",
   };
   const chartAllowedTypes = {
-    trendChart: ["line", "bar"],
-    diaSemanaChart: ["bar", "line"],
-    motivosChart: ["bar", "doughnut"],
-    respChart: ["doughnut", "bar"],
-    clusterChart: ["bar", "doughnut"],
-    driverChart: ["bar", "line"],
-    driverRespChart: ["bar", "line"],
-    driverClientCorrChart: ["bubble", "scatter"]
+    deliveryVolumeChart: ["line", "bar"],
   };
 
   const kpiDefs = {
-    "Paradas Planejadas": ["Volume previsto de paradas no período.", "Σ rotas planejadas", ">=95% realização"],
-    "Paradas Entregues": ["Paradas concluídas no período.", "Σ concluídas ÷ Σ planejadas", "SLA >= 90%"],
-    "Taxa Devolução": ["Legado: taxa sobre paradas planejadas.", "(devoluções ÷ planejadas) x 100", "Ver também % rotas"],
-    "Taxa Devolucao": ["Legado: taxa sobre paradas planejadas.", "(devoluções ÷ planejadas) x 100", "Ver também % rotas"],
-    "Devolução % (rotas)": [
-      "Indicador operacional oficial (Central, TV, informativo).",
-      "(rotas devolução ÷ rotas concluídas: entregue + devolução) × 100; exclui encerramento tardio automático como devolução",
-      "Meta operacional ≤ 2%",
-    ],
-    "Valor Devolvido": ["Impacto financeiro das devoluções.", "Σ valor devolvido", "Tendência de queda"],
-    "Devolução % Valor": ["Percentual financeiro devolvido sobre o valor planejado.", "(valor devolvido ÷ valor planejado) x 100", "< 2%"],
-    "% Acima de R$300": ["Risco financeiro por ticket alto.", "(devoluções>=300 ÷ total) x 100", "< 35%"],
-    "Tempo Médio": ["Agilidade de conclusão de rotas.", "Média de duração das rotas", "< 120 min"],
-    "Risco Próx. Turno": ["Risco preditivo operacional.", "Sinal derivado de tendência + anomalias", "Controlado"]
-    ,"Risco Prox. Turno": ["Risco preditivo operacional.", "Sinal derivado de tendência + anomalias", "Controlado"]
+    "Paradas planejadas": ["Volume previsto de paradas no período.", "Σ rotas planejadas", "Base para SLA"],
+    "Paradas entregues": ["Paradas concluídas com entrega (não devolução).", "Σ entregues ÷ Σ planejadas", "SLA >= 90%"],
+    "Ainda não iniciadas": ["Fila na base: planejadas sem saída.", "Planejadas − com rota iniciada", "Tender a zero ao fim do turno"],
+    "Taxa de início": ["Paradas que já saíram para rota.", "Iniciadas ÷ planejadas", "Compatível com operação"],
+    "KG entregues": ["Peso entregue no período.", "Σ kg entregues; denominador = planejado", "Próximo do planejado"],
+    "Tempo médio": ["Agilidade de conclusão (mobile).", "Média ponderada das rotas finalizadas", "< 120 min"],
   };
 
   let fullscreenChart = null;
@@ -81,6 +58,7 @@
   }
 
   function getChart(id) {
+    if (typeof Chart === "undefined") return null;
     const canvas = byId(id);
     if (!canvas) return null;
     return Chart.getChart(canvas);
@@ -93,16 +71,29 @@
   }
 
   function sparklineSeries(title) {
-    const trend = window.__biChartData?.trend || { valor: [], qtd: [] };
-    if (title === "Valor Devolvido") return trend.valor || [];
-    if (title === "Taxa Devolução" || title === "Taxa Devolucao" || title === "Devolução % (rotas)") return trend.qtd || [];
-    if (title === "Devolução % Valor") return trend.valor || [];
-    return trend.valor || trend.qtd || [];
+    const dd = window.__biChartData?.delivery_daily || [];
+    if (title === "Paradas planejadas") return dd.map((x) => Number(x.planned_stops || 0));
+    if (title === "Paradas entregues") return dd.map((x) => Number(x.delivered_stops || 0));
+    if (title === "Ainda não iniciadas") {
+      return dd.map((x) => Math.max(0, Number(x.planned_stops || 0) - Number(x.started_stops || 0)));
+    }
+    if (title === "Taxa de início") {
+      return dd.map((x) => {
+        const p = Number(x.planned_stops || 0);
+        return p > 0 ? (Number(x.started_stops || 0) / p) * 100 : 0;
+      });
+    }
+    if (title === "KG entregues") return dd.map((x) => Number(x.realized_kg || 0));
+    if (title === "Tempo médio") {
+      const trend = window.__biChartData?.trend || { valor: [], qtd: [] };
+      return trend.valor || trend.qtd || [];
+    }
+    return dd.map((x) => Number(x.delivered_stops || 0));
   }
 
   function createSparkline(series) {
     const canvas = byId("kpiSparkline");
-    if (!canvas) return;
+    if (!canvas || typeof Chart === "undefined") return;
     if (kpiSparklineChart) kpiSparklineChart.destroy();
     kpiSparklineChart = new Chart(canvas, {
       type: "line",
@@ -135,10 +126,10 @@
     createSparkline(series);
 
     const alerts = [];
-    if ((title === "Taxa Devolução" || title === "Taxa Devolucao") && toNum(value) >= 10) alerts.push("Taxa sobre planejadas acima do limite recomendado (indicador auxiliar).");
-    if (title === "Devolução % (rotas)" && toNum(value) >= 2) alerts.push("Percentual operacional acima da meta de 2% (rotas concluídas).");
-    if (title === "Devolução % Valor" && toNum(value) >= 2) alerts.push("Percentual de devolução em valor acima da meta de 2%.");
-    if (title === "Tempo Médio" && toNum(value) >= 120) alerts.push("Tempo médio acima da janela executiva.");
+    if (title === "Ainda não iniciadas" && toNum(value) >= 8) alerts.push("Muitas paradas ainda sem saída — revisar despacho.");
+    if (title === "Taxa de início" && toNum(value) < 70) alerts.push("Taxa de início abaixo do esperado para o período.");
+    if (title === "Paradas entregues" && toNum(value) < 75) alerts.push("SLA de conclusão abaixo de 75% no card.");
+    if (title === "Tempo médio" && toNum(value) >= 120) alerts.push("Tempo médio acima da janela executiva.");
     if (!alerts.length) alerts.push("Sem alertas críticos para este indicador.");
     byId("kpiAlerts").innerHTML = alerts.map((x) => `<div class="insight-row insight-warning">${x}</div>`).join("");
 
@@ -333,6 +324,21 @@
     const fmtMoeda = (v) => (v != null && Number.isFinite(Number(v))) ? Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
     const fmtPct = (v) => (v != null && Number.isFinite(Number(v))) ? `${Number(v).toFixed(1).replace(".", ",")}%` : "—";
     if (!ds.length) return ["Sem dados suficientes para gerar insights."];
+    if (chartId === "deliveryVolumeChart") {
+      const planned = (ds.find((d) => String(d?.label || "").toLowerCase().includes("planej"))?.data || []).map(Number);
+      const ent = (ds.find((d) => String(d?.label || "").toLowerCase().includes("entreg"))?.data || []).map(Number);
+      const sumP = planned.reduce((a, b) => a + b, 0);
+      const sumE = ent.reduce((a, b) => a + b, 0);
+      out.push(`No período: ${sumP} paradas planejadas e ${sumE} entregues.`);
+      if (labels.length && planned.length === labels.length) {
+        let best = 0;
+        for (let i = 1; i < planned.length; i += 1) {
+          if ((ent[i] / Math.max(1, planned[i])) > (ent[best] / Math.max(1, planned[best]))) best = i;
+        }
+        out.push(`Melhor dia relativo (entregues/planejado): ${labels[best] || "-"}.`);
+      }
+      return out;
+    }
     if (chartId === "diaSemanaChart") {
       const qtd = (ds[0]?.data || []).map(Number);
       const valor = (ds[1]?.data || []).map(Number);
@@ -431,20 +437,26 @@
         : c.data.labels?.[idx];
       let fn = null;
       let crumbLabel = label;
-      if (id !== "driverClientCorrChart" && label == null) return;
-      if (id === "trendChart") fn = (r) => r.date === label;
-      if (id === "motivosChart") fn = (r) => r.motivo === String(label);
-      if (id === "respChart") fn = (r) => r.responsabilidade === label;
-      if (id === "clusterChart") fn = (r) => r.cluster === label;
-      if (id === "driverChart") fn = (r) => r.driver_name === label;
-      if (id === "driverRespChart") fn = (r) => r.driver_name === label;
-      if (id === "driverClientCorrChart" && point && typeof point === "object") {
+      if (id === "deliveryVolumeChart") {
+        const iso = (state.deliveryIsoByIdx || [])[idx];
+        if (!iso) return;
+        fn = (r) => String(r.date || "").slice(0, 10) === String(iso).slice(0, 10);
+        crumbLabel = String(iso).slice(0, 10);
+      } else if (id === "driverClientCorrChart" && point && typeof point === "object") {
         const driver = String(point.driver || "").trim();
         const client = String(point.client || "").trim();
         fn = (r) =>
           String(r.driver_name || "").trim() === driver &&
           String(r.client_name || "").trim() === client;
         crumbLabel = `${driver} x ${client}`;
+      } else {
+        if (label == null) return;
+        if (id === "trendChart") fn = (r) => r.date === label;
+        if (id === "motivosChart") fn = (r) => r.motivo === String(label);
+        if (id === "respChart") fn = (r) => r.responsabilidade === label;
+        if (id === "clusterChart") fn = (r) => r.cluster === label;
+        if (id === "driverChart") fn = (r) => r.driver_name === label;
+        if (id === "driverRespChart") fn = (r) => r.driver_name === label;
       }
       if (!fn) return;
       if (id === "respChart") openResponsibilityMotivosModal(label);
@@ -464,7 +476,7 @@
         fullscreenChart = null;
       }
       const canvas = byId("fullscreenChartCanvas");
-      if (canvas) {
+      if (canvas && typeof Chart !== "undefined") {
         const existing = Chart.getChart(canvas);
         if (existing) existing.destroy();
       }
@@ -589,7 +601,13 @@
   }
 
   function populateFullscreenDevolucaoStrip() {
+    const strip = byId("fullscreenDevolucaoStrip");
     const k = window.__biChartData?.kpis;
+    if (fullscreenChartId === "deliveryVolumeChart") {
+      if (strip) strip.classList.add("hidden");
+      return;
+    }
+    if (strip) strip.classList.remove("hidden");
     if (!k) return;
     const fmtMoeda = (v) => (v != null && Number.isFinite(Number(v))) ? Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
     const fmtPct = (v) => (v != null && Number.isFinite(Number(v))) ? `${Number(v).toFixed(2)}%` : "—";
@@ -603,6 +621,7 @@
   }
 
   function openChartFullscreen(chartId) {
+    if (typeof Chart === "undefined") return;
     const src = getChart(chartId);
     if (!src) return;
     fullscreenChartId = chartId;

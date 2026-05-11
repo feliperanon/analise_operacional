@@ -1104,7 +1104,7 @@ def _build_bi_delivery_dataset(
             reopen_heat.setdefault(comp_date, {})
             reopen_heat[comp_date][driver] = reopen_heat[comp_date].get(driver, 0) + int(r.delivery_reopen_count or 0)
 
-        per_day.setdefault(comp_date, {"date": comp_date, "planned_stops": 0, "started_stops": 0, "realized_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "returned_value": 0.0})
+        per_day.setdefault(comp_date, {"date": comp_date, "planned_stops": 0, "started_stops": 0, "realized_stops": 0, "returned_stops": 0, "planned_kg": 0.0, "realized_kg": 0.0, "returned_kg": 0.0, "planned_value": 0.0, "returned_value": 0.0})
         d = per_day[comp_date]
         d["planned_stops"] += 1
         d["planned_kg"] += planned_w
@@ -1113,6 +1113,7 @@ def _build_bi_delivery_dataset(
             d["started_stops"] += 1
         if status_raw in ("devolucao", "entregue"):
             d["realized_stops"] += 1
+            d["realized_kg"] = round(float(d.get("realized_kg") or 0.0) + del_w, 4)
         if status_raw == "devolucao":
             d["returned_stops"] += 1
             d["returned_kg"] += ret_w
@@ -1261,6 +1262,7 @@ def _build_bi_delivery_dataset(
                     "realized_stops": 0,
                     "returned_stops": 0,
                     "planned_kg": 0.0,
+                    "realized_kg": 0.0,
                     "returned_kg": 0.0,
                     "planned_value": 0.0,
                     "returned_value": 0.0,
@@ -1662,7 +1664,20 @@ def _build_bi_delivery_dataset(
         "devolucao_mes_anterior_pct": prev_month_pct,
     }
 
+    delivery_daily_chart = [
+        {
+            "date": str(r.get("date") or ""),
+            "planned_stops": int(r.get("planned_stops") or 0),
+            "delivered_stops": max(0, int(r.get("realized_stops") or 0) - int(r.get("returned_stops") or 0)),
+            "started_stops": int(r.get("started_stops") or 0),
+            "planned_kg": round(float(r.get("planned_kg") or 0.0), 2),
+            "realized_kg": round(float(r.get("realized_kg") or 0.0), 2),
+        }
+        for r in daily_rows
+    ]
+
     chart_payload = {
+        "delivery_daily": delivery_daily_chart,
         "trend": {
             "dates": trend_dates,
             "qtd": trend_qtd,
@@ -4111,8 +4126,8 @@ async def bi_delivery_export(
         c.drawString(
             30,
             y,
-            f"Planejadas: {dataset['kpis']['planned_stops']} | Realizadas: {dataset['kpis']['realized_stops']} | "
-            f"Devolucao rotas: {_fmt_br_1(dataset['kpis']['return_rate_rotas'])}% | Sobre planejado: {_fmt_br_1(dataset['kpis']['return_rate_qtd'])}%",
+            f"Planejadas: {dataset['kpis']['planned_stops']} | Entregues: {dataset['kpis']['delivered_stops']} | "
+            f"SLA conclusao: {_fmt_br_1(dataset['kpis']['sla_finish'])}% | Tempo medio: {dataset['kpis']['avg_duration_m']} min",
         )
         y -= 20
         c.setFont("Helvetica", 8)
@@ -4800,6 +4815,31 @@ def _build_bi_devolucoes_dataset(
     media_por_dia = round(total_qtd / len(days_sorted), 1) if days_sorted else 0.0
     media_valor_dia = round(total_valor / len(days_sorted), 2) if days_sorted else 0.0
 
+    analise_destaque: list[str] = []
+    if top_motivos:
+        m0 = top_motivos[0]
+        analise_destaque.append(
+            f"Motivo mais frequente: {m0.get('motivo', '—')} ({int(m0.get('qtd') or 0)} ocorrências; "
+            f"{_fmt_br_moeda(float(m0.get('valor') or 0))} em valor)."
+        )
+    if float(pct_devolucao_valor or 0) >= 2.0:
+        analise_destaque.append(
+            f"Devolução sobre rotas concluídas em {float(pct_devolucao_valor):.1f}% — acima da referência operacional de 2%."
+        )
+    if resp_breakdown:
+        r0 = resp_breakdown[0]
+        analise_destaque.append(
+            f"Maior volume por responsabilidade: {r0.get('responsabilidade', '—')} "
+            f"({int(r0.get('qtd') or 0)} ocorrências)."
+        )
+    if top_clusters:
+        c0 = top_clusters[0]
+        analise_destaque.append(
+            f"Cluster com mais ocorrências: {c0.get('cluster', '—')} ({int(c0.get('qtd') or 0)})."
+        )
+    if not analise_destaque:
+        analise_destaque.append("Período sem alertas automáticos adicionais; use os filtros e a lista para detalhar.")
+
     filters_query = urlencode({
         k: str(v) for k, v in {
             "date_from": date_from or "",
@@ -4874,6 +4914,7 @@ def _build_bi_devolucoes_dataset(
         "heatmap_dom_dow_json": json.dumps(heatmap_dom_dow, ensure_ascii=False, default=str),
         "dow_labels_json": json.dumps(DOW_LABELS, ensure_ascii=False),
         "rows_detail_json": json.dumps(rows_detail[:500], ensure_ascii=False, default=str),
+        "analise_destaque": analise_destaque,
     }
 
 

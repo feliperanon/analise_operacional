@@ -165,7 +165,19 @@
         <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
           <tr>
             <th class="employees-data-table__th px-2 py-2 pl-3">Cliente</th>
-            <th class="employees-data-table__th px-2 py-2">Data</th>
+            <th class="employees-data-table__th px-2 py-2">
+              <div class="flex items-center gap-1.5">
+                <span>Data</span>
+                <div class="inline-flex flex-col gap-0.5" role="group" aria-label="Ordenar por data do romaneio">
+                  <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-transparent text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-100" :class="listSort === 'romaneio_desc' ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/50 dark:text-blue-300' : ''" title="Mais recentes primeiro (padrão)" :aria-pressed="listSort === 'romaneio_desc'" @click="setListSort('romaneio_desc')">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </button>
+                  <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-transparent text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-100" :class="listSort === 'romaneio_asc' ? 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-600 dark:bg-blue-950/50 dark:text-blue-300' : ''" title="Mais antigas primeiro" :aria-pressed="listSort === 'romaneio_asc'" @click="setListSort('romaneio_asc')">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                  </button>
+                </div>
+              </div>
+            </th>
             <th class="employees-data-table__th px-2 py-2">Motorista</th>
             <th class="employees-data-table__th px-2 py-2">Motivo</th>
             <th class="employees-data-table__th px-2 py-2">Valor</th>

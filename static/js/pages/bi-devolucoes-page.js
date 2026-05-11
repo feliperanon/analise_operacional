@@ -360,24 +360,59 @@
             }),
             datasets: [
               {
-                label: "Devoluções",
+                label: "Qtd. devoluções",
                 data: days.map(function (d) {
-                  return d.qtd;
+                  return Number(d.qtd || 0);
                 }),
                 borderColor: "#2563eb",
-                backgroundColor: "rgba(37,99,235,.12)",
+                backgroundColor: "rgba(37,99,235,.08)",
                 fill: true,
-                tension: 0.25
+                tension: 0.25,
+                yAxisID: "y"
+              },
+              {
+                label: "Valor (R$)",
+                data: days.map(function (d) {
+                  return Number(d.valor || 0);
+                }),
+                borderColor: "#ea580c",
+                backgroundColor: "transparent",
+                tension: 0.2,
+                yAxisID: "y1",
+                pointRadius: 3
               }
             ]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+              legend: {
+                display: true,
+                labels: { boxWidth: 10, font: { size: 11 } }
+              }
+            },
             scales: {
               x: { ticks: { maxRotation: 0, autoSkip: true } },
-              y: { beginAtZero: true, ticks: { precision: 0 } }
+              y: {
+                id: "y",
+                position: "left",
+                beginAtZero: true,
+                ticks: { precision: 0 },
+                title: { display: true, text: "Quantidade" }
+              },
+              y1: {
+                id: "y1",
+                position: "right",
+                beginAtZero: true,
+                grid: { drawOnChartArea: false },
+                ticks: {
+                  callback: function (value) {
+                    return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+                  }
+                },
+                title: { display: true, text: "Valor (R$)" }
+              }
             }
           }
         });

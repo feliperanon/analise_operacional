@@ -11,6 +11,8 @@
       resumoLoading: false,
       errorMsg: "",
       quickView: "all",
+      /** Ordenação da lista: romaneio_desc (padrão, mais recente primeiro), romaneio_asc, escala. */
+      listSort: "romaneio_desc",
       page: 1,
       perPage: 20,
       totalCount: 0,
@@ -98,8 +100,16 @@
         this.filterClientIds = [];
         this.filterAjudanteIds = [];
         this.quickView = "all";
+        this.listSort = "romaneio_desc";
         this.page = 1;
         this.loadAll();
+      },
+
+      setListSort(mode) {
+        if (this.listSort === mode) return;
+        this.listSort = mode;
+        this.page = 1;
+        this.loadList();
       },
 
       formatValor(v) {
@@ -154,6 +164,7 @@
         if (this.filterClientIds.length) url += "&client_ids=" + this.filterClientIds.join(",");
         if (this.filterAjudanteIds.length) url += "&ajudante_ids=" + this.filterAjudanteIds.join(",");
         url += "&status_view=" + encodeURIComponent(this.quickView || "all");
+        url += "&sort=" + encodeURIComponent(this.listSort || "romaneio_desc");
         url += "&page=" + encodeURIComponent(String(this.page || 1));
         url += "&per_page=" + encodeURIComponent(String(this.perPage || 20));
 
@@ -337,6 +348,7 @@
         this.resumoDetailList = [];
         try {
           var url = "/api/devolucoes/avaliar/list?date_from=" + encodeURIComponent(this.dateFrom) + "&date_to=" + encodeURIComponent(this.dateTo) + "&" + paramName + "=" + encodeURIComponent(String(paramValue));
+          url += "&sort=" + encodeURIComponent(this.listSort || "romaneio_desc");
           url += "&page=1&per_page=200";
           var response = await fetch(url, { credentials: "same-origin" });
           var payload = await response.json();
