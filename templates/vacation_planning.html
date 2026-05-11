@@ -267,32 +267,19 @@
           <div class="min-w-0 flex-1">
             <p class="employees-table-panel__kicker">Prioridade operacional</p>
             <h3 id="vp-queue-heading" class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Fila de colaboradores</h3>
-            <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Por padrão, quem exige decisão. Em telas menores, cada linha vira um card com rótulos claros.</p>
+            <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Lista de decisão: nome em destaque, prazo legível e ações claras — sem rolagem horizontal no celular.</p>
           </div>
           <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
             <span id="vp-queue-count" class="employees-text-caption block"></span>
-            <button type="button" id="vp-queue-show-all" class="sys-btn sys-btn--secondary mt-2 hidden text-xs">Ver todos na tabela</button>
+            <button type="button" id="vp-queue-show-all" class="sys-btn sys-btn--secondary mt-2 hidden text-xs">Ver todos na lista</button>
           </div>
         </div>
 
         <div id="vp-queue-loading" class="hidden border-b px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400" role="status">Carregando fila…</div>
         <div id="vp-queue-error" class="hidden border-b px-5 py-6 text-center text-sm text-rose-600 dark:text-rose-400" role="alert"></div>
 
-        <div class="sys-table-wrap sys-table-wrap--x-scroll">
-          <table class="employees-data-table employees-data-table--compact vp-queue-table w-full min-w-full border-collapse text-left text-sm md:min-w-[720px]" id="vpVacationTable">
-            <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
-              <tr>
-                <th class="employees-data-table__th px-3 py-2 pl-5">Colaborador</th>
-                <th class="employees-data-table__th px-2 py-2">Função</th>
-                <th class="employees-data-table__th px-2 py-2">Status</th>
-                <th class="employees-data-table__th px-2 py-2">Prazo</th>
-                <th class="employees-data-table__th px-2 py-2">Prioridade</th>
-                <th class="employees-data-table__th px-2 py-2">Melhor janela</th>
-                <th class="employees-data-table__th px-3 py-2 pr-5 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="vp-rows-body"></tbody>
-          </table>
+        <div id="vp-decision-list-shell" class="vp-decision-list-shell px-3 py-3 sm:px-5 sm:pb-5 sm:pt-2">
+          <div id="vp-decision-list" class="vp-decision-list" role="list" aria-label="Fila de colaboradores"></div>
         </div>
         <div id="vp-queue-empty" class="vp-empty hidden sys-empty-state px-5 py-10 text-center text-sm">Nenhum colaborador neste filtro. Ajuste a busca ou use «Limpar filtros».</div>
       </div>
@@ -302,7 +289,7 @@
       <div class="vp-sim-aside__inner p-4 sm:p-5">
         <h2 class="vp-section-title">Lançar férias</h2>
         <p class="text-xs text-slate-500 dark:text-slate-400 leading-snug">
-          Escolha o colaborador e o período. <strong>Lançar férias</strong> grava no histórico do planejamento e, se marcar, sincroniza <code class="text-[11px]">vacation_start</code>/<code class="text-[11px]">vacation_end</code> no cadastro. Use <strong>Simular antes</strong> para ver alertas e recomendação.
+          Escolha o colaborador e o período (use os atalhos <strong>15 / 20 / 30 dias</strong> após definir o início). O painel amarelo lembra os <strong>30 dias</strong> legais e, quando faltam <strong>10 dias</strong>, a opção de <strong>abono pecuniário</strong>. <strong>Lançar férias</strong> grava no histórico e, se marcar, sincroniza <code class="text-[11px]">vacation_start</code>/<code class="text-[11px]">vacation_end</code> no cadastro. Use <strong>Simular antes</strong> para alertas operacionais.
         </p>
         <label class="vp-field-label mt-3">
           Colaborador
@@ -318,6 +305,17 @@
             <input type="date" id="vp-sim-end" class="ops-toolbar-control px-2 text-sm w-full">
           </label>
         </div>
+        <p class="mt-3 text-[11px] font-medium text-slate-600 dark:text-slate-400">Duração em dias corridos (a partir da data de início)</p>
+        <div class="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Presets de duração">
+          <button type="button" class="sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-dur-preset" data-vp-days="15">15 dias</button>
+          <button type="button" class="sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-dur-preset" data-vp-days="20">20 dias</button>
+          <button type="button" class="sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-dur-preset" data-vp-days="30">30 dias</button>
+        </div>
+        <div id="vp-vacation-legal-hint" class="vp-vacation-legal-hint mt-3 hidden text-xs leading-relaxed" role="status" aria-live="polite"></div>
+        <label id="vp-abono-wrap" class="vp-check mt-2 hidden">
+          <input type="checkbox" id="vp-abono-10" class="rounded border-slate-300">
+          <span>Abono pecuniário: registrar venda de <strong>10 dias</strong> (1/3 dos 30 dias de férias), conforme acordo com o colaborador e regras de RH/DP.</span>
+        </label>
         <div id="vp-sim-highlight" class="vp-sim-highlight mt-3 hidden rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-600 dark:bg-slate-800/40">
           <p id="vp-sim-label" class="text-sm font-semibold text-slate-800 dark:text-slate-100"></p>
           <p id="vp-sim-explanation" class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300"></p>

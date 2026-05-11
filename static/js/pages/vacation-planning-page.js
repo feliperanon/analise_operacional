@@ -28,6 +28,96 @@
       .replace(/"/g, "&quot;");
   }
 
+  /** Dias corridos entre início e fim (inclusive). */
+  function inclusiveCalendarDays(startIso, endIso) {
+    if (!startIso || !endIso) return null;
+    var a = new Date(startIso + "T12:00:00");
+    var b = new Date(endIso + "T12:00:00");
+    if (isNaN(a.getTime()) || isNaN(b.getTime()) || b < a) return null;
+    return Math.round((b - a) / 864e5) + 1;
+  }
+
+  /** Soma dias corridos a uma data ISO (yyyy-mm-dd). */
+  function addCalendarDaysIso(iso, deltaDays) {
+    var d = new Date(iso + "T12:00:00");
+    d.setDate(d.getDate() + deltaDays);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function updateVacationLegalHint() {
+    var startEl = byId("vp-sim-start");
+    var endEl = byId("vp-sim-end");
+    var panel = byId("vp-vacation-legal-hint");
+    var wrap = byId("vp-abono-wrap");
+    var cb = byId("vp-abono-10");
+    if (!panel || !startEl || !endEl) return;
+    var start = startEl.value;
+    var end = endEl.value;
+    var days = inclusiveCalendarDays(start, end);
+    panel.classList.remove(
+      "vp-vacation-legal-hint--ok",
+      "vp-vacation-legal-hint--warn",
+      "vp-vacation-legal-hint--info"
+    );
+    if (days == null) {
+      panel.classList.add("hidden");
+      panel.innerHTML = "";
+      if (wrap) wrap.classList.add("hidden");
+      if (cb) cb.checked = false;
+      return;
+    }
+    var rem = 30 - days;
+    if (cb && rem !== 10) cb.checked = false;
+    if (wrap) wrap.classList.toggle("hidden", rem !== 10);
+
+    if (days > 30) {
+      panel.classList.remove("hidden");
+      panel.classList.add("vp-vacation-legal-hint--info");
+      panel.innerHTML =
+        "<strong>" +
+        escapeHtml(String(days)) +
+        " dias corridos.</strong> Acima dos 30 dias padrão de férias (CLT); confirme com RH/DP (coletivas, regime diferenciado, etc.).";
+      return;
+    }
+    if (days === 30) {
+      panel.classList.remove("hidden");
+      panel.classList.add("vp-vacation-legal-hint--ok");
+      panel.innerHTML =
+        "<strong>30 dias corridos.</strong> Equivale ao gozo integral típico (sem venda da 1ª fração de 1/3 como abono pecuniário).";
+      return;
+    }
+    panel.classList.remove("hidden");
+    panel.classList.add("vp-vacation-legal-hint--warn");
+    var html =
+      "<strong>" +
+      escapeHtml(String(days)) +
+      " dias corridos.</strong> Faltam <strong>" +
+      escapeHtml(String(rem)) +
+      "</strong> dia(s) para completar os <strong>30 dias</strong> de férias previstos na CLT.";
+    if (rem === 10) {
+      html +=
+        " Em geral, esses <strong>10 dias</strong> são tratados como <strong>abono pecuniário</strong> (conversão em dinheiro / venda de 1/3) e o gozo efetivo fica em <strong>20 dias</strong> corridos. Marque a opção abaixo se for este o caso, após acordo formal e orientação de RH/DP.";
+    } else {
+      html +=
+        " Ajuste a data final, trate <strong>fracionamento de férias</strong> ou alinhe com RH/DP (o abono pecuniário na 1ª parcela é limitado a <strong>10 dias</strong>).";
+    }
+    panel.innerHTML = html;
+  }
+
+  function buildScheduleReasonFromForm() {
+    var base = (byId("vp-schedule-reason") && byId("vp-schedule-reason").value) || "";
+    base = base.trim();
+    var parts = [];
+    if (base) parts.push(base);
+    var cb = byId("vp-abono-10");
+    if (cb && cb.checked) {
+      parts.push(
+        "Abono pecuniário (10 dias / 1/3): declarado neste lançamento — conforme acordo com colaborador e CLT/RH."
+      );
+    }
+    return parts.length ? parts.join(" | ") : null;
+  }
+
   function showAlert(msg, level) {
     var el = byId("vp-alert");
     if (!el) return;
@@ -257,30 +347,72 @@
     }
   }
 
-  function prazoLabel(row) {
+  function prazoLabelHuman(row) {
     var d = row.days_until_deadline;
     if (d == null) return "—";
-    if (d < 0) return "Vencida (" + Math.abs(d) + "d)";
-    return String(d) + " dias";
+    if (d < 0) return "Vencida há " + Math.abs(d) + " dias";
+    if (d === 0) return "Vence hoje";
+    if (d === 1) return "Vence amanhã";
+    return "Vence em " + d + " dias";
   }
 
-  function prioridadeLabel(row) {
-    var p = row.priority_index != null ? row.priority_index : "—";
-    var c = (row.criticality || "").toLowerCase();
-    var tag =
-      c === "muito_alta" || c === "alta"
-        ? ' <span class="text-rose-600 dark:text-rose-300 font-semibold text-xs">Alta</span>'
-        : "";
-    return '<span class="tabular-nums">' + escapeHtml(String(p)) + "</span>" + tag;
+  function displayStatusTitle(row) {
+    var st = row.vacation_status || "";
+    if (st === "expired") return "Férias vencidas";
+    if (st === "urgent_30") return "Vence em até 30 dias";
+    if (st === "urgent_60") return "Vence em até 60 dias";
+    if (st === "urgent_90") return "Vence em até 90 dias";
+    var lbl = (row.vacation_status_label || "").trim();
+    if (!lbl) return "Em dia";
+    if (/sem prazo/i.test(lbl)) return lbl;
+    return lbl
+      .replace(/\s*\(concessivo\)\s*/gi, "")
+      .replace(/^A vencer em (\d+)d$/i, "Vence em $1 dias");
   }
 
-  function rowHighlightClass(row) {
-    if (row.vacation_status === "expired" || row.window_color === "red") return "vp-queue-row--hot";
+  function statusBadgeClass(row) {
+    var st = row.vacation_status || "";
+    if (st === "expired") return "vp-status-badge vp-status-badge--danger";
+    if (st === "urgent_30") return "vp-status-badge vp-status-badge--amber";
+    if (st === "urgent_60" || st === "urgent_90") return "vp-status-badge vp-status-badge--blue";
+    return "vp-status-badge vp-status-badge--neutral";
+  }
+
+  function decisionRowToneClass(row) {
+    if (
+      row.vacation_status === "expired" ||
+      (row.days_until_deadline != null && row.days_until_deadline < 0)
+    ) {
+      return "vp-decision-row--expired";
+    }
     var d = row.days_until_deadline;
-    if (d != null && d >= 0 && d <= 30) return "vp-queue-row--hot";
-    if (row.window_color === "yellow") return "vp-queue-row--warn";
-    if (d != null && d <= 60) return "vp-queue-row--warn";
-    return "";
+    if (d != null && d >= 0 && d <= 30) return "vp-decision-row--warning";
+    if (row.window_color === "yellow") return "vp-decision-row--warning";
+    if (d != null && d > 30 && d <= 90) return "vp-decision-row--info";
+    if (row.window_color === "red") return "vp-decision-row--warning";
+    return "vp-decision-row--ok";
+  }
+
+  function isHighPriority(row) {
+    var c = (row.criticality || "").toLowerCase();
+    return c === "alta" || c === "muito_alta" || (row.priority_index || 0) >= 50;
+  }
+
+  function priorityMarkup(row) {
+    var p = row.priority_index != null ? String(row.priority_index) : "—";
+    return (
+      "<span class=\"vp-priority-pill" +
+      (isHighPriority(row) ? " vp-priority-pill--strong" : "") +
+      "\"><span class=\"tabular-nums\">" +
+      escapeHtml(p) +
+      "</span></span>"
+    );
+  }
+
+  function substituteHintHtml(row) {
+    var sub = row.substitute;
+    if (sub && sub !== "—") return "";
+    return "<p class=\"vp-substitute-hint\">Sem substituto cadastrado</p>";
   }
 
   function openDetailModal(row) {
@@ -291,22 +423,27 @@
     title.textContent = row.name || "Colaborador";
     var hint = row.window_hint || "";
     var wc = row.window_color || "";
+    var best = row.best_period_hint || "—";
+    var alerts = [];
+    if (hint) alerts.push(hint);
+    if (wc && wc !== "green") alerts.push("Janela no mês focado: " + wc);
     body.innerHTML =
-      "<dl>" +
+      "<dl class=\"vp-detail-dl\">" +
       "<dt>Função</dt><dd>" +
       escapeHtml(row.role || "—") +
       "</dd>" +
-      "<dt>Status trabalhista</dt><dd>" +
-      escapeHtml(row.vacation_status_label || "—") +
+      "<dt>Status</dt><dd>" +
+      escapeHtml(displayStatusTitle(row)) +
       "</dd>" +
-      "<dt>Data de admissão (cadastro)</dt><dd>" +
-      escapeHtml(row.admission_date || "—") +
+      "<dt>Prazo</dt><dd>" +
+      escapeHtml(prazoLabelHuman(row)) +
       "</dd>" +
-      "<dt>Prazo concessivo (fim para gozar)</dt><dd>" +
-      escapeHtml(row.concessive_deadline || "—") +
+      "<dt>Prioridade</dt><dd class=\"tabular-nums\">" +
+      escapeHtml(row.priority_index != null ? String(row.priority_index) : "—") +
+      (isHighPriority(row) ? " <span class=\"text-rose-600 dark:text-rose-300 text-xs font-semibold\">Alta</span>" : "") +
       "</dd>" +
-      "<dt>Origem do prazo</dt><dd class=\"text-xs leading-snug\">" +
-      escapeHtml(row.deadline_basis_label || "—") +
+      "<dt>Melhor janela</dt><dd>" +
+      escapeHtml(best) +
       "</dd>" +
       "<dt>Criticidade</dt><dd>" +
       escapeHtml(row.criticality || "—") +
@@ -315,6 +452,15 @@
       escapeHtml(row.substitute || "—") +
       (row.substitute_trained ? " (treinado)" : "") +
       "</dd>" +
+      "<dt>Data de admissão</dt><dd>" +
+      escapeHtml(row.admission_date || "—") +
+      "</dd>" +
+      "<dt>Prazo concessivo (cadastro)</dt><dd>" +
+      escapeHtml(row.concessive_deadline || "—") +
+      "</dd>" +
+      "<dt>Origem do prazo</dt><dd class=\"text-xs leading-snug\">" +
+      escapeHtml(row.deadline_basis_label || "—") +
+      "</dd>" +
       "<dt>Janela no mês focado</dt><dd><span class=\"" +
       statusClass(wc) +
       "\">" +
@@ -322,12 +468,16 @@
       "</span>" +
       (hint ? " — " + escapeHtml(hint) : "") +
       "</dd>" +
-      "<dt>Índice de prioridade</dt><dd class=\"tabular-nums\">" +
-      escapeHtml(row.priority_index != null ? String(row.priority_index) : "—") +
-      "</dd>" +
       "<dt>Setor / rota</dt><dd>" +
-      escapeHtml((row.sector || "") + (row.route_team ? " · " + row.route_team : "") || "—") +
+      escapeHtml(
+        (row.sector || "") + (row.route_team ? " · " + row.route_team : "") || "—"
+      ) +
       "</dd>" +
+      (alerts.length
+        ? "<dt>Alertas</dt><dd class=\"text-xs leading-relaxed\">" +
+          escapeHtml(alerts.join(" · ")) +
+          "</dd>"
+        : "") +
       "</dl>";
     modal.classList.remove("hidden");
   }
@@ -337,7 +487,19 @@
     if (modal) modal.classList.add("hidden");
   }
 
-  function setSimulatorEmployee(employeeId) {
+  function updateQueueRowSelection() {
+    var sim = byId("vp-sim-employee");
+    var cur = sim && sim.value ? String(sim.value) : "";
+    var list = byId("vp-decision-list");
+    if (!list) return;
+    list.querySelectorAll(".vp-decision-row").forEach(function (r) {
+      var eid = r.getAttribute("data-eid") || "";
+      r.classList.toggle("vp-decision-row--selected", cur !== "" && eid === cur);
+    });
+  }
+
+  function setSimulatorEmployee(employeeId, opts) {
+    opts = opts || {};
     var sim = byId("vp-sim-employee");
     if (!sim) return;
     rebuildEmployeeSelects(byId("vp-p-search") ? byId("vp-p-search").value : "");
@@ -350,10 +512,23 @@
     if (aside && window.matchMedia && window.matchMedia("(max-width: 1023px)").matches) {
       aside.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
+    updateVacationLegalHint();
+    updateQueueRowSelection();
+    if (opts.focusStart) {
+      var st = byId("vp-sim-start");
+      if (st) {
+        window.setTimeout(function () {
+          try {
+            st.focus();
+            if (typeof st.select === "function") st.select();
+          } catch (e2) {}
+        }, 180);
+      }
+    }
   }
 
   function renderQueueTable(rows) {
-    var rb = byId("vp-rows-body");
+    var rb = byId("vp-decision-list");
     var empty = byId("vp-queue-empty");
     var countEl = byId("vp-queue-count");
     var btnAll = byId("vp-queue-show-all");
@@ -368,53 +543,75 @@
       if (empty) empty.classList.remove("hidden");
       if (countEl) countEl.textContent = "";
       if (btnAll) btnAll.classList.add("hidden");
+      updateQueueRowSelection();
       return;
     }
     if (empty) empty.classList.add("hidden");
 
     limited.forEach(function (row) {
-      var tr = document.createElement("tr");
-      var rowExtra = (rowHighlightClass(row) || "").trim();
-      tr.className =
-        "vp-vacation-row employee-row" + (rowExtra ? " " + rowExtra : "");
+      var card = document.createElement("div");
+      card.setAttribute("role", "listitem");
+      card.className = "vp-decision-row " + decisionRowToneClass(row);
+      card.setAttribute("data-eid", String(row.employee_id));
       var eid = row.employee_id;
-      var nameHtml =
-        "<span class=\"employee-name font-medium text-slate-800 dark:text-slate-100\">" +
-        escapeHtml(row.name) +
-        "</span>";
-      tr.innerHTML =
-        "<td class=\"employees-data-table__td employees-data-table__td--col-name employee-cell-primary px-3 py-2 pl-5\" data-label=\"Colaborador\">" +
-        nameHtml +
-        "</td>" +
-        "<td class=\"employees-data-table__td employees-data-table__td--col-role px-2 py-2 text-xs text-slate-600 dark:text-slate-400\" data-label=\"Função\">" +
-        escapeHtml(row.role) +
-        "</td>" +
-        "<td class=\"employees-data-table__td px-2 py-2 text-xs\" data-label=\"Status\">" +
-        escapeHtml(row.vacation_status_label) +
-        "</td>" +
-        "<td class=\"employees-data-table__td px-2 py-2 text-xs tabular-nums\" data-label=\"Prazo\">" +
-        escapeHtml(prazoLabel(row)) +
-        "</td>" +
-        "<td class=\"employees-data-table__td px-2 py-2 text-xs\" data-label=\"Prioridade\">" +
-        prioridadeLabel(row) +
-        "</td>" +
-        "<td class=\"employees-data-table__td px-2 py-2 text-xs\" data-label=\"Melhor janela\">" +
-        escapeHtml(row.best_period_hint || "—") +
-        "</td>" +
-        "<td class=\"employees-data-table__td employee-actions-cell vp-queue-table__actions px-3 py-2 pr-5 text-right\" data-label=\"Ações\">" +
-        "<span class=\"employee-actions inline-flex flex-wrap items-center justify-end gap-1.5\">" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-xs py-1.5 px-2.5 vp-btn-launch\" data-eid=\"" +
+      var win = row.best_period_hint || "";
+      var winLine =
+        "Melhor janela: " + (win && String(win).trim() ? escapeHtml(String(win)) : "—");
+      var highNote = isHighPriority(row)
+        ? "<span class=\"mt-1 inline-block text-[11px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-300\">Alta criticidade</span>"
+        : "";
+      card.innerHTML =
+        "<div class=\"vp-decision-risk\" aria-hidden=\"true\"></div>" +
+        "<div class=\"vp-decision-row__body\">" +
+        "<div class=\"vp-person-block\">" +
+        "<div class=\"vp-person-name-row\">" +
+        "<span class=\"vp-person-name\">" +
+        escapeHtml(row.name || "—") +
+        "</span>" +
+        "<span class=\"vp-priority-desktop\">" +
+        priorityMarkup(row) +
+        "</span>" +
+        "</div>" +
+        "<p class=\"vp-person-role\">" +
+        escapeHtml(row.role || "—") +
+        "</p>" +
+        "<div class=\"vp-priority-mobile\">" +
+        priorityMarkup(row) +
+        "</div>" +
+        substituteHintHtml(row) +
+        "</div>" +
+        "<div class=\"vp-situation-block\">" +
+        "<span class=\"" +
+        statusBadgeClass(row) +
+        "\">" +
+        escapeHtml(displayStatusTitle(row)) +
+        "</span>" +
+        "<p class=\"vp-deadline-text\">" +
+        escapeHtml(prazoLabelHuman(row)) +
+        "</p>" +
+        "</div>" +
+        "<div class=\"vp-plan-block\">" +
+        "<p class=\"text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500\">Planejamento</p>" +
+        (isHighPriority(row) ? "<div class=\"mt-1\">" + highNote + "</div>" : "") +
+        "<p class=\"vp-window-pill\">" +
+        winLine +
+        "</p>" +
+        "</div>" +
+        "<div class=\"vp-row-actions\">" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-sm vp-action-launch vp-btn-launch min-h-[2.75rem]\" data-eid=\"" +
         eid +
-        "\">Lançar</button>" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-btn-sim\" data-eid=\"" +
+        "\">Lançar férias</button>" +
+        "<div class=\"vp-row-actions-secondary\">" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-sm vp-action-sim vp-btn-sim min-h-[2.5rem] flex-1 sm:flex-none\" data-eid=\"" +
         eid +
         "\">Simular</button>" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-btn-det\" data-eid=\"" +
+        "<button type=\"button\" class=\"vp-action-det vp-btn-det rounded-md font-medium\" data-eid=\"" +
         eid +
         "\">Detalhes</button>" +
-        "</span>" +
-        "</td>";
-      rb.appendChild(tr);
+        "</div>" +
+        "</div>" +
+        "</div>";
+      rb.appendChild(card);
     });
 
     if (!queueRowClickBound) {
@@ -425,15 +622,15 @@
         var id = parseInt(btn.getAttribute("data-eid"), 10);
         if (btn.classList.contains("vp-btn-launch")) {
           if (id) {
-            setSimulatorEmployee(id);
+            setSimulatorEmployee(id, { focusStart: true });
             hideAlert();
             showAlert(
-              "Colaborador selecionado no painel «Lançar férias». Informe início e fim e clique em Lançar férias.",
+              "Colaborador selecionado. Informe início e fim no painel ao lado e confirme em «Lançar férias».",
               "success"
             );
           }
         } else if (btn.classList.contains("vp-btn-sim")) {
-          if (id) setSimulatorEmployee(id);
+          if (id) setSimulatorEmployee(id, {});
         } else if (btn.classList.contains("vp-btn-det")) {
           var found = cachedRows.find(function (r) {
             return r.employee_id === id;
@@ -452,6 +649,7 @@
         (filtered.length !== rows.length ? " (após filtro na fila)" : "");
     }
     updateHeroChips();
+    updateQueueRowSelection();
     if (btnAll) {
       if (filtered.length > INITIAL_TABLE_LIMIT && !showAllRows) {
         btnAll.classList.remove("hidden");
@@ -489,6 +687,7 @@
     });
     if (sim && prevSim) sim.value = prevSim;
     if (prof && prevProf) prof.value = prevProf;
+    updateQueueRowSelection();
   }
 
   function applyFilterChip(name) {
@@ -505,7 +704,7 @@
   function setQueueLoading(on) {
     var el = byId("vp-queue-loading");
     var err = byId("vp-queue-error");
-    var wrap = document.querySelector("#vpVacationTable");
+    var wrap = byId("vp-decision-list-shell") || byId("vp-decision-list");
     if (el) el.classList.toggle("hidden", !on);
     if (wrap) wrap.classList.toggle("opacity-50", !!on);
     if (on && err) {
@@ -530,7 +729,7 @@
     hideAlert();
     setQueueError("");
     setQueueLoading(true);
-    var rb0 = byId("vp-rows-body");
+    var rb0 = byId("vp-decision-list");
     if (rb0) rb0.innerHTML = "";
     var q = qs();
     var url =
@@ -567,6 +766,7 @@
         employeeOptionsFull = data.employees_options || [];
         rebuildEmployeeSelects(byId("vp-p-search") ? byId("vp-p-search").value : "");
         updateHeroChips();
+        updateVacationLegalHint();
       })
       .catch(function (e) {
         setQueueLoading(false);
@@ -938,6 +1138,25 @@
               data.scores.cobertura_equipe
           );
         }
+        var ld = inclusiveCalendarDays(
+          byId("vp-sim-start").value,
+          byId("vp-sim-end").value
+        );
+        if (ld != null) {
+          lines.push("");
+          lines.push("— Referência CLT (gozo + 30 dias) —");
+          lines.push("Dias corridos no período: " + ld);
+          if (ld < 30) {
+            lines.push("Faltam " + (30 - ld) + " dia(s) para os 30 dias legais.");
+            if (30 - ld === 10) {
+              lines.push(
+                "Os 10 dias restantes costumam ser abono pecuniário (venda de 1/3); use a caixa no formulário ao lançar."
+              );
+            }
+          } else if (ld > 30) {
+            lines.push("Período maior que 30 dias corridos — validar com RH/DP.");
+          }
+        }
         pre.classList.remove("hidden");
         pre.textContent = lines.join("\n\n");
       })
@@ -955,11 +1174,10 @@
         : byId("vp-sim-employee").value;
     var start = overrides.start || byId("vp-sim-start").value;
     var end = overrides.end || byId("vp-sim-end").value;
-    var reasonInput = (byId("vp-schedule-reason").value || "").trim();
     var reason =
       overrides.reason != null && overrides.reason !== ""
         ? String(overrides.reason)
-        : reasonInput || null;
+        : buildScheduleReasonFromForm();
     var sync =
       overrides.sync != null ? !!overrides.sync : byId("vp-sync-employee").checked;
     var source = overrides.source || "manual";
@@ -1107,6 +1325,37 @@
   byId("vp-suggest").addEventListener("click", runSuggest);
   byId("vp-sim-run").addEventListener("click", runSimulate);
   byId("vp-schedule-save").addEventListener("click", saveSchedule);
+  var simEmp = byId("vp-sim-employee");
+  if (simEmp) {
+    simEmp.addEventListener("change", updateQueueRowSelection);
+  }
+
+  root.querySelectorAll(".vp-dur-preset").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var n = parseInt(btn.getAttribute("data-vp-days"), 10);
+      var startEl = byId("vp-sim-start");
+      var endEl = byId("vp-sim-end");
+      if (!startEl || !startEl.value) {
+        showAlert("Informe primeiro a data de início.", "error");
+        return;
+      }
+      if (!n || n < 1 || !endEl) return;
+      endEl.value = addCalendarDaysIso(startEl.value, n - 1);
+      updateVacationLegalHint();
+    });
+  });
+  ["vp-sim-start", "vp-sim-end"].forEach(function (id) {
+    var el = byId(id);
+    if (!el) return;
+    el.addEventListener("change", updateVacationLegalHint);
+    el.addEventListener("input", updateVacationLegalHint);
+  });
+  var abono10 = byId("vp-abono-10");
+  if (abono10) {
+    abono10.addEventListener("change", function () {
+      updateVacationLegalHint();
+    });
+  }
   byId("vp-history-refresh").addEventListener("click", loadHistory);
   byId("vp-profile-save").addEventListener("click", saveProfile);
   byId("vp-cal-load").addEventListener("click", function () {
