@@ -157,6 +157,13 @@
     return "vp-status-dot vp-status-dot--yellow";
   }
 
+  function windowColorLabelPt(c) {
+    if (c === "green") return "Verde";
+    if (c === "red") return "Vermelho";
+    if (c === "yellow") return "Amarelo";
+    return c ? String(c) : "—";
+  }
+
   function stripClassForColor(c) {
     var strip = byId("vp-month-strip");
     if (!strip) return;
@@ -372,10 +379,63 @@
 
   function statusBadgeClass(row) {
     var st = row.vacation_status || "";
-    if (st === "expired") return "vp-status-badge vp-status-badge--danger";
-    if (st === "urgent_30") return "vp-status-badge vp-status-badge--amber";
-    if (st === "urgent_60" || st === "urgent_90") return "vp-status-badge vp-status-badge--blue";
-    return "vp-status-badge vp-status-badge--neutral";
+    if (st === "expired") return "vp-status-badge vp-status-badge--danger vp-status-badge--compact";
+    if (st === "urgent_30") return "vp-status-badge vp-status-badge--amber vp-status-badge--compact";
+    if (st === "urgent_60" || st === "urgent_90")
+      return "vp-status-badge vp-status-badge--blue vp-status-badge--compact";
+    return "vp-status-badge vp-status-badge--neutral vp-status-badge--compact";
+  }
+
+  /** Texto curto do selo na fila (detalhes completos no modal). */
+  function statusBadgeShort(row) {
+    var st = row.vacation_status || "";
+    if (st === "expired") return "Vencida";
+    if (st === "urgent_30") return "≤30 d";
+    if (st === "urgent_60") return "≤60 d";
+    if (st === "urgent_90") return "≤90 d";
+    var lbl = (row.vacation_status_label || "").trim();
+    if (!lbl) return "Em dia";
+    if (/sem prazo/i.test(lbl)) return "Sem prazo";
+    if (/^A vencer em (\d+)d$/i.test(lbl)) return lbl.replace(/^A vencer em/i, "Vence");
+    if (lbl.length > 22) return lbl.slice(0, 21) + "…";
+    return lbl.replace(/\s*\(concessivo\)\s*/gi, "").trim() || "Em dia";
+  }
+
+  function isCriticalityHigh(row) {
+    var c = (row.criticality || "").toLowerCase();
+    return c === "alta" || c === "muito_alta";
+  }
+
+  function truncateChip(s, max) {
+    max = max || 48;
+    s = (s || "").trim();
+    if (!s) return "";
+    if (s.length <= max) return s;
+    return s.slice(0, Math.max(0, max - 1)) + "…";
+  }
+
+  function rowAlertChipHtml(row) {
+    var wc = row.window_color;
+    var hint = (row.window_hint || "").trim();
+    if (wc === "red") {
+      return (
+        "<span class=\"vp-card-meta-chip vp-card-meta-chip--danger\" title=\"" +
+        escapeHtml(hint) +
+        "\">" +
+        escapeHtml(truncateChip(hint || "Janela adversa no mês", 40)) +
+        "</span>"
+      );
+    }
+    if (wc === "yellow") {
+      return (
+        "<span class=\"vp-card-meta-chip vp-card-meta-chip--warn\" title=\"" +
+        escapeHtml(hint) +
+        "\">" +
+        escapeHtml(truncateChip(hint || "Atenção no mês", 40)) +
+        "</span>"
+      );
+    }
+    return "";
   }
 
   function decisionRowToneClass(row) {
@@ -401,18 +461,42 @@
   function priorityMarkup(row) {
     var p = row.priority_index != null ? String(row.priority_index) : "—";
     return (
-      "<span class=\"vp-priority-pill" +
+      "<span class=\"vp-priority-pill vp-priority-pill--compact" +
       (isHighPriority(row) ? " vp-priority-pill--strong" : "") +
-      "\"><span class=\"tabular-nums\">" +
+      "\" title=\"Prioridade na fila\"><span class=\"tabular-nums\">" +
       escapeHtml(p) +
       "</span></span>"
     );
   }
 
-  function substituteHintHtml(row) {
-    var sub = row.substitute;
-    if (sub && sub !== "—") return "";
-    return "<p class=\"vp-substitute-hint\">Sem substituto cadastrado</p>";
+  function updateAsideContextSummary() {
+    var wrap = byId("vp-aside-context");
+    if (!wrap) return;
+    var sel = byId("vp-sim-employee");
+    var id = sel && sel.value ? parseInt(sel.value, 10) : 0;
+    if (!id) {
+      wrap.classList.add("hidden");
+      wrap.innerHTML = "";
+      return;
+    }
+    var row = (cachedRows || []).find(function (r) {
+      return r.employee_id === id;
+    });
+    if (!row) {
+      wrap.classList.add("hidden");
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.classList.remove("hidden");
+    wrap.innerHTML =
+      "<p class=\"vp-aside-context__name\">" +
+      escapeHtml(row.name || "—") +
+      "</p>" +
+      "<p class=\"vp-aside-context__sub\">" +
+      escapeHtml(row.role || "—") +
+      " · " +
+      escapeHtml(displayStatusTitle(row)) +
+      "</p>";
   }
 
   function openDetailModal(row) {
@@ -426,7 +510,16 @@
     var best = row.best_period_hint || "—";
     var alerts = [];
     if (hint) alerts.push(hint);
-    if (wc && wc !== "green") alerts.push("Janela no mês focado: " + wc);
+    if (wc && wc !== "green")
+      alerts.push("Janela no mês focado: " + windowColorLabelPt(wc));
+    var ctxLine = [
+      row.window_hint ? "Demanda no mês: " + row.window_hint : "",
+      wc ? "Indicador da janela: " + windowColorLabelPt(wc) : "",
+    ]
+      .filter(function (x) {
+        return x && String(x).trim();
+      })
+      .join(" · ");
     body.innerHTML =
       "<dl class=\"vp-detail-dl\">" +
       "<dt>Função</dt><dd>" +
@@ -446,7 +539,11 @@
       escapeHtml(best) +
       "</dd>" +
       "<dt>Criticidade</dt><dd>" +
-      escapeHtml(row.criticality || "—") +
+      escapeHtml(
+        ({ baixa: "Baixa", media: "Média", alta: "Alta", muito_alta: "Muito alta" }[
+          String(row.criticality || "").toLowerCase()
+        ] || row.criticality || "—")
+      ) +
       "</dd>" +
       "<dt>Substituto</dt><dd>" +
       escapeHtml(row.substitute || "—") +
@@ -464,7 +561,7 @@
       "<dt>Janela no mês focado</dt><dd><span class=\"" +
       statusClass(wc) +
       "\">" +
-      escapeHtml(wc || "—") +
+      escapeHtml(windowColorLabelPt(wc)) +
       "</span>" +
       (hint ? " — " + escapeHtml(hint) : "") +
       "</dd>" +
@@ -478,6 +575,9 @@
           escapeHtml(alerts.join(" · ")) +
           "</dd>"
         : "") +
+      "<dt>Contexto da recomendação</dt><dd class=\"text-xs leading-snug\">" +
+      escapeHtml(ctxLine || "—") +
+      "</dd>" +
       "</dl>";
     modal.classList.remove("hidden");
   }
@@ -506,7 +606,7 @@
     sim.value = String(employeeId);
     sim.dispatchEvent(new Event("change", { bubbles: true }));
     try {
-      sim.focus();
+      if (!opts.focusStart) sim.focus();
     } catch (e) {}
     var aside = byId("vp-sim-aside");
     if (aside && window.matchMedia && window.matchMedia("(max-width: 1023px)").matches) {
@@ -514,6 +614,7 @@
     }
     updateVacationLegalHint();
     updateQueueRowSelection();
+    updateAsideContextSummary();
     if (opts.focusStart) {
       var st = byId("vp-sim-start");
       if (st) {
@@ -554,61 +655,59 @@
       card.className = "vp-decision-row " + decisionRowToneClass(row);
       card.setAttribute("data-eid", String(row.employee_id));
       var eid = row.employee_id;
-      var win = row.best_period_hint || "";
-      var winLine =
-        "Melhor janela: " + (win && String(win).trim() ? escapeHtml(String(win)) : "—");
-      var highNote = isHighPriority(row)
-        ? "<span class=\"mt-1 inline-block text-[11px] font-bold uppercase tracking-wide text-rose-600 dark:text-rose-300\">Alta criticidade</span>"
+      var win = row.best_period_hint && String(row.best_period_hint).trim() ? String(row.best_period_hint) : "";
+      var winChip = win
+        ? "<span class=\"vp-card-meta-chip\" title=\"" +
+          escapeHtml(win) +
+          "\">Janela: " +
+          escapeHtml(truncateChip(win, 36)) +
+          "</span>"
+        : "<span class=\"vp-card-meta-chip\">Janela: —</span>";
+      var subChip =
+        !row.substitute || row.substitute === "—"
+          ? "<span class=\"vp-card-meta-chip vp-card-meta-chip--warn\">Sem substituto</span>"
+          : "";
+      var critChip = isCriticalityHigh(row)
+        ? "<span class=\"vp-card-meta-chip vp-card-meta-chip--critical\">Crítico</span>"
         : "";
+      var alertChip = rowAlertChipHtml(row);
       card.innerHTML =
         "<div class=\"vp-decision-risk\" aria-hidden=\"true\"></div>" +
-        "<div class=\"vp-decision-row__body\">" +
-        "<div class=\"vp-person-block\">" +
-        "<div class=\"vp-person-name-row\">" +
-        "<span class=\"vp-person-name\">" +
+        "<div class=\"vp-decision-row__main\">" +
+        "<div class=\"vp-decision-row__person\">" +
+        "<div class=\"vp-decision-row__title\">" +
+        "<strong class=\"vp-decision-row__name\">" +
         escapeHtml(row.name || "—") +
-        "</span>" +
-        "<span class=\"vp-priority-desktop\">" +
+        "</strong>" +
         priorityMarkup(row) +
-        "</span>" +
-        "</div>" +
-        "<p class=\"vp-person-role\">" +
-        escapeHtml(row.role || "—") +
-        "</p>" +
-        "<div class=\"vp-priority-mobile\">" +
-        priorityMarkup(row) +
-        "</div>" +
-        substituteHintHtml(row) +
-        "</div>" +
-        "<div class=\"vp-situation-block\">" +
         "<span class=\"" +
         statusBadgeClass(row) +
         "\">" +
-        escapeHtml(displayStatusTitle(row)) +
+        escapeHtml(statusBadgeShort(row)) +
         "</span>" +
-        "<p class=\"vp-deadline-text\">" +
+        "</div>" +
+        "<div class=\"vp-decision-row__subtitle\">" +
+        escapeHtml(row.role || "—") +
+        " · " +
         escapeHtml(prazoLabelHuman(row)) +
-        "</p>" +
         "</div>" +
-        "<div class=\"vp-plan-block\">" +
-        "<p class=\"text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500\">Planejamento</p>" +
-        (isHighPriority(row) ? "<div class=\"mt-1\">" + highNote + "</div>" : "") +
-        "<p class=\"vp-window-pill\">" +
-        winLine +
-        "</p>" +
+        "<div class=\"vp-decision-row__meta\">" +
+        winChip +
+        subChip +
+        critChip +
+        alertChip +
         "</div>" +
-        "<div class=\"vp-row-actions\">" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-sm vp-action-launch vp-btn-launch min-h-[2.75rem]\" data-eid=\"" +
+        "</div>" +
+        "<div class=\"vp-decision-row__actions vp-row-actions--compact\">" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--primary vp-action-launch--compact vp-btn-launch\" data-eid=\"" +
         eid +
-        "\">Lançar férias</button>" +
-        "<div class=\"vp-row-actions-secondary\">" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-sm vp-action-sim vp-btn-sim min-h-[2.5rem] flex-1 sm:flex-none\" data-eid=\"" +
+        "\">Lançar</button>" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary vp-action-sim--compact vp-btn-sim\" data-eid=\"" +
         eid +
         "\">Simular</button>" +
-        "<button type=\"button\" class=\"vp-action-det vp-btn-det rounded-md font-medium\" data-eid=\"" +
+        "<button type=\"button\" class=\"vp-action-more vp-btn-det\" data-eid=\"" +
         eid +
-        "\">Detalhes</button>" +
-        "</div>" +
+        "\" aria-label=\"Detalhes\" title=\"Detalhes\">⋯</button>" +
         "</div>" +
         "</div>";
       rb.appendChild(card);
@@ -622,15 +721,21 @@
         var id = parseInt(btn.getAttribute("data-eid"), 10);
         if (btn.classList.contains("vp-btn-launch")) {
           if (id) {
-            setSimulatorEmployee(id, { focusStart: true });
             hideAlert();
-            showAlert(
-              "Colaborador selecionado. Informe início e fim no painel ao lado e confirme em «Lançar férias».",
-              "success"
-            );
+            setSimulatorEmployee(id, { focusStart: true });
           }
         } else if (btn.classList.contains("vp-btn-sim")) {
-          if (id) setSimulatorEmployee(id, {});
+          if (id) {
+            var st0 = byId("vp-sim-start");
+            var en0 = byId("vp-sim-end");
+            var hadDates = !!(st0 && en0 && st0.value && en0.value);
+            setSimulatorEmployee(id, { focusStart: !hadDates });
+            if (hadDates) {
+              window.setTimeout(function () {
+                runSimulate();
+              }, 120);
+            }
+          }
         } else if (btn.classList.contains("vp-btn-det")) {
           var found = cachedRows.find(function (r) {
             return r.employee_id === id;
@@ -767,6 +872,7 @@
         rebuildEmployeeSelects(byId("vp-p-search") ? byId("vp-p-search").value : "");
         updateHeroChips();
         updateVacationLegalHint();
+        updateAsideContextSummary();
       })
       .catch(function (e) {
         setQueueLoading(false);
@@ -952,10 +1058,26 @@
   function loadHistory() {
     fetch("/api/vacation-planning/history?limit=80", { credentials: "same-origin" })
       .then(function (r) {
+        if (!r.ok) {
+          return r.text().then(function (t) {
+            try {
+              var j = JSON.parse(t);
+              var d = j.detail;
+              if (Array.isArray(d)) d = d.map(function (x) { return x.msg || x; }).join("; ");
+              throw new Error(d || j.message || "Falha ao carregar histórico (" + r.status + ")");
+            } catch (parseErr) {
+              if (parseErr instanceof SyntaxError) {
+                throw new Error("Falha ao carregar histórico (" + r.status + ").");
+              }
+              throw parseErr;
+            }
+          });
+        }
         return r.json();
       })
       .then(function (data) {
         var hb = byId("vp-history-body");
+        if (!hb) return;
         hb.innerHTML = "";
         (data.items || []).forEach(function (h) {
           var tr = document.createElement("tr");
@@ -998,6 +1120,9 @@
             "</td>";
           hb.appendChild(tr);
         });
+      })
+      .catch(function (e) {
+        showAlert(e.message || "Não foi possível atualizar o histórico de férias.", "error");
       });
   }
 
@@ -1182,7 +1307,7 @@
       overrides.sync != null ? !!overrides.sync : byId("vp-sync-employee").checked;
     var source = overrides.source || "manual";
     if (!eid || !start || !end) {
-      showAlert("Preencha colaborador, início e fim para lançar férias.", "error");
+      showAlert("Preencha colaborador, início e fim.", "error");
       return;
     }
     fetch("/api/vacation-planning/schedule", {
@@ -1220,9 +1345,18 @@
         if (res.body.employee_vacation_sync && res.body.employee_vacation_sync.message) {
           msg += " " + res.body.employee_vacation_sync.message;
         }
+        msg += " O histórico foi atualizado na aba «Histórico de decisões».";
         showAlert(msg, "success");
         loadOverview();
         loadHistory();
+        switchSecondaryTab("history");
+        var histPanel = byId("vp-panel-history");
+        var sec = document.getElementById("vp-secondary-heading");
+        if (histPanel) {
+          histPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } else if (sec) {
+          sec.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
       })
       .catch(function (e) {
         showAlert(e.message || "Erro", "error");
@@ -1327,7 +1461,10 @@
   byId("vp-schedule-save").addEventListener("click", saveSchedule);
   var simEmp = byId("vp-sim-employee");
   if (simEmp) {
-    simEmp.addEventListener("change", updateQueueRowSelection);
+    simEmp.addEventListener("change", function () {
+      updateQueueRowSelection();
+      updateAsideContextSummary();
+    });
   }
 
   root.querySelectorAll(".vp-dur-preset").forEach(function (btn) {

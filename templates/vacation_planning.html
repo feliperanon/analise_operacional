@@ -267,7 +267,7 @@
           <div class="min-w-0 flex-1">
             <p class="employees-table-panel__kicker">Prioridade operacional</p>
             <h3 id="vp-queue-heading" class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Fila de colaboradores</h3>
-            <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Lista de decisão: nome em destaque, prazo legível e ações claras — sem rolagem horizontal no celular.</p>
+            <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Fila compacta: prioridade, prazo e ação em poucos segundos. Detalhes completos no ícone ⋯.</p>
           </div>
           <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
             <span id="vp-queue-count" class="employees-text-caption block"></span>
@@ -285,12 +285,28 @@
       </div>
     </div>
 
-    <aside class="vp-sim-aside sys-card sys-card--surface sys-card--comfort" id="vp-sim-aside" aria-label="Simular e lançar férias">
+    <aside class="vp-sim-aside sys-card sys-card--surface sys-card--comfort" id="vp-sim-aside" aria-label="Registrar férias e simular impacto">
       <div class="vp-sim-aside__inner p-4 sm:p-5">
-        <h2 class="vp-section-title">Lançar férias</h2>
-        <p class="text-xs text-slate-500 dark:text-slate-400 leading-snug">
-          Escolha o colaborador e o período (use os atalhos <strong>15 / 20 / 30 dias</strong> após definir o início). O painel amarelo lembra os <strong>30 dias</strong> legais e, quando faltam <strong>10 dias</strong>, a opção de <strong>abono pecuniário</strong>. <strong>Lançar férias</strong> grava no histórico e, se marcar, sincroniza <code class="text-[11px]">vacation_start</code>/<code class="text-[11px]">vacation_end</code> no cadastro. Use <strong>Simular antes</strong> para alertas operacionais.
-        </p>
+        <header class="vp-aside-header">
+          <h2 class="vp-section-title">Lançar férias</h2>
+          <p class="vp-aside-lead text-xs text-slate-500 dark:text-slate-400 leading-snug">
+            Selecione o colaborador, informe o período e registre a decisão.
+          </p>
+          <details class="vp-aside-rules mt-2">
+            <summary class="vp-aside-rules__summary">Ver regras de férias</summary>
+            <div class="vp-aside-rules__body text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              <ul class="vp-aside-rules__list list-disc pl-4 space-y-1.5">
+                <li>Atalhos <strong>15d</strong>, <strong>20d</strong> e <strong>30d</strong> preenchem o fim a partir da data de <strong>início</strong>.</li>
+                <li><strong>30 dias corridos</strong> costumam equivaler ao gozo integral típico (referência CLT).</li>
+                <li><strong>20 dias + 10 dias</strong> pode envolver <strong>abono pecuniário</strong> — alinhe com RH/DP.</li>
+                <li>Com <strong>sincronizar cadastro</strong>, o sistema atualiza <code class="text-[11px]">vacation_start</code> / <code class="text-[11px]">vacation_end</code> no perfil do colaborador.</li>
+              </ul>
+            </div>
+          </details>
+        </header>
+
+        <div id="vp-aside-context" class="vp-aside-context hidden" aria-live="polite"></div>
+
         <label class="vp-field-label mt-3">
           Colaborador
           <select id="vp-sim-employee" class="ops-toolbar-control px-3 text-sm w-full"></select>
@@ -305,11 +321,11 @@
             <input type="date" id="vp-sim-end" class="ops-toolbar-control px-2 text-sm w-full">
           </label>
         </div>
-        <p class="mt-3 text-[11px] font-medium text-slate-600 dark:text-slate-400">Duração em dias corridos (a partir da data de início)</p>
-        <div class="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Presets de duração">
-          <button type="button" class="sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-dur-preset" data-vp-days="15">15 dias</button>
-          <button type="button" class="sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-dur-preset" data-vp-days="20">20 dias</button>
-          <button type="button" class="sys-btn sys-btn--secondary text-xs py-1.5 px-2.5 vp-dur-preset" data-vp-days="30">30 dias</button>
+        <div class="mt-2 flex flex-wrap gap-1.5 items-center" role="group" aria-label="Presets de duração em dias corridos">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500 mr-0.5">Atalhos</span>
+          <button type="button" class="sys-btn sys-btn--secondary vp-dur-preset vp-dur-preset--compact text-xs py-1 px-2" data-vp-days="15">15d</button>
+          <button type="button" class="sys-btn sys-btn--secondary vp-dur-preset vp-dur-preset--compact text-xs py-1 px-2" data-vp-days="20">20d</button>
+          <button type="button" class="sys-btn sys-btn--secondary vp-dur-preset vp-dur-preset--compact text-xs py-1 px-2" data-vp-days="30">30d</button>
         </div>
         <div id="vp-vacation-legal-hint" class="vp-vacation-legal-hint mt-3 hidden text-xs leading-relaxed" role="status" aria-live="polite"></div>
         <label id="vp-abono-wrap" class="vp-check mt-2 hidden">
@@ -322,7 +338,7 @@
         </div>
         <pre id="vp-sim-result" class="vp-pre text-xs mt-2 hidden max-h-40 overflow-auto rounded-md bg-slate-900/90 p-3 text-slate-100"></pre>
         <label class="vp-field-label mt-3">
-          Motivo / observação
+          Observação
           <input type="text" id="vp-schedule-reason" class="ops-toolbar-control px-3 text-xs w-full" placeholder="Opcional — aparece no histórico">
         </label>
         <label class="vp-check mt-2">
@@ -330,8 +346,8 @@
           <span>Sincronizar férias no cadastro do colaborador</span>
         </label>
         <div class="mt-4 flex flex-col gap-2">
-          <button type="button" id="vp-schedule-save" class="sys-btn sys-btn--primary w-full text-sm">Lançar férias</button>
-          <button type="button" id="vp-sim-run" class="sys-btn sys-btn--secondary w-full text-sm">Simular antes</button>
+          <button type="button" id="vp-schedule-save" class="sys-btn sys-btn--primary w-full text-sm">Registrar decisão</button>
+          <button type="button" id="vp-sim-run" class="sys-btn sys-btn--secondary w-full text-sm">Simular</button>
         </div>
       </div>
     </aside>
@@ -457,8 +473,8 @@
   </section>
 
   <!-- Modal importação (padrão emp-modal /employees) -->
-  <div id="vpImportModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4">
-    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg overflow-hidden rounded-xl">
+  <div id="vpImportModal" class="emp-modal-shell vp-emp-modal-shell fixed inset-0 z-[10050] hidden flex items-center justify-center overflow-y-auto p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort vp-emp-modal-card my-auto w-full max-w-lg overflow-hidden rounded-xl">
       <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
         <h3 class="sys-section-heading text-lg">Importar planilha de férias</h3>
         <button type="button" onclick="document.getElementById('vpImportModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
@@ -503,8 +519,8 @@
   </div>
 
   <!-- Modal detalhes -->
-  <div id="vp-detail-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="vp-detail-title">
-    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg overflow-hidden rounded-xl">
+  <div id="vp-detail-modal" class="emp-modal-shell vp-emp-modal-shell fixed inset-0 z-[10050] hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="vp-detail-title">
+    <div class="sys-card sys-card--surface sys-card--comfort vp-emp-modal-card my-auto w-full max-w-lg overflow-hidden rounded-xl">
       <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
         <h3 id="vp-detail-title" class="sys-section-heading text-lg">Detalhes</h3>
         <button type="button" id="vp-detail-close" class="emp-modal-close shrink-0" aria-label="Fechar">
