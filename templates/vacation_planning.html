@@ -51,9 +51,9 @@
           </select>
         </label>
         <label class="vp-field-label vp-field-label--inline">
-          Centro de custo
-          <select id="vp-cost-center" class="ops-toolbar-control px-2.5 min-w-[11rem]">
-            {% for opt in cost_center_options or ['Todos'] %}
+          Empresa
+          <select id="vp-cost-center" class="ops-toolbar-control px-2.5 min-w-[11rem]" title="Filtra colaboradores por Souza Pinto ou Exemplar (campo centro de custo no cadastro)">
+            {% for opt in vacation_empresa_options or cost_center_options or ['Todos'] %}
             <option value="{{ opt }}">{{ opt }}</option>
             {% endfor %}
           </select>
@@ -119,7 +119,7 @@
               <th>Prazo</th>
               <th>Prioridade</th>
               <th>Melhor janela</th>
-              <th class="vp-queue-table__actions">Ação</th>
+              <th class="vp-queue-table__actions">Ações</th>
             </tr>
           </thead>
           <tbody id="vp-rows-body"></tbody>
@@ -132,9 +132,12 @@
       </div>
     </section>
 
-    <aside class="vp-sim-aside" id="vp-sim-aside" aria-label="Simulador de decisão">
+    <aside class="vp-sim-aside" id="vp-sim-aside" aria-label="Simular e lançar férias">
       <div class="vp-sim-aside__inner">
-        <h2 class="vp-section-title">Simulador de decisão</h2>
+        <h2 class="vp-section-title">Lançar férias</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400 leading-snug">
+          Escolha o colaborador e o período. <strong>Lançar férias</strong> grava no histórico do planejamento e, se marcar, sincroniza <code class="text-[11px]">vacation_start</code>/<code class="text-[11px]">vacation_end</code> no cadastro. Use <strong>Simular antes</strong> para ver alertas e recomendação.
+        </p>
         <label class="vp-field-label">
           Colaborador
           <select id="vp-sim-employee" class="ops-toolbar-control px-3 text-sm w-full"></select>
@@ -149,7 +152,6 @@
             <input type="date" id="vp-sim-end" class="ops-toolbar-control px-2 text-sm w-full">
           </label>
         </div>
-        <button type="button" id="vp-sim-run" class="sys-btn sys-btn--primary w-full text-sm">Simular</button>
         <div id="vp-sim-highlight" class="vp-sim-highlight hidden">
           <p id="vp-sim-label" class="text-sm font-semibold text-slate-800 dark:text-slate-100"></p>
           <p id="vp-sim-explanation" class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300"></p>
@@ -163,7 +165,10 @@
           <input type="checkbox" id="vp-sync-employee" class="rounded border-slate-300">
           <span>Sincronizar férias no cadastro do colaborador</span>
         </label>
-        <button type="button" id="vp-schedule-save" class="sys-btn sys-btn--secondary w-full text-sm">Registrar decisão</button>
+        <div class="flex flex-col gap-2">
+          <button type="button" id="vp-schedule-save" class="sys-btn sys-btn--primary w-full text-sm">Lançar férias</button>
+          <button type="button" id="vp-sim-run" class="sys-btn sys-btn--secondary w-full text-sm">Simular antes</button>
+        </div>
       </div>
     </aside>
   </div>
@@ -272,9 +277,9 @@
         <button type="button" id="vp-profile-save" class="sys-btn sys-btn--primary mt-3 text-xs">Salvar perfil</button>
       </div>
       <div id="vp-panel-suggest" class="vp-tabs__panel hidden" role="tabpanel">
-        <p class="text-xs text-slate-500 mb-2">Até 40 sugestões (ação «Sugestão inteligente» no topo).</p>
+        <p class="text-xs text-slate-500 mb-2">Até 40 sugestões (botão «Sugestão inteligente» no topo). Em cada linha use <strong>Lançar</strong> para gravar aquele período no histórico (mesmo fluxo do painel lateral).</p>
         <div class="sys-table-wrap sys-table-wrap--x-scroll">
-          <table class="vp-table w-full min-w-[800px] text-left text-sm">
+          <table class="vp-table w-full min-w-[880px] text-left text-sm">
             <thead>
               <tr class="text-xs text-slate-500">
                 <th class="px-3 py-2">#</th>
@@ -282,6 +287,7 @@
                 <th class="px-3 py-2">Função</th>
                 <th class="px-3 py-2">Período</th>
                 <th class="px-3 py-2">Motivos</th>
+                <th class="px-3 py-2 whitespace-nowrap">Lançar</th>
               </tr>
             </thead>
             <tbody id="vp-suggest-body"></tbody>

@@ -17,6 +17,7 @@ from sqlalchemy import desc
 from sqlmodel import Session, col, select
 
 import models
+from services.cost_center_utils import cost_center_display_label
 
 MONTH_NAMES_PT = (
     "",
@@ -219,20 +220,37 @@ def vacation_profile_get(session: Session, employee_id: int) -> Optional[Dict[st
         "updated_at": None,
     }
 
-    if not prof:
+    def _deadline_preview() -> Dict[str, Any]:
+        acq, basis = effective_acquisition_period_end(prof, emp)
+        conc = concessive_deadline_effective(prof, emp)
+        dleft = days_until_deadline(prof, emp, date.today())
         return {
+            "deadline_basis": basis,
+            "deadline_basis_label": deadline_basis_public_label(basis),
+            "acquisition_period_end_effective": acq.isoformat() if acq else None,
+            "concessive_deadline": conc.isoformat() if conc else None,
+            "days_until_concessive": dleft,
+        }
+
+    if not prof:
+        out = {
             "employee_id": emp.id,
             "name": emp.name,
             "role": emp.role,
             "cost_center": emp.cost_center,
+            "admission_date": iso_d(emp.admission_date),
             "vacation_profile": empty_profile,
         }
+        out["vacation_deadline_preview"] = _deadline_preview()
+        return out
 
     return {
         "employee_id": emp.id,
         "name": emp.name,
         "role": emp.role,
         "cost_center": emp.cost_center,
+        "admission_date": iso_d(emp.admission_date),
+        "vacation_deadline_preview": _deadline_preview(),
         "vacation_profile": {
             "has_record": True,
             "department_sector": prof.department_sector,
@@ -329,6 +347,93 @@ def _d(dt: Optional[datetime]) -> Optional[date]:
     return dt.date()
 
 
+def add_months(d: date, months: int) -> date:
+    """Soma meses ao calendário (ex.: admissão + 12 meses)."""
+    month_idx = d.month - 1 + months
+    year = d.year + month_idx // 12
+    month = month_idx % 12 + 1
+    last_day = calendar.monthrange(year, month)[1]
+    day = min(d.day, last_day)
+    return date(year, month, day)
+
+
+def _anchor_start_current_acquisition(
+    employee: models.Employee,
+    profile: Optional[models.EmployeeVacationProfile],
+) -> Tuple[Optional[date], str]:
+    """
+    Início do período aquisitivo atual: após últimas férias concluídas ou, na falta, data de admissão.
+    Retorna (data, tag) para explicar a origem na API.
+    """
+    ref = date.today()
+    if profile and profile.last_vacation_end:
+        lv = _d(profile.last_vacation_end)
+        if lv:
+            return lv + timedelta(days=1), "pos_ferias_perfil"
+    ve = _d(employee.vacation_end) if employee.vacation_end else None
+    if ve and ve < ref:
+        return ve + timedelta(days=1), "pos_ferias_cadastro"
+    adm = _d(employee.admission_date) if employee.admission_date else None
+    if adm:
+        return adm, "admissao"
+    return None, "sem_dados"
+
+
+def effective_acquisition_period_end(
+    profile: Optional[models.EmployeeVacationProfile],
+    employee: models.Employee,
+) -> Tuple[Optional[date], str]:
+    """
+    Fim do período aquisitivo usado pelo motor.
+    Prioriza ``acquisition_period_end`` do perfil; se vazio, estima 12 meses após o início
+    do aquisitivo atual (admissão ou retorno das férias).
+    """
+    if profile and profile.acquisition_period_end:
+        d = _d(profile.acquisition_period_end)
+        if d:
+            return d, "cadastro_perfil"
+    anchor, tag = _anchor_start_current_acquisition(employee, profile)
+    if not anchor:
+        return None, "sem_dados"
+    acq_end = add_months(anchor, 12) - timedelta(days=1)
+    return acq_end, tag
+
+
+def concessive_deadline_effective(
+    profile: Optional[models.EmployeeVacationProfile],
+    employee: models.Employee,
+) -> Optional[date]:
+    """Último dia do período concessivo (aprox. 12 meses após o fim do aquisitivo)."""
+    acq_end, _ = effective_acquisition_period_end(profile, employee)
+    if not acq_end:
+        return None
+    return acq_end + timedelta(days=365)
+
+
+def days_until_deadline(
+    profile: Optional[models.EmployeeVacationProfile],
+    employee: models.Employee,
+    ref: date,
+) -> Optional[int]:
+    dl = concessive_deadline_effective(profile, employee)
+    if not dl:
+        return None
+    return (dl - ref).days
+
+
+_DEADLINE_BASIS_LABEL_PT = {
+    "cadastro_perfil": "Prazo pelo perfil de férias (fim do aquisitivo informado).",
+    "admissao": "Prazo estimado pela data de admissão no cadastro (ciclo aquisitivo de 12 meses + concessivo).",
+    "pos_ferias_perfil": "Prazo estimado após o fim das férias registradas no perfil.",
+    "pos_ferias_cadastro": "Prazo estimado após o fim das férias no cadastro do colaborador.",
+    "sem_dados": "Sem data de admissão nem fim de aquisitivo no perfil — informe no perfil ou importe a planilha.",
+}
+
+
+def deadline_basis_public_label(basis: str) -> str:
+    return _DEADLINE_BASIS_LABEL_PT.get(basis, basis or "—")
+
+
 def role_bucket(role: Optional[str]) -> str:
     r = (role or "").upper()
     if "MOTORIST" in r:
@@ -346,22 +451,6 @@ def role_bucket(role: Optional[str]) -> str:
     if "ADMIN" in r or "ESCRIT" in r:
         return "ADMINISTRATIVO"
     return "OUTROS"
-
-
-def concessive_deadline(profile: Optional[models.EmployeeVacationProfile]) -> Optional[date]:
-    if not profile or not profile.acquisition_period_end:
-        return None
-    end = _d(profile.acquisition_period_end)
-    if not end:
-        return None
-    return end + timedelta(days=365)
-
-
-def days_until_deadline(profile: Optional[models.EmployeeVacationProfile], ref: date) -> Optional[int]:
-    dl = concessive_deadline(profile)
-    if not dl:
-        return None
-    return (dl - ref).days
 
 
 def vacation_window_status(demand_index: int) -> Tuple[str, str]:
@@ -412,11 +501,17 @@ def get_month_demand(
     return DEFAULT_DEMAND_BY_MONTH.get(month, 50), None, None
 
 
-def _employee_query(cost_center: Optional[str]):
+def list_employees_for_vacation(session: Session, cost_center: Optional[str]) -> List[models.Employee]:
+    """
+    Colaboradores ativos, filtrados por empresa (Souza Pinto / Exemplar) usando o mesmo
+    mapeamento de `cost_center` que o People Intelligence — não compara string cru do banco.
+    """
     q = select(models.Employee).where(col(models.Employee.status) == "active")
-    if cost_center and cost_center.strip() and cost_center.strip().lower() not in ("todos", "all"):
-        q = q.where(models.Employee.cost_center == cost_center.strip())
-    return q
+    rows = list(session.exec(q).all())
+    if not cost_center or str(cost_center).strip().lower() in ("todos", "all", ""):
+        return rows
+    sel = cost_center_display_label(str(cost_center).strip())
+    return [e for e in rows if cost_center_display_label(e.cost_center) == sel]
 
 
 def load_profiles(session: Session) -> Dict[int, models.EmployeeVacationProfile]:
@@ -425,7 +520,7 @@ def load_profiles(session: Session) -> Dict[int, models.EmployeeVacationProfile]
 
 
 def headcount_by_role(session: Session, cost_center: Optional[str]) -> Dict[str, int]:
-    employees = session.exec(_employee_query(cost_center)).all()
+    employees = list_employees_for_vacation(session, cost_center)
     c: Dict[str, int] = defaultdict(int)
     for e in employees:
         c[role_bucket(e.role)] += 1
@@ -445,7 +540,7 @@ def scheduled_windows(
 ) -> List[Dict[str, Any]]:
     """Intervalos de férias já marcadas (cadastro + entradas planejadas)."""
     out: List[Dict[str, Any]] = []
-    emps = list(session.exec(_employee_query(cost_center)).all())
+    emps = list_employees_for_vacation(session, cost_center)
     emp_by_id = {e.id: e for e in emps if e.id}
 
     for e in emps:
@@ -577,7 +672,7 @@ def compute_four_scores(
 ) -> ScoreBreakdown:
     """Quatro notas 0–100 + prioridade composta (interpretação para gestão)."""
     ref = date.today()
-    ddead = days_until_deadline(profile, ref)
+    ddead = days_until_deadline(profile, employee, ref)
 
     urgency = 15.0
     if ddead is not None:
@@ -657,7 +752,7 @@ def priority_index_for_month(
     score = 0.0
     rb = role_bucket(employee.role)
     ref = date.today()
-    ddead = days_until_deadline(profile, ref)
+    ddead = days_until_deadline(profile, employee, ref)
 
     if ddead is not None and ddead < 0:
         score += 40
@@ -766,7 +861,7 @@ def simulate(
     if route_conflict(windows, rt, start, end, employee_id):
         alerts.append("Conflito: outro colaborador da mesma rota/equipe já está de férias.")
 
-    _dd = days_until_deadline(profile, date.today())
+    _dd = days_until_deadline(profile, employee, date.today())
     if _dd is not None and _dd < -30:
         alerts.append("Férias muito atrasadas — priorizar negociação com RH.")
 
@@ -826,6 +921,89 @@ def simulate(
     }
 
 
+def _vacation_urgency_sort_key(
+    employee: models.Employee,
+    profile: Optional[models.EmployeeVacationProfile],
+    ref: date,
+) -> Tuple[int, int]:
+    """
+    Ordenação crescente = mais urgente primeiro.
+    Usa prazo concessivo (perfil, admissão ou pós-férias) como na fila do painel.
+    """
+    ddead = days_until_deadline(profile, employee, ref)
+    if ddead is None:
+        return (5, 99999)
+    if ddead < 0:
+        return (0, ddead)
+    if ddead <= 30:
+        return (1, ddead)
+    if ddead <= 90:
+        return (2, ddead)
+    if ddead <= 180:
+        return (3, ddead)
+    return (4, ddead)
+
+
+def _synthetic_schedule_window(
+    *,
+    employee_id: int,
+    name: str,
+    role_bucket: str,
+    route_team: str,
+    start: date,
+    end: date,
+) -> Dict[str, Any]:
+    """Janela compatível com ``scheduled_windows`` para simular lotes de sugestão."""
+    return {
+        "employee_id": employee_id,
+        "name": name,
+        "role_bucket": role_bucket,
+        "route_team": (route_team or "").strip(),
+        "start": start,
+        "end": end,
+        "source": "suggestion_plan",
+    }
+
+
+def _month_candidates_for_employee(
+    session: Session,
+    *,
+    year: int,
+    employee: models.Employee,
+    profile: Optional[models.EmployeeVacationProfile],
+    windows: List[Dict[str, Any]],
+    hc_map: Dict[str, int],
+    default_duration_days: int,
+) -> List[Tuple[float, int, int, date, date, List[str], int]]:
+    """
+    Meses viáveis para o colaborador, com (prioridade, mês, demanda, início, fim, motivos, concorrentes).
+    Ordenação externa: maior prioridade, menor demanda, menos gente da função já de férias naquele mês.
+    """
+    rb = role_bucket(employee.role)
+    opts: List[Tuple[float, int, int, date, date, List[str], int]] = []
+    for m in range(1, 13):
+        ms = date(year, m, 1)
+        me = end_of_month(ms)
+        di, _, rjo = get_month_demand(session, year, m)
+        prio, rsn = priority_index_for_month(
+            profile=profile,
+            employee=employee,
+            demand_index=di,
+            windows=windows,
+            month_start=ms,
+            headcount_by_role_map=hc_map,
+        )
+        conc = count_role_overlapping(windows, rb, ms, me, employee.id)
+        lim = effective_role_limit(rb, di, rjo)
+        if lim <= 0 or conc >= lim:
+            continue
+        ds = ms
+        de = ms + timedelta(days=default_duration_days - 1)
+        opts.append((prio, m, di, ds, de, rsn, conc))
+    opts.sort(key=lambda x: (-x[0], x[2], x[6]))
+    return opts
+
+
 def suggest_vacations(
     session: Session,
     *,
@@ -833,68 +1011,76 @@ def suggest_vacations(
     cost_center: Optional[str],
     default_duration_days: int = 22,
 ) -> Dict[str, Any]:
+    """
+    Sugere até 40 períodos priorizando quem está vencido ou próximo do concessivo
+    (incluindo estimativa por admissão), e **distribui no ano** sem lotar a mesma função:
+    cada nova sugestão entra num plano simulado de janelas para respeitar limite por função
+    e meses de maior demanda (índice calibrado).
+    """
+    ref = date.today()
     profiles = load_profiles(session)
-    employees = list(session.exec(_employee_query(cost_center)).all())
+    employees = [e for e in list_employees_for_vacation(session, cost_center) if e.id]
     hc_map = headcount_by_role(session, cost_center)
     suggestions: List[Dict[str, Any]] = []
-    windows = scheduled_windows(session, date(year, 1, 1), date(year, 12, 31), cost_center)
+    base_windows = scheduled_windows(session, date(year, 1, 1), date(year, 12, 31), cost_center)
+    sim_windows: List[Dict[str, Any]] = [dict(w) for w in base_windows]
 
-    ranked: List[Tuple[float, models.Employee, Optional[models.EmployeeVacationProfile], str, date, date, List[str]]] = []
+    employees.sort(
+        key=lambda emp: _vacation_urgency_sort_key(emp, profiles.get(emp.id), ref)
+    )
 
     for e in employees:
-        if not e.id:
-            continue
+        if len(suggestions) >= 40:
+            break
         prof = profiles.get(e.id)
-        best_prio = -1.0
-        best_month = 5
-        best_start = date(year, 5, 1)
-        best_end = date(year, 5, 1) + timedelta(days=default_duration_days - 1)
-        best_reasons: List[str] = []
-
-        for m in range(1, 13):
+        rb = role_bucket(e.role)
+        rt = (prof.route_team if prof else None) or ""
+        opts = _month_candidates_for_employee(
+            session,
+            year=year,
+            employee=e,
+            profile=prof,
+            windows=sim_windows,
+            hc_map=hc_map,
+            default_duration_days=default_duration_days,
+        )
+        for prio, m, di, ds, de, rsn, _conc in opts:
             ms = date(year, m, 1)
             me = end_of_month(ms)
-            di, _, rjo = get_month_demand(session, year, m)
-            prio, rsn = priority_index_for_month(
-                profile=prof,
-                employee=e,
-                demand_index=di,
-                windows=windows,
-                month_start=ms,
-                headcount_by_role_map=hc_map,
-            )
-            rb = role_bucket(e.role)
-            conc = count_role_overlapping(windows, rb, ms, me, e.id)
+            _, _, rjo = get_month_demand(session, year, m)
+            conc = count_role_overlapping(sim_windows, rb, ms, me, e.id)
             lim = effective_role_limit(rb, di, rjo)
             if conc >= lim:
                 continue
-            if prio > best_prio:
-                best_prio = prio
-                best_month = m
-                best_start = ms
-                best_end = ms + timedelta(days=default_duration_days - 1)
-                best_reasons = rsn
-
-        if best_prio >= 0:
-            ranked.append((best_prio, e, prof, MONTH_NAMES_PT[best_month], best_start, best_end, best_reasons))
-
-    ranked.sort(key=lambda x: -x[0])
-
-    for i, (prio, e, prof, mlabel, ds, de, rsn) in enumerate(ranked[:40], start=1):
-        suggestions.append(
-            {
-                "priority_rank": i,
-                "priority_score": round(prio, 1),
-                "employee_id": e.id,
-                "name": e.name,
-                "role": e.role,
-                "role_bucket": role_bucket(e.role),
-                "suggested_start": ds.isoformat(),
-                "suggested_end": de.isoformat(),
-                "month_label": mlabel,
-                "reasons": rsn,
-            }
-        )
+            reasons = list(rsn)
+            reasons.append(
+                "Distribuição inteligente: respeita limite por função no mês e evita concentrar saídas no mesmo lote."
+            )
+            sim_windows.append(
+                _synthetic_schedule_window(
+                    employee_id=int(e.id),
+                    name=e.name or "",
+                    role_bucket=rb,
+                    route_team=rt,
+                    start=ds,
+                    end=de,
+                )
+            )
+            suggestions.append(
+                {
+                    "priority_rank": len(suggestions) + 1,
+                    "priority_score": round(prio, 1),
+                    "employee_id": e.id,
+                    "name": e.name,
+                    "role": e.role,
+                    "role_bucket": rb,
+                    "suggested_start": ds.isoformat(),
+                    "suggested_end": de.isoformat(),
+                    "month_label": MONTH_NAMES_PT[m],
+                    "reasons": reasons,
+                }
+            )
+            break
 
     return {"year": year, "suggestions": suggestions}
 
@@ -909,7 +1095,7 @@ def dashboard_payload(
     ref = date.today()
     cal_month = view_month if view_month and 1 <= view_month <= 12 else (ref.month if year == ref.year else 1)
     profiles = load_profiles(session)
-    employees = list(session.exec(_employee_query(cost_center)).all())
+    employees = list_employees_for_vacation(session, cost_center)
     hc_map = headcount_by_role(session, cost_center)
 
     expired = 0
@@ -922,20 +1108,24 @@ def dashboard_payload(
         if not e.id:
             continue
         prof = profiles.get(e.id)
-        ddead = days_until_deadline(prof, ref)
+        acq_eff, deadline_basis = effective_acquisition_period_end(prof, e)
+        conc_eff = concessive_deadline_effective(prof, e)
+        ddead = days_until_deadline(prof, e, ref)
         status = "ok"
         status_label = "Em dia"
         if ddead is not None:
             if ddead < 0:
-                status, status_label, expired = "expired", "Vencida", expired + 1
+                status, status_label, expired = "expired", "Férias vencidas (concessivo)", expired + 1
             elif ddead <= 30:
-                status, status_label, d30 = "urgent_30", f"Vence em {ddead}d", d30 + 1
+                status, status_label, d30 = "urgent_30", f"A vencer em {ddead}d", d30 + 1
             elif ddead <= 60:
-                status, status_label, d60 = "urgent_60", f"Vence em {ddead}d", d60 + 1
+                status, status_label, d60 = "urgent_60", f"A vencer em {ddead}d", d60 + 1
             elif ddead <= 90:
-                status, status_label, d90 = "urgent_90", f"Vence em {ddead}d", d90 + 1
+                status, status_label, d90 = "urgent_90", f"A vencer em {ddead}d", d90 + 1
             else:
                 status_label = f"Concessivo em {ddead}d"
+        elif deadline_basis == "sem_dados":
+            status_label = "Sem prazo — cadastre admissão ou perfil de férias"
 
         di_view, _, _ = get_month_demand(session, year, cal_month)
         ms = date(year, cal_month, 1)
@@ -991,6 +1181,11 @@ def dashboard_payload(
                 "vacation_status": status,
                 "vacation_status_label": status_label,
                 "days_until_deadline": ddead,
+                "deadline_basis": deadline_basis,
+                "deadline_basis_label": deadline_basis_public_label(deadline_basis),
+                "acquisition_period_end_effective": acq_eff.isoformat() if acq_eff else None,
+                "concessive_deadline": conc_eff.isoformat() if conc_eff else None,
+                "admission_date": _d(e.admission_date).isoformat() if e.admission_date else None,
                 "criticality": (prof.criticality if prof else "media"),
                 "substitute": sub_name or "—",
                 "substitute_trained": bool(prof and prof.substitute_trained),

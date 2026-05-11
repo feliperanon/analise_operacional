@@ -253,6 +253,15 @@
       "<dt>Status trabalhista</dt><dd>" +
       escapeHtml(row.vacation_status_label || "—") +
       "</dd>" +
+      "<dt>Data de admissão (cadastro)</dt><dd>" +
+      escapeHtml(row.admission_date || "—") +
+      "</dd>" +
+      "<dt>Prazo concessivo (fim para gozar)</dt><dd>" +
+      escapeHtml(row.concessive_deadline || "—") +
+      "</dd>" +
+      "<dt>Origem do prazo</dt><dd class=\"text-xs leading-snug\">" +
+      escapeHtml(row.deadline_basis_label || "—") +
+      "</dd>" +
       "<dt>Criticidade</dt><dd>" +
       escapeHtml(row.criticality || "—") +
       "</dd>" +
@@ -347,6 +356,9 @@
         escapeHtml(row.best_period_hint || "—") +
         "</td>" +
         "<td class=\"vp-queue-table__actions\">" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-xs py-1 px-2 vp-btn-launch\" data-eid=\"" +
+        eid +
+        "\">Lançar</button> " +
         "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs py-1 px-2 vp-btn-sim\" data-eid=\"" +
         eid +
         "\">Simular</button> " +
@@ -357,6 +369,19 @@
       rb.appendChild(tr);
     });
 
+    rb.querySelectorAll(".vp-btn-launch").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var id = parseInt(b.getAttribute("data-eid"), 10);
+        if (id) {
+          setSimulatorEmployee(id);
+          hideAlert();
+          showAlert(
+            "Colaborador selecionado no painel «Lançar férias». Informe início e fim e clique em Lançar férias.",
+            "success"
+          );
+        }
+      });
+    });
     rb.querySelectorAll(".vp-btn-sim").forEach(function (b) {
       b.addEventListener("click", function () {
         var id = parseInt(b.getAttribute("data-eid"), 10);
@@ -732,7 +757,20 @@
             "</td>" +
             "<td class=\"px-3 py-2 text-xs\">" +
             escapeHtml(reasons) +
-            "</td>";
+            "</td>" +
+            "<td class=\"px-3 py-2 whitespace-nowrap\">" +
+            "<button type=\"button\" class=\"sys-btn sys-btn--primary text-xs py-1 px-2 vp-suggest-launch\" " +
+            "data-eid=\"" +
+            String(s.employee_id) +
+            "\" data-start=\"" +
+            escapeHtml(String(s.suggested_start || "")) +
+            "\" data-end=\"" +
+            escapeHtml(String(s.suggested_end || "")) +
+            "\" data-name=\"" +
+            escapeHtml(String(s.name || "")) +
+            "\" data-rank=\"" +
+            String(s.priority_rank) +
+            "\">Lançar</button></td>";
           sb.appendChild(tr);
         });
         switchSecondaryTab("suggest");
@@ -824,15 +862,25 @@
       });
   }
 
-  function saveSchedule() {
+  function saveSchedule(overrides) {
+    overrides = overrides || {};
     var q = qs();
-    var eid = byId("vp-sim-employee").value;
-    var start = byId("vp-sim-start").value;
-    var end = byId("vp-sim-end").value;
-    var reason = (byId("vp-schedule-reason").value || "").trim();
-    var sync = byId("vp-sync-employee").checked;
+    var eid =
+      overrides.employee_id != null
+        ? String(overrides.employee_id)
+        : byId("vp-sim-employee").value;
+    var start = overrides.start || byId("vp-sim-start").value;
+    var end = overrides.end || byId("vp-sim-end").value;
+    var reasonInput = (byId("vp-schedule-reason").value || "").trim();
+    var reason =
+      overrides.reason != null && overrides.reason !== ""
+        ? String(overrides.reason)
+        : reasonInput || null;
+    var sync =
+      overrides.sync != null ? !!overrides.sync : byId("vp-sync-employee").checked;
+    var source = overrides.source || "manual";
     if (!eid || !start || !end) {
-      showAlert("Preencha colaborador e datas (use o simulador).", "error");
+      showAlert("Preencha colaborador, início e fim para lançar férias.", "error");
       return;
     }
     fetch("/api/vacation-planning/schedule", {
@@ -844,8 +892,8 @@
         start: start,
         end: end,
         status: "approved",
-        source: "manual",
-        decision_reason: reason || null,
+        source: source.length > 20 ? source.slice(0, 20) : source,
+        decision_reason: reason,
         leadership_notes: null,
         cost_center: q.cost_center,
         sync_employee_vacation: sync,
@@ -877,6 +925,38 @@
       .catch(function (e) {
         showAlert(e.message || "Erro", "error");
       });
+  }
+
+  var suggestPanel = byId("vp-panel-suggest");
+  if (suggestPanel) {
+    suggestPanel.addEventListener("click", function (ev) {
+      var t = ev.target;
+      if (!t || !t.classList.contains("vp-suggest-launch")) return;
+      var eid = t.getAttribute("data-eid");
+      var st = t.getAttribute("data-start");
+      var en = t.getAttribute("data-end");
+      var nm = t.getAttribute("data-name") || "";
+      var rk = t.getAttribute("data-rank") || "";
+      if (!eid || !st || !en) return;
+      if (
+        !window.confirm(
+          "Lançar férias de " + nm + " de " + st + " a " + en + "? O registro vai para o histórico do planejamento."
+        )
+      ) {
+        return;
+      }
+      var extraReason =
+        (byId("vp-schedule-reason").value || "").trim() ||
+        "Sugestão inteligente #" + rk + " (" + st + " a " + en + ")";
+      saveSchedule({
+        employee_id: parseInt(eid, 10),
+        start: st,
+        end: en,
+        reason: extraReason,
+        source: "suggestion",
+        sync: byId("vp-sync-employee").checked,
+      });
+    });
   }
 
   function saveProfile() {

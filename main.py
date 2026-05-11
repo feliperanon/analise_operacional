@@ -46,6 +46,12 @@ from devolucoes_consolidado import (
     top_clients_ajudante,
     top_clients_motorista,
 )
+from services.cost_center_utils import (
+    cost_center_display_label,
+    employee_matches_cost_center,
+    normalize_cost_center,
+    parse_cost_center_filter,
+)
 from services.vacation_excel_import import import_vacation_control_workbook
 from services.vacation_planning_service import (
     dashboard_payload,
@@ -517,48 +523,6 @@ def delivery_route_matches_leader_shift(
         if emp and normalize_shift(getattr(emp, "work_shift", None)) == shift_norm:
             return True
     return False
-
-
-def normalize_cost_center(value: Optional[str]) -> str:
-    """Normaliza centro de custo para comparação consistente."""
-    if not value:
-        return ""
-    normalized = unicodedata.normalize("NFD", str(value))
-    cleaned = "".join(ch for ch in normalized if not unicodedata.combining(ch))
-    compact = " ".join("".join(ch if (ch.isalnum() or ch.isspace()) else " " for ch in cleaned).lower().split())
-    if not compact:
-        return ""
-    if "souza" in compact and "pinto" in compact:
-        return "souza_pinto"
-    if "exemplar" in compact:
-        return "exemplar"
-    return compact.replace(" ", "_")
-
-
-def cost_center_display_label(value: Optional[str]) -> str:
-    """Retorna rótulo amigável para centro de custo."""
-    normalized = normalize_cost_center(value)
-    if normalized == "souza_pinto":
-        return "Souza Pinto"
-    if normalized == "exemplar":
-        return "Exemplar"
-    raw = (value or "").strip()
-    return raw if raw else "Sem Centro"
-
-
-def parse_cost_center_filter(value: Optional[str]) -> Optional[str]:
-    raw = (value or "").strip()
-    if not raw or raw in {"Todos", "Geral", "null", "None"}:
-        return None
-    return cost_center_display_label(raw)
-
-
-def employee_matches_cost_center(employee: Optional[models.Employee], selected_cost_center: Optional[str]) -> bool:
-    if not selected_cost_center:
-        return True
-    if not employee:
-        return False
-    return cost_center_display_label(getattr(employee, "cost_center", None)) == selected_cost_center
 
 
 def _load_employee_name_maps(
@@ -34754,12 +34718,14 @@ class VacationProfileBody(BaseModel):
 @app.get("/people-intelligence/vacation-planning", response_class=HTMLResponse)
 async def vacation_planning_page(request: Request, session: Session = Depends(get_session)):
     require_login(request)
-    data = get_people_intelligence_metrics(session, "Todos", None, None)
+    # Filtro fixo Souza Pinto × Exemplar (mesmo critério de `cost_center_display_label` no cadastro).
+    vacation_empresa_options = ["Todos", "Souza Pinto", "Exemplar"]
     return templates.TemplateResponse(
         "vacation_planning.html",
         {
             "request": request,
-            "cost_center_options": data.get("cost_center_options", ["Todos"]),
+            "vacation_empresa_options": vacation_empresa_options,
+            "cost_center_options": vacation_empresa_options,
         },
     )
 
