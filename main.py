@@ -46,6 +46,7 @@ from devolucoes_consolidado import (
     top_clients_ajudante,
     top_clients_motorista,
 )
+from services.vacation_excel_import import import_vacation_control_workbook
 from services.vacation_planning_service import (
     dashboard_payload,
     list_history,
@@ -34975,6 +34976,48 @@ async def api_vacation_planning_history(
     require_login(request)
     rows = list_history(session, limit=min(200, max(1, int(limit))))
     return JSONResponse(content={"items": rows})
+
+
+@app.post("/api/vacation-planning/import-workbook")
+async def api_vacation_planning_import_workbook(
+    request: Request,
+    file: UploadFile = File(...),
+    interpretation: str = Form("acquisition_end"),
+    update_admission: str = Form("true"),
+    session: Session = Depends(get_session),
+):
+    """
+    Importa planilha de controle de férias (COLABORADOR, FUNÇÃO, colunas de período com datas).
+    Atualiza ``EmployeeVacationProfile.acquisition_period_end`` (ligado ao colaborador) e,
+    opcionalmente, ``Employee.admission_date``.
+    """
+    require_leader(request)
+    raw = await file.read()
+    if len(raw) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Arquivo acima de 8 MB.")
+    if not raw:
+        raise HTTPException(status_code=400, detail="Arquivo vazio.")
+
+    inter = (interpretation or "acquisition_end").strip().lower()
+    if inter not in ("acquisition_end", "concessive_deadline"):
+        inter = "acquisition_end"
+    ua = str(update_admission).lower() in ("1", "true", "yes", "on")
+
+    fn = file.filename or "planilha.xls"
+    try:
+        result = import_vacation_control_workbook(
+            session,
+            file_bytes=raw,
+            filename=fn,
+            interpretation=inter,
+            update_admission=ua,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Falha ao ler planilha: {exc}") from exc
+
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "Importação inválida.")
+    return JSONResponse(content=jsonable_encoder(result))
 
 
 @app.get("/smart-flow/load", response_class=JSONResponse, dependencies=[Depends(require_leader)])

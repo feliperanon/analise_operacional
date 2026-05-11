@@ -177,15 +177,47 @@
   <section class="vp-secondary" aria-labelledby="vp-secondary-heading">
     <h2 id="vp-secondary-heading" class="vp-section-title vp-secondary__title">Configurações e histórico</h2>
     <p id="vp-tabs-placeholder" class="vp-tabs__placeholder text-xs text-slate-500 mb-2">
-      Abra uma seção quando precisar calibrar, editar perfil, ver sugestões em lote ou histórico.
+      Abra uma seção para importar planilha, calibrar demanda, editar perfil, sugestões em lote ou histórico.
     </p>
     <div class="vp-tabs" role="tablist">
+      <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="import">Importar planilha</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="cal">Calibragem mensal</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="profile">Perfil operacional</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="suggest">Sugestão automática</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="history">Histórico de decisões</button>
     </div>
     <div class="vp-tabs__panels">
+      <div id="vp-panel-import" class="vp-tabs__panel hidden" role="tabpanel">
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3 max-w-2xl">
+          Envie o Excel de acompanhamento (modelo com <strong>COLABORADOR</strong>, <strong>FUNÇÃO</strong> e colunas <strong>1º PERÍODO …</strong> com datas).
+          Cada linha é associada ao <strong>cadastro ativo</strong> pelo nome (igual ao cadastro) ou pela coluna de matrícula, quando existir.
+          O sistema grava o fim do período aquisitivo no <strong>perfil de férias</strong> do colaborador — o mesmo usado pelo painel e pelo simulador.
+          Ao marcar a opção abaixo, também atualiza a <strong>data de admissão</strong> no cadastro.
+        </p>
+        <form id="vp-import-form" class="flex flex-col gap-3 max-w-xl">
+          <label class="vp-field-label">
+            Arquivo (.xls ou .xlsx)
+            <input type="file" id="vp-import-file" name="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="text-sm">
+          </label>
+          <fieldset class="border border-slate-200 dark:border-slate-600 rounded-lg p-3">
+            <legend class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-1">Significado das datas nas colunas de período</legend>
+            <label class="flex items-start gap-2 text-sm mt-2 cursor-pointer">
+              <input type="radio" name="vp-import-interpret" value="acquisition_end" checked class="mt-1">
+              <span>Fim do <strong>período aquisitivo</strong> (recomendado se a planilha marca o término da aquisição)</span>
+            </label>
+            <label class="flex items-start gap-2 text-sm mt-2 cursor-pointer">
+              <input type="radio" name="vp-import-interpret" value="concessive_deadline" class="mt-1">
+              <span>Data limite do <strong>período concessivo</strong> (último dia para gozar; o sistema converte para o campo interno de aquisição)</span>
+            </label>
+          </fieldset>
+          <label class="vp-check text-sm">
+            <input type="checkbox" id="vp-import-admission" checked>
+            <span>Atualizar data de admissão no cadastro do colaborador (coluna de admissão da planilha)</span>
+          </label>
+          <button type="submit" id="vp-import-submit" class="sys-btn sys-btn--primary text-sm w-fit">Importar e gravar</button>
+        </form>
+        <pre id="vp-import-result" class="vp-pre mt-4 text-xs max-h-64 hidden"></pre>
+      </div>
       <div id="vp-panel-cal" class="vp-tabs__panel hidden" role="tabpanel">
         <p class="text-xs text-slate-500 mb-3">Índice 0–100 por mês e limites por função (JSON opcional).</p>
         <div class="flex flex-wrap items-end gap-3 mb-3">

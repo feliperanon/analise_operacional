@@ -927,7 +927,7 @@
       b.classList.toggle("vp-tabs__btn--active", is);
       b.setAttribute("aria-selected", is ? "true" : "false");
     });
-    ["cal", "profile", "suggest", "history"].forEach(function (id) {
+    ["import", "cal", "profile", "suggest", "history"].forEach(function (id) {
       var p = byId("vp-panel-" + id);
       if (p) p.classList.toggle("hidden", id !== tab);
     });
@@ -1006,6 +1006,76 @@
   byId("vp-month").addEventListener("change", function () {
     loadOverview();
   });
+
+  var importForm = byId("vp-import-form");
+  if (importForm) {
+    importForm.addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var fi = byId("vp-import-file");
+      var pre = byId("vp-import-result");
+      if (!fi || !fi.files || !fi.files[0]) {
+        showAlert("Selecione um arquivo .xls ou .xlsx.", "error");
+        return;
+      }
+      var interpretEl = root.querySelector('input[name="vp-import-interpret"]:checked');
+      var interpretation = interpretEl ? interpretEl.value : "acquisition_end";
+      var adm = byId("vp-import-admission");
+      var fd = new FormData();
+      fd.append("file", fi.files[0]);
+      fd.append("interpretation", interpretation);
+      fd.append("update_admission", adm && adm.checked ? "true" : "false");
+      hideAlert();
+      if (pre) {
+        pre.classList.add("hidden");
+        pre.textContent = "";
+      }
+      var btn = byId("vp-import-submit");
+      if (btn) btn.disabled = true;
+      fetch("/api/vacation-planning/import-workbook", {
+        method: "POST",
+        credentials: "same-origin",
+        body: fd,
+      })
+        .then(function (r) {
+          return r.json().then(function (j) {
+            return { ok: r.ok, status: r.status, body: j };
+          });
+        })
+        .then(function (res) {
+          if (btn) btn.disabled = false;
+          if (res.status === 403) {
+            showAlert("Sem permissão (apenas líder/admin pode importar).", "error");
+            return;
+          }
+          if (!res.ok) {
+            var d = res.body.detail;
+            if (Array.isArray(d))
+              d = d
+                .map(function (x) {
+                  return x.msg || x;
+                })
+                .join("; ");
+            showAlert(d || res.body.message || "Falha na importação", "error");
+            return;
+          }
+          if (pre) {
+            pre.textContent = JSON.stringify(res.body, null, 2);
+            pre.classList.remove("hidden");
+          }
+          showAlert(
+            "Importação concluída: " +
+              (res.body.updated_profiles || 0) +
+              " perfil(is) atualizado(s).",
+            "success"
+          );
+          loadOverview();
+        })
+        .catch(function () {
+          if (btn) btn.disabled = false;
+          showAlert("Erro de rede na importação.", "error");
+        });
+    });
+  }
 
   loadOverview();
   loadHistory();
