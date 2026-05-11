@@ -109,6 +109,30 @@ def _fmt_data_hora_pt_br(s: Optional[str]) -> str:
     return s
 
 
+def _extract_hhmm(value: Optional[Any]) -> str:
+    """Extrai HH:MM de strings como 'HH:MM', 'HH:MM:SS', ISO 8601 ou 'YYYY-MM-DD HH:MM:SS'."""
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        try:
+            return value.strftime("%H:%M")
+        except Exception:
+            return ""
+    s = str(value).strip()
+    if not s:
+        return ""
+    try:
+        if "T" in s:
+            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+            return dt.strftime("%H:%M")
+        if " " in s:
+            tail = s.split(" ", 1)[1].strip()
+            return tail[:5] if ":" in tail[:5] else ""
+        return s[:5] if ":" in s[:5] else ""
+    except Exception:
+        return s[:5] if len(s) >= 5 and ":" in s[:5] else ""
+
+
 def _fmt_moeda_br(v: float) -> str:
     s = f"{float(v):,.2f}"
     return "R$ " + s.replace(",", "X").replace(".", ",").replace("X", ".")
@@ -1147,6 +1171,12 @@ def init_devolucoes_router(
             vendedor_wa_phone, vendedor_phone_display = _employee_phone_whatsapp_pair(getattr(vendedor, "phone", None))
             vendedor_name = (vendedor.name if vendedor else "-") or "-"
             data_display = _fmt_data_hora_pt_br(data_efetiva) or data_efetiva or "-"
+            linked_route = route_map.get(dev.route_id) if dev.route_id else None
+            hora_devolucao = _extract_hhmm(getattr(linked_route, "delivery_returned_at", None))
+            if not hora_devolucao:
+                hora_devolucao = _extract_hhmm(getattr(dev, "created_at", None))
+            if hora_devolucao and data_display and data_display != "-" and ":" not in data_display:
+                data_display = f"{data_display} {hora_devolucao}"
             valor_fmt = _fmt_moeda_br(float(dev.valor or 0.0))
             whatsapp_url = ""
             if vendedor_wa_phone:

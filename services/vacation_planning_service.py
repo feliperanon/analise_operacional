@@ -937,12 +937,12 @@ def dashboard_payload(
             else:
                 status_label = f"Concessivo em {ddead}d"
 
-        di_jan, _, _ = get_month_demand(session, year, ref.month if ref.year == year else 1)
-        ms = date(year, ref.month, 1) if ref.year == year else date(year, 6, 1)
+        di_view, _, _ = get_month_demand(session, year, cal_month)
+        ms = date(year, cal_month, 1)
         prio, _ = priority_index_for_month(
             profile=prof,
             employee=e,
-            demand_index=di_jan,
+            demand_index=di_view,
             windows=windows_year,
             month_start=ms,
             headcount_by_role_map=hc_map,
@@ -974,7 +974,7 @@ def dashboard_payload(
         if best_month:
             best_label = f"{MONTH_NAMES_PT[best_month]}/{year}"
 
-        st_color, st_hint = vacation_window_status(get_month_demand(session, year, ref.month if ref.year == year else 6)[0])
+        st_color, st_hint = vacation_window_status(di_view)
 
         sub_name = ""
         if prof and prof.substitute_employee_id:
@@ -997,6 +997,7 @@ def dashboard_payload(
                 "best_period_hint": best_label or "Revisar limites por mês",
                 "priority_index": round(prio, 1),
                 "window_color": st_color,
+                "window_hint": st_hint,
                 "route_team": (prof.route_team if prof else None) or "",
             }
         )
@@ -1046,16 +1047,87 @@ def dashboard_payload(
     if 1 <= cal_month <= 12:
         op_risk = monthly[cal_month - 1]["risk_score"]
 
+    mr_cur = monthly[cal_month - 1] if 1 <= cal_month <= 12 else monthly[0]
+    cap_cur = max(1, int(mr_cur["capacity_hint"]))
+    sched_cur = int(mr_cur["scheduled_count"])
+    load_ratio = sched_cur / cap_cur
+    base_color = str(mr_cur.get("status_color") or "yellow")
+    situation_color = base_color
+    if load_ratio >= 1.0:
+        situation_color = "red"
+    elif load_ratio >= 0.82 and base_color == "green":
+        situation_color = "yellow"
+    elif load_ratio >= 0.95 and base_color != "red":
+        situation_color = "red" if load_ratio >= 1.05 else "yellow"
+
+    decision_key = "aprovado"
+    if base_color == "red" or situation_color == "red":
+        decision_key = "nao_recomendado"
+    elif base_color == "yellow" or situation_color == "yellow":
+        decision_key = "atencao"
+    elif load_ratio >= 0.72:
+        decision_key = "atencao"
+
+    greens = [x for x in monthly if x.get("status_color") == "green"]
+    pool = greens if greens else monthly
+    best_m = min(
+        pool,
+        key=lambda x: (
+            int(x.get("risk_score") or 0),
+            int(x.get("scheduled_count") or 0) / max(1, int(x.get("capacity_hint") or 1)),
+        ),
+    )
+    best_month_num = int(best_m["month"])
+    best_month_name = str(best_m["month_name"])
+
+    mn = MONTH_NAMES_PT[cal_month]
+    dem_l = str(mr_cur.get("demand_label") or "").lower()
+    guidance_parts: List[str] = []
+    if decision_key == "aprovado":
+        guidance_parts.append(f"{mn}/{year} está favorável para férias.")
+    elif decision_key == "atencao":
+        guidance_parts.append(f"{mn}/{year} admite férias, mas exige atenção à cobertura e à demanda.")
+    else:
+        guidance_parts.append(f"{mn}/{year} é desafiador para férias — evite concentrar saídas.")
+
+    if dem_l:
+        guidance_parts.append(f"Demanda {dem_l}.")
+    guidance_parts.append(
+        f"Capacidade estimada ~{cap_cur}; {sched_cur} colaborador(es) com férias no mês."
+    )
+    if best_month_num != cal_month:
+        guidance_parts.append(f"Melhor mês coletivo sugerido: {best_month_name}/{year}.")
+
+    month_situation: Dict[str, Any] = {
+        "month": cal_month,
+        "month_name": mn,
+        "year": year,
+        "status_color": situation_color,
+        "demand_label": mr_cur.get("demand_label"),
+        "capacity_hint": cap_cur,
+        "scheduled_count": sched_cur,
+        "operational_risk": op_risk,
+        "load_ratio": round(load_ratio, 2),
+        "decision_key": decision_key,
+        "decision_label": RECOMMENDATION_LABEL_PT.get(decision_key, decision_key),
+        "guidance_text": " ".join(guidance_parts),
+        "best_month": best_month_num,
+        "best_month_name": best_month_name,
+    }
+
     return {
         "year": year,
+        "view_month": cal_month,
         "kpis": {
             "expired": expired,
             "due_30": d30,
             "due_60": d60,
             "due_90": d90,
+            "due_60_90": d60 + d90,
             "scheduled_in_month": scheduled_month,
             "operational_risk_month": op_risk,
         },
+        "month_situation": month_situation,
         "rows": rows,
         "monthly": monthly,
         "employees_options": [{"id": e.id, "name": e.name, "role": e.role} for e in employees if e.id],

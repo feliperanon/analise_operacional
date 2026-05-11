@@ -19875,6 +19875,21 @@ async def separacao_page(
                 data_devolucao = datetime.strptime(route.date, "%Y-%m-%d").strftime("%d/%m/%Y") if route.date else "-"
             except Exception:
                 data_devolucao = route.date or "-"
+            _returned_raw = (route.delivery_returned_at or "").strip()
+            _hhmm_devolucao = ""
+            if _returned_raw:
+                try:
+                    if "T" in _returned_raw:
+                        _hhmm_devolucao = datetime.fromisoformat(_returned_raw.replace("Z", "+00:00")).strftime("%H:%M")
+                    elif " " in _returned_raw:
+                        _tail = _returned_raw.split(" ", 1)[1].strip()
+                        _hhmm_devolucao = _tail[:5] if ":" in _tail[:5] else ""
+                    else:
+                        _hhmm_devolucao = _returned_raw[:5] if ":" in _returned_raw[:5] else ""
+                except Exception:
+                    _hhmm_devolucao = _returned_raw[:5] if ":" in _returned_raw[:5] else ""
+            if _hhmm_devolucao and data_devolucao and data_devolucao != "-":
+                data_devolucao = f"{data_devolucao} {_hhmm_devolucao}"
             msg_reagendamento = (
                 "Olá!\n\n"
                 f"A entrega desse cliente ({row_client_name}) não será realizada hoje. "
