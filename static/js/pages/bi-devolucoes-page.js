@@ -19,6 +19,18 @@
   }
 
   var data = parseJson("bi-devolucoes-data");
+  (function mergeEvolucaoChartData() {
+    var evNode = document.getElementById("bi-dev-evolucao-data");
+    if (!evNode) return;
+    try {
+      var parsed = JSON.parse((evNode.textContent || "").trim() || "[]");
+      if (Array.isArray(parsed)) {
+        data.evolucaoDiaria = parsed;
+      }
+    } catch (_err) {
+      /* JSON principal pode falhar; série da evolução vem em script dedicado */
+    }
+  })();
   var allRows = Array.isArray(data.rowsDetail) ? data.rowsDetail.slice() : [];
   var filteredRows = allRows.slice();
   var cursor = 0;
@@ -362,10 +374,14 @@
         var lim = chartPointLimit();
         var days = allDays.slice(-lim);
         if (!days.length) {
+          var hintEmpty = document.getElementById("bi-dev-chart-export-hint");
+          if (hintEmpty) {
+            hintEmpty.textContent =
+              "Não há série diária para exibir (período vazio ou dados indisponíveis). Verifique as datas e filtros.";
+          }
           chartCanvas.dataset.ready = "1";
           return;
         }
-        chartCanvas.dataset.ready = "1";
         chartCanvas.parentElement.style.minHeight = chartHeightPx() + "px";
 
         if (chartCanvas._biDevChart) {
@@ -486,60 +502,69 @@
           };
         }
 
-        var chart = new window.Chart(chartCanvas, {
-          type: "bar",
-          data: {
-            labels: days.map(function (d) {
-              return isoDateToBr(d.data);
-            }),
-            datasets: ds
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: "index", intersect: false },
-            stacked: false,
-            plugins: {
-              legend: {
-                display: true,
-                position: "top",
-                labels: {
-                  boxWidth: 12,
-                  font: { size: 11 },
-                  usePointStyle: true,
-                  padding: 10
-                }
-              },
-              tooltip: {
-                padding: 10,
-                callbacks: {
-                  label: function (ctx) {
-                    var v = ctx.parsed.y;
-                    if (v == null || (typeof v === "number" && isNaN(v))) return (ctx.dataset.label || "") + ": —";
-                    return (ctx.dataset.label || "") + ": " + fmtMoney(v);
-                  },
-                  afterBody: function (items) {
-                    if (!items || !items.length) return [];
-                    var idx = items[0].dataIndex;
-                    var row = days[idx];
-                    if (!row) return [];
-                    var lines = [];
-                    var rec = Number(row.receita_base || 0);
-                    if (rec > 0) lines.push("Receita base (rotas): " + fmtMoney(rec));
-                    var meta = row.meta_2pct_valor;
-                    if (meta != null && !isNaN(Number(meta))) lines.push("Teto meta 2% no dia: " + fmtMoney(meta));
-                    var pv = row.pct_devolucao_dia;
-                    if (pv != null && !isNaN(Number(pv))) lines.push("% devolução no dia: " + fmtPct(pv));
-                    lines.push("Qtd. devoluções: " + String(row.qtd != null ? row.qtd : 0));
-                    return lines;
+        try {
+          var chart = new window.Chart(chartCanvas, {
+            type: "bar",
+            data: {
+              labels: days.map(function (d) {
+                return isoDateToBr(d.data);
+              }),
+              datasets: ds
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: "index", intersect: false },
+              stacked: false,
+              plugins: {
+                legend: {
+                  display: true,
+                  position: "top",
+                  labels: {
+                    boxWidth: 12,
+                    font: { size: 11 },
+                    usePointStyle: true,
+                    padding: 10
+                  }
+                },
+                tooltip: {
+                  padding: 10,
+                  callbacks: {
+                    label: function (ctx) {
+                      var v = ctx.parsed.y;
+                      if (v == null || (typeof v === "number" && isNaN(v))) return (ctx.dataset.label || "") + ": —";
+                      return (ctx.dataset.label || "") + ": " + fmtMoney(v);
+                    },
+                    afterBody: function (items) {
+                      if (!items || !items.length) return [];
+                      var idx = items[0].dataIndex;
+                      var row = days[idx];
+                      if (!row) return [];
+                      var lines = [];
+                      var rec = Number(row.receita_base || 0);
+                      if (rec > 0) lines.push("Receita base (rotas): " + fmtMoney(rec));
+                      var meta = row.meta_2pct_valor;
+                      if (meta != null && !isNaN(Number(meta))) lines.push("Teto meta 2% no dia: " + fmtMoney(meta));
+                      var pv = row.pct_devolucao_dia;
+                      if (pv != null && !isNaN(Number(pv))) lines.push("% devolução no dia: " + fmtPct(pv));
+                      lines.push("Qtd. devoluções: " + String(row.qtd != null ? row.qtd : 0));
+                      return lines;
+                    }
                   }
                 }
-              }
-            },
-            scales: scales
+              },
+              scales: scales
+            }
+          });
+          chartCanvas._biDevChart = chart;
+          chartCanvas.dataset.ready = "1";
+        } catch (_chartErr) {
+          var hintErr = document.getElementById("bi-dev-chart-export-hint");
+          if (hintErr) {
+            hintErr.textContent =
+              "Erro ao montar o gráfico. Recarregue a página; se persistir, abra o console (F12) para detalhes.";
           }
-        });
-        chartCanvas._biDevChart = chart;
+        }
       });
     };
 

@@ -1912,12 +1912,16 @@
             pre.textContent = JSON.stringify(res.body, null, 2);
             pre.classList.remove("hidden");
           }
-          showAlert(
-            "Importação concluída: " +
-              (res.body.updated_profiles || 0) +
-              " perfil(is) atualizado(s).",
-            "success"
-          );
+          var kind = res.body.workbook_kind;
+          var okMsg =
+            kind === "programmed"
+              ? "Importação concluída: " +
+                (res.body.created_schedule_entries || 0) +
+                " período(s) de férias gravado(s) no planejamento."
+              : "Importação concluída: " +
+                (res.body.updated_profiles || 0) +
+                " perfil(is) atualizado(s).";
+          showAlert(okMsg, "success");
           var impModal = document.getElementById("vpImportModal");
           if (impModal) impModal.classList.add("hidden");
           loadOverview();

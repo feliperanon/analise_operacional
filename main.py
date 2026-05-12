@@ -52,7 +52,7 @@ from services.cost_center_utils import (
     normalize_cost_center,
     parse_cost_center_filter,
 )
-from services.vacation_excel_import import import_vacation_control_workbook
+from services.vacation_excel_import import import_vacation_workbook
 from services.vacation_planning_service import (
     dashboard_payload,
     list_history,
@@ -34966,11 +34966,19 @@ async def api_vacation_planning_import_workbook(
     session: Session = Depends(get_session),
 ):
     """
-    Importa planilha de controle de férias (COLABORADOR, FUNÇÃO, colunas de período com datas).
-    Atualiza ``EmployeeVacationProfile.acquisition_period_end`` (ligado ao colaborador) e,
-    opcionalmente, ``Employee.admission_date``.
+    Importa planilha de férias (Excel).
+
+    Dois formatos são detectados automaticamente:
+
+    - Controle de vencimento: COLABORADOR, FUNÇÃO e colunas de período com datas.
+      Atualiza ``EmployeeVacationProfile.acquisition_period_end`` e, opcionalmente,
+      ``Employee.admission_date``.
+
+    - Programação de gozo: COLABORADOR com colunas de início e fim das férias
+      (ex.: «Férias Início» / «Férias Fim»). Cria entradas aprovadas em
+      ``VacationScheduleEntry`` para o planejamento.
     """
-    require_leader(request)
+    user = require_leader(request)
     raw = await file.read()
     if len(raw) > 8 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Arquivo acima de 8 MB.")
@@ -34983,13 +34991,15 @@ async def api_vacation_planning_import_workbook(
     ua = str(update_admission).lower() in ("1", "true", "yes", "on")
 
     fn = file.filename or "planilha.xls"
+    uid = user.get("id") if isinstance(user, dict) else None
     try:
-        result = import_vacation_control_workbook(
+        result = import_vacation_workbook(
             session,
             file_bytes=raw,
             filename=fn,
             interpretation=inter,
             update_admission=ua,
+            approved_by_user_id=uid if isinstance(uid, int) else None,
         )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Falha ao ler planilha: {exc}") from exc

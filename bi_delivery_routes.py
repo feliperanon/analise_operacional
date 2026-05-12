@@ -32,6 +32,15 @@ _BI_MOT_RSP_CACHE: dict = {"ts": 0.0, "mot": None, "rsp": None}
 _BI_MOT_RSP_TTL_SEC = 300.0
 
 
+def _json_for_inline_script(obj: Any) -> str:
+    """JSON para <script type=\"application/json\">: impede que '</' em texto feche a tag e invalide o parse."""
+    try:
+        raw = json.dumps(obj, ensure_ascii=False, default=str, allow_nan=False)
+    except (ValueError, TypeError, OverflowError):
+        raw = json.dumps(obj, ensure_ascii=False, default=str)
+    return raw.replace("</", "\\u003c/")
+
+
 def _competence_period_window(date_i: date, date_f: date, pad_days: int = 10) -> tuple[str, str, str, str]:
     start = date_i.strftime("%Y-%m-%d")
     end = date_f.strftime("%Y-%m-%d")
@@ -4903,17 +4912,28 @@ def _build_bi_devolucoes_dataset(
     def _date_str_range_inclusive(s: str, e: str) -> List[str]:
         out: List[str] = []
         try:
-            di = datetime.strptime((s or "")[:10], "%Y-%m-%d").date()
-            df = datetime.strptime((e or "")[:10], "%Y-%m-%d").date()
+            s10 = (s or "").strip()[:10]
+            e10 = (e or "").strip()[:10]
+            if len(s10) < 10 or len(e10) < 10:
+                return []
+            di = datetime.strptime(s10, "%Y-%m-%d").date()
+            df = datetime.strptime(e10, "%Y-%m-%d").date()
+            if di > df:
+                di, df = df, di
             cur = di
             while cur <= df:
                 out.append(cur.strftime("%Y-%m-%d"))
                 cur += timedelta(days=1)
         except Exception:
-            pass
+            return []
         return out
 
     days_sorted = _date_str_range_inclusive(period_start, period_end)
+    if not days_sorted and date_i and date_f:
+        cur = date_i
+        while cur <= date_f:
+            days_sorted.append(cur.strftime("%Y-%m-%d"))
+            cur += timedelta(days=1)
     evolucao_diaria: list[dict] = []
     for ds in days_sorted:
         slot_dev = per_day.get(ds, {"data": ds, "qtd": 0, "valor": 0.0})
@@ -5126,21 +5146,21 @@ def _build_bi_devolucoes_dataset(
         "clients_filter": clients_filter,
         "vendedores_filter": vendedores_filter,
         # json para charts
-        "evolucao_diaria_json": json.dumps(evolucao_diaria, ensure_ascii=False, default=str),
-        "evolucao_semanal_json": json.dumps(evolucao_semanal, ensure_ascii=False, default=str),
-        "top_motivos_json": json.dumps(top_motivos, ensure_ascii=False, default=str),
-        "resp_breakdown_json": json.dumps(resp_breakdown, ensure_ascii=False, default=str),
-        "resp_drill_json": json.dumps(resp_drill, ensure_ascii=False, default=str),
-        "top_motoristas_json": json.dumps(top_motoristas, ensure_ascii=False, default=str),
-        "top_clientes_json": json.dumps(top_clientes, ensure_ascii=False, default=str),
-        "top_vendedores_json": json.dumps(top_vendedores, ensure_ascii=False, default=str),
-        "vendedor_drill_json": json.dumps(vendedor_drill, ensure_ascii=False, default=str),
-        "top_clusters_json": json.dumps(top_clusters, ensure_ascii=False, default=str),
-        "heatmap_matrix_json": json.dumps(heatmap_matrix, ensure_ascii=False, default=str),
-        "heatmap_weeks_labels_json": json.dumps(weeks_label, ensure_ascii=False, default=str),
-        "heatmap_dom_dow_json": json.dumps(heatmap_dom_dow, ensure_ascii=False, default=str),
-        "dow_labels_json": json.dumps(DOW_LABELS, ensure_ascii=False),
-        "rows_detail_json": json.dumps(rows_detail[:500], ensure_ascii=False, default=str),
+        "evolucao_diaria_json": _json_for_inline_script(evolucao_diaria),
+        "evolucao_semanal_json": _json_for_inline_script(evolucao_semanal),
+        "top_motivos_json": _json_for_inline_script(top_motivos),
+        "resp_breakdown_json": _json_for_inline_script(resp_breakdown),
+        "resp_drill_json": _json_for_inline_script(resp_drill),
+        "top_motoristas_json": _json_for_inline_script(top_motoristas),
+        "top_clientes_json": _json_for_inline_script(top_clientes),
+        "top_vendedores_json": _json_for_inline_script(top_vendedores),
+        "vendedor_drill_json": _json_for_inline_script(vendedor_drill),
+        "top_clusters_json": _json_for_inline_script(top_clusters),
+        "heatmap_matrix_json": _json_for_inline_script(heatmap_matrix),
+        "heatmap_weeks_labels_json": _json_for_inline_script(weeks_label),
+        "heatmap_dom_dow_json": _json_for_inline_script(heatmap_dom_dow),
+        "dow_labels_json": _json_for_inline_script(DOW_LABELS),
+        "rows_detail_json": _json_for_inline_script(rows_detail[:500]),
         "analise_destaque": analise_destaque,
     }
 

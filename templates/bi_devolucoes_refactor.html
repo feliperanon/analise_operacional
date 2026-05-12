@@ -81,7 +81,6 @@
     {
       "periodLabel": {{ period_label|tojson }},
       "rowsDetail": {{ rows_detail_json|safe }},
-      "evolucaoDiaria": {{ evolucao_diaria_json|safe }},
       "topMotivos": {{ top_motivos_json|safe }},
       "topMotoristas": {{ top_motoristas_json|safe }},
       "topVendedores": {{ top_vendedores_json|safe }},
@@ -94,5 +93,6 @@
       "situacaoMeta": {{ situacao_meta|tojson }}
     }
   </script>
+  <script id="bi-dev-evolucao-data" type="application/json">{{ evolucao_diaria_json|safe }}</script>
 </div>
 {% endblock %}
