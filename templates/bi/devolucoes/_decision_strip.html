@@ -2,51 +2,53 @@
   id="bi-dev-decision-strip"
   class="bi-dev-decision-strip sys-card sys-card--comfort overflow-hidden border-2 {% if faixa_alerta_meta == 'ok' %}bi-dev-decision-strip--ok{% elif faixa_alerta_meta == 'warn' %}bi-dev-decision-strip--warn{% elif faixa_alerta_meta == 'danger' %}bi-dev-decision-strip--danger{% else %}bi-dev-decision-strip--neutral{% endif %}"
   role="region"
-  aria-label="Situação do período frente à meta de 2%"
+  aria-label="Situação do período frente à meta de 2% (rotas e valor)"
 >
   <div class="bi-dev-decision-strip__inner flex flex-col gap-4 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
     <div class="min-w-0 flex-1">
       <p class="employees-table-panel__kicker">Situação do período</p>
       <p class="bi-dev-decision-strip__headline mt-1 text-lg font-semibold tracking-tight sm:text-xl">
         {% if situacao_meta == 'acima' %}
-          ACIMA DA META
+          ACIMA DA META (ROTAS)
         {% elif situacao_meta == 'dentro' %}
-          DENTRO DA META
+          DENTRO DA META (ROTAS)
         {% else %}
-          BASE FINANCEIRA INDISPONÍVEL
+          SEM ROTAS CONCLUÍDAS NO FILTRO
         {% endif %}
       </p>
       <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
-        {% if valor_base_disponivel %}
-          % devolução valor = valor devolvido ÷ valor base das rotas ({{ valor_base_rotas|fmt_br_moeda }}).
-        {% else %}
-          Não há soma de valor financeiro nas rotas do período para calcular o percentual sobre valor.
+        Indicador principal alinhado à TV: <strong>{{ pct_devolucao_rotas|fmt_br_1 }}%</strong> sobre rotas concluídas (meta {{ meta_pp|fmt_br_2 }}%).
+        {% if valor_base_disponivel and pct_devolucao_financeiro is not none %}
+        Sobre faturamento das rotas: <strong>{{ pct_devolucao_financeiro|fmt_br_2 }}%</strong> (valor devolvido ÷ {{ valor_base_rotas|fmt_br_moeda }}).
+        {% elif not valor_base_disponivel %}
+        % sobre valor não calculado — falta soma de valor financeiro nas rotas do período.
         {% endif %}
       </p>
     </div>
-    <dl class="bi-dev-decision-strip__metrics grid flex-none gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+    <dl class="bi-dev-decision-strip__metrics grid flex-none gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
       <div class="bi-dev-decision-strip__metric">
         <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Meta</dt>
         <dd class="mt-0.5 tabular-nums text-base font-semibold">{{ meta_pp|fmt_br_2 }}%</dd>
       </div>
       <div class="bi-dev-decision-strip__metric">
-        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Realizado</dt>
+        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">% rotas (TV)</dt>
+        <dd class="mt-0.5 tabular-nums text-base font-semibold">{{ pct_devolucao_rotas|fmt_br_1 }}%</dd>
+      </div>
+      <div class="bi-dev-decision-strip__metric">
+        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">% valor</dt>
         <dd class="mt-0.5 tabular-nums text-base font-semibold">
           {% if pct_devolucao_financeiro is not none %}{{ pct_devolucao_financeiro|fmt_br_2 }}%{% else %}—{% endif %}
         </dd>
       </div>
       <div class="bi-dev-decision-strip__metric">
         <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Desvio</dt>
-        <dd class="mt-0.5 tabular-nums text-base font-semibold">
-          {% if desvio_pp is not none %}
-            {% if desvio_pp > 0 %}+{{ desvio_pp|fmt_br_2 }} p.p.{% elif desvio_pp < 0 %}{{ desvio_pp|fmt_br_2 }} p.p.{% else %}0,00 p.p.{% endif %}
-          {% else %}
-            —
-          {% endif %}
+        <dd class="mt-0.5 tabular-nums text-sm font-semibold leading-snug">
+          <span class="block">Rotas: {% if rotas_kpi_concluidas > 0 %}{% if desvio_rotas_pp > 0 %}+{% endif %}{{ desvio_rotas_pp|fmt_br_1 }} p.p.{% else %}—{% endif %}</span>
+          <span class="block text-slate-600 dark:text-slate-400">Valor: {% if desvio_pp is not none %}{% if desvio_pp > 0 %}+{% endif %}{{ desvio_pp|fmt_br_2 }} p.p.{% else %}—{% endif %}</span>
         </dd>
       </div>
       <div class="bi-dev-decision-strip__metric sm:col-span-2 lg:col-span-1">
-        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Excedente estimado</dt>
+        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Excedente (valor)</dt>
         <dd class="mt-0.5 tabular-nums text-base font-semibold">
           {% if excedente_sobre_meta is not none %}{{ excedente_sobre_meta|fmt_br_moeda }}{% else %}—{% endif %}
         </dd>

@@ -4386,6 +4386,8 @@ def _build_bi_devolucoes_dataset(
             q = q.where(models.Devolucao.client_id.in_(client_ids_dev))
 
     devs_raw = session.exec(q.order_by(models.Devolucao.data_romaneio.desc())).all()
+    # Alinhar ao consolidado / KPI mensal (main._kpi_devolucao_mes_romaneio_calendario): não somar duplicatas.
+    devs_raw = [d for d in devs_raw if not getattr(d, "duplicate_of_id", None)]
 
     def _dev_op_date_raw(d: models.Devolucao) -> str:
         return str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None) or "").strip()[:10]
@@ -4572,6 +4574,17 @@ def _build_bi_devolucoes_dataset(
     ]
     pct_devolucao_rotas = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
+    # Receita (valor_financeiro) por dia de competência — base para meta 2% diária no gráfico (não linear no tempo)
+    receita_por_dia_comp: dict[str, float] = {}
+    for _r_fin in routes_delivery_period:
+        _comp_r = _competence_date_or_self(getattr(_r_fin, "date", None))
+        if not _comp_r:
+            continue
+        _vf = getattr(_r_fin, "valor_financeiro", None)
+        if _vf is None:
+            continue
+        receita_por_dia_comp[_comp_r] = receita_por_dia_comp.get(_comp_r, 0.0) + float(_vf)
+
     # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
     valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
     devs_pre_acima: List[models.Devolucao] = list(devs)
@@ -4592,15 +4605,21 @@ def _build_bi_devolucoes_dataset(
     desvio_pp: Optional[float] = (
         round(float(pct_devolucao_financeiro) - meta_pp, 2) if pct_devolucao_financeiro is not None else None
     )
+    # Mesmo eixo da TV / informativo: meta de 2% aplicada ao % sobre rotas concluídas
+    desvio_rotas_pp: float = round(float(pct_devolucao_rotas or 0.0) - float(meta_pp), 1)
     situacao_meta = "desconhecido"
-    if pct_devolucao_financeiro is not None:
-        situacao_meta = "dentro" if pct_devolucao_financeiro <= meta_pp else "acima"
+    pr = float(pct_devolucao_rotas or 0.0)
+    n_ret_r, n_done_r = counts_devolucao_rotas_concluidas(routes_delivery_period)
+    if n_done_r > 0:
+        situacao_meta = "dentro" if pr <= meta_pp else "acima"
+    else:
+        situacao_meta = "desconhecido"
     faixa_alerta_meta = "neutral"
-    if pct_devolucao_financeiro is None:
+    if n_done_r <= 0:
         faixa_alerta_meta = "neutral"
-    elif pct_devolucao_financeiro <= meta_pp:
+    elif pr <= meta_pp:
         faixa_alerta_meta = "ok"
-    elif pct_devolucao_financeiro <= 2.5:
+    elif pr <= 2.5:
         faixa_alerta_meta = "warn"
     else:
         faixa_alerta_meta = "danger"
@@ -4611,8 +4630,8 @@ def _build_bi_devolucoes_dataset(
         if pct_devolucao_financeiro is None or pct_devolucao_financeiro <= meta_pp:
             ids_listagem = set()
             acima_meta_filter_note = (
-                "Filtro «somente acima da meta» ativo: o período está dentro ou na meta de 2% "
-                "(ou não há valor base de rotas). A lista foi esvaziada."
+                "Filtro «somente acima da meta» ativo: o período está dentro ou na meta financeira de 2% "
+                "sobre o valor base das rotas (ou não há valor base). A lista foi esvaziada."
             )
         else:
             devs_alto = [d for d in devs_pre_acima if float(d.valor or 0) >= 300.0]
@@ -4880,18 +4899,40 @@ def _build_bi_devolucoes_dataset(
             "motivos": motivos_list,
         }
 
-    # Evolução diária (últimos 90 dias no período)
-    days_sorted = sorted(per_day.keys())
-    evolucao_diaria = [per_day[k] for k in days_sorted]
-    try:
-        n_cal = max(1, (date_f - date_i).days + 1)
-    except Exception:
-        n_cal = 1
-    meta_valor_dia_ref: Optional[float] = (
-        round((valor_meta_permitido or 0) / n_cal, 2) if valor_meta_permitido is not None else None
-    )
-    for _ed in evolucao_diaria:
-        _ed["meta_valor_dia_ref"] = meta_valor_dia_ref
+    # Evolução diária: todos os dias do filtro (inclui dias sem devolução), meta = 2% da receita real daquele dia
+    def _date_str_range_inclusive(s: str, e: str) -> List[str]:
+        out: List[str] = []
+        try:
+            di = datetime.strptime((s or "")[:10], "%Y-%m-%d").date()
+            df = datetime.strptime((e or "")[:10], "%Y-%m-%d").date()
+            cur = di
+            while cur <= df:
+                out.append(cur.strftime("%Y-%m-%d"))
+                cur += timedelta(days=1)
+        except Exception:
+            pass
+        return out
+
+    days_sorted = _date_str_range_inclusive(period_start, period_end)
+    evolucao_diaria: list[dict] = []
+    for ds in days_sorted:
+        slot_dev = per_day.get(ds, {"data": ds, "qtd": 0, "valor": 0.0})
+        rec = round(float(receita_por_dia_comp.get(ds, 0.0)), 2)
+        meta_2 = round(0.02 * rec, 2) if rec > 0 else None
+        val_fl = float(slot_dev.get("valor") or 0)
+        pct_dia = round(100.0 * val_fl / rec, 2) if rec > 0 else None
+        evolucao_diaria.append(
+            {
+                "data": ds,
+                "qtd": int(slot_dev.get("qtd") or 0),
+                "valor": round(val_fl, 2),
+                "receita_base": rec,
+                "meta_2pct_valor": meta_2,
+                "pct_devolucao_dia": pct_dia,
+            }
+        )
+    # Linha constante (meta ÷ dias corridos) substituída por meta proporcional à receita de cada dia — manter null no JSON
+    meta_valor_dia_ref: Optional[float] = None
 
     # Evolução semanal
     weeks_sorted = sorted(per_week.keys())
@@ -4973,11 +5014,15 @@ def _build_bi_devolucoes_dataset(
             )
     if desvio_pp is not None and desvio_pp > 0 and pct_devolucao_financeiro is not None:
         analise_destaque.append(
-            f"O período está {desvio_pp:.2f} pontos percentuais acima da meta de 2% sobre valor base de rotas."
+            f"Sobre valor base de rotas, o período está {desvio_pp:.2f} pontos percentuais acima da meta de 2%."
         )
     elif desvio_pp is not None and desvio_pp < 0 and pct_devolucao_financeiro is not None:
         analise_destaque.append(
-            f"O período está {abs(desvio_pp):.2f} pontos percentuais abaixo da meta de 2%."
+            f"Sobre valor base de rotas, o período está {abs(desvio_pp):.2f} pontos percentuais abaixo da meta de 2%."
+        )
+    if n_done_r > 0 and desvio_rotas_pp > 0:
+        analise_destaque.append(
+            f"Sobre rotas concluídas (critério TV), o período está {desvio_rotas_pp:.1f} pontos percentuais acima da meta de 2%."
         )
     if excedente_sobre_meta is not None and excedente_sobre_meta > 0:
         analise_destaque.append(
@@ -5049,6 +5094,9 @@ def _build_bi_devolucoes_dataset(
         "valor_meta_permitido": valor_meta_permitido,
         "excedente_sobre_meta": excedente_sobre_meta,
         "desvio_pp": desvio_pp,
+        "desvio_rotas_pp": desvio_rotas_pp,
+        "rotas_kpi_devolucao": int(n_ret_r),
+        "rotas_kpi_concluidas": int(n_done_r),
         "situacao_meta": situacao_meta,
         "faixa_alerta_meta": faixa_alerta_meta,
         "meta_valor_dia_ref": meta_valor_dia_ref,

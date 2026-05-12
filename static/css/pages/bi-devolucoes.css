@@ -73,12 +73,32 @@ html.dark .ga-employee-theme.employees-page[data-page="bi-devolucoes"] .employee
 }
 
 .bi-dev-chart-wrap--main {
-  min-height: 220px;
+  min-height: 280px;
+}
+
+.bi-dev-chart-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.bi-dev-chart-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.bi-dev-chart-toolbar__hint {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 @media (max-width: 639px) {
   .bi-dev-chart-wrap--main {
-    min-height: 160px;
+    min-height: 200px;
   }
 }
 

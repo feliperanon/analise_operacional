@@ -3,10 +3,22 @@
     <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
       <p class="employees-table-panel__kicker">Tendência</p>
       <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Evolução financeira das devoluções</h3>
-      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Valor devolvido por dia comparado com a referência operacional de 2% (linha proporcional ao período).</p>
+      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+        Cada dia: valor devolvido (barras), teto de meta de 2% calculado sobre a receita das rotas daquele dia (linha verde) e receita base (linha tracejada, eixo direito).
+        Passe o cursor para ver valores, % no dia e quantidade de ocorrências; use a legenda para ocultar séries. Exporte PNG para apresentações.
+      </p>
+    </div>
+    <div class="bi-dev-chart-toolbar px-2 pb-2 sm:px-4">
+      <button type="button" id="bi-dev-chart-export-png" class="sys-btn sys-btn--secondary bi-dev-chart-toolbar__btn" data-bi-dev-chart-export aria-label="Exportar gráfico como imagem PNG">
+        <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+        Exportar PNG
+      </button>
+      <span id="bi-dev-chart-export-hint" class="bi-dev-chart-toolbar__hint text-xs text-slate-500 dark:text-slate-400" role="status" aria-live="polite"></span>
     </div>
     <div class="bi-dev-chart-wrap bi-dev-chart-wrap--main px-2 pb-3 pt-2 sm:px-4">
-      <canvas id="bi-dev-chart-evolution" height="220" aria-label="Gráfico de valor devolvido por dia"></canvas>
+      <canvas id="bi-dev-chart-evolution" height="280" aria-label="Gráfico de valor devolvido por dia"></canvas>
     </div>
   </div>
 

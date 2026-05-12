@@ -343,11 +343,11 @@
   }
 
   function chartPointLimit() {
-    return window.matchMedia && window.matchMedia("(max-width: 639px)").matches ? 12 : 24;
+    return window.matchMedia && window.matchMedia("(max-width: 639px)").matches ? 18 : 46;
   }
 
   function chartHeightPx() {
-    return window.matchMedia && window.matchMedia("(max-width: 639px)").matches ? 160 : 220;
+    return window.matchMedia && window.matchMedia("(max-width: 639px)").matches ? 200 : 280;
   }
 
   function lazyLoadChart() {
@@ -367,40 +367,127 @@
         }
         chartCanvas.dataset.ready = "1";
         chartCanvas.parentElement.style.minHeight = chartHeightPx() + "px";
-        var metaRef = data.metaValorDiaRef;
-        var metaArr = days.map(function () {
-          return metaRef != null ? Number(metaRef) : null;
+
+        if (chartCanvas._biDevChart) {
+          chartCanvas._biDevChart.destroy();
+          chartCanvas._biDevChart = null;
+        }
+
+        var metaArr = days.map(function (d) {
+          var m = d.meta_2pct_valor;
+          return m != null && !isNaN(Number(m)) ? Number(m) : null;
         });
-        var hasMeta = metaRef != null && metaArr.every(function (x) {
+        var hasMeta = metaArr.some(function (x) {
           return x != null && !isNaN(x);
         });
+        var receitaArr = days.map(function (d) {
+          return Number(d.receita_base || 0);
+        });
+        var hasReceita = receitaArr.some(function (x) {
+          return x > 0;
+        });
+
+        var valorArr = days.map(function (d) {
+          return Number(d.valor || 0);
+        });
+
         var ds = [
           {
+            type: "bar",
             label: "Valor devolvido (R$)",
-            data: days.map(function (d) {
-              return Number(d.valor || 0);
-            }),
-            borderColor: "#ea580c",
-            backgroundColor: "rgba(234,88,12,.08)",
-            fill: true,
-            tension: 0.22,
+            data: valorArr,
+            borderColor: "#c2410c",
+            backgroundColor: "rgba(234, 88, 12, 0.45)",
+            borderWidth: 1,
+            borderRadius: 3,
+            maxBarThickness: 22,
+            order: 3,
             yAxisID: "y"
           }
         ];
         if (hasMeta) {
           ds.push({
-            label: "Referência 2% (proporcional/dia)",
+            type: "line",
+            label: "Meta 2% (sobre receita do dia)",
             data: metaArr,
-            borderColor: "#16a34a",
-            borderDash: [6, 4],
+            borderColor: "#15803d",
+            backgroundColor: "rgba(22, 101, 52, 0.06)",
+            borderWidth: 2,
+            borderDash: [4, 3],
             fill: false,
-            tension: 0,
-            pointRadius: 0,
+            tension: 0.25,
+            spanGaps: false,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            order: 2,
             yAxisID: "y"
           });
         }
-        new window.Chart(chartCanvas, {
-          type: "line",
+        if (hasReceita) {
+          ds.push({
+            type: "line",
+            label: "Receita base rotas (R$)",
+            data: receitaArr,
+            borderColor: "rgba(100, 116, 139, 0.85)",
+            backgroundColor: "transparent",
+            borderWidth: 1.5,
+            borderDash: [2, 4],
+            fill: false,
+            tension: 0.2,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            order: 1,
+            yAxisID: "y1"
+          });
+        }
+
+        var ySuggestedMax = (function () {
+          var mx = 0;
+          var i;
+          for (i = 0; i < valorArr.length; i += 1) {
+            if (valorArr[i] > mx) mx = valorArr[i];
+          }
+          for (i = 0; i < metaArr.length; i += 1) {
+            if (metaArr[i] != null && !isNaN(metaArr[i]) && metaArr[i] > mx) mx = metaArr[i];
+          }
+          return mx > 0 ? mx * 1.12 : undefined;
+        })();
+
+        var scales = {
+          x: {
+            ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: Math.min(lim, 16) },
+            grid: { display: false }
+          },
+          y: {
+            id: "y",
+            position: "left",
+            beginAtZero: true,
+            suggestedMax: ySuggestedMax,
+            ticks: {
+              callback: function (value) {
+                return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+              }
+            },
+            title: { display: true, text: "R$ (devolvido / meta dia)" }
+          }
+        };
+        if (hasReceita) {
+          scales.y1 = {
+            id: "y1",
+            position: "right",
+            beginAtZero: true,
+            grid: { drawOnChartArea: false },
+            ticks: {
+              callback: function (value) {
+                return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+              }
+            },
+            title: { display: true, text: "Receita (R$)" }
+          };
+        }
+
+        var chart = new window.Chart(chartCanvas, {
+          type: "bar",
           data: {
             labels: days.map(function (d) {
               return isoDateToBr(d.data);
@@ -411,37 +498,48 @@
             responsive: true,
             maintainAspectRatio: false,
             interaction: { mode: "index", intersect: false },
+            stacked: false,
             plugins: {
               legend: {
                 display: true,
-                labels: { boxWidth: 10, font: { size: 11 } }
+                position: "top",
+                labels: {
+                  boxWidth: 12,
+                  font: { size: 11 },
+                  usePointStyle: true,
+                  padding: 10
+                }
               },
               tooltip: {
+                padding: 10,
                 callbacks: {
                   label: function (ctx) {
                     var v = ctx.parsed.y;
-                    if (v == null) return ctx.dataset.label || "";
+                    if (v == null || (typeof v === "number" && isNaN(v))) return (ctx.dataset.label || "") + ": —";
                     return (ctx.dataset.label || "") + ": " + fmtMoney(v);
+                  },
+                  afterBody: function (items) {
+                    if (!items || !items.length) return [];
+                    var idx = items[0].dataIndex;
+                    var row = days[idx];
+                    if (!row) return [];
+                    var lines = [];
+                    var rec = Number(row.receita_base || 0);
+                    if (rec > 0) lines.push("Receita base (rotas): " + fmtMoney(rec));
+                    var meta = row.meta_2pct_valor;
+                    if (meta != null && !isNaN(Number(meta))) lines.push("Teto meta 2% no dia: " + fmtMoney(meta));
+                    var pv = row.pct_devolucao_dia;
+                    if (pv != null && !isNaN(Number(pv))) lines.push("% devolução no dia: " + fmtPct(pv));
+                    lines.push("Qtd. devoluções: " + String(row.qtd != null ? row.qtd : 0));
+                    return lines;
                   }
                 }
               }
             },
-            scales: {
-              x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: lim } },
-              y: {
-                id: "y",
-                position: "left",
-                beginAtZero: true,
-                ticks: {
-                  callback: function (value) {
-                    return Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
-                  }
-                },
-                title: { display: true, text: "R$" }
-              }
-            }
+            scales: scales
           }
         });
+        chartCanvas._biDevChart = chart;
       });
     };
 
@@ -468,6 +566,29 @@
   page.addEventListener(
     "click",
     function (event) {
+      var exportCh = event.target.closest("[data-bi-dev-chart-export]");
+      if (exportCh) {
+        var cv = document.getElementById("bi-dev-chart-evolution");
+        var hint = document.getElementById("bi-dev-chart-export-hint");
+        var ch = cv && cv._biDevChart;
+        if (ch && typeof ch.toBase64Image === "function") {
+          var safe = String(data.periodLabel || "periodo")
+            .replace(/\s+/g, "-")
+            .replace(/[/\\?*:|"<>]/g, "_")
+            .slice(0, 80);
+          var a = document.createElement("a");
+          a.href = ch.toBase64Image("image/png", 1);
+          a.download = "bi-devolucoes-evolucao-" + safe + ".png";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          if (hint) hint.textContent = "PNG exportado (use zoom do navegador antes se quiser maior resolução).";
+        } else if (hint) {
+          hint.textContent = "Gráfico ainda não carregou — role até o gráfico na página.";
+        }
+        return;
+      }
+
       var causeBtn = event.target.closest("[data-bi-cause-search]");
       if (causeBtn && searchInput) {
         searchInput.value = causeBtn.getAttribute("data-bi-cause-search") || "";
