@@ -1284,6 +1284,7 @@ class VacationMonthDemand(SQLModel, table=True):
     year: int = Field(index=True)
     month: int = Field(ge=1, le=12, index=True)
     demand_index: int = Field(default=50, ge=0, le=100)
+    heat_index: int = Field(default=50, ge=0, le=100)
     risk_notes: Optional[str] = Field(default=None, max_length=500)
     role_limits_json: Optional[dict] = Field(default=None, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=datetime.now)

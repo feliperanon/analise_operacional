@@ -51,6 +51,22 @@ DEFAULT_DEMAND_BY_MONTH: Dict[int, int] = {
     12: 92,
 }
 
+# Índice de «calor» / sazonalidade operacional (0–100). Calibrável por mês junto com a demanda.
+DEFAULT_HEAT_BY_MONTH: Dict[int, int] = {
+    1: 78,
+    2: 76,
+    3: 62,
+    4: 48,
+    5: 28,
+    6: 26,
+    7: 26,
+    8: 48,
+    9: 52,
+    10: 64,
+    11: 74,
+    12: 80,
+}
+
 ROLE_DEFAULT_LIMIT: Dict[str, int] = {
     "MOTORISTA": 2,
     "AJUDANTE": 3,
@@ -67,6 +83,12 @@ CRITICALITY_RANK = {"baixa": 1, "media": 2, "alta": 3, "muito_alta": 4}
 RECOMMENDATION_LABEL_PT = {
     "aprovado": "Recomendado",
     "atencao": "Atenção",
+    "nao_recomendado": "Não recomendado",
+}
+
+LAUNCH_VERDICT_LABEL_PT = {
+    "aprovado": "Pode lançar",
+    "atencao": "Lançar com atenção",
     "nao_recomendado": "Não recomendado",
 }
 
@@ -257,6 +279,69 @@ def scheduled_vacations_in_month_detail(
     return ded, max(0, raw_len - len(ded))
 
 
+def scheduled_vacations_year_list(
+    session: Session,
+    *,
+    year: int,
+    cost_center: Optional[str],
+) -> List[Dict[str, Any]]:
+    """
+    Todos os intervalos de férias que interceptam o ano civil (cadastro + planejamento),
+    incluindo sugestões pendentes, para visão consolidada e busca por nome.
+    """
+    y0 = date(year, 1, 1)
+    y1 = date(year, 12, 31)
+    wins = scheduled_windows(session, y0, y1, cost_center)
+    emps = list_employees_for_vacation(session, cost_center)
+    emp_by_id = {e.id: e for e in emps if e.id}
+    rows_raw: List[Dict[str, Any]] = []
+    for w in wins:
+        es = str(w.get("entry_status") or "").strip().lower()
+        if es not in ("approved", "cadastro", "suggested"):
+            continue
+        eid = w.get("employee_id")
+        emp = emp_by_id.get(eid)
+        if not emp:
+            continue
+        vs, ve = w.get("start"), w.get("end")
+        if not isinstance(vs, date) or not isinstance(ve, date):
+            continue
+        if not overlaps(y0, y1, vs, ve):
+            continue
+        days = (ve - vs).days + 1
+        rows_raw.append(
+            {
+                "employee_id": int(eid),
+                "name": emp.name,
+                "role": emp.role,
+                "start": vs.isoformat(),
+                "end": ve.isoformat(),
+                "days": days,
+                "source": str(w.get("source") or "manual"),
+                "entry_status": es,
+                "entry_id": w.get("entry_id"),
+                "employee_vacation_synced": bool(w.get("employee_vacation_synced", False)),
+            }
+        )
+    rows_sorted = sorted(rows_raw, key=lambda r: (str(r["start"]), int(r["employee_id"])))
+    seen: set = set()
+    out: List[Dict[str, Any]] = []
+    for r in rows_sorted:
+        key = (
+            int(r["employee_id"]),
+            str(r.get("start") or "")[:10],
+            str(r.get("end") or "")[:10],
+            (r.get("source") or "").strip().lower(),
+            str(r.get("entry_status") or ""),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    out.sort(key=lambda x: str(x.get("start") or ""))
+    return out
+
+
 def dedupe_scheduled_vacation_month_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Um gozo aprovado por (colaborador + início + fim + origem); mantém o menor entry_id."""
     rows_sorted = sorted(rows, key=lambda r: int(r.get("entry_id") or 0))
@@ -342,20 +427,26 @@ def month_demand_calendar(session: Session, year: int) -> Dict[str, Any]:
     y = int(year)
     months: List[Dict[str, Any]] = []
     for m in range(1, 13):
+        default_idx = default_demand_index_for_month(m)
+        default_heat = default_heat_index_for_month(m)
         row = session.exec(
             select(models.VacationMonthDemand).where(
                 models.VacationMonthDemand.year == y,
                 models.VacationMonthDemand.month == m,
             )
         ).first()
-        default_idx = default_demand_index_for_month(m)
         if row:
+            hi_raw = getattr(row, "heat_index", None)
+            hi = int(hi_raw) if hi_raw is not None else default_heat
+            hi = max(0, min(100, hi))
             months.append(
                 {
                     "month": m,
                     "month_name": MONTH_NAMES_PT[m],
                     "demand_index": row.demand_index,
+                    "heat_index": hi,
                     "default_demand_index": default_idx,
+                    "default_heat_index": default_heat,
                     "risk_notes": row.risk_notes,
                     "function_limits_json": row.role_limits_json,
                     "source": "calibrated",
@@ -368,7 +459,9 @@ def month_demand_calendar(session: Session, year: int) -> Dict[str, Any]:
                     "month": m,
                     "month_name": MONTH_NAMES_PT[m],
                     "demand_index": default_idx,
+                    "heat_index": default_heat,
                     "default_demand_index": default_idx,
+                    "default_heat_index": default_heat,
                     "risk_notes": None,
                     "function_limits_json": None,
                     "source": "default",
@@ -386,6 +479,7 @@ def upsert_vacation_month_demand(
     demand_index: int,
     risk_notes: Optional[str],
     function_limits_json: Any,
+    heat_index: Optional[int] = None,
 ) -> Tuple[Optional[models.VacationMonthDemand], Optional[str]]:
     if not (1 <= int(month) <= 12):
         return None, "Mês deve estar entre 1 e 12."
@@ -397,18 +491,27 @@ def upsert_vacation_month_demand(
         return None, err
     y = int(year)
     m = int(month)
+    def_h = default_heat_index_for_month(m)
     row = session.exec(
         select(models.VacationMonthDemand).where(
             models.VacationMonthDemand.year == y,
             models.VacationMonthDemand.month == m,
         )
     ).first()
+    existed = row is not None
     if not row:
         row = models.VacationMonthDemand(year=y, month=m)
         session.add(row)
     row.demand_index = di
     row.risk_notes = (risk_notes or "").strip() or None
     row.role_limits_json = limits
+    if heat_index is not None:
+        hi = int(heat_index)
+        if not (0 <= hi <= 100):
+            return None, "heat_index deve estar entre 0 e 100."
+        row.heat_index = hi
+    elif not existed:
+        row.heat_index = def_h
     row.updated_at = datetime.now()
     session.add(row)
     session.commit()
@@ -450,7 +553,7 @@ def vacation_profile_get(session: Session, employee_id: int) -> Optional[Dict[st
     }
 
     def _deadline_preview() -> Dict[str, Any]:
-        mc = max_completed_approved_vacation_end_by_employee(session, [int(emp.id)], ref=date.today())
+        mc = consolidated_completed_vacation_end_by_employee(session, [emp], ref=date.today())
         sch_end = mc.get(int(emp.id))
         acq, basis = effective_acquisition_period_end(prof, emp, sch_end)
         conc = concessive_deadline_effective(prof, emp, sch_end)
@@ -719,6 +822,25 @@ def days_until_deadline(
     return (dl - ref).days
 
 
+def earliest_allowed_vacation_start_date(
+    profile: Optional[models.EmployeeVacationProfile],
+    employee: models.Employee,
+    schedule_last_vacation_end: Optional[date] = None,
+) -> Optional[date]:
+    """
+    Primeiro dia em que o colaborador pode **iniciar** férias no ciclo atual:
+    dia seguinte ao fim do período aquisitivo (12 meses após a âncora do ciclo).
+    Sem dados para estimar o aquisitivo (ex.: sem admissão e sem folga consolidada),
+    retorna None — o motor não deve sugerir datas arbitrárias.
+    """
+    acq_end, _ = effective_acquisition_period_end(
+        profile, employee, schedule_last_vacation_end
+    )
+    if not acq_end:
+        return None
+    return acq_end + timedelta(days=1)
+
+
 _DEADLINE_BASIS_LABEL_PT = {
     "cadastro_perfil": "Prazo pelo perfil de férias (fim do aquisitivo informado).",
     "admissao": "Prazo estimado pela data de admissão no cadastro (ciclo aquisitivo de 12 meses + concessivo).",
@@ -784,20 +906,35 @@ def effective_role_limit(
     return base
 
 
+def default_heat_index_for_month(month: int) -> int:
+    return DEFAULT_HEAT_BY_MONTH.get(int(month), 50)
+
+
 def get_month_demand(
     session: Session,
     year: int,
     month: int,
-) -> Tuple[int, Optional[str], Optional[Dict[str, int]]]:
+) -> Tuple[int, int, Optional[str], Optional[Dict[str, int]]]:
+    """
+    Retorna (demand_index, heat_index, risk_notes, limites_por_função).
+    ``heat_index`` mede sazonalidade / «calor» operacional (bebidas, clima, pico logístico).
+    """
+    m = int(month)
+    y = int(year)
+    default_di = DEFAULT_DEMAND_BY_MONTH.get(m, 50)
+    default_hi = default_heat_index_for_month(m)
     row = session.exec(
         select(models.VacationMonthDemand).where(
-            models.VacationMonthDemand.year == year,
-            models.VacationMonthDemand.month == month,
+            models.VacationMonthDemand.year == y,
+            models.VacationMonthDemand.month == m,
         )
     ).first()
     if row:
-        return row.demand_index, row.risk_notes, row.role_limits_json
-    return DEFAULT_DEMAND_BY_MONTH.get(month, 50), None, None
+        hi_raw = getattr(row, "heat_index", None)
+        hi = int(hi_raw) if hi_raw is not None else default_hi
+        hi = max(0, min(100, hi))
+        return int(row.demand_index), hi, row.risk_notes, row.role_limits_json
+    return default_di, default_hi, None, None
 
 
 def list_employees_for_vacation(session: Session, cost_center: Optional[str]) -> List[models.Employee]:
@@ -898,6 +1035,7 @@ def scheduled_windows(
                 "source": ent.source,
                 "entry_id": ent.id,
                 "entry_status": str(ent.status or ""),
+                "employee_vacation_synced": bool(getattr(ent, "employee_vacation_synced", False)),
             }
         )
     return out
@@ -942,6 +1080,11 @@ def best_future_vacation_month_label(
     win_from = date(planning_year, 1, 1)
     win_to = date(end_scan_year, 12, 31)
     windows = scheduled_windows(session, win_from, win_to, cost_center)
+    earliest = earliest_allowed_vacation_start_date(
+        profile, employee, schedule_last_vacation_end
+    )
+    if earliest is None:
+        return ""
 
     candidates: List[Tuple[float, int, int, int]] = []  # ps, neg_ordinal, y, m
 
@@ -950,7 +1093,9 @@ def best_future_vacation_month_label(
             ms2 = date(y, m, 1)
             if not calendar_month_is_still_open(ms2, ref):
                 continue
-            di, _, rjo = get_month_demand(session, y, m)
+            if earliest > end_of_month(ms2):
+                continue
+            di, _heat_m, _note_m, rjo = get_month_demand(session, y, m)
             ps, _ = priority_index_for_month(
                 profile=profile,
                 employee=employee,
@@ -1198,24 +1343,46 @@ def simulate(
     alerts: List[str] = []
     blocks: List[str] = []
 
-    touched_months: Dict[Tuple[int, int], int] = defaultdict(int)
+    sch_end_sim = consolidated_completed_vacation_end_by_employee(
+        session, [employee], ref=date.today()
+    ).get(employee_id)
+
+    touched_demands: Dict[Tuple[int, int], int] = {}
+    touched_heats: Dict[Tuple[int, int], int] = {}
     d = start
     while d <= end:
-        touched_months[(d.year, d.month)] = get_month_demand(session, d.year, d.month)[0]
+        key = (d.year, d.month)
+        di_m, heat_m, _, _ = get_month_demand(session, d.year, d.month)
+        touched_demands[key] = di_m
+        touched_heats[key] = heat_m
         if d.month == 12:
             d = date(d.year + 1, 1, 1)
         else:
             d = date(d.year, d.month + 1, 1)
 
-    demand_max = max(touched_months.values()) if touched_months else 50
-    demand_min = min(touched_months.values()) if touched_months else 50
-    _, month_note, role_ovr = get_month_demand(session, start.year, start.month)
+    demand_max = max(touched_demands.values()) if touched_demands else 50
+    demand_min = min(touched_demands.values()) if touched_demands else 50
+    heat_max = max(touched_heats.values()) if touched_heats else 50
+    heat_min = min(touched_heats.values()) if touched_heats else 50
+    _, _, month_note, role_ovr = get_month_demand(session, start.year, start.month)
     role_limit = effective_role_limit(rb, demand_max, role_ovr)
 
-    concurrent = count_role_overlapping(windows, rb, start, end, employee_id)
-    if concurrent >= role_limit:
+    concurrent_before = count_role_overlapping(windows, rb, start, end, employee_id)
+    sim_window: Dict[str, Any] = {
+        "employee_id": employee_id,
+        "name": employee.name or "",
+        "role_bucket": rb,
+        "route_team": (profile.route_team if profile else None) or "",
+        "start": start,
+        "end": end,
+        "source": "simulation",
+        "entry_status": "simulation",
+    }
+    concurrent_after = count_role_overlapping(windows + [sim_window], rb, start, end, None)
+
+    if concurrent_before >= role_limit:
         blocks.append(
-            f"Limite de férias simultâneas para {rb} neste período ({concurrent}/{role_limit})."
+            f"Limite de férias simultâneas para {rb} neste período ({concurrent_before}/{role_limit})."
         )
 
     crit = (profile.criticality if profile else "media").lower()
@@ -1225,14 +1392,13 @@ def simulate(
 
     if demand_max >= 75:
         alerts.append("Período inclui meses de alta demanda prevista.")
+    if heat_max >= 72:
+        alerts.append("Período inclui meses de calor/sazonalidade elevados para operação.")
 
     rt = (profile.route_team if profile else "") or ""
     if route_conflict(windows, rt, start, end, employee_id):
         alerts.append("Conflito: outro colaborador da mesma rota/equipe já está de férias.")
 
-    sch_end_sim = max_completed_approved_vacation_end_by_employee(
-        session, [employee_id], ref=date.today()
-    ).get(employee_id)
     _dd = days_until_deadline(profile, employee, date.today(), sch_end_sim)
     if _dd is not None and _dd < -30:
         alerts.append("Férias muito atrasadas — priorizar negociação com RH.")
@@ -1242,7 +1408,7 @@ def simulate(
         employee=employee,
         headcount_same_role=headcount,
         demand_index=demand_max,
-        concurrent_same_role=concurrent,
+        concurrent_same_role=concurrent_before,
         role_limit=role_limit,
         schedule_last_vacation_end=sch_end_sim,
     )
@@ -1259,21 +1425,82 @@ def simulate(
         blocks=blocks,
         alerts=alerts,
         rb=rb,
-        concurrent=concurrent,
+        concurrent=concurrent_before,
         demand_max=demand_max,
         sub_ok=sub_ok,
         crit_high=crit_high,
+    )
+
+    emp_all = list_employees_for_vacation(session, cost_center)
+    profiles_all = load_profiles(session)
+    last_comp = consolidated_completed_vacation_end_by_employee(session, emp_all, ref=date.today())
+    light_rows: List[Dict[str, Any]] = []
+    for e in emp_all:
+        if not e.id:
+            continue
+        p = profiles_all.get(e.id)
+        if not employee_in_operational_vacation_queue(e, p):
+            continue
+        sch_e = last_comp.get(e.id)
+        ddead_e = days_until_deadline(p, e, date.today(), sch_e)
+        light_rows.append(
+            {
+                "employee_id": e.id,
+                "name": e.name,
+                "operational_queue": True,
+                "vacation_status": "",
+                "days_until_deadline": ddead_e,
+            }
+        )
+
+    from services.vacation_conflict_analysis import build_conflicts_for_simulation_period
+
+    conflict_bundle = build_conflicts_for_simulation_period(
+        session,
+        start=start,
+        end=end,
+        cost_center=cost_center,
+        rows=light_rows,
+        simulation={
+            "employee_id": employee_id,
+            "start": start,
+            "end": end,
+        },
+    )
+
+    csev = str(conflict_bundle.get("severity") or "low").lower()
+    if blocks or csev == "critical":
+        launch_verdict = "nao_recomendado"
+    elif recommendation == "nao_recomendado" or csev == "high":
+        launch_verdict = "nao_recomendado"
+    elif recommendation == "atencao" or csev == "medium":
+        launch_verdict = "atencao"
+    else:
+        launch_verdict = "aprovado"
+
+    suggestion_month_label = best_future_vacation_month_label(
+        session,
+        planning_year=start.year,
+        ref=date.today(),
+        profile=profile,
+        employee=employee,
+        role_b=rb,
+        headcount_by_role_map=hc_map,
+        cost_center=cost_center,
+        schedule_last_vacation_end=sch_end_sim,
     )
 
     return {
         "ok": True,
         "employee": {"id": employee.id, "name": employee.name, "role": employee.role, "role_bucket": rb},
         "period": {"start": start.isoformat(), "end": end.isoformat()},
-        "impact_team": "baixo" if concurrent == 0 and headcount >= 4 else ("alto" if headcount <= 2 else "medio"),
+        "impact_team": "baixo" if concurrent_before == 0 and headcount >= 4 else ("alto" if headcount <= 2 else "medio"),
         "substitute_available": bool(profile and profile.substitute_employee_id),
         "substitute_trained": bool(profile and profile.substitute_trained),
         "demand_index_range": {"min": demand_min, "max": demand_max},
-        "concurrent_same_role": concurrent,
+        "heat_index_range": {"min": heat_min, "max": heat_max},
+        "concurrent_same_role": concurrent_before,
+        "concurrent_same_role_after": concurrent_after,
         "role_limit": role_limit,
         "alerts": alerts,
         "blocks": blocks,
@@ -1291,6 +1518,10 @@ def simulate(
         ),
         "recommendation_explanation": explanation,
         "month_calibration_note": month_note,
+        "operational_conflicts": conflict_bundle,
+        "launch_verdict": launch_verdict,
+        "launch_verdict_label": LAUNCH_VERDICT_LABEL_PT.get(launch_verdict, launch_verdict),
+        "alternative_window_hint": suggestion_month_label or None,
     }
 
 
@@ -1343,6 +1574,7 @@ def _month_candidates_for_employee(
     session: Session,
     *,
     year: int,
+    ref: date,
     employee: models.Employee,
     profile: Optional[models.EmployeeVacationProfile],
     windows: List[Dict[str, Any]],
@@ -1356,10 +1588,20 @@ def _month_candidates_for_employee(
     """
     rb = role_bucket(employee.role)
     opts: List[Tuple[float, int, int, date, date, List[str], int]] = []
+    earliest = earliest_allowed_vacation_start_date(
+        profile, employee, schedule_last_vacation_end
+    )
+    if earliest is None:
+        return []
+    year_end = date(year, 12, 31)
+    if earliest > year_end:
+        return []
     for m in range(1, 13):
         ms = date(year, m, 1)
         me = end_of_month(ms)
-        di, _, rjo = get_month_demand(session, year, m)
+        if not calendar_month_is_still_open(ms, ref):
+            continue
+        di, _, _, rjo = get_month_demand(session, year, m)
         prio, rsn = priority_index_for_month(
             profile=profile,
             employee=employee,
@@ -1373,9 +1615,16 @@ def _month_candidates_for_employee(
         lim = effective_role_limit(rb, di, rjo)
         if lim <= 0 or conc >= lim:
             continue
-        ds = ms
-        de = ms + timedelta(days=default_duration_days - 1)
-        opts.append((prio, m, di, ds, de, rsn, conc))
+        ds = max(ms, earliest)
+        if ds > me:
+            continue
+        de = ds + timedelta(days=default_duration_days - 1)
+        reasons = list(rsn)
+        if ds > ms:
+            reasons.append(
+                f"Início em {ds.strftime('%d/%m/%Y')}: primeiro dia permitido após o período aquisitivo."
+            )
+        opts.append((prio, m, di, ds, de, reasons, conc))
     opts.sort(key=lambda x: (-x[0], x[2], x[6]))
     return opts
 
@@ -1401,11 +1650,10 @@ def suggest_vacations(
     base_windows = scheduled_windows(session, date(year, 1, 1), date(year, 12, 31), cost_center)
     sim_windows: List[Dict[str, Any]] = [dict(w) for w in base_windows]
 
-    eid_list = [int(e.id) for e in employees]
-    max_completed_sg = max_completed_approved_vacation_end_by_employee(session, eid_list, ref=ref)
+    last_completed_vac = consolidated_completed_vacation_end_by_employee(session, employees, ref=ref)
     employees.sort(
         key=lambda emp: _vacation_urgency_sort_key(
-            emp, profiles.get(emp.id), ref, max_completed_sg.get(emp.id)
+            emp, profiles.get(emp.id), ref, last_completed_vac.get(emp.id)
         )
     )
 
@@ -1415,10 +1663,11 @@ def suggest_vacations(
         prof = profiles.get(e.id)
         rb = role_bucket(e.role)
         rt = (prof.route_team if prof else None) or ""
-        sch_sg = max_completed_sg.get(e.id)
+        sch_sg = last_completed_vac.get(e.id)
         opts = _month_candidates_for_employee(
             session,
             year=year,
+            ref=ref,
             employee=e,
             profile=prof,
             windows=sim_windows,
@@ -1429,7 +1678,7 @@ def suggest_vacations(
         for prio, m, di, ds, de, rsn, _conc in opts:
             ms = date(year, m, 1)
             me = end_of_month(ms)
-            _, _, rjo = get_month_demand(session, year, m)
+            _, _, _, rjo = get_month_demand(session, year, m)
             conc = count_role_overlapping(sim_windows, rb, ms, me, e.id)
             lim = effective_role_limit(rb, di, rjo)
             if conc >= lim:
@@ -1541,6 +1790,87 @@ def max_completed_approved_vacation_end_by_employee(
     return out
 
 
+def max_ferias_hist_event_date_by_employee(
+    session: Session,
+    employee_ids: List[int],
+    *,
+    ref: date,
+) -> Dict[int, date]:
+    """
+    Maior data civil com evento ``ferias_hist`` no prontuário (rotina), estritamente antes de ``ref``.
+    Complementa o planejamento quando o gozo existe no histórico de eventos mas não há entrada aprovada.
+    """
+    if not employee_ids:
+        return {}
+    u = sorted({int(x) for x in employee_ids if x is not None})
+    if not u:
+        return {}
+    day_col = cast(models.Event.timestamp, Date)
+    stmt = (
+        select(
+            models.Event.employee_id,
+            func.max(day_col).label("mx"),
+        )
+        .where(
+            col(models.Event.employee_id).in_(u),
+            models.Event.type == "ferias_hist",
+            day_col < ref,
+        )
+        .group_by(models.Event.employee_id)
+    )
+    out: Dict[int, date] = {}
+    for row in session.exec(stmt).all():
+        eid = int(row[0])
+        mx = row[1]
+        if mx is None:
+            continue
+        if isinstance(mx, datetime):
+            d = mx.date()
+        elif isinstance(mx, date):
+            d = mx
+        else:
+            d = _d(mx)
+        if d:
+            out[eid] = d
+    return out
+
+
+def consolidated_completed_vacation_end_by_employee(
+    session: Session,
+    employees: Sequence[models.Employee],
+    *,
+    ref: date,
+) -> Dict[int, date]:
+    """
+    Maior data de fim de gozo **já concluído** conhecida por colaborador, unindo:
+    lançamentos aprovados no planejamento, ``vacation_end`` no cadastro (se já passou) e
+    último dia com ``ferias_hist`` no prontuário.
+    """
+    eids = [int(e.id) for e in employees if e.id]
+    if not eids:
+        return {}
+    sched = max_completed_approved_vacation_end_by_employee(session, eids, ref=ref)
+    hist = max_ferias_hist_event_date_by_employee(session, eids, ref=ref)
+    out: Dict[int, date] = {}
+    for e in employees:
+        if not e.id:
+            continue
+        eid = int(e.id)
+        cands: List[date] = []
+        sd = sched.get(eid)
+        if sd:
+            cands.append(sd)
+        hd = hist.get(eid)
+        if hd:
+            cands.append(hd)
+        ve = _d(e.vacation_end) if e.vacation_end else None
+        if ve and ve < ref:
+            cands.append(ve)
+        if cands:
+            out[eid] = max(cands)
+    return out
+
+
 def refresh_profile_last_vacation_from_schedule_batch(
     session: Session, employee_ids: List[int]
 ) -> None:
@@ -1590,8 +1920,8 @@ def dashboard_payload(
     eids_for_last = [int(e.id) for e in employees if e.id]
     emp_by_id = {e.id: e for e in employees if e.id}
     last_vac_map = last_approved_vacation_by_employee(session, eids_for_last)
-    max_completed_map = max_completed_approved_vacation_end_by_employee(
-        session, eids_for_last, ref=ref
+    max_completed_map = consolidated_completed_vacation_end_by_employee(
+        session, employees, ref=ref
     )
     future_approved_set = employee_ids_with_approved_future_vacation(session, ref, eids_for_last)
 
@@ -1631,7 +1961,7 @@ def dashboard_payload(
             else:
                 status_label = f"Concessivo: {d}d"
 
-        di_view, _, _ = get_month_demand(session, year, cal_month)
+        di_view, _heat_view, _, _ = get_month_demand(session, year, cal_month)
         ms = date(year, cal_month, 1)
         prio, _ = priority_index_for_month(
             profile=prof,
@@ -1794,7 +2124,7 @@ def dashboard_payload(
     monthly: List[Dict[str, Any]] = []
     risk_scores = []
     for m in range(1, 13):
-        di, note, rjo = get_month_demand(session, year, m)
+        di, heat, note, rjo = get_month_demand(session, year, m)
         ms = date(year, m, 1)
         me = end_of_month(ms)
         sched_ids: set = set()
@@ -1836,7 +2166,9 @@ def dashboard_payload(
                 "month": m,
                 "month_name": MONTH_NAMES_PT[m],
                 "demand_index": di,
+                "heat_index": heat,
                 "demand_label": "Baixa" if di <= 38 else ("Alta" if di >= 72 else "Média"),
+                "heat_label": "Alto" if heat >= 72 else ("Baixo" if heat <= 35 else "Médio"),
                 "capacity_hint": cap,
                 "scheduled_count": count_v,
                 "due_deadlines_count": due_deadlines_count,
@@ -2023,6 +2355,45 @@ def dashboard_payload(
         if c > 0:
             dq_alerts.append(f"{gv['label']}: {c}")
 
+    from services.vacation_conflict_analysis import build_operational_conflict_analysis
+
+    operational_conflicts = build_operational_conflict_analysis(
+        session,
+        year=year,
+        month=cal_month,
+        cost_center=cost_center,
+        rows=rows,
+    )
+
+    sched_year = scheduled_vacations_year_list(session, year=year, cost_center=cost_center)
+
+    roster_on_leave: List[Dict[str, Any]] = []
+    roster_expired: List[Dict[str, Any]] = []
+    roster_due_30: List[Dict[str, Any]] = []
+    for r in rows:
+        if not r.get("operational_queue"):
+            continue
+        eid = int(r["employee_id"])
+        base = {
+            "employee_id": eid,
+            "name": r.get("name"),
+            "role": r.get("role"),
+            "vacation_status_label": r.get("vacation_status_label"),
+        }
+        if r.get("on_vacation_today"):
+            roster_on_leave.append({"employee_id": eid, "name": r.get("name"), "role": r.get("role")})
+        ddead = r.get("days_until_deadline")
+        if (
+            r.get("deadline_bucket") == "ok"
+            and ddead is not None
+            and r.get("vacation_status") != "scheduled_coverage"
+        ):
+            dd = int(ddead)
+            if dd < 0:
+                roster_expired.append({**base, "days_until_deadline": dd})
+            elif dd <= 30:
+                roster_due_30.append({**base, "days_until_deadline": dd})
+
     return {
         "year": year,
         "view_month": cal_month,
@@ -2038,11 +2409,18 @@ def dashboard_payload(
             "operational_risk_month": op_risk,
         },
         "month_situation": month_situation,
+        "operational_conflicts": operational_conflicts,
         "rows": rows,
         "monthly": monthly,
         "immediate_actions": immediate_actions,
         "scheduled_in_month_detail": sched_detail,
         "scheduled_in_month_stats": sched_stats,
+        "scheduled_vacations_year": sched_year,
+        "roster_snapshots": {
+            "on_vacation_today": roster_on_leave,
+            "concessive_expired": roster_expired,
+            "concessive_due_30": roster_due_30,
+        },
         "data_quality": {
             "has_issues": any(int(g.get("count") or 0) > 0 for g in dq_groups.values()),
             "groups": dq_groups,

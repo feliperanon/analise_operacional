@@ -13,6 +13,7 @@
   }
 }
 
+:root {
   --vp-gap: 1.25rem;
   --vp-radius: 0.75rem;
   --vp-muted: rgb(100 116 139);
@@ -1850,4 +1851,243 @@
 
 .vp-scheduled-stats strong {
   margin-left: 0.25rem;
+}
+
+.vp-year-sched-scroll thead th {
+  box-shadow: 0 1px 0 0 rgb(226 232 240);
+}
+
+.dark .vp-year-sched-scroll thead th {
+  box-shadow: 0 1px 0 0 rgb(51 65 85);
+}
+
+.vp-snap-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* Painel de conflitos operacionais */
+.vp-conflicts-panel {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.vp-conflicts-panel__head {
+  margin-bottom: 0.75rem;
+}
+
+.vp-conflicts-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--vp-radius, 0.75rem);
+  font-size: 0.8125rem;
+  margin-bottom: 0.75rem;
+}
+
+.vp-conflicts-summary--ok {
+  background: rgba(16 185 129 / 0.12);
+  border: 1px solid rgba(16 185 129 / 0.35);
+  color: rgb(6 78 59);
+}
+
+.dark .vp-conflicts-summary--ok {
+  background: rgba(52 211 153 / 0.12);
+  border-color: rgba(52 211 153 / 0.35);
+  color: rgb(167 243 208);
+}
+
+.vp-conflicts-summary--medium {
+  background: rgba(234 179 8 / 0.15);
+  border: 1px solid rgba(234 179 8 / 0.45);
+  color: rgb(113 63 18);
+}
+
+.dark .vp-conflicts-summary--medium {
+  color: rgb(253 224 71);
+}
+
+.vp-conflicts-summary--high {
+  background: rgba(249 115 22 / 0.15);
+  border: 1px solid rgba(249 115 22 / 0.45);
+  color: rgb(124 45 18);
+}
+
+.dark .vp-conflicts-summary--high {
+  color: rgb(254 215 170);
+}
+
+.vp-conflicts-summary--critical {
+  background: rgba(239 68 68 / 0.14);
+  border: 1px solid rgba(239 68 68 / 0.45);
+  color: rgb(127 29 29);
+}
+
+.dark .vp-conflicts-summary--critical {
+  color: rgb(254 202 202);
+}
+
+.vp-conflicts-summary__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.vp-conflict-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(15 23 42 / 0.06);
+}
+
+.dark .vp-conflict-pill {
+  background: rgba(248 250 252 / 0.08);
+}
+
+.vp-conflicts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vp-conflict-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgb(226 232 240);
+  background: rgb(255 255 255 / 0.85);
+}
+
+.dark .vp-conflict-card {
+  border-color: rgb(51 65 85);
+  background: rgb(15 23 42 / 0.5);
+}
+
+.vp-conflict-card--low {
+  border-left: 3px solid rgb(148 163 184);
+}
+
+.vp-conflict-card--medium {
+  border-left: 3px solid rgb(234 179 8);
+}
+
+.vp-conflict-card--high {
+  border-left: 3px solid rgb(249 115 22);
+}
+
+.vp-conflict-card--critical {
+  border-left: 3px solid rgb(239 68 68);
+}
+
+.vp-conflict-card__icon {
+  grid-row: 1 / span 3;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  background: rgba(15 23 42 / 0.06);
+}
+
+.dark .vp-conflict-card__icon {
+  background: rgba(248 250 252 / 0.08);
+}
+
+.vp-conflict-card__type {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgb(100 116 139);
+}
+
+.vp-conflict-card__sev {
+  font-size: 0.65rem;
+  font-weight: 700;
+  justify-self: start;
+}
+
+.vp-conflict-card__msg {
+  grid-column: 2;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: rgb(30 41 59);
+}
+
+.dark .vp-conflict-card__msg {
+  color: rgb(226 232 240);
+}
+
+.vp-conflict-card__rec {
+  grid-column: 2;
+  font-size: 0.72rem;
+  color: rgb(71 85 105);
+}
+
+.dark .vp-conflict-card__rec {
+  color: rgb(148 163 184);
+}
+
+.vp-sim-intel {
+  border-top: 1px solid rgb(226 232 240);
+  padding-top: 0.75rem;
+}
+
+.dark .vp-sim-intel {
+  border-color: rgb(51 65 85);
+}
+
+.vp-sim-verdict {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.5rem;
+}
+
+.vp-sim-verdict--ok {
+  background: rgba(16 185 129 / 0.12);
+  color: rgb(6 95 70);
+}
+
+.vp-sim-verdict--warn {
+  background: rgba(234 179 8 / 0.15);
+  color: rgb(113 63 18);
+}
+
+.vp-sim-verdict--bad {
+  background: rgba(239 68 68 / 0.12);
+  color: rgb(127 29 29);
+}
+
+.vp-conflict-cards--compact .vp-conflict-card {
+  padding: 0.5rem 0.6rem;
+}
+
+@media (max-width: 639px) {
+  .vp-conflict-card {
+    grid-template-columns: 1fr;
+  }
+
+  .vp-conflict-card__icon {
+    grid-row: auto;
+  }
+
+  .vp-conflict-card__msg,
+  .vp-conflict-card__rec {
+    grid-column: 1;
+  }
 }

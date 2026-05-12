@@ -164,6 +164,16 @@
     <p id="vp-strip-guidance" class="vp-decision-month__guidance">Carregue o painel para ver a recomendação.</p>
   </section>
 
+  <section id="vp-conflicts-panel" class="vp-conflicts-panel sys-card sys-card--surface sys-card--comfort" aria-labelledby="vp-conflicts-heading">
+    <div class="vp-conflicts-panel__head">
+      <p class="employees-table-panel__kicker text-[10px]">Inteligência operacional</p>
+      <h2 id="vp-conflicts-heading" class="sys-section-heading text-base font-semibold">Conflitos encontrados</h2>
+      <p id="vp-conflicts-sub" class="mt-1 text-xs text-slate-500 dark:text-slate-400">Análise do mês em foco — riscos antes de lançar ou aprovar.</p>
+    </div>
+    <div id="vp-conflicts-summary" class="vp-conflicts-summary"></div>
+    <div id="vp-conflicts-list" class="vp-conflicts-list"></div>
+  </section>
+
   <!-- KPIs -->
   <div class="vp-kpi-shell-wrap sys-kpi-shell w-full">
     <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de férias">
@@ -305,6 +315,68 @@
     <div id="vp-year-grid" class="vp-year-grid"></div>
   </section>
 
+  <section id="vp-roster-year" class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0" aria-labelledby="vp-roster-year-heading">
+    <div class="border-b border-slate-100 px-4 py-3 dark:border-slate-800 sm:px-5">
+      <p class="employees-table-panel__kicker text-[10px]">Visão consolidada</p>
+      <h3 id="vp-roster-year-heading" class="sys-section-heading text-base font-semibold">Férias no ano e situação do concessivo</h3>
+      <p class="mt-1 max-w-3xl text-xs text-slate-500 dark:text-slate-400">
+        Lista de todos os períodos que cruzam o ano (cadastro do colaborador, aprovados e sugestões no planejamento).
+        A busca ajuda a localizar alguém (ex.: Flávia). As três colunas ao lado repetem os mesmos critérios dos indicadores do topo, só para quem está na fila operacional.
+      </p>
+    </div>
+    <div class="border-b border-slate-100 px-4 py-3 dark:border-slate-800 sm:px-5">
+      <label class="vp-field-label block max-w-xl text-xs">
+        Buscar no ano
+        <div class="ops-toolbar-search mt-1 flex w-full max-w-xl items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 dark:border-slate-600 dark:bg-slate-900/40">
+          <svg class="h-4 w-4 shrink-0 text-slate-400" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+          <input type="search" id="vp-year-sched-search" class="ops-toolbar-search__input min-w-0 flex-1 border-0 bg-transparent p-0 text-sm focus:ring-0" placeholder="Nome ou função…" autocomplete="off" aria-label="Buscar férias programadas no ano">
+        </div>
+      </label>
+      <p id="vp-year-sched-count" class="mt-2 text-xs text-slate-500 dark:text-slate-400"></p>
+    </div>
+    <div class="vp-year-sched-scroll max-h-[min(420px,55vh)] overflow-auto border-b border-slate-100 dark:border-slate-800">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-[760px] text-left text-sm">
+        <thead class="employees-data-table__head sticky top-0 z-[1] border-b bg-white text-xs dark:bg-slate-900">
+          <tr>
+            <th class="employees-data-table__th px-3 py-2">Colaborador</th>
+            <th class="employees-data-table__th px-2 py-2">Função</th>
+            <th class="employees-data-table__th px-2 py-2">Início</th>
+            <th class="employees-data-table__th px-2 py-2">Fim</th>
+            <th class="employees-data-table__th px-2 py-2 text-right">Dias</th>
+            <th class="employees-data-table__th px-2 py-2">Origem</th>
+            <th class="employees-data-table__th px-2 py-2">Situação</th>
+            <th class="employees-data-table__th px-2 py-2 text-right whitespace-nowrap">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="vp-year-sched-body" class="employees-data-table__body"></tbody>
+      </table>
+    </div>
+    <p id="vp-year-sched-empty" class="hidden border-b border-slate-100 px-4 py-5 text-center text-sm text-slate-500 dark:border-slate-800 sm:px-5"></p>
+    <div class="vp-roster-snap px-4 py-4 sm:px-5">
+      <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Filas rápidas (operação)</h4>
+      <p class="mb-3 text-xs text-slate-500 dark:text-slate-400">Clique no nome para abrir o painel de detalhes (mesmos dados da fila de auditoria).</p>
+      <div class="grid gap-4 lg:grid-cols-3">
+        <div class="rounded-lg border border-slate-200/90 p-3 dark:border-slate-700/80">
+          <h5 class="text-xs font-semibold uppercase tracking-wide text-indigo-700 dark:text-indigo-300">Em férias hoje</h5>
+          <ul id="vp-snap-onleave" class="vp-snap-list mt-2 text-sm"></ul>
+          <p id="vp-snap-onleave-empty" class="mt-2 hidden text-xs text-slate-500">Ninguém em férias hoje neste recorte.</p>
+        </div>
+        <div class="rounded-lg border border-slate-200/90 p-3 dark:border-slate-700/80">
+          <h5 class="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-300">Concessivo vencido</h5>
+          <ul id="vp-snap-expired" class="vp-snap-list mt-2 text-sm"></ul>
+          <p id="vp-snap-expired-empty" class="mt-2 hidden text-xs text-slate-500">Nenhum vencido na operação neste filtro.</p>
+        </div>
+        <div class="rounded-lg border border-slate-200/90 p-3 dark:border-slate-700/80">
+          <h5 class="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Vencem em até 30 dias</h5>
+          <ul id="vp-snap-d30" class="vp-snap-list mt-2 text-sm"></ul>
+          <p id="vp-snap-d30-empty" class="mt-2 hidden text-xs text-slate-500">Nenhum nesta janela.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <details id="vp-data-quality" class="sys-card sys-card--surface sys-card--comfort vp-data-quality-details group">
     <summary class="vp-data-quality-details__summary cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-800 outline-none marker:content-none dark:text-slate-100 sm:px-5 [&::-webkit-details-marker]:hidden">
       Pendências de dados
@@ -408,7 +480,7 @@
         <button type="button" class="sys-btn sys-btn--primary text-sm" onclick="document.getElementById('vpImportModal').classList.remove('hidden')">Abrir importação</button>
       </div>
       <div id="vp-panel-cal" class="vp-tabs__panel hidden" role="tabpanel">
-        <p class="text-xs text-slate-500 mb-3">Índice 0–100 por mês e limites por função (JSON opcional).</p>
+        <p class="text-xs text-slate-500 mb-3">Índice de demanda comercial/operacional (0–100), índice de calor/sazonalidade (0–100) e limites por função (JSON opcional).</p>
         <div class="flex flex-wrap items-end gap-3 mb-3">
           <label class="vp-field-label">
             Ano da régua
@@ -417,12 +489,13 @@
           <button type="button" id="vp-cal-load" class="sys-btn sys-btn--secondary text-xs">Carregar 12 meses</button>
         </div>
         <div class="vp-table-wrap sys-table-wrap sys-table-wrap--x-scroll">
-          <table class="vp-table w-full min-w-[920px] text-left text-sm">
+          <table class="vp-table w-full min-w-[1000px] text-left text-sm">
             <thead>
               <tr class="text-xs text-slate-500">
                 <th class="px-2 py-2">Mês</th>
                 <th class="px-2 py-2">Selo</th>
-                <th class="px-2 py-2">Índice</th>
+                <th class="px-2 py-2">Demanda</th>
+                <th class="px-2 py-2">Calor</th>
                 <th class="px-2 py-2">Observação / risco</th>
                 <th class="px-2 py-2">Limites (JSON)</th>
                 <th class="px-2 py-2"></th>
@@ -513,7 +586,7 @@
   {# Modais fora do main: .gv-panel-stack tem z-index:1; o drawer do menu é z-50, então fixed dentro do painel ficava atrás. #}
   <!-- Modal lançar / simular férias -->
   <div id="vp-launch-modal" class="emp-modal-shell vp-emp-modal-shell fixed inset-0 z-[10050] hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="vp-launch-title">
-    <div class="sys-card sys-card--surface sys-card--comfort vp-emp-modal-card my-auto w-full max-w-lg overflow-hidden rounded-xl">
+    <div class="sys-card sys-card--surface sys-card--comfort vp-emp-modal-card my-auto w-full max-w-2xl overflow-hidden rounded-xl">
       <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
         <div>
           <h3 id="vp-launch-title" class="sys-section-heading text-lg">Lançar férias</h3>
@@ -563,6 +636,13 @@
         <div id="vp-sim-highlight" class="vp-sim-highlight mt-2 hidden rounded-lg border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-600 dark:bg-slate-800/40">
           <p id="vp-sim-label" class="text-sm font-semibold text-slate-800 dark:text-slate-100"></p>
           <p id="vp-sim-explanation" class="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300"></p>
+        </div>
+        <div id="vp-sim-intel" class="vp-sim-intel mt-3 hidden">
+          <p id="vp-sim-launch-verdict" class="vp-sim-verdict" aria-live="polite"></p>
+          <p id="vp-sim-capacity-line" class="mt-2 text-xs text-slate-600 dark:text-slate-300"></p>
+          <p id="vp-sim-affected-roles" class="mt-1 text-xs text-slate-600 dark:text-slate-300"></p>
+          <p id="vp-sim-alt-window" class="mt-1 text-xs text-slate-500 dark:text-slate-400"></p>
+          <div id="vp-sim-conflict-cards" class="vp-conflicts-list vp-conflict-cards--compact mt-2"></div>
         </div>
         <pre id="vp-sim-result" class="vp-pre text-xs mt-2 hidden max-h-36 overflow-auto rounded-md bg-slate-900/90 p-3 text-slate-100"></pre>
         <label class="vp-field-label mt-3">

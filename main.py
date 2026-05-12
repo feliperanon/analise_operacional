@@ -750,6 +750,7 @@ def _lifespan_blocking_db_work() -> None:
         ensure_column(engine, "deliverysession", "driver_last_lon", "REAL")
         ensure_column(engine, "deliverysession", "driver_last_location_at", "TIMESTAMP")
         ensure_column(engine, "employee_vacation_profile", "exclude_from_operational_vacation", "BOOLEAN DEFAULT FALSE")
+        ensure_column(engine, "vacation_month_demand", "heat_index", "INTEGER DEFAULT 50")
     except Exception as e:
         logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
     try:
@@ -34697,6 +34698,7 @@ class VacationMonthDemandBody(BaseModel):
     year: int = Field(ge=2020, le=2038)
     month: int = Field(ge=1, le=12)
     demand_index: int = Field(ge=0, le=100)
+    heat_index: Optional[int] = Field(default=None, ge=0, le=100)
     risk_notes: Optional[str] = None
     function_limits_json: Optional[Any] = None
 
@@ -34772,6 +34774,7 @@ async def api_vacation_planning_month_demand_upsert(
         demand_index=body.demand_index,
         risk_notes=body.risk_notes,
         function_limits_json=body.function_limits_json,
+        heat_index=body.heat_index,
     )
     if err:
         raise HTTPException(status_code=400, detail=err)
