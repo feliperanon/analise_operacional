@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block header_subtitle %}
-<p class="text-xs text-gray-500 dark:text-gray-400">Controle financeiro, meta de 2% e priorização por valor.</p>
+<p class="text-xs text-gray-500 dark:text-gray-400">Controle financeiro das devoluções, meta de 2% e responsáveis pelo impacto.</p>
 {% endblock %}
 
 {% block head_extra %}
@@ -29,15 +29,15 @@
 {% set _export_xlsx = '/bi/devolucoes/export?format=xlsx' ~ ('&' ~ _fq if _fq else '') %}
 
 <div
-  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3"
+  class="ga-employee-theme employees-shell employees-page employees-page--premium bi-dev-page-shell space-y-3 pt-2 md:space-y-4 md:pt-3"
   data-page="bi-devolucoes"
   lang="pt-BR"
 >
-  {% include "bi/devolucoes/_header.html" %}
-  {% include "bi/devolucoes/_decision_strip.html" %}
-  {% include "bi/devolucoes/_kpis.html" %}
+  <div class="bi-dev-order bi-dev-order--hero">{% include "bi/devolucoes/_header.html" %}</div>
+  <div class="bi-dev-order bi-dev-order--strip">{% include "bi/devolucoes/_decision_strip.html" %}</div>
+  <div class="bi-dev-order bi-dev-order--kpis">{% include "bi/devolucoes/_kpis.html" %}</div>
   {% if filters.group_filter_note %}
-  <div class="sys-alert sys-alert--info flex items-start gap-3" role="status">
+  <div class="bi-dev-order bi-dev-order--alerts sys-alert sys-alert--info flex items-start gap-3" role="status">
     <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
     </svg>
@@ -45,17 +45,17 @@
   </div>
   {% endif %}
   {% if filters.acima_meta_filter_note %}
-  <div class="sys-alert sys-alert--warn flex items-start gap-3" role="status">
+  <div class="bi-dev-order bi-dev-order--alerts sys-alert sys-alert--warn flex items-start gap-3" role="status">
     <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
     </svg>
     <span class="text-sm">{{ filters.acima_meta_filter_note }}</span>
   </div>
   {% endif %}
-  {% include "bi/devolucoes/_filters.html" %}
-  {% include "bi/devolucoes/_analysis.html" %}
-  {% include "bi/devolucoes/_analysis_depth.html" %}
-  {% include "bi/devolucoes/_list.html" %}
+  <div class="bi-dev-order bi-dev-order--filters">{% include "bi/devolucoes/_filters.html" %}</div>
+  <div class="bi-dev-order bi-dev-order--analysis">{% include "bi/devolucoes/_analysis.html" %}</div>
+  <div class="bi-dev-order bi-dev-order--depth">{% include "bi/devolucoes/_analysis_depth.html" %}</div>
+  <div class="bi-dev-order bi-dev-order--list">{% include "bi/devolucoes/_list.html" %}</div>
 
   <div id="bi-dev-detail-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="bi-dev-detail-title" data-bi-dev-modal>
     <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg">

@@ -1,125 +1,132 @@
-<div class="sys-kpi-shell w-full">
-  <div class="sys-kpi-grid employees-kpi-row bi-dev-kpi-grid" aria-label="Indicadores principais do período">
-    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(249, 115, 22, 0.72);">
-      <div class="sys-kpi-cell-inner employees-kpi__inner">
-        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-          <div class="min-w-0">
-            <span class="sys-kpi-label text-orange-600 dark:text-orange-300" title="Mesmo critério do painel TV e do informativo: devoluções ÷ rotas concluídas">Devolução (% rotas)</span>
-            <div class="mt-1 flex flex-wrap items-baseline gap-1">
-              <span class="employees-kpi__value tabular-nums text-base sm:text-lg">
-                {{ pct_devolucao_rotas|fmt_br_1 }}% · {{ total_valor|fmt_br_moeda }}
+<div class="bi-dev-kpi-wrap w-full space-y-3">
+  <div>
+    <p class="bi-dev-kpi-group-label">Decisão</p>
+    <div class="sys-kpi-shell w-full">
+      <div class="sys-kpi-grid employees-kpi-row bi-dev-kpi-grid bi-dev-kpi-grid--decision" aria-label="Indicadores de decisão">
+        <div class="sys-kpi-card employees-kpi group bi-dev-kpi-card bi-dev-kpi-card--featured" style="--employees-kpi-accent: rgba(249, 115, 22, 0.55);">
+          <div class="sys-kpi-cell-inner employees-kpi__inner">
+            <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="sys-kpi-label text-orange-600 dark:text-orange-300">% devolução (rotas)</span>
+                <div class="mt-0.5">
+                  <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">{{ pct_devolucao_rotas|fmt_br_1 }}%</span>
+                </div>
+              </div>
+              <svg class="bi-dev-kpi-icon h-3.5 w-3.5 shrink-0 text-orange-500/80 dark:text-orange-400/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+              </svg>
+            </div>
+            <div class="employees-kpi__meta">
+              <span class="employees-text-muted text-[11px]">{{ rotas_kpi_devolucao|fmt_br_int }} / {{ rotas_kpi_concluidas|fmt_br_int }} rotas</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sys-kpi-card employees-kpi group bi-dev-kpi-card" style="--employees-kpi-accent: rgba(245, 158, 11, 0.55);">
+          <div class="sys-kpi-cell-inner employees-kpi__inner">
+            <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Valor devolvido</span>
+                <div class="mt-0.5">
+                  <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">{{ total_valor|fmt_br_moeda }}</span>
+                </div>
+              </div>
+              <svg class="bi-dev-kpi-icon h-3.5 w-3.5 shrink-0 text-amber-500/80 dark:text-amber-400/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="employees-kpi__meta"><span class="employees-text-muted text-[11px]">Período filtrado</span></div>
+          </div>
+        </div>
+
+        <div class="sys-kpi-card employees-kpi group bi-dev-kpi-card" style="--employees-kpi-accent: rgba(59, 130, 246, 0.5);">
+          <div class="sys-kpi-cell-inner employees-kpi__inner">
+            <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Desvio da meta (rotas)</span>
+                <div class="mt-0.5">
+                  <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">
+                    {% if rotas_kpi_concluidas > 0 %}{% if desvio_rotas_pp > 0 %}+{% endif %}{{ desvio_rotas_pp|fmt_br_1 }} p.p.{% else %}—{% endif %}
+                  </span>
+                </div>
+              </div>
+              <svg class="bi-dev-kpi-icon h-3.5 w-3.5 shrink-0 text-blue-500/80 dark:text-blue-400/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+              </svg>
+            </div>
+            <div class="employees-kpi__meta">
+              {% if desvio_pp is not none %}
+              <span class="employees-text-muted text-[11px]">Financeiro: {% if desvio_pp > 0 %}+{% endif %}{{ desvio_pp|fmt_br_2 }} p.p.</span>
+              {% else %}
+              <span class="employees-text-muted text-[11px]">Financeiro: aguardando base</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="sys-kpi-card employees-kpi group bi-dev-kpi-card" style="--employees-kpi-accent: rgba(16, 185, 129, 0.45);">
+          <div class="sys-kpi-cell-inner employees-kpi__inner">
+            <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Meta permitida / excedente</span>
+                <div class="mt-0.5">
+                  <span class="employees-kpi__value bi-dev-kpi-value tabular-nums text-sm sm:text-base">
+                    {% if valor_meta_permitido is not none %}{{ valor_meta_permitido|fmt_br_moeda }}{% else %}Aguardando base financeira{% endif %}
+                  </span>
+                </div>
+              </div>
+              <svg class="bi-dev-kpi-icon h-3.5 w-3.5 shrink-0 text-emerald-500/80 dark:text-emerald-400/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="employees-kpi__meta">
+              <span class="employees-text-muted text-[11px]">
+                Excedente:
+                {% if excedente_sobre_meta is not none %}{{ excedente_sobre_meta|fmt_br_moeda }}{% else %}Aguardando base financeira{% endif %}
               </span>
             </div>
           </div>
-          <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-          </svg>
-        </div>
-        <div class="employees-kpi__meta">
-          <span class="employees-text-muted">{{ rotas_kpi_devolucao|fmt_br_int }} devoluções de rota / {{ rotas_kpi_concluidas|fmt_br_int }} concluídas</span>
-          {% if pct_devolucao_financeiro is not none %}
-          <span class="employees-text-muted block mt-0.5">% sobre valor (base rotas): {{ pct_devolucao_financeiro|fmt_br_2 }}%</span>
-          {% endif %}
         </div>
       </div>
     </div>
+  </div>
 
-    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);">
-      <div class="sys-kpi-cell-inner employees-kpi__inner">
-        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-          <div class="min-w-0">
-            <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Valor devolvido</span>
-            <div class="mt-1 flex flex-wrap items-baseline gap-1">
-              <span class="employees-kpi__value tabular-nums text-base sm:text-lg">{{ total_valor|fmt_br_moeda }}</span>
+  <div>
+    <p class="bi-dev-kpi-group-label">Volume</p>
+    <div class="sys-kpi-shell w-full">
+      <div class="sys-kpi-grid employees-kpi-row bi-dev-kpi-grid bi-dev-kpi-grid--volume" aria-label="Volume no período">
+        <div class="sys-kpi-card employees-kpi group bi-dev-kpi-card" style="--employees-kpi-accent: rgba(56, 189, 248, 0.5);">
+          <div class="sys-kpi-cell-inner employees-kpi__inner">
+            <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="sys-kpi-label text-sky-600 dark:text-sky-300">Quantidade</span>
+                <div class="mt-0.5">
+                  <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">{{ total_qtd|fmt_br_int }}</span>
+                </div>
+              </div>
+              <svg class="bi-dev-kpi-icon h-3.5 w-3.5 shrink-0 text-sky-500/80 dark:text-sky-400/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 001 1h14a1 1 0 001-1V4"></path>
+              </svg>
             </div>
+            <div class="employees-kpi__meta"><span class="employees-text-muted text-[11px]">Devoluções</span></div>
           </div>
-          <svg class="h-4 w-4 shrink-0 text-amber-500 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
         </div>
-        <div class="employees-kpi__meta">
-          <span class="employees-text-muted">Soma no período filtrado</span>
-        </div>
-      </div>
-    </div>
 
-    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);">
-      <div class="sys-kpi-cell-inner employees-kpi__inner">
-        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-          <div class="min-w-0">
-            <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Valor meta permitido</span>
-            <div class="mt-1 flex flex-wrap items-baseline gap-1">
-              <span class="employees-kpi__value tabular-nums text-base sm:text-lg">
-                {% if valor_meta_permitido is not none %}{{ valor_meta_permitido|fmt_br_moeda }}{% else %}—{% endif %}
-              </span>
+        <div class="sys-kpi-card employees-kpi group bi-dev-kpi-card" style="--employees-kpi-accent: rgba(148, 163, 184, 0.55);">
+          <div class="sys-kpi-cell-inner employees-kpi__inner">
+            <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
+              <div class="min-w-0">
+                <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Clientes impactados</span>
+                <div class="mt-0.5">
+                  <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">{{ total_clientes_afetados|fmt_br_int }}</span>
+                </div>
+              </div>
+              <svg class="bi-dev-kpi-icon h-3.5 w-3.5 shrink-0 text-slate-500/80 dark:text-slate-400/80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+              </svg>
             </div>
+            <div class="employees-kpi__meta"><span class="employees-text-muted text-[11px]">Lojas distintas</span></div>
           </div>
-          <svg class="h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-        </div>
-        <div class="employees-kpi__meta">
-          <span class="employees-text-muted">{{ meta_pp|fmt_br_2 }}% da base de rotas (valor)</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(239, 68, 68, 0.65);">
-      <div class="sys-kpi-cell-inner employees-kpi__inner">
-        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-          <div class="min-w-0">
-            <span class="sys-kpi-label text-red-600 dark:text-red-300">Excedente sobre a meta</span>
-            <div class="mt-1 flex flex-wrap items-baseline gap-1">
-              <span class="employees-kpi__value tabular-nums text-base sm:text-lg">
-                {% if excedente_sobre_meta is not none %}{{ excedente_sobre_meta|fmt_br_moeda }}{% else %}—{% endif %}
-              </span>
-            </div>
-          </div>
-          <svg class="h-4 w-4 shrink-0 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
-          </svg>
-        </div>
-        <div class="employees-kpi__meta">
-          <span class="employees-text-muted">Zero se dentro da meta (valor)</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(56, 189, 248, 0.72);">
-      <div class="sys-kpi-cell-inner employees-kpi__inner">
-        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-          <div class="min-w-0">
-            <span class="sys-kpi-label text-sky-600 dark:text-sky-300">Quantidade</span>
-            <div class="mt-1 flex flex-wrap items-baseline gap-1">
-              <span class="employees-kpi__value tabular-nums">{{ total_qtd|fmt_br_int }}</span>
-              <span class="employees-kpi__denom text-sm">devoluções</span>
-            </div>
-          </div>
-          <svg class="h-4 w-4 shrink-0 text-sky-500 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 001 1h14a1 1 0 001-1V4"></path>
-          </svg>
-        </div>
-        <div class="employees-kpi__meta">
-          <span class="employees-text-muted">Registros Devolução no período (filtros aplicados)</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.68);">
-      <div class="sys-kpi-cell-inner employees-kpi__inner">
-        <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-          <div class="min-w-0">
-            <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Clientes impactados</span>
-            <div class="mt-1 flex flex-wrap items-baseline gap-1">
-              <span class="employees-kpi__value tabular-nums">{{ total_clientes_afetados|fmt_br_int }}</span>
-            </div>
-          </div>
-          <svg class="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
-          </svg>
-        </div>
-        <div class="employees-kpi__meta">
-          <span class="employees-text-muted">Lojas distintas</span>
         </div>
       </div>
     </div>

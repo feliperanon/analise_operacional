@@ -5064,6 +5064,35 @@ def _build_bi_devolucoes_dataset(
     for r in resp_breakdown:
         r["pct_valor_total"] = round(100.0 * float(r["valor"]) / total_valor_kpi, 1) if total_valor_kpi else 0.0
 
+    # Resumo semanal (accordion) e mini-cards do gráfico
+    semana_resumo: Optional[str] = None
+    if evolucao_semanal:
+        nsem = len(evolucao_semanal)
+        worst_w = max(evolucao_semanal, key=lambda x: float(x.get("valor") or 0))
+        vw = float(worst_w.get("valor") or 0)
+        if vw > 0:
+            semana_resumo = (
+                f"{nsem} semana(s) analisadas · pior semana: {worst_w.get('semana', '—')} · {_fmt_br_moeda(vw)}"
+            )
+        else:
+            semana_resumo = f"{nsem} semana(s) analisadas"
+
+    chart_insights: dict = {}
+    if evolucao_diaria:
+        wd = max(evolucao_diaria, key=lambda x: float(x.get("valor") or 0))
+        if float(wd.get("valor") or 0) > 0:
+            chart_insights["pior_dia"] = wd.get("data")
+            chart_insights["pior_dia_valor"] = round(float(wd.get("valor") or 0), 2)
+    if top_motivos:
+        chart_insights["top_motivo"] = str(top_motivos[0].get("motivo") or "")
+        chart_insights["top_motivo_valor"] = round(float(top_motivos[0].get("valor") or 0), 2)
+        chart_insights["top_motivo_pct"] = float(top_motivos[0].get("pct_valor_total") or 0)
+    if total_qtd:
+        chart_insights["media_por_devolucao"] = round(float(total_valor) / float(total_qtd), 2)
+    chart_insights["pct_ocorrencias_acima800"] = float(pct_acima_300)
+    if total_valor_kpi and crit_v > 0:
+        chart_insights["pct_valor_acima800"] = round(100.0 * float(crit_v) / float(total_valor_kpi), 1)
+
     filters_query = urlencode({
         k: str(v) for k, v in {
             "date_from": date_from or "",
@@ -5161,6 +5190,8 @@ def _build_bi_devolucoes_dataset(
         "heatmap_dom_dow_json": _json_for_inline_script(heatmap_dom_dow),
         "dow_labels_json": _json_for_inline_script(DOW_LABELS),
         "rows_detail_json": _json_for_inline_script(rows_detail[:500]),
+        "chart_insights": chart_insights,
+        "semana_resumo": semana_resumo,
         "analise_destaque": analise_destaque,
     }
 

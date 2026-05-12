@@ -1,123 +1,117 @@
-<div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
-  <div class="flex flex-col gap-3 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5 sm:flex-row sm:items-center sm:justify-between">
+<div class="employees-filter-bar-card bi-dev-filters-card sys-card sys-card--surface sys-card--comfort">
+  <div class="flex flex-col gap-2 border-b border-slate-200/80 px-3 py-2 dark:border-slate-700/80 sm:px-4 lg:flex-row lg:items-center lg:justify-between">
     <div class="min-w-0">
-      <p class="sys-section-title text-[11px]">Filtros</p>
-      <p class="text-xs text-slate-500 dark:text-slate-400">Período, cadastros e foco. A busca atua na lista sem recarregar.</p>
+      <p class="sys-section-title text-[10px]">Filtros</p>
+      <p class="text-[11px] text-slate-500 dark:text-slate-400">Período e cadastros. <span class="hidden lg:inline">Use avançados para vendedor, motorista e faixa.</span></p>
     </div>
-    <button type="button" class="sys-btn sys-btn--secondary bi-dev-filters__toggle sm:hidden" data-toggle-filters aria-expanded="false">
-      Mostrar filtros
-    </button>
+    <div class="flex flex-wrap items-center gap-2">
+      <button type="button" class="sys-btn sys-btn--secondary bi-dev-filters__toggle px-3 py-1.5 text-xs lg:hidden" data-toggle-filters aria-expanded="false">
+        Abrir filtros
+      </button>
+      <button type="button" class="bi-dev-filters__adv-toggle sys-btn sys-btn--secondary hidden px-3 py-1.5 text-xs lg:inline-flex" data-advanced-filters aria-expanded="false" aria-controls="bi-dev-filters-advanced">
+        Filtros avançados
+      </button>
+    </div>
   </div>
 
   <form method="get" action="/bi/devolucoes" id="bi-dev-form" class="m-0">
-    <div class="px-4 py-4 sm:px-5">
-      <div class="bi-dev-filters__collapsible is-collapsed" data-filters-body>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <div class="flex flex-col gap-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-date-from">De</label>
-          <input id="bi-dev-date-from" type="date" name="date_from" value="{{ filters.date_from }}" class="sys-input w-full" autocomplete="off" />
+    <div class="bi-dev-filters__collapsible is-collapsed px-3 py-3 sm:px-4" data-filters-body>
+      <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-6 lg:gap-3 bi-dev-filters__primary">
+        <div class="flex flex-col gap-0.5">
+          <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-date-from">De</label>
+          <input id="bi-dev-date-from" type="date" name="date_from" value="{{ filters.date_from }}" class="sys-input w-full text-sm" autocomplete="off" />
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-date-to">Até</label>
-          <input id="bi-dev-date-to" type="date" name="date_to" value="{{ filters.date_to }}" class="sys-input w-full" autocomplete="off" />
+        <div class="flex flex-col gap-0.5">
+          <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-date-to">Até</label>
+          <input id="bi-dev-date-to" type="date" name="date_to" value="{{ filters.date_to }}" class="sys-input w-full text-sm" autocomplete="off" />
         </div>
-        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-client">Cliente</label>
-          <select id="bi-dev-client" name="client_id" class="sys-select w-full">
+        <div class="flex flex-col gap-0.5 sm:col-span-2 lg:col-span-1">
+          <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-client">Cliente</label>
+          <select id="bi-dev-client" name="client_id" class="sys-select w-full text-sm">
             <option value="">Todos</option>
             {% for c in clients_filter %}<option value="{{ c.id }}" {% if filters.client_id==c.id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="flex flex-col gap-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-scope">Escopo loja</label>
-          <select id="bi-dev-scope" name="client_scope" class="sys-select w-full" title="Ao filtrar cliente: só a loja ou todo o grupo">
-            <option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só a loja</option>
-            <option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Grupo econômico</option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-vendedor">Vendedor</label>
-          <select id="bi-dev-vendedor" name="vendedor_id" class="sys-select w-full">
-            <option value="">Todos</option>
-            {% for v in vendedores_filter %}<option value="{{ v.id }}" {% if filters.vendedor_id==v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-driver">Motorista</label>
-          <select id="bi-dev-driver" name="motorista_id" class="sys-select w-full">
-            <option value="">Todos</option>
-            {% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.motorista_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-motivo">Motivo</label>
-          <select id="bi-dev-motivo" name="motivo_id" class="sys-select w-full">
+        <div class="flex flex-col gap-0.5 sm:col-span-2 lg:col-span-1">
+          <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-motivo">Motivo</label>
+          <select id="bi-dev-motivo" name="motivo_id" class="sys-select w-full text-sm">
             <option value="">Todos</option>
             {% for m in motivos_filter %}<option value="{{ m.id }}" {% if filters.motivo_id==m.id %}selected{% endif %}>{{ m.nome }}</option>{% endfor %}
           </select>
         </div>
-        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-resp">Responsabilidade</label>
-          <select id="bi-dev-resp" name="responsabilidade_id" class="sys-select w-full">
+        <div class="flex flex-col gap-0.5 sm:col-span-2 lg:col-span-1">
+          <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-resp">Responsabilidade</label>
+          <select id="bi-dev-resp" name="responsabilidade_id" class="sys-select w-full text-sm">
             <option value="">Todas</option>
             {% for r in resps_filter %}<option value="{{ r.id }}" {% if filters.responsabilidade_id==r.id %}selected{% endif %}>{{ r.nome }}</option>{% endfor %}
           </select>
         </div>
-        <div class="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
-          <label class="sys-section__label sys-section__label--field" for="bi-dev-valor-faixa">Faixa de valor</label>
-          <select id="bi-dev-valor-faixa" name="valor_faixa" class="sys-select w-full">
-            <option value="all" {% if (filters.valor_faixa or 'all') in ('all', 'todos', '') %}selected{% endif %}>Todos</option>
-            <option value="ate100" {% if filters.valor_faixa == 'ate100' %}selected{% endif %}>Até R$ 100</option>
-            <option value="100_300" {% if filters.valor_faixa in ('100_300', 'v100_300') %}selected{% endif %}>R$ 100 a R$ 300</option>
-            <option value="300_800" {% if filters.valor_faixa in ('300_800', 'v300_800') %}selected{% endif %}>R$ 300 a R$ 800</option>
-            <option value="acima800" {% if filters.valor_faixa in ('acima800', 'v800') %}selected{% endif %}>Acima de R$ 800</option>
-          </select>
-        </div>
-        <div class="flex flex-col justify-end gap-2 sm:col-span-2 xl:col-span-2">
-          <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-            <input type="checkbox" name="acima_meta" value="1" class="h-4 w-4 rounded border-slate-300" {% if filters.somente_acima_meta %}checked{% endif %} />
-            Somente acima da meta
-          </label>
-          <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-            <input type="checkbox" name="criticas" value="1" class="h-4 w-4 rounded border-slate-300" {% if filters.somente_criticas %}checked{% endif %} />
-            Somente críticas
-          </label>
-        </div>
-      </div>
-
-      <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip mt-4 border-0 bg-transparent p-0 shadow-none">
-        <div class="employees-filter-bar__inner flex-col gap-4 lg:flex-row">
-          <div class="employees-filter-bar__primary w-full min-w-0">
-            <div class="employees-filter-bar__primary-scroll w-full">
-              <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na lista</span>
-              <div class="ops-toolbar-search employees-filter-bar__search w-full max-w-xl">
-                <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-                <input type="search" id="bi-dev-search" class="ops-toolbar-search__input" placeholder="Cliente, vendedor, motorista, motivo…" autocomplete="off" />
-              </div>
-            </div>
-          </div>
-          <div class="employees-filter-bar__divider hidden lg:block" aria-hidden="true"></div>
-          <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
-            <button type="submit" class="sys-btn sys-btn--primary employees-filter-bar__btn">Aplicar</button>
-            <a href="/bi/devolucoes" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Limpar</a>
+        <div class="flex flex-col justify-end gap-2 sm:col-span-2 lg:col-span-1">
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" class="sys-btn sys-btn--primary flex-1 px-3 py-2 text-xs sm:flex-none">Aplicar</button>
+            <a href="/bi/devolucoes" class="sys-btn sys-btn--secondary flex-1 px-3 py-2 text-center text-xs sm:flex-none">Limpar</a>
           </div>
         </div>
       </div>
-      </div>
 
-      <div class="mt-4 flex flex-wrap gap-2 border-t border-slate-200/70 pt-4 dark:border-slate-700/70">
-        <span class="self-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Atalhos</span>
-        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="today">Hoje</button>
-        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="week">Semana</button>
-        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="month">Mês</button>
-        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="acima_meta">Acima da meta</button>
-        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-filter="criticas">Críticas</button>
-        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-set-resp="COMERCIAL">Comercial</button>
-        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-set-resp="LOG">Logística</button>
-        <button type="button" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn" data-quick-set-resp="MERCADO">Mercado</button>
+      {% set adv_open = filters.vendedor_id or filters.motorista_id or (filters.valor_faixa and filters.valor_faixa not in ('all', 'todos', '')) or (filters.client_scope == 'group') %}
+      <div id="bi-dev-filters-advanced" class="bi-dev-filters__advanced mt-3 border-t border-slate-200/70 pt-3 dark:border-slate-700/70{% if adv_open %} is-open{% endif %}" data-filters-advanced>
+        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
+          <div class="flex flex-col gap-0.5">
+            <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-scope">Escopo loja</label>
+            <select id="bi-dev-scope" name="client_scope" class="sys-select w-full text-sm" title="Ao filtrar cliente: só a loja ou todo o grupo">
+              <option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só a loja</option>
+              <option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Grupo econômico</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-vendedor">Vendedor</label>
+            <select id="bi-dev-vendedor" name="vendedor_id" class="sys-select w-full text-sm">
+              <option value="">Todos</option>
+              {% for v in vendedores_filter %}<option value="{{ v.id }}" {% if filters.vendedor_id==v.id %}selected{% endif %}>{{ v.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-driver">Motorista</label>
+            <select id="bi-dev-driver" name="motorista_id" class="sys-select w-full text-sm">
+              <option value="">Todos</option>
+              {% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.motorista_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="flex flex-col gap-0.5">
+            <label class="sys-section__label sys-section__label--field text-[11px]" for="bi-dev-valor-faixa">Faixa de valor</label>
+            <select id="bi-dev-valor-faixa" name="valor_faixa" class="sys-select w-full text-sm">
+              <option value="all" {% if (filters.valor_faixa or 'all') in ('all', 'todos', '') %}selected{% endif %}>Todos</option>
+              <option value="ate100" {% if filters.valor_faixa == 'ate100' %}selected{% endif %}>Até R$ 100</option>
+              <option value="100_300" {% if filters.valor_faixa in ('100_300', 'v100_300') %}selected{% endif %}>R$ 100 a R$ 300</option>
+              <option value="300_800" {% if filters.valor_faixa in ('300_800', 'v300_800') %}selected{% endif %}>R$ 300 a R$ 800</option>
+              <option value="acima800" {% if filters.valor_faixa in ('acima800', 'v800') %}selected{% endif %}>Acima de R$ 800</option>
+            </select>
+          </div>
+          <div class="flex flex-col justify-center gap-2 sm:col-span-2 lg:col-span-4 lg:flex-row lg:flex-wrap">
+            <label class="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+              <input type="checkbox" name="acima_meta" value="1" class="h-3.5 w-3.5 rounded border-slate-300" {% if filters.somente_acima_meta %}checked{% endif %} />
+              Somente acima da meta
+            </label>
+            <label class="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+              <input type="checkbox" name="criticas" value="1" class="h-3.5 w-3.5 rounded border-slate-300" {% if filters.somente_criticas %}checked{% endif %} />
+              Somente críticas
+            </label>
+          </div>
+        </div>
       </div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-1.5 border-t border-slate-200/70 px-3 py-2.5 dark:border-slate-700/70 sm:px-4">
+      <span class="mr-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Atalhos</span>
+      <button type="button" class="bi-dev-chip" data-quick-filter="today">Hoje</button>
+      <button type="button" class="bi-dev-chip" data-quick-filter="week">Semana</button>
+      <button type="button" class="bi-dev-chip" data-quick-filter="month">Mês</button>
+      <button type="button" class="bi-dev-chip" data-quick-filter="acima_meta">Acima da meta</button>
+      <button type="button" class="bi-dev-chip" data-quick-filter="criticas">Críticas</button>
+      <button type="button" class="bi-dev-chip" data-quick-set-resp="COMERCIAL">Comercial</button>
+      <button type="button" class="bi-dev-chip" data-quick-set-resp="LOG">Logística</button>
+      <button type="button" class="bi-dev-chip" data-quick-set-resp="MERCADO">Mercado</button>
     </div>
   </form>
 </div>

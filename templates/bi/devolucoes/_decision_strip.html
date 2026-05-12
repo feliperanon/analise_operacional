@@ -1,58 +1,62 @@
 <div
   id="bi-dev-decision-strip"
-  class="bi-dev-decision-strip sys-card sys-card--comfort overflow-hidden border-2 {% if faixa_alerta_meta == 'ok' %}bi-dev-decision-strip--ok{% elif faixa_alerta_meta == 'warn' %}bi-dev-decision-strip--warn{% elif faixa_alerta_meta == 'danger' %}bi-dev-decision-strip--danger{% else %}bi-dev-decision-strip--neutral{% endif %}"
+  class="bi-dev-executive-strip sys-card sys-card--surface sys-card--comfort overflow-hidden {% if faixa_alerta_meta == 'ok' %}bi-dev-executive-strip--ok{% elif faixa_alerta_meta == 'warn' %}bi-dev-executive-strip--warn{% elif faixa_alerta_meta == 'danger' %}bi-dev-executive-strip--danger{% else %}bi-dev-executive-strip--neutral{% endif %}"
   role="region"
-  aria-label="Situação do período frente à meta de 2% (rotas e valor)"
+  aria-label="Situação do período frente à meta de 2%"
 >
-  <div class="bi-dev-decision-strip__inner flex flex-col gap-4 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-    <div class="min-w-0 flex-1">
-      <p class="employees-table-panel__kicker">Situação do período</p>
-      <p class="bi-dev-decision-strip__headline mt-1 text-lg font-semibold tracking-tight sm:text-xl">
+  <div class="bi-dev-executive-strip__inner flex flex-col gap-3 px-4 py-3 sm:px-5 lg:flex-row lg:items-stretch lg:justify-between lg:gap-8">
+    <div class="min-w-0 flex-1 lg:max-w-[42%]">
+      <p class="employees-table-panel__kicker text-[10px]">Situação do período</p>
+      <p class="bi-dev-executive-strip__badge mt-1 inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide">
         {% if situacao_meta == 'acima' %}
-          ACIMA DA META (ROTAS)
+          Acima da meta
         {% elif situacao_meta == 'dentro' %}
-          DENTRO DA META (ROTAS)
+          Dentro da meta
         {% else %}
-          SEM ROTAS CONCLUÍDAS NO FILTRO
+          Sem rotas concluídas
         {% endif %}
       </p>
-      <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
-        Indicador principal alinhado à TV: <strong>{{ pct_devolucao_rotas|fmt_br_1 }}%</strong> sobre rotas concluídas (meta {{ meta_pp|fmt_br_2 }}%).
+      <p class="mt-1.5 text-xs leading-snug text-slate-600 dark:text-slate-400">
+        <strong class="text-slate-800 dark:text-slate-100">Indicador operacional:</strong> {{ pct_devolucao_rotas|fmt_br_1 }}% das rotas concluídas tiveram devolução (referência {{ meta_pp|fmt_br_2 }}%).
         {% if valor_base_disponivel and pct_devolucao_financeiro is not none %}
-        Sobre faturamento das rotas: <strong>{{ pct_devolucao_financeiro|fmt_br_2 }}%</strong> (valor devolvido ÷ {{ valor_base_rotas|fmt_br_moeda }}).
-        {% elif not valor_base_disponivel %}
-        % sobre valor não calculado — falta soma de valor financeiro nas rotas do período.
+        <span class="block mt-1"><strong class="text-slate-800 dark:text-slate-100">Indicador financeiro:</strong> {{ pct_devolucao_financeiro|fmt_br_2 }}% sobre faturamento das rotas ({{ valor_base_rotas|fmt_br_moeda }}).</span>
+        {% else %}
+        <span class="block mt-1 text-slate-500 dark:text-slate-500">Indicador financeiro: base financeira pendente — % sobre valor não calculado.</span>
         {% endif %}
       </p>
     </div>
-    <dl class="bi-dev-decision-strip__metrics grid flex-none gap-3 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
-      <div class="bi-dev-decision-strip__metric">
-        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Meta</dt>
-        <dd class="mt-0.5 tabular-nums text-base font-semibold">{{ meta_pp|fmt_br_2 }}%</dd>
+    <div class="bi-dev-executive-strip__right grid flex-none grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4 lg:min-w-[22rem] lg:content-center">
+      <div class="bi-dev-executive-strip__cell">
+        <span class="bi-dev-executive-strip__label">Meta</span>
+        <span class="bi-dev-executive-strip__num">{{ meta_pp|fmt_br_2 }}%</span>
       </div>
-      <div class="bi-dev-decision-strip__metric">
-        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">% rotas (TV)</dt>
-        <dd class="mt-0.5 tabular-nums text-base font-semibold">{{ pct_devolucao_rotas|fmt_br_1 }}%</dd>
+      <div class="bi-dev-executive-strip__cell">
+        <span class="bi-dev-executive-strip__label">Realizado (rotas)</span>
+        <span class="bi-dev-executive-strip__num">{{ pct_devolucao_rotas|fmt_br_1 }}%</span>
       </div>
-      <div class="bi-dev-decision-strip__metric">
-        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">% valor</dt>
-        <dd class="mt-0.5 tabular-nums text-base font-semibold">
-          {% if pct_devolucao_financeiro is not none %}{{ pct_devolucao_financeiro|fmt_br_2 }}%{% else %}—{% endif %}
-        </dd>
+      <div class="bi-dev-executive-strip__cell">
+        <span class="bi-dev-executive-strip__label">Desvio (rotas)</span>
+        <span class="bi-dev-executive-strip__num">
+          {% if rotas_kpi_concluidas > 0 %}
+            {% if desvio_rotas_pp > 0 %}+{% endif %}{{ desvio_rotas_pp|fmt_br_1 }} p.p.
+          {% else %}
+            —
+          {% endif %}
+        </span>
       </div>
-      <div class="bi-dev-decision-strip__metric">
-        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Desvio</dt>
-        <dd class="mt-0.5 tabular-nums text-sm font-semibold leading-snug">
-          <span class="block">Rotas: {% if rotas_kpi_concluidas > 0 %}{% if desvio_rotas_pp > 0 %}+{% endif %}{{ desvio_rotas_pp|fmt_br_1 }} p.p.{% else %}—{% endif %}</span>
-          <span class="block text-slate-600 dark:text-slate-400">Valor: {% if desvio_pp is not none %}{% if desvio_pp > 0 %}+{% endif %}{{ desvio_pp|fmt_br_2 }} p.p.{% else %}—{% endif %}</span>
-        </dd>
+      <div class="bi-dev-executive-strip__cell col-span-2 sm:col-span-1">
+        <span class="bi-dev-executive-strip__label">% valor (financeiro)</span>
+        <span class="bi-dev-executive-strip__num bi-dev-executive-strip__num--secondary">
+          {% if pct_devolucao_financeiro is not none %}{{ pct_devolucao_financeiro|fmt_br_2 }}%{% else %}Base financeira pendente{% endif %}
+        </span>
       </div>
-      <div class="bi-dev-decision-strip__metric sm:col-span-2 lg:col-span-1">
-        <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Excedente (valor)</dt>
-        <dd class="mt-0.5 tabular-nums text-base font-semibold">
-          {% if excedente_sobre_meta is not none %}{{ excedente_sobre_meta|fmt_br_moeda }}{% else %}—{% endif %}
-        </dd>
+      <div class="bi-dev-executive-strip__cell col-span-2 border-t border-slate-200/80 pt-2 dark:border-slate-700/80 sm:col-span-4 sm:border-t-0 sm:pt-0 lg:col-span-4 lg:border-t lg:pt-2">
+        <span class="bi-dev-executive-strip__label">Valor devolvido no período</span>
+        <span class="bi-dev-executive-strip__num bi-dev-executive-strip__num--hero">{{ total_valor|fmt_br_moeda }}</span>
+        {% if desvio_pp is not none %}
+        <span class="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">Desvio financeiro (p.p.): {% if desvio_pp > 0 %}+{% endif %}{{ desvio_pp|fmt_br_2 }} p.p.</span>
+        {% endif %}
       </div>
-    </dl>
+    </div>
   </div>
 </div>

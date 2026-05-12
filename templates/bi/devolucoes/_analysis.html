@@ -1,141 +1,143 @@
-<section class="space-y-4" aria-label="Evolução e causas">
+<section class="bi-dev-analysis space-y-3" aria-label="Evolução e causas">
   <div class="sys-card sys-card--surface sys-card--comfort overflow-hidden">
-    <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
-      <p class="employees-table-panel__kicker">Tendência</p>
-      <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Evolução financeira das devoluções</h3>
-      <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-        Cada dia: valor devolvido (barras), teto de meta de 2% calculado sobre a receita das rotas daquele dia (linha verde) e receita base (linha tracejada, eixo direito).
-        Passe o cursor para ver valores, % no dia e quantidade de ocorrências; use a legenda para ocultar séries. Exporte PNG para apresentações.
+    <div class="border-b border-slate-200/80 px-3 py-2.5 dark:border-slate-700/80 sm:px-4">
+      <p class="employees-table-panel__kicker text-[10px]">Tendência</p>
+      <h3 class="sys-section-heading mt-0.5 text-sm font-semibold sm:text-base">Evolução financeira das devoluções</h3>
+      <p class="mt-0.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+        Barras: valor devolvido. Linhas: meta 2% do dia e receita base (eixo direito).
       </p>
     </div>
-    <div class="bi-dev-chart-toolbar px-2 pb-2 sm:px-4">
+
+    {% set ci = chart_insights or {} %}
+    {% if ci.get('pior_dia') or ci.get('top_motivo') or (ci.get('media_por_devolucao') is not none) or (ci.get('pct_valor_acima800') is not none) or (total_qtd and ci.get('pct_ocorrencias_acima800') is not none) %}
+    <div class="bi-dev-chart-insights grid gap-2 px-3 pb-2 pt-2 sm:grid-cols-2 sm:px-4 lg:grid-cols-4">
+      {% if ci.get('pior_dia') and ci.get('pior_dia_valor') %}
+      <div class="bi-dev-mini-metric">
+        <span class="bi-dev-mini-metric__label">Pior dia (valor)</span>
+        <span class="bi-dev-mini-metric__val">
+          {% set pd = ci.get('pior_dia') %}
+          {% if pd and pd|length >= 10 %}{{ pd[8:10] }}/{{ pd[5:7] }}/{{ pd[0:4] }}{% else %}{{ pd }}{% endif %}
+        </span>
+        <span class="bi-dev-mini-metric__sub">{{ ci.get('pior_dia_valor')|fmt_br_moeda }}</span>
+      </div>
+      {% endif %}
+      {% if ci.get('top_motivo') %}
+      <div class="bi-dev-mini-metric">
+        <span class="bi-dev-mini-metric__label">Maior motivo (valor)</span>
+        <span class="bi-dev-mini-metric__val truncate" title="{{ ci.get('top_motivo') }}">{{ ci.get('top_motivo') }}</span>
+        <span class="bi-dev-mini-metric__sub">{{ ci.get('top_motivo_valor')|fmt_br_moeda }}{% if ci.get('top_motivo_pct') is not none %} · {{ ci.get('top_motivo_pct')|fmt_br_1 }}%{% endif %}</span>
+      </div>
+      {% endif %}
+      {% if ci.get('media_por_devolucao') is not none %}
+      <div class="bi-dev-mini-metric">
+        <span class="bi-dev-mini-metric__label">Valor médio / devolução</span>
+        <span class="bi-dev-mini-metric__val">{{ ci.get('media_por_devolucao')|fmt_br_moeda }}</span>
+      </div>
+      {% endif %}
+      {% if ci.get('pct_valor_acima800') is not none %}
+      <div class="bi-dev-mini-metric">
+        <span class="bi-dev-mini-metric__label">Críticas (≥ R$ 800) no valor</span>
+        <span class="bi-dev-mini-metric__val">{{ ci.get('pct_valor_acima800')|fmt_br_1 }}%</span>
+        <span class="bi-dev-mini-metric__sub">{{ ci.get('pct_ocorrencias_acima800')|fmt_br_1 }}% das ocorrências</span>
+      </div>
+      {% elif ci.get('pct_ocorrencias_acima800') is not none and total_qtd %}
+      <div class="bi-dev-mini-metric">
+        <span class="bi-dev-mini-metric__label">Ocorrências ≥ R$ 800</span>
+        <span class="bi-dev-mini-metric__val">{{ ci.get('pct_ocorrencias_acima800')|fmt_br_1 }}%</span>
+        <span class="bi-dev-mini-metric__sub">do total de devoluções</span>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="bi-dev-chart-toolbar px-2 pb-1 sm:px-4">
       <button type="button" id="bi-dev-chart-export-png" class="sys-btn sys-btn--secondary bi-dev-chart-toolbar__btn" data-bi-dev-chart-export aria-label="Exportar gráfico como imagem PNG">
         <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
         </svg>
         Exportar PNG
       </button>
-      <span id="bi-dev-chart-export-hint" class="bi-dev-chart-toolbar__hint text-xs text-slate-500 dark:text-slate-400" role="status" aria-live="polite"></span>
+      <span id="bi-dev-chart-export-hint" class="bi-dev-chart-toolbar__hint text-[11px] text-slate-500 dark:text-slate-400" role="status" aria-live="polite"></span>
     </div>
-    <div class="bi-dev-chart-wrap bi-dev-chart-wrap--main px-2 pb-3 pt-2 sm:px-4">
-      <canvas id="bi-dev-chart-evolution" height="280" aria-label="Gráfico de valor devolvido por dia"></canvas>
+    <div class="bi-dev-chart-stage px-2 pb-3 pt-1 sm:px-4">
+      <div id="bi-dev-chart-skeleton" class="bi-dev-chart-skeleton" aria-hidden="true"></div>
+      <div id="bi-dev-chart-empty" class="bi-dev-chart-empty hidden" role="status">
+        <p class="bi-dev-chart-empty__title">Sem série no período</p>
+        <p class="bi-dev-chart-empty__text">Ajuste as datas ou filtros para ver a evolução diária.</p>
+      </div>
+      <div class="bi-dev-chart-wrap bi-dev-chart-wrap--main">
+        <canvas id="bi-dev-chart-evolution" height="300" aria-label="Gráfico de valor devolvido por dia"></canvas>
+      </div>
     </div>
   </div>
 
-  <div class="grid gap-4 lg:grid-cols-3">
-    <div class="sys-card sys-card--surface sys-card--comfort flex flex-col overflow-hidden">
-      <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
-        <p class="employees-table-panel__kicker">Causa</p>
-        <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Top motivos por valor</h3>
+  <div class="grid gap-3 lg:grid-cols-3">
+    <div class="bi-dev-rank-card sys-card sys-card--surface sys-card--comfort flex flex-col overflow-hidden">
+      <div class="border-b border-slate-200/80 px-3 py-2 dark:border-slate-700/80 sm:px-4">
+        <p class="employees-table-panel__kicker text-[10px]">Causa</p>
+        <h3 class="sys-section-heading mt-0.5 text-sm font-semibold sm:text-base">Top motivos por valor</h3>
       </div>
-      <div class="max-h-[22rem] overflow-auto p-3 sm:p-4">
+      <div class="bi-dev-rank-card__body flex max-h-[20rem] flex-col gap-1 overflow-auto p-2 sm:p-3">
         {% if top_motivos and top_motivos|length > 0 %}
-        <table class="bi-dev-cause-table w-full text-left text-sm">
-          <thead class="sticky top-0 bg-white text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-            <tr>
-              <th class="py-2 pr-2">Motivo</th>
-              <th class="py-2 pr-2 text-right">Qtd.</th>
-              <th class="py-2 pr-2 text-right">Valor</th>
-              <th class="py-2 text-right">% total</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80">
-            {% for m in top_motivos[:10] %}
-            <tr>
-              <td class="max-w-[10rem] truncate py-2 pr-2 font-medium text-slate-800 dark:text-slate-100" title="{{ m.motivo }}">{{ m.motivo }}</td>
-              <td class="py-2 pr-2 text-right tabular-nums">{{ m.qtd|fmt_br_int }}</td>
-              <td class="py-2 pr-2 text-right tabular-nums">{{ m.valor|fmt_br_moeda }}</td>
-              <td class="py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{{ m.pct_valor_total|fmt_br_1 }}%</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <div class="mt-3 flex flex-wrap gap-2">
-          {% for m in top_motivos[:5] %}
-          <button type="button" class="sys-btn sys-btn--secondary bi-dev-cause-btn text-xs" data-bi-cause-search="{{ m.motivo|e }}">Ver detalhes</button>
+          {% for m in top_motivos[:10] %}
+          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ m.motivo|e }}" title="Filtrar lista por este motivo">
+            <div class="bi-dev-rank-row__top">
+              <span class="bi-dev-rank-row__title">{{ m.motivo }}</span>
+              <svg class="bi-dev-rank-row__icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+            <p class="bi-dev-rank-row__meta">{{ m.valor|fmt_br_moeda }} · {{ m.qtd|fmt_br_int }} ocorr.</p>
+            <div class="bi-dev-rank-bar" aria-hidden="true"><span class="bi-dev-rank-bar__fill" style="width: {{ [m.pct_valor_total | float, 100] | min }}%;"></span></div>
+          </button>
           {% endfor %}
-        </div>
         {% else %}
-        <p class="p-2 text-sm text-slate-500 dark:text-slate-400">Sem motivos no período.</p>
+          <p class="p-2 text-xs text-slate-500 dark:text-slate-400">Sem motivos no período.</p>
         {% endif %}
       </div>
     </div>
 
-    <div class="sys-card sys-card--surface sys-card--comfort flex flex-col overflow-hidden">
-      <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
-        <p class="employees-table-panel__kicker">Responsável</p>
-        <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Top áreas por valor</h3>
+    <div class="bi-dev-rank-card sys-card sys-card--surface sys-card--comfort flex flex-col overflow-hidden">
+      <div class="border-b border-slate-200/80 px-3 py-2 dark:border-slate-700/80 sm:px-4">
+        <p class="employees-table-panel__kicker text-[10px]">Responsável</p>
+        <h3 class="sys-section-heading mt-0.5 text-sm font-semibold sm:text-base">Top áreas por valor</h3>
       </div>
-      <div class="max-h-[22rem] overflow-auto p-3 sm:p-4">
+      <div class="bi-dev-rank-card__body flex max-h-[20rem] flex-col gap-1 overflow-auto p-2 sm:p-3">
         {% if resp_breakdown and resp_breakdown|length > 0 %}
-        <table class="bi-dev-cause-table w-full text-left text-sm">
-          <thead class="sticky top-0 bg-white text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-            <tr>
-              <th class="py-2 pr-2">Área</th>
-              <th class="py-2 pr-2 text-right">Qtd.</th>
-              <th class="py-2 pr-2 text-right">Valor</th>
-              <th class="py-2 text-right">% total</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80">
-            {% for r in resp_breakdown[:10] %}
-            <tr>
-              <td class="py-2 pr-2 font-medium text-slate-800 dark:text-slate-100">{{ r.responsabilidade }}</td>
-              <td class="py-2 pr-2 text-right tabular-nums">{{ r.qtd|fmt_br_int }}</td>
-              <td class="py-2 pr-2 text-right tabular-nums">{{ r.valor|fmt_br_moeda }}</td>
-              <td class="py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{{ r.pct_valor_total|fmt_br_1 }}%</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <div class="mt-3 flex flex-wrap gap-2">
-          {% for r in resp_breakdown[:5] %}
-          <button type="button" class="sys-btn sys-btn--secondary bi-dev-cause-btn text-xs" data-bi-cause-search="{{ r.responsabilidade|e }}">Ver detalhes</button>
+          {% for r in resp_breakdown[:10] %}
+          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ r.responsabilidade|e }}" title="Filtrar lista por esta área">
+            <div class="bi-dev-rank-row__top">
+              <span class="bi-dev-rank-row__title">{{ r.responsabilidade }}</span>
+              <svg class="bi-dev-rank-row__icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+            <p class="bi-dev-rank-row__meta">{{ r.valor|fmt_br_moeda }} · {{ r.qtd|fmt_br_int }} ocorr.</p>
+            <div class="bi-dev-rank-bar" aria-hidden="true"><span class="bi-dev-rank-bar__fill" style="width: {{ [r.pct_valor_total | float, 100] | min }}%;"></span></div>
+          </button>
           {% endfor %}
-        </div>
         {% else %}
-        <p class="p-2 text-sm text-slate-500 dark:text-slate-400">Sem responsabilidades no período.</p>
+          <p class="p-2 text-xs text-slate-500 dark:text-slate-400">Sem responsabilidades no período.</p>
         {% endif %}
       </div>
     </div>
 
-    <div class="sys-card sys-card--surface sys-card--comfort flex flex-col overflow-hidden">
-      <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
-        <p class="employees-table-panel__kicker">Cliente</p>
-        <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Top clientes por valor</h3>
+    <div class="bi-dev-rank-card sys-card sys-card--surface sys-card--comfort flex flex-col overflow-hidden">
+      <div class="border-b border-slate-200/80 px-3 py-2 dark:border-slate-700/80 sm:px-4">
+        <p class="employees-table-panel__kicker text-[10px]">Cliente</p>
+        <h3 class="sys-section-heading mt-0.5 text-sm font-semibold sm:text-base">Top clientes por valor</h3>
       </div>
-      <div class="max-h-[22rem] overflow-auto p-3 sm:p-4">
+      <div class="bi-dev-rank-card__body flex max-h-[20rem] flex-col gap-1 overflow-auto p-2 sm:p-3">
         {% if top_clientes and top_clientes|length > 0 %}
-        <table class="bi-dev-cause-table w-full text-left text-sm">
-          <thead class="sticky top-0 bg-white text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-            <tr>
-              <th class="py-2 pr-2">Cliente</th>
-              <th class="py-2 pr-2 text-right">Qtd.</th>
-              <th class="py-2 pr-2 text-right">Valor</th>
-              <th class="py-2 text-right">Última</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80">
-            {% for c in top_clientes[:10] %}
-            <tr>
-              <td class="max-w-[9rem] truncate py-2 pr-2 font-medium text-slate-800 dark:text-slate-100" title="{{ c.cliente }}">{{ c.cliente }}</td>
-              <td class="py-2 pr-2 text-right tabular-nums">{{ c.qtd|fmt_br_int }}</td>
-              <td class="py-2 pr-2 text-right tabular-nums">{{ c.valor|fmt_br_moeda }}</td>
-              <td class="py-2 text-right tabular-nums text-xs text-slate-600 dark:text-slate-300">
-                {% set ud = c.ultima_data %}
-                {% if ud and ud|length >= 10 %}{{ ud[8:10] }}/{{ ud[5:7] }}/{{ ud[0:4] }}{% else %}—{% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        <div class="mt-3 flex flex-wrap gap-2">
-          {% for c in top_clientes[:5] %}
-          <button type="button" class="sys-btn sys-btn--secondary bi-dev-cause-btn text-xs" data-bi-cause-search="{{ c.cliente|e }}">Ver detalhes</button>
+          {% for c in top_clientes[:10] %}
+          {% set pctc = (100.0 * (c.valor | float) / (total_valor | float)) if (total_valor and (total_valor | float) > 0) else 0 %}
+          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ c.cliente|e }}" title="Filtrar lista por este cliente">
+            <div class="bi-dev-rank-row__top">
+              <span class="bi-dev-rank-row__title">{{ c.cliente }}</span>
+              <svg class="bi-dev-rank-row__icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </div>
+            <p class="bi-dev-rank-row__meta">{{ c.valor|fmt_br_moeda }} · {{ c.qtd|fmt_br_int }} ocorr.</p>
+            <div class="bi-dev-rank-bar" aria-hidden="true"><span class="bi-dev-rank-bar__fill" style="width: {{ [pctc | float, 100] | min }}%;"></span></div>
+          </button>
           {% endfor %}
-        </div>
         {% else %}
-        <p class="p-2 text-sm text-slate-500 dark:text-slate-400">Sem clientes no período.</p>
+          <p class="p-2 text-xs text-slate-500 dark:text-slate-400">Sem clientes no período.</p>
         {% endif %}
       </div>
     </div>
