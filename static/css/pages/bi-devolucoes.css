@@ -1,5 +1,44 @@
 /* BI Devoluções — painel executivo (employees.css + design system) */
 
+/* Modal de detalhe: acima de headers fixos do GA; cartão mais largo e corpo rolável */
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-modal {
+  z-index: 10060;
+}
+
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-modal__card {
+  box-shadow: 0 25px 50px -12px rgb(15 23 42 / 0.25);
+}
+
+@media (min-width: 640px) {
+  .ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-modal__card {
+    max-width: min(42rem, calc(100vw - 2rem));
+  }
+}
+
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-dl dt {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted, #64748b);
+  margin-top: 0.45rem;
+}
+
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-dl dt:first-child {
+  margin-top: 0;
+}
+
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-dl dd {
+  margin-top: 0.1rem;
+  margin-bottom: 0.35rem;
+  line-height: 1.45;
+  color: var(--sys-text-primary, #0f172a);
+}
+
+html.dark .ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-dl dd {
+  color: rgb(241 245 249);
+}
+
 .ga-employee-theme.employees-page[data-page="bi-devolucoes"] {
   background: linear-gradient(180deg, rgb(248 250 252 / 0.9) 0%, rgb(241 245 249 / 0.5) 100%);
 }
@@ -526,14 +565,6 @@ html.dark .bi-dev-insight-card {
 
 .bi-dev-table-wrap--hidden {
   display: none !important;
-}
-
-.bi-dev-detail-dl dt {
-  margin-top: 0.5rem;
-}
-
-.bi-dev-detail-dl dt:first-child {
-  margin-top: 0;
 }
 
 .bi-dev-data-table tbody tr {

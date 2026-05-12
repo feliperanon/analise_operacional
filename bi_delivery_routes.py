@@ -58,6 +58,14 @@ def _in_competence_period(raw_date: Optional[str], start: str, end: str) -> bool
     return bool(comp) and start <= comp <= end
 
 
+def _in_operational_date_range_iso(op_raw: Optional[str], start: str, end: str) -> bool:
+    """Recorte do BI por calendário da operação (entrega/romaneio), não por competência."""
+    s = str(op_raw or "").strip()[:10]
+    if len(s) < 10:
+        return False
+    return start <= s <= end
+
+
 def _get_cached_mot_rsp_maps(session: Session):
     now = time.monotonic()
     if _BI_MOT_RSP_CACHE["mot"] is not None and (now - _BI_MOT_RSP_CACHE["ts"]) < _BI_MOT_RSP_TTL_SEC:
@@ -4401,9 +4409,9 @@ def _build_bi_devolucoes_dataset(
     def _dev_op_date_raw(d: models.Devolucao) -> str:
         return str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None) or "").strip()[:10]
 
-    devs_c = [d for d in devs_raw if _in_competence_period(_dev_op_date_raw(d), period_start, period_end)]
+    devs_c = [d for d in devs_raw if _in_operational_date_range_iso(_dev_op_date_raw(d), period_start, period_end)]
     devs_c.sort(
-        key=lambda x: (_competence_date_or_self(_dev_op_date_raw(x)), x.data_romaneio or ""),
+        key=lambda x: (_dev_op_date_raw(x), str(getattr(x, "data_romaneio", None) or "")),
         reverse=True,
     )
 
@@ -4579,7 +4587,7 @@ def _build_bi_devolucoes_dataset(
     routes_delivery_period = session.exec(rq_base).all()
     routes_delivery_period = [
         r for r in routes_delivery_period
-        if _in_competence_period(getattr(r, "date", None), period_start, period_end)
+        if _in_operational_date_range_iso(str(getattr(r, "date", None) or "").strip(), period_start, period_end)
     ]
     pct_devolucao_rotas = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
@@ -4653,6 +4661,35 @@ def _build_bi_devolucoes_dataset(
                 acima_meta_filter_note = "Nenhuma ocorrência ≥ R$ 300; exibindo todas as devoluções do período."
     devs = list(devs_pre_acima)
     # --- agregações (gráficos e rankings usam o período completo após faixa/críticas; lista respeita ids_listagem) ---
+    dev_count_by_client: dict[int, int] = {}
+    for _dx in devs_pre_acima:
+        if getattr(_dx, "client_id", None):
+            _cid = int(_dx.client_id)
+            dev_count_by_client[_cid] = dev_count_by_client.get(_cid, 0) + 1
+
+    hist_route_visits: dict[int, int] = {}
+    try:
+        _rq_hist = (
+            select(models.Route.client_id, func.count(models.Route.id))
+            .where(models.Route.type == "delivery")
+            .where(models.Route.date >= period_start)
+            .where(models.Route.date <= period_end)
+        )
+        if motorista_id:
+            _rq_hist = _rq_hist.where(models.Route.employee_id == motorista_id)
+        if client_ids_dev:
+            if len(client_ids_dev) == 1:
+                _rq_hist = _rq_hist.where(models.Route.client_id == client_ids_dev[0])
+            else:
+                _rq_hist = _rq_hist.where(models.Route.client_id.in_(client_ids_dev))
+        _rq_hist = _rq_hist.group_by(models.Route.client_id)
+        for _row in session.exec(_rq_hist).all():
+            _cid_r, _cnt_r = _row[0], _row[1]
+            if _cid_r is not None:
+                hist_route_visits[int(_cid_r)] = int(_cnt_r or 0)
+    except Exception:
+        pass
+
     total_qtd = int(total_qtd_kpi)
     total_valor = float(total_valor_kpi)
 
@@ -4866,6 +4903,13 @@ def _build_bi_devolucoes_dataset(
                 "id": did,
                 "data": dt_operacional,
                 "data_competencia": dt_str,
+                "client_id": int(d.client_id) if getattr(d, "client_id", None) else None,
+                "hist_rotas_entrega_periodo": (
+                    hist_route_visits.get(int(d.client_id), 0) if getattr(d, "client_id", None) else 0
+                ),
+                "hist_devolucoes_cliente_periodo": (
+                    dev_count_by_client.get(int(d.client_id), 0) if getattr(d, "client_id", None) else 0
+                ),
                 "cliente": cli_nome,
                 "vendedor": vendedor_nome,
                 "motorista": motorista_nome,

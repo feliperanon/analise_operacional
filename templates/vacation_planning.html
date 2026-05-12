@@ -302,18 +302,18 @@
 
   <section class="vp-secondary sys-card sys-card--surface sys-card--comfort p-4 sm:p-6" aria-labelledby="vp-secondary-heading">
     <h2 id="vp-secondary-heading" class="vp-section-title vp-secondary__title">Configurações e histórico</h2>
-    <p id="vp-tabs-placeholder" class="vp-tabs__placeholder text-xs text-slate-500 mb-2">
+    <p id="vp-tabs-placeholder" class="vp-tabs__placeholder text-xs text-slate-500 mb-2 hidden">
       Abra uma seção para calibrar demanda, editar perfil, sugestões em lote ou histórico. A importação por Excel está no menu <strong>Importar</strong> no topo.
     </p>
     <div class="vp-tabs" role="tablist">
-      <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="import">Importar (atalho)</button>
+      <button type="button" class="vp-tabs__btn vp-tabs__btn--active" role="tab" aria-selected="true" data-vp-tab="import">Importar (atalho)</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="cal">Calibragem mensal</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="profile">Perfil operacional</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="suggest">Sugestão automática</button>
       <button type="button" class="vp-tabs__btn" role="tab" aria-selected="false" data-vp-tab="history">Histórico de decisões</button>
     </div>
     <div class="vp-tabs__panels mt-4">
-      <div id="vp-panel-import" class="vp-tabs__panel hidden" role="tabpanel">
+      <div id="vp-panel-import" class="vp-tabs__panel" role="tabpanel">
         <p class="text-sm text-slate-600 dark:text-slate-300 mb-3">Use o botão <strong>Importar</strong> no cartão principal para enviar a planilha com segurança (modal com validações).</p>
         <button type="button" class="sys-btn sys-btn--primary text-sm" onclick="document.getElementById('vpImportModal').classList.remove('hidden')">Abrir importação</button>
       </div>
@@ -399,7 +399,7 @@
                 <th class="px-3 py-2">Quando</th>
                 <th class="px-3 py-2">Colaborador</th>
                 <th class="px-3 py-2">Período</th>
-                <th class="px-3 py-2">Status</th>
+                <th class="px-3 py-2">Situação</th>
                 <th class="px-3 py-2">Origem</th>
                 <th class="px-3 py-2">Aprovador</th>
                 <th class="px-3 py-2">Cadastro</th>

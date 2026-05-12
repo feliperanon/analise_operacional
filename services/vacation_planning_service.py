@@ -281,14 +281,14 @@ def try_sync_employee_vacation_fields(
 ) -> Tuple[bool, str]:
     """Atualiza vacation_start/vacation_end no Employee se existirem no modelo."""
     if not hasattr(employee, "vacation_start") or not hasattr(employee, "vacation_end"):
-        return False, "Modelo de colaborador sem campos vacation_start/vacation_end; sincronização não aplicada."
+        return False, "Cadastro do colaborador sem campos de férias; sincronização não aplicada."
     try:
         employee.vacation_start = datetime.combine(start, datetime.min.time())
         employee.vacation_end = datetime.combine(end, datetime.min.time())
         session.add(employee)
         session.commit()
         session.refresh(employee)
-        return True, "Férias sincronizadas no cadastro do colaborador (vacation_start / vacation_end)."
+        return True, "Férias gravadas também no cadastro do colaborador (início e fim)."
     except Exception as exc:
         session.rollback()
         return False, f"Sincronização com o cadastro falhou: {exc}"

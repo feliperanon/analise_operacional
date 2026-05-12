@@ -49,6 +49,23 @@
     return formatDateBR(datePart);
   }
 
+  function displayVacationStatusPt(code) {
+    var s = String(code || "").trim().toLowerCase();
+    if (s === "approved") return "Aprovado";
+    if (s === "suggested") return "Sugerido";
+    if (s === "cancelled" || s === "canceled") return "Cancelado";
+    if (s === "pending") return "Pendente";
+    return code ? String(code) : "—";
+  }
+
+  function displayVacationSourcePt(code) {
+    var s = String(code || "").trim().toLowerCase();
+    if (s === "planilha") return "Planilha";
+    if (s === "manual") return "Manual";
+    if (s === "system") return "Sistema";
+    return code ? String(code) : "—";
+  }
+
   function formatMonthYearBR(year, month) {
     var names = [
       "",
@@ -754,7 +771,7 @@
         }
         var html = items
           .map(function (h) {
-            var sync = h.employee_vacation_synced ? "Sincronizado" : "Sem sync cadastro";
+            var sync = h.employee_vacation_synced ? "Sincronizado no cadastro" : "Sem espelho no cadastro";
             return (
               "<div class=\"mt-2 rounded-md border border-slate-100 px-2 py-2 text-xs dark:border-slate-700\">" +
               "<p class=\"font-medium text-slate-800 dark:text-slate-100\">" +
@@ -763,7 +780,7 @@
               formatDateBR(h.end) +
               "</p>" +
               "<p class=\"mt-0.5 text-slate-500\">" +
-              escapeHtml(h.status || "") +
+              escapeHtml(displayVacationStatusPt(h.status)) +
               " · " +
               escapeHtml(sync) +
               (h.approved_by ? " · por " + escapeHtml(h.approved_by) : "") +
@@ -1252,7 +1269,7 @@
           escapeHtml(formatDateBR(h.end)) +
           "</p>" +
           "<p class=\"text-[11px] text-slate-500 mt-1\">" +
-          escapeHtml(h.status || "") +
+          escapeHtml(displayVacationStatusPt(h.status)) +
           " · " +
           escapeHtml(sync) +
           (h.approved_by ? " · por " + escapeHtml(h.approved_by) : "") +
@@ -1307,10 +1324,10 @@
             escapeHtml(formatDateBR(h.end)) +
             "</td>" +
             "<td class=\"px-3 py-2 text-xs\">" +
-            escapeHtml(h.status) +
+            escapeHtml(displayVacationStatusPt(h.status)) +
             "</td>" +
             "<td class=\"px-3 py-2 text-xs\">" +
-            escapeHtml(h.source) +
+            escapeHtml(displayVacationSourcePt(h.source)) +
             "</td>" +
             "<td class=\"px-3 py-2 text-xs\">" +
             escapeHtml(h.approved_by || "—") +
@@ -1337,6 +1354,13 @@
         if (box) {
           box.innerHTML =
             "<p class=\"text-xs text-rose-600\">" + escapeHtml(e.message || "Erro ao carregar.") + "</p>";
+        }
+        var hb = byId("vp-history-body");
+        if (hb) {
+          hb.innerHTML =
+            "<tr><td colspan=\"8\" class=\"px-3 py-3 text-xs text-rose-600\">" +
+            escapeHtml(e.message || "Não foi possível carregar o histórico.") +
+            "</td></tr>";
         }
         showAlert(e.message || "Não foi possível atualizar o histórico de férias.", "error");
       });
@@ -1887,6 +1911,7 @@
       if (tab) switchSecondaryTab(tab);
     });
   });
+  switchSecondaryTab("import");
 
   byId("vp-month").addEventListener("change", function () {
     loadOverview();
@@ -1948,6 +1973,13 @@
             pre.classList.remove("hidden");
           }
           var kind = res.body.workbook_kind;
+          var um = (res.body.unmatched_rows || []).length;
+          var am = (res.body.ambiguous_name_rows || []).length;
+          var re = (res.body.row_errors || []).length;
+          var sk =
+            kind === "programmed"
+              ? (res.body.skipped_empty_period || 0) + (res.body.skipped_invalid_dates || 0)
+              : res.body.skipped_no_period_dates || 0;
           var okMsg =
             kind === "programmed"
               ? "Importação concluída: " +
@@ -1956,9 +1988,22 @@
               : "Importação concluída: " +
                 (res.body.updated_profiles || 0) +
                 " perfil(is) atualizado(s).";
-          showAlert(okMsg, "success");
+          if (um || am || re || sk) {
+            okMsg +=
+              " Atenção: " +
+              [um ? um + " sem cadastro" : "", am ? am + " nome ambíguo" : "", re ? re + " com erro" : "", sk ? sk + " sem data/período" : ""]
+                .filter(Boolean)
+                .join(", ") +
+              ". Veja o bloco de detalhe (JSON) na tela.";
+          }
+          var created =
+            kind === "programmed"
+              ? res.body.created_schedule_entries || 0
+              : res.body.updated_profiles || 0;
+          var level = !created && (um || am || re || sk) ? "error" : "success";
+          showAlert(okMsg, level);
           var impModal = document.getElementById("vpImportModal");
-          if (impModal) impModal.classList.add("hidden");
+          if (impModal && level === "success") impModal.classList.add("hidden");
           loadOverview();
         })
         .catch(function () {

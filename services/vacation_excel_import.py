@@ -27,6 +27,9 @@ from sqlmodel import Session, col, select
 import models
 from services.vacation_planning_service import save_schedule_entry, simulate, upsert_profile
 
+# Origem de data serial do Excel (planilha Windows / 1900).
+_EXCEL_SERIAL_ORIGIN = datetime(1899, 12, 30)
+
 
 def _strip_accents(s: str) -> str:
     s = unicodedata.normalize("NFD", s)
@@ -43,11 +46,39 @@ def _norm_header(val: Any) -> str:
 def _norm_name_key(name: str) -> str:
     if not name or not isinstance(name, str):
         return ""
-    return " ".join(_strip_accents(name).upper().split())
+    s = _strip_accents(str(name).strip()).upper()
+    # Planilhas: hífen, ponto em abreviações, vírgulas etc.
+    s = re.sub(r"[^A-Z0-9\s]+", " ", s)
+    return " ".join(s.split())
+
+
+def _try_date_from_excel_serial(val: Any) -> Optional[date]:
+    """Número puro de célula (sem tipo data) — serial Excel."""
+    if val is None or isinstance(val, bool):
+        return None
+    if isinstance(val, str):
+        return None
+    try:
+        n = float(val)
+    except (TypeError, ValueError):
+        return None
+    if pd.isna(n):
+        return None
+    whole = int(n)
+    # ~1937 a ~2173 em serial típico
+    if whole < 13000 or whole > 120000:
+        return None
+    try:
+        d = (_EXCEL_SERIAL_ORIGIN + timedelta(days=whole)).date()
+        if date(1950, 1, 1) <= d <= date(2105, 12, 31):
+            return d
+    except (OverflowError, ValueError):
+        pass
+    return None
 
 
 def parse_cell_date(val: Any) -> Optional[date]:
-    """Aceita datetime Excel, Timestamp, string dd/mm/aaaa ou iso."""
+    """Aceita datetime Excel, Timestamp, serial numérico, string dd/mm/aaaa ou iso."""
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return None
     if isinstance(val, datetime):
@@ -59,6 +90,9 @@ def parse_cell_date(val: Any) -> Optional[date]:
             return val.date()  # type: ignore[no-any-return]
         except Exception:
             pass
+    serial_d = _try_date_from_excel_serial(val)
+    if serial_d:
+        return serial_d
     s = str(val).strip()
     if not s:
         return None
@@ -211,29 +245,77 @@ def acquisition_for_interpretation(sheet_date: date, interpretation: str) -> dat
     return sheet_date
 
 
+def _employee_pool_for_import(session: Session) -> List[models.Employee]:
+    """Colaboradores elegíveis (não demitidos) — alinha à busca em outras telas."""
+    return list(
+        session.exec(select(models.Employee).where(col(models.Employee.status) != "fired")).all()
+    )
+
+
+def _name_index_from_pool(pool: List[models.Employee]) -> Dict[str, List[models.Employee]]:
+    idx: Dict[str, List[models.Employee]] = {}
+    for e in pool:
+        k = _norm_name_key(getattr(e, "name", "") or "")
+        if k:
+            idx.setdefault(k, []).append(e)
+    return idx
+
+
+def _vacation_import_context(session: Session) -> tuple[List[models.Employee], Dict[str, List[models.Employee]]]:
+    pool = _employee_pool_for_import(session)
+    return pool, _name_index_from_pool(pool)
+
+
+def _registration_keys(raw: Any) -> List[str]:
+    if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+        return []
+    if isinstance(raw, float) and raw == int(raw):
+        raw = int(raw)
+    s = str(raw).strip()
+    if not s or s.lower() == "nan":
+        return []
+    keys = [s]
+    if s.replace(".", "", 1).isdigit():
+        try:
+            keys.append(str(int(float(s))))
+        except (ValueError, OverflowError):
+            pass
+    out: List[str] = []
+    for k in keys:
+        if k not in out:
+            out.append(k)
+    return out
+
+
+def _find_employee_by_registration_pool(pool: List[models.Employee], raw: Any) -> Optional[models.Employee]:
+    for key in _registration_keys(raw):
+        for e in pool:
+            rid = (e.registration_id or "").strip()
+            if rid == key:
+                return e
+            if rid.isdigit() and key.isdigit() and int(rid) == int(key):
+                return e
+    return None
+
+
 def find_employee_by_registration(session: Session, reg: str) -> Optional[models.Employee]:
     r = (reg or "").strip()
     if not r:
         return None
-    return session.exec(
-        select(models.Employee).where(
-            col(models.Employee.registration_id) == r,
-            col(models.Employee.status) == "active",
-        )
-    ).first()
+    pool = _employee_pool_for_import(session)
+    return _find_employee_by_registration_pool(pool, r)
 
 
 def find_employee_by_name(session: Session, name_key: str) -> List[models.Employee]:
     """
-    Associa por nome ignorando acentos e colapsando espaços (planilhas vs cadastro).
+    Associa por nome ignorando acentos, pontuação e colapsando espaços (planilhas vs cadastro).
+    Considera colaboradores com status diferente de demitido (ex.: ativo, férias, afastado).
     """
+    _, idx = _vacation_import_context(session)
     nk = _norm_name_key(name_key)
     if not nk:
         return []
-    rows = list(
-        session.exec(select(models.Employee).where(col(models.Employee.status) == "active")).all()
-    )
-    return [e for e in rows if _norm_name_key(getattr(e, "name", "") or "") == nk]
+    return list(idx.get(nk, []))
 
 
 def import_vacation_programmed_workbook(
@@ -262,6 +344,8 @@ def import_vacation_programmed_workbook(
     ambiguous: List[Dict[str, Any]] = []
     row_errors: List[Dict[str, Any]] = []
 
+    pool, name_idx = _vacation_import_context(session)
+
     data_rows = df.iloc[header_row + 1 :]
     for offset, (_, row) in enumerate(data_rows.iterrows()):
         excel_row = header_row + 2 + offset
@@ -274,15 +358,10 @@ def import_vacation_programmed_workbook(
         if cmap["registration"] is not None and cmap["registration"] < len(row):
             reg_val = row.iloc[cmap["registration"]]
             if reg_val is not None and not (isinstance(reg_val, float) and pd.isna(reg_val)):
-                if isinstance(reg_val, float) and reg_val == int(reg_val):
-                    reg_s = str(int(reg_val))
-                else:
-                    reg_s = str(reg_val).strip()
-                if reg_s and reg_s.lower() != "nan":
-                    emp = find_employee_by_registration(session, reg_s)
+                emp = _find_employee_by_registration_pool(pool, reg_val)
 
         if not emp:
-            hits = find_employee_by_name(session, name_key)
+            hits = name_idx.get(name_key, [])
             if len(hits) == 1:
                 emp = hits[0]
             elif len(hits) > 1:
@@ -347,7 +426,7 @@ def import_vacation_programmed_workbook(
         conflicts["employee_vacation_sync"] = {
             "requested": False,
             "applied": False,
-            "message": "Importação em lote não sincroniza vacation_start/end no cadastro.",
+            "message": "Na importação em lote as datas de férias do cadastro do colaborador não são alteradas (para gravar no cadastro, marque «Sincronizar» ao lançar manualmente).",
         }
 
         save_schedule_entry(
@@ -373,6 +452,7 @@ def import_vacation_programmed_workbook(
         "workbook_kind": "programmed",
         "filename": filename,
         "header_row_0based": header_row,
+        "eligible_employees_for_match": len(pool),
         "created_schedule_entries": created,
         "skipped_invalid_dates": skipped_invalid,
         "skipped_empty_period": skipped_empty_period,
@@ -462,6 +542,8 @@ def import_vacation_control_workbook(
     ambiguous: List[Dict[str, Any]] = []
     row_errors: List[Dict[str, Any]] = []
 
+    pool, name_idx = _vacation_import_context(session)
+
     data_rows = df.iloc[hdr + 1 :]
     for offset, (_, row) in enumerate(data_rows.iterrows()):
         excel_row = hdr + 2 + offset
@@ -474,15 +556,10 @@ def import_vacation_control_workbook(
         if cmap["registration"] is not None and cmap["registration"] < len(row):
             reg_val = row.iloc[cmap["registration"]]
             if reg_val is not None and not (isinstance(reg_val, float) and pd.isna(reg_val)):
-                if isinstance(reg_val, float) and reg_val == int(reg_val):
-                    reg_s = str(int(reg_val))
-                else:
-                    reg_s = str(reg_val).strip()
-                if reg_s and reg_s.lower() != "nan":
-                    emp = find_employee_by_registration(session, reg_s)
+                emp = _find_employee_by_registration_pool(pool, reg_val)
 
         if not emp:
-            hits = find_employee_by_name(session, name_key)
+            hits = name_idx.get(name_key, [])
             if len(hits) == 1:
                 emp = hits[0]
             elif len(hits) > 1:
@@ -554,6 +631,7 @@ def import_vacation_control_workbook(
         "filename": filename,
         "interpretation": interpretation,
         "header_row_0based": hdr,
+        "eligible_employees_for_match": len(pool),
         "updated_profiles": updated_profiles,
         "updated_admissions": updated_admissions,
         "skipped_no_period_dates": skipped_no_dates,

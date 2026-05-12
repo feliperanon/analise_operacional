@@ -142,6 +142,15 @@
     if (row.data_competencia && String(row.data_competencia).slice(0, 10) !== String(row.data || "").slice(0, 10)) {
       addPair("Competência (fechamento)", isoDateToBr(row.data_competencia));
     }
+    if (row.client_id != null) {
+      addPair(
+        "Histórico no período (cliente)",
+        String(row.hist_rotas_entrega_periodo != null ? row.hist_rotas_entrega_periodo : 0) +
+          " rota(s) de entrega · " +
+          String(row.hist_devolucoes_cliente_periodo != null ? row.hist_devolucoes_cliente_periodo : 0) +
+          " devolução(ões)"
+      );
+    }
     addPair("Valor", fmtMoney(row.valor));
     addPair("Motivo", row.motivo);
     addPair("Responsabilidade", row.responsabilidade);

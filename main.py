@@ -34882,8 +34882,8 @@ async def api_vacation_planning_schedule(
         st = str(body.status or "").strip().lower()
         if st != "approved":
             sync_message = (
-                "Sincronização não aplicada: apenas registros com status 'approved' "
-                "atualizam vacation_start/vacation_end no cadastro."
+                "Sincronização não aplicada: apenas lançamentos aprovados "
+                "atualizam as datas de férias no cadastro do colaborador."
             )
         elif not emp_obj:
             sync_message = "Sincronização não aplicada: colaborador não encontrado."

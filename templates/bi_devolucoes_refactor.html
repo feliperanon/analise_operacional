@@ -57,12 +57,12 @@
   <div class="bi-dev-order bi-dev-order--depth">{% include "bi/devolucoes/_analysis_depth.html" %}</div>
   <div class="bi-dev-order bi-dev-order--list">{% include "bi/devolucoes/_list.html" %}</div>
 
-  <div id="bi-dev-detail-modal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="bi-dev-detail-title" data-bi-dev-modal>
-    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto w-full max-w-lg">
-      <div class="mb-4 flex items-start justify-between gap-3">
+  <div id="bi-dev-detail-modal" class="emp-modal-shell bi-dev-detail-modal fixed inset-0 z-[10060] hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-20 sm:items-center sm:pt-8" role="dialog" aria-modal="true" aria-labelledby="bi-dev-detail-title" data-bi-dev-modal>
+    <div class="bi-dev-detail-modal__card sys-card sys-card--surface sys-card--comfort relative z-10 my-auto flex w-full max-h-[min(88vh,42rem)] max-w-2xl flex-col overflow-hidden">
+      <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
         <div class="min-w-0">
-          <p class="employees-table-panel__kicker">Detalhe da devolução</p>
-          <h3 id="bi-dev-detail-title" class="sys-section-heading mt-1 text-lg truncate">—</h3>
+          <p class="employees-table-panel__kicker text-[10px]">Detalhe da devolução</p>
+          <h3 id="bi-dev-detail-title" class="sys-section-heading mt-0.5 text-base font-semibold sm:text-lg">—</h3>
         </div>
         <button type="button" class="emp-modal-close shrink-0" data-bi-dev-detail-close aria-label="Fechar">
           <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,8 +70,8 @@
           </svg>
         </button>
       </div>
-      <dl class="bi-dev-detail-dl space-y-3 text-sm"></dl>
-      <div class="mt-6 flex justify-end gap-2">
+      <dl class="bi-dev-detail-dl min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3 text-sm sm:px-5 sm:py-4"></dl>
+      <div class="flex shrink-0 justify-end gap-2 border-t border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
         <button type="button" class="sys-btn sys-btn--secondary" data-bi-dev-detail-close>Fechar</button>
       </div>
     </div>
