@@ -415,6 +415,9 @@
       sensitive_month: "🌡",
       date_overlap_same_role: "📅",
       route_team_overlap: "🚛",
+      route_roster_thin: "📋",
+      route_staffing_driver: "🛣",
+      route_staffing_helpers: "👷",
       substitute_missing: "👤",
       weekly_start_cluster: "📆",
       weekly_return_cluster: "↩",
@@ -1120,6 +1123,19 @@
       qel.textContent =
         "Fila (auditoria): " + f.length + (n ? " de " + n + " carregados" : "");
     }
+    updatePeopleIntelLinks();
+  }
+
+  function updatePeopleIntelLinks() {
+    var q = qs();
+    var cc = encodeURIComponent(q.cost_center || "Todos");
+    var base = "/people-intelligence?cost_center=" + cc;
+    var mon = byId("vp-link-pi-monitor");
+    var crit = byId("vp-link-pi-critical");
+    var att = byId("vp-link-pi-attention");
+    if (mon) mon.href = base + "&status_view=all";
+    if (crit) crit.href = base + "&status_view=critical";
+    if (att) att.href = base + "&status_view=attention";
   }
 
   function prazoLabelHuman(row) {
@@ -2529,6 +2545,7 @@
   byId("vp-year").value = String(currentYear());
   byId("vp-month").value = String(currentMonth());
   byId("vp-cal-year").value = String(currentYear());
+  updatePeopleIntelLinks();
 
   byId("vp-refresh").addEventListener("click", function () {
     loadOverview();

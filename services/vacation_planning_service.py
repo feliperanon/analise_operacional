@@ -856,10 +856,14 @@ def deadline_basis_public_label(basis: str) -> str:
 
 
 def role_bucket(role: Optional[str]) -> str:
+    """
+    Agrupa cargo livre em buckets operacionais. Ordem importa: substrings mais específicas
+    antes de genéricas (ex.: «AJUDANTE DE MOTORISTA» contém «MOTORIST» mas é ajudante).
+    """
     r = (role or "").upper()
-    if "MOTORIST" in r:
-        return "MOTORISTA"
     if "AJUDANT" in r:
+        return "AJUDANTE"
+    if "AUXILIAR" in r and "MOTOR" in r:
         return "AJUDANTE"
     if "CONFERENT" in r:
         return "CONFERENTE"
@@ -871,6 +875,8 @@ def role_bucket(role: Optional[str]) -> str:
         return "EXPEDICAO"
     if "ADMIN" in r or "ESCRIT" in r:
         return "ADMINISTRATIVO"
+    if "MOTORIST" in r:
+        return "MOTORISTA"
     return "OUTROS"
 
 

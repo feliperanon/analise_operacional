@@ -42,7 +42,8 @@
           </span>
           <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Planejamento de férias</h2>
           <p class="employees-hero__lead mt-1.5 max-w-xl text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
-            Painel de decisão: mês, capacidade, quem agir e quem já está programado.
+            Painel de decisão: mês, capacidade, cobertura por rota (motorista + 2 ajudantes) e risco operacional.
+            Cruze com o People Intelligence para <strong class="font-semibold text-slate-600 dark:text-slate-300">faltas e reincidência</strong> antes de aprovar férias.
           </p>
           <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
             <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
@@ -172,6 +173,22 @@
     </div>
     <div id="vp-conflicts-summary" class="vp-conflicts-summary"></div>
     <div id="vp-conflicts-list" class="vp-conflicts-list"></div>
+    <div class="vp-pi-bridge mt-3 rounded-lg border border-sky-200/90 bg-sky-50/60 px-3 py-2.5 text-xs text-slate-700 dark:border-sky-900/40 dark:bg-sky-950/25 dark:text-slate-200">
+      <p class="font-semibold text-slate-800 dark:text-slate-100">Rotas e faltas (decisão diária)</p>
+      <p class="mt-1 leading-relaxed text-slate-600 dark:text-slate-300">
+        Na operação, avalie se cada rota mantém <strong>1 motorista</strong> e <strong>2 ajudantes</strong> disponíveis para sair (planejamento agregado ~1 : 1,7 ajudantes).
+        O mesmo cadastro alimenta os alertas abaixo e o
+        <a class="font-medium text-sky-700 underline decoration-sky-400/70 underline-offset-2 hover:text-sky-800 dark:text-sky-300 dark:hover:text-sky-200" href="https://analise-operacional.onrender.com/people-intelligence" target="_blank" rel="noopener noreferrer">People Intelligence</a>
+        (portal operacional) para <strong>risco de faltas</strong> — use o mesmo filtro de empresa.
+      </p>
+      <p class="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
+        <a id="vp-link-pi-monitor" class="font-medium text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100" href="/people-intelligence">Monitor completo</a>
+        <span class="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
+        <a id="vp-link-pi-critical" class="font-medium text-rose-700 hover:text-rose-900 dark:text-rose-300 dark:hover:text-rose-100" href="/people-intelligence?status_view=critical">Só críticos</a>
+        <span class="text-slate-300 dark:text-slate-600" aria-hidden="true">·</span>
+        <a id="vp-link-pi-attention" class="font-medium text-amber-800 hover:text-amber-950 dark:text-amber-300 dark:hover:text-amber-100" href="/people-intelligence?status_view=attention">Em atenção</a>
+      </p>
+    </div>
   </section>
 
   <!-- KPIs -->

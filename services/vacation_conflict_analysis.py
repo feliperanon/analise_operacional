@@ -27,6 +27,28 @@ from services.vacation_planning_service import (
 
 SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
 
+# Saída típica: 1 motorista + 2 ajudantes; planejamento agregado ~1 : 1,7 ajudantes.
+ROUTE_DISPATCH_MIN_MOTORISTS = 1
+ROUTE_DISPATCH_MIN_HELPERS = 2
+ROUTE_PLANNING_HELPER_RATIO_LABEL = "1,7"
+
+_ROUTE_LABEL_SKIP = frozenset(
+    {
+        "",
+        "-",
+        "—",
+        "n/a",
+        "na",
+        "sem",
+        "sem rota",
+        "nao informado",
+        "não informado",
+        "nao definido",
+        "não definido",
+        "s/n",
+    }
+)
+
 MONTH_NAMES_PT = (
     "",
     "Janeiro",
@@ -371,6 +393,127 @@ def build_operational_conflict_analysis(
                 ),
                 recommendation="Garantir cobertura da rota (motorista/ajudante ou equivalente) antes de aprovar.",
             )
+
+    # --- Cobertura por rota (motorista + ajudantes; meta 2 ajudantes por saída) ---
+    route_display: Dict[str, str] = {}
+    rost_moto: Dict[str, Set[int]] = defaultdict(set)
+    rost_ajud: Dict[str, Set[int]] = defaultdict(set)
+    for eid, emp in emp_by_id.items():
+        if not eid:
+            continue
+        prof = profiles.get(int(eid))
+        raw_rt = (prof.route_team if prof else None) or ""
+        rt = raw_rt.strip().lower()
+        if len(rt) < 2 or rt in _ROUTE_LABEL_SKIP:
+            continue
+        if rt not in route_display and raw_rt.strip():
+            route_display[rt] = raw_rt.strip()
+        rb = role_bucket(emp.role)
+        if rb == "MOTORISTA":
+            rost_moto[rt].add(int(eid))
+        elif rb == "AJUDANTE":
+            rost_ajud[rt].add(int(eid))
+
+    vac_moto: Dict[str, Set[int]] = defaultdict(set)
+    vac_ajud: Dict[str, Set[int]] = defaultdict(set)
+    for w in month_windows:
+        raw_rt = (w.get("route_team") or "") or ""
+        rt = raw_rt.strip().lower()
+        if len(rt) < 2 or rt in _ROUTE_LABEL_SKIP:
+            continue
+        if rt not in route_display and raw_rt.strip():
+            route_display[rt] = raw_rt.strip()
+        eid = int(w["employee_id"])
+        emp = emp_by_id.get(eid)
+        if not emp:
+            continue
+        rb = str(w.get("role_bucket") or "")
+        if rb == "MOTORISTA":
+            vac_moto[rt].add(eid)
+        elif rb == "AJUDANTE":
+            vac_ajud[rt].add(eid)
+
+    all_routes = set(rost_moto.keys()) | set(rost_ajud.keys()) | set(vac_moto.keys()) | set(vac_ajud.keys())
+    route_conflict_budget = 16
+    route_conflicts_added = 0
+    for rt in sorted(all_routes):
+        if route_conflicts_added >= route_conflict_budget:
+            break
+        disp = route_display.get(rt) or rt.upper()
+        m_tot = len(rost_moto.get(rt, set()))
+        a_tot = len(rost_ajud.get(rt, set()))
+        if m_tot == 0 and a_tot == 0:
+            continue
+        m_v = len(vac_moto.get(rt, set()) & rost_moto.get(rt, set()))
+        a_v = len(vac_ajud.get(rt, set()) & rost_ajud.get(rt, set()))
+        m_rem = m_tot - m_v
+        a_rem = a_tot - a_v
+
+        if m_tot >= ROUTE_DISPATCH_MIN_MOTORISTS and a_tot == 0:
+            _append_conflict(
+                conflicts,
+                ctype="route_roster_thin",
+                severity="medium",
+                title="Rota sem ajudante no cadastro",
+                message=(
+                    f"Rota «{disp}»: há {m_tot} motorista(s) vinculado(s) a esta equipe/rota, "
+                    "mas nenhum ajudante com a mesma rota no perfil — não dá para validar a saída típica (2 ajudantes)."
+                ),
+                recommendation="Informar rota/equipe nos perfis dos ajudantes da mesma linha de entrega.",
+            )
+            route_conflicts_added += 1
+            if route_conflicts_added >= route_conflict_budget:
+                break
+
+        if m_tot >= 1 and 0 < a_tot < ROUTE_DISPATCH_MIN_HELPERS:
+            _append_conflict(
+                conflicts,
+                ctype="route_roster_thin",
+                severity="medium",
+                title="Rota com poucos ajudantes no quadro",
+                message=(
+                    f"Rota «{disp}»: {a_tot} ajudante(s) cadastrado(s) na rota; a operação costuma sair com "
+                    f"{ROUTE_DISPATCH_MIN_HELPERS} ajudantes (referência de planejamento ~1 motorista : "
+                    f"{ROUTE_PLANNING_HELPER_RATIO_LABEL} ajudantes)."
+                ),
+                recommendation="Reforçar o quadro ou revisar o cadastro de rota/equipe antes de concentrar férias.",
+            )
+            route_conflicts_added += 1
+            if route_conflicts_added >= route_conflict_budget:
+                break
+
+        if m_tot >= ROUTE_DISPATCH_MIN_MOTORISTS and m_rem < ROUTE_DISPATCH_MIN_MOTORISTS:
+            _append_conflict(
+                conflicts,
+                ctype="route_staffing_driver",
+                severity="critical",
+                title="Rota: motoristas indisponíveis no mês",
+                message=(
+                    f"Rota «{disp}»: no mês, {m_v} de {m_tot} motorista(s) da rota estão de férias — "
+                    "não sobra capacidade típica de condução na equipe."
+                ),
+                recommendation="Remarcar gozo, alocar motorista de apoio ou revisar a rota antes de aprovar.",
+            )
+            route_conflicts_added += 1
+            if route_conflicts_added >= route_conflict_budget:
+                break
+
+        if a_tot >= ROUTE_DISPATCH_MIN_HELPERS and a_rem < ROUTE_DISPATCH_MIN_HELPERS:
+            sev_h = "critical" if a_rem <= 0 else "high"
+            _append_conflict(
+                conflicts,
+                ctype="route_staffing_helpers",
+                severity=sev_h,
+                title="Rota: ajudantes abaixo da saída típica (2)",
+                message=(
+                    f"Rota «{disp}»: com as férias do mês restam {a_rem} ajudante(s) disponível(is) "
+                    f"de {a_tot} no quadro (saída típica com {ROUTE_DISPATCH_MIN_HELPERS} ajudantes por carregamento)."
+                ),
+                recommendation="Redistribuir férias ou reforçar cobertura para manter 2 ajudantes operando na rota.",
+            )
+            route_conflicts_added += 1
+            if route_conflicts_added >= route_conflict_budget:
+                break
 
     # --- Substituto (um card agregado: evita repetir a mesma mensagem por colaborador) ---
     missing_sub: List[Tuple[int, str]] = []
