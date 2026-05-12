@@ -87,11 +87,32 @@
     return Math.round((b - a) / 864e5) + 1;
   }
 
+  /** yyyy-mm-dd a partir de Date em fuso local (evita deslocar dia com toISOString/UTC). */
+  function toIsoDateLocal(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  /** Primeiro dia do mês em foco na página (vp-year / vp-month); fallback hoje. */
+  function defaultVacationStartIsoFromOverview() {
+    var yEl = byId("vp-year");
+    var mEl = byId("vp-month");
+    var y = parseInt(yEl && yEl.value, 10);
+    var m = parseInt(mEl && mEl.value, 10);
+    if (!y || isNaN(y) || !m || isNaN(m) || m < 1 || m > 12) {
+      return toIsoDateLocal(new Date());
+    }
+    return y + "-" + String(m).padStart(2, "0") + "-01";
+  }
+
   /** Soma dias corridos a uma data ISO (yyyy-mm-dd). */
   function addCalendarDaysIso(iso, deltaDays) {
     var d = new Date(iso + "T12:00:00");
+    if (isNaN(d.getTime())) return "";
     d.setDate(d.getDate() + deltaDays);
-    return d.toISOString().slice(0, 10);
+    return toIsoDateLocal(d);
   }
 
   function updateVacationLegalHint() {
@@ -1741,13 +1762,27 @@
       var n = parseInt(btn.getAttribute("data-vp-days"), 10);
       var startEl = byId("vp-sim-start");
       var endEl = byId("vp-sim-end");
-      if (!startEl || !startEl.value) {
-        showAlert("Informe primeiro a data de início.", "error");
+      if (!startEl || !endEl) return;
+      if (!startEl.value) {
+        startEl.value = defaultVacationStartIsoFromOverview();
+        try {
+          startEl.dispatchEvent(new Event("input", { bubbles: true }));
+          startEl.dispatchEvent(new Event("change", { bubbles: true }));
+        } catch (e0) {}
+      }
+      if (!n || n < 1) return;
+      var endIso = addCalendarDaysIso(startEl.value, n - 1);
+      if (!endIso) {
+        showAlert("Data de início inválida. Ajuste manualmente.", "error");
         return;
       }
-      if (!n || n < 1 || !endEl) return;
-      endEl.value = addCalendarDaysIso(startEl.value, n - 1);
+      endEl.value = endIso;
+      try {
+        endEl.dispatchEvent(new Event("input", { bubbles: true }));
+        endEl.dispatchEvent(new Event("change", { bubbles: true }));
+      } catch (e1) {}
       updateVacationLegalHint();
+      updateLaunchDaysLine();
     });
   });
   ["vp-sim-start", "vp-sim-end"].forEach(function (id) {

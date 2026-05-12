@@ -1,43 +1,83 @@
-<section class="space-y-4" aria-label="Leitura executiva e agregações">
-  {% if analise_destaque and analise_destaque|length > 0 %}
+<section class="bi-dev-depth space-y-3" aria-label="Leitura executiva e agregações">
+  {% set tm = top_motivos[0] if top_motivos and top_motivos|length > 0 else none %}
+  {% set ra = resp_breakdown[0] if resp_breakdown and resp_breakdown|length > 0 else none %}
+  {% set ci = chart_insights or {} %}
+  {% if tm or ra or (ci.get('pct_valor_acima800') is not none) or (rotas_kpi_concluidas > 0) %}
   <div class="sys-card sys-card--surface sys-card--comfort overflow-hidden">
-    <div class="border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5">
-      <p class="employees-table-panel__kicker">Leitura executiva</p>
-      <h3 class="sys-section-heading mt-0.5 text-base sm:text-lg">Destaques do período</h3>
+    <div class="border-b border-slate-200/80 px-3 py-2 dark:border-slate-700/80 sm:px-4">
+      <p class="employees-table-panel__kicker text-[10px]">Leitura executiva</p>
+      <h3 class="sys-section-heading mt-0.5 text-sm font-semibold sm:text-base">Insights do período</h3>
     </div>
-    <ul class="list-none space-y-2.5 p-4 sm:p-5 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-      {% for line in analise_destaque %}
-      <li class="flex gap-3">
-        <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" aria-hidden="true"></span>
-        <span>{{ line }}</span>
-      </li>
-      {% endfor %}
-    </ul>
+    <div class="bi-dev-insight-grid grid gap-2 p-2 sm:grid-cols-2 sm:gap-3 sm:p-3 lg:grid-cols-4">
+      {% if tm %}
+      <div class="bi-dev-insight-card">
+        <p class="bi-dev-insight-card__label">Principal impacto</p>
+        <p class="bi-dev-insight-card__line truncate" title="{{ tm.motivo }}">{{ tm.motivo }}</p>
+        <p class="bi-dev-insight-card__num">{{ tm.valor|fmt_br_moeda }}</p>
+        <p class="bi-dev-insight-card__hint">no período</p>
+      </div>
+      {% endif %}
+      {% if ra %}
+      <div class="bi-dev-insight-card">
+        <p class="bi-dev-insight-card__label">Área mais crítica</p>
+        <p class="bi-dev-insight-card__line">{{ ra.responsabilidade }}</p>
+        <p class="bi-dev-insight-card__num">{{ ra.pct_valor_total|fmt_br_1 }}%</p>
+        <p class="bi-dev-insight-card__hint">do valor devolvido</p>
+      </div>
+      {% endif %}
+      {% if ci.get('pct_valor_acima800') is not none %}
+      <div class="bi-dev-insight-card">
+        <p class="bi-dev-insight-card__label">Alto valor (≥ R$ 800)</p>
+        <p class="bi-dev-insight-card__line">Concentração em valor</p>
+        <p class="bi-dev-insight-card__num">{{ ci.get('pct_valor_acima800')|fmt_br_1 }}%</p>
+        <p class="bi-dev-insight-card__hint">do valor devolvido</p>
+      </div>
+      {% elif pct_acima_300 > 0 and total_qtd %}
+      <div class="bi-dev-insight-card">
+        <p class="bi-dev-insight-card__label">Ocorrências de alto valor</p>
+        <p class="bi-dev-insight-card__line">Faixa crítica cadastral</p>
+        <p class="bi-dev-insight-card__num">{{ pct_acima_300|fmt_br_1 }}%</p>
+        <p class="bi-dev-insight-card__hint">das ocorrências no período</p>
+      </div>
+      {% endif %}
+      {% if rotas_kpi_concluidas > 0 %}
+      <div class="bi-dev-insight-card">
+        <p class="bi-dev-insight-card__label">Meta (rotas)</p>
+        <p class="bi-dev-insight-card__line">Referência {{ meta_pp|fmt_br_2 }}%</p>
+        <p class="bi-dev-insight-card__num">{% if desvio_rotas_pp > 0 %}+{% endif %}{{ desvio_rotas_pp|fmt_br_1 }} p.p.</p>
+        <p class="bi-dev-insight-card__hint">{% if situacao_meta == 'acima' %}Acima da referência{% elif situacao_meta == 'dentro' %}Dentro da referência{% else %}Sem classificação{% endif %}</p>
+      </div>
+      {% endif %}
+    </div>
   </div>
   {% endif %}
 
   {% if evolucao_semanal and evolucao_semanal|length > 0 %}
-  <details class="sys-card sys-card--surface sys-card--comfort overflow-hidden group">
-    <summary class="cursor-pointer list-none border-b border-slate-200/80 px-4 py-3 dark:border-slate-700/80 sm:px-5 [&::-webkit-details-marker]:hidden">
-      <span class="employees-table-panel__kicker">Agregação opcional</span>
-      <span class="sys-section-heading mt-0.5 block text-base sm:text-lg">Evolução semanal</span>
-      <span class="mt-1 block text-xs text-slate-500 group-open:hidden dark:text-slate-400">Toque para expandir</span>
+  <details class="bi-dev-weekly sys-card sys-card--surface sys-card--comfort overflow-hidden group">
+    <summary class="bi-dev-weekly__summary cursor-pointer list-none border-b border-slate-200/80 px-3 py-2.5 dark:border-slate-700/80 sm:px-4 [&::-webkit-details-marker]:hidden">
+      <span class="employees-table-panel__kicker text-[10px]">Agregação opcional</span>
+      <span class="sys-section-heading mt-0.5 block text-sm font-semibold sm:text-base">Evolução semanal</span>
+      {% if semana_resumo %}
+      <span class="mt-1 block text-[11px] text-slate-600 dark:text-slate-300">{{ semana_resumo }}</span>
+      {% else %}
+      <span class="mt-1 block text-[11px] text-slate-500 group-open:hidden dark:text-slate-400">Toque para expandir</span>
+      {% endif %}
     </summary>
-    <div class="overflow-x-auto p-3 sm:p-4">
-      <table class="min-w-[280px] w-full text-left text-sm">
-        <thead class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+    <div class="overflow-x-auto p-2 sm:p-3">
+      <table class="bi-dev-weekly-table min-w-[260px] w-full text-left text-xs sm:text-sm">
+        <thead class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           <tr>
-            <th class="py-2 pr-3">Semana</th>
-            <th class="py-2 pr-3 text-right">Qtd.</th>
-            <th class="py-2 text-right">Valor</th>
+            <th class="py-1.5 pr-2">Semana</th>
+            <th class="py-1.5 pr-2 text-right">Qtd.</th>
+            <th class="py-1.5 text-right">Valor</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80">
           {% for w in evolucao_semanal[-16:] %}
-          <tr>
-            <td class="py-2 pr-3 font-mono text-xs text-slate-700 dark:text-slate-200">{{ w.semana }}</td>
-            <td class="py-2 pr-3 text-right tabular-nums">{{ w.qtd|fmt_br_int }}</td>
-            <td class="py-2 text-right tabular-nums">{{ w.valor|fmt_br_moeda }}</td>
+          <tr class="tabular-nums">
+            <td class="py-1.5 pr-2 font-mono text-[11px] text-slate-700 dark:text-slate-200">{{ w.semana }}</td>
+            <td class="py-1.5 pr-2 text-right">{{ w.qtd|fmt_br_int }}</td>
+            <td class="py-1.5 text-right font-medium">{{ w.valor|fmt_br_moeda }}</td>
           </tr>
           {% endfor %}
         </tbody>

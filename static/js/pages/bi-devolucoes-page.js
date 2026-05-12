@@ -45,6 +45,13 @@
   var form = document.getElementById("bi-dev-form");
   var filterCollapsible = page.querySelector("[data-filters-body]");
   var toggleFiltersBtn = page.querySelector("[data-toggle-filters]");
+  var advancedToggleBtn = page.querySelector("[data-advanced-filters]");
+  var advancedPanel = page.querySelector("[data-filters-advanced]");
+  var tableWrap = document.querySelector("#bi-dev-table-panel .bi-dev-table-wrap");
+  var tableEmpty = document.getElementById("bi-dev-table-empty");
+  var chartSkeleton = document.getElementById("bi-dev-chart-skeleton");
+  var chartEmpty = document.getElementById("bi-dev-chart-empty");
+  var chartCanvasWrap = document.querySelector(".bi-dev-chart-wrap--main");
   var detailModal = document.getElementById("bi-dev-detail-modal");
   var detailTitle = document.getElementById("bi-dev-detail-title");
   var detailDl = detailModal ? detailModal.querySelector(".bi-dev-detail-dl") : null;
@@ -83,6 +90,27 @@
     if (status === "Crítica") return "sys-badge sys-badge--critical";
     if (status === "Pendente") return "sys-badge sys-badge--alert";
     return "sys-badge sys-badge--ok";
+  }
+
+  function respBadgeClass(resp) {
+    var r = (resp || "").toUpperCase();
+    if (r.indexOf("COMERCIAL") >= 0) return "bi-dev-resp-badge bi-dev-resp-badge--com";
+    if (r.indexOf("LOG") >= 0) return "bi-dev-resp-badge bi-dev-resp-badge--log";
+    if (r.indexOf("MERCADO") >= 0) return "bi-dev-resp-badge bi-dev-resp-badge--mer";
+    return "bi-dev-resp-badge";
+  }
+
+  function setChartVisualState(mode) {
+    if (chartSkeleton) {
+      chartSkeleton.classList.toggle("is-hidden", mode === "ready" || mode === "empty");
+    }
+    if (chartEmpty) {
+      chartEmpty.classList.toggle("hidden", mode !== "empty");
+    }
+    if (chartCanvasWrap) {
+      chartCanvasWrap.classList.toggle("bi-dev-chart-wrap--short", mode === "empty");
+      chartCanvasWrap.classList.toggle("bi-dev-chart-wrap--hidden", mode === "empty");
+    }
   }
 
   function updateQuickFilterButtons() {
@@ -167,7 +195,10 @@
       appendTd(tr, row.vendedor || "—");
       appendTd(tr, row.motorista || "—");
       appendTd(tr, row.motivo || "—");
-      appendTd(tr, row.responsabilidade || "—");
+      var respWrap = document.createElement("span");
+      respWrap.className = respBadgeClass(row.responsabilidade);
+      respWrap.textContent = row.responsabilidade || "—";
+      appendTd(tr, respWrap);
       appendTd(tr, fmtMoney(row.valor), { right: true });
       appendTd(tr, row.pct_impacto != null ? fmtPct(row.pct_impacto) : "—", { right: true });
       appendTd(tr, statusEl);
@@ -200,9 +231,9 @@
         hi.textContent = "Alto impacto";
         card.appendChild(hi);
       }
-      function addLine(label, val) {
+      function addLine(label, val, muted) {
         var p = document.createElement("p");
-        p.className = "bi-dev-card__row";
+        p.className = muted ? "bi-dev-card__row bi-dev-card__row--muted" : "bi-dev-card__row";
         var s = document.createElement("strong");
         s.textContent = label + ": ";
         p.appendChild(s);
@@ -210,10 +241,19 @@
         card.appendChild(p);
       }
       addLine("Motivo", row.motivo || "—");
-      addLine("Data", isoDateToBr(row.data));
-      addLine("Vendedor", row.vendedor || "—");
-      addLine("Motorista", row.motorista || "—");
-      addLine("Responsabilidade", row.responsabilidade || "—");
+      var respLine = document.createElement("p");
+      respLine.className = "bi-dev-card__row";
+      var rs = document.createElement("strong");
+      rs.textContent = "Responsabilidade: ";
+      respLine.appendChild(rs);
+      var rb = document.createElement("span");
+      rb.className = respBadgeClass(row.responsabilidade);
+      rb.textContent = row.responsabilidade || "—";
+      respLine.appendChild(rb);
+      card.appendChild(respLine);
+      addLine("Vendedor", row.vendedor || "—", true);
+      addLine("Motorista", row.motorista || "—", true);
+      addLine("Data", isoDateToBr(row.data), true);
       var st = document.createElement("p");
       st.className = "bi-dev-card__row";
       st.appendChild(document.createTextNode("Status: "));
@@ -226,24 +266,43 @@
       act.className = "bi-dev-card__actions";
       var mb = document.createElement("button");
       mb.type = "button";
-      mb.className = "sys-btn sys-btn--secondary bi-dev-detail-mobile";
+      mb.className = "sys-btn sys-btn--secondary bi-dev-detail-mobile text-xs px-2 py-1";
       mb.setAttribute("data-idx", String(i));
-      mb.textContent = "Ver detalhes";
+      mb.textContent = "Detalhes";
       act.appendChild(mb);
+      card.appendChild(act);
       card.appendChild(act);
       cardsRoot.appendChild(card);
     }
     cursor = end;
-    moreBtn.style.display = cursor < filteredRows.length ? "inline-flex" : "none";
+    if (moreBtn) {
+      moreBtn.style.display =
+        filteredRows.length === 0 ? "none" : cursor < filteredRows.length ? "inline-flex" : "none";
+    }
 
+    var emptyTitle = document.getElementById("bi-dev-table-empty-title");
+    var emptySub = document.getElementById("bi-dev-table-empty-sub");
     if (!filteredRows.length) {
-      if (allRows.length === 0) {
-        stateText.textContent = "Não há devoluções no período selecionado.";
-      } else {
-        stateText.textContent = "Nenhum resultado com os filtros atuais. Ajuste a busca ou os atalhos.";
+      if (tableWrap) tableWrap.classList.add("bi-dev-table-wrap--hidden");
+      if (tableEmpty) tableEmpty.classList.remove("hidden");
+      if (emptyTitle && emptySub) {
+        if (allRows.length === 0) {
+          emptyTitle.textContent = "Sem devoluções no período com os filtros aplicados.";
+          emptySub.textContent = "Amplie o intervalo de datas ou revise os filtros da página.";
+        } else {
+          emptyTitle.textContent = "Nenhuma devolução encontrada para os filtros atuais.";
+          emptySub.textContent = "Ajuste a busca na lista ou limpe os filtros.";
+        }
+      }
+      if (stateText) {
+        stateText.textContent = allRows.length === 0 ? "Lista vazia no período." : "Lista filtrada sem resultados.";
       }
     } else {
-      stateText.textContent = "Exibindo " + end + " de " + filteredRows.length + " registro(s) na lista.";
+      if (tableWrap) tableWrap.classList.remove("bi-dev-table-wrap--hidden");
+      if (tableEmpty) tableEmpty.classList.add("hidden");
+      if (stateText) {
+        stateText.textContent = "Exibindo " + end + " de " + filteredRows.length + " registro(s) na lista.";
+      }
     }
   }
 
@@ -359,7 +418,7 @@
   }
 
   function chartHeightPx() {
-    return window.matchMedia && window.matchMedia("(max-width: 639px)").matches ? 200 : 280;
+    return window.matchMedia && window.matchMedia("(max-width: 639px)").matches ? 240 : 300;
   }
 
   function lazyLoadChart() {
@@ -380,6 +439,7 @@
               "Não há série diária para exibir (período vazio ou dados indisponíveis). Verifique as datas e filtros.";
           }
           chartCanvas.dataset.ready = "1";
+          setChartVisualState("empty");
           return;
         }
         chartCanvas.parentElement.style.minHeight = chartHeightPx() + "px";
@@ -558,12 +618,14 @@
           });
           chartCanvas._biDevChart = chart;
           chartCanvas.dataset.ready = "1";
+          setChartVisualState("ready");
         } catch (_chartErr) {
           var hintErr = document.getElementById("bi-dev-chart-export-hint");
           if (hintErr) {
             hintErr.textContent =
               "Erro ao montar o gráfico. Recarregue a página; se persistir, abra o console (F12) para detalhes.";
           }
+          setChartVisualState("empty");
         }
       });
     };
@@ -694,13 +756,21 @@
       filterCollapsible.classList.toggle("is-collapsed");
       var collapsed = filterCollapsible.classList.contains("is-collapsed");
       toggleFiltersBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-      toggleFiltersBtn.textContent = collapsed ? "Mostrar filtros" : "Ocultar filtros";
+      toggleFiltersBtn.textContent = collapsed ? "Abrir filtros" : "Ocultar filtros";
     });
-    if (window.matchMedia && window.matchMedia("(min-width: 640px)").matches) {
-      filterCollapsible.classList.remove("is-collapsed");
-      toggleFiltersBtn.setAttribute("aria-expanded", "true");
-      toggleFiltersBtn.textContent = "Ocultar filtros";
-    }
+  }
+
+  if (advancedToggleBtn && advancedPanel) {
+    var syncAdv = function () {
+      var open = advancedPanel.classList.contains("is-open");
+      advancedToggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+      advancedToggleBtn.textContent = open ? "Ocultar filtros avançados" : "Filtros avançados";
+    };
+    syncAdv();
+    advancedToggleBtn.addEventListener("click", function () {
+      advancedPanel.classList.toggle("is-open");
+      syncAdv();
+    });
   }
 
   syncExportHrefs();
