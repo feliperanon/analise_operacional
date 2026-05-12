@@ -4583,16 +4583,19 @@ def _build_bi_devolucoes_dataset(
     ]
     pct_devolucao_rotas = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
-    # Receita (valor_financeiro) por dia de competência — base para meta 2% diária no gráfico (não linear no tempo)
+    # Receita (valor_financeiro) por dia operacional (data da rota) — mesmo eixo do gráfico e das devoluções na lista.
     receita_por_dia_comp: dict[str, float] = {}
     for _r_fin in routes_delivery_period:
-        _comp_r = _competence_date_or_self(getattr(_r_fin, "date", None))
-        if not _comp_r:
+        _raw_d = getattr(_r_fin, "date", None)
+        _op_r = str(_raw_d or "").strip()[:10]
+        if len(_op_r) < 10:
+            _op_r = _competence_date_or_self(str(_raw_d or "").strip()) or ""
+        if len(_op_r) < 10:
             continue
         _vf = getattr(_r_fin, "valor_financeiro", None)
         if _vf is None:
             continue
-        receita_por_dia_comp[_comp_r] = receita_por_dia_comp.get(_comp_r, 0.0) + float(_vf)
+        receita_por_dia_comp[_op_r] = receita_por_dia_comp.get(_op_r, 0.0) + float(_vf)
 
     # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
     valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
@@ -4759,19 +4762,19 @@ def _build_bi_devolucoes_dataset(
 
         val = float(d.valor or 0)
         op_raw = _dev_op_date_raw(d)
-        # Agregações (gráfico, KPI do período): competência comercial — alinhado ao consolidado / main.
+        # Competência: filtros mensais / consolidado (mantida para referência em linha e modal).
         dt_str = _competence_date_or_self(op_raw)
-        # Lista e exportação: data operacional (entrega/romaneio), sem deslocar para dia útil de competência.
+        # Calendário operacional: gráfico diário, semana e heatmaps alinhados à data real da entrega/romaneio.
         dt_operacional = op_raw if len(op_raw) >= 10 else dt_str
 
-        # per_day
-        slot = per_day.setdefault(dt_str, {"data": dt_str, "qtd": 0, "valor": 0.0})
+        # per_day (eixo = dia calendário da operação)
+        slot = per_day.setdefault(dt_operacional, {"data": dt_operacional, "qtd": 0, "valor": 0.0})
         slot["qtd"] += 1
         slot["valor"] = round(slot["valor"] + val, 2)
 
-        # per_week
+        # per_week / heatmaps: a partir da data operacional
         try:
-            _dt = datetime.strptime(dt_str, "%Y-%m-%d").date()
+            _dt = datetime.strptime(dt_operacional, "%Y-%m-%d").date()
             iso = _dt.isocalendar()
             wk = f"{iso.year}-S{iso.week:02d}"
             dow = _dt.weekday()

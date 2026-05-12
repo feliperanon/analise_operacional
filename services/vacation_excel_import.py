@@ -224,18 +224,16 @@ def find_employee_by_registration(session: Session, reg: str) -> Optional[models
 
 
 def find_employee_by_name(session: Session, name_key: str) -> List[models.Employee]:
+    """
+    Associa por nome ignorando acentos e colapsando espaços (planilhas vs cadastro).
+    """
     nk = _norm_name_key(name_key)
     if not nk:
         return []
-    up = nk.upper()
-    return list(
-        session.exec(
-            select(models.Employee).where(
-                col(models.Employee.status) == "active",
-                col(models.Employee.name) == up,
-            )
-        ).all()
+    rows = list(
+        session.exec(select(models.Employee).where(col(models.Employee.status) == "active")).all()
     )
+    return [e for e in rows if _norm_name_key(getattr(e, "name", "") or "") == nk]
 
 
 def import_vacation_programmed_workbook(
