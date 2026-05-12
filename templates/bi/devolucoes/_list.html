@@ -27,16 +27,34 @@
     <table class="employees-data-table employees-data-table--compact bi-dev-data-table w-full min-w-full border-collapse text-left text-sm md:min-w-[1020px]" id="bi-dev-table">
       <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
         <tr>
-          <th class="employees-data-table__th px-3 py-1.5 pl-4 text-xs">Data</th>
-          <th class="employees-data-table__th px-2 py-1.5 text-xs">Cliente</th>
-          <th class="employees-data-table__th px-2 py-1.5 text-xs">Vendedor</th>
-          <th class="employees-data-table__th px-2 py-1.5 text-xs">Motorista</th>
-          <th class="employees-data-table__th px-2 py-1.5 text-xs">Motivo</th>
-          <th class="employees-data-table__th px-2 py-1.5 text-xs">Resp.</th>
-          <th class="employees-data-table__th px-2 py-1.5 text-right text-xs">Valor</th>
-          <th class="employees-data-table__th px-2 py-1.5 text-right text-xs">% impacto</th>
-          <th class="employees-data-table__th px-2 py-1.5 text-xs">Status</th>
-          <th class="employees-data-table__th employees-data-table__th--static px-2 py-1.5 pr-4 text-right text-xs">Ação</th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-3 py-1.5 pl-4 text-xs" data-bi-dev-sort="data" scope="col" role="columnheader" aria-sort="none" title="Ordenar por data">
+            <span class="bi-dev-th-sort__inner">Data <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs" data-bi-dev-sort="cliente" scope="col" role="columnheader" aria-sort="none" title="Ordenar por cliente">
+            <span class="bi-dev-th-sort__inner">Cliente <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs" data-bi-dev-sort="vendedor" scope="col" role="columnheader" aria-sort="none" title="Ordenar por vendedor">
+            <span class="bi-dev-th-sort__inner">Vendedor <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs" data-bi-dev-sort="motorista" scope="col" role="columnheader" aria-sort="none" title="Ordenar por motorista">
+            <span class="bi-dev-th-sort__inner">Motorista <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs" data-bi-dev-sort="motivo" scope="col" role="columnheader" aria-sort="none" title="Ordenar por motivo">
+            <span class="bi-dev-th-sort__inner">Motivo <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs" data-bi-dev-sort="responsabilidade" scope="col" role="columnheader" aria-sort="none" title="Ordenar por responsabilidade">
+            <span class="bi-dev-th-sort__inner">Resp. <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-right text-xs" data-bi-dev-sort="valor" scope="col" role="columnheader" aria-sort="none" title="Ordenar por valor">
+            <span class="bi-dev-th-sort__inner">Valor <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-right text-xs" data-bi-dev-sort="pct_impacto" scope="col" role="columnheader" aria-sort="none" title="Ordenar por % impacto">
+            <span class="bi-dev-th-sort__inner">% impacto <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs" data-bi-dev-sort="status" scope="col" role="columnheader" aria-sort="none" title="Ordenar por status">
+            <span class="bi-dev-th-sort__inner">Status <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th employees-data-table__th--static px-2 py-1.5 pr-4 text-right text-xs" scope="col">Ação</th>
         </tr>
       </thead>
       <tbody class="employees-data-table__body divide-y" id="bi-dev-table-body"></tbody>

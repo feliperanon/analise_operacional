@@ -36,6 +36,8 @@
   var cursor = 0;
   var searchTimer = 0;
   var currentQuickFilter = "";
+  var sortKey = null;
+  var sortDir = "asc";
 
   var stateText = document.getElementById("bi-dev-state");
   var tableBody = document.getElementById("bi-dev-table-body");
@@ -84,6 +86,69 @@
     if ((row.acima_300 || "").toUpperCase() === "SIM") return "Crítica";
     if ((row.source || "").toUpperCase() === "EXCEL") return "Pendente";
     return "Resolvida";
+  }
+
+  function rowDataTs(row) {
+    var s = String(row.data || "").slice(0, 10);
+    if (s.length < 10) return null;
+    var t = Date.parse(s + "T12:00:00");
+    return Number.isNaN(t) ? null : t;
+  }
+
+  function getSortValue(row, key) {
+    if (key === "data") return rowDataTs(row);
+    if (key === "status") return computeStatus(row);
+    if (key === "valor" || key === "pct_impacto") {
+      var n = Number(row[key]);
+      return Number.isFinite(n) ? n : null;
+    }
+    return row[key] != null && row[key] !== "" ? String(row[key]) : "";
+  }
+
+  function cmpVal(va, vb) {
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === "number" && typeof vb === "number") {
+      return va < vb ? -1 : va > vb ? 1 : 0;
+    }
+    return String(va).localeCompare(String(vb), "pt-BR", { sensitivity: "base", numeric: true });
+  }
+
+  function compareRows(a, b, key, dir) {
+    var mul = dir === "asc" ? 1 : -1;
+    var va = getSortValue(a, key);
+    var vb = getSortValue(b, key);
+    var primary = cmpVal(va, vb) * mul;
+    if (primary !== 0) return primary;
+    var ida = a.id != null ? Number(a.id) : 0;
+    var idb = b.id != null ? Number(b.id) : 0;
+    if (ida < idb) return -1;
+    if (ida > idb) return 1;
+    return 0;
+  }
+
+  function applyCurrentSort() {
+    if (!sortKey) return;
+    filteredRows.sort(function (a, b) {
+      return compareRows(a, b, sortKey, sortDir);
+    });
+  }
+
+  function updateSortHeaders() {
+    var heads = page.querySelectorAll("#bi-dev-table thead [data-bi-dev-sort]");
+    for (var i = 0; i < heads.length; i += 1) {
+      var h = heads[i];
+      var k = h.getAttribute("data-bi-dev-sort");
+      var ind = h.querySelector(".bi-dev-sort-ind");
+      if (sortKey && k === sortKey) {
+        h.setAttribute("aria-sort", sortDir === "asc" ? "ascending" : "descending");
+        if (ind) ind.textContent = sortDir === "asc" ? "▲" : "▼";
+      } else {
+        h.setAttribute("aria-sort", "none");
+        if (ind) ind.textContent = "";
+      }
+    }
   }
 
   function statusBadgeClass(status) {
@@ -344,6 +409,8 @@
         .toLowerCase();
       return bag.indexOf(term) >= 0;
     });
+    applyCurrentSort();
+    updateSortHeaders();
     updateQuickFilterButtons();
     renderChunk(true);
   }
@@ -695,6 +762,22 @@
         runClientFilters();
         document.getElementById("bi-dev-table-panel") &&
           document.getElementById("bi-dev-table-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+
+      var sortTh = event.target.closest("[data-bi-dev-sort]");
+      if (sortTh && tableBody) {
+        var skey = sortTh.getAttribute("data-bi-dev-sort");
+        if (skey) {
+          if (sortKey === skey) sortDir = sortDir === "asc" ? "desc" : "asc";
+          else {
+            sortKey = skey;
+            sortDir = "asc";
+          }
+          applyCurrentSort();
+          updateSortHeaders();
+          renderChunk(true);
+        }
         return;
       }
 

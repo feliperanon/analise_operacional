@@ -1,5 +1,18 @@
-/* Planejamento de férias — painel operacional */
-.vp-page {
+/* KPIs: em mobile, grade 2 colunas em vez de faixa horizontal longa */
+@media (max-width: 639px) {
+  .vp-page.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .vp-page.ga-employee-theme.employees-page .sys-kpi-shell .sys-kpi-grid.employees-kpi-row > .sys-kpi-card.employees-kpi {
+    min-width: 0;
+    flex: none;
+  }
+}
+
   --vp-gap: 1.25rem;
   --vp-radius: 0.75rem;
   --vp-muted: rgb(100 116 139);
@@ -727,6 +740,70 @@
 .vp-month-card--selected {
   border-color: rgb(59 130 246);
   box-shadow: 0 0 0 1px rgb(59 130 246 / 0.35);
+}
+
+.vp-month-card--best {
+  border-style: dashed;
+  border-color: rgba(16 185 129 / 0.65);
+  box-shadow: 0 0 0 1px rgba(16 185 129 / 0.2);
+}
+
+.dark .vp-month-card--best {
+  border-color: rgba(52 211 153 / 0.55);
+}
+
+.vp-kpi-click {
+  cursor: pointer;
+}
+
+.vp-kpi-click:focus-visible {
+  outline: 2px solid rgb(59 130 246);
+  outline-offset: 2px;
+}
+
+.vp-action-risk {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.vp-action-risk--low {
+  background: rgba(148 163 184 / 0.25);
+  color: rgb(71 85 105);
+}
+
+.vp-action-risk--mid {
+  background: rgba(245 158 11 / 0.2);
+  color: rgb(180 83 9);
+}
+
+.vp-action-risk--high {
+  background: rgba(244 63 94 / 0.18);
+  color: rgb(190 18 60);
+}
+
+.dark .vp-action-risk--low {
+  color: rgb(203 213 225);
+}
+
+.dark .vp-action-risk--mid {
+  color: rgb(253 224 71);
+}
+
+.dark .vp-action-risk--high {
+  color: rgb(254 202 202);
+}
+
+.vp-data-quality-details summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.vp-data-quality-details summary::-webkit-details-marker {
+  display: none;
 }
 
 .vp-month-card__name {

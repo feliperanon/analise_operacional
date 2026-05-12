@@ -691,3 +691,38 @@ html.dark .bi-dev-resp-badge {
   background: rgb(243 232 255);
   color: rgb(88 28 135);
 }
+
+/* Cabeçalhos ordenáveis — lista de devoluções */
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-table .bi-dev-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.12s ease;
+}
+
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-table .bi-dev-th-sortable:hover {
+  background-color: rgb(241 245 249 / 0.95);
+}
+
+html.dark .ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-table .bi-dev-th-sortable:hover {
+  background-color: rgb(51 65 85 / 0.55);
+}
+
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-table .bi-dev-th-sort__inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-table .bi-dev-sort-ind {
+  display: inline-block;
+  min-width: 0.65em;
+  font-size: 0.55rem;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-table .bi-dev-th-sortable[aria-sort="ascending"] .bi-dev-sort-ind,
+.ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-table .bi-dev-th-sortable[aria-sort="descending"] .bi-dev-sort-ind {
+  opacity: 1;
+}

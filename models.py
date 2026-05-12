@@ -1271,6 +1271,8 @@ class EmployeeVacationProfile(SQLModel, table=True):
 
     notes: Optional[str] = Field(default=None, max_length=2000)
     updated_at: datetime = Field(default_factory=datetime.now)
+    # Se True, colaborador não entra na fila operacional de férias (sócio, diretoria, etc.).
+    exclude_from_operational_vacation: bool = Field(default=False)
 
 
 class VacationMonthDemand(SQLModel, table=True):

@@ -6,9 +6,10 @@ Dois formatos (detecção automática pela linha de títulos nas primeiras 35 li
 1) Controle de vencimento: COLABORADOR, FUNÇÃO e colunas de período com datas
    (fim aquisitivo ou prazo concessivo). Atualiza ``EmployeeVacationProfile``.
 
-2) Programação de gozo: COLABORADOR (e opcionalmente matrícula) com colunas de
-   início e fim das férias (ex.: «Férias Início» / «Férias Fim»). Cria registros
-   em ``VacationScheduleEntry`` (status aprovado, fonte planilha).
+2) Programação de gozo: COLABORADOR (e opcionalmente matrícula e **FUNÇÃO/CARGO** para
+   desempate de homônimos) com colunas de início e fim das férias (ex.: «Férias Início» /
+   «Férias Fim», inclusive cabeçalhos truncados pelo Excel). Cria registros em
+   ``VacationScheduleEntry`` (status aprovado, fonte planilha).
 
 Opcional no formato (1): atualiza ``Employee.admission_date`` a partir da coluna
 de admissão.
@@ -25,7 +26,12 @@ import pandas as pd
 from sqlmodel import Session, col, select
 
 import models
-from services.vacation_planning_service import save_schedule_entry, simulate, upsert_profile
+from services.vacation_planning_service import (
+    refresh_profile_last_vacation_from_schedule_batch,
+    save_schedule_entry,
+    simulate,
+    upsert_profile,
+)
 
 # Origem de data serial do Excel (planilha Windows / 1900).
 _EXCEL_SERIAL_ORIGIN = datetime(1899, 12, 30)
@@ -157,22 +163,34 @@ def _is_programmed_start_header(raw: Any) -> bool:
     hn = _norm_header(str(raw))
     if "FERIAS" not in hn and "FERIA" not in hn:
         return False
-    return "INICIO" in hn or "COMECO" in hn
+    # "Férias Início" ou cabeçalho truncado ("Férias Iníc")
+    if "INICIO" in hn or "INIC" in hn or "COMECO" in hn:
+        return True
+    return False
 
 
 def _is_programmed_end_header(raw: Any) -> bool:
     if raw is None or (isinstance(raw, float) and pd.isna(raw)):
         return False
     hn = _norm_header(str(raw))
-    if "INICIO" in hn or "COMECO" in hn:
+    if "INICIO" in hn or "INIC" in hn or "COMECO" in hn:
         return False
     if "FERIAS" not in hn and "FERIA" not in hn:
         return False
-    return "FIM" in hn
+    if "FIM" in hn:
+        return True
+    # Excel trunca "Férias Fim" → termina em " Fi"
+    return hn.rstrip().endswith(" FI") or bool(re.search(r"\bFI$", hn))
 
 
 def _classify_programmed_columns(headers: List[Any]) -> Dict[str, Any]:
-    col_idx: Dict[str, Any] = {"name": None, "registration": None, "start": None, "end": None}
+    col_idx: Dict[str, Any] = {
+        "name": None,
+        "registration": None,
+        "role": None,
+        "start": None,
+        "end": None,
+    }
     for i, raw in enumerate(headers):
         h = _norm_header(raw)
         if not h:
@@ -186,6 +204,9 @@ def _classify_programmed_columns(headers: List[Any]) -> Dict[str, Any]:
             x in h for x in ("MATRICULA", "MATRÍCULA", "REGISTRO", "RE", "CRACHA")
         ):
             col_idx["registration"] = i
+            continue
+        if col_idx["role"] is None and ("FUNCAO" in h or "CARGO" in h):
+            col_idx["role"] = i
             continue
         if _is_programmed_start_header(raw):
             if col_idx["start"] is None:
@@ -298,6 +319,43 @@ def _find_employee_by_registration_pool(pool: List[models.Employee], raw: Any) -
     return None
 
 
+def _role_hint_matches_employee_role(hint_norm: str, employee_role: str) -> bool:
+    """Compara função da planilha com Employee.role (acentos e pontuação normalizados)."""
+    er = _norm_name_key(employee_role)
+    if not hint_norm or not er:
+        return False
+    if er == hint_norm:
+        return True
+    if len(hint_norm) >= 4 and hint_norm in er:
+        return True
+    if len(er) >= 4 and er in hint_norm:
+        return True
+    return False
+
+
+def _narrow_employees_by_role(
+    hits: List[models.Employee],
+    row: Any,
+    role_col: Optional[int],
+) -> List[models.Employee]:
+    """Desfaz homônimos usando coluna FUNÇÃO/CARGO na mesma linha, se existir."""
+    if len(hits) <= 1 or role_col is None:
+        return hits
+    try:
+        ncols = len(row)
+    except TypeError:
+        return hits
+    if role_col < 0 or role_col >= ncols:
+        return hits
+    raw = row.iloc[role_col]
+    if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+        return hits
+    hint = _norm_name_key(str(raw))
+    if not hint or hint in ("NAN", "NONE"):
+        return hits
+    return [e for e in hits if _role_hint_matches_employee_role(hint, getattr(e, "role", "") or "")]
+
+
 def find_employee_by_registration(session: Session, reg: str) -> Optional[models.Employee]:
     r = (reg or "").strip()
     if not r:
@@ -343,6 +401,7 @@ def import_vacation_programmed_workbook(
     unmatched: List[Dict[str, Any]] = []
     ambiguous: List[Dict[str, Any]] = []
     row_errors: List[Dict[str, Any]] = []
+    eids_touched: set = set()
 
     pool, name_idx = _vacation_import_context(session)
 
@@ -365,14 +424,19 @@ def import_vacation_programmed_workbook(
             if len(hits) == 1:
                 emp = hits[0]
             elif len(hits) > 1:
-                ambiguous.append(
-                    {
-                        "excel_row": excel_row,
-                        "name": name_key,
-                        "employee_ids": [e.id for e in hits],
-                    }
-                )
-                continue
+                narrowed = _narrow_employees_by_role(hits, row, cmap.get("role"))
+                if len(narrowed) == 1:
+                    emp = narrowed[0]
+                else:
+                    ambiguous.append(
+                        {
+                            "excel_row": excel_row,
+                            "name": name_key,
+                            "employee_ids": [e.id for e in hits],
+                            "cargos_no_sistema": [getattr(e, "role", "") for e in hits],
+                        }
+                    )
+                    continue
             else:
                 unmatched.append({"excel_row": excel_row, "name": name_key})
                 continue
@@ -444,8 +508,13 @@ def import_vacation_programmed_workbook(
             if isinstance(sim, dict)
             else None,
             employee_vacation_synced=False,
+            refresh_profile_last_vacation=False,
         )
         created += 1
+        eids_touched.add(int(emp.id))
+
+    if eids_touched:
+        refresh_profile_last_vacation_from_schedule_batch(session, list(eids_touched))
 
     return {
         "ok": True,
@@ -563,14 +632,19 @@ def import_vacation_control_workbook(
             if len(hits) == 1:
                 emp = hits[0]
             elif len(hits) > 1:
-                ambiguous.append(
-                    {
-                        "excel_row": excel_row,
-                        "name": name_key,
-                        "employee_ids": [e.id for e in hits],
-                    }
-                )
-                continue
+                narrowed = _narrow_employees_by_role(hits, row, cmap.get("role"))
+                if len(narrowed) == 1:
+                    emp = narrowed[0]
+                else:
+                    ambiguous.append(
+                        {
+                            "excel_row": excel_row,
+                            "name": name_key,
+                            "employee_ids": [e.id for e in hits],
+                            "cargos_no_sistema": [getattr(e, "role", "") for e in hits],
+                        }
+                    )
+                    continue
             else:
                 unmatched.append({"excel_row": excel_row, "name": name_key})
                 continue

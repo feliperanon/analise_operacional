@@ -749,6 +749,7 @@ def _lifespan_blocking_db_work() -> None:
         ensure_column(engine, "deliverysession", "driver_last_lat", "REAL")
         ensure_column(engine, "deliverysession", "driver_last_lon", "REAL")
         ensure_column(engine, "deliverysession", "driver_last_location_at", "TIMESTAMP")
+        ensure_column(engine, "employee_vacation_profile", "exclude_from_operational_vacation", "BOOLEAN DEFAULT FALSE")
     except Exception as e:
         logger.error(f"Erro ao migrar vehicle/checklist/client/route: {e}")
     try:
@@ -34713,6 +34714,7 @@ class VacationProfileBody(BaseModel):
     last_vacation_end: Optional[str] = None
     vacation_days_available: Optional[int] = None
     notes: Optional[str] = None
+    exclude_from_operational_vacation: Optional[bool] = None
 
 
 @app.get("/people-intelligence/vacation-planning", response_class=HTMLResponse)

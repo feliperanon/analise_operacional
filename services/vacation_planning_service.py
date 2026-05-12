@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from sqlalchemy import desc
+from sqlalchemy import Date, cast, desc, func
 from sqlmodel import Session, col, select
 
 import models
@@ -69,6 +69,157 @@ RECOMMENDATION_LABEL_PT = {
     "atencao": "Atenção",
     "nao_recomendado": "Não recomendado",
 }
+
+# Prazos além deste limite absoluto são tratados como cadastro inválido (evita «vencido há 8000 dias»).
+_MAX_PLAUSIBLE_DEADLINE_DRIFT_DAYS = 800
+
+
+def _heuristic_non_operational_employee(emp: models.Employee) -> bool:
+    """Sócio, diretoria, canal, pré-cadastro etc. — fora da fila operacional padrão."""
+    role = (emp.role or "").upper()
+    name = (emp.name or "").upper()
+    needles = (
+        "SOCIO",
+        "SÓCIO",
+        "DIRETOR",
+        "DIRETORIA",
+        "CANAL",
+        "CANDIDATO",
+        "ESTAGIARIO",
+        "ESTÁGIARIO",
+        "TRAINEE",
+        "PRE CADASTRO",
+        "PRE-CADASTRO",
+        "PRÉ-CADASTRO",
+        "CONSELHO",
+        "ASSESSORIA",
+    )
+    if any(n in role for n in needles):
+        return True
+    if "SÓCIO" in name or "SOCIO" in name:
+        return True
+    rid = (str(emp.registration_id or "")).strip().upper()
+    if rid.startswith("PRE") or rid.startswith("TEMP") or rid.startswith("XXX"):
+        return True
+    return False
+
+
+def employee_in_operational_vacation_queue(
+    emp: models.Employee, prof: Optional[models.EmployeeVacationProfile]
+) -> bool:
+    if not emp.id:
+        return False
+    st = (emp.status or "").strip().lower()
+    if st in ("fired", "terminated", "dismissed"):
+        return False
+    if prof is not None and bool(getattr(prof, "exclude_from_operational_vacation", False)):
+        return False
+    if _heuristic_non_operational_employee(emp):
+        return False
+    return True
+
+
+def substitute_coverage_required(profile: Optional[models.EmployeeVacationProfile]) -> bool:
+    c = (profile.criticality if profile else "media") or "media"
+    return str(c).strip().lower() in ("alta", "muito_alta")
+
+
+def classify_deadline_row(
+    ddead: Optional[int], deadline_basis: str
+) -> Tuple[str, Optional[int], str]:
+    """
+    bucket: ok | incomplete | invalid_data
+    dias_ui: valor para ordenação/exibição quando ok; None se inválido ou incompleto.
+    """
+    if ddead is None:
+        if deadline_basis == "sem_dados":
+            return "incomplete", None, "Cadastro incompleto"
+        return "incomplete", None, "Prazo indisponível"
+    di = int(ddead)
+    if abs(di) > _MAX_PLAUSIBLE_DEADLINE_DRIFT_DAYS:
+        return "invalid_data", None, "Datas inconsistentes"
+    return "ok", di, ""
+
+
+def employee_ids_with_approved_future_vacation(
+    session: Session, ref: date, employee_ids: List[int]
+) -> set:
+    if not employee_ids:
+        return set()
+    u = sorted({int(x) for x in employee_ids if x})
+    if not u:
+        return set()
+    ref_dt = datetime.combine(ref, datetime.min.time())
+    stmt = (
+        select(models.VacationScheduleEntry.employee_id)
+        .where(
+            col(models.VacationScheduleEntry.employee_id).in_(u),
+            models.VacationScheduleEntry.status == "approved",
+            models.VacationScheduleEntry.end_date >= ref_dt,
+        )
+        .distinct()
+    )
+    out: set = set()
+    for item in session.exec(stmt).all():
+        if item is None:
+            continue
+        if hasattr(item, "employee_id"):
+            out.add(int(getattr(item, "employee_id")))
+        elif isinstance(item, (tuple, list)) and item:
+            out.add(int(item[0]))
+        else:
+            out.add(int(item))
+    return out
+
+
+def scheduled_vacations_in_month_detail(
+    session: Session,
+    *,
+    year: int,
+    month: int,
+    cost_center: Optional[str],
+) -> List[Dict[str, Any]]:
+    """Gozos aprovados no planejamento que interceptam o mês civil."""
+    ms = date(year, month, 1)
+    me = end_of_month(ms)
+    emps = list_employees_for_vacation(session, cost_center)
+    emp_by_id = {e.id: e for e in emps if e.id}
+    stmt = (
+        select(models.VacationScheduleEntry)
+        .where(
+            models.VacationScheduleEntry.status == "approved",
+            models.VacationScheduleEntry.start_date <= datetime.combine(me, datetime.max.time()),
+            models.VacationScheduleEntry.end_date >= datetime.combine(ms, datetime.min.time()),
+        )
+        .order_by(models.VacationScheduleEntry.start_date)
+    )
+    out: List[Dict[str, Any]] = []
+    for ent in session.exec(stmt).all():
+        eid = int(ent.employee_id)
+        emp = emp_by_id.get(eid)
+        if not emp:
+            continue
+        s_d = _d(ent.start_date)
+        e_d = _d(ent.end_date)
+        if not s_d or not e_d:
+            continue
+        if not overlaps(ms, me, s_d, e_d):
+            continue
+        days = (e_d - s_d).days + 1
+        out.append(
+            {
+                "employee_id": eid,
+                "name": emp.name,
+                "role": emp.role,
+                "start": s_d.isoformat(),
+                "end": e_d.isoformat(),
+                "days": days,
+                "source": ent.source or "manual",
+                "employee_vacation_synced": bool(getattr(ent, "employee_vacation_synced", False)),
+                "entry_id": ent.id,
+            }
+        )
+    return out
 
 
 def default_demand_index_for_month(month: int) -> int:
@@ -218,11 +369,12 @@ def vacation_profile_get(session: Session, employee_id: int) -> Optional[Dict[st
         "vacation_days_available": None,
         "notes": None,
         "updated_at": None,
+        "exclude_from_operational_vacation": False,
     }
 
     def _deadline_preview() -> Dict[str, Any]:
-        lv_prev = last_approved_vacation_by_employee(session, [int(emp.id)])
-        sch_end = _coerce_iso_date((lv_prev.get(int(emp.id)) or {}).get("end"))
+        mc = max_completed_approved_vacation_end_by_employee(session, [int(emp.id)], ref=date.today())
+        sch_end = mc.get(int(emp.id))
         acq, basis = effective_acquisition_period_end(prof, emp, sch_end)
         conc = concessive_deadline_effective(prof, emp, sch_end)
         dleft = days_until_deadline(prof, emp, date.today(), sch_end)
@@ -269,6 +421,9 @@ def vacation_profile_get(session: Session, employee_id: int) -> Optional[Dict[st
             "vacation_days_available": prof.vacation_days_available,
             "notes": prof.notes,
             "updated_at": prof.updated_at.isoformat() if prof.updated_at else None,
+            "exclude_from_operational_vacation": bool(
+                getattr(prof, "exclude_from_operational_vacation", False)
+            ),
         },
     }
 
@@ -385,11 +540,12 @@ def _latest_completed_vacation_end(
     """
     ref = date.today()
     candidates: List[date] = []
-    if schedule_last_vacation_end:
+    # Lançamentos futuros no planejamento não podem servir de âncora do aquisitivo atual.
+    if schedule_last_vacation_end and schedule_last_vacation_end < ref:
         candidates.append(schedule_last_vacation_end)
     if profile and profile.last_vacation_end:
         lv = _d(profile.last_vacation_end)
-        if lv:
+        if lv and lv < ref:
             candidates.append(lv)
     ve = _d(employee.vacation_end) if employee.vacation_end else None
     if ve and ve < ref:
@@ -428,20 +584,36 @@ def effective_acquisition_period_end(
     já registradas; caso contrário estima 12 meses após o início do aquisitivo atual.
     """
     latest_vac = _latest_completed_vacation_end(employee, profile, schedule_last_vacation_end)
-    if profile and profile.acquisition_period_end:
-        d = _d(profile.acquisition_period_end)
-        if d:
-            if latest_vac is not None and latest_vac > d:
-                pass
-            else:
-                return d, "cadastro_perfil"
     anchor, tag = _anchor_start_current_acquisition(
         employee, profile, schedule_last_vacation_end
     )
+    max_plausible: Optional[date] = None
+    if anchor:
+        max_plausible = add_months(anchor, 12) - timedelta(days=1)
+
+    if profile and profile.acquisition_period_end:
+        d = _d(profile.acquisition_period_end)
+        if d:
+            stale_by_vacation = latest_vac is not None and latest_vac > d
+            if not stale_by_vacation:
+                slack = timedelta(days=120)
+                if max_plausible is not None:
+                    if d <= max_plausible + slack:
+                        return d, "cadastro_perfil"
+                    dl_est = max_plausible + timedelta(days=365)
+                    if abs((d - dl_est).days) <= 60:
+                        return max_plausible, tag
+                    if latest_vac is not None and d > max_plausible + slack:
+                        pass
+                    else:
+                        return d, "cadastro_perfil"
+                else:
+                    return d, "cadastro_perfil"
+
     if not anchor:
         return None, tag
-    acq_end = add_months(anchor, 12) - timedelta(days=1)
-    return acq_end, tag
+    assert max_plausible is not None
+    return max_plausible, tag
 
 
 def concessive_deadline_effective(
@@ -615,6 +787,7 @@ def scheduled_windows(
                     "start": vs,
                     "end": ve,
                     "source": "employee",
+                    "entry_status": "cadastro",
                 }
             )
 
@@ -647,6 +820,7 @@ def scheduled_windows(
                 "end": ve,
                 "source": ent.source,
                 "entry_id": ent.id,
+                "entry_status": str(ent.status or ""),
             }
         )
     return out
@@ -979,8 +1153,9 @@ def simulate(
     if route_conflict(windows, rt, start, end, employee_id):
         alerts.append("Conflito: outro colaborador da mesma rota/equipe já está de férias.")
 
-    lv_sim = last_approved_vacation_by_employee(session, [employee_id])
-    sch_end_sim = _coerce_iso_date((lv_sim.get(employee_id) or {}).get("end"))
+    sch_end_sim = max_completed_approved_vacation_end_by_employee(
+        session, [employee_id], ref=date.today()
+    ).get(employee_id)
     _dd = days_until_deadline(profile, employee, date.today(), sch_end_sim)
     if _dd is not None and _dd < -30:
         alerts.append("Férias muito atrasadas — priorizar negociação com RH.")
@@ -1046,14 +1221,13 @@ def _vacation_urgency_sort_key(
     employee: models.Employee,
     profile: Optional[models.EmployeeVacationProfile],
     ref: date,
-    last_approved_row: Optional[Dict[str, Any]] = None,
+    schedule_last_completed_end: Optional[date] = None,
 ) -> Tuple[int, int]:
     """
     Ordenação crescente = mais urgente primeiro.
     Usa prazo concessivo (perfil, admissão ou pós-férias) como na fila do painel.
     """
-    sch_end = _coerce_iso_date((last_approved_row or {}).get("end"))
-    ddead = days_until_deadline(profile, employee, ref, sch_end)
+    ddead = days_until_deadline(profile, employee, ref, schedule_last_completed_end)
     if ddead is None:
         return (5, 99999)
     if ddead < 0:
@@ -1150,10 +1324,11 @@ def suggest_vacations(
     base_windows = scheduled_windows(session, date(year, 1, 1), date(year, 12, 31), cost_center)
     sim_windows: List[Dict[str, Any]] = [dict(w) for w in base_windows]
 
-    last_vac_map_sg = last_approved_vacation_by_employee(session, [int(e.id) for e in employees])
+    eid_list = [int(e.id) for e in employees]
+    max_completed_sg = max_completed_approved_vacation_end_by_employee(session, eid_list, ref=ref)
     employees.sort(
         key=lambda emp: _vacation_urgency_sort_key(
-            emp, profiles.get(emp.id), ref, last_vac_map_sg.get(emp.id)
+            emp, profiles.get(emp.id), ref, max_completed_sg.get(emp.id)
         )
     )
 
@@ -1163,7 +1338,7 @@ def suggest_vacations(
         prof = profiles.get(e.id)
         rb = role_bucket(e.role)
         rt = (prof.route_team if prof else None) or ""
-        sch_sg = _coerce_iso_date((last_vac_map_sg.get(e.id) or {}).get("end"))
+        sch_sg = max_completed_sg.get(e.id)
         opts = _month_candidates_for_employee(
             session,
             year=year,
@@ -1249,6 +1424,75 @@ def last_approved_vacation_by_employee(session: Session, employee_ids: List[int]
     return out
 
 
+def max_completed_approved_vacation_end_by_employee(
+    session: Session,
+    employee_ids: List[int],
+    *,
+    ref: Optional[date] = None,
+) -> Dict[int, date]:
+    """
+    Maior data de fim de gozo entre **todos** os lançamentos aprovados já encerrados
+    (vários períodos retroativos no planejamento entram no histórico; não depende só
+    do registro com ``end_date`` mais recente se esse ainda for futuro).
+    """
+    ref = ref or date.today()
+    if not employee_ids:
+        return {}
+    unique_ids = sorted({int(x) for x in employee_ids if x is not None})
+    if not unique_ids:
+        return {}
+    stmt = (
+        select(
+            models.VacationScheduleEntry.employee_id,
+            func.max(models.VacationScheduleEntry.end_date).label("max_end"),
+        )
+        .where(
+            col(models.VacationScheduleEntry.employee_id).in_(unique_ids),
+            models.VacationScheduleEntry.status == "approved",
+            cast(models.VacationScheduleEntry.end_date, Date) < ref,
+        )
+        .group_by(models.VacationScheduleEntry.employee_id)
+    )
+    out: Dict[int, date] = {}
+    for row in session.exec(stmt).all():
+        eid = int(row[0])
+        md = row[1]
+        if md is not None:
+            d = _d(md)
+            if d:
+                out[eid] = d
+    return out
+
+
+def refresh_profile_last_vacation_from_schedule_batch(
+    session: Session, employee_ids: List[int]
+) -> None:
+    """Atualiza ``last_vacation_end`` no perfil com o maior fim de gozo já concluído no planejamento."""
+    ref = date.today()
+    ids = sorted({int(x) for x in employee_ids if x})
+    if not ids:
+        return
+    m = max_completed_approved_vacation_end_by_employee(session, ids, ref=ref)
+    changed = False
+    for eid in ids:
+        d = m.get(eid)
+        if not d:
+            continue
+        row = session.exec(
+            select(models.EmployeeVacationProfile).where(
+                models.EmployeeVacationProfile.employee_id == eid
+            )
+        ).first()
+        if not row:
+            continue
+        row.last_vacation_end = datetime.combine(d, datetime.min.time())
+        row.updated_at = datetime.now()
+        session.add(row)
+        changed = True
+    if changed:
+        session.commit()
+
+
 def dashboard_payload(
     session: Session,
     *,
@@ -1269,32 +1513,59 @@ def dashboard_payload(
     windows_year = scheduled_windows(session, date(year, 1, 1), date(year, 12, 31), cost_center)
 
     eids_for_last = [int(e.id) for e in employees if e.id]
+    emp_by_id = {e.id: e for e in employees if e.id}
     last_vac_map = last_approved_vacation_by_employee(session, eids_for_last)
+    max_completed_map = max_completed_approved_vacation_end_by_employee(
+        session, eids_for_last, ref=ref
+    )
+    future_approved_set = employee_ids_with_approved_future_vacation(session, ref, eids_for_last)
 
     for e in employees:
         if not e.id:
             continue
         prof = profiles.get(e.id)
-        lv_row = last_vac_map.get(e.id)
-        schedule_end = _coerce_iso_date((lv_row or {}).get("end"))
+        operational = employee_in_operational_vacation_queue(e, prof)
+        schedule_end = max_completed_map.get(e.id)
         acq_eff, deadline_basis = effective_acquisition_period_end(prof, e, schedule_end)
         conc_eff = concessive_deadline_effective(prof, e, schedule_end)
         ddead = days_until_deadline(prof, e, ref, schedule_end)
+        dl_bucket, _, _ = classify_deadline_row(ddead, deadline_basis)
+        has_future = int(e.id) in future_approved_set
+        sub_cov = substitute_coverage_required(prof)
+        sub_risk_flag = bool(sub_cov and not (prof and prof.substitute_employee_id))
+        show_sub_badge = bool(sub_risk_flag)
+
         status = "ok"
         status_label = "Em dia"
-        if ddead is not None:
-            if ddead < 0:
-                status, status_label, expired = "expired", "Férias vencidas (concessivo)", expired + 1
-            elif ddead <= 30:
-                status, status_label, d30 = "urgent_30", f"A vencer em {ddead}d", d30 + 1
-            elif ddead <= 60:
-                status, status_label, d60 = "urgent_60", f"A vencer em {ddead}d", d60 + 1
-            elif ddead <= 90:
-                status, status_label, d90 = "urgent_90", f"A vencer em {ddead}d", d90 + 1
+        if dl_bucket == "invalid_data":
+            status, status_label = "invalid", "Datas inconsistentes — revisar cadastro"
+        elif dl_bucket == "incomplete":
+            status, status_label = "incomplete", "Cadastro incompleto — informe admissão ou fim do aquisitivo"
+        elif ddead is not None:
+            d = int(ddead)
+            if d < 0:
+                status = "expired"
+                dv = min(-d, 999)
+                status_label = f"Vencido há {dv}d" if operational else f"Vencido há {dv}d (fora da escala)"
+            elif d <= 30:
+                status, status_label = "urgent_30", f"Vence em {d}d"
+            elif d <= 60:
+                status, status_label = "urgent_60", f"Vence em {d}d"
+            elif d <= 90:
+                status, status_label = "urgent_90", f"Vence em {d}d"
             else:
-                status_label = f"Concessivo em {ddead}d"
-        elif deadline_basis == "sem_dados":
-            status_label = "Sem prazo — cadastre admissão ou perfil de férias"
+                status_label = f"Concessivo: {d}d"
+
+        if operational and dl_bucket == "ok" and ddead is not None:
+            dd = int(ddead)
+            if dd < 0:
+                expired += 1
+            elif dd <= 30:
+                d30 += 1
+            elif dd <= 60:
+                d60 += 1
+            elif dd <= 90:
+                d90 += 1
 
         di_view, _, _ = get_month_demand(session, year, cal_month)
         ms = date(year, cal_month, 1)
@@ -1339,6 +1610,7 @@ def dashboard_payload(
                 "vacation_status_label": status_label,
                 "days_until_deadline": ddead,
                 "deadline_basis": deadline_basis,
+                "deadline_bucket": dl_bucket,
                 "deadline_basis_label": deadline_basis_public_label(deadline_basis),
                 "acquisition_period_end_effective": acq_eff.isoformat() if acq_eff else None,
                 "concessive_deadline": conc_eff.isoformat() if conc_eff else None,
@@ -1346,28 +1618,63 @@ def dashboard_payload(
                 "criticality": (prof.criticality if prof else "media"),
                 "substitute": sub_name or "—",
                 "substitute_trained": bool(prof and prof.substitute_trained),
+                "substitute_risk_relevant": sub_risk_flag,
+                "show_substitute_badge": show_sub_badge,
+                "operational_queue": operational,
+                "heuristic_non_operational": _heuristic_non_operational_employee(e),
+                "exclude_operational_flag": bool(
+                    prof and getattr(prof, "exclude_from_operational_vacation", False)
+                ),
+                "has_future_approved_vacation": has_future,
                 "best_period_hint": best_label
                 or "Sem mês futuro com folga — ajuste régua, limite por função ou o ano do painel",
                 "priority_index": round(prio, 1),
                 "window_color": st_color,
                 "window_hint": st_hint,
                 "route_team": (prof.route_team if prof else None) or "",
+                "last_completed_vacation_end": schedule_end.isoformat() if schedule_end else None,
             }
         )
 
-    rows.sort(key=lambda r: (-(r["priority_index"] or 0), r["days_until_deadline"] if r["days_until_deadline"] is not None else 9999))
-
-    for r in rows:
-        eid = int(r["employee_id"])
-        r["last_approved_vacation"] = last_vac_map.get(eid)
+    rows.sort(
+        key=lambda r: (
+            -(r["priority_index"] or 0),
+            r["days_until_deadline"] if r["days_until_deadline"] is not None else 9999,
+        )
+    )
 
     ref_ms = date(year, cal_month, 1)
     ref_me = end_of_month(ref_ms)
     scheduled_this_month_ids: set = set()
+    on_vacation_ids: set = set()
+    returning_7_ids: set = set()
+    lim7 = ref + timedelta(days=7)
     for w in windows_year:
-        if overlaps(ref_ms, ref_me, w["start"], w["end"]):
-            scheduled_this_month_ids.add(w["employee_id"])
+        eid = int(w["employee_id"])
+        emp = emp_by_id.get(eid)
+        if not emp:
+            continue
+        es = w.get("entry_status")
+        if es not in ("approved", "cadastro"):
+            continue
+        vs, ve = w["start"], w["end"]
+        if overlaps(ref_ms, ref_me, vs, ve):
+            scheduled_this_month_ids.add(eid)
+        if employee_in_operational_vacation_queue(emp, profiles.get(eid)):
+            if vs <= ref <= ve:
+                on_vacation_ids.add(eid)
+            if ref < ve <= lim7:
+                returning_7_ids.add(eid)
     scheduled_month = len(scheduled_this_month_ids)
+    on_vacation_today = len(on_vacation_ids)
+    returning_within_7d = len(returning_7_ids)
+
+    for r in rows:
+        eid = int(r["employee_id"])
+        r["scheduled_in_focus_month"] = eid in scheduled_this_month_ids
+        r["last_approved_vacation"] = last_vac_map.get(eid)
+        r["on_vacation_today"] = eid in on_vacation_ids
+        r["returning_within_7d"] = eid in returning_7_ids
 
     monthly: List[Dict[str, Any]] = []
     risk_scores = []
@@ -1377,6 +1684,8 @@ def dashboard_payload(
         me = end_of_month(ms)
         sched_ids: set = set()
         for w in windows_year:
+            if w.get("entry_status") not in ("approved", "cadastro"):
+                continue
             if overlaps(ms, me, w["start"], w["end"]):
                 sched_ids.add(w["employee_id"])
         count_v = len(sched_ids)
@@ -1386,6 +1695,27 @@ def dashboard_payload(
         load_ratio = count_v / cap
         month_risk = min(100, int(di * 0.65 + load_ratio * 35))
         risk_scores.append(month_risk)
+        roles_at_limit: List[str] = []
+        for rk in hc_map.keys():
+            conc_r = count_role_overlapping(windows_year, rk, ms, me, None)
+            lim_r = effective_role_limit(rk, di, rjo)
+            if lim_r > 0 and conc_r >= lim_r:
+                roles_at_limit.append(rk)
+        due_deadlines_count = 0
+        for r in rows:
+            if not r.get("operational_queue"):
+                continue
+            if r.get("deadline_bucket") != "ok":
+                continue
+            cd = r.get("concessive_deadline")
+            if not cd:
+                continue
+            try:
+                dcd = date.fromisoformat(str(cd)[:10])
+            except ValueError:
+                continue
+            if ms <= dcd <= me:
+                due_deadlines_count += 1
         monthly.append(
             {
                 "month": m,
@@ -1394,9 +1724,12 @@ def dashboard_payload(
                 "demand_label": "Baixa" if di <= 38 else ("Alta" if di >= 72 else "Média"),
                 "capacity_hint": cap,
                 "scheduled_count": count_v,
+                "due_deadlines_count": due_deadlines_count,
                 "status_color": color,
                 "risk_score": month_risk,
                 "hint": hint if not note else f"{hint} {note}",
+                "roles_at_limit": roles_at_limit,
+                "roles_at_limit_count": len(roles_at_limit),
             }
         )
 
@@ -1439,19 +1772,29 @@ def dashboard_payload(
 
     mn = MONTH_NAMES_PT[cal_month]
     dem_l = str(mr_cur.get("demand_label") or "").lower()
+    cur_roles_trouble: List[str] = list(mr_cur.get("roles_at_limit") or [])
     guidance_parts: List[str] = []
     if decision_key == "aprovado":
-        guidance_parts.append(f"{mn}/{year} está favorável para férias.")
+        guidance_parts.append(f"{mn}/{year} com folga relativa para novos lançamentos.")
     elif decision_key == "atencao":
-        guidance_parts.append(f"{mn}/{year} admite férias, mas exige atenção à cobertura e à demanda.")
+        guidance_parts.append(f"{mn}/{year} em atenção: combine vencidos e evite picos na mesma função.")
     else:
-        guidance_parts.append(f"{mn}/{year} é desafiador para férias — evite concentrar saídas.")
+        guidance_parts.append(f"{mn}/{year} pressionado — capacidade no limite ou demanda alta.")
 
     if dem_l:
         guidance_parts.append(f"Demanda {dem_l}.")
     guidance_parts.append(
-        f"Capacidade estimada ~{cap_cur}; {sched_cur} colaborador(es) com férias no mês."
+        f"{sched_cur} colaborador(es) com férias no mês de ~{cap_cur} vagas estimadas (aprovadas ou em cadastro)."
     )
+    if cur_roles_trouble:
+        guidance_parts.append(
+            "Funções no limite: "
+            + ", ".join(cur_roles_trouble[:5])
+            + ("…" if len(cur_roles_trouble) > 5 else "")
+            + "."
+        )
+    if expired > 0:
+        guidance_parts.append(f"Prioridade: {expired} concessivo(s) vencido(s) na operação.")
     if best_month_num != cal_month:
         guidance_parts.append(f"Melhor mês coletivo sugerido: {best_month_name}/{year}.")
 
@@ -1470,7 +1813,82 @@ def dashboard_payload(
         "guidance_text": " ".join(guidance_parts),
         "best_month": best_month_num,
         "best_month_name": best_month_name,
+        "operational_headline": (
+            "Livre"
+            if decision_key == "aprovado" and load_ratio < 0.75
+            else ("Travado" if load_ratio >= 1.0 or situation_color == "red" else "Atenção")
+        ),
+        "critical_roles": cur_roles_trouble,
+        "critical_roles_count": len(cur_roles_trouble),
     }
+
+    immediate_actions: List[Dict[str, Any]] = []
+    for r in rows:
+        if not r.get("operational_queue"):
+            continue
+        if r.get("deadline_bucket") != "ok" or r.get("days_until_deadline") is None:
+            continue
+        d = int(r["days_until_deadline"])
+        if r.get("has_future_approved_vacation") and d > 30 and d >= 0:
+            continue
+        needs = (
+            d < 0
+            or d <= 30
+            or (
+                r.get("substitute_risk_relevant")
+                and ((r.get("substitute") or "—") == "—" or not r.get("substitute_trained"))
+            )
+            or r.get("window_color") == "red"
+        )
+        if not needs:
+            continue
+        if d < 0:
+            risk = "alto"
+        elif d <= 14 or r.get("substitute_risk_relevant"):
+            risk = "medio" if d > 7 else "alto"
+        else:
+            risk = "baixo"
+        lav = r.get("last_approved_vacation") or {}
+        le = lav.get("end") if isinstance(lav, dict) else None
+        immediate_actions.append(
+            {
+                "employee_id": r["employee_id"],
+                "name": r["name"],
+                "role": r["role"],
+                "sector": r.get("sector"),
+                "status_label": r.get("vacation_status_label"),
+                "days_until_deadline": d,
+                "best_period_hint": r.get("best_period_hint"),
+                "risk_level": risk,
+                "priority_index": r.get("priority_index"),
+                "last_vacation_end": (str(le)[:10] if le else None),
+            }
+        )
+    immediate_actions.sort(
+        key=lambda x: (-(x.get("priority_index") or 0), x.get("days_until_deadline", 9999))
+    )
+    immediate_actions = immediate_actions[:28]
+
+    dq_alerts: List[str] = []
+    nd = sum(1 for e in employees if e.id and not e.admission_date)
+    if nd:
+        dq_alerts.append(f"{nd} sem data de admissão")
+    inv_c = sum(1 for r in rows if r.get("deadline_bucket") == "invalid_data")
+    if inv_c:
+        dq_alerts.append(f"{inv_c} com prazo incoerente (revisar perfil)")
+    inc_c = sum(1 for r in rows if r.get("deadline_bucket") == "incomplete")
+    if inc_c:
+        dq_alerts.append(f"{inc_c} sem prazo calculável (perfil/admissão)")
+    nh = sum(1 for r in rows if r.get("heuristic_non_operational"))
+    if nh:
+        dq_alerts.append(f"{nh} fora da escala por heurística (sócio/diretoria/canal etc.)")
+    nrf = sum(1 for r in rows if r.get("exclude_operational_flag"))
+    if nrf:
+        dq_alerts.append(f"{nrf} com exclusão manual da fila operacional")
+
+    sched_detail = scheduled_vacations_in_month_detail(
+        session, year=year, month=cal_month, cost_center=cost_center
+    )
 
     return {
         "year": year,
@@ -1482,11 +1900,16 @@ def dashboard_payload(
             "due_90": d90,
             "due_60_90": d60 + d90,
             "scheduled_in_month": scheduled_month,
+            "on_vacation_today": on_vacation_today,
+            "returning_within_7d": returning_within_7d,
             "operational_risk_month": op_risk,
         },
         "month_situation": month_situation,
         "rows": rows,
         "monthly": monthly,
+        "immediate_actions": immediate_actions,
+        "scheduled_in_month_detail": sched_detail,
+        "data_quality": {"alerts": dq_alerts},
         "employees_options": [{"id": e.id, "name": e.name, "role": e.role} for e in employees if e.id],
     }
 
@@ -1505,6 +1928,7 @@ def save_schedule_entry(
     conflicts: Optional[dict],
     priority_score: Optional[float],
     employee_vacation_synced: bool = False,
+    refresh_profile_last_vacation: bool = True,
 ) -> models.VacationScheduleEntry:
     ent = models.VacationScheduleEntry(
         employee_id=employee_id,
@@ -1523,6 +1947,8 @@ def save_schedule_entry(
     session.add(ent)
     session.commit()
     session.refresh(ent)
+    if refresh_profile_last_vacation:
+        refresh_profile_last_vacation_from_schedule_batch(session, [int(employee_id)])
     return ent
 
 
@@ -1570,6 +1996,9 @@ def upsert_profile(
         v = data["vacation_days_available"]
         row.vacation_days_available = int(v) if v is not None and str(v).strip() != "" else None
 
+    if "exclude_from_operational_vacation" in data:
+        row.exclude_from_operational_vacation = bool(data["exclude_from_operational_vacation"])
+
     row.updated_at = datetime.now()
     session.add(row)
     session.commit()
@@ -1590,6 +2019,12 @@ def list_history(session: Session, limit: int = 80, employee_id: Optional[int] =
         sync_info = None
         if isinstance(ent.conflicts_json, dict):
             sync_info = ent.conflicts_json.get("employee_vacation_sync")
+        if bool(getattr(ent, "employee_vacation_synced", False)):
+            cadastro_sync_label = "Sim — cadastro atualizado"
+        elif (ent.source or "").strip().lower() == "planilha":
+            cadastro_sync_label = "Não — registro histórico (importação não altera cadastro)"
+        else:
+            cadastro_sync_label = "Não — lançamento apenas no planejamento"
         out.append(
             {
                 "id": ent.id,
@@ -1605,6 +2040,7 @@ def list_history(session: Session, limit: int = 80, employee_id: Optional[int] =
                 "conflicts": ent.conflicts_json,
                 "employee_vacation_synced": bool(getattr(ent, "employee_vacation_synced", False)),
                 "employee_vacation_sync_detail": sync_info,
+                "cadastro_sync_label": cadastro_sync_label,
                 "created_at": ent.created_at.isoformat() if ent.created_at else "",
             }
         )

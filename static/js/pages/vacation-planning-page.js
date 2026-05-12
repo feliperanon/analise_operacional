@@ -4,7 +4,7 @@
   var root = document.querySelector('[data-page="vacation-planning"]');
   if (!root) return;
 
-  var INITIAL_TABLE_LIMIT = 25;
+  var INITIAL_TABLE_LIMIT = 16;
   var employeeOptionsFull = [];
   var cachedRows = [];
   var activeFilter = "critical";
@@ -26,6 +26,13 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function historyCadastroLabel(h) {
+    if (h && h.cadastro_sync_label) return String(h.cadastro_sync_label);
+    return h && h.employee_vacation_synced
+      ? "Sim — cadastro atualizado"
+      : "Não — lançamento apenas no planejamento";
   }
 
   /** yyyy-mm-dd ou prefixo → dd/mm/aaaa */
@@ -303,10 +310,21 @@
     }
     var color = sit.status_color || "yellow";
     stripClassForColor(color);
+    var hl = document.getElementById("vp-strip-headline");
+    if (hl) {
+      hl.textContent =
+        (sit.month_name || String(m)) +
+        "/" +
+        (sit.year != null ? sit.year : data.year || qs().year) +
+        " · " +
+        (sit.operational_headline || sit.decision_label || "—");
+    }
     byId("vp-strip-decision").textContent = sit.decision_label || "—";
     byId("vp-strip-risk").textContent = fmtIntPt(sit.operational_risk);
     byId("vp-strip-cap").textContent = fmtIntPt(sit.capacity_hint);
     byId("vp-strip-sched").textContent = fmtIntPt(sit.scheduled_count);
+    var critEl = document.getElementById("vp-strip-critical");
+    if (critEl) critEl.textContent = fmtIntPt(sit.critical_roles_count);
     byId("vp-strip-guidance").textContent =
       sit.guidance_text || "Sem orientação para este mês.";
   }
@@ -339,12 +357,24 @@
       "; " +
       sched +
       " programadas.";
+    var opHead =
+      decision_key === "nao_recomendado" || load >= 1
+        ? "Travado"
+        : decision_key === "atencao" || load >= 0.72
+          ? "Atenção"
+          : "Livre";
     return {
+      month: calMonth,
+      month_name: mn,
+      year: y,
       status_color: situation,
+      decision_key: decision_key,
       decision_label: labels[decision_key] || decision_key,
+      operational_headline: opHead,
       operational_risk: k.operational_risk_month,
       capacity_hint: cap,
       scheduled_count: sched,
+      critical_roles_count: 0,
       guidance_text: g,
     };
   }
@@ -353,6 +383,10 @@
     var grid = byId("vp-year-grid");
     if (!grid) return;
     var sel = qs().month;
+    var bestM =
+      data.month_situation && data.month_situation.best_month != null
+        ? parseInt(data.month_situation.best_month, 10)
+        : null;
     grid.innerHTML = "";
     (data.monthly || []).forEach(function (row) {
       var m = row.month;
@@ -360,8 +394,11 @@
       btn.type = "button";
       btn.className = "vp-month-card";
       if (m === sel) btn.classList.add("vp-month-card--selected");
+      if (bestM && m === bestM && m !== sel) btn.classList.add("vp-month-card--best");
       var st = row.status_color || "yellow";
       var stLabel = st === "green" ? "Verde" : st === "red" ? "Vermelho" : "Amarelo";
+      var dueN = row.due_deadlines_count != null ? row.due_deadlines_count : "—";
+      var rlim = row.roles_at_limit_count != null ? row.roles_at_limit_count : "—";
       btn.innerHTML =
         '<span class="vp-month-card__name">' +
         escapeHtml(row.month_name) +
@@ -373,7 +410,11 @@
         (row.scheduled_count != null ? row.scheduled_count : "—") +
         "/" +
         (row.capacity_hint != null ? row.capacity_hint : "—") +
-        " programadas</p>" +
+        " programadas · " +
+        escapeHtml(String(dueN)) +
+        " venc. no mês · " +
+        escapeHtml(String(rlim)) +
+        " funções no limite</p>" +
         '<span class="vp-month-card__status"><span class="' +
         statusClass(st) +
         '"></span>' +
@@ -384,6 +425,168 @@
         loadOverview();
       });
       grid.appendChild(btn);
+    });
+  }
+
+  function renderImmediateBlocks(data) {
+    var list = byId("vp-action-list");
+    var empty = byId("vp-action-empty");
+    if (!list) return;
+    var items = data.immediate_actions || [];
+    list.innerHTML = "";
+    if (!items.length) {
+      if (empty) empty.classList.remove("hidden");
+      return;
+    }
+    if (empty) empty.classList.add("hidden");
+    items.forEach(function (a) {
+      var row = document.createElement("div");
+      row.className =
+        "vp-action-row flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between";
+      var risk = a.risk_level || "baixo";
+      var riskClass =
+        risk === "alto"
+          ? "vp-action-risk vp-action-risk--high"
+          : risk === "medio"
+            ? "vp-action-risk vp-action-risk--mid"
+            : "vp-action-risk vp-action-risk--low";
+      var d = a.days_until_deadline;
+      var prazo =
+        d == null
+          ? "—"
+          : d < 0
+            ? "Vencido há " + Math.min(Math.abs(d), 999) + "d"
+            : "Vence em " + d + "d";
+      row.innerHTML =
+        "<div class=\"min-w-0 flex-1\">" +
+        "<div class=\"flex flex-wrap items-center gap-2\">" +
+        "<strong class=\"text-sm text-slate-900 dark:text-slate-50\">" +
+        escapeHtml(a.name || "") +
+        "</strong>" +
+        "<span class=\"" +
+        riskClass +
+        "\">" +
+        escapeHtml(
+          risk === "alto" ? "Risco alto" : risk === "medio" ? "Risco médio" : "Risco baixo",
+        ) +
+        "</span></div>" +
+        "<p class=\"mt-1 text-xs text-slate-600 dark:text-slate-300\">" +
+        escapeHtml(a.role || "—") +
+        " · " +
+        escapeHtml(a.sector || "—") +
+        "</p>" +
+        "<p class=\"mt-0.5 text-xs text-slate-500\">" +
+        escapeHtml(prazo) +
+        " · Último gozo: " +
+        escapeHtml(a.last_vacation_end ? formatDateBR(a.last_vacation_end) : "—") +
+        " · Sugestão: " +
+        escapeHtml(a.best_period_hint || "—") +
+        "</p></div>" +
+        "<div class=\"flex flex-shrink-0 flex-wrap gap-2\">" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-xs px-3 py-1.5 vp-action-launch\" data-eid=\"" +
+        escapeHtml(String(a.employee_id)) +
+        "\">Lançar</button>" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs px-3 py-1.5 vp-action-sim\" data-eid=\"" +
+        escapeHtml(String(a.employee_id)) +
+        "\">Simular</button>" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs px-2 py-1.5 vp-action-det\" data-eid=\"" +
+        escapeHtml(String(a.employee_id)) +
+        "\">Detalhes</button></div>";
+      list.appendChild(row);
+    });
+    list.querySelectorAll(".vp-action-launch").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = parseInt(btn.getAttribute("data-eid"), 10);
+        if (id) openLaunchModal(id, { clearDates: true, focusStart: true });
+      });
+    });
+    list.querySelectorAll(".vp-action-sim").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = parseInt(btn.getAttribute("data-eid"), 10);
+        if (id) openLaunchModal(id, { clearDates: true, focusStart: true });
+      });
+    });
+    list.querySelectorAll(".vp-action-det").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = parseInt(btn.getAttribute("data-eid"), 10);
+        var found = (cachedRows || []).find(function (r) {
+          return r.employee_id === id;
+        });
+        if (found) openDetailModal(found);
+      });
+    });
+  }
+
+  function renderScheduledInMonth(data) {
+    var tb = byId("vp-scheduled-body");
+    var cap = byId("vp-scheduled-caption");
+    var empty = byId("vp-scheduled-empty");
+    if (!tb) return;
+    var rows = data.scheduled_in_month_detail || [];
+    var q = qs();
+    if (cap) {
+      cap.textContent =
+        "Gozos aprovados que interceptam " +
+        formatMonthYearBR(q.year, q.month) +
+        " (" +
+        rows.length +
+        " registro(s)).";
+    }
+    tb.innerHTML = "";
+    if (!rows.length) {
+      if (empty) empty.classList.remove("hidden");
+      return;
+    }
+    if (empty) empty.classList.add("hidden");
+    rows.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.className =
+        "employees-data-table__row border-b border-slate-100 dark:border-slate-800";
+      var sync = r.employee_vacation_synced ? "Sim" : "Não";
+      tr.innerHTML =
+        "<td class=\"employees-data-table__cell px-3 py-2\">" +
+        escapeHtml(r.name || "") +
+        "</td>" +
+        "<td class=\"employees-data-table__cell px-2 py-2 text-xs\">" +
+        escapeHtml(r.role || "") +
+        "</td>" +
+        "<td class=\"employees-data-table__cell px-2 py-2 text-xs whitespace-nowrap\">" +
+        escapeHtml(formatDateBR(r.start)) +
+        "</td>" +
+        "<td class=\"employees-data-table__cell px-2 py-2 text-xs whitespace-nowrap\">" +
+        escapeHtml(formatDateBR(r.end)) +
+        "</td>" +
+        "<td class=\"employees-data-table__cell px-2 py-2 text-right text-xs tabular-nums\">" +
+        escapeHtml(String(r.days != null ? r.days : "—")) +
+        "</td>" +
+        "<td class=\"employees-data-table__cell px-2 py-2 text-xs\">" +
+        escapeHtml(displayVacationSourcePt(r.source)) +
+        "</td>" +
+        "<td class=\"employees-data-table__cell px-2 py-2 text-xs\">" +
+        escapeHtml(sync) +
+        "</td>";
+      tb.appendChild(tr);
+    });
+  }
+
+  function renderDataQualityBlock(data) {
+    var ul = byId("vp-data-quality-list");
+    var ok = byId("vp-data-quality-ok");
+    var wrap = byId("vp-data-quality");
+    if (!ul || !wrap) return;
+    var alerts = (data.data_quality && data.data_quality.alerts) || [];
+    ul.innerHTML = "";
+    if (!alerts.length) {
+      ul.classList.add("hidden");
+      if (ok) ok.classList.remove("hidden");
+      return;
+    }
+    if (ok) ok.classList.add("hidden");
+    ul.classList.remove("hidden");
+    alerts.forEach(function (t) {
+      var li = document.createElement("li");
+      li.textContent = t;
+      ul.appendChild(li);
     });
   }
 
@@ -405,11 +608,17 @@
     var c = (row.criticality || "").toLowerCase();
 
     if (filter === "all") return true;
-    if (filter === "critical") return rowNeedsAttention(row);
-    if (filter === "expired") return row.vacation_status === "expired";
-    if (filter === "d30") return d != null && d >= 0 && d <= 30;
-    if (filter === "d6090") return d != null && d > 30 && d <= 90;
-    if (filter === "no_sub") return subEmpty && c !== "baixa";
+    if (filter === "critical")
+      return !!row.operational_queue && rowNeedsAttention(row);
+    if (filter === "expired")
+      return row.vacation_status === "expired" && row.deadline_bucket === "ok";
+    if (filter === "d30")
+      return d != null && d >= 0 && d <= 30 && row.deadline_bucket === "ok";
+    if (filter === "d6090") return d != null && d > 30 && d <= 90 && row.deadline_bucket === "ok";
+    if (filter === "no_sub") return !!row.show_substitute_badge && subEmpty;
+    if (filter === "on_leave") return !!row.on_vacation_today;
+    if (filter === "return7") return !!row.returning_within_7d;
+    if (filter === "scheduled_month") return !!row.scheduled_in_focus_month;
     if (filter === "high_pri")
       return c === "alta" || c === "muito_alta" || (row.priority_index || 0) >= 50;
     return true;
@@ -474,9 +683,13 @@
   }
 
   function prazoLabelHuman(row) {
+    var b = row.deadline_bucket;
+    if (b === "incomplete") return "Cadastro incompleto";
+    if (b === "invalid_data") return "Datas inconsistentes";
     var d = row.days_until_deadline;
     if (d == null) return "—";
-    if (d < 0) return "Vencida há " + Math.abs(d) + " dias";
+    var cap = 999;
+    if (d < 0) return "Vencida há " + Math.min(Math.abs(d), cap) + " dias";
     if (d === 0) return "Vence hoje";
     if (d === 1) return "Vence amanhã";
     return "Vence em " + d + " dias";
@@ -484,6 +697,8 @@
 
   function displayStatusTitle(row) {
     var st = row.vacation_status || "";
+    if (st === "invalid") return "Datas inconsistentes — revisar cadastro";
+    if (st === "incomplete") return "Cadastro incompleto";
     if (st === "expired") return "Férias vencidas";
     if (st === "urgent_30") return "Vence em até 30 dias";
     if (st === "urgent_60") return "Vence em até 60 dias";
@@ -498,6 +713,8 @@
 
   function statusBadgeClass(row) {
     var st = row.vacation_status || "";
+    if (st === "invalid") return "vp-status-badge vp-status-badge--amber vp-status-badge--compact";
+    if (st === "incomplete") return "vp-status-badge vp-status-badge--neutral vp-status-badge--compact";
     if (st === "expired") return "vp-status-badge vp-status-badge--danger vp-status-badge--compact";
     if (st === "urgent_30") return "vp-status-badge vp-status-badge--amber vp-status-badge--compact";
     if (st === "urgent_60" || st === "urgent_90")
@@ -508,6 +725,8 @@
   /** Texto curto do selo na fila (detalhes completos no modal). */
   function statusBadgeShort(row) {
     var st = row.vacation_status || "";
+    if (st === "invalid") return "Revisar datas";
+    if (st === "incomplete") return "Incompleto";
     if (st === "expired") return "Vencida";
     if (st === "urgent_30") return "≤30 d";
     if (st === "urgent_60") return "≤60 d";
@@ -558,6 +777,8 @@
   }
 
   function decisionRowToneClass(row) {
+    var st = row.vacation_status || "";
+    if (st === "invalid" || st === "incomplete") return "vp-decision-row--ok";
     if (
       row.vacation_status === "expired" ||
       (row.days_until_deadline != null && row.days_until_deadline < 0)
@@ -771,7 +992,7 @@
         }
         var html = items
           .map(function (h) {
-            var sync = h.employee_vacation_synced ? "Sincronizado no cadastro" : "Sem espelho no cadastro";
+            var sync = historyCadastroLabel(h);
             return (
               "<div class=\"mt-2 rounded-md border border-slate-100 px-2 py-2 text-xs dark:border-slate-700\">" +
               "<p class=\"font-medium text-slate-800 dark:text-slate-100\">" +
@@ -852,18 +1073,24 @@
           "</span>"
         : "<span class=\"vp-card-meta-chip\">Janela: —</span>";
       var subChip =
-        !row.substitute || row.substitute === "—"
+        row.show_substitute_badge && (!row.substitute || row.substitute === "—")
           ? "<span class=\"vp-card-meta-chip vp-card-meta-chip--warn\">Sem substituto</span>"
           : "";
       var critChip = isCriticalityHigh(row)
         ? "<span class=\"vp-card-meta-chip vp-card-meta-chip--critical\">Crítico</span>"
         : "";
       var alertChip = rowAlertChipHtml(row);
+      var lce = row.last_completed_vacation_end;
       var lav = row.last_approved_vacation;
       var lastChip = "";
-      if (lav && lav.start && lav.end) {
+      if (lce) {
         lastChip =
-          "<span class=\"vp-card-meta-chip\" title=\"Último registro aprovado no planejamento\">Último: " +
+          "<span class=\"vp-card-meta-chip\" title=\"Maior data de fim entre todos os gozos aprovados já encerrados (retroativos somados)\">Gozo encerrado: até " +
+          escapeHtml(formatDateBR(lce)) +
+          "</span>";
+      } else if (lav && lav.start && lav.end) {
+        lastChip =
+          "<span class=\"vp-card-meta-chip\" title=\"Último lançamento aprovado no planejamento (pode incluir período futuro)\">Último: " +
           escapeHtml(formatDateBR(lav.start)) +
           " – " +
           escapeHtml(formatDateBR(lav.end)) +
@@ -1052,9 +1279,16 @@
             : (parseInt(k.due_60, 10) || 0) + (parseInt(k.due_90, 10) || 0);
         byId("vp-kpi-d6090").textContent = String(d6090);
         byId("vp-kpi-sched").textContent = String(k.scheduled_in_month ?? "0");
+        var ko = document.getElementById("vp-kpi-ontoday");
+        if (ko) ko.textContent = String(k.on_vacation_today ?? "0");
+        var kr = document.getElementById("vp-kpi-ret7");
+        if (kr) kr.textContent = String(k.returning_within_7d ?? "0");
 
         renderMonthStrip(data);
         renderYearGrid(data);
+        renderImmediateBlocks(data);
+        renderScheduledInMonth(data);
+        renderDataQualityBlock(data);
 
         cachedRows = data.rows || [];
         queueSearchDebounced = queueSearchRaw.trim();
@@ -1240,6 +1474,8 @@
         byId("vp-p-last-v").value = vp.last_vacation_end || "";
         byId("vp-p-days").value =
           vp.vacation_days_available != null ? String(vp.vacation_days_available) : "";
+        var ex = document.getElementById("vp-p-exclude-op");
+        if (ex) ex.checked = !!vp.exclude_from_operational_vacation;
       })
       .catch(function () {
         showAlert("Não foi possível carregar o perfil.", "error");
@@ -1257,7 +1493,7 @@
     }
     box.innerHTML = slice
       .map(function (h) {
-        var sync = h.employee_vacation_synced ? "Sincronizado com cadastro" : "Sem sincronização no cadastro";
+        var sync = historyCadastroLabel(h);
         return (
           "<article class=\"vp-recent-item border-b border-slate-100 py-2.5 last:border-0 dark:border-slate-800\">" +
           "<p class=\"font-semibold text-slate-800 dark:text-slate-100\">" +
@@ -1310,7 +1546,8 @@
         items.forEach(function (h) {
           var tr = document.createElement("tr");
           tr.className = "border-b border-slate-100 dark:border-slate-800";
-          var sync = h.employee_vacation_synced ? "Sim" : "Não";
+          var syncShort = h.employee_vacation_synced ? "Sim" : "Não";
+          var syncFull = historyCadastroLabel(h);
           tr.innerHTML =
             "<td class=\"px-3 py-2 text-xs whitespace-nowrap\">" +
             escapeHtml(formatDateTimeBR(h.created_at || "")) +
@@ -1333,13 +1570,9 @@
             escapeHtml(h.approved_by || "—") +
             "</td>" +
             "<td class=\"px-3 py-2 text-xs\" title=\"" +
-            escapeHtml(
-              h.employee_vacation_sync_detail && h.employee_vacation_sync_detail.message
-                ? h.employee_vacation_sync_detail.message
-                : ""
-            ) +
+            escapeHtml(syncFull) +
             "\">" +
-            sync +
+            escapeHtml(syncShort) +
             "</td>" +
             "<td class=\"px-3 py-2 text-xs max-w-xs truncate\" title=\"" +
             escapeHtml(h.decision_reason || "") +
@@ -1712,6 +1945,10 @@
       vacation_days_available: byId("vp-p-days").value
         ? parseInt(byId("vp-p-days").value, 10)
         : null,
+      exclude_from_operational_vacation: !!(function () {
+        var ex = document.getElementById("vp-p-exclude-op");
+        return ex && ex.checked;
+      })(),
     };
     fetch("/api/vacation-planning/profile/" + id, {
       method: "POST",
@@ -1848,6 +2085,19 @@
   root.querySelectorAll("[data-vp-filter]").forEach(function (chip) {
     chip.addEventListener("click", function () {
       var name = chip.getAttribute("data-vp-filter");
+      if (name) applyFilterChip(name);
+    });
+  });
+
+  root.querySelectorAll(".vp-kpi-click").forEach(function (card) {
+    card.addEventListener("click", function () {
+      var name = card.getAttribute("data-vp-kpi-filter");
+      if (name) applyFilterChip(name);
+    });
+    card.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Enter" && ev.key !== " ") return;
+      ev.preventDefault();
+      var name = card.getAttribute("data-vp-kpi-filter");
       if (name) applyFilterChip(name);
     });
   });
