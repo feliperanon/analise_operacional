@@ -4758,7 +4758,11 @@ def _build_bi_devolucoes_dataset(
         vendedor_nome = vendedor.name if vendedor else "—"
 
         val = float(d.valor or 0)
-        dt_str = _competence_date_or_self(_dev_op_date_raw(d))
+        op_raw = _dev_op_date_raw(d)
+        # Agregações (gráfico, KPI do período): competência comercial — alinhado ao consolidado / main.
+        dt_str = _competence_date_or_self(op_raw)
+        # Lista e exportação: data operacional (entrega/romaneio), sem deslocar para dia útil de competência.
+        dt_operacional = op_raw if len(op_raw) >= 10 else dt_str
 
         # per_day
         slot = per_day.setdefault(dt_str, {"data": dt_str, "qtd": 0, "valor": 0.0})
@@ -4832,13 +4836,13 @@ def _build_bi_devolucoes_dataset(
         # per_cliente
         cls_ = per_cliente.setdefault(
             cli_nome,
-            {"cliente": cli_nome, "qtd": 0, "valor": 0.0, "motivos": {}, "ultima_data": dt_str},
+            {"cliente": cli_nome, "qtd": 0, "valor": 0.0, "motivos": {}, "ultima_data": dt_operacional},
         )
         cls_["qtd"] += 1
         cls_["valor"] = round(cls_["valor"] + val, 2)
         cls_["motivos"][motivo_nome] = cls_["motivos"].get(motivo_nome, 0) + 1
-        if dt_str > cls_.get("ultima_data", ""):
-            cls_["ultima_data"] = dt_str
+        if dt_operacional > cls_.get("ultima_data", ""):
+            cls_["ultima_data"] = dt_operacional
 
         # heatmap semanal
         hw = heatmap_week.setdefault(wk, {i: 0 for i in range(7)})
@@ -4857,7 +4861,8 @@ def _build_bi_devolucoes_dataset(
             pct_imp = round(100.0 * val / total_valor_kpi, 2) if total_valor_kpi > 0 else 0.0
             rows_detail.append({
                 "id": did,
-                "data": dt_str,
+                "data": dt_operacional,
+                "data_competencia": dt_str,
                 "cliente": cli_nome,
                 "vendedor": vendedor_nome,
                 "motorista": motorista_nome,

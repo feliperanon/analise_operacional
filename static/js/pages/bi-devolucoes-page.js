@@ -138,7 +138,10 @@
       detailDl.appendChild(dd);
     }
     addPair("Cliente", row.cliente);
-    addPair("Data", isoDateToBr(row.data));
+    addPair("Data (operacional)", isoDateToBr(row.data));
+    if (row.data_competencia && String(row.data_competencia).slice(0, 10) !== String(row.data || "").slice(0, 10)) {
+      addPair("Competência (fechamento)", isoDateToBr(row.data_competencia));
+    }
     addPair("Valor", fmtMoney(row.valor));
     addPair("Motivo", row.motivo);
     addPair("Responsabilidade", row.responsabilidade);
