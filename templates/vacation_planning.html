@@ -41,8 +41,8 @@
             Painel operacional
           </span>
           <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Planejamento de férias</h2>
-          <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
-            Controle de vencimentos, programação e risco operacional por mês.
+          <p class="employees-hero__lead mt-1.5 max-w-xl text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+            Painel de decisão: mês, capacidade, quem agir e quem já está programado.
           </p>
           <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
             <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
@@ -109,29 +109,63 @@
     </div>
   </div>
 
-  <!-- Situação do mês -->
-  <div class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0">
-    <section id="vp-month-strip" class="vp-month-summary vp-month-strip vp-month-strip--yellow" aria-label="Situação do mês">
-      <div class="vp-month-summary__head">
-        <div class="vp-month-summary__head-text">
-          <span class="vp-month-summary__label">Situação do mês</span>
-          <strong id="vp-strip-headline" class="vp-month-summary__headline text-sm font-semibold text-slate-700 dark:text-slate-200">—</strong>
-          <strong id="vp-strip-decision" class="vp-month-summary__decision">—</strong>
-        </div>
-        <span id="vp-strip-dot" class="vp-strip-dot vp-month-summary__dot" aria-hidden="true"></span>
-      </div>
-      <div class="vp-month-summary__metrics">
-        <div class="vp-month-summary__metric"><span class="vp-month-summary__k">Risco</span><strong id="vp-strip-risk" class="vp-month-summary__v tabular-nums">—</strong></div>
-        <div class="vp-month-summary__metric"><span class="vp-month-summary__k">Capacidade</span><strong id="vp-strip-cap" class="vp-month-summary__v tabular-nums">—</strong></div>
-        <div class="vp-month-summary__metric"><span class="vp-month-summary__k">Programadas</span><strong id="vp-strip-sched" class="vp-month-summary__v tabular-nums">—</strong></div>
-        <div class="vp-month-summary__metric"><span class="vp-month-summary__k">Funções no limite</span><strong id="vp-strip-critical" class="vp-month-summary__v tabular-nums">—</strong></div>
-      </div>
-      <p id="vp-strip-guidance" class="vp-month-summary__guidance">Carregue o painel para ver a orientação.</p>
-    </section>
+  <!-- Barra: ano / mês / empresa (sempre visível antes do card de decisão) -->
+  <div id="vp-planning-toolbar" class="vp-planning-toolbar sys-card sys-card--surface sys-card--comfort px-4 py-3 sm:px-5">
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="vp-field-label vp-field-label--inline text-xs">
+        Ano
+        <input type="number" id="vp-year" class="ops-toolbar-control w-24 px-2.5" min="2020" max="2035" value="">
+      </label>
+      <label class="vp-field-label vp-field-label--inline text-xs">
+        Mês
+        <select id="vp-month" class="ops-toolbar-control min-w-[9.5rem] px-2.5">
+          <option value="1">Janeiro</option>
+          <option value="2">Fevereiro</option>
+          <option value="3">Março</option>
+          <option value="4">Abril</option>
+          <option value="5">Maio</option>
+          <option value="6">Junho</option>
+          <option value="7">Julho</option>
+          <option value="8">Agosto</option>
+          <option value="9">Setembro</option>
+          <option value="10">Outubro</option>
+          <option value="11">Novembro</option>
+          <option value="12">Dezembro</option>
+        </select>
+      </label>
+      <label class="vp-field-label vp-field-label--inline text-xs">
+        Empresa
+        <select id="vp-cost-center" class="ops-toolbar-control min-w-[11rem] px-2.5" title="Filtra colaboradores por Souza Pinto ou Exemplar (centro de custo no cadastro)">
+          {% for opt in vacation_empresa_options or cost_center_options or ['Todos'] %}
+          <option value="{{ opt }}">{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
   </div>
 
-  <!-- KPIs (sys-kpi-card como /employees) -->
-  <div class="sys-kpi-shell w-full">
+  <!-- Decisão do mês (compacto) -->
+  <section id="vp-month-strip" class="vp-decision-month sys-card sys-card--surface sys-card--comfort vp-month-strip vp-month-strip--yellow" aria-label="Decisão do mês">
+    <div class="vp-decision-month__top">
+      <div class="vp-decision-month__title-block">
+        <p class="vp-decision-month__eyebrow">Decisão do mês</p>
+        <p id="vp-strip-headline" class="vp-decision-month__headline">—</p>
+        <p id="vp-strip-decision" class="vp-decision-month__statusline">—</p>
+      </div>
+      <span id="vp-strip-dot" class="vp-strip-dot vp-decision-month__dot" aria-hidden="true"></span>
+    </div>
+    <div class="vp-decision-month__metrics">
+      <div class="vp-decision-month__metric"><span class="vp-decision-month__k">Capacidade</span><strong id="vp-strip-cap" class="vp-decision-month__v tabular-nums">—</strong></div>
+      <div class="vp-decision-month__metric"><span class="vp-decision-month__k">Programadas</span><strong id="vp-strip-sched" class="vp-decision-month__v tabular-nums">—</strong></div>
+      <div class="vp-decision-month__metric"><span class="vp-decision-month__k">Venc. no mês</span><strong id="vp-strip-due" class="vp-decision-month__v tabular-nums">—</strong></div>
+      <div class="vp-decision-month__metric"><span class="vp-decision-month__k">Funções limite</span><strong id="vp-strip-critical" class="vp-decision-month__v tabular-nums">—</strong></div>
+      <div class="vp-decision-month__metric"><span class="vp-decision-month__k">Risco</span><strong id="vp-strip-risk" class="vp-decision-month__v tabular-nums">—</strong></div>
+    </div>
+    <p id="vp-strip-guidance" class="vp-decision-month__guidance">Carregue o painel para ver a recomendação.</p>
+  </section>
+
+  <!-- KPIs -->
+  <div class="vp-kpi-shell-wrap sys-kpi-shell w-full">
     <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de férias">
       <div class="sys-kpi-card employees-kpi group vp-kpi-click" style="--employees-kpi-accent: rgba(244, 63, 94, 0.65);" data-vp-kpi-filter="expired" role="button" tabindex="0" title="Filtrar: vencidas">
         <div class="sys-kpi-cell-inner employees-kpi__inner">
@@ -226,20 +260,27 @@
       <h3 id="vp-immediate-heading" class="sys-section-heading employees-table-panel__title mt-0 text-base font-semibold sm:text-lg">Ação imediata</h3>
       <p class="employees-table-panel__lede max-w-2xl text-xs text-slate-500 dark:text-slate-400">Colaboradores que precisam de decisão agora (vencimento, janela crítica ou cobertura).</p>
     </div>
-    <div id="vp-action-list" class="vp-action-list divide-y divide-slate-100 dark:divide-slate-800 px-2 py-1 sm:px-4"></div>
+    <div id="vp-action-list" class="vp-action-list vp-action-list--cards divide-y divide-slate-100 dark:divide-slate-800 px-2 py-2 sm:px-4"></div>
     <p id="vp-action-empty" class="hidden px-4 py-6 text-center text-sm text-slate-500">Nenhuma pendência crítica no recorte atual.</p>
   </section>
 
   <section id="vp-scheduled-section" class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0" aria-labelledby="vp-scheduled-heading">
-    <div class="flex flex-col gap-1 border-b px-4 py-3 sm:px-5 sm:flex-row sm:items-center sm:justify-between">
+    <div class="flex flex-col gap-2 border-b px-4 py-3 sm:px-5 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <p class="employees-table-panel__kicker text-[10px]">Mês em foco</p>
         <h3 id="vp-scheduled-heading" class="sys-section-heading text-base font-semibold">Programadas no mês</h3>
+        <p id="vp-scheduled-caption" class="mt-1 text-xs text-slate-500">—</p>
       </div>
-      <p id="vp-scheduled-caption" class="text-xs text-slate-500">—</p>
+    </div>
+    <div id="vp-scheduled-stats" class="vp-scheduled-stats grid gap-2 border-b border-slate-100 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300 sm:grid-cols-2 lg:grid-cols-4 sm:px-5">
+      <div><span class="text-slate-400">Gozos no mês</span> <strong id="vp-sched-st-gozos" class="tabular-nums text-slate-800 dark:text-slate-100">—</strong></div>
+      <div><span class="text-slate-400">Colaboradores</span> <strong id="vp-sched-st-people" class="tabular-nums text-slate-800 dark:text-slate-100">—</strong></div>
+      <div><span class="text-slate-400">Funções distintas</span> <strong id="vp-sched-st-roles" class="tabular-nums text-slate-800 dark:text-slate-100">—</strong></div>
+      <div><span class="text-slate-400">Dias médios</span> <strong id="vp-sched-st-avg" class="tabular-nums text-slate-800 dark:text-slate-100">—</strong></div>
+      <div class="sm:col-span-2 lg:col-span-4"><span class="text-slate-400">Origem</span> <span id="vp-sched-st-src" class="text-slate-700 dark:text-slate-200">—</span></div>
     </div>
     <div class="sys-table-wrap sys-table-wrap--x-scroll">
-      <table class="employees-data-table employees-data-table--compact w-full min-w-[720px] text-left text-sm">
+      <table class="employees-data-table employees-data-table--compact w-full min-w-[860px] text-left text-sm">
         <thead class="employees-data-table__head border-b text-xs">
           <tr>
             <th class="employees-data-table__th px-3 py-2">Colaborador</th>
@@ -249,6 +290,7 @@
             <th class="employees-data-table__th px-2 py-2 text-right">Dias</th>
             <th class="employees-data-table__th px-2 py-2">Origem</th>
             <th class="employees-data-table__th px-2 py-2">Cadastro</th>
+            <th class="employees-data-table__th px-2 py-2 text-right whitespace-nowrap">Ações</th>
           </tr>
         </thead>
         <tbody id="vp-scheduled-body" class="employees-data-table__body"></tbody>
@@ -257,52 +299,31 @@
     <p id="vp-scheduled-empty" class="hidden px-4 py-5 text-center text-sm text-slate-500">Nenhum gozo aprovado no mês selecionado.</p>
   </section>
 
+  <section class="vp-year-map sys-card sys-card--surface sys-card--comfort p-4 sm:p-5" aria-labelledby="vp-year-map-heading">
+    <h2 id="vp-year-map-heading" class="vp-section-title text-base font-semibold">Mapa anual</h2>
+    <p class="vp-year-map__sub mb-3 text-xs text-slate-500">Clique no mês para atualizar o painel.</p>
+    <div id="vp-year-grid" class="vp-year-grid"></div>
+  </section>
+
   <details id="vp-data-quality" class="sys-card sys-card--surface sys-card--comfort vp-data-quality-details group">
-    <summary class="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-700 outline-none marker:content-none dark:text-slate-200 sm:px-5 [&::-webkit-details-marker]:hidden">
-      <span class="inline-flex items-center gap-2">Pendências de dados <span class="sys-badge sys-badge--muted text-[10px] font-normal">opcional</span></span>
+    <summary class="vp-data-quality-details__summary cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-800 outline-none marker:content-none dark:text-slate-100 sm:px-5 [&::-webkit-details-marker]:hidden">
+      Pendências de dados
     </summary>
-    <ul id="vp-data-quality-list" class="list-disc space-y-1 px-8 pb-4 text-xs text-slate-600 dark:text-slate-300 sm:px-10"></ul>
-    <p id="vp-data-quality-ok" class="hidden px-8 pb-4 text-xs text-emerald-600 dark:text-emerald-400 sm:px-10">Nenhum alerta de qualidade detectado neste painel.</p>
+    <div id="vp-data-quality-body" class="border-t border-slate-100 px-4 pb-4 pt-2 dark:border-slate-800 sm:px-5">
+      <p id="vp-data-quality-ok" class="hidden text-xs text-emerald-600 dark:text-emerald-400">Sem pendências críticas encontradas.</p>
+      <div id="vp-data-quality-groups" class="hidden grid gap-3 sm:grid-cols-2"></div>
+      <ul id="vp-data-quality-list" class="hidden list-disc space-y-1 pl-5 text-xs text-slate-600 dark:text-slate-300"></ul>
+    </div>
   </details>
 
-  <div class="vp-queue-wrap flex min-w-0 flex-col gap-4">
-      <!-- Filtros globais (ano / mês / empresa) + busca na fila -->
-      <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
-        <div class="flex flex-col gap-4 border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-5">
-          <div class="flex flex-wrap items-end gap-3">
-            <label class="vp-field-label vp-field-label--inline text-xs">
-              Ano
-              <input type="number" id="vp-year" class="ops-toolbar-control w-24 px-2.5" min="2020" max="2035" value="">
-            </label>
-            <label class="vp-field-label vp-field-label--inline text-xs">
-              Mês
-              <select id="vp-month" class="ops-toolbar-control px-2.5 min-w-[9.5rem]">
-                <option value="1">Janeiro</option>
-                <option value="2">Fevereiro</option>
-                <option value="3">Março</option>
-                <option value="4">Abril</option>
-                <option value="5">Maio</option>
-                <option value="6">Junho</option>
-                <option value="7">Julho</option>
-                <option value="8">Agosto</option>
-                <option value="9">Setembro</option>
-                <option value="10">Outubro</option>
-                <option value="11">Novembro</option>
-                <option value="12">Dezembro</option>
-              </select>
-            </label>
-            <label class="vp-field-label vp-field-label--inline text-xs">
-              Empresa
-              <select id="vp-cost-center" class="ops-toolbar-control px-2.5 min-w-[11rem]" title="Filtra colaboradores por Souza Pinto ou Exemplar (centro de custo no cadastro)">
-                {% for opt in vacation_empresa_options or cost_center_options or ['Todos'] %}
-                <option value="{{ opt }}">{{ opt }}</option>
-                {% endfor %}
-              </select>
-            </label>
-          </div>
-        </div>
+  <details id="vp-full-queue" class="vp-full-queue-details sys-card sys-card--surface sys-card--comfort overflow-hidden group">
+    <summary class="vp-full-queue-details__summary cursor-pointer list-none px-4 py-3 text-sm font-semibold text-slate-800 outline-none marker:content-none dark:text-slate-100 sm:px-5 [&::-webkit-details-marker]:hidden">
+      Fila completa <span class="font-normal text-slate-500 dark:text-slate-400">(auditoria — busca e filtros)</span>
+    </summary>
+    <div class="vp-queue-wrap flex min-w-0 flex-col gap-4 border-t border-slate-100 px-2 pb-4 pt-2 dark:border-slate-800 sm:px-3">
+      <div class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar border-0 shadow-none">
         <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
-          <div class="employees-filter-bar__inner px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+          <div class="employees-filter-bar__inner px-4 pb-3 pt-3 sm:px-5 sm:pb-4 sm:pt-4">
             <div class="employees-filter-bar__primary min-w-0 flex-1">
               <div class="employees-filter-bar__primary-scroll flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
                 <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca na fila</span>
@@ -335,15 +356,14 @@
         </div>
       </div>
 
-      <!-- Tabela da fila (desktop) / cards (mobile) -->
       <div id="vp-queue-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
-        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+        <div class="employees-table-panel__head flex flex-col gap-2 border-b px-4 py-4 sm:px-5 lg:flex-row lg:items-start lg:justify-between">
           <div class="min-w-0 flex-1">
-            <p class="employees-table-panel__kicker">Prioridade operacional</p>
-            <h3 id="vp-queue-heading" class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Fila de colaboradores</h3>
-            <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Fila compacta: prioridade, prazo e ação em poucos segundos. Detalhes completos no ícone ⋯.</p>
+            <p class="employees-table-panel__kicker text-[10px]">Auditoria</p>
+            <h3 id="vp-queue-heading" class="sys-section-heading employees-table-panel__title mt-0 text-base font-semibold">Fila de colaboradores</h3>
+            <p class="employees-table-panel__lede mt-1 max-w-xl text-xs text-slate-500">Lista completa para conferência. As prioridades do dia estão em «Ação imediata».</p>
           </div>
-          <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+          <div class="employees-table-panel__aside text-xs lg:text-right">
             <span id="vp-queue-count" class="employees-text-caption block"></span>
             <button type="button" id="vp-queue-show-all" class="sys-btn sys-btn--secondary mt-2 hidden text-xs">Ver todos na lista</button>
           </div>
@@ -357,22 +377,17 @@
         </div>
         <div id="vp-queue-empty" class="vp-empty hidden sys-empty-state px-5 py-10 text-center text-sm">Nenhum colaborador neste filtro. Ajuste a busca ou use «Limpar filtros».</div>
       </div>
+    </div>
+  </details>
 
-      <section id="vp-recent-launches" class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0" aria-labelledby="vp-recent-launches-heading">
-        <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800 sm:px-5">
-          <h3 id="vp-recent-launches-heading" class="sys-section-heading text-sm font-bold">Últimos lançamentos</h3>
-          <button type="button" id="vp-recent-refresh" class="sys-btn sys-btn--secondary text-xs py-1 px-2">Atualizar</button>
-        </div>
-        <div id="vp-recent-launches-body" class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 sm:px-5">
-          <p class="text-xs text-slate-500">Carregando…</p>
-        </div>
-      </section>
-  </div>
-
-  <section class="vp-year-map sys-card sys-card--surface sys-card--comfort p-4 sm:p-5" aria-labelledby="vp-year-map-heading">
-    <h2 id="vp-year-map-heading" class="vp-section-title">Mapa anual</h2>
-    <p class="vp-year-map__sub text-xs text-slate-500 mb-3">Clique no mês para focar o painel.</p>
-    <div id="vp-year-grid" class="vp-year-grid"></div>
+  <section id="vp-recent-launches" class="sys-card sys-card--surface sys-card--comfort overflow-hidden p-0" aria-labelledby="vp-recent-launches-heading">
+    <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800 sm:px-5">
+      <h3 id="vp-recent-launches-heading" class="sys-section-heading text-sm font-semibold">Últimos lançamentos</h3>
+      <button type="button" id="vp-recent-refresh" class="sys-btn sys-btn--secondary px-2 py-1 text-xs">Atualizar</button>
+    </div>
+    <div id="vp-recent-launches-body" class="px-4 py-3 text-sm text-slate-600 dark:text-slate-300 sm:px-5">
+      <p class="text-xs text-slate-500">Carregando…</p>
+    </div>
   </section>
 
   <section class="vp-secondary sys-card sys-card--surface sys-card--comfort p-4 sm:p-6" aria-labelledby="vp-secondary-heading">

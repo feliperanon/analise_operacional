@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import calendar
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -141,6 +141,39 @@ def classify_deadline_row(
     return "ok", di, ""
 
 
+def employee_ids_approved_vacation_start_on_or_before_deadline(
+    session: Session,
+    ref: date,
+    deadline_by_eid: Dict[int, date],
+) -> set:
+    """
+    Colaboradores com gozo **aprovado** ainda vigente ou futuro (fim ≥ ref) cujo **início**
+    é anterior ou igual ao fim do período concessivo calculado — não devem ser tratados
+    como «vencidos» na operação (já há programação dentro do concessivo).
+    """
+    if not deadline_by_eid:
+        return set()
+    u = sorted({int(x) for x in deadline_by_eid if x})
+    if not u:
+        return set()
+    ref_start = datetime.combine(ref, datetime.min.time())
+    stmt = select(models.VacationScheduleEntry).where(
+        col(models.VacationScheduleEntry.employee_id).in_(u),
+        models.VacationScheduleEntry.status == "approved",
+        models.VacationScheduleEntry.end_date >= ref_start,
+    )
+    satisfied: set = set()
+    for ent in session.exec(stmt).all():
+        eid = int(ent.employee_id)
+        deadline = deadline_by_eid.get(eid)
+        if not deadline:
+            continue
+        sd = _d(ent.start_date)
+        if sd and sd <= deadline:
+            satisfied.add(eid)
+    return satisfied
+
+
 def employee_ids_with_approved_future_vacation(
     session: Session, ref: date, employee_ids: List[int]
 ) -> set:
@@ -178,8 +211,8 @@ def scheduled_vacations_in_month_detail(
     year: int,
     month: int,
     cost_center: Optional[str],
-) -> List[Dict[str, Any]]:
-    """Gozos aprovados no planejamento que interceptam o mês civil."""
+) -> Tuple[List[Dict[str, Any]], int]:
+    """Gozos aprovados no planejamento que interceptam o mês civil. Retorna (lista deduplicada, nº de duplicatas fundidas)."""
     ms = date(year, month, 1)
     me = end_of_month(ms)
     emps = list_employees_for_vacation(session, cost_center)
@@ -219,7 +252,51 @@ def scheduled_vacations_in_month_detail(
                 "entry_id": ent.id,
             }
         )
+    raw_len = len(out)
+    ded = dedupe_scheduled_vacation_month_rows(out)
+    return ded, max(0, raw_len - len(ded))
+
+
+def dedupe_scheduled_vacation_month_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Um gozo aprovado por (colaborador + início + fim + origem); mantém o menor entry_id."""
+    rows_sorted = sorted(rows, key=lambda r: int(r.get("entry_id") or 0))
+    seen: set = set()
+    out: List[Dict[str, Any]] = []
+    for r in rows_sorted:
+        eid = int(r["employee_id"])
+        src = (r.get("source") or "manual").strip().lower()
+        key = (eid, str(r.get("start") or "")[:10], str(r.get("end") or "")[:10], src)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    out.sort(key=lambda x: str(x.get("start") or ""))
     return out
+
+
+def scheduled_month_detail_stats(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    if not rows:
+        return {
+            "gozo_count": 0,
+            "unique_employees": 0,
+            "unique_roles": 0,
+            "avg_days": None,
+            "sources_breakdown": {},
+        }
+    days_list = [int(r["days"]) for r in rows if r.get("days") is not None]
+    roles = {str(r.get("role") or "").strip() for r in rows if (r.get("role") or "").strip()}
+    eids = {int(r["employee_id"]) for r in rows}
+    src = Counter((r.get("source") or "manual").strip().lower() for r in rows)
+    avg = None
+    if days_list:
+        avg = round(sum(days_list) / len(days_list), 1)
+    return {
+        "gozo_count": len(rows),
+        "unique_employees": len(eids),
+        "unique_roles": len(roles),
+        "avg_days": avg,
+        "sources_breakdown": dict(src),
+    }
 
 
 def default_demand_index_for_month(month: int) -> int:
@@ -1506,8 +1583,6 @@ def dashboard_payload(
     employees = list_employees_for_vacation(session, cost_center)
     hc_map = headcount_by_role(session, cost_center)
 
-    expired = 0
-    d30 = d60 = d90 = 0
     rows: List[Dict[str, Any]] = []
 
     windows_year = scheduled_windows(session, date(year, 1, 1), date(year, 12, 31), cost_center)
@@ -1555,17 +1630,6 @@ def dashboard_payload(
                 status, status_label = "urgent_90", f"Vence em {d}d"
             else:
                 status_label = f"Concessivo: {d}d"
-
-        if operational and dl_bucket == "ok" and ddead is not None:
-            dd = int(ddead)
-            if dd < 0:
-                expired += 1
-            elif dd <= 30:
-                d30 += 1
-            elif dd <= 60:
-                d60 += 1
-            elif dd <= 90:
-                d90 += 1
 
         di_view, _, _ = get_month_demand(session, year, cal_month)
         ms = date(year, cal_month, 1)
@@ -1643,6 +1707,51 @@ def dashboard_payload(
         )
     )
 
+    deadline_map: Dict[int, date] = {}
+    for r in rows:
+        cd = r.get("concessive_deadline")
+        if not cd:
+            continue
+        try:
+            deadline_map[int(r["employee_id"])] = date.fromisoformat(str(cd)[:10])
+        except ValueError:
+            continue
+    covered_ids = employee_ids_approved_vacation_start_on_or_before_deadline(session, ref, deadline_map)
+    for r in rows:
+        eid = int(r["employee_id"])
+        ddead = r.get("days_until_deadline")
+        if (
+            r.get("operational_queue")
+            and r.get("deadline_bucket") == "ok"
+            and ddead is not None
+            and int(ddead) < 0
+            and eid in covered_ids
+        ):
+            dv = min(-int(ddead), 999)
+            r["concessive_covered_by_approval"] = True
+            r["vacation_status"] = "scheduled_coverage"
+            r["vacation_status_label"] = (
+                f"Gozo aprovado no concessivo (início ≤ limite; atraso calendário {dv}d)"
+            )
+
+    expired = d30 = d60 = d90 = 0
+    for r in rows:
+        if not r.get("operational_queue"):
+            continue
+        if r.get("deadline_bucket") != "ok" or r.get("days_until_deadline") is None:
+            continue
+        if r.get("vacation_status") == "scheduled_coverage":
+            continue
+        dd = int(r["days_until_deadline"])
+        if dd < 0:
+            expired += 1
+        elif dd <= 30:
+            d30 += 1
+        elif dd <= 60:
+            d60 += 1
+        elif dd <= 90:
+            d90 += 1
+
     ref_ms = date(year, cal_month, 1)
     ref_me = end_of_month(ref_ms)
     scheduled_this_month_ids: set = set()
@@ -1675,6 +1784,12 @@ def dashboard_payload(
         r["last_approved_vacation"] = last_vac_map.get(eid)
         r["on_vacation_today"] = eid in on_vacation_ids
         r["returning_within_7d"] = eid in returning_7_ids
+
+    sched_detail, sched_dup_merged = scheduled_vacations_in_month_detail(
+        session, year=year, month=cal_month, cost_center=cost_center
+    )
+    sched_stats = scheduled_month_detail_stats(sched_detail)
+    scheduled_kpi_gozos = int(sched_stats.get("gozo_count") or 0)
 
     monthly: List[Dict[str, Any]] = []
     risk_scores = []
@@ -1798,6 +1913,10 @@ def dashboard_payload(
     if best_month_num != cal_month:
         guidance_parts.append(f"Melhor mês coletivo sugerido: {best_month_name}/{year}.")
 
+    guidance_joined = " ".join(guidance_parts)
+    if len(guidance_joined) > 240:
+        guidance_joined = guidance_joined[:237].rstrip() + "…"
+
     month_situation: Dict[str, Any] = {
         "month": cal_month,
         "month_name": mn,
@@ -1806,11 +1925,14 @@ def dashboard_payload(
         "demand_label": mr_cur.get("demand_label"),
         "capacity_hint": cap_cur,
         "scheduled_count": sched_cur,
+        "due_deadlines_in_month": int(mr_cur.get("due_deadlines_count") or 0),
+        "scheduled_gozo_count": scheduled_kpi_gozos,
+        "scheduled_unique_employees": int(sched_stats.get("unique_employees") or 0),
         "operational_risk": op_risk,
         "load_ratio": round(load_ratio, 2),
         "decision_key": decision_key,
         "decision_label": RECOMMENDATION_LABEL_PT.get(decision_key, decision_key),
-        "guidance_text": " ".join(guidance_parts),
+        "guidance_text": guidance_joined,
         "best_month": best_month_num,
         "best_month_name": best_month_name,
         "operational_headline": (
@@ -1825,6 +1947,8 @@ def dashboard_payload(
     immediate_actions: List[Dict[str, Any]] = []
     for r in rows:
         if not r.get("operational_queue"):
+            continue
+        if r.get("vacation_status") == "scheduled_coverage":
             continue
         if r.get("deadline_bucket") != "ok" or r.get("days_until_deadline") is None:
             continue
@@ -1869,26 +1993,35 @@ def dashboard_payload(
     )
     immediate_actions = immediate_actions[:28]
 
-    dq_alerts: List[str] = []
     nd = sum(1 for e in employees if e.id and not e.admission_date)
-    if nd:
-        dq_alerts.append(f"{nd} sem data de admissão")
     inv_c = sum(1 for r in rows if r.get("deadline_bucket") == "invalid_data")
-    if inv_c:
-        dq_alerts.append(f"{inv_c} com prazo incoerente (revisar perfil)")
     inc_c = sum(1 for r in rows if r.get("deadline_bucket") == "incomplete")
-    if inc_c:
-        dq_alerts.append(f"{inc_c} sem prazo calculável (perfil/admissão)")
     nh = sum(1 for r in rows if r.get("heuristic_non_operational"))
-    if nh:
-        dq_alerts.append(f"{nh} fora da escala por heurística (sócio/diretoria/canal etc.)")
     nrf = sum(1 for r in rows if r.get("exclude_operational_flag"))
-    if nrf:
-        dq_alerts.append(f"{nrf} com exclusão manual da fila operacional")
-
-    sched_detail = scheduled_vacations_in_month_detail(
-        session, year=year, month=cal_month, cost_center=cost_center
+    n_sem_funcao = sum(1 for e in employees if e.id and not (str(e.role or "").strip()))
+    n_sem_setor = sum(
+        1
+        for r in rows
+        if r.get("operational_queue")
+        and r.get("deadline_bucket") == "ok"
+        and not (str(r.get("sector") or "").strip())
     )
+
+    dq_groups: Dict[str, Dict[str, Any]] = {
+        "invalid": {"label": "Data inválida ou prazo incoerente", "count": inv_c},
+        "incomplete": {"label": "Cadastro incompleto (sem prazo)", "count": inc_c},
+        "duplicate": {"label": "Gozos duplicados no mês (mesmo colaborador/período)", "count": sched_dup_merged},
+        "non_operational": {"label": "Fora da escala operacional (heurística)", "count": nh},
+        "exclude_manual": {"label": "Exclusão manual da fila operacional", "count": nrf},
+        "admission": {"label": "Sem data de admissão", "count": nd},
+        "no_role": {"label": "Sem função no cadastro", "count": n_sem_funcao},
+        "no_sector": {"label": "Sem setor/função operacional no perfil", "count": n_sem_setor},
+    }
+    dq_alerts: List[str] = []
+    for _gk, gv in dq_groups.items():
+        c = int(gv.get("count") or 0)
+        if c > 0:
+            dq_alerts.append(f"{gv['label']}: {c}")
 
     return {
         "year": year,
@@ -1899,7 +2032,7 @@ def dashboard_payload(
             "due_60": d60,
             "due_90": d90,
             "due_60_90": d60 + d90,
-            "scheduled_in_month": scheduled_month,
+            "scheduled_in_month": scheduled_kpi_gozos,
             "on_vacation_today": on_vacation_today,
             "returning_within_7d": returning_within_7d,
             "operational_risk_month": op_risk,
@@ -1909,7 +2042,12 @@ def dashboard_payload(
         "monthly": monthly,
         "immediate_actions": immediate_actions,
         "scheduled_in_month_detail": sched_detail,
-        "data_quality": {"alerts": dq_alerts},
+        "scheduled_in_month_stats": sched_stats,
+        "data_quality": {
+            "has_issues": any(int(g.get("count") or 0) > 0 for g in dq_groups.values()),
+            "groups": dq_groups,
+            "alerts": dq_alerts,
+        },
         "employees_options": [{"id": e.id, "name": e.name, "role": e.role} for e in employees if e.id],
     }
 
@@ -2022,9 +2160,9 @@ def list_history(session: Session, limit: int = 80, employee_id: Optional[int] =
         if bool(getattr(ent, "employee_vacation_synced", False)):
             cadastro_sync_label = "Sim — cadastro atualizado"
         elif (ent.source or "").strip().lower() == "planilha":
-            cadastro_sync_label = "Não — registro histórico (importação não altera cadastro)"
+            cadastro_sync_label = "Histórico (importação; cadastro não alterado)"
         else:
-            cadastro_sync_label = "Não — lançamento apenas no planejamento"
+            cadastro_sync_label = "Não — apenas planejamento"
         out.append(
             {
                 "id": ent.id,

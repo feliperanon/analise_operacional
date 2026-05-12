@@ -14,6 +14,7 @@
   var queueSearchTimer = null;
   var SEARCH_DEBOUNCE_MS = 280;
   var queueRowClickBound = false;
+  var immediateActionIdSet = new Set();
 
   function byId(id) {
     return document.getElementById(id);
@@ -29,10 +30,14 @@
   }
 
   function historyCadastroLabel(h) {
-    if (h && h.cadastro_sync_label) return String(h.cadastro_sync_label);
+    if (h && h.cadastro_sync_label) {
+      var s = String(h.cadastro_sync_label);
+      if (/histórico|importação|planilha/i.test(s) && !/^sim/i.test(s)) return "Histórico";
+      return s;
+    }
     return h && h.employee_vacation_synced
       ? "Sim — cadastro atualizado"
-      : "Não — lançamento apenas no planejamento";
+      : "Não — apenas planejamento";
   }
 
   /** yyyy-mm-dd ou prefixo → dd/mm/aaaa */
@@ -315,14 +320,20 @@
       hl.textContent =
         (sit.month_name || String(m)) +
         "/" +
-        (sit.year != null ? sit.year : data.year || qs().year) +
-        " · " +
-        (sit.operational_headline || sit.decision_label || "—");
+        (sit.year != null ? sit.year : data.year || qs().year);
     }
-    byId("vp-strip-decision").textContent = sit.decision_label || "—";
+    var stl = document.getElementById("vp-strip-decision");
+    if (stl) {
+      stl.textContent =
+        "Status: " + (sit.operational_headline || sit.decision_label || "—");
+    }
     byId("vp-strip-risk").textContent = fmtIntPt(sit.operational_risk);
     byId("vp-strip-cap").textContent = fmtIntPt(sit.capacity_hint);
-    byId("vp-strip-sched").textContent = fmtIntPt(sit.scheduled_count);
+    var schedShow =
+      sit.scheduled_gozo_count != null ? sit.scheduled_gozo_count : sit.scheduled_count;
+    byId("vp-strip-sched").textContent = fmtIntPt(schedShow);
+    var dueEl = document.getElementById("vp-strip-due");
+    if (dueEl) dueEl.textContent = fmtIntPt(sit.due_deadlines_in_month);
     var critEl = document.getElementById("vp-strip-critical");
     if (critEl) critEl.textContent = fmtIntPt(sit.critical_roles_count);
     byId("vp-strip-guidance").textContent =
@@ -374,6 +385,9 @@
       operational_risk: k.operational_risk_month,
       capacity_hint: cap,
       scheduled_count: sched,
+      due_deadlines_in_month: parseInt(mr.due_deadlines_count, 10) || 0,
+      scheduled_gozo_count: sched,
+      scheduled_unique_employees: sched,
       critical_roles_count: 0,
       guidance_text: g,
     };
@@ -400,8 +414,13 @@
       var dueN = row.due_deadlines_count != null ? row.due_deadlines_count : "—";
       var rlim = row.roles_at_limit_count != null ? row.roles_at_limit_count : "—";
       btn.innerHTML =
+        '<span class="vp-month-card__name-row">' +
         '<span class="vp-month-card__name">' +
         escapeHtml(row.month_name) +
+        "</span>" +
+        (bestM && m === bestM
+          ? '<span class="vp-month-card__best">Melhor opção</span>'
+          : "") +
         "</span>" +
         '<p class="vp-month-card__demand">' +
         escapeHtml(row.demand_label || "") +
@@ -441,8 +460,7 @@
     if (empty) empty.classList.add("hidden");
     items.forEach(function (a) {
       var row = document.createElement("div");
-      row.className =
-        "vp-action-row flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between";
+      row.className = "vp-action-card";
       var risk = a.risk_level || "baixo";
       var riskClass =
         risk === "alto"
@@ -458,9 +476,10 @@
             ? "Vencido há " + Math.min(Math.abs(d), 999) + "d"
             : "Vence em " + d + "d";
       row.innerHTML =
-        "<div class=\"min-w-0 flex-1\">" +
-        "<div class=\"flex flex-wrap items-center gap-2\">" +
-        "<strong class=\"text-sm text-slate-900 dark:text-slate-50\">" +
+        "<div class=\"vp-action-card__grid\">" +
+        "<div class=\"vp-action-card__main\">" +
+        "<div class=\"vp-action-card__row1\">" +
+        "<strong class=\"vp-action-card__name\">" +
         escapeHtml(a.name || "") +
         "</strong>" +
         "<span class=\"" +
@@ -470,28 +489,29 @@
           risk === "alto" ? "Risco alto" : risk === "medio" ? "Risco médio" : "Risco baixo",
         ) +
         "</span></div>" +
-        "<p class=\"mt-1 text-xs text-slate-600 dark:text-slate-300\">" +
+        "<p class=\"vp-action-card__meta\">" +
         escapeHtml(a.role || "—") +
         " · " +
         escapeHtml(a.sector || "—") +
         "</p>" +
-        "<p class=\"mt-0.5 text-xs text-slate-500\">" +
+        "<p class=\"vp-action-card__prazo\"><span class=\"text-slate-500\">Prazo:</span> " +
         escapeHtml(prazo) +
-        " · Último gozo: " +
+        "</p>" +
+        "<p class=\"vp-action-card__hint\"><span class=\"text-slate-500\">Último gozo:</span> " +
         escapeHtml(a.last_vacation_end ? formatDateBR(a.last_vacation_end) : "—") +
-        " · Sugestão: " +
+        " · <span class=\"text-slate-500\">Janela sugerida:</span> " +
         escapeHtml(a.best_period_hint || "—") +
         "</p></div>" +
-        "<div class=\"flex flex-shrink-0 flex-wrap gap-2\">" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-xs px-3 py-1.5 vp-action-launch\" data-eid=\"" +
+        "<div class=\"vp-action-card__actions\">" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--primary text-xs px-3 py-2 vp-action-launch\" data-eid=\"" +
         escapeHtml(String(a.employee_id)) +
         "\">Lançar</button>" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs px-3 py-1.5 vp-action-sim\" data-eid=\"" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs px-3 py-2 vp-action-sim\" data-eid=\"" +
         escapeHtml(String(a.employee_id)) +
         "\">Simular</button>" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs px-2 py-1.5 vp-action-det\" data-eid=\"" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary text-xs px-2 py-2 vp-action-det\" data-eid=\"" +
         escapeHtml(String(a.employee_id)) +
-        "\">Detalhes</button></div>";
+        "\">Detalhes</button></div></div>";
       list.appendChild(row);
     });
     list.querySelectorAll(".vp-action-launch").forEach(function (btn) {
@@ -517,20 +537,40 @@
     });
   }
 
+  function scheduledCadastroShort(r) {
+    if (r && r.employee_vacation_synced) return "Sim";
+    var src = (r && r.source) ? String(r.source).toLowerCase() : "";
+    if (src === "planilha") return "Histórico";
+    return "Não";
+  }
+
   function renderScheduledInMonth(data) {
     var tb = byId("vp-scheduled-body");
     var cap = byId("vp-scheduled-caption");
     var empty = byId("vp-scheduled-empty");
     if (!tb) return;
     var rows = data.scheduled_in_month_detail || [];
+    var stats = data.scheduled_in_month_stats || {};
     var q = qs();
     if (cap) {
       cap.textContent =
-        "Gozos aprovados que interceptam " +
-        formatMonthYearBR(q.year, q.month) +
-        " (" +
-        rows.length +
-        " registro(s)).";
+        "Gozos aprovados em " + formatMonthYearBR(q.year, q.month) + " (sem duplicatas de período).";
+    }
+    var gEl = byId("vp-sched-st-gozos");
+    if (gEl) gEl.textContent = String(stats.gozo_count != null ? stats.gozo_count : rows.length);
+    var pEl = byId("vp-sched-st-people");
+    if (pEl) pEl.textContent = String(stats.unique_employees != null ? stats.unique_employees : "—");
+    var rEl = byId("vp-sched-st-roles");
+    if (rEl) rEl.textContent = String(stats.unique_roles != null ? stats.unique_roles : "—");
+    var aEl = byId("vp-sched-st-avg");
+    if (aEl) aEl.textContent = stats.avg_days != null ? String(stats.avg_days) : "—";
+    var sEl = byId("vp-sched-st-src");
+    if (sEl) {
+      var br = stats.sources_breakdown || {};
+      var parts = Object.keys(br).map(function (k) {
+        return displayVacationSourcePt(k) + ": " + br[k];
+      });
+      sEl.textContent = parts.length ? parts.join(" · ") : "—";
     }
     tb.innerHTML = "";
     if (!rows.length) {
@@ -542,7 +582,8 @@
       var tr = document.createElement("tr");
       tr.className =
         "employees-data-table__row border-b border-slate-100 dark:border-slate-800";
-      var sync = r.employee_vacation_synced ? "Sim" : "Não";
+      var cad = scheduledCadastroShort(r);
+      var eid = r.employee_id != null ? String(r.employee_id) : "";
       tr.innerHTML =
         "<td class=\"employees-data-table__cell px-3 py-2\">" +
         escapeHtml(r.name || "") +
@@ -563,34 +604,80 @@
         escapeHtml(displayVacationSourcePt(r.source)) +
         "</td>" +
         "<td class=\"employees-data-table__cell px-2 py-2 text-xs\">" +
-        escapeHtml(sync) +
-        "</td>";
+        escapeHtml(cad) +
+        "</td>" +
+        "<td class=\"employees-data-table__cell px-2 py-2 text-right whitespace-nowrap\">" +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary px-2 py-1 text-[10px] opacity-50\" disabled title=\"Em breve\">Editar</button> " +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary px-2 py-1 text-[10px] opacity-50\" disabled title=\"Em breve\">Cancelar</button> " +
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary px-2 py-1 text-[10px] vp-sched-det\" data-eid=\"" +
+        escapeHtml(eid) +
+        "\">Detalhes</button></td>";
       tb.appendChild(tr);
+    });
+    tb.querySelectorAll(".vp-sched-det").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = parseInt(btn.getAttribute("data-eid"), 10);
+        var found = (cachedRows || []).find(function (row) {
+          return row.employee_id === id;
+        });
+        if (found) openDetailModal(found);
+      });
     });
   }
 
   function renderDataQualityBlock(data) {
-    var ul = byId("vp-data-quality-list");
+    var dq = data.data_quality || {};
     var ok = byId("vp-data-quality-ok");
+    var groupsEl = byId("vp-data-quality-groups");
+    var ul = byId("vp-data-quality-list");
     var wrap = byId("vp-data-quality");
-    if (!ul || !wrap) return;
-    var alerts = (data.data_quality && data.data_quality.alerts) || [];
-    ul.innerHTML = "";
-    if (!alerts.length) {
-      ul.classList.add("hidden");
-      if (ok) ok.classList.remove("hidden");
-      return;
+    if (!wrap) return;
+    var hasIssues = !!dq.has_issues;
+    var groups = dq.groups || {};
+    if (groupsEl) {
+      groupsEl.innerHTML = "";
+      var any = false;
+      Object.keys(groups).forEach(function (key) {
+        var g = groups[key];
+        var c = parseInt(g.count, 10) || 0;
+        if (c <= 0) return;
+        any = true;
+        var card = document.createElement("div");
+        card.className =
+          "rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/40";
+        card.innerHTML =
+          "<p class=\"text-[11px] font-semibold uppercase tracking-wide text-slate-500\">" +
+          escapeHtml(g.label || key) +
+          "</p>" +
+          "<p class=\"mt-1 text-lg font-semibold tabular-nums text-slate-900 dark:text-slate-50\">" +
+          c +
+          "</p>";
+        groupsEl.appendChild(card);
+      });
+      groupsEl.classList.toggle("hidden", !any);
     }
-    if (ok) ok.classList.add("hidden");
-    ul.classList.remove("hidden");
-    alerts.forEach(function (t) {
-      var li = document.createElement("li");
-      li.textContent = t;
-      ul.appendChild(li);
-    });
+    if (ul) {
+      ul.innerHTML = "";
+      var flat = dq.alerts || [];
+      if (flat.length && groupsEl && groupsEl.classList.contains("hidden")) {
+        flat.forEach(function (t) {
+          var li = document.createElement("li");
+          li.textContent = t;
+          ul.appendChild(li);
+        });
+        ul.classList.remove("hidden");
+      } else {
+        ul.classList.add("hidden");
+      }
+    }
+    if (ok) {
+      ok.classList.toggle("hidden", hasIssues);
+      if (!hasIssues) ok.textContent = "Sem pendências críticas encontradas.";
+    }
   }
 
   function rowNeedsAttention(row) {
+    if (row.vacation_status === "scheduled_coverage") return false;
     if (row.vacation_status === "expired") return true;
     var d = row.days_until_deadline;
     if (d != null && d <= 90) return true;
@@ -609,7 +696,11 @@
 
     if (filter === "all") return true;
     if (filter === "critical")
-      return !!row.operational_queue && rowNeedsAttention(row);
+      return (
+        !!row.operational_queue &&
+        rowNeedsAttention(row) &&
+        !immediateActionIdSet.has(row.employee_id)
+      );
     if (filter === "expired")
       return row.vacation_status === "expired" && row.deadline_bucket === "ok";
     if (filter === "d30")
@@ -678,12 +769,13 @@
       var n = cachedRows ? cachedRows.length : 0;
       var f = filterRows(cachedRows || [], activeFilter, queueSearchDebounced);
       qel.textContent =
-        "Fila: " + f.length + (n ? " de " + n + " carregados" : "");
+        "Fila (auditoria): " + f.length + (n ? " de " + n + " carregados" : "");
     }
   }
 
   function prazoLabelHuman(row) {
     var b = row.deadline_bucket;
+    if (row.vacation_status === "scheduled_coverage") return "Gozo aprovado no concessivo";
     if (b === "incomplete") return "Cadastro incompleto";
     if (b === "invalid_data") return "Datas inconsistentes";
     var d = row.days_until_deadline;
@@ -699,6 +791,7 @@
     var st = row.vacation_status || "";
     if (st === "invalid") return "Datas inconsistentes — revisar cadastro";
     if (st === "incomplete") return "Cadastro incompleto";
+    if (st === "scheduled_coverage") return "Gozo no concessivo";
     if (st === "expired") return "Férias vencidas";
     if (st === "urgent_30") return "Vence em até 30 dias";
     if (st === "urgent_60") return "Vence em até 60 dias";
@@ -713,6 +806,8 @@
 
   function statusBadgeClass(row) {
     var st = row.vacation_status || "";
+    if (st === "scheduled_coverage")
+      return "vp-status-badge vp-status-badge--ok vp-status-badge--compact";
     if (st === "invalid") return "vp-status-badge vp-status-badge--amber vp-status-badge--compact";
     if (st === "incomplete") return "vp-status-badge vp-status-badge--neutral vp-status-badge--compact";
     if (st === "expired") return "vp-status-badge vp-status-badge--danger vp-status-badge--compact";
@@ -727,6 +822,7 @@
     var st = row.vacation_status || "";
     if (st === "invalid") return "Revisar datas";
     if (st === "incomplete") return "Incompleto";
+    if (st === "scheduled_coverage") return "No concessivo";
     if (st === "expired") return "Vencida";
     if (st === "urgent_30") return "≤30 d";
     if (st === "urgent_60") return "≤60 d";
@@ -778,6 +874,7 @@
 
   function decisionRowToneClass(row) {
     var st = row.vacation_status || "";
+    if (st === "scheduled_coverage") return "vp-decision-row--scheduled";
     if (st === "invalid" || st === "incomplete") return "vp-decision-row--ok";
     if (
       row.vacation_status === "expired" ||
@@ -1286,11 +1383,16 @@
 
         renderMonthStrip(data);
         renderYearGrid(data);
+        immediateActionIdSet = new Set(
+          (data.immediate_actions || []).map(function (x) {
+            return x.employee_id;
+          }),
+        );
+        cachedRows = data.rows || [];
         renderImmediateBlocks(data);
         renderScheduledInMonth(data);
         renderDataQualityBlock(data);
 
-        cachedRows = data.rows || [];
         queueSearchDebounced = queueSearchRaw.trim();
         renderQueueTable(cachedRows);
 
