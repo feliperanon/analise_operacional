@@ -2128,3 +2128,18 @@
     grid-column: 1;
   }
 }
+
+@keyframes vp-month-focus-ring {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+
+  35% {
+    box-shadow: 0 0 0 3px rgba(99 102 241 0.45);
+  }
+}
+
+#vp-scheduled-section.vp-month-focus-flash {
+  animation: vp-month-focus-ring 1.15s ease-out 1;
+}

@@ -33,6 +33,19 @@
       .replace(/"/g, "&quot;");
   }
 
+  /** Busca insensível a acentos (ex.: "flavia" encontra "Flávia"). */
+  function accentFold(s) {
+    if (s == null || s === "") return "";
+    try {
+      return String(s)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    } catch (e) {
+      return String(s).toLowerCase();
+    }
+  }
+
   function historyCadastroLabel(h) {
     if (h && h.cadastro_sync_label) {
       var s = String(h.cadastro_sync_label);
@@ -644,7 +657,11 @@
         "</span>";
       btn.addEventListener("click", function () {
         byId("vp-month").value = String(m);
-        loadOverview();
+        loadOverview()
+          .then(function () {
+            focusAfterMonthChange();
+          })
+          .catch(function () {});
       });
       grid.appendChild(btn);
     });
@@ -832,8 +849,14 @@
     if (yearSchedSearchTimer) clearTimeout(yearSchedSearchTimer);
     yearSchedSearchTimer = setTimeout(function () {
       yearSchedSearchTimer = null;
-      yearSchedSearchDebounced = yearSchedSearchRaw.trim().toLowerCase();
+      yearSchedSearchDebounced = accentFold(yearSchedSearchRaw.trim());
       renderYearScheduledVacations();
+      var ry = byId("vp-roster-year");
+      if (ry && yearSchedSearchDebounced.length >= 2) {
+        try {
+          ry.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        } catch (e) {}
+      }
     }, SEARCH_DEBOUNCE_MS);
   }
 
@@ -846,8 +869,8 @@
     var rows = cachedYearScheduled || [];
     var filtered = rows.filter(function (r) {
       if (!q) return true;
-      var nm = String(r.name || "").toLowerCase();
-      var rl = String(r.role || "").toLowerCase();
+      var nm = accentFold(r.name || "");
+      var rl = accentFold(r.role || "");
       return nm.indexOf(q) >= 0 || rl.indexOf(q) >= 0;
     });
     if (cnt) {
@@ -1068,18 +1091,20 @@
   }
 
   function rowMatchesSearch(row, q) {
-    if (!q) return true;
-    var t = q.toLowerCase();
+    var sq = (q || "").trim();
+    if (!sq) return true;
+    var tq = accentFold(sq);
     return (
-      (row.name && row.name.toLowerCase().indexOf(t) >= 0) ||
-      (row.role && row.role.toLowerCase().indexOf(t) >= 0)
+      accentFold(row.name || "").indexOf(tq) >= 0 ||
+      accentFold(row.role || "").indexOf(tq) >= 0
     );
   }
 
   function filterRows(rows, filter, search) {
     var sq = (search || "").trim();
+    var effectiveFilter = sq.length >= 2 && filter === "critical" ? "all" : filter;
     return rows.filter(function (r) {
-      return rowMatchesFilter(r, filter) && rowMatchesSearch(r, sq);
+      return rowMatchesFilter(r, effectiveFilter) && rowMatchesSearch(r, search);
     });
   }
 
@@ -1089,6 +1114,10 @@
       queueSearchTimer = null;
       queueSearchDebounced = queueSearchRaw.trim();
       showAllRows = false;
+      var fq = byId("vp-full-queue");
+      if (fq && queueSearchDebounced.length >= 2) {
+        fq.open = true;
+      }
       renderQueueTable(cachedRows);
     }, SEARCH_DEBOUNCE_MS);
   }
@@ -1710,6 +1739,25 @@
     } else {
       err.classList.add("hidden");
       err.textContent = "";
+    }
+  }
+
+  function focusAfterMonthChange() {
+    var sec = byId("vp-scheduled-section");
+    if (!sec) return;
+    try {
+      sec.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (e) {}
+    sec.classList.add("vp-month-focus-flash");
+    setTimeout(function () {
+      sec.classList.remove("vp-month-focus-flash");
+    }, 1600);
+    var cap = byId("vp-scheduled-caption");
+    if (cap) {
+      cap.setAttribute("tabindex", "-1");
+      try {
+        cap.focus({ preventScroll: true });
+      } catch (e2) {}
     }
   }
 
@@ -2740,7 +2788,11 @@
   switchSecondaryTab("import");
 
   byId("vp-month").addEventListener("change", function () {
-    loadOverview();
+    loadOverview()
+      .then(function () {
+        focusAfterMonthChange();
+      })
+      .catch(function () {});
   });
 
   var importForm = byId("vp-import-form");

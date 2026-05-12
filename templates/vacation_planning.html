@@ -328,7 +328,10 @@
 
   <section class="vp-year-map sys-card sys-card--surface sys-card--comfort p-4 sm:p-5" aria-labelledby="vp-year-map-heading">
     <h2 id="vp-year-map-heading" class="vp-section-title text-base font-semibold">Mapa anual</h2>
-    <p class="vp-year-map__sub mb-3 text-xs text-slate-500">Clique no mês para atualizar o painel.</p>
+    <p class="vp-year-map__sub mb-3 text-xs text-slate-500 dark:text-slate-400">
+      O mês em foco atualiza KPIs, «Programadas no mês», conflitos e a fila. Ao escolher um mês, a página rola até «Programadas no mês».
+      Para localizar alguém pelo nome, use «Buscar no ano» (acima) ou abra «Fila completa» e digite na busca — com 2 ou mais letras a lista inclui qualquer colaborador que coincida, não só os do filtro «Todos críticos».
+    </p>
     <div id="vp-year-grid" class="vp-year-grid"></div>
   </section>
 
@@ -451,6 +454,9 @@
             <p class="employees-table-panel__kicker text-[10px]">Auditoria</p>
             <h3 id="vp-queue-heading" class="sys-section-heading employees-table-panel__title mt-0 text-base font-semibold">Fila de colaboradores</h3>
             <p class="employees-table-panel__lede mt-1 max-w-xl text-xs text-slate-500">Lista completa para conferência. As prioridades do dia estão em «Ação imediata».</p>
+            <p class="mt-2 max-w-2xl text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+              Com <strong class="font-medium text-slate-600 dark:text-slate-300">2 ou mais letras</strong> na busca da fila, entram na lista todos os colaboradores cujo nome ou função coincidir (a busca ignora acentos). Para <strong class="font-medium text-slate-600 dark:text-slate-300">lançar ou simular</strong> férias, clique na linha do colaborador e use as ações no painel (conforme sua permissão de líder).
+            </p>
           </div>
           <div class="employees-table-panel__aside text-xs lg:text-right">
             <span id="vp-queue-count" class="employees-text-caption block"></span>
