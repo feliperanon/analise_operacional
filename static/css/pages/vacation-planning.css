@@ -2042,6 +2042,43 @@
   color: rgb(148 163 184);
 }
 
+.vp-conflict-card__details {
+  grid-column: 1 / -1;
+  margin-top: 0.35rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed rgb(226 232 240);
+}
+
+.dark .vp-conflict-card__details {
+  border-top-color: rgb(51 65 85);
+}
+
+.vp-conflict-card__summary {
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgb(2 132 199);
+  list-style-position: outside;
+}
+
+.dark .vp-conflict-card__summary {
+  color: rgb(56 189 248);
+}
+
+.vp-conflict-card__names {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+  max-height: 11rem;
+  overflow-y: auto;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: rgb(71 85 105);
+}
+
+.dark .vp-conflict-card__names {
+  color: rgb(148 163 184);
+}
+
 .vp-sim-intel {
   border-top: 1px solid rgb(226 232 240);
   padding-top: 0.75rem;

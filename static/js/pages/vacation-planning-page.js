@@ -439,6 +439,39 @@
     return "Baixo";
   }
 
+  /** Lista expansível quando o backend envia muitos colaboradores no mesmo card (ex.: substituto). */
+  function conflictEmployeesExpandHtml(c) {
+    var emps = c.employees;
+    if (!emps || !emps.length || emps.length <= 6) {
+      return "";
+    }
+    var lines = emps
+      .map(function (e) {
+        if (!e || typeof e !== "object") return "";
+        var nm = e.name != null ? String(e.name).trim() : "";
+        var idp = e.employee_id != null ? String(e.employee_id) : "";
+        var label = nm || (idp ? "ID " + idp : "—");
+        return "<li>" + escapeHtml(label) + "</li>";
+      })
+      .filter(Boolean)
+      .join("");
+    if (!lines) {
+      return "";
+    }
+    var n = emps.length;
+    return (
+      '<details class="vp-conflict-card__details">' +
+      '<summary class="vp-conflict-card__summary">Ver lista completa (' +
+      n +
+      " colaborador" +
+      (n !== 1 ? "es" : "") +
+      ")</summary>" +
+      '<ul class="vp-conflict-card__names">' +
+      lines +
+      "</ul></details>"
+    );
+  }
+
   function renderConflictCardsInto(container, items) {
     if (!container) return;
     var list = items || [];
@@ -468,6 +501,7 @@
           "<p class=\"vp-conflict-card__rec\"><strong>Ação sugerida:</strong> " +
           escapeHtml(c.recommendation || "—") +
           "</p>" +
+          conflictEmployeesExpandHtml(c) +
           "</article>"
         );
       })
