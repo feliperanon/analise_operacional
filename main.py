@@ -3816,10 +3816,18 @@ def _build_informativo_extras(
     pct_prev = pct_devolucao_sobre_rotas_concluidas(routes_prev)
     pct_curr = pct_devolucao_sobre_rotas_concluidas(routes_curr_m)
     delta_pp = round(float(pct_prev) - float(pct_curr), 1)
+    pct_fin_prev, _ = _pct_devolucao_financeiro_sistema(prev_valor, routes_prev)
+    pct_fin_curr, _ = _pct_devolucao_financeiro_sistema(curr_valor, routes_curr_m)
+    delta_pp_fin: Optional[float] = None
+    if pct_fin_prev is not None and pct_fin_curr is not None:
+        delta_pp_fin = round(float(pct_fin_prev) - float(pct_fin_curr), 2)
 
+    devolucao_hoje_financeiro = False
     dd_board = dashboard_payload.get("devolucao_dia") or {}
     if isinstance(dd_board, dict) and "pct" in dd_board:
-        devolucao_hoje_pct = round(float(dd_board.get("pct") or 0), 1)
+        devolucao_hoje_financeiro = dd_board.get("pct_financeiro") is not None
+        _dec_hoje = 2 if devolucao_hoje_financeiro else 1
+        devolucao_hoje_pct = round(float(dd_board.get("pct") or 0), _dec_hoje)
     else:
         q_today = (
             select(models.Route)
@@ -3874,9 +3882,14 @@ def _build_informativo_extras(
             "curr_valor": round(curr_valor, 2),
             "prev_pct_rotas": pct_prev,
             "curr_pct_rotas": pct_curr,
+            "prev_pct_financeiro": pct_fin_prev,
+            "curr_pct_financeiro": pct_fin_curr,
         },
         "devolucao_hoje_pct": devolucao_hoje_pct,
-        "devolucao_mes_delta_pp": delta_pp,
+        "devolucao_hoje_financeiro": devolucao_hoje_financeiro,
+        "devolucao_mes_delta_pp": delta_pp_fin if delta_pp_fin is not None else delta_pp,
+        "devolucao_mes_delta_pp_rotas": delta_pp,
+        "devolucao_mes_delta_pp_financeiro": delta_pp_fin,
         "tonnage_today": {
             "routes_total": routes_today_total,
             "routes_completed": routes_today_completed,
@@ -4328,12 +4341,18 @@ async def dashboard_entry(
         for driver_name in dev_driver_order
     ]
 
+    tv_total_valor_dev = round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2)
+    pct_fin_dia, base_fin_dia = _pct_devolucao_financeiro_sistema(tv_total_valor_dev, routes)
+    pct_rotas_dia = pct_devolucao_sobre_rotas_concluidas(routes)
     devolucao_dia = {
         "count": n_dev_dia,
         "total_kg": round(sum(float(getattr(r, "devolucao_volume", None) or r.tonnage or 0) for r in routes_devolucao), 2),
-        "total_valor": round(sum(float(getattr(r, "valor_devolucao", None) or 0) for r in routes_devolucao), 2),
+        "total_valor": tv_total_valor_dev,
         "total_entregas": n_done_dia,
-        "pct": pct_devolucao_sobre_rotas_concluidas(routes),
+        "pct_financeiro": pct_fin_dia,
+        "pct_rotas": pct_rotas_dia,
+        "valor_base_rotas": base_fin_dia,
+        "pct": pct_fin_dia if pct_fin_dia is not None else pct_rotas_dia,
         "items_by_driver": items_by_driver,
         "items_list": devolucao_items,
     }
@@ -4363,11 +4382,17 @@ async def dashboard_entry(
     mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(
         session, month_start_str, month_end_str, employee_id_list if employee_id_list else None
     )
+    pct_rotas_mes = pct_devolucao_sobre_rotas_concluidas(routes_month)
+    pct_fin_mes, base_fin_mes = _pct_devolucao_financeiro_sistema(mes_valor_reg, routes_month)
     devolucao_mes = {
         "count": mes_cnt_reg,
         "total_entregas": n_done_mes,
         "total_valor": round(mes_valor_reg, 2),
-        "pct": pct_devolucao_sobre_rotas_concluidas(routes_month),
+        "pct_financeiro": pct_fin_mes,
+        "pct_rotas": pct_rotas_mes,
+        "valor_base_rotas": base_fin_mes,
+        "meta_pp": 2.0,
+        "pct": pct_fin_mes if pct_fin_mes is not None else pct_rotas_mes,
     }
 
     clientes_alto_indice = []
@@ -4727,12 +4752,18 @@ async def api_dashboard_tv_data(
             dev_clients_by_driver_api[driver_name].append(c_name)
         items_by_driver_api = [{"driver_name": d, "clients": dev_clients_by_driver_api[d]} for d in dev_driver_order_api]
 
+        tv_total_valor_dev = round(sum(_sf(getattr(r, "valor_devolucao", None)) for r in routes_devolucao), 2)
+        pct_fin_dia_tv, base_fin_dia_tv = _pct_devolucao_financeiro_sistema(tv_total_valor_dev, routes)
+        pct_rotas_dia_tv = pct_devolucao_sobre_rotas_concluidas(routes)
         devolucao_dia = {
             "count": n_dev_dia_tv,
             "total_kg": round(sum(_sf(getattr(r, "devolucao_volume", None) or getattr(r, "tonnage", 0)) for r in routes_devolucao), 2),
-            "total_valor": round(sum(_sf(getattr(r, "valor_devolucao", None)) for r in routes_devolucao), 2),
+            "total_valor": tv_total_valor_dev,
             "total_entregas": n_done_dia_tv,
-            "pct": pct_devolucao_sobre_rotas_concluidas(routes),
+            "pct_financeiro": pct_fin_dia_tv,
+            "pct_rotas": pct_rotas_dia_tv,
+            "valor_base_rotas": base_fin_dia_tv,
+            "pct": pct_fin_dia_tv if pct_fin_dia_tv is not None else pct_rotas_dia_tv,
             "items_by_driver": items_by_driver_api,
             "items_list": devolucao_items,
         }
@@ -4758,11 +4789,17 @@ async def api_dashboard_tv_data(
                 routes_month.append(r)
         _, n_done_mes_tv = counts_devolucao_rotas_concluidas(routes_month)
         mes_valor_reg, mes_cnt_reg = _kpi_devolucao_mes_registros(session, month_start_str, month_end_str, employee_ids if employee_ids else None)
+        pct_rotas_mes_tv = pct_devolucao_sobre_rotas_concluidas(routes_month)
+        pct_fin_mes_tv, base_fin_mes_tv = _pct_devolucao_financeiro_sistema(mes_valor_reg, routes_month)
         devolucao_mes = {
             "count": mes_cnt_reg,
             "total_entregas": n_done_mes_tv,
             "total_valor": round(mes_valor_reg, 2),
-            "pct": pct_devolucao_sobre_rotas_concluidas(routes_month),
+            "pct_financeiro": pct_fin_mes_tv,
+            "pct_rotas": pct_rotas_mes_tv,
+            "valor_base_rotas": base_fin_mes_tv,
+            "meta_pp": 2.0,
+            "pct": pct_fin_mes_tv if pct_fin_mes_tv is not None else pct_rotas_mes_tv,
         }
 
         alerts_over_20min = []

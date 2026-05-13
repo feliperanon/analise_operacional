@@ -5310,24 +5310,33 @@ def _build_bi_devolucoes_dataset(
     desvio_pp: Optional[float] = (
         round(float(pct_devolucao_financeiro) - meta_pp, 2) if pct_devolucao_financeiro is not None else None
     )
-    # Mesmo eixo da TV / informativo: meta de 2% aplicada ao % sobre rotas concluídas
+    # Meta de 2%: compara % valor (financeiro) quando há base de rotas; senão % paradas concluídas.
     desvio_rotas_pp: float = round(float(pct_devolucao_rotas or 0.0) - float(meta_pp), 1)
-    situacao_meta = "desconhecido"
-    pr = float(pct_devolucao_rotas or 0.0)
     n_ret_r, n_done_r = counts_devolucao_rotas_concluidas(routes_delivery_period)
-    if n_done_r > 0:
-        situacao_meta = "dentro" if pr <= meta_pp else "acima"
-    else:
-        situacao_meta = "desconhecido"
+    situacao_meta = "desconhecido"
+    if pct_devolucao_financeiro is not None and valor_base_rotas > 0:
+        pr_fin = float(pct_devolucao_financeiro)
+        situacao_meta = "dentro" if pr_fin <= meta_pp else "acima"
+    elif n_done_r > 0:
+        pr_rot = float(pct_devolucao_rotas or 0.0)
+        situacao_meta = "dentro" if pr_rot <= meta_pp else "acima"
     faixa_alerta_meta = "neutral"
-    if n_done_r <= 0:
-        faixa_alerta_meta = "neutral"
-    elif pr <= meta_pp:
-        faixa_alerta_meta = "ok"
-    elif pr <= 2.5:
-        faixa_alerta_meta = "warn"
-    else:
-        faixa_alerta_meta = "danger"
+    if pct_devolucao_financeiro is not None and valor_base_rotas > 0:
+        prf = float(pct_devolucao_financeiro)
+        if prf <= meta_pp:
+            faixa_alerta_meta = "ok"
+        elif prf <= 2.5:
+            faixa_alerta_meta = "warn"
+        else:
+            faixa_alerta_meta = "danger"
+    elif n_done_r > 0:
+        pr_rot = float(pct_devolucao_rotas or 0.0)
+        if pr_rot <= meta_pp:
+            faixa_alerta_meta = "ok"
+        elif pr_rot <= 2.5:
+            faixa_alerta_meta = "warn"
+        else:
+            faixa_alerta_meta = "danger"
 
     # Projeção % rotas ao fim do mês (sazonalidade por dia da semana no histórico pré-mês)
     projecao_mes_fim: Optional[dict] = None

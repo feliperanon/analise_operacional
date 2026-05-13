@@ -17,12 +17,13 @@
         {% endif %}
       </p>
       <p class="mt-1.5 text-xs leading-snug text-slate-600 dark:text-slate-400">
-        <strong class="text-slate-800 dark:text-slate-100">Indicador operacional:</strong> {{ pct_devolucao_rotas|fmt_br_1 }}% das rotas concluídas tiveram devolução (referência {{ meta_pp|fmt_br_2 }}%).
         {% if valor_base_disponivel and pct_devolucao_financeiro is not none %}
-        <span class="block mt-1"><strong class="text-slate-800 dark:text-slate-100">Indicador financeiro:</strong> {{ pct_devolucao_financeiro|fmt_br_2 }}% sobre faturamento das rotas ({{ valor_base_rotas|fmt_br_moeda }}).</span>
+        <strong class="text-slate-800 dark:text-slate-100">Indicador principal (meta financeira ≤ {{ meta_pp|fmt_br_2 }}%):</strong>
+        {{ pct_devolucao_financeiro|fmt_br_2 }}% do valor devolvido sobre o faturamento das rotas no período (base {{ valor_base_rotas|fmt_br_moeda }}).
         {% else %}
-        <span class="block mt-1 text-slate-500 dark:text-slate-500">Indicador financeiro: base financeira pendente — % sobre valor não calculado.</span>
+        <span class="block text-slate-500 dark:text-slate-500">Indicador principal (valor): base financeira pendente — % sobre faturamento das rotas não calculado.</span>
         {% endif %}
+        <span class="block mt-1"><strong class="text-slate-800 dark:text-slate-100">Complementar (paradas):</strong> {{ pct_devolucao_rotas|fmt_br_1 }}% das paradas concluídas com status de devolução ({{ rotas_kpi_devolucao|fmt_br_int }} / {{ rotas_kpi_concluidas|fmt_br_int }}).</span>
         {% if projecao_mes_fim %}
           {% if projecao_mes_fim.ativa %}
           <span class="block mt-1.5 text-xs leading-snug text-slate-600 dark:text-slate-400">
@@ -44,27 +45,29 @@
     </div>
     <div class="bi-dev-executive-strip__right grid flex-none grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4 lg:min-w-[22rem] lg:content-center">
       <div class="bi-dev-executive-strip__cell">
-        <span class="bi-dev-executive-strip__label">Meta</span>
+        <span class="bi-dev-executive-strip__label">Meta financeira</span>
         <span class="bi-dev-executive-strip__num">{{ meta_pp|fmt_br_2 }}%</span>
       </div>
       <div class="bi-dev-executive-strip__cell">
-        <span class="bi-dev-executive-strip__label">Realizado (rotas)</span>
-        <span class="bi-dev-executive-strip__num">{{ pct_devolucao_rotas|fmt_br_1 }}%</span>
+        <span class="bi-dev-executive-strip__label">Realizado (valor)</span>
+        <span class="bi-dev-executive-strip__num">
+          {% if pct_devolucao_financeiro is not none %}{{ pct_devolucao_financeiro|fmt_br_2 }}%{% else %}—{% endif %}
+        </span>
       </div>
       <div class="bi-dev-executive-strip__cell">
-        <span class="bi-dev-executive-strip__label">Desvio (rotas)</span>
+        <span class="bi-dev-executive-strip__label">Desvio (valor)</span>
         <span class="bi-dev-executive-strip__num">
-          {% if rotas_kpi_concluidas > 0 %}
-            {% if desvio_rotas_pp > 0 %}+{% endif %}{{ desvio_rotas_pp|fmt_br_1 }} p.p.
+          {% if desvio_pp is not none %}
+            {% if desvio_pp > 0 %}+{% endif %}{{ desvio_pp|fmt_br_2 }} p.p.
           {% else %}
             —
           {% endif %}
         </span>
       </div>
       <div class="bi-dev-executive-strip__cell col-span-2 sm:col-span-1">
-        <span class="bi-dev-executive-strip__label">% valor (financeiro)</span>
+        <span class="bi-dev-executive-strip__label">Paradas (% devolução)</span>
         <span class="bi-dev-executive-strip__num bi-dev-executive-strip__num--secondary">
-          {% if pct_devolucao_financeiro is not none %}{{ pct_devolucao_financeiro|fmt_br_2 }}%{% else %}Base financeira pendente{% endif %}
+          {% if rotas_kpi_concluidas > 0 %}{{ pct_devolucao_rotas|fmt_br_1 }}%{% else %}—{% endif %}
         </span>
       </div>
       <div class="bi-dev-executive-strip__cell col-span-2 border-t border-slate-200/80 pt-2 dark:border-slate-700/80 sm:col-span-4 sm:border-t-0 sm:pt-0 lg:col-span-4 lg:border-t lg:pt-2">

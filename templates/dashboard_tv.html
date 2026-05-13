@@ -62,11 +62,15 @@
     {% set _n_paradas = dashboard.kpi.rotas_paradas|default(0) if dashboard.kpi else 0 %}
     {% set _n_ativas_real = dashboard.kpi.rotas_ativas|default(0) if dashboard.kpi else 0 %}
     {% set _n_rotas_concl = dashboard.kpi.rotas_concluidas|default(0) if dashboard.kpi else 0 %}
+    {% set _dm_pf = _dev_mes.get('pct_financeiro') %}
+    {% set _dm_fin = _dm_pf is not none %}
     {% set _dm_pct = _dev_mes.pct|default(0)|float %}
-    {% set _dm_pct_br = ('%.1f'|format(_dm_pct))|replace('.', ',') %}
+    {% set _dm_pct_br = (_dm_pct|fmt_br_2) if _dm_fin else ('%.1f'|format(_dm_pct))|replace('.', ',') %}
     {% set _dm_val = "{:,.2f}".format(_dev_mes.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') %}
+    {% set _dd_pf = _dev.get('pct_financeiro') %}
+    {% set _dd_fin = _dd_pf is not none %}
     {% set _dd_pct = _dev.pct|default(0)|float %}
-    {% set _dd_pct_br = ('%.1f'|format(_dd_pct))|replace('.', ',') %}
+    {% set _dd_pct_br = (_dd_pct|fmt_br_2) if _dd_fin else ('%.1f'|format(_dd_pct))|replace('.', ',') %}
     {% set _dd_val = "{:,.2f}".format(_dev.total_valor|default(0))|replace(',', 'X')|replace('.', ',')|replace('X', '.') %}
     {% set parados_list = dashboard.alerts.clients_over_20min or [] %}
     {% set kpi = dashboard.kpi or {} %}
@@ -86,7 +90,7 @@
                     <div class="sys-kpi-cell-inner employees-kpi__inner">
                         <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                             <div class="min-w-0">
-                                <span id="tv-kpi-devolucao-mes-label" class="sys-kpi-label tv-kpi-dev-mes-label {% if _dm_pct <= 2 %}tv-kpi-dev-mes--ok{% else %}tv-kpi-dev-mes--high{% endif %}" title="Mesmo critério do BI: % sobre rotas concluídas">Devolução mês (% rotas)</span>
+                                <span id="tv-kpi-devolucao-mes-label" class="sys-kpi-label tv-kpi-dev-mes-label {% if _dm_pct <= 2 %}tv-kpi-dev-mes--ok{% else %}tv-kpi-dev-mes--high{% endif %}" title="{% if _dm_fin %}Valor devolvido ÷ valor base das rotas (BI). Meta financeira ≤ 2%.{% else %}Rotas com devolução ÷ rotas concluídas.{% endif %}">Devolução mês ({% if _dm_fin %}% valor · meta 2%{% else %}% rotas{% endif %})</span>
                                 <div id="tv-kpi-devolucao-mes-combo" class="employees-kpi__value tv-kpi-dev-mes-combo mt-1 tabular-nums {% if _dm_pct <= 2 %}tv-kpi-dev-mes--ok{% else %}tv-kpi-dev-mes--high{% endif %}">{{ _dm_pct_br }}% · R$ {{ _dm_val }}</div>
                             </div>
                         </div>
@@ -183,7 +187,7 @@
                     <div class="sys-kpi-cell-inner employees-kpi__inner">
                         <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                             <div class="min-w-0">
-                                <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Devolução hoje</span>
+                                <span class="sys-kpi-label text-amber-600 dark:text-amber-300" title="{% if _dd_fin %}% valor sobre base das rotas; meta ≤ 2%{% else %}% rotas com devolução no dia{% endif %}">Devolução hoje ({% if _dd_fin %}% valor{% else %}% rotas{% endif %})</span>
                                 <div id="tv-kpi-devolucao-ctx" class="tv-kpi-devolucao-ctx employees-kpi__value mt-1 tabular-nums {% if _dev_n > 0 %}text-amber-700 dark:text-amber-200{% else %}text-slate-500 dark:text-slate-400{% endif %}">{{ _dd_pct_br }}% · R$ {{ _dd_val }}</div>
                             </div>
                         </div>
@@ -529,6 +533,14 @@
         if (!isFinite(n)) n = 0;
         return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     }
+    /** % exibido no KPI de devolução: 2 decimais quando há base financeira (BI), senão % rotas com 1 decimal. */
+    function formatDevKpiPct(obj) {
+        var fin = obj && obj.pct_financeiro != null && obj.pct_financeiro !== undefined;
+        var n = Number(obj && obj.pct != null ? obj.pct : 0);
+        if (!isFinite(n)) n = 0;
+        if (fin) return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    }
     function updateTvOpenElapsed() {
         document.querySelectorAll('.tv-open-elapsed[data-start]').forEach(function(el) {
             var s = el.getAttribute('data-start');
@@ -730,24 +742,26 @@
             if (devCtx) {
                 var devCtxBase = 'tv-kpi-devolucao-ctx employees-kpi__value mt-1 tabular-nums ';
                 if (devCount) {
-                    devCtx.textContent = formatPctBr(dev.pct) + '% · ' + formatMoneyBr(dev.total_valor || 0);
+                    devCtx.textContent = formatDevKpiPct(dev) + '% · ' + formatMoneyBr(dev.total_valor || 0);
                     devCtx.className = devCtxBase + 'text-amber-700 dark:text-amber-200';
                 } else {
-                    devCtx.textContent = formatPctBr(dev.pct != null ? dev.pct : 0) + '% · ' + formatMoneyBr(0);
+                    devCtx.textContent = formatDevKpiPct(dev) + '% · ' + formatMoneyBr(0);
                     devCtx.className = devCtxBase + 'text-slate-500 dark:text-slate-400';
                 }
             }
             var dmPct = devMes.pct != null ? Number(devMes.pct) : 0;
             var dmVal = Number(devMes.total_valor || 0);
+            var dmFin = devMes.pct_financeiro != null && devMes.pct_financeiro !== undefined;
             var dmCombo = document.getElementById('tv-kpi-devolucao-mes-combo');
             var dmLbl = document.getElementById('tv-kpi-devolucao-mes-label');
             var dmCard = document.getElementById('tv-kpi-devolucao-mes-card');
             var dmOk = dmPct <= 2;
             if (dmCombo) {
-                dmCombo.textContent = formatPctBr(dmPct) + '% · ' + formatMoneyBr(dmVal);
+                dmCombo.textContent = formatDevKpiPct(devMes) + '% · ' + formatMoneyBr(dmVal);
                 dmCombo.className = 'employees-kpi__value tv-kpi-dev-mes-combo mt-1 tabular-nums ' + (dmOk ? 'tv-kpi-dev-mes--ok' : 'tv-kpi-dev-mes--high');
             }
             if (dmLbl) {
+                dmLbl.textContent = dmFin ? 'Devolução mês (% valor · meta 2%)' : 'Devolução mês (% rotas)';
                 dmLbl.className = 'sys-kpi-label tv-kpi-dev-mes-label ' + (dmOk ? 'tv-kpi-dev-mes--ok' : 'tv-kpi-dev-mes--high');
             }
             if (dmCard) {
