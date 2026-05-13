@@ -1527,7 +1527,10 @@ def fmt_br_2(val):
     if val is None:
         return "0,00"
     try:
-        return f"{float(val):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        num = float(val)
+        if not math.isfinite(num):
+            return "—"
+        return f"{num:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except Exception:
         return str(val)
 
@@ -3818,6 +3821,10 @@ def _build_informativo_extras(
     delta_pp = round(float(pct_prev) - float(pct_curr), 1)
     pct_fin_prev, _ = _pct_devolucao_financeiro_sistema(prev_valor, routes_prev)
     pct_fin_curr, _ = _pct_devolucao_financeiro_sistema(curr_valor, routes_curr_m)
+    if pct_fin_prev is not None and not math.isfinite(float(pct_fin_prev)):
+        pct_fin_prev = None
+    if pct_fin_curr is not None and not math.isfinite(float(pct_fin_curr)):
+        pct_fin_curr = None
     delta_pp_fin: Optional[float] = None
     if pct_fin_prev is not None and pct_fin_curr is not None:
         delta_pp_fin = round(float(pct_fin_prev) - float(pct_fin_curr), 2)

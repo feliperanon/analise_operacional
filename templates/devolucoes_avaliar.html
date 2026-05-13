@@ -192,8 +192,8 @@
             <tr class="employee-row employees-data-table__row">
               <td class="employee-cell-primary px-2 py-2 pl-3 align-middle" data-label="Cliente">
                 <div class="employee-primary-content min-w-0">
-                  <span class="employee-name block truncate font-medium employees-text-strong" x-text="item.client_name || '-'"></span>
-                  <span class="employees-text-caption block truncate text-xs" x-text="'Cod ' + (item.client_code || '-') + ' · Pedido ' + (item.order_number || '-')"></span>
+                  <a :href="'/clients/' + item.client_id" class="employee-name employees-data-table__name-link block truncate font-medium transition-colors hover:underline employees-text-strong" x-text="item.client_name || '-'"></a>
+                  <span class="employees-text-caption block truncate text-xs" x-text="'NB ' + (item.client_nb_fmt || item.client_code || '—') + ' · Pedido ' + (item.order_number || '-')"></span>
                 </div>
               </td>
               <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2 align-middle whitespace-nowrap" data-label="Data" x-text="item.data_romaneio_pt || item.data_romaneio || '-'"></td>
@@ -201,7 +201,7 @@
               <td class="employees-data-table__cell px-2 py-2 align-middle employees-text-body" data-label="Motivo">
                 <span class="employees-data-table__role-ellipsis block max-w-[14rem]" :title="(item.motivo_nome || '-') + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')" x-text="(item.motivo_nome || '-') + (item.responsabilidade_nome ? ' · ' + item.responsabilidade_nome : '')"></span>
               </td>
-              <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap font-semibold text-sky-600 dark:text-sky-300" data-label="Valor" x-text="'R$ ' + formatValor(item.value || item.valor)"></td>
+              <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap font-semibold text-sky-600 dark:text-sky-300 tabular-nums" data-label="Valor" x-text="'R$ ' + formatValor(item.value || item.valor)"></td>
               <td class="employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap" data-label="Resp.">
                 <div class="inline-flex items-center gap-2">
                   <label class="inline-flex items-center gap-1 text-xs"><input type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500" :checked="!!item.responsavel_motorista" @change="setResponsavel(item.id, $event.target.checked, item.responsavel_ajudante)">M</label>
@@ -258,9 +258,9 @@
               <template x-for="r in resumo" :key="'m-' + r.motorista_id">
                 <tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="openResumoMotorista(r)">
                   <td class="px-3 py-2 font-medium" x-text="shortDisplayName(r.motorista_name)"></td>
-                  <td class="px-3 py-2 text-right" x-text="r.devolucoes_total"></td>
-                  <td class="px-3 py-2 text-right" x-text="r.pct_original + '%'"></td>
-                  <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300" x-text="r.pct_ajustado + '%'"></td>
+                  <td class="px-3 py-2 text-right tabular-nums" x-text="Number(r.devolucoes_total).toLocaleString('pt-BR')"></td>
+                  <td class="px-3 py-2 text-right tabular-nums" x-text="Number(r.pct_original).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + '%'"></td>
+                  <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300 tabular-nums" x-text="Number(r.pct_ajustado).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + '%'"></td>
                   <td class="px-3 py-2 text-right tabular-nums" x-text="'R$ ' + formatValor(r.valor_original)"></td>
                   <td class="px-3 py-2 text-right tabular-nums font-semibold text-emerald-600 dark:text-emerald-300" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
                 </tr>
@@ -283,9 +283,9 @@
               <template x-for="r in resumoAjudantes" :key="'a-' + r.ajudante_id">
                 <tr class="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="openResumoAjudante(r)">
                   <td class="px-3 py-2 font-medium" x-text="shortDisplayName(r.ajudante_name)"></td>
-                  <td class="px-3 py-2 text-right" x-text="r.devolucoes_total"></td>
-                  <td class="px-3 py-2 text-right" x-text="(r.pct_original || 0) + '%'"></td>
-                  <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300" x-text="(r.pct_ajustado || 0) + '%'"></td>
+                  <td class="px-3 py-2 text-right tabular-nums" x-text="Number(r.devolucoes_total).toLocaleString('pt-BR')"></td>
+                  <td class="px-3 py-2 text-right tabular-nums" x-text="Number(r.pct_original || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + '%'"></td>
+                  <td class="px-3 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-300 tabular-nums" x-text="Number(r.pct_ajustado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 }) + '%'"></td>
                   <td class="px-3 py-2 text-right tabular-nums" x-text="'R$ ' + formatValor(r.valor_original)"></td>
                   <td class="px-3 py-2 text-right tabular-nums font-semibold text-emerald-600 dark:text-emerald-300" x-text="'R$ ' + formatValor(r.valor_ajustado)"></td>
                 </tr>
@@ -351,7 +351,7 @@
         <template x-if="!resumoDetailLoading && !resumoDetailList.length"><p class="text-sm text-slate-500">Nenhuma devolução encontrada para o colaborador.</p></template>
         <template x-for="item in resumoDetailList" :key="'d-' + item.id">
           <button type="button" class="w-full text-left rounded-lg border border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800/40" @click="fecharResumoMotorista(); openEdit(item)">
-            <p class="text-sm font-medium" x-text="item.client_name"></p>
+            <p class="text-sm font-medium"><a :href="'/clients/' + item.client_id" class="hover:underline text-slate-900 dark:text-slate-100" x-text="item.client_name" @click.stop></a></p>
             <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5" x-text="'Equipe: ' + equipeLabel(item)"></p>
             <p class="text-xs text-slate-500 mt-0.5" x-text="(item.data_romaneio_pt || item.data_romaneio || '-') + ' · ' + (item.motivo_nome || '-') + ' · R$ ' + formatValor(item.value || item.valor)"></p>
           </button>

@@ -144,6 +144,37 @@ def _fmt_br_data(s):
     return str(s)
 
 
+def _fmt_nb_br(nb: Any) -> str:
+    """NB numérico com milhar (BR); texto alfanumérico sem alterar."""
+    if nb is None:
+        return "—"
+    raw = str(nb).strip()
+    if not raw:
+        return "—"
+    digits = raw.replace(".", "").replace(",", "")
+    if digits.isdigit() and len(digits) <= 12:
+        try:
+            return _fmt_br_int(int(digits))
+        except Exception:
+            return raw
+    return raw
+
+
+def _fmt_br_datetime_local(dt: Optional[datetime]) -> str:
+    """Data/hora em pt-BR (fuso America/Sao_Paulo)."""
+    if not dt:
+        return "—"
+    try:
+        z = ZoneInfo("America/Sao_Paulo")
+        if getattr(dt, "tzinfo", None) is None:
+            dtl = dt.replace(tzinfo=z)
+        else:
+            dtl = dt.astimezone(z)
+        return dtl.strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return "—"
+
+
 def _fmt_br_moeda(val):
     """R$ 1.234,56"""
     if val is None:
@@ -5169,12 +5200,15 @@ def _build_bi_devolucoes_dataset(
     # Ajudantes das rotas vinculadas (para devoluções sem ajudante_id preenchido)
     route_ids = sorted({d.route_id for d in devs if getattr(d, "route_id", None)})
     route_helpers: dict = {}  # route_id -> [emp_id, ...]
+    route_by_id: dict[int, models.Route] = {}
     if route_ids:
         try:
             routes_linked = session.exec(
                 select(models.Route).where(models.Route.id.in_(route_ids))
             ).all()
             for r in routes_linked:
+                if getattr(r, "id", None) is not None:
+                    route_by_id[int(r.id)] = r
                 raw = getattr(r, "delivery_helpers_json", None)
                 ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
                 if ids:
@@ -5634,11 +5668,26 @@ def _build_bi_devolucoes_dataset(
             ]
             obs_txt = " — ".join([p for p in obs_parts if p]) or "—"
             pct_imp = round(100.0 * val / total_valor_kpi, 2) if total_valor_kpi > 0 else 0.0
+            nb_raw = (str(cli.nb).strip() if cli and getattr(cli, "nb", None) else "") or ""
+            rt = route_by_id.get(int(d.route_id)) if getattr(d, "route_id", None) else None
+            peso_kg: Optional[float] = None
+            if rt is not None:
+                try:
+                    wv = getattr(rt, "devolucao_volume", None)
+                    if wv is None:
+                        wv = getattr(rt, "tonnage", None)
+                    if wv is not None:
+                        peso_kg = round(float(wv), 3)
+                except Exception:
+                    peso_kg = None
+            created_at = getattr(d, "created_at", None)
             rows_detail.append({
                 "id": did,
                 "data": dt_operacional,
                 "data_competencia": dt_str,
                 "client_id": int(d.client_id) if getattr(d, "client_id", None) else None,
+                "client_nb": nb_raw or None,
+                "client_nb_fmt": _fmt_nb_br(nb_raw) if nb_raw else "—",
                 "hist_rotas_entrega_periodo": (
                     hist_route_visits.get(int(d.client_id), 0) if getattr(d, "client_id", None) else 0
                 ),
@@ -5646,6 +5695,9 @@ def _build_bi_devolucoes_dataset(
                     dev_count_by_client.get(int(d.client_id), 0) if getattr(d, "client_id", None) else 0
                 ),
                 "cliente": cli_nome,
+                "peso_kg": peso_kg,
+                "peso_kg_fmt": _fmt_br_kg(peso_kg) if peso_kg is not None else "—",
+                "registrado_em_br": _fmt_br_datetime_local(created_at) if created_at else "—",
                 "vendedor": vendedor_nome,
                 "motorista": motorista_nome,
                 "ajudante": ajudante_nome,
@@ -6152,8 +6204,22 @@ async def bi_devolucoes_export(
     stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M")
     fmt = (format or "csv").strip().lower()
 
-    headers_csv = ["data", "cliente", "vendedor", "motorista", "ajudante",
-                   "motivo", "responsabilidade", "cluster", "valor", "acima_300", "source"]
+    headers_csv = [
+        "data",
+        "cliente",
+        "nb",
+        "vendedor",
+        "motorista",
+        "ajudante",
+        "motivo",
+        "responsabilidade",
+        "cluster",
+        "peso_kg",
+        "valor",
+        "registrado_em",
+        "acima_300",
+        "source",
+    ]
 
     if fmt == "csv":
         out = io.StringIO()
@@ -6163,13 +6229,16 @@ async def bi_devolucoes_export(
             writer.writerow([
                 _fmt_br_data(r.get("data") or ""),
                 r.get("cliente") or "",
+                r.get("client_nb_fmt") or r.get("client_nb") or "",
                 r.get("vendedor") or "",
                 r.get("motorista") or "",
                 r.get("ajudante") or "",
                 r.get("motivo") or "",
                 r.get("responsabilidade") or "",
                 r.get("cluster") or "",
+                r.get("peso_kg_fmt") or "—",
                 _fmt_br_2(r.get("valor") or 0),
+                r.get("registrado_em_br") or "—",
                 r.get("acima_300") or "NAO",
                 r.get("source") or "",
             ])
@@ -6191,13 +6260,16 @@ async def bi_devolucoes_export(
                 ws_sheet.append([
                     _fmt_br_data(r.get("data") or ""),
                     r.get("cliente") or "",
+                    r.get("client_nb_fmt") or r.get("client_nb") or "",
                     r.get("vendedor") or "",
                     r.get("motorista") or "",
                     r.get("ajudante") or "",
                     r.get("motivo") or "",
                     r.get("responsabilidade") or "",
                     r.get("cluster") or "",
+                    r.get("peso_kg_fmt") or "—",
                     float(r.get("valor") or 0),
+                    r.get("registrado_em_br") or "—",
                     r.get("acima_300") or "NAO",
                     r.get("source") or "",
                 ])

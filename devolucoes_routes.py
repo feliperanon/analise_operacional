@@ -572,6 +572,7 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
         cep = getattr(client, "cep", None) or ""
     if not client_code and client:
         client_code = getattr(client, "nb", None) or ""
+    nb_display = _fmt_nb_br(client_code) if (client_code or "").strip() else "—"
     obs_gestor_at = getattr(d, "observacao_gestor_edited_at", None)
     obs_gestor_at_fmt = (obs_gestor_at.strftime("%d/%m/%Y %H:%M") if obs_gestor_at else "") or ""
     return {
@@ -581,9 +582,11 @@ def _build_devolucao_card(session: Session, d: models.Devolucao) -> dict:
         "data_romaneio_pt": _fmt_data_hora_pt_br(d.data_romaneio),
         "data_entrega": d.data_entrega,
         "data_entrega_pt": _fmt_data_hora_pt_br(d.data_entrega),
+        "client_id": int(d.client_id) if getattr(d, "client_id", None) else None,
         "client_name": client_name,
         "client_fantasia": client_fantasia,
         "client_code": client_code,
+        "client_nb_fmt": nb_display,
         "order_number": order_number,
         "address": address,
         "bairro": bairro,
@@ -2221,6 +2224,7 @@ def init_devolucoes_router(
                     or_(
                         func.lower(models.Client.name).contains(search),
                         (models.Client.razao_social.is_not(None)) & (func.lower(models.Client.razao_social).contains(search)),
+                        (models.Client.nb.is_not(None)) & (func.lower(models.Client.nb).contains(search)),
                     )
                 )
             ).all()

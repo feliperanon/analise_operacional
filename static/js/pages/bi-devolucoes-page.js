@@ -102,6 +102,10 @@
       var n = Number(row[key]);
       return Number.isFinite(n) ? n : null;
     }
+    if (key === "client_nb") {
+      var nb = row.client_nb != null && row.client_nb !== "" ? String(row.client_nb) : String(row.client_nb_fmt || "");
+      return nb;
+    }
     return row[key] != null && row[key] !== "" ? String(row[key]) : "";
   }
 
@@ -203,6 +207,7 @@
       detailDl.appendChild(dd);
     }
     addPair("Cliente", row.cliente);
+    addPair("NB", row.client_nb_fmt || row.client_nb || "—");
     addPair("Data (operacional)", isoDateToBr(row.data));
     if (row.data_competencia && String(row.data_competencia).slice(0, 10) !== String(row.data || "").slice(0, 10)) {
       addPair("Competência (fechamento)", isoDateToBr(row.data_competencia));
@@ -226,6 +231,8 @@
     addPair("Classificação de impacto", row.impacto_classificacao || "—");
     addPair("Possível ação corretiva", row.acao_corretiva || "—");
     addPair("% impacto no período", row.pct_impacto != null ? fmtPct(row.pct_impacto) : "—");
+    addPair("Peso (rota)", row.peso_kg_fmt || "—");
+    addPair("Registrado em", row.registrado_em_br || "—");
     addPair("Origem", row.source);
     detailModal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
@@ -244,6 +251,27 @@
     if (typeof content === "string") td.textContent = content;
     else td.appendChild(content);
     tr.appendChild(td);
+  }
+
+  function clienteCell(name, clientId) {
+    var wrap = document.createElement("div");
+    wrap.className = "min-w-0";
+    var n = name || "—";
+    if (clientId != null && String(clientId).trim() !== "") {
+      var a = document.createElement("a");
+      a.href = "/clients/" + encodeURIComponent(String(clientId));
+      a.className =
+        "employees-data-table__name-link block truncate font-medium text-slate-900 transition-colors hover:underline dark:text-slate-100";
+      a.title = "Abrir cadastro do cliente";
+      a.textContent = n;
+      wrap.appendChild(a);
+    } else {
+      var sp = document.createElement("span");
+      sp.className = "block truncate font-medium employees-text-strong";
+      sp.textContent = n;
+      wrap.appendChild(sp);
+    }
+    return wrap;
   }
 
   function isHighImpact(row) {
@@ -267,8 +295,15 @@
 
       var tr = document.createElement("tr");
       tr.className = "employees-data-table__row transition-colors";
-      appendTd(tr, isoDateToBr(row.data), { className: "employees-data-table__cell px-3 py-2 pl-5 align-middle whitespace-nowrap" });
-      appendTd(tr, row.cliente || "—");
+      appendTd(tr, isoDateToBr(row.data), {
+        className: "employees-data-table__cell px-3 py-2 pl-5 align-middle whitespace-nowrap tabular-nums",
+      });
+      appendTd(tr, clienteCell(row.cliente, row.client_id), {
+        className: "employees-data-table__cell px-2 py-2 align-middle max-w-[14rem]",
+      });
+      appendTd(tr, row.client_nb_fmt || row.client_nb || "—", {
+        className: "employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap tabular-nums text-xs",
+      });
       appendTd(tr, row.vendedor || "—");
       appendTd(tr, row.motorista || "—");
       appendTd(tr, row.motivo || "—");
@@ -276,8 +311,14 @@
       respWrap.className = respBadgeClass(row.responsabilidade);
       respWrap.textContent = row.responsabilidade || "—";
       appendTd(tr, respWrap);
-      appendTd(tr, fmtMoney(row.valor), { right: true });
-      appendTd(tr, row.pct_impacto != null ? fmtPct(row.pct_impacto) : "—", { right: true });
+      appendTd(tr, fmtMoney(row.valor), {
+        right: true,
+        className: "employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap tabular-nums font-semibold text-sky-600 dark:text-sky-300",
+      });
+      appendTd(tr, row.pct_impacto != null ? fmtPct(row.pct_impacto) : "—", {
+        right: true,
+        className: "employees-data-table__cell px-2 py-2 align-middle whitespace-nowrap tabular-nums text-right",
+      });
       appendTd(tr, statusEl);
       var actionTd = document.createElement("td");
       actionTd.className = "employees-data-table__cell px-2 py-2 pr-5 align-middle text-right";
@@ -296,12 +337,22 @@
       card.className = "bi-dev-card";
       var h = document.createElement("h4");
       h.className = "bi-dev-card__title";
-      h.textContent = row.cliente || "—";
+      if (row.client_id != null && String(row.client_id).trim() !== "") {
+        var la = document.createElement("a");
+        la.href = "/clients/" + encodeURIComponent(String(row.client_id));
+        la.className =
+          "bi-dev-card__title-link font-semibold text-slate-900 underline-offset-2 hover:underline dark:text-slate-100";
+        la.textContent = row.cliente || "—";
+        h.appendChild(la);
+      } else {
+        h.textContent = row.cliente || "—";
+      }
       card.appendChild(h);
       var valP = document.createElement("p");
-      valP.className = "bi-dev-card__valor";
+      valP.className = "bi-dev-card__valor tabular-nums";
       valP.textContent = fmtMoney(row.valor);
       card.appendChild(valP);
+      addLine("NB", row.client_nb_fmt || row.client_nb || "—", true);
       if (isHighImpact(row)) {
         var hi = document.createElement("span");
         hi.className = "sys-badge sys-badge--critical bi-dev-card__badge";
@@ -348,7 +399,6 @@
       mb.textContent = "Detalhes";
       act.appendChild(mb);
       card.appendChild(act);
-      card.appendChild(act);
       cardsRoot.appendChild(card);
     }
     cursor = end;
@@ -378,7 +428,12 @@
       if (tableWrap) tableWrap.classList.remove("bi-dev-table-wrap--hidden");
       if (tableEmpty) tableEmpty.classList.add("hidden");
       if (stateText) {
-        stateText.textContent = "Exibindo " + end + " de " + filteredRows.length + " registro(s) na lista.";
+        stateText.textContent =
+          "Exibindo " +
+          end.toLocaleString("pt-BR") +
+          " de " +
+          filteredRows.length.toLocaleString("pt-BR") +
+          " registro(s) na lista.";
       }
     }
   }
@@ -397,6 +452,8 @@
       if (!term) return true;
       var bag = [
         row.cliente,
+        row.client_nb,
+        row.client_nb_fmt,
         row.vendedor,
         row.motorista,
         row.ajudante,

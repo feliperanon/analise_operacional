@@ -843,10 +843,12 @@ window.addEventListener("error", function (evt) {
                 var prevV = useFinCmp ? Number(cmp.prev_pct_financeiro) : Number(cmp.prev_pct_rotas || 0);
                 var currV = useFinCmp ? Number(cmp.curr_pct_financeiro) : Number(cmp.curr_pct_rotas || 0);
                 function fmtDevCmpCell(v) {
+                    var n = Number(v);
+                    if (!Number.isFinite(n)) n = 0;
                     if (useFinCmp) {
-                        return (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     }
-                    return (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                    return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
                 }
                 var hPrev = document.getElementById('hdr-prev-pct');
                 var hCurr = document.getElementById('hdr-curr-pct');

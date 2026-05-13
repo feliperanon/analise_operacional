@@ -11,7 +11,7 @@
         <svg class="h-3.5 w-3.5 flex-shrink-0 opacity-60" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
         </svg>
-        <input type="search" id="bi-dev-search" class="ops-toolbar-search__input text-sm" placeholder="Cliente, motivo, motorista…" autocomplete="off" />
+        <input type="search" id="bi-dev-search" class="ops-toolbar-search__input text-sm" placeholder="Cliente, NB, motivo, motorista…" autocomplete="off" />
       </div>
       <p id="bi-dev-state" class="employees-text-caption mt-1.5 text-right text-[11px] text-slate-600 dark:text-slate-300">Carregando dados…</p>
     </div>
@@ -24,7 +24,7 @@
   </div>
 
   <div class="sys-table-wrap sys-table-wrap--x-scroll bi-dev-table-wrap">
-    <table class="employees-data-table employees-data-table--compact bi-dev-data-table w-full min-w-full border-collapse text-left text-sm md:min-w-[1020px]" id="bi-dev-table">
+    <table class="employees-data-table employees-data-table--compact bi-dev-data-table w-full min-w-full border-collapse text-left text-sm md:min-w-[1120px]" id="bi-dev-table">
       <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
         <tr>
           <th class="employees-data-table__th bi-dev-th-sortable px-3 py-1.5 pl-4 text-xs" data-bi-dev-sort="data" scope="col" role="columnheader" aria-sort="none" title="Ordenar por data">
@@ -32,6 +32,9 @@
           </th>
           <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs" data-bi-dev-sort="cliente" scope="col" role="columnheader" aria-sort="none" title="Ordenar por cliente">
             <span class="bi-dev-th-sort__inner">Cliente <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
+          </th>
+          <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs whitespace-nowrap" data-bi-dev-sort="client_nb" scope="col" role="columnheader" aria-sort="none" title="Ordenar por NB">
+            <span class="bi-dev-th-sort__inner">NB <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
           </th>
           <th class="employees-data-table__th bi-dev-th-sortable px-2 py-1.5 text-xs" data-bi-dev-sort="vendedor" scope="col" role="columnheader" aria-sort="none" title="Ordenar por vendedor">
             <span class="bi-dev-th-sort__inner">Vendedor <span class="bi-dev-sort-ind" aria-hidden="true"></span></span>
