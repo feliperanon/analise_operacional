@@ -3924,6 +3924,18 @@ def _kpi_devolucao_mes_registros(
     return total_v, cnt
 
 
+def _pct_devolucao_financeiro_sistema(valor_devolvido: float, routes_delivery: List[Any]) -> tuple[Optional[float], float]:
+    """% valor devolvido sobre soma de valor_financeiro das rotas de entrega (só linhas com valor_financeiro preenchido)."""
+    base = sum(
+        float(getattr(r, "valor_financeiro", None) or 0)
+        for r in routes_delivery
+        if getattr(r, "valor_financeiro", None) is not None
+    )
+    if base <= 0:
+        return None, 0.0
+    return round(100.0 * float(valor_devolvido or 0) / base, 2), round(base, 2)
+
+
 def _infer_shift_name(now_br: datetime) -> str:
     hhmm = now_br.hour * 60 + now_br.minute
     # 05:00 - 13:20
