@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 from devolucao_kpi_canonical import (
+    build_mes_fim_projecao_pct_financeiro,
     build_mes_fim_projecao_pct_rotas,
     counts_devolucao_rotas_concluidas,
     group_routes_by_operational_day,
@@ -89,3 +90,37 @@ def test_projecao_mes_fim_com_baseline_encontravel():
     assert 0 <= out["pct_projetado"] <= 100
     assert out["dias_restantes_no_mes"] == 21
     assert out["vs_meta"] in ("acima", "dentro")
+
+
+def test_projecao_financeira_mes_distintos_retorna_none():
+    out = build_mes_fim_projecao_pct_financeiro(
+        date(2025, 4, 1),
+        date(2025, 5, 10),
+        {"2025-05-03": 1000.0},
+        {"2025-05-03": 50.0},
+        {"2025-01-01": 500.0},
+        {"2025-01-01": 10.0},
+    )
+    assert out is None
+
+
+def test_projecao_financeira_com_baseline():
+    date_i = date(2025, 5, 1)
+    date_f = date(2025, 5, 10)
+    base_mtd = {"2025-05-03": 1000.0}
+    dev_mtd = {"2025-05-03": 30.0}
+    base_bl: dict[str, float] = {}
+    dev_bl: dict[str, float] = {}
+    d0 = date(2025, 1, 1)
+    for i in range(20):
+        ds = (d0 + timedelta(days=i)).strftime("%Y-%m-%d")
+        base_bl[ds] = 1000.0
+        dev_bl[ds] = 20.0
+    out = build_mes_fim_projecao_pct_financeiro(
+        date_i, date_f, base_mtd, dev_mtd, base_bl, dev_bl, min_baseline_days=14
+    )
+    assert out is not None
+    assert out["ativa"] is True
+    assert out["dias_restantes_no_mes"] == 21
+    assert out["vs_meta"] in ("acima", "dentro")
+    assert 0 <= out["pct_projetado"] <= 100

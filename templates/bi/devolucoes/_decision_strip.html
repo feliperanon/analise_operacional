@@ -27,8 +27,8 @@
         {% if projecao_mes_fim %}
           {% if projecao_mes_fim.ativa %}
           <span class="block mt-1.5 text-xs leading-snug text-slate-600 dark:text-slate-400">
-            <strong class="text-slate-800 dark:text-slate-100">Projeção ao fim do mês (operacional):</strong>
-            cerca de {{ projecao_mes_fim.pct_projetado|fmt_br_1 }}% das rotas concluídas
+            <strong class="text-slate-800 dark:text-slate-100">Projeção ao fim do mês (financeira):</strong>
+            cerca de {{ projecao_mes_fim.pct_projetado|fmt_br_2 }}% do valor devolvido sobre o faturamento das rotas no mês
             ({{ projecao_mes_fim.dias_restantes_no_mes }} dia(s) restante(s) no mês; referência {{ projecao_mes_fim.meta_pp|fmt_br_2 }}%).
             {% if projecao_mes_fim.vs_meta == 'acima' %}
               Tendência projetada <span class="font-semibold text-amber-700 dark:text-amber-300">acima da meta</span>.

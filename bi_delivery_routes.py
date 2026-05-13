@@ -23,7 +23,7 @@ import models
 from database import get_session
 from route_duration import route_duration_minutes, route_duration_minutes_mobile_only
 from devolucao_kpi_canonical import (
-    build_mes_fim_projecao_pct_rotas,
+    build_mes_fim_projecao_pct_financeiro,
     counts_devolucao_rotas_concluidas,
     is_encerramento_tardio_automatico_return,
     pct_devolucao_sobre_rotas_concluidas,
@@ -5327,6 +5327,12 @@ def _build_bi_devolucoes_dataset(
     # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
     valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
     devs_pre_acima: List[models.Devolucao] = list(devs)
+    dev_por_dia_mtd: dict[str, float] = {}
+    for _d_k in devs_pre_acima:
+        _op_k = _dev_op_date_raw(_d_k)
+        if not _in_operational_date_range_iso(_op_k, period_start, period_end):
+            continue
+        dev_por_dia_mtd[_op_k] = dev_por_dia_mtd.get(_op_k, 0.0) + float(_d_k.valor or 0)
     total_valor_kpi = sum(float(d.valor or 0) for d in devs_pre_acima)
     total_qtd_kpi = len(devs_pre_acima)
     pct_devolucao_financeiro: Optional[float] = (
@@ -5372,7 +5378,7 @@ def _build_bi_devolucoes_dataset(
         else:
             faixa_alerta_meta = "danger"
 
-    # Projeção % rotas ao fim do mês (sazonalidade por dia da semana no histórico pré-mês)
+    # Projeção % financeiro ao fim do mês (sazonalidade por dia da semana no histórico pré-mês)
     projecao_mes_fim: Optional[dict] = None
     if (date_i.year, date_i.month) == (date_f.year, date_f.month):
         m_last_d = monthrange(date_f.year, date_f.month)[1]
@@ -5405,11 +5411,78 @@ def _build_bi_devolucoes_dataset(
                     for r in routes_hist_raw
                     if _in_operational_date_range_iso(str(getattr(r, "date", None) or "").strip(), bs_i_s, bs_f_s)
                 ]
-                projecao_mes_fim = build_mes_fim_projecao_pct_rotas(
+                base_por_dia_baseline: dict[str, float] = {}
+                for _r_bl in routes_baseline:
+                    _raw_bl = getattr(_r_bl, "date", None)
+                    _op_bl = str(_raw_bl or "").strip()[:10]
+                    if len(_op_bl) < 10:
+                        _op_bl = _competence_date_or_self(str(_raw_bl or "").strip()) or ""
+                    if len(_op_bl) < 10:
+                        continue
+                    _vfb = getattr(_r_bl, "valor_financeiro", None)
+                    if _vfb is None:
+                        continue
+                    base_por_dia_baseline[_op_bl] = base_por_dia_baseline.get(_op_bl, 0.0) + float(_vfb)
+
+                bs_period_start, bs_period_end, bs_window_start, bs_window_end = _competence_period_window(
+                    bs_start, bs_end
+                )
+                q_hist_dev = (
+                    select(models.Devolucao)
+                    .where(
+                        or_(
+                            and_(
+                                models.Devolucao.data_romaneio >= bs_window_start,
+                                models.Devolucao.data_romaneio <= bs_window_end,
+                            ),
+                            and_(
+                                models.Devolucao.data_entrega >= bs_window_start,
+                                models.Devolucao.data_entrega <= bs_window_end,
+                            ),
+                        )
+                    )
+                )
+                if responsabilidade_id:
+                    q_hist_dev = q_hist_dev.where(models.Devolucao.responsabilidade_id == responsabilidade_id)
+                if motivo_id:
+                    q_hist_dev = q_hist_dev.where(models.Devolucao.motivo_id == motivo_id)
+                if motorista_id:
+                    q_hist_dev = q_hist_dev.where(models.Devolucao.motorista_id == motorista_id)
+                if vendedor_id:
+                    q_hist_dev = q_hist_dev.where(models.Devolucao.vendedor_id == vendedor_id)
+                if client_ids_dev:
+                    if len(client_ids_dev) == 1:
+                        q_hist_dev = q_hist_dev.where(models.Devolucao.client_id == client_ids_dev[0])
+                    else:
+                        q_hist_dev = q_hist_dev.where(models.Devolucao.client_id.in_(client_ids_dev))
+                devs_hist_raw = session.exec(q_hist_dev.order_by(models.Devolucao.data_romaneio.desc())).all()
+                devs_hist_raw = [d for d in devs_hist_raw if not getattr(d, "duplicate_of_id", None)]
+                devs_hist_c = [
+                    d
+                    for d in devs_hist_raw
+                    if _in_operational_date_range_iso(_dev_op_date_raw(d), bs_period_start, bs_period_end)
+                ]
+                devs_hist_work = [d for d in devs_hist_c if _valor_faixa_ok(d, valor_faixa or "all")]
+                if somente_criticas:
+                    devs_hist_work = [
+                        d
+                        for d in devs_hist_work
+                        if float(d.valor or 0) >= 800.0 or (str(d.acima_300 or "").upper() == "SIM")
+                    ]
+                dev_por_dia_baseline: dict[str, float] = {}
+                for _d_bl in devs_hist_work:
+                    _op_db = _dev_op_date_raw(_d_bl)
+                    if not _in_operational_date_range_iso(_op_db, bs_period_start, bs_period_end):
+                        continue
+                    dev_por_dia_baseline[_op_db] = dev_por_dia_baseline.get(_op_db, 0.0) + float(_d_bl.valor or 0)
+
+                projecao_mes_fim = build_mes_fim_projecao_pct_financeiro(
                     date_i,
                     date_f,
-                    routes_delivery_period,
-                    routes_baseline,
+                    receita_por_dia_comp,
+                    dev_por_dia_mtd,
+                    base_por_dia_baseline,
+                    dev_por_dia_baseline,
                     meta_pp=meta_pp,
                 )
 

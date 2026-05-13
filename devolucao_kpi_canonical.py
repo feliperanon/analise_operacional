@@ -14,9 +14,10 @@ Financeiro (valor):
 - A taxa % valor usa denominador (valor entregue + valor devolvido), ou seja, faturamento
   efetivo que inclui todas as devoluções do período.
 
-Projeção fim de mês (operacional):
-- `build_mes_fim_projecao_pct_rotas`: média histórica por dia da semana em dias anteriores ao mês;
-  não é modelo de ML externo.
+Projeção fim de mês:
+- `build_mes_fim_projecao_pct_rotas`: % paradas (operacional), média por dia da semana no histórico pré-mês.
+- `build_mes_fim_projecao_pct_financeiro`: % valor devolvido sobre faturamento (mesma lógica do KPI financeiro),
+  projetando numerador e denominador por dia da semana no histórico pré-mês; não é modelo de ML externo.
 """
 
 from __future__ import annotations
@@ -209,6 +210,141 @@ def build_mes_fim_projecao_pct_rotas(
         "resumo_metodo": (
             "Perfil por dia da semana com base em dias anteriores ao mês corrente "
             f"({n_day_obs} dia(s) com rotas no histórico)."
+        ),
+        "disclaimer": (
+            "Indicativo: pressupõe que o ritmo e o padrão semanal recentes se mantenham; "
+            "não utiliza modelo de aprendizado de máquina treinado fora desta regra."
+        ),
+    }
+
+
+def build_mes_fim_projecao_pct_financeiro(
+    date_i: date,
+    date_f: date,
+    base_por_dia_mtd: Dict[str, float],
+    dev_por_dia_mtd: Dict[str, float],
+    base_por_dia_baseline: Dict[str, float],
+    dev_por_dia_baseline: Dict[str, float],
+    *,
+    meta_pp: float = 2.0,
+    min_baseline_days: int = 14,
+) -> Optional[Dict[str, Any]]:
+    """
+    Estimativa do % financeiro (valor devolvido ÷ faturamento das rotas) ao último dia do mês,
+    para recorte mensal parcial. Mesma ideia que `build_mes_fim_projecao_pct_rotas`: por cada dia
+    futuro do mês, soma a média histórica (por dia da semana) de base e de valor devolvido
+    observados no baseline; combina com o MTD já realizado.
+    """
+    if (date_i.year, date_i.month) != (date_f.year, date_f.month):
+        return None
+    m_last_d = monthrange(date_f.year, date_f.month)[1]
+    month_last = date(date_f.year, date_f.month, m_last_d)
+    if date_f >= month_last:
+        return None
+
+    mtd_base = sum(float(v) for v in base_por_dia_mtd.values())
+    mtd_dev = sum(float(v) for v in dev_por_dia_mtd.values())
+    if mtd_base <= 0:
+        return {
+            "ativa": False,
+            "mensagem": (
+                "Projeção ao fim do mês: indisponível — ainda não há faturamento (base financeira das rotas) "
+                "no período."
+            ),
+        }
+
+    baseline_days = set(base_por_dia_baseline.keys()) | set(dev_por_dia_baseline.keys())
+    if len(baseline_days) < min_baseline_days:
+        return {
+            "ativa": False,
+            "mensagem": (
+                "Projeção ao fim do mês: histórico insuficiente para perfil por dia da semana "
+                f"(mínimo {min_baseline_days} dias com movimento antes do mês)."
+            ),
+        }
+
+    sums_b: defaultdict[int, float] = defaultdict(float)
+    sums_v: defaultdict[int, float] = defaultdict(float)
+    cnt_w: defaultdict[int, int] = defaultdict(int)
+    tot_b = 0.0
+    tot_v = 0.0
+    n_day_obs = 0
+    for day_iso in baseline_days:
+        if len(str(day_iso)) != 10:
+            continue
+        try:
+            y, m, dd = int(day_iso[:4]), int(day_iso[5:7]), int(day_iso[8:10])
+            dow = date(y, m, dd).weekday()
+        except (TypeError, ValueError):
+            continue
+        b = float(base_por_dia_baseline.get(day_iso, 0.0))
+        v = float(dev_por_dia_baseline.get(day_iso, 0.0))
+        sums_b[dow] += b
+        sums_v[dow] += v
+        cnt_w[dow] += 1
+        tot_b += b
+        tot_v += v
+        n_day_obs += 1
+
+    if n_day_obs <= 0:
+        return {"ativa": False, "mensagem": "Projeção ao fim do mês: baseline sem dias válidos."}
+
+    mean_b: List[float] = []
+    mean_v: List[float] = []
+    has_w: List[bool] = []
+    for dow in range(7):
+        c = cnt_w[dow]
+        if c > 0:
+            mean_b.append(sums_b[dow] / c)
+            mean_v.append(sums_v[dow] / c)
+            has_w.append(True)
+        else:
+            mean_b.append(0.0)
+            mean_v.append(0.0)
+            has_w.append(False)
+
+    fb_b = tot_b / n_day_obs
+    fb_v = tot_v / n_day_obs
+
+    exp_b = 0.0
+    exp_v = 0.0
+    d = date_f + timedelta(days=1)
+    dias_restantes = 0
+    while d <= month_last:
+        dias_restantes += 1
+        w = d.weekday()
+        exp_b += mean_b[w] if has_w[w] else fb_b
+        exp_v += mean_v[w] if has_w[w] else fb_v
+        d += timedelta(days=1)
+
+    if dias_restantes <= 0:
+        return None
+
+    proj_b = mtd_base + exp_b
+    proj_v = mtd_dev + exp_v
+    if proj_b <= 0:
+        return {
+            "ativa": False,
+            "mensagem": "Projeção ao fim do mês: faturamento projetado para o mês é nulo ou negativo.",
+        }
+
+    proj_pct = round(100.0 * proj_v / proj_b, 2)
+    vs_meta = "dentro" if proj_pct <= meta_pp else "acima"
+
+    return {
+        "ativa": True,
+        "pct_projetado": proj_pct,
+        "vs_meta": vs_meta,
+        "meta_pp": float(meta_pp),
+        "dias_restantes_no_mes": dias_restantes,
+        "dias_baseline_calendario": n_day_obs,
+        "mtd_base": round(mtd_base, 2),
+        "mtd_dev": round(mtd_dev, 2),
+        "proj_base": round(proj_b, 2),
+        "proj_dev": round(proj_v, 2),
+        "resumo_metodo": (
+            "Perfil por dia da semana com base em dias anteriores ao mês corrente "
+            f"({n_day_obs} dia(s) com base ou devolução no histórico)."
         ),
         "disclaimer": (
             "Indicativo: pressupõe que o ritmo e o padrão semanal recentes se mantenham; "
