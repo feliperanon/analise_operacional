@@ -23,6 +23,23 @@
         {% else %}
         <span class="block mt-1 text-slate-500 dark:text-slate-500">Indicador financeiro: base financeira pendente — % sobre valor não calculado.</span>
         {% endif %}
+        {% if projecao_mes_fim %}
+          {% if projecao_mes_fim.ativa %}
+          <span class="block mt-1.5 text-xs leading-snug text-slate-600 dark:text-slate-400">
+            <strong class="text-slate-800 dark:text-slate-100">Projeção ao fim do mês (operacional):</strong>
+            cerca de {{ projecao_mes_fim.pct_projetado|fmt_br_1 }}% das rotas concluídas
+            ({{ projecao_mes_fim.dias_restantes_no_mes }} dia(s) restante(s) no mês; referência {{ projecao_mes_fim.meta_pp|fmt_br_2 }}%).
+            {% if projecao_mes_fim.vs_meta == 'acima' %}
+              Tendência projetada <span class="font-semibold text-amber-700 dark:text-amber-300">acima da meta</span>.
+            {% else %}
+              Tendência projetada <span class="font-semibold text-emerald-700 dark:text-emerald-300">dentro da meta</span>.
+            {% endif %}
+            <span class="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-500">{{ projecao_mes_fim.resumo_metodo }} {{ projecao_mes_fim.disclaimer }}</span>
+          </span>
+          {% elif projecao_mes_fim.mensagem %}
+          <span class="block mt-1.5 text-[11px] leading-snug text-slate-500 dark:text-slate-500">{{ projecao_mes_fim.mensagem }}</span>
+          {% endif %}
+        {% endif %}
       </p>
     </div>
     <div class="bi-dev-executive-strip__right grid flex-none grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4 lg:min-w-[22rem] lg:content-center">

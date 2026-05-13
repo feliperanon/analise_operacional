@@ -1,21 +1,21 @@
 /* BI Devoluções — painel executivo (employees.css + design system) */
 
-/* Modal de detalhe: acima de headers fixos do GA; cartão mais largo e corpo rolável */
-.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-modal {
+/* Modal de detalhe: renderizado em layout_portal (fora do .gv-panel-stack) para z-index e overflow; ID escopoia estilos pois o portal não herda .employees-page */
+#bi-dev-detail-modal.bi-dev-detail-modal {
   z-index: 10060;
 }
 
-.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-modal__card {
+#bi-dev-detail-modal .bi-dev-detail-modal__card {
   box-shadow: 0 25px 50px -12px rgb(15 23 42 / 0.25);
 }
 
 @media (min-width: 640px) {
-  .ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-modal__card {
+  #bi-dev-detail-modal .bi-dev-detail-modal__card {
     max-width: min(42rem, calc(100vw - 2rem));
   }
 }
 
-.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-dl dt {
+#bi-dev-detail-modal .bi-dev-detail-dl dt {
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -24,18 +24,18 @@
   margin-top: 0.45rem;
 }
 
-.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-dl dt:first-child {
+#bi-dev-detail-modal .bi-dev-detail-dl dt:first-child {
   margin-top: 0;
 }
 
-.ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-dl dd {
+#bi-dev-detail-modal .bi-dev-detail-dl dd {
   margin-top: 0.1rem;
   margin-bottom: 0.35rem;
   line-height: 1.45;
   color: var(--sys-text-primary, #0f172a);
 }
 
-html.dark .ga-employee-theme.employees-page[data-page="bi-devolucoes"] .bi-dev-detail-dl dd {
+html.dark #bi-dev-detail-modal .bi-dev-detail-dl dd {
   color: rgb(241 245 249);
 }
 
@@ -105,35 +105,6 @@ html.dark .ga-employee-theme.employees-page[data-page="bi-devolucoes"] {
   font-size: clamp(1.15rem, 2.2vw, 1.55rem);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-}
-
-.bi-dev-kpi-group-label {
-  margin: 0 0 0.35rem;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--sys-text-muted, #64748b);
-}
-
-.bi-dev-kpi-grid--decision {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@media (min-width: 1024px) {
-  .bi-dev-kpi-grid--decision {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-.bi-dev-kpi-grid--volume {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@media (min-width: 640px) {
-  .bi-dev-kpi-grid--volume {
-    grid-template-columns: repeat(2, minmax(8rem, 1fr));
-  }
 }
 
 .bi-dev-kpi-icon {

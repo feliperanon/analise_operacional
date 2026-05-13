@@ -170,12 +170,12 @@
 
     <div class="bi-co-grid-2">
       <div class="bi-co-panel">
-        <h3>Origem das perdas (macrocausa)</h3>
-        <p class="meta">O que não é “culpa da rota” aparece aqui em destaque.</p>
+        <h3>Origem das perdas (por área)</h3>
+        <p class="meta">Mesma base da BI de devoluções: área de responsabilidade no cadastro; só usa classificação automática quando a área não veio informada.</p>
         <div class="bi-co-chart-h"><canvas id="macroLossChart"></canvas></div>
         {{ chart_explain(
-          "Valor devolvido (R$) agrupado por macrocausa cadastral/comercial (não é motorista isolado).",
-          "Barras maiores = mais dinheiro perdido naquela origem. O percentual é a fatia de cada macro sobre o total de devoluções em valor.",
+          "Valor devolvido (R$) agrupado pela área de responsabilidade (cadastro/rota), alinhado ao ranking “Top áreas por valor” na página de devoluções. Sem área informada, aplica-se a macrocausa semântica (motivo).",
+          "Barras maiores = mais dinheiro perdido naquela origem. O percentual é a fatia sobre o total de devoluções em valor no período filtrado.",
           "Moeda em real brasileiro; percentuais com vírgula decimal."
         ) }}
       </div>

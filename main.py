@@ -3936,6 +3936,8 @@ def _kpi_devolucao_mes_registros(
     devs = session.exec(q).all()
     filtered = []
     for d in devs:
+        if getattr(d, "duplicate_of_id", None):
+            continue
         comp = competence_date_str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None)) or str(getattr(d, "data_romaneio", "") or "")[:10]
         if month_start_str <= comp <= month_end_str:
             filtered.append(d)

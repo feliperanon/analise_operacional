@@ -88,6 +88,8 @@
 
     <section class="table-card">
       <h3>Ranking completo por vendedor</h3>
+      <p class="bi-vendedor-table-hint">Quando houver devoluções no período, clique na linha do vendedor para ver os clientes (cadastro financeiro de devoluções).</p>
+      <script type="application/json" id="bi-vendedor-filters-json">{{ filters|tojson|safe }}</script>
       <div class="table-wrap">
         <table>
           <thead>
@@ -106,7 +108,14 @@
           </thead>
           <tbody>
             {% for row in rows %}
-            <tr>
+            <tr class="{% if row.devolucoes_qtd > 0 %}bi-vendedor-row--devolvidos{% endif %}"
+                {% if row.devolucoes_qtd > 0 %}
+                role="button"
+                tabindex="0"
+                data-vendedor-id="{% if row.vendedor_id is none %}-1{% else %}{{ row.vendedor_id }}{% endif %}"
+                data-vendedor-name="{{ row.vendedor }}"
+                title="Ver clientes com devolução neste período"
+                {% endif %}>
               <td>{{ row.vendedor }}</td>
               <td>{{ row.clientes_ativos|fmt_br_int }}</td>
               <td>{{ row.pedidos_total|fmt_br_int }}</td>
@@ -125,6 +134,22 @@
         </table>
       </div>
     </section>
+
+    <div id="bi-vendedor-devolvidos-modal" class="bi-vendedor-modal" aria-hidden="true">
+      <div class="bi-vendedor-modal__backdrop" data-bi-vendedor-close></div>
+      <div class="bi-vendedor-modal__panel" role="dialog" aria-modal="true" aria-labelledby="bi-vendedor-devolvidos-title">
+        <header class="bi-vendedor-modal__head">
+          <h4 id="bi-vendedor-devolvidos-title">Clientes com devolução</h4>
+          <button type="button" class="bi-vendedor-modal__x" data-bi-vendedor-close aria-label="Fechar">&times;</button>
+        </header>
+        <div class="bi-vendedor-modal__meta" id="bi-vendedor-devolvidos-meta"></div>
+        <div class="bi-vendedor-modal__body">
+          <p class="bi-vendedor-modal__loading" id="bi-vendedor-devolvidos-loading">Carregando…</p>
+          <p class="bi-vendedor-modal__err" id="bi-vendedor-devolvidos-err" hidden></p>
+          <div class="bi-vendedor-modal__table-wrap" id="bi-vendedor-devolvidos-table-wrap" hidden></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -172,6 +197,125 @@
     'R$ '
   );
 </script>
+<script>
+(function () {
+  const filtersEl = document.getElementById('bi-vendedor-filters-json');
+  let filters = {};
+  try {
+    filters = filtersEl ? JSON.parse(filtersEl.textContent || '{}') : {};
+  } catch (e) {
+    filters = {};
+  }
+  const modal = document.getElementById('bi-vendedor-devolvidos-modal');
+  const metaEl = document.getElementById('bi-vendedor-devolvidos-meta');
+  const loadingEl = document.getElementById('bi-vendedor-devolvidos-loading');
+  const errEl = document.getElementById('bi-vendedor-devolvidos-err');
+  const wrapEl = document.getElementById('bi-vendedor-devolvidos-table-wrap');
+  const titleEl = document.getElementById('bi-vendedor-devolvidos-title');
+  if (!modal || !metaEl || !loadingEl || !errEl || !wrapEl || !titleEl) return;
+
+  const fmtMoney = (n) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  function setModalOpen(open) {
+    modal.classList.toggle('is-open', open);
+    modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (open) {
+      const x = modal.querySelector('.bi-vendedor-modal__x');
+      if (x) x.focus();
+    }
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+  }
+
+  modal.querySelectorAll('[data-bi-vendedor-close]').forEach((el) => {
+    el.addEventListener('click', closeModal);
+  });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && modal.classList.contains('is-open')) closeModal();
+  });
+
+  function renderTable(items) {
+    wrapEl.innerHTML = '';
+    const table = document.createElement('table');
+    table.className = 'bi-vendedor-modal__table';
+    const thead = document.createElement('thead');
+    const hr = document.createElement('tr');
+    ['Data', 'Cliente', 'Valor', 'Motorista', 'Motivo', 'Responsabilidade'].forEach((label) => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    items.forEach((it) => {
+      const tr = document.createElement('tr');
+      [it.date, it.client_name, fmtMoney(it.valor), it.motorista, it.motivo, it.responsabilidade].forEach((cell) => {
+        const td = document.createElement('td');
+        td.textContent = cell == null ? '' : String(cell);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrapEl.appendChild(table);
+  }
+
+  async function openForRow(tr) {
+    const vid = tr.getAttribute('data-vendedor-id');
+    const vname = tr.getAttribute('data-vendedor-name') || '';
+    if (!vid) return;
+    titleEl.textContent = 'Clientes com devolução — ' + vname;
+    metaEl.textContent = '';
+    errEl.hidden = true;
+    errEl.textContent = '';
+    wrapEl.hidden = true;
+    wrapEl.innerHTML = '';
+    loadingEl.hidden = false;
+    setModalOpen(true);
+
+    const params = new URLSearchParams();
+    if (filters.date_from) params.set('date_from', filters.date_from);
+    if (filters.date_to) params.set('date_to', filters.date_to);
+    params.set('vendedor_id', vid);
+    try {
+      const res = await fetch('/bi/vendedor/devolvidos?' + params.toString(), { headers: { Accept: 'application/json' } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Não foi possível carregar os dados.');
+      }
+      loadingEl.hidden = true;
+      const items = data.items || [];
+      const df = filters.date_from || '—';
+      const dt = filters.date_to || '—';
+      metaEl.textContent = 'Período: ' + df + ' a ' + dt + ' · ' + (data.total_qtd || 0) + ' ocorrência(s) · Total ' + fmtMoney(data.total_valor);
+      if (!items.length) {
+        errEl.hidden = false;
+        errEl.textContent = 'Nenhuma linha de devolução encontrada para este vendedor no período.';
+        return;
+      }
+      renderTable(items);
+      wrapEl.hidden = false;
+    } catch (e) {
+      loadingEl.hidden = true;
+      errEl.hidden = false;
+      errEl.textContent = e.message || 'Erro ao carregar.';
+    }
+  }
+
+  document.querySelectorAll('tr.bi-vendedor-row--devolvidos').forEach((tr) => {
+    tr.addEventListener('click', () => openForRow(tr));
+    tr.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') {
+        ev.preventDefault();
+        openForRow(tr);
+      }
+    });
+  });
+})();
+</script>
 
 <style>
   .bi-vendedor-page { background: #0b1220; min-height: 100vh; color: #e2e8f0; padding: 1.25rem; }
@@ -202,6 +346,35 @@
   .chart-card h3 { margin: 0 0 .5rem; font-size: .9rem; }
   .table-card { padding: .85rem; }
   .table-card h3 { margin: 0 0 .5rem; font-size: .9rem; }
+  .bi-vendedor-table-hint { margin: 0 0 .65rem; font-size: .75rem; color: #94a3b8; line-height: 1.35; }
+  tr.bi-vendedor-row--devolvidos { cursor: pointer; outline: none; }
+  tr.bi-vendedor-row--devolvidos:hover { background: rgba(37, 99, 235, 0.12); }
+  tr.bi-vendedor-row--devolvidos:focus-visible { box-shadow: inset 0 0 0 2px #2563eb; }
+  .bi-vendedor-modal { position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center; padding: 1rem; }
+  .bi-vendedor-modal.is-open { display: flex; }
+  .bi-vendedor-modal__backdrop { position: absolute; inset: 0; background: rgba(2, 6, 23, 0.72); }
+  .bi-vendedor-modal__panel {
+    position: relative; z-index: 1; width: min(960px, 100%); max-height: min(88vh, 720px);
+    background: #111a2d; border: 1px solid #334155; border-radius: 12px;
+    display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,.45);
+  }
+  .bi-vendedor-modal__head {
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    padding: .85rem 1rem; border-bottom: 1px solid #1f2a44;
+  }
+  .bi-vendedor-modal__head h4 { margin: 0; font-size: .95rem; font-weight: 700; }
+  .bi-vendedor-modal__x {
+    border: none; background: transparent; color: #94a3b8; font-size: 1.35rem; line-height: 1; cursor: pointer; padding: .15rem .4rem; border-radius: 6px;
+  }
+  .bi-vendedor-modal__x:hover { color: #e2e8f0; background: #1e293b; }
+  .bi-vendedor-modal__meta { padding: .5rem 1rem 0; font-size: .78rem; color: #94a3b8; }
+  .bi-vendedor-modal__body { padding: .75rem 1rem 1rem; overflow: auto; min-height: 120px; }
+  .bi-vendedor-modal__loading, .bi-vendedor-modal__err { margin: 0; font-size: .85rem; color: #94a3b8; }
+  .bi-vendedor-modal__err { color: #f87171; }
+  .bi-vendedor-modal__table-wrap { overflow: auto; border-radius: 8px; border: 1px solid #334155; max-height: 52vh; }
+  .bi-vendedor-modal__table { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  .bi-vendedor-modal__table th, .bi-vendedor-modal__table td { padding: .45rem .5rem; border-bottom: 1px solid #1f2a44; text-align: left; vertical-align: top; }
+  .bi-vendedor-modal__table th { background: #0f172a; color: #94a3b8; position: sticky; top: 0; }
   .table-wrap { overflow: auto; border-radius: 8px; border: 1px solid #334155; }
   table { width: 100%; border-collapse: collapse; min-width: 1100px; }
   th, td { padding: .55rem; border-bottom: 1px solid #1f2a44; text-align: left; font-size: .78rem; }

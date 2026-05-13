@@ -1223,6 +1223,8 @@ def init_devolucoes_router(
             rows.append(
                 {
                     "id": dev.id,
+                    "client_id": dev.client_id,
+                    "motorista_id": dev.motorista_id,
                     "data_display": data_display,
                     "client_name": cname,
                     "client_secondary": " · ".join(secondary_parts) if secondary_parts else "Sem complemento cadastrado",

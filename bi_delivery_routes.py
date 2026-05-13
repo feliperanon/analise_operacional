@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """Rotas de BI de Entregas e Devoluções."""
 
+from calendar import monthrange
 from datetime import datetime, timedelta, date
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 import io
 import time
 import csv
@@ -21,7 +22,16 @@ from sqlalchemy import func, or_, and_
 import models
 from database import get_session
 from route_duration import route_duration_minutes, route_duration_minutes_mobile_only
-from devolucao_kpi_canonical import counts_devolucao_rotas_concluidas, pct_devolucao_sobre_rotas_concluidas
+from devolucao_kpi_canonical import (
+    build_mes_fim_projecao_pct_rotas,
+    counts_devolucao_rotas_concluidas,
+    pct_devolucao_sobre_rotas_concluidas,
+)
+from devolucao_perda_labels import (
+    canonical_responsabilidade_for_macro_loss as _canonical_responsabilidade_for_macro_loss,
+    classify_macro_cause as _classify_macro_cause,
+    macro_loss_label as _macro_loss_label,
+)
 from utils.business_calendar import competence_date_str
 
 router = APIRouter()
@@ -214,66 +224,6 @@ def _duration_bucket_idx(minutes: Optional[float]) -> Optional[int]:
     return 4
 
 
-def _classify_macro_cause(motivo: Optional[str], responsabilidade: Optional[str]) -> str:
-    """Macrocausa para BI executivo (devolução / responsabilização)."""
-    m = _norm_text(motivo or "")
-    r = _norm_text(responsabilidade or "")
-    t = f"{m} {r}"
-    if any(
-        k in t
-        for k in (
-            "sem dinheiro",
-            "cheque",
-            "credito",
-            "crédito",
-            "limite",
-            "financeiro",
-            "pagamento",
-            "inadimpl",
-        )
-    ):
-        return "Financeiro / pagamento"
-    if any(k in t for k in ("fechado", "ausente", "nao estava", "não estava", "nao recebeu", "não recebeu", "desistiu")):
-        return "Cliente / mercado"
-    if any(
-        k in t
-        for k in (
-            "localiz",
-            "endereco",
-            "endereço",
-            "nao localizado",
-            "não localizado",
-            "cadastro",
-            "janela",
-            "horario entrega",
-            "horário",
-            "acesso dificil",
-            "difícil acesso",
-            "planejamento",
-        )
-    ):
-        return "Cadastro / planejamento"
-    if any(
-        k in t
-        for k in (
-            "carregamento",
-            "separacao",
-            "separação",
-            "expedicao",
-            "expedição",
-            "embalagem",
-            "carga errada",
-            "quantidade errada",
-        )
-    ):
-        return "Logística"
-    if "logist" in t:
-        return "Logística"
-    if any(k in t for k in ("preco", "preço", "prazo", "pedido", "produto", "comercial", "nao fez pedido", "não fez pedido", "venda")):
-        return "Comercial"
-    return "Comercial"
-
-
 def _heatmap_delay_cause(row: dict) -> str:
     """Causa operacional para heatmap cidade × causa (visitas com atrito)."""
     st = _norm_text(row.get("status"))
@@ -299,6 +249,9 @@ def _heatmap_delay_cause(row: dict) -> str:
             return "Local não localizado"
         if "acesso" in motivo:
             return "Difícil acesso"
+    area = _canonical_responsabilidade_for_macro_loss(row.get("responsabilidade"))
+    if area is not None:
+        return area
     mc = _classify_macro_cause(row.get("motivo"), row.get("responsabilidade"))
     if mc == "Cadastro / planejamento":
         return "Erro cadastro / planejamento"
@@ -402,7 +355,7 @@ def _exec_accumulate_rows(
             returned_total += ret_val
             manual_returned_sum += ret_val
         if financial_rows is None and st == "devolucao" and ret_val > 0:
-            macro = _classify_macro_cause(row.get("motivo"), row.get("responsabilidade"))
+            macro = _macro_loss_label(row.get("motivo"), row.get("responsabilidade"))
             macro_value_global[macro] = macro_value_global.get(macro, 0.0) + ret_val
             if dur:
                 macro_time_global[macro] = macro_time_global.get(macro, 0.0) + dval
@@ -422,7 +375,7 @@ def _exec_accumulate_rows(
             returned_total += ret_val
             if row.get("standalone"):
                 manual_returned_sum += ret_val
-            macro = _classify_macro_cause(row.get("motivo"), row.get("responsabilidade"))
+            macro = _macro_loss_label(row.get("motivo"), row.get("responsabilidade"))
             macro_value_global[macro] = macro_value_global.get(macro, 0.0) + ret_val
             macro_clients.setdefault(macro, set())
             if cid is not None:
@@ -430,9 +383,8 @@ def _exec_accumulate_rows(
             macro_drivers.setdefault(macro, set())
             macro_drivers[macro].add(driver_name)
 
-    fin_base = planned_for_rate + manual_returned_sum
-    if fin_base <= 0:
-        fin_base = max(delivered_total + returned_total, 0.01)
+    # Mesma regra do BI Entregas: meta financeira sobre (valor entregue + valor devolvido).
+    fin_base = max(delivered_total + returned_total, 0.01)
     return {
         "unprod_by_key": unprod_by_key,
         "macro_value_global": macro_value_global,
@@ -1288,6 +1240,16 @@ def _build_bi_delivery_dataset(
 
     financial_rows_all = (financial_rows + gap_financial_rows) if financial_rows else []
 
+    # Valor devolvido oficial = cadastro (Devolucao + lacunas rota sem registro), independente de ajuste de responsabilidade.
+    if financial_rows_all:
+        canonical_returned_value = round(
+            sum(float(r.get("value") or r.get("returned_value") or 0.0) for r in financial_rows_all),
+            2,
+        )
+    else:
+        canonical_returned_value = round(float(returned_value), 2)
+    returned_value = canonical_returned_value
+
     avg_duration = statistics.mean(dur_list) if dur_list else 0.0
     global_return_rate = (returned_stops / max(1, planned_stops) * 100.0) if (planned_stops or manual) else 0.0
     tactical = []
@@ -1328,9 +1290,8 @@ def _build_bi_delivery_dataset(
     ) if rec7 else 0.0
     risk_label, risk_severity = ("Critico", "danger") if forecast_return_value >= 4 else ("Atencao", "warning") if forecast_return_value >= 2 else ("Controlado", "success")
     anomaly_flags: list[str] = []
-    financial_base_value = planned_value + returned_value_manual
-    if financial_base_value <= 0:
-        financial_base_value = realized_value + returned_value
+    # % valor: denominador = faturamento efetivo (entregue + devolvido), incluindo todo valor devolvido cadastrado.
+    financial_base_value = max(realized_value + returned_value, 0.01)
     global_return_rate_value = _pct(returned_value, financial_base_value)
 
     if global_return_rate_value >= 2:
@@ -1971,16 +1932,19 @@ def _build_bi_clientes_dataset(
         weekly_peak = max(item["weeks"].values()) if item["weeks"] else 0
         weekly_avg = round(statistics.mean(item["weeks"].values()), 2) if item["weeks"] else 0.0
         avg_duration_m = round(item["total_duration_m"] / item["duration_count"], 1) if item["duration_count"] else 0.0
-        financial_base = item["planned_value"] + item["manual_returned_value"]
-        if financial_base <= 0:
-            financial_base = item["delivered_value"] + item["returned_value"]
+        financial_base = max(
+            float(item["delivered_value"] or 0.0) + float(item["returned_value"] or 0.0),
+            0.01,
+        )
         qty_den = item["visits"] if item["visits"] > 0 else item["returned_occurrences"]
         return_rate_qtd = round(_safe_pct(item["returned_occurrences"], qty_den), 2)
         return_rate_value = round(_safe_pct(item["returned_value"], financial_base if financial_base > 0 else item["returned_value"]), 2)
 
-        prev_financial_base = float(previous_item.get("planned_value", 0.0) or 0.0) + float(previous_item.get("manual_returned_value", 0.0) or 0.0)
-        if prev_financial_base <= 0:
-            prev_financial_base = float(previous_item.get("delivered_value", 0.0) or 0.0) + float(previous_item.get("returned_value", 0.0) or 0.0)
+        prev_financial_base = max(
+            float(previous_item.get("delivered_value", 0.0) or 0.0)
+            + float(previous_item.get("returned_value", 0.0) or 0.0),
+            0.01,
+        )
         prev_visits = int(previous_item.get("visits", 0) or 0)
         prev_returns = int(previous_item.get("returned_occurrences", 0) or 0)
         prev_returned_value = round(float(previous_item.get("returned_value", 0.0) or 0.0), 2)
@@ -2054,19 +2018,24 @@ def _build_bi_clientes_dataset(
 
         ck = item["client_key"]
         unproductive_m = round(float(exec_cur["unprod_by_key"].get(ck, 0.0) or 0.0), 1)
-        macro_vals: dict[str, float] = {}
-        for mot, data in (item.get("motivos") or {}).items():
-            mac = _classify_macro_cause(mot, "")
-            macro_vals[mac] = macro_vals.get(mac, 0.0) + float(data.get("value") or 0)
         dom_macro = "—"
         dom_macro_share = 0.0
-        if macro_vals:
-            dom_macro, mv = max(macro_vals.items(), key=lambda x: x[1])
-            tv = sum(macro_vals.values())
-            dom_macro_share = round(_safe_pct(mv, tv), 1) if tv > 0 else 0.0
-        elif float(item.get("returned_value") or 0) > 0:
-            dom_macro = _classify_macro_cause(top_motivo_name, top_resp_name)
-            dom_macro_share = 100.0
+        rv = float(item.get("returned_value") or 0)
+        if rv > 0 and item.get("responsabilidades") and top_resp_name not in ("-", "—", ""):
+            dom_macro = top_resp_name
+            dom_macro_share = top_resp_return_share
+        else:
+            macro_vals: dict[str, float] = {}
+            for mot, data in (item.get("motivos") or {}).items():
+                mac = _macro_loss_label(mot, "")
+                macro_vals[mac] = macro_vals.get(mac, 0.0) + float(data.get("value") or 0)
+            if macro_vals:
+                dom_macro, mv = max(macro_vals.items(), key=lambda x: x[1])
+                tv = sum(macro_vals.values())
+                dom_macro_share = round(_safe_pct(mv, tv), 1) if tv > 0 else 0.0
+            elif rv > 0:
+                dom_macro = _macro_loss_label(top_motivo_name, top_resp_name)
+                dom_macro_share = 100.0
         dv_client = float(item.get("delivered_value") or 0)
         tdur = float(item.get("total_duration_m") or 0)
         min_per_1000 = round(tdur / max(dv_client / 1000.0, 0.01), 1) if dv_client > 0 else 0.0
@@ -2096,16 +2065,19 @@ def _build_bi_clientes_dataset(
             wear_tier, wear_tone = ("Atenção", "warning")
         else:
             wear_tier, wear_tone = ("Saudável", "success")
-        if dom_macro == "Comercial":
-            suggested_action = "Alinhar pedido, preço e prazo com comercial antes da próxima expedição."
-        elif dom_macro == "Logística":
-            suggested_action = "Foco em conferência de carga, separação e execução de rota."
-        elif dom_macro == "Cadastro / planejamento":
+        dm_l = _norm_text(dom_macro)
+        if dom_macro == "Cadastro / planejamento" or dm_l == "cadastro / planejamento":
             suggested_action = "Auditoria de endereço, janela e acesso no cadastro."
-        elif dom_macro == "Cliente / mercado":
+        elif dom_macro == "Cliente / mercado" or dm_l == "cliente / mercado":
             suggested_action = "Renegociar janela e confirmação de recebimento (D-1)."
-        elif dom_macro == "Financeiro / pagamento":
+        elif dom_macro == "Financeiro / pagamento" or dm_l == "financeiro / pagamento":
             suggested_action = "Validar forma de pagamento e limite com financeiro/comercial."
+        elif "logist" in dm_l:
+            suggested_action = "Foco em conferência de carga, separação e execução de rota."
+        elif "mercado" in dm_l and "/" not in str(dom_macro):
+            suggested_action = "Verificar qualidade percebida e acordo comercial de troca."
+        elif "comercial" in dm_l:
+            suggested_action = "Alinhar pedido, preço e prazo com comercial antes da próxima expedição."
         else:
             suggested_action = "Revisão conjunta comercial + operação no ponto."
 
@@ -2283,9 +2255,10 @@ def _build_bi_clientes_dataset(
     executive_headlines = []
     macro_v = ec["macro_value_global"]
     tmacro = sum(macro_v.values()) or 1.0
-    if tmacro > 200 and _safe_pct(macro_v.get("Logística", 0), tmacro) < 40:
+    logistica_valor_macro = sum(v for k, v in macro_v.items() if "logist" in _norm_text(k))
+    if tmacro > 200 and _safe_pct(logistica_valor_macro, tmacro) < 40:
         executive_headlines.append(
-            "Parte relevante das perdas em valor não se concentra na macrocausa Logística — aprofundar comercial, cadastro e cliente."
+            "Parte relevante das perdas em valor não se concentra na área Logística — aprofundar demais áreas e causas."
         )
     dur_sorted = sorted((float(r.get("total_duration_m") or 0) for r in ranking_rows), reverse=True)
     top5_share = (sum(dur_sorted[:5]) / max(float(ec["duration_total"] or 1), 1.0)) if ranking_rows else 0.0
@@ -2312,7 +2285,7 @@ def _build_bi_clientes_dataset(
         if float(r.get("returned_value") or 0) <= 0:
             continue
         dm = r.get("dominant_macro") or ""
-        if dm in ("—", "Logística"):
+        if dm in ("—",) or "logist" in _norm_text(dm):
             continue
         if float(r.get("return_rate_value") or 0) >= 0.8 or int(r.get("wear_score") or 0) >= 42:
             false_villains.append(
@@ -2373,14 +2346,25 @@ def _build_bi_clientes_dataset(
     ct_dev, _ = _city_max(lambda x: _safe_pct(x["ret"], x["del"] + x["ret"]) if (x["del"] + x["ret"]) > 0 else 0)
     ct_com = "—"
     if macro_by_city:
-        ct_com = max(macro_by_city.items(), key=lambda kv: kv[1].get("Comercial", 0))[0]
+
+        def _comercial_mercado_client_count(macros: dict[str, int]) -> int:
+            tot = 0
+            for k, c in macros.items():
+                nk = _norm_text(k)
+                if nk in ("comercial", "cliente / mercado", "mercado"):
+                    tot += c
+                elif "comercial" in nk and "cadastro" not in nk and "/" not in str(k):
+                    tot += c
+            return tot
+
+        ct_com = max(macro_by_city.items(), key=lambda kv: _comercial_mercado_client_count(kv[1]))[0]
 
     heatmap_city_kpis = [
         {"label": "Maior tempo médio (min/visita)", "city": ct_time, "hint": "Cidade com maior tempo total / visitas"},
         {"label": "Maior tempo improdutivo acumulado", "city": ct_unp},
         {"label": "Maior % clientes com média >60 min", "city": ct_m60, "value": round(v_m60, 1)},
         {"label": "Maior % devolução s/ valor (agreg.)", "city": ct_dev},
-        {"label": "Mais clientes macro Comercial", "city": ct_com},
+        {"label": "Mais clientes (área Comercial / Mercado)", "city": ct_com},
     ]
 
     anomaly_flags = []
@@ -3798,13 +3782,17 @@ async def relatorio_avaliacao_motorista_export_csv(
     )
 
 
-def _build_bi_vendedor_dataset(
+def _bi_vendedor_delivery_maps_and_resolver(
     session: Session,
     date_from: Optional[str],
     date_to: Optional[str],
-    vendedor_id: Optional[int] = None,
-) -> dict:
-    """Consolida vendas e devoluções por vendedor para ranking comercial."""
+) -> tuple[
+    dict,
+    list[dict],
+    list[dict],
+    Callable[[Optional[int]], tuple[Optional[int], str]],
+]:
+    """Dataset BI entregas, linhas de rota, financeiras de devolução e resolvedor cliente→vendedor."""
     delivery_dataset = _build_bi_delivery_dataset(
         session=session,
         date_from=date_from,
@@ -3814,13 +3802,11 @@ def _build_bi_vendedor_dataset(
         plate="Todos",
         status="Todos",
     )
-
     route_rows = [
         r for r in (delivery_dataset.get("all_route_rows") or [])
         if str(r.get("source") or "").upper() == "ROTA"
     ]
     financial_rows = list(delivery_dataset.get("all_financial_rows") or [])
-
     client_ids = sorted({
         int(r.get("client_id"))
         for r in (route_rows + financial_rows)
@@ -3831,7 +3817,6 @@ def _build_bi_vendedor_dataset(
         if client_ids else []
     )
     client_map = {c.id: c for c in clients}
-
     seller_ids = sorted({
         int(c.vendedor_id)
         for c in clients
@@ -3854,6 +3839,55 @@ def _build_bi_vendedor_dataset(
         if seller:
             return int(sid), str(seller.name or f"Vendedor #{sid}")
         return int(sid), f"Vendedor #{sid}"
+
+    return delivery_dataset, route_rows, financial_rows, _seller_for_client
+
+
+def _list_bi_vendedor_devolvidos(
+    session: Session,
+    date_from: Optional[str],
+    date_to: Optional[str],
+    vendedor_id: int,
+) -> dict:
+    """Lista ocorrências de devolução (cadastro financeiro) atribuídas ao vendedor. Use vendedor_id=-1 para sem vendedor."""
+    _, _, financial_rows, seller_for = _bi_vendedor_delivery_maps_and_resolver(session, date_from, date_to)
+    sem_vendedor = vendedor_id == -1
+    items: list[dict] = []
+    for row in financial_rows:
+        sid, _ = seller_for(row.get("client_id"))
+        if sem_vendedor:
+            if sid is not None:
+                continue
+        elif sid != vendedor_id:
+            continue
+        val = float(row.get("value") or row.get("returned_value") or 0.0)
+        items.append({
+            "client_id": row.get("client_id"),
+            "client_name": str(row.get("client_name") or "").strip() or "—",
+            "date": str(row.get("date") or "")[:10],
+            "valor": round(val, 2),
+            "motorista": str(row.get("driver_name") or "").strip() or "—",
+            "motivo": str(row.get("motivo") or "").strip() or "—",
+            "responsabilidade": str(row.get("responsabilidade") or "").strip() or "—",
+        })
+    items.sort(key=lambda x: (x["date"], x["client_name"]), reverse=True)
+    return {
+        "items": items,
+        "total_qtd": len(items),
+        "total_valor": round(sum(float(i["valor"]) for i in items), 2),
+    }
+
+
+def _build_bi_vendedor_dataset(
+    session: Session,
+    date_from: Optional[str],
+    date_to: Optional[str],
+    vendedor_id: Optional[int] = None,
+) -> dict:
+    """Consolida vendas e devoluções por vendedor para ranking comercial."""
+    delivery_dataset, route_rows, financial_rows, _seller_for_client = _bi_vendedor_delivery_maps_and_resolver(
+        session, date_from, date_to
+    )
 
     seller_acc: dict[int, dict] = {}
     sem_vendedor_key = -1
@@ -3937,7 +3971,12 @@ def _build_bi_vendedor_dataset(
     maior_devolucao = top_devolucoes[0] if top_devolucoes else None
     menor_taxa = top_taxa[0] if top_taxa else None
     soma_vendas = round(sum(float(r["vendas_realizadas"]) for r in base_rows), 2)
-    soma_devolucoes = round(sum(float(r["devolucoes_valor"]) for r in base_rows), 2)
+    soma_devolucoes_rows = round(sum(float(r["devolucoes_valor"]) for r in base_rows), 2)
+    # Total em R$ alinhado ao BI Entregas / cadastro (evita divergência vs soma das linhas por vendedor).
+    soma_devolucoes = round(
+        float(delivery_dataset.get("kpis", {}).get("valor_total_devolvido") or soma_devolucoes_rows),
+        2,
+    )
     taxa_geral = round(_safe_pct(soma_devolucoes, soma_vendas + soma_devolucoes), 2)
 
     filters_payload = {
@@ -3996,6 +4035,29 @@ async def bi_vendedor_page(
         vendedor_id=parsed_vendedor_id,
     )
     return templates.TemplateResponse("bi_vendedor.html", {"request": request, **dataset})
+
+
+@router.get("/bi/vendedor/devolvidos", response_class=JSONResponse)
+async def bi_vendedor_devolvidos_json(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    vendedor_id: str = Query(..., description="ID do vendedor no cadastro ou -1 para Sem vendedor"),
+    session: Session = Depends(get_session),
+):
+    raw = (vendedor_id or "").strip()
+    if raw == "-1":
+        parsed_vid = -1
+    elif raw.isdigit():
+        parsed_vid = int(raw)
+    else:
+        return JSONResponse({"error": "Parametro vendedor_id invalido."}, status_code=400)
+    payload = _list_bi_vendedor_devolvidos(
+        session=session,
+        date_from=date_from,
+        date_to=date_to,
+        vendedor_id=parsed_vid,
+    )
+    return JSONResponse(payload)
 
 
 @router.get("/bi/delivery", response_class=HTMLResponse)
@@ -4644,6 +4706,47 @@ def _build_bi_devolucoes_dataset(
     else:
         faixa_alerta_meta = "danger"
 
+    # Projeção % rotas ao fim do mês (sazonalidade por dia da semana no histórico pré-mês)
+    projecao_mes_fim: Optional[dict] = None
+    if (date_i.year, date_i.month) == (date_f.year, date_f.month):
+        m_last_d = monthrange(date_f.year, date_f.month)[1]
+        month_last = date(date_f.year, date_f.month, m_last_d)
+        month_first = date(date_f.year, date_f.month, 1)
+        if date_f < month_last:
+            bs_start = month_first - timedelta(days=140)
+            bs_end = month_first - timedelta(days=1)
+            if bs_end >= bs_start:
+                hist_ws = (bs_start - timedelta(days=10)).strftime("%Y-%m-%d")
+                hist_we = (bs_end + timedelta(days=10)).strftime("%Y-%m-%d")
+                rq_hist = (
+                    select(models.Route)
+                    .where(models.Route.type == "delivery")
+                    .where(models.Route.date >= hist_ws)
+                    .where(models.Route.date <= hist_we)
+                )
+                if motorista_id:
+                    rq_hist = rq_hist.where(models.Route.employee_id == motorista_id)
+                if client_ids_dev:
+                    if len(client_ids_dev) == 1:
+                        rq_hist = rq_hist.where(models.Route.client_id == client_ids_dev[0])
+                    else:
+                        rq_hist = rq_hist.where(models.Route.client_id.in_(client_ids_dev))
+                routes_hist_raw = session.exec(rq_hist).all()
+                bs_i_s = bs_start.strftime("%Y-%m-%d")
+                bs_f_s = bs_end.strftime("%Y-%m-%d")
+                routes_baseline = [
+                    r
+                    for r in routes_hist_raw
+                    if _in_operational_date_range_iso(str(getattr(r, "date", None) or "").strip(), bs_i_s, bs_f_s)
+                ]
+                projecao_mes_fim = build_mes_fim_projecao_pct_rotas(
+                    date_i,
+                    date_f,
+                    routes_delivery_period,
+                    routes_baseline,
+                    meta_pp=meta_pp,
+                )
+
     acima_meta_filter_note: Optional[str] = None
     ids_listagem: set[int] = {d.id for d in devs_pre_acima if getattr(d, "id", None)}
     if somente_acima_meta:
@@ -5200,6 +5303,7 @@ def _build_bi_devolucoes_dataset(
         "rotas_kpi_concluidas": int(n_done_r),
         "situacao_meta": situacao_meta,
         "faixa_alerta_meta": faixa_alerta_meta,
+        "projecao_mes_fim": projecao_mes_fim,
         "meta_valor_dia_ref": meta_valor_dia_ref,
         "generated_at": datetime.now(tz).strftime("%d/%m/%Y %H:%M"),
         # evolução
