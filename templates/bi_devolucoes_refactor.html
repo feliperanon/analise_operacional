@@ -36,6 +36,7 @@
   <div class="bi-dev-order bi-dev-order--hero">{% include "bi/devolucoes/_header.html" %}</div>
   <div class="bi-dev-order bi-dev-order--strip">{% include "bi/devolucoes/_decision_strip.html" %}</div>
   <div class="bi-dev-order bi-dev-order--kpis">{% include "bi/devolucoes/_kpis.html" %}</div>
+  <div class="bi-dev-order bi-dev-order--evitadas">{% include "bi/devolucoes/_evitadas_panel.html" %}</div>
   {% if filters.group_filter_note %}
   <div class="bi-dev-order bi-dev-order--alerts sys-alert sys-alert--info flex items-start gap-3" role="status">
     <svg class="h-5 w-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -70,7 +71,10 @@
       "metaValorDiaRef": {{ meta_valor_dia_ref|tojson }},
       "valorBaseDisponivel": {{ valor_base_disponivel|tojson }},
       "pctFinanceiro": {{ pct_devolucao_financeiro|tojson }},
-      "situacaoMeta": {{ situacao_meta|tojson }}
+      "situacaoMeta": {{ situacao_meta|tojson }},
+      "totalEvitadasQtd": {{ total_evitadas_qtd|tojson }},
+      "totalEvitadasValorEst": {{ total_evitadas_valor_est|tojson }},
+      "evitadasClientesDistintos": {{ evitadas_clientes_distintos|tojson }}
     }
   </script>
   <script id="bi-dev-evolucao-data" type="application/json">{{ evolucao_diaria_json|safe }}</script>

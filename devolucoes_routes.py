@@ -48,6 +48,7 @@ from devolucoes_service import (
 from devolucoes_service import _load_cadastros as devolucoes_load_cadastros
 from devolucoes_consolidado import consolidado_avaliar_resumo
 from utils.business_calendar import competence_date_str
+from devolucao_evitada_constants import EVITADA_TIPO_LABELS
 
 # Período padrão em /devolucoes/avaliar: somente a partir deste dia do mês (competência operacional).
 AVALIAR_DEFAULT_MONTH_START_DAY = 5
@@ -801,6 +802,13 @@ def init_devolucoes_router(
         motivo_id: int
         observacao: Optional[str] = None
         responsabilidade_id: int
+
+    class DevolucaoEvitadaCreatePayload(BaseModel):
+        event_date: str
+        client_id: int
+        tipo: str
+        observacao: Optional[str] = None
+        valor_estimado: Optional[float] = None
 
     @router.get("/devolucoes", response_class=HTMLResponse)
     async def devolucoes_page(
@@ -1859,6 +1867,61 @@ def init_devolucoes_router(
             return JSONResponse({"ok": True, "id": dev.id})
         except Exception as e:
             logger.exception(f"Erro ao criar devolucao manual: {e}")
+            return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+    @router.post("/api/devolucoes/evitada", response_class=JSONResponse)
+    async def api_devolucoes_evitada_create(
+        request: Request,
+        payload: DevolucaoEvitadaCreatePayload,
+        session: Session = Depends(get_session),
+    ):
+        """Registra uma devolução evitada (cliente + dia + tipo), para o BI Devoluções."""
+        require_login(request)
+        try:
+            uid = request.session.get("user_id")
+            user = session.get(models.User, uid) if uid else None
+            created_by = user.username if user else None
+
+            d_raw = (payload.event_date or "").strip()[:10]
+            try:
+                datetime.strptime(d_raw, "%Y-%m-%d")
+            except Exception:
+                return JSONResponse({"ok": False, "error": "Data inválida. Use YYYY-MM-DD."}, status_code=400)
+
+            tipo_key = (payload.tipo or "").strip().lower()
+            if tipo_key not in EVITADA_TIPO_LABELS:
+                return JSONResponse({"ok": False, "error": "Tipo de ocorrência inválido."}, status_code=400)
+
+            cli = session.get(models.Client, int(payload.client_id))
+            if not cli:
+                return JSONResponse({"ok": False, "error": "Cliente não encontrado."}, status_code=400)
+
+            obs = (payload.observacao or "").strip()
+            if len(obs) > 4000:
+                obs = obs[:4000]
+
+            ve_val = payload.valor_estimado
+            if ve_val is not None:
+                try:
+                    ve_val = float(ve_val)
+                except Exception:
+                    return JSONResponse({"ok": False, "error": "Valor estimado inválido."}, status_code=400)
+                if ve_val < 0 or ve_val > 1e9:
+                    return JSONResponse({"ok": False, "error": "Valor estimado fora do intervalo permitido."}, status_code=400)
+
+            row = models.DevolucaoEvitada(
+                event_date=d_raw,
+                client_id=int(payload.client_id),
+                tipo=tipo_key,
+                observacao=obs or None,
+                valor_estimado=ve_val,
+                created_by=created_by,
+            )
+            session.add(row)
+            session.commit()
+            return JSONResponse({"ok": True, "id": row.id})
+        except Exception as e:
+            logger.exception(f"Erro ao registrar devolucao evitada: {e}")
             return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
 
     @router.post("/api/devolucoes/reconnect-orphans", response_class=JSONResponse)

@@ -687,6 +687,14 @@
                       var pv = row.pct_devolucao_dia;
                       if (pv != null && !isNaN(Number(pv))) lines.push("% devolução no dia: " + fmtPct(pv));
                       lines.push("Qtd. devoluções: " + String(row.qtd != null ? row.qtd : 0));
+                      var evq = Number(row.evitadas_qtd || 0);
+                      if (evq > 0) {
+                        lines.push("Devoluções evitadas (qtd): " + String(evq));
+                        var evv = row.evitadas_valor_est;
+                        if (evv != null && !isNaN(Number(evv)) && Number(evv) > 0) {
+                          lines.push("Valor estimado evitado no dia: " + fmtMoney(evv));
+                        }
+                      }
                       return lines;
                     }
                   }
@@ -867,6 +875,125 @@
       syncAdv();
     });
   }
+
+  (function initEvitadaForm() {
+    var evForm = document.getElementById("bi-dev-evitada-form");
+    if (!evForm) return;
+    var hid = document.getElementById("bi-dev-ev-client-id");
+    var q = document.getElementById("bi-dev-ev-client-q");
+    var sug = document.getElementById("bi-dev-ev-suggest");
+    var msg = document.getElementById("bi-dev-ev-msg");
+    var tmr = 0;
+    function showMsg(text, ok) {
+      if (!msg) return;
+      msg.textContent = text;
+      msg.classList.remove("hidden", "text-emerald-700", "text-red-600", "dark:text-emerald-400", "dark:text-red-400");
+      if (ok) {
+        msg.classList.add("text-emerald-700", "dark:text-emerald-400");
+      } else {
+        msg.classList.add("text-red-600", "dark:text-red-400");
+      }
+      msg.classList.remove("hidden");
+    }
+    function closeSug() {
+      if (!sug) return;
+      sug.innerHTML = "";
+      sug.classList.add("hidden");
+    }
+    function parseValorBr(s) {
+      if (!s || !String(s).trim()) return null;
+      var n = Number(String(s).replace(/\./g, "").replace(",", "."));
+      return Number.isFinite(n) ? n : NaN;
+    }
+    if (q && hid) {
+      q.addEventListener("input", function () {
+        clearTimeout(tmr);
+        hid.value = "";
+        var term = (q.value || "").trim();
+        if (term.length < 2) {
+          closeSug();
+          return;
+        }
+        tmr = setTimeout(function () {
+          fetch("/api/delivery/clients/search?q=" + encodeURIComponent(term) + "&limit=15", {
+            credentials: "same-origin"
+          })
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (rows) {
+              if (!sug) return;
+              sug.innerHTML = "";
+              if (!Array.isArray(rows) || !rows.length) {
+                sug.classList.add("hidden");
+                return;
+              }
+              rows.forEach(function (row) {
+                var b = document.createElement("button");
+                b.type = "button";
+                b.textContent = row.display || row.name || "";
+                b.addEventListener("click", function () {
+                  hid.value = String(row.id);
+                  q.value = row.name || row.display || "";
+                  closeSug();
+                });
+                sug.appendChild(b);
+              });
+              sug.classList.remove("hidden");
+            })
+            .catch(function () {
+              closeSug();
+            });
+        }, 300);
+      });
+    }
+    document.addEventListener("click", function (e) {
+      if (sug && q && evForm && !evForm.contains(e.target)) closeSug();
+    });
+    evForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (!hid || !hid.value) {
+        showMsg("Selecione um cliente na lista de sugestões.", false);
+        return;
+      }
+      var fd = new FormData(evForm);
+      var valorEl = document.getElementById("bi-dev-ev-valor");
+      var valorRaw = (valorEl && valorEl.value) || "";
+      var payload = {
+        event_date: fd.get("event_date"),
+        client_id: Number(hid.value),
+        tipo: fd.get("tipo"),
+        observacao: (document.getElementById("bi-dev-ev-obs") && document.getElementById("bi-dev-ev-obs").value) || ""
+      };
+      var pv = parseValorBr(valorRaw);
+      if (String(valorRaw).trim() && (pv === null || isNaN(pv))) {
+        showMsg("Valor estimado inválido.", false);
+        return;
+      }
+      if (pv != null && !isNaN(pv)) payload.valor_estimado = pv;
+      fetch("/api/devolucoes/evitada", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload)
+      })
+        .then(function (r) {
+          return r.json().then(function (j) {
+            return { ok: r.ok, body: j };
+          });
+        })
+        .then(function (res) {
+          if (res.ok && res.body && res.body.ok) {
+            window.location.reload();
+            return;
+          }
+          showMsg((res.body && res.body.error) || "Erro ao salvar.", false);
+        })
+        .catch(function () {
+          showMsg("Falha de rede ao salvar.", false);
+        });
+    });
+  })();
 
   syncExportHrefs();
   runClientFilters();

@@ -25,6 +25,7 @@ from route_duration import route_duration_minutes, route_duration_minutes_mobile
 from devolucao_kpi_canonical import (
     build_mes_fim_projecao_pct_rotas,
     counts_devolucao_rotas_concluidas,
+    is_encerramento_tardio_automatico_return,
     pct_devolucao_sobre_rotas_concluidas,
 )
 from devolucao_perda_labels import (
@@ -32,7 +33,10 @@ from devolucao_perda_labels import (
     classify_macro_cause as _classify_macro_cause,
     macro_loss_label as _macro_loss_label,
 )
+from devolucao_evitada_constants import EVITADA_TIPO_LABELS, EVITADA_TIPOS_ORDENADOS, label_tipo_evitada
 from utils.business_calendar import competence_date_str
+
+import bi_clientes_intel as bci_clientes
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
@@ -398,6 +402,7 @@ def _exec_accumulate_rows(
         "duration_total": round(duration_total, 1),
         "unproductive_total": round(unproductive_total, 1),
         "productive_total": round(productive_total, 1),
+        "planned_total": round(planned_for_rate, 2),
         "bucket_visits": bucket_visits,
         "bucket_value": [round(x, 2) for x in bucket_value],
         "bucket_duration": [round(x, 1) for x in bucket_duration],
@@ -494,9 +499,13 @@ def _aggregate_bi_client_rows(rows: list[dict], financial_rows: Optional[list[di
                 "delivered_value": 0.0,
                 "returned_value": 0.0,
                 "returned_kg": 0.0,
+                "planned_kg": 0.0,
+                "delivered_kg": 0.0,
                 "manual_returned_value": 0.0,
                 "total_duration_m": 0.0,
                 "duration_count": 0,
+                "max_duration_m": 0.0,
+                "min_duration_m": None,
                 "reopen_count": 0,
                 "window_checks": 0,
                 "window_hits": 0,
@@ -516,6 +525,8 @@ def _aggregate_bi_client_rows(rows: list[dict], financial_rows: Optional[list[di
             bucket["visits"] += 1
             bucket["planned_value"] += planned_value
             bucket["delivered_value"] += delivered_value
+            bucket["planned_kg"] += float(row.get("planned_kg") or 0.0)
+            bucket["delivered_kg"] += float(row.get("delivered_kg") or 0.0)
             bucket["weeks"][week_key] = bucket["weeks"].get(week_key, 0) + 1
 
         driver_bucket = bucket["drivers"].setdefault(
@@ -528,6 +539,11 @@ def _aggregate_bi_client_rows(rows: list[dict], financial_rows: Optional[list[di
             bucket["total_duration_m"] += duration_value
             bucket["duration_count"] += 1
             driver_bucket["duration_m"] += duration_value
+            if duration_value > float(bucket.get("max_duration_m") or 0.0):
+                bucket["max_duration_m"] = duration_value
+            prev_min = bucket.get("min_duration_m")
+            if prev_min is None or duration_value < float(prev_min):
+                bucket["min_duration_m"] = duration_value
         if reopen_count:
             bucket["reopen_count"] += reopen_count
 
@@ -590,9 +606,13 @@ def _aggregate_bi_client_rows(rows: list[dict], financial_rows: Optional[list[di
                     "delivered_value": 0.0,
                     "returned_value": 0.0,
                     "returned_kg": 0.0,
+                    "planned_kg": 0.0,
+                    "delivered_kg": 0.0,
                     "manual_returned_value": 0.0,
                     "total_duration_m": 0.0,
                     "duration_count": 0,
+                    "max_duration_m": 0.0,
+                    "min_duration_m": None,
                     "reopen_count": 0,
                     "window_checks": 0,
                     "window_hits": 0,
@@ -814,7 +834,7 @@ def _financial_gap_rows_from_routes(
     gap: list[dict] = []
     for r in routes:
         status_raw = (r.delivery_status or "pendente").strip().lower()
-        if status_raw == "devolucao" and (r.delivery_return_reason or "").strip().upper() == "ENCERRAMENTO TARDIO AUTOMATICO":
+        if status_raw == "devolucao" and is_encerramento_tardio_automatico_return(getattr(r, "delivery_return_reason", None)):
             status_raw = "entregue"
         if status_raw != "devolucao":
             continue
@@ -1037,7 +1057,7 @@ def _build_bi_delivery_dataset(
         comp_date = _competence_date_or_self(getattr(r, "date", None)) or str(getattr(r, "date", "") or "")
         status_raw = (r.delivery_status or "pendente").strip().lower()
         # Legacy: encerramento automático foi marcado como devolução por engano → tratar como entregue
-        if status_raw == "devolucao" and (r.delivery_return_reason or "").strip().upper() == "ENCERRAMENTO TARDIO AUTOMATICO":
+        if status_raw == "devolucao" and is_encerramento_tardio_automatico_return(getattr(r, "delivery_return_reason", None)):
             status_raw = "entregue"
         emp = emp_map.get(r.employee_id)
         cli = cli_map.get(r.client_id)
@@ -1728,6 +1748,14 @@ def _build_bi_clientes_dataset(
     returns_filter: str = "Todos",
     detail_client_id: Optional[int] = None,
     client_filter_scope: str = "solo",
+    vendedor_id: Optional[int] = None,
+    search_q: str = "",
+    classification_filter: str = "Todos",
+    motivo_filter: str = "Todos",
+    responsabilidade_filter: str = "Todos",
+    purchase_band: str = "Todos",
+    return_band: str = "Todos",
+    duration_band: str = "Todos",
 ) -> dict:
     tz = ZoneInfo("America/Sao_Paulo")
     today = datetime.now(tz).date()
@@ -1859,6 +1887,44 @@ def _build_bi_clientes_dataset(
 
     filtered_rows = _apply_client_filters(base_rows)
     filtered_financial_rows = _apply_client_filters(base_financial_rows)
+
+    _seller_scope_ids = sorted({int(r["client_id"]) for r in base_rows if r.get("client_id") is not None})
+    sellers_filter: list[dict] = []
+    if _seller_scope_ids:
+        _cl_seller_rows = session.exec(select(models.Client).where(models.Client.id.in_(_seller_scope_ids))).all()
+        _vids_sellers = sorted({int(c.vendedor_id) for c in _cl_seller_rows if c.vendedor_id is not None})
+        _emp_sellers = (
+            session.exec(select(models.Employee).where(models.Employee.id.in_(_vids_sellers))).all() if _vids_sellers else []
+        )
+        _emp_seller_map = {e.id: e for e in _emp_sellers}
+        _seen_vid: set[int] = set()
+        for c in _cl_seller_rows:
+            if c.vendedor_id is None or int(c.vendedor_id) in _seen_vid:
+                continue
+            _seen_vid.add(int(c.vendedor_id))
+            ev = _emp_seller_map.get(int(c.vendedor_id))
+            sellers_filter.append(
+                {
+                    "id": int(c.vendedor_id),
+                    "name": str(ev.name or f"Vendedor #{c.vendedor_id}") if ev else f"Vendedor #{c.vendedor_id}",
+                }
+            )
+        sellers_filter.sort(key=lambda x: x["name"])
+
+    motivos_filter_options = sorted(
+        {
+            str(x.get("motivo") or "").strip()
+            for x in (filtered_rows + filtered_financial_rows)
+            if str(x.get("motivo") or "").strip() and _norm_text(str(x.get("motivo"))) != "nao informado"
+        }
+    )
+    responsabilidades_filter_options = sorted(
+        {
+            str(x.get("responsabilidade") or "").strip()
+            for x in (filtered_rows + filtered_financial_rows)
+            if str(x.get("responsabilidade") or "").strip() and _norm_text(str(x.get("responsabilidade"))) != "nao informado"
+        }
+    )
 
     detail_client_id = detail_client_id or client_id
 
@@ -2081,6 +2147,16 @@ def _build_bi_clientes_dataset(
         else:
             suggested_action = "Revisão conjunta comercial + operação no ponto."
 
+        return_pct_planned = round(
+            _safe_pct(float(item["returned_value"] or 0.0), max(float(item["planned_value"] or 0.0), 0.01)),
+            2,
+        )
+        delivery_efficiency_pct = round(
+            _safe_pct(int(item["delivered_visits"] or 0), max(int(item["visits"] or 0), 1)),
+            2,
+        )
+        treatable_val = bci_clientes.treatable_return_value(item.get("motivos"), float(item.get("returned_value") or 0.0))
+
         ranking_rows.append(
             {
                 "client_id": item["client_id"],
@@ -2102,9 +2178,16 @@ def _build_bi_clientes_dataset(
                 "planned_value": round(item["planned_value"], 2),
                 "delivered_value": round(dv_client, 2),
                 "returned_value": round(item["returned_value"], 2),
+                "planned_kg": round(float(item.get("planned_kg") or 0.0), 2),
+                "delivered_kg": round(float(item.get("delivered_kg") or 0.0), 2),
                 "returned_kg": round(item["returned_kg"], 2),
+                "max_duration_m": round(float(item.get("max_duration_m") or 0.0), 1),
+                "min_duration_m": (round(float(item["min_duration_m"]), 1) if item.get("min_duration_m") is not None else None),
                 "return_rate_qtd": return_rate_qtd,
                 "return_rate_value": return_rate_value,
+                "return_pct_planned": return_pct_planned,
+                "delivery_efficiency_pct": delivery_efficiency_pct,
+                "treatable_returned_value": treatable_val,
                 "total_duration_m": round(item["total_duration_m"], 1),
                 "avg_duration_m": avg_duration_m,
                 "reopen_count": item["reopen_count"],
@@ -2162,17 +2245,193 @@ def _build_bi_clientes_dataset(
     if rf == "com_devolucao":
         ranking_rows = [row for row in ranking_rows if float(row.get("returned_value") or 0) > 0 or int(row.get("returned_occurrences") or 0) > 0]
     elif rf == "acima_meta":
-        ranking_rows = [row for row in ranking_rows if float(row.get("return_rate_value") or 0) >= 2.0]
+        ranking_rows = [row for row in ranking_rows if float(row.get("return_pct_planned") or row.get("return_rate_value") or 0) >= 2.0]
+
+    dvals = [float(r.get("delivered_value") or 0) for r in ranking_rows]
+    sd = sorted(dvals)
+    median_delivered = float(statistics.median(sd)) if sd else 0.0
+    p75_delivered = float(sd[max(0, int(len(sd) * 0.75) - 1)]) if sd else 0.0
+    adurs = [float(r.get("avg_duration_m") or 0) for r in ranking_rows if int(r.get("visits") or 0) > 0]
+    avg_duration_global = float(statistics.mean(adurs)) if adurs else 0.0
+
+    pos_cli_ids = sorted(
+        {int(r["client_id"]) for r in ranking_rows if r.get("client_id") is not None and int(r["client_id"]) > 0}
+    )
+    cli_by_id: dict[int, models.Client] = {}
+    if pos_cli_ids:
+        for cobj in session.exec(select(models.Client).where(models.Client.id.in_(pos_cli_ids))).all():
+            if cobj.id is not None:
+                cli_by_id[int(cobj.id)] = cobj
+    seller_ids = sorted(
+        {
+            int(getattr(cli_by_id[i], "vendedor_id"))
+            for i in pos_cli_ids
+            if i in cli_by_id and getattr(cli_by_id[i], "vendedor_id", None) is not None
+        }
+    )
+    seller_name_by_id: dict[int, str] = {}
+    if seller_ids:
+        for em in session.exec(select(models.Employee).where(models.Employee.id.in_(seller_ids))).all():
+            if em.id is not None:
+                seller_name_by_id[int(em.id)] = str(em.name or f"Vendedor #{em.id}")
+
+    for r in ranking_rows:
+        cid = r.get("client_id")
+        cobj = cli_by_id.get(int(cid)) if cid is not None and str(cid).lstrip("-").isdigit() and int(cid) > 0 else None
+        nb = (str(cobj.nb).strip() if cobj and cobj.nb else "") or ""
+        vid = int(cobj.vendedor_id) if cobj and cobj.vendedor_id is not None else None
+        r["client_code"] = nb or "—"
+        r["vendedor_id"] = vid
+        r["vendedor_name"] = seller_name_by_id.get(vid, "Sem vendedor") if vid is not None else "Sem vendedor"
+        r["_search_blob"] = _norm_text(
+            " ".join(
+                str(x or "")
+                for x in (
+                    r.get("client_name"),
+                    nb,
+                    r.get("vendedor_name"),
+                    r.get("top_motivo_name"),
+                    r.get("top_responsabilidade_name"),
+                )
+            )
+        )
+        cls = bci_clientes.classificacao_cliente(
+            delivered_value=float(r.get("delivered_value") or 0),
+            planned_value=float(r.get("planned_value") or 0),
+            returned_value=float(r.get("returned_value") or 0),
+            return_pct_planned=float(r.get("return_pct_planned") or 0),
+            avg_duration_m=float(r.get("avg_duration_m") or 0),
+            avg_duration_global=avg_duration_global,
+            reopen_count=int(r.get("reopen_count") or 0),
+            returned_occurrences=int(r.get("returned_occurrences") or 0),
+            visits=int(r.get("visits") or 0),
+            median_delivered=median_delivered,
+            p75_delivered=p75_delivered,
+            top_motivo_name=str(r.get("top_motivo_name") or ""),
+            top_resp_name=str(r.get("top_responsabilidade_name") or ""),
+        )
+        r["classification_code"] = cls[0]
+        r["classification_title"] = cls[1]
+        r["classification_message"] = cls[2]
+        sc = bci_clientes.score_cliente(
+            delivered_value=float(r.get("delivered_value") or 0),
+            return_pct_planned=float(r.get("return_pct_planned") or 0),
+            avg_duration_m=float(r.get("avg_duration_m") or 0),
+            avg_duration_global=avg_duration_global,
+            returned_occurrences=int(r.get("returned_occurrences") or 0),
+            visits=int(r.get("visits") or 0),
+            reopen_count=int(r.get("reopen_count") or 0),
+        )
+        r["cliente_score"] = sc[0]
+        r["cliente_score_band"] = sc[1]
+        r["cliente_score_tone"] = sc[2]
+        r["cliente_score_parts_json"] = json.dumps(sc[4], ensure_ascii=False)
+        r["operational_impact"] = bci_clientes.impacto_operacional(
+            float(r.get("return_pct_planned") or 0),
+            float(r.get("return_rate_qtd") or 0),
+            float(r.get("avg_duration_m") or 0),
+            avg_duration_global,
+            int(r.get("reopen_count") or 0),
+        )
+        r["action_recommendation"] = bci_clientes.acao_recomendada_por_classificacao(
+            str(r.get("classification_code") or ""),
+            str(r.get("top_motivo_name") or ""),
+            str(r.get("top_responsabilidade_name") or ""),
+        )
+
+    if vendedor_id is not None:
+        if int(vendedor_id) == -1:
+            ranking_rows = [r for r in ranking_rows if r.get("vendedor_id") is None]
+        else:
+            ranking_rows = [r for r in ranking_rows if r.get("vendedor_id") == int(vendedor_id)]
+
+    if (classification_filter or "").strip() and (classification_filter or "").strip().lower() != "todos":
+        cf = (classification_filter or "").strip().upper()
+        ranking_rows = [r for r in ranking_rows if str(r.get("classification_code") or "").upper() == cf]
+
+    if (motivo_filter or "").strip() and (motivo_filter or "").strip().lower() != "todos":
+        mf = _norm_text(motivo_filter)
+        ranking_rows = [r for r in ranking_rows if mf and mf in _norm_text(r.get("top_motivo_name"))]
+
+    if (responsabilidade_filter or "").strip() and (responsabilidade_filter or "").strip().lower() != "todos":
+        rf_txt = _norm_text(responsabilidade_filter)
+        ranking_rows = [r for r in ranking_rows if rf_txt and rf_txt in _norm_text(r.get("top_responsabilidade_name"))]
+
+    if (search_q or "").strip():
+        sq = _norm_text(search_q.strip())
+        if sq:
+            ranking_rows = [r for r in ranking_rows if sq in (r.get("_search_blob") or "")]
+
+    def _band_delivered(row, band: str) -> bool:
+        v = float(row.get("delivered_value") or 0)
+        b = (band or "Todos").strip().lower()
+        if b in ("", "todos"):
+            return True
+        if b == "ate_5k":
+            return v <= 5000
+        if b == "5k_20k":
+            return 5000 < v <= 20000
+        if b == "20k_50k":
+            return 20000 < v <= 50000
+        if b == "acima_50k":
+            return v > 50000
+        return True
+
+    def _band_return_pct(row, band: str) -> bool:
+        v = float(row.get("return_pct_planned") or 0)
+        b = (band or "Todos").strip().lower()
+        if b in ("", "todos"):
+            return True
+        if b == "zero":
+            return v <= 0.01
+        if b == "ate_2":
+            return v <= 2.0
+        if b == "2_5":
+            return 2.0 < v <= 5.0
+        if b == "acima_5":
+            return v > 5.0
+        return True
+
+    def _band_duration(row, band: str) -> bool:
+        v = float(row.get("avg_duration_m") or 0)
+        b = (band or "Todos").strip().lower()
+        if b in ("", "todos"):
+            return True
+        if b == "ate_30":
+            return v <= 30
+        if b == "30_60":
+            return 30 < v <= 60
+        if b == "60_90":
+            return 60 < v <= 90
+        if b == "acima_90":
+            return v > 90
+        return True
+
+    ranking_rows = [r for r in ranking_rows if _band_delivered(r, purchase_band)]
+    ranking_rows = [r for r in ranking_rows if _band_return_pct(r, return_band)]
+    ranking_rows = [r for r in ranking_rows if _band_duration(r, duration_band)]
+
+    ranking_rows.sort(key=lambda row: float(row.get("delivered_value") or 0), reverse=True)
 
     total_visits = sum(int(row.get("visits", 0) or 0) for row in ranking_rows)
-    critical_clients = [row for row in ranking_rows if (row.get("risk_score", 0) >= 70 or row.get("return_rate_value", 0.0) >= 2.0)]
+    critical_clients = [
+        row
+        for row in ranking_rows
+        if str(row.get("classification_code") or "") in ("CRITICO", "ALTO_VALOR_RISCO")
+        or int(row.get("risk_score", 0) or 0) >= 70
+        or float(row.get("return_pct_planned") or 0) >= 3.0
+    ]
     clients_with_returns = [row for row in ranking_rows if (row.get("returned_occurrences", 0) or 0) > 0]
     top_time_row = max(ranking_rows, key=lambda row: row.get("total_duration_m", 0.0), default=None)
     top_freq_row = max(ranking_rows, key=lambda row: (row.get("weekly_peak_visits", 0), row.get("visits", 0)), default=None)
     top_return_row = max(ranking_rows, key=lambda row: row.get("returned_value", 0.0), default=None)
-    top_pct_row = max(ranking_rows, key=lambda row: row.get("return_rate_value", 0.0), default=None)
+    top_pct_row = max(
+        ranking_rows,
+        key=lambda row: float(row.get("return_pct_planned") or 0) or float(row.get("return_rate_value") or 0),
+        default=None,
+    )
     top_recurrence_row = max(ranking_rows, key=lambda row: row.get("returned_occurrences", 0), default=None)
-    top_risk_row = ranking_rows[0] if ranking_rows else None
+    top_risk_row = max(ranking_rows, key=lambda row: int(row.get("risk_score") or 0), default=None)
     worsening_candidates = [row for row in ranking_rows if row.get("has_previous_data")]
     top_worsening_row = max(
         worsening_candidates,
@@ -2230,6 +2489,56 @@ def _build_bi_clientes_dataset(
     waste_pct = round(_safe_pct(ec["unproductive_total"], ec["duration_total"]), 2) if ec["duration_total"] > 0 else 0.0
     waste_prev = round(_safe_pct(ep["unproductive_total"], ep["duration_total"]), 2) if ep["duration_total"] > 0 else 0.0
 
+    macro_v = ec["macro_value_global"]
+    planned_tot = float(ec.get("planned_total") or 0)
+    return_pct_planned_global = round(_safe_pct(ec["returned_total"], max(planned_tot, 0.01)), 2)
+    tot_delivered_grid = sum(float(r.get("delivered_value") or 0) for r in ranking_rows) or 1.0
+    top10_delivered_block = sorted(ranking_rows, key=lambda r: float(r.get("delivered_value") or 0), reverse=True)[:10]
+    top10_share_delivered = round(
+        _safe_pct(sum(float(x.get("delivered_value") or 0) for x in top10_delivered_block), tot_delivered_grid), 1
+    )
+    n_above_meta = sum(
+        1 for r in ranking_rows if float(r.get("return_pct_planned") or 0) > bci_clientes.META_DEVOLUCAO_VALOR_PCT
+    )
+    dvals_f = [float(r.get("delivered_value") or 0) for r in ranking_rows]
+    med_f = float(statistics.median(sorted(dvals_f))) if dvals_f else 0.0
+    ad_f = [float(r.get("avg_duration_m") or 0) for r in ranking_rows if int(r.get("visits") or 0) > 0]
+    avg_dur_f = float(statistics.mean(ad_f)) if ad_f else avg_duration_global
+    n_small_high = sum(
+        1
+        for r in ranking_rows
+        if float(r.get("delivered_value") or 0) < med_f
+        and (
+            float(r.get("returned_value") or 0) > 0
+            or float(r.get("avg_duration_m") or 0) > avg_dur_f
+            or int(r.get("reopen_count") or 0) > 0
+        )
+    )
+    treatable_total = round(sum(float(r.get("treatable_returned_value") or 0) for r in ranking_rows), 2)
+    main_motivo_period = "—"
+    if ranking_rows:
+        from collections import Counter
+
+        mc = Counter()
+        for r in ranking_rows:
+            m = str(r.get("top_motivo_name") or "").strip()
+            if m and m not in ("-", "—"):
+                mc[m] += int(r.get("returned_occurrences") or 0) + 1
+        if mc:
+            main_motivo_period = mc.most_common(1)[0][0]
+    main_resp_period = "—"
+    main_resp_period_val = 0.0
+    if macro_v:
+        mr, mv = max(macro_v.items(), key=lambda kv: kv[1])
+        main_resp_period, main_resp_period_val = str(mr), round(float(mv), 2)
+
+    clients_good_intel = sum(
+        1
+        for r in ranking_rows
+        if str(r.get("classification_code") or "") in ("PREMIUM_OPERACIONAL", "ESTAVEL")
+        and int(r.get("cliente_score") or 0) >= 72
+    )
+
     executive_kpis = {
         "delivered_value": ec["delivered_total"],
         "returned_value": ec["returned_total"],
@@ -2250,10 +2559,101 @@ def _build_bi_clientes_dataset(
         "delta_waste_pp": round(waste_pct - waste_prev, 2),
         "period_current": current_label,
         "period_previous": previous_label,
+        "planned_value_total": round(planned_tot, 2),
+        "return_pct_planned_global": return_pct_planned_global,
+        "uniq_clients": len(ranking_rows),
+        "clients_critical_intel": len(critical_clients),
+        "clients_good_intel": clients_good_intel,
+        "treatable_returned_total": treatable_total,
+        "avg_duration_clients_m": round(avg_dur_f, 1),
+        "return_pct_stops_global": round(
+            _safe_pct(
+                sum(int(r.get("returned_occurrences") or 0) for r in ranking_rows),
+                max(sum(int(r.get("visits") or 0) for r in ranking_rows), 1),
+            ),
+            2,
+        ),
+    }
+
+    reading_cards = bci_clientes.build_operational_reading_cards(
+        returned_total=float(ec["returned_total"] or 0),
+        delivered_total=float(ec["delivered_total"] or 0),
+        planned_total=planned_tot,
+        n_clients=len(ranking_rows),
+        n_above_meta=n_above_meta,
+        n_small_high_impact=n_small_high,
+        top10_delivered_share_pct=top10_share_delivered,
+        main_motivo=main_motivo_period,
+        main_resp=main_resp_period,
+        main_resp_value=main_resp_period_val,
+        treatable_value=treatable_total,
+    )
+
+    top10_returned = sorted(ranking_rows, key=lambda r: float(r.get("returned_value") or 0), reverse=True)[:10]
+    small_high_block = sorted(
+        [r for r in ranking_rows if float(r.get("delivered_value") or 0) < med_f and float(r.get("operational_impact") or 0) > 0],
+        key=lambda r: float(r.get("operational_impact") or 0),
+        reverse=True,
+    )[:10]
+    large_risk_block = sorted(
+        [
+            r
+            for r in ranking_rows
+            if float(r.get("delivered_value") or 0) >= (sorted(dvals_f)[max(0, int(len(dvals_f) * 0.75) - 1)] if dvals_f else 0)
+            and float(r.get("return_pct_planned") or 0) > bci_clientes.META_DEVOLUCAO_VALOR_PCT
+        ],
+        key=lambda r: float(r.get("return_pct_planned") or 0),
+        reverse=True,
+    )[:10]
+    best_ops = sorted(
+        [
+            r
+            for r in ranking_rows
+            if float(r.get("delivered_value") or 0) >= med_f
+            and float(r.get("return_pct_planned") or 0) <= bci_clientes.META_DEVOLUCAO_VALOR_PCT
+            and int(r.get("cliente_score") or 0) >= 75
+        ],
+        key=lambda r: float(r.get("delivered_value") or 0),
+        reverse=True,
+    )[:10]
+    worst_time = sorted(ranking_rows, key=lambda r: float(r.get("avg_duration_m") or 0), reverse=True)[:10]
+    worst_recurrence = sorted(ranking_rows, key=lambda r: int(r.get("returned_occurrences") or 0), reverse=True)[:10]
+    motivos_por_cliente = sorted(
+        ranking_rows,
+        key=lambda r: int(r.get("returned_occurrences") or 0),
+        reverse=True,
+    )[:12]
+
+    analytic_blocks = {
+        "top10_valor_comprado": [
+            {"id": r.get("client_id"), "name": r.get("client_name"), "value": r.get("delivered_value")} for r in top10_delivered_block
+        ],
+        "top10_valor_devolvido": [
+            {"id": r.get("client_id"), "name": r.get("client_name"), "value": r.get("returned_value")} for r in top10_returned
+        ],
+        "pequenos_alto_impacto": [
+            {"id": r.get("client_id"), "name": r.get("client_name"), "impact": r.get("operational_impact"), "delivered": r.get("delivered_value")}
+            for r in small_high_block
+        ],
+        "grandes_com_risco": [
+            {"id": r.get("client_id"), "name": r.get("client_name"), "pct": r.get("return_pct_planned"), "delivered": r.get("delivered_value")}
+            for r in large_risk_block
+        ],
+        "melhores_operacionais": [
+            {"id": r.get("client_id"), "name": r.get("client_name"), "score": r.get("cliente_score"), "delivered": r.get("delivered_value")}
+            for r in best_ops
+        ],
+        "piores_tempos": [{"id": r.get("client_id"), "name": r.get("client_name"), "avg_m": r.get("avg_duration_m")} for r in worst_time],
+        "maior_recorrencia": [
+            {"id": r.get("client_id"), "name": r.get("client_name"), "n": r.get("returned_occurrences")} for r in worst_recurrence
+        ],
+        "motivos_cliente": [
+            {"id": r.get("client_id"), "name": r.get("client_name"), "motivo": r.get("top_motivo_name"), "n": r.get("returned_occurrences")}
+            for r in motivos_por_cliente
+        ],
     }
 
     executive_headlines = []
-    macro_v = ec["macro_value_global"]
     tmacro = sum(macro_v.values()) or 1.0
     logistica_valor_macro = sum(v for k, v in macro_v.items() if "logist" in _norm_text(k))
     if tmacro > 200 and _safe_pct(logistica_valor_macro, tmacro) < 40:
@@ -2526,7 +2926,7 @@ def _build_bi_clientes_dataset(
                     "r": int(min(22, max(5, int(r.get("visits") or 1) * 2))),
                     "name": (r.get("client_name") or "")[:28],
                     "cid": r.get("client_id"),
-                    "retpct": round(float(r.get("return_rate_value") or 0), 2),
+                    "retpct": round(float(r.get("return_pct_planned") or r.get("return_rate_value") or 0), 2),
                     "quad": quad,
                 }
             )
@@ -2537,6 +2937,48 @@ def _build_bi_clientes_dataset(
     )[:12]
     du_sorted = sorted(exec_cur["driver_unprod"].items(), key=lambda x: -x[1])[:10]
     cu_sorted = sorted(exec_cur["cause_unprod_time"].items(), key=lambda x: -x[1])[:8]
+
+    daily_evolution_map: dict[str, dict[str, float]] = {}
+    for rr in filtered_rows:
+        if str(rr.get("source") or "").upper() != "ROTA":
+            continue
+        ds = str(rr.get("date") or "").strip()[:10]
+        if len(ds) < 10:
+            continue
+        b = daily_evolution_map.setdefault(ds, {"delivered": 0.0, "returned": 0.0})
+        b["delivered"] += float(rr.get("delivered_value") or 0.0)
+        if _norm_text(rr.get("status")) == "devolucao":
+            b["returned"] += float(rr.get("returned_value") or 0.0)
+    daily_evolution = sorted(
+        (
+            {"date": k, "delivered": round(v["delivered"], 2), "returned": round(v["returned"], 2)}
+            for k, v in daily_evolution_map.items()
+        ),
+        key=lambda x: x["date"],
+    )
+    pareto_returns = sorted(
+        (
+            {
+                "name": (r.get("client_name") or "")[:36],
+                "value": round(float(r.get("returned_value") or 0), 2),
+                "cid": r.get("client_id"),
+            }
+            for r in ranking_rows
+            if float(r.get("returned_value") or 0) > 0
+        ),
+        key=lambda x: -x["value"],
+    )[:20]
+    matrix_impact = [
+        {
+            "x": round(float(r.get("delivered_value") or 0), 2),
+            "y": round(float(r.get("return_pct_planned") or 0), 2),
+            "r": max(1.0, round(float(r.get("returned_kg") or 0), 2)),
+            "name": (r.get("client_name") or "")[:26],
+            "cid": r.get("client_id"),
+            "cls": r.get("classification_code"),
+        }
+        for r in sorted(ranking_rows, key=lambda z: float(z.get("returned_value") or 0), reverse=True)[:35]
+    ]
 
     chart_payload = {
         "time_rank": {
@@ -2611,6 +3053,9 @@ def _build_bi_clientes_dataset(
             "unproductive_min": ec["unproductive_total"],
         },
         "scatter_clients": scatter_pts,
+        "daily_delivered_vs_returned": daily_evolution,
+        "pareto_returns_top": pareto_returns,
+        "matrix_impact_x_compra": matrix_impact,
         "exec_compare_bars": {
             "labels": ["Valor entregue (R$)", "Valor devolvido (R$)", "Tempo total (h)", "Tempo improd. (h)"],
             "current": [
@@ -2661,6 +3106,14 @@ def _build_bi_clientes_dataset(
         "detail_client_id": detail_client_id,
         "client_scope": scope if client_id else "solo",
         "group_filter_note": group_filter_note,
+        "vendedor_id": vendedor_id,
+        "search_q": (search_q or "").strip(),
+        "classification_filter": classification_filter,
+        "motivo_filter": motivo_filter,
+        "responsabilidade_filter": responsabilidade_filter,
+        "purchase_band": purchase_band,
+        "return_band": return_band,
+        "duration_band": duration_band,
     }
     _fq = {
         "date_from": filters.get("date_from") or "",
@@ -2679,6 +3132,22 @@ def _build_bi_clientes_dataset(
     _fq["segmentos"] = filters.get("segmentos") or []
     if filters.get("detail_client_id"):
         _fq["detail_client_id"] = str(filters["detail_client_id"])
+    if filters.get("vendedor_id") is not None:
+        _fq["vendedor_id"] = str(filters["vendedor_id"])
+    if filters.get("search_q"):
+        _fq["search_q"] = str(filters["search_q"])
+    if filters.get("classification_filter") and str(filters.get("classification_filter")).lower() != "todos":
+        _fq["classification_filter"] = str(filters["classification_filter"])
+    if filters.get("motivo_filter") and str(filters.get("motivo_filter")).lower() != "todos":
+        _fq["motivo_filter"] = str(filters["motivo_filter"])
+    if filters.get("responsabilidade_filter") and str(filters.get("responsabilidade_filter")).lower() != "todos":
+        _fq["responsabilidade_filter"] = str(filters["responsabilidade_filter"])
+    if filters.get("purchase_band") and str(filters.get("purchase_band")).lower() != "todos":
+        _fq["purchase_band"] = str(filters["purchase_band"])
+    if filters.get("return_band") and str(filters.get("return_band")).lower() != "todos":
+        _fq["return_band"] = str(filters["return_band"])
+    if filters.get("duration_band") and str(filters.get("duration_band")).lower() != "todos":
+        _fq["duration_band"] = str(filters["duration_band"])
     filters_query = urlencode(_fq, doseq=True)
 
     kpis = {
@@ -2693,7 +3162,16 @@ def _build_bi_clientes_dataset(
         "top_return_client": top_return_row["client_name"] if top_return_row else "—",
         "top_return_value": round(top_return_row["returned_value"], 2) if top_return_row else 0.0,
         "top_pct_client": top_pct_row["client_name"] if top_pct_row else "—",
-        "top_pct_value": round(top_pct_row["return_rate_value"], 2) if top_pct_row else 0.0,
+        "top_pct_value": round(
+            float(
+                (top_pct_row.get("return_pct_planned") if top_pct_row else None)
+                or (top_pct_row.get("return_rate_value") if top_pct_row else 0)
+                or 0
+            ),
+            2,
+        )
+        if top_pct_row
+        else 0.0,
         "top_recurrence_client": top_recurrence_row["client_name"] if top_recurrence_row else "—",
         "top_recurrence_count": int(top_recurrence_row["returned_occurrences"]) if top_recurrence_row else 0,
         "top_city": top_city_row["city"] if top_city_row else "—",
@@ -2711,6 +3189,51 @@ def _build_bi_clientes_dataset(
         "responsibility_concentration_pct": round(top_resp_concentration_row["top_responsabilidade_return_share"], 2) if top_resp_concentration_row else 0.0,
         "responsibility_concentration_name": top_resp_concentration_row["top_responsabilidade_name"] if top_resp_concentration_row else "—",
     }
+
+    _intel_limit = 1200
+    intel_clients_slim: list[dict] = []
+    for r in ranking_rows[:_intel_limit]:
+        intel_clients_slim.append({k: v for k, v in r.items() if not str(k).startswith("_")})
+    intel_clients_json = _json_for_inline_script(intel_clients_slim)
+    intel_clients_truncated = len(ranking_rows) > _intel_limit
+
+    routes_intel_slim: list[dict] = []
+    for rr in filtered_rows:
+        if str(rr.get("source") or "").upper() != "ROTA":
+            continue
+        routes_intel_slim.append(
+            {
+                "client_id": rr.get("client_id"),
+                "date": rr.get("date"),
+                "order_number": rr.get("order_number"),
+                "driver_name": rr.get("driver_name"),
+                "plate": rr.get("plate"),
+                "status": rr.get("status"),
+                "planned_value": rr.get("planned_value"),
+                "delivered_value": rr.get("delivered_value"),
+                "returned_value": rr.get("returned_value"),
+                "planned_kg": rr.get("planned_kg"),
+                "delivered_kg": rr.get("delivered_kg"),
+                "returned_kg": rr.get("returned_kg"),
+                "duration_m": rr.get("duration_m"),
+                "reopen_count": rr.get("reopen_count"),
+                "motivo": rr.get("motivo"),
+                "responsabilidade": rr.get("responsabilidade"),
+            }
+        )
+        if len(routes_intel_slim) >= 650:
+            break
+    routes_intel_json = _json_for_inline_script(routes_intel_slim)
+
+    classification_filter_options = [
+        {"id": "Todos", "label": "Todas"},
+        {"id": "PREMIUM_OPERACIONAL", "label": "Cliente premium operacional"},
+        {"id": "ALTO_VALOR_RISCO", "label": "Alto valor com risco"},
+        {"id": "PEQUENO_ALTO_IMPACTO", "label": "Pequeno com alto impacto"},
+        {"id": "CRITICO", "label": "Cliente crítico"},
+        {"id": "ESTAVEL", "label": "Cliente estável"},
+        {"id": "OBSERVACAO", "label": "Em observação"},
+    ]
 
     return {
         "filters": filters,
@@ -2739,6 +3262,15 @@ def _build_bi_clientes_dataset(
         "false_villains": false_villains,
         "managerial_actions": managerial_actions,
         "heatmap_city_kpis": heatmap_city_kpis,
+        "reading_cards": reading_cards,
+        "analytic_blocks": analytic_blocks,
+        "sellers_filter": sellers_filter,
+        "motivos_filter_options": motivos_filter_options,
+        "responsabilidades_filter_options": responsabilidades_filter_options,
+        "detail_rows_json": _json_for_inline_script(detail_rows[:200]),
+        "intel_clients_truncated": intel_clients_truncated,
+        "classification_filter_options": classification_filter_options,
+        "routes_intel_json": routes_intel_json,
     }
 
 
@@ -4106,10 +4638,23 @@ async def bi_clientes_page(
     returns_filter: str = "Todos",
     detail_client_id: Optional[str] = None,
     client_scope: Optional[str] = None,
+    vendedor_id: Optional[str] = None,
+    search_q: str = "",
+    classification_filter: str = "Todos",
+    motivo_filter: str = "Todos",
+    responsabilidade_filter: str = "Todos",
+    purchase_band: str = "Todos",
+    return_band: str = "Todos",
+    duration_band: str = "Todos",
     session: Session = Depends(get_session),
 ):
     parsed_driver_id: Optional[int] = int(driver_id) if (driver_id or "").strip().isdigit() else None
     parsed_client_id: Optional[int] = int(client_id) if (client_id or "").strip().isdigit() else None
+    parsed_vendedor_id: Optional[int] = None
+    if (vendedor_id or "").strip() == "-1":
+        parsed_vendedor_id = -1
+    elif (vendedor_id or "").strip().isdigit():
+        parsed_vendedor_id = int(vendedor_id)
     parsed_detail = (detail_client_id or "").strip()
     if parsed_detail.startswith("-") and parsed_detail[1:].isdigit():
         parsed_detail_client_id = int(parsed_detail)
@@ -4133,6 +4678,14 @@ async def bi_clientes_page(
         returns_filter=returns_filter,
         detail_client_id=parsed_detail_client_id,
         client_filter_scope=(client_scope or "solo").strip().lower(),
+        vendedor_id=parsed_vendedor_id,
+        search_q=search_q,
+        classification_filter=classification_filter,
+        motivo_filter=motivo_filter,
+        responsabilidade_filter=responsabilidade_filter,
+        purchase_band=purchase_band,
+        return_band=return_band,
+        duration_band=duration_band,
     )
     return templates.TemplateResponse("bi_clientes.html", {"request": request, **dataset})
 
@@ -4243,10 +4796,23 @@ async def bi_clientes_export(
     segmentos: Optional[list[str]] = Query(default=None),
     returns_filter: str = "Todos",
     client_scope: Optional[str] = None,
+    vendedor_id: Optional[str] = None,
+    search_q: str = "",
+    classification_filter: str = "Todos",
+    motivo_filter: str = "Todos",
+    responsabilidade_filter: str = "Todos",
+    purchase_band: str = "Todos",
+    return_band: str = "Todos",
+    duration_band: str = "Todos",
     session: Session = Depends(get_session),
 ):
     parsed_driver_id: Optional[int] = int(driver_id) if (driver_id or "").strip().isdigit() else None
     parsed_client_id: Optional[int] = int(client_id) if (client_id or "").strip().isdigit() else None
+    parsed_vendedor_id: Optional[int] = None
+    if (vendedor_id or "").strip() == "-1":
+        parsed_vendedor_id = -1
+    elif (vendedor_id or "").strip().isdigit():
+        parsed_vendedor_id = int(vendedor_id)
     dataset = _build_bi_clientes_dataset(
         session=session,
         date_from=date_from,
@@ -4262,6 +4828,14 @@ async def bi_clientes_export(
         segmentos=segmentos,
         returns_filter=returns_filter,
         client_filter_scope=(client_scope or "solo").strip().lower(),
+        vendedor_id=parsed_vendedor_id,
+        search_q=search_q,
+        classification_filter=classification_filter,
+        motivo_filter=motivo_filter,
+        responsabilidade_filter=responsabilidade_filter,
+        purchase_band=purchase_band,
+        return_band=return_band,
+        duration_band=duration_band,
     )
     rows = dataset["all_client_rows"]
     stamp = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y%m%d_%H%M")
@@ -4270,7 +4844,9 @@ async def bi_clientes_export(
     def _client_row_data_br(row: dict) -> list:
         return [
             row.get("client_id") or "",
+            row.get("client_code") or "",
             row.get("client_name") or "",
+            row.get("vendedor_name") or "",
             row.get("city") or "",
             row.get("bairro") or "",
             row.get("segmento") or "",
@@ -4282,12 +4858,15 @@ async def bi_clientes_export(
             _fmt_br_1(row.get("avg_duration_m") or 0),
             row.get("returned_occurrences") or 0,
             _fmt_br_2(row.get("planned_value") or 0),
+            _fmt_br_2(row.get("delivered_value") or 0),
             _fmt_br_2(row.get("returned_value") or 0),
             _fmt_br_1(row.get("return_rate_qtd") or 0),
-            _fmt_br_1(row.get("return_rate_value") or 0),
+            _fmt_br_1(row.get("return_pct_planned") or row.get("return_rate_value") or 0),
             row.get("reopen_count") or 0,
             row.get("top_driver_name") or "-",
             row.get("top_motivo_name") or "-",
+            row.get("classification_title") or "",
+            row.get("cliente_score") if row.get("cliente_score") is not None else "",
             row.get("risk_label") or "-",
             row.get("risk_score") or 0,
         ]
@@ -4298,7 +4877,9 @@ async def bi_clientes_export(
         writer.writerow(
             [
                 "cliente_id",
+                "codigo_nb",
                 "cliente",
+                "vendedor",
                 "cidade",
                 "bairro",
                 "segmento",
@@ -4310,12 +4891,15 @@ async def bi_clientes_export(
                 "tempo_medio_min",
                 "devolucoes",
                 "valor_planejado",
+                "valor_entregue",
                 "valor_devolvido",
                 "devolucao_pct_qtd",
-                "devolucao_pct_valor",
+                "devolucao_pct_sobre_planejado",
                 "reaberturas",
                 "motorista_principal",
                 "motivo_principal",
+                "classificacao",
+                "score_cliente",
                 "risco",
                 "score_risco",
             ]
@@ -4338,7 +4922,9 @@ async def bi_clientes_export(
         sheet.append(
             [
                 "Cliente ID",
+                "Codigo NB",
                 "Cliente",
+                "Vendedor",
                 "Cidade",
                 "Bairro",
                 "Segmento",
@@ -4350,12 +4936,15 @@ async def bi_clientes_export(
                 "Tempo Medio (min)",
                 "Devolucoes",
                 "Valor Planejado",
+                "Valor Entregue",
                 "Valor Devolvido",
                 "Devolucao % Qtd",
-                "Devolucao % Valor",
+                "Devolucao % sobre planejado",
                 "Reaberturas",
                 "Motorista Principal",
                 "Motivo Principal",
+                "Classificacao",
+                "Score Cliente",
                 "Risco",
                 "Score de Risco",
             ]
@@ -4371,7 +4960,41 @@ async def bi_clientes_export(
             headers={"Content-Disposition": f"attachment; filename=bi_clientes_{stamp}.xlsx"},
         )
 
-    return JSONResponse({"error": "Formato invalido. Use csv ou xlsx."}, status_code=400)
+    if fmt == "pdf":
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+
+        pbuf = io.BytesIO()
+        c = canvas.Canvas(pbuf, pagesize=A4)
+        _, h = A4
+        y = h - 40
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(30, y, "BI Clientes - Exportacao")
+        y -= 16
+        c.setFont("Helvetica", 9)
+        period_from = _fmt_br_data(dataset["filters"].get("date_from"))
+        period_to = _fmt_br_data(dataset["filters"].get("date_to"))
+        c.drawString(30, y, f"Periodo: {period_from} ate {period_to}")
+        y -= 18
+        c.setFont("Helvetica", 8)
+        for row in rows[:100]:
+            if y <= 40:
+                c.showPage()
+                y = h - 40
+                c.setFont("Helvetica", 8)
+            nm = str(row.get("client_name") or "")[:40]
+            c.drawString(30, y, nm)
+            c.drawRightString(560, y, _fmt_br_2(row.get("delivered_value") or 0))
+            y -= 10
+        c.save()
+        pbuf.seek(0)
+        return StreamingResponse(
+            pbuf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=bi_clientes_{stamp}.pdf"},
+        )
+
+    return JSONResponse({"error": "Formato invalido. Use csv, xlsx ou pdf."}, status_code=400)
 
 
 # ---------------------------------------------------------------------------
@@ -5045,6 +5668,65 @@ def _build_bi_devolucoes_dataset(
     top_vendedores = sorted(per_vendedor.values(), key=lambda x: x["valor"], reverse=True)[:15]
     top_clusters = sorted(per_cluster.values(), key=lambda x: x["valor"], reverse=True)[:15]
 
+    # --- devoluções evitadas (registro manual no período filtrado) ---
+    ev_q = (
+        select(models.DevolucaoEvitada)
+        .where(models.DevolucaoEvitada.event_date >= period_start)
+        .where(models.DevolucaoEvitada.event_date <= period_end)
+    )
+    if client_ids_dev:
+        if len(client_ids_dev) == 1:
+            ev_q = ev_q.where(models.DevolucaoEvitada.client_id == client_ids_dev[0])
+        else:
+            ev_q = ev_q.where(models.DevolucaoEvitada.client_id.in_(client_ids_dev))
+    evitadas_db = list(
+        session.exec(ev_q.order_by(models.DevolucaoEvitada.event_date.desc(), models.DevolucaoEvitada.id.desc())).all()
+    )
+    ev_cli_ids = sorted({int(e.client_id) for e in evitadas_db if e.client_id})
+    for cid in ev_cli_ids:
+        if cid not in cli_map:
+            oc = session.get(models.Client, cid)
+            if oc:
+                cli_map[cid] = oc
+    evitadas_by_day: dict[str, dict] = {}
+    per_tipo_ev: dict[str, dict] = {}
+    for ev in evitadas_db:
+        ds_ev = str(getattr(ev, "event_date", None) or "").strip()[:10]
+        if len(ds_ev) < 10:
+            continue
+        slot_e = evitadas_by_day.setdefault(ds_ev, {"qtd": 0, "valor": 0.0})
+        slot_e["qtd"] += 1
+        slot_e["valor"] = round(slot_e["valor"] + float(getattr(ev, "valor_estimado", None) or 0.0), 2)
+        tk = str(getattr(ev, "tipo", None) or "outros").strip().lower() or "outros"
+        te = per_tipo_ev.setdefault(tk, {"tipo": tk, "label": label_tipo_evitada(tk), "qtd": 0})
+        te["qtd"] += 1
+    total_evitadas_qtd = len(evitadas_db)
+    total_evitadas_valor_est = round(sum(float(getattr(ev, "valor_estimado", None) or 0.0) for ev in evitadas_db), 2)
+    evitadas_clientes_distintos = len({int(e.client_id) for e in evitadas_db if e.client_id})
+    evitadas_lancamentos: list[dict] = []
+    for ev in evitadas_db[:120]:
+        cli_ev = cli_map.get(int(ev.client_id))
+        nome_cli = cli_ev.name if cli_ev else f"Cliente #{ev.client_id}"
+        evitadas_lancamentos.append(
+            {
+                "id": int(ev.id) if ev.id is not None else None,
+                "event_date": str(ev.event_date)[:10],
+                "client_id": int(ev.client_id),
+                "cliente": nome_cli,
+                "tipo": str(ev.tipo or ""),
+                "tipo_label": label_tipo_evitada(str(ev.tipo or "")),
+                "observacao": (getattr(ev, "observacao", None) or "").strip(),
+                "valor_estimado": round(float(getattr(ev, "valor_estimado", None) or 0.0), 2)
+                if getattr(ev, "valor_estimado", None) is not None
+                else None,
+                "created_by": (getattr(ev, "created_by", None) or "").strip() or "—",
+                "created_at": getattr(ev, "created_at", None).isoformat(timespec="seconds")
+                if getattr(ev, "created_at", None)
+                else "",
+            }
+        )
+    top_tipos_evitadas = sorted(per_tipo_ev.values(), key=lambda x: int(x.get("qtd") or 0), reverse=True)
+
     # Drill-down por vendedor: responsabilidade e motivos para detalhe no clique
     vendedor_drill: dict[str, dict] = {}
     for vendedor_nome in per_vendedor.keys():
@@ -5096,6 +5778,7 @@ def _build_bi_devolucoes_dataset(
         meta_2 = round(0.02 * rec, 2) if rec > 0 else None
         val_fl = float(slot_dev.get("valor") or 0)
         pct_dia = round(100.0 * val_fl / rec, 2) if rec > 0 else None
+        ev_slot = evitadas_by_day.get(ds, {"qtd": 0, "valor": 0.0})
         evolucao_diaria.append(
             {
                 "data": ds,
@@ -5104,6 +5787,8 @@ def _build_bi_devolucoes_dataset(
                 "receita_base": rec,
                 "meta_2pct_valor": meta_2,
                 "pct_devolucao_dia": pct_dia,
+                "evitadas_qtd": int(ev_slot.get("qtd") or 0),
+                "evitadas_valor_est": round(float(ev_slot.get("valor") or 0.0), 2),
             }
         )
     # Linha constante (meta ÷ dias corridos) substituída por meta proporcional à receita de cada dia — manter null no JSON
@@ -5208,9 +5893,24 @@ def _build_bi_devolucoes_dataset(
             f"Indicador operacional (paradas): {float(pct_devolucao_rotas):.1f}% de devoluções sobre rotas concluídas — "
             "sem valor base financeiro para calcular % sobre faturamento."
         )
+    if total_evitadas_qtd > 0:
+        _ev_msg = (
+            f"Foram registradas {total_evitadas_qtd} devolução(ões) evitada(s) no período "
+            f"({evitadas_clientes_distintos} cliente(s) distinto(s))"
+        )
+        if total_evitadas_valor_est and total_evitadas_valor_est > 0:
+            _ev_msg += f", com valor estimado total de {_fmt_br_moeda(total_evitadas_valor_est)}."
+        else:
+            _ev_msg += "."
+        analise_destaque.append(_ev_msg)
     if not analise_destaque:
         if total_qtd_kpi == 0:
-            analise_destaque.append("Sem devoluções no período com os filtros aplicados.")
+            if total_evitadas_qtd > 0:
+                analise_destaque.append(
+                    "Sem devoluções realizadas no período com os filtros aplicados; há registros de devoluções evitadas."
+                )
+            else:
+                analise_destaque.append("Sem devoluções no período com os filtros aplicados.")
         else:
             analise_destaque.append("Use os rankings e a lista para priorizar ações corretivas no período.")
 
@@ -5349,6 +6049,16 @@ def _build_bi_devolucoes_dataset(
         "chart_insights": chart_insights,
         "semana_resumo": semana_resumo,
         "analise_destaque": analise_destaque,
+        # devoluções evitadas (manual)
+        "total_evitadas_qtd": total_evitadas_qtd,
+        "total_evitadas_valor_est": total_evitadas_valor_est,
+        "evitadas_clientes_distintos": evitadas_clientes_distintos,
+        "evitadas_lancamentos": evitadas_lancamentos,
+        "top_tipos_evitadas": top_tipos_evitadas,
+        "evitada_tipos_select": [{"id": k, "label": EVITADA_TIPO_LABELS[k]} for k in EVITADA_TIPOS_ORDENADOS],
+        "evitada_default_date": datetime.now(tz).strftime("%Y-%m-%d"),
+        "evitadas_lancamentos_json": _json_for_inline_script(evitadas_lancamentos),
+        "top_tipos_evitadas_json": _json_for_inline_script(top_tipos_evitadas),
     }
 
 

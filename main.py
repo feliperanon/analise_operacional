@@ -737,6 +737,7 @@ def _lifespan_blocking_db_work() -> None:
         ensure_delivery_whatsapp_schema()
         ensure_route_delivery_columns_widen()
         ensure_devolucao_route_id()
+        ensure_devolucao_evitada_schema()
         # Employee schema compatibility must run before auth/bootstrap queries
         ensure_column(engine, "employee", "mobile_access_admin_start", "BOOLEAN DEFAULT FALSE")
         ensure_column(engine, "employee", "mobile_access_returns", "BOOLEAN DEFAULT FALSE")
@@ -3345,32 +3346,9 @@ def _format_br_money_form(val: Any) -> str:
     return s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def _normalize_reason_for_match(val: Optional[str]) -> str:
-    """Maiúsculas + sem acentos para comparação tolerante de motivo."""
-    s = (val or "").strip().upper()
-    if not s:
-        return ""
-    nfkd = unicodedata.normalize("NFKD", s)
-    return "".join(c for c in nfkd if not unicodedata.combining(c))
-
-
-def _is_encerramento_tardio_automatico_reason(reason_raw: Optional[str]) -> bool:
-    """Exclui devolução sistêmica do painel operacional."""
-    r = _normalize_reason_for_match(reason_raw)
-    if not r:
-        return False
-    if r == "ENCERRAMENTO TARDIO AUTOMATICO":
-        return True
-    return "ENCERRAMENTO" in r and "TARDIO" in r and "AUTOMATICO" in r
-
-
 def _is_operational_route_devolucao(route: Any) -> bool:
     """Conta apenas devoluções operacionais reais no painel TV."""
-    if normalized_delivery_status(route) != "devolucao":
-        return False
-    return not _is_encerramento_tardio_automatico_reason(
-        getattr(route, "delivery_return_reason", None)
-    )
+    return normalized_delivery_status(route) == "devolucao"
 
 
 def _employee_ids_for_informativo_devolucao_kpi(session: Session) -> List[int]:
@@ -8884,6 +8862,15 @@ def ensure_devolucao_route_id():
                 conn.commit()
     except Exception as e:
         logger.error(f"ensure_devolucao_route_id: {e}")
+
+
+def ensure_devolucao_evitada_schema():
+    """Cria tabela devolucaoevitada (registro de devoluções evitadas no BI)."""
+    try:
+        models.DevolucaoEvitada.__table__.create(bind=engine, checkfirst=True)
+    except Exception as e:
+        logger.error(f"ensure_devolucao_evitada_schema: {e}")
+
 
 @app.get("/api/admin/clients", dependencies=[Depends(require_leader)])
 async def api_get_admin_clients(session: Session = Depends(get_session)):

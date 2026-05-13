@@ -1,0 +1,87 @@
+/**
+ * BI Clientes — pele contextual sobre system-*.css + pages/employees.css.
+ * Escopo: .ga-employee-theme.bi-clientes-page
+ */
+
+.ga-employee-theme.bi-clientes-page .bi-cli-drawer {
+  box-shadow: var(--sys-shadow-lg, 0 12px 40px rgb(15 23 42 / 0.18));
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-drawer__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  border-bottom: 1px solid var(--sys-border, #e2e8f0);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-drawer__tab {
+  border-radius: var(--sys-radius-md, 0.5rem);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--sys-text-muted, #64748b);
+  border: 1px solid transparent;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-drawer__tab.is-active {
+  color: var(--sys-text-primary, #0f172a);
+  border-color: var(--sys-border-strong, #cbd5e1);
+  background: var(--sys-bg-subtle, #f8fafc);
+}
+
+html.dark .ga-employee-theme.bi-clientes-page .bi-cli-drawer__tab.is-active {
+  color: var(--sys-text-primary, #f1f5f9);
+  background: rgb(30 41 59 / 0.55);
+  border-color: rgb(51 65 85 / 0.8);
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-mini-rank {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-mini-rank__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--sys-radius-md, 0.5rem);
+  border: 1px solid var(--sys-border, #e2e8f0);
+  font-size: 0.8125rem;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-mobile-card {
+  border-radius: var(--sys-radius-lg, 0.75rem);
+  border: 1px solid var(--sys-border, #e2e8f0);
+  padding: 0.85rem 1rem;
+  background: var(--sys-surface, #fff);
+}
+
+html.dark .ga-employee-theme.bi-clientes-page .bi-cli-mobile-card {
+  background: rgb(15 23 42 / 0.55);
+  border-color: rgb(51 65 85 / 0.65);
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-row--premium {
+  box-shadow: inset 3px 0 0 0 rgb(16 185 129 / 0.85);
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-row--critical {
+  box-shadow: inset 3px 0 0 0 rgb(239 68 68 / 0.85);
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-insight-card {
+  border-radius: var(--sys-radius-md, 0.5rem);
+  border: 1px solid var(--sys-border, #e2e8f0);
+  padding: 0.65rem 0.75rem;
+  background: var(--sys-surface, #fff);
+}
+
+html.dark .ga-employee-theme.bi-clientes-page .bi-cli-insight-card {
+  background: rgb(15 23 42 / 0.45);
+  border-color: rgb(51 65 85 / 0.55);
+}

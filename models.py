@@ -1156,6 +1156,18 @@ class DevolucaoAjusteResponsabilidade(SQLModel, table=True):
     updated_by: Optional[str] = None
 
 
+class DevolucaoEvitada(SQLModel, table=True):
+    """Ocorrência em que a devolução física foi evitada (registro manual no dia, por cliente)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    event_date: str = Field(index=True)  # YYYY-MM-DD (dia da operação / registro)
+    client_id: int = Field(foreign_key="client.id", index=True)
+    tipo: str = Field(index=True, max_length=64)
+    observacao: Optional[str] = Field(default=None, max_length=4000)
+    valor_estimado: Optional[float] = Field(default=None)  # R$ estimado que deixou de voltar (opcional)
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
+
+
 # --- Painel Informativo (avisos para colaboradores no /dashboard) ---
 
 class InformativeBulletin(SQLModel, table=True):

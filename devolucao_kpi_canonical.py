@@ -4,8 +4,8 @@ Indicadores canônicos de devolução (BI / Central / TV).
 Operacional (% rotas):
 - Numerador: rotas com status normalizado = devolução.
 - Denominador: rotas concluídas (entregue ou devolução), mesmo type=delivery.
-- Exceção: status devolução com motivo ENCERRAMENTO TARDIO AUTOMATICO conta como entregue
-  (alinhado ao consolidado BI Entregas).
+- Exceção: status devolução com motivo de encerramento tardio automático (variações de texto,
+  sem acentos na comparação) conta como entregue — alinhado ao painel TV e ao consolidado BI Entregas.
 
 Financeiro (valor):
 - O valor devolvido exibido nos KPIs agregados vem do cadastro `Devolucao` (+ lacunas de rota
@@ -24,16 +24,35 @@ from __future__ import annotations
 from calendar import monthrange
 from collections import defaultdict
 from datetime import date, timedelta
+import unicodedata
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 _DONE_STATUSES = frozenset({"entregue", "devolucao"})
 
 
+def _normalize_return_reason_for_match(val: Optional[str]) -> str:
+    """Maiúsculas + sem acentos para comparação tolerante de motivo (igual critério do painel TV)."""
+    s = (val or "").strip().upper()
+    if not s:
+        return ""
+    nfkd = unicodedata.normalize("NFKD", s)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def is_encerramento_tardio_automatico_return(reason_raw: Optional[str]) -> bool:
+    """True se o motivo da rota indica encerramento tardio automático (não conta como devolução operacional)."""
+    r = _normalize_return_reason_for_match(reason_raw)
+    if not r:
+        return False
+    if r == "ENCERRAMENTO TARDIO AUTOMATICO":
+        return True
+    return "ENCERRAMENTO" in r and "TARDIO" in r and "AUTOMATICO" in r
+
+
 def normalized_delivery_status(route: Any) -> str:
     raw = (getattr(route, "delivery_status", None) or "").strip().lower()
     if raw == "devolucao":
-        reason = (getattr(route, "delivery_return_reason", None) or "").strip().upper()
-        if reason == "ENCERRAMENTO TARDIO AUTOMATICO":
+        if is_encerramento_tardio_automatico_return(getattr(route, "delivery_return_reason", None)):
             return "entregue"
     return raw
 

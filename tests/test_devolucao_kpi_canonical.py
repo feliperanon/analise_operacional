@@ -31,6 +31,22 @@ def test_normalized_delivery_status():
     assert normalized_delivery_status(r) == "entregue"
 
 
+def test_encerramento_tardio_com_acentos_conta_como_entregue():
+    r = SimpleNamespace(
+        delivery_status="devolucao",
+        delivery_return_reason="Encerramento tardio automático",
+    )
+    assert normalized_delivery_status(r) == "entregue"
+
+
+def test_encerramento_tardio_texto_composto_conta_como_entregue():
+    r = SimpleNamespace(
+        delivery_status="devolucao",
+        delivery_return_reason="ENCERRAMENTO TARDIO AUTOMATICO - SISTEMA",
+    )
+    assert normalized_delivery_status(r) == "entregue"
+
+
 def _r(d, st):
     return SimpleNamespace(date=d, delivery_status=st, delivery_return_reason="")
 
