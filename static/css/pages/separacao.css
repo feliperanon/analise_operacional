@@ -398,6 +398,15 @@ html.dark .ga-employee-theme.employees-page.separacao-page .delivery-row:hover {
   background: #f97316;
 }
 
+.ga-employee-theme.employees-page.separacao-page .btn-evitada {
+  background: #0d9488;
+  border-color: rgb(45 212 191 / 0.45);
+}
+
+.ga-employee-theme.employees-page.separacao-page .btn-evitada:not(:disabled):hover {
+  background: #14b8a6;
+}
+
 .ga-employee-theme.employees-page.separacao-page .btn-reopen {
   background: #0f766e;
   border-color: rgb(20 184 166 / 0.45);

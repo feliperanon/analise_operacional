@@ -734,6 +734,23 @@ body.dashboard-app .sys-kpi-grid #info-date {
   font-weight: 600 !important;
 }
 
+.gv-stat-muted {
+  color: rgb(148 163 184) !important;
+  font-weight: 600 !important;
+}
+
+html.dark .gv-stat-muted {
+  color: rgb(148 163 184 / 0.88) !important;
+}
+
+.sys-kpi-shell .gv-stat-muted {
+  color: var(--sys-muted-fg, rgb(148 163 184)) !important;
+}
+
+.sys-kpi-grid .gv-kpi-value-line.gv-stat-muted {
+  font-weight: 800 !important;
+}
+
 .gv-stat-attn {
   color: var(--gv-attn) !important;
   font-weight: 600 !important;

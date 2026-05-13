@@ -106,7 +106,9 @@ from devolucao_kpi_canonical import (
     counts_devolucao_rotas_concluidas,
     normalized_delivery_status,
     pct_devolucao_sobre_rotas_concluidas,
+    pct_valor_devolvido_sobre_base_rotas,
 )
+from devolucao_evitada_constants import EVITADA_TIPO_LABELS, EVITADA_TIPOS_ORDENADOS, label_tipo_evitada
 
 
 def operational_shift_br(dt: datetime) -> str:
@@ -3919,7 +3921,7 @@ def _kpi_devolucao_mes_registros(
     """Soma e quantidade na tabela Devolucao no mês por competência operacional."""
     from utils.business_calendar import competence_date_str
 
-    if not motorista_ids:
+    if motorista_ids is not None and not motorista_ids:
         return 0.0, 0
     d0 = datetime.strptime(month_start_str, "%Y-%m-%d").date()
     d1 = datetime.strptime(month_end_str, "%Y-%m-%d").date()
@@ -3929,8 +3931,9 @@ def _kpi_devolucao_mes_registros(
         select(models.Devolucao)
         .where(models.Devolucao.data_romaneio >= window_start)
         .where(models.Devolucao.data_romaneio <= window_end)
-        .where(models.Devolucao.motorista_id.in_(motorista_ids))
     )
+    if motorista_ids is not None:
+        q = q.where(models.Devolucao.motorista_id.in_(motorista_ids))
     devs = session.exec(q).all()
     filtered = []
     for d in devs:
@@ -3945,15 +3948,8 @@ def _kpi_devolucao_mes_registros(
 
 
 def _pct_devolucao_financeiro_sistema(valor_devolvido: float, routes_delivery: List[Any]) -> tuple[Optional[float], float]:
-    """% valor devolvido sobre soma de valor_financeiro das rotas de entrega (só linhas com valor_financeiro preenchido)."""
-    base = sum(
-        float(getattr(r, "valor_financeiro", None) or 0)
-        for r in routes_delivery
-        if getattr(r, "valor_financeiro", None) is not None
-    )
-    if base <= 0:
-        return None, 0.0
-    return round(100.0 * float(valor_devolvido or 0) / base, 2), round(base, 2)
+    """Delega ao módulo canônico (`pct_valor_devolvido_sobre_base_rotas`)."""
+    return pct_valor_devolvido_sobre_base_rotas(valor_devolvido, routes_delivery)
 
 
 def _infer_shift_name(now_br: datetime) -> str:
@@ -19855,6 +19851,12 @@ async def separacao_page(
         finished_times = [h.get("time") for h in history if h.get("event") == "finalizar" and h.get("time")]
         returned_times = [h.get("time") for h in history if h.get("event") == "devolucao" and h.get("time")]
         reopened_times = [h.get("time") for h in history if h.get("event") == "reabrir" and h.get("time")]
+        evitada_hist = [h for h in history if h.get("event") == "devolucao_evitada"]
+        evitada_times = [h.get("time") for h in evitada_hist if h.get("time")]
+        last_evitada_at = evitada_times[-1] if evitada_times else ""
+        last_evitada_note = ""
+        if evitada_hist:
+            last_evitada_note = str((evitada_hist[-1].get("note") or "")).strip()
 
         _inserted_at = ""
         if getattr(route, "created_at", None):
@@ -19934,6 +19936,7 @@ async def separacao_page(
 
         delivery_by_employee[key]["rows"].append({
             "id": route.id,
+            "client_id": route.client_id,
             "route_code": route.delivery_route_code or "-",
             "order_number": route.delivery_order_number or "-",
             "client_name": row_client_name,
@@ -19963,6 +19966,8 @@ async def separacao_page(
             "last_started_at": started_times[-1] if started_times else "",
             "last_finished_at": finished_times[-1] if finished_times else "",
             "last_returned_at": returned_times[-1] if returned_times else "",
+            "last_evitada_at": last_evitada_at,
+            "last_evitada_note": last_evitada_note,
             "last_reopened_at": reopened_times[-1] if reopened_times else "",
             "reopen_count": route.delivery_reopen_count or 0,
             "is_partial_return": bool(route.devolucao_volume or route.valor_devolucao),
@@ -20204,6 +20209,7 @@ async def separacao_page(
         "delivery_whatsapp_operator": delivery_whatsapp_operator,
         "delivery_whatsapp_can_manage": bool(delivery_whatsapp_operator),
         "delivery_whatsapp_summary": delivery_whatsapp_summary,
+        "delivery_evitada_tipos": [{"id": k, "label": EVITADA_TIPO_LABELS[k]} for k in EVITADA_TIPOS_ORDENADOS],
     })
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -21744,6 +21750,102 @@ async def update_delivery_status(
         url=f"/separacao?date={date}&shift={shift}&{feedback_encoded}",
         status_code=status.HTTP_303_SEE_OTHER,
     )
+
+
+@app.post("/separacao/delivery/evitada", response_class=RedirectResponse)
+async def register_delivery_evitada(
+    request: Request,
+    route_id: int = Form(...),
+    date: str = Form(...),
+    shift: str = Form("Manhã"),
+    tipo: str = Form(...),
+    observacao: Optional[str] = Form(None),
+    valor_estimado: Optional[str] = Form(None),
+    date_from: Optional[str] = Form(None),
+    date_to: Optional[str] = Form(None),
+    session: Session = Depends(get_session),
+):
+    """Registra devolução evitada (BI + linha do tempo da parada), sem alterar o status da entrega."""
+    require_login(request)
+    df, dt = (date_from or "").strip(), (date_to or "").strip()
+    if df and dt and df != dt:
+        redirect_base = f"/separacao?date_from={df}&date_to={dt}&shift={shift}"
+    else:
+        redirect_base = f"/separacao?date={date}&shift={shift}"
+
+    route = session.get(models.Route, route_id)
+    if not route or route.type != "delivery":
+        feedback_encoded = urlencode({"delivery_feedback": "Parada não encontrada.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
+
+    if (route.delivery_status or "").lower() != "iniciada":
+        feedback_encoded = urlencode({
+            "delivery_feedback": "Para registrar evitada, inicie a entrega desta parada primeiro.",
+            "delivery_feedback_level": "error",
+        })
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
+
+    tipo_key = (tipo or "").strip().lower()
+    if tipo_key not in EVITADA_TIPO_LABELS:
+        feedback_encoded = urlencode({"delivery_feedback": "Tipo de ocorrência inválido.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
+
+    if not route.client_id:
+        feedback_encoded = urlencode({"delivery_feedback": "Parada sem cliente vinculado.", "delivery_feedback_level": "error"})
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
+
+    obs = " ".join((observacao or "").strip().split())
+    if len(obs) > 4000:
+        obs = obs[:4000]
+
+    ve_val: Optional[float] = None
+    raw_ve = (valor_estimado or "").strip()
+    if raw_ve:
+        try:
+            normalized = raw_ve.replace(".", "").replace(",", ".")
+            ve_val = float(normalized)
+        except Exception:
+            feedback_encoded = urlencode({"delivery_feedback": "Valor estimado inválido.", "delivery_feedback_level": "error"})
+            return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
+        if ve_val < 0 or ve_val > 1e9:
+            feedback_encoded = urlencode({"delivery_feedback": "Valor estimado fora do intervalo permitido.", "delivery_feedback_level": "error"})
+            return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
+
+    current = get_current_user(request)
+    created_by = format_user_label(current) if current else None
+
+    event_date = (route.date or date or "")[:10]
+    try:
+        datetime.strptime(event_date, "%Y-%m-%d")
+    except Exception:
+        event_date = (date or "")[:10]
+
+    row_ev = models.DevolucaoEvitada(
+        event_date=event_date,
+        client_id=int(route.client_id),
+        tipo=tipo_key,
+        observacao=obs or None,
+        valor_estimado=ve_val,
+        created_by=created_by,
+    )
+    session.add(row_ev)
+
+    now = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%H:%M")
+    tipo_label = label_tipo_evitada(tipo_key)
+    note_parts = [tipo_label]
+    if obs:
+        note_parts.append(obs)
+    if ve_val is not None:
+        note_parts.append(
+            "R$ est. " + f"{ve_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        )
+    _append_delivery_event(route, "devolucao_evitada", now, note=" · ".join(note_parts))
+
+    session.add(route)
+    session.commit()
+
+    feedback_encoded = urlencode({"delivery_feedback": "Devolução evitada registrada.", "delivery_feedback_level": "success"})
+    return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @app.post("/separacao/delivery/planning-date/stops", response_class=RedirectResponse)

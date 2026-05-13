@@ -10,6 +10,7 @@ from devolucao_kpi_canonical import (
     group_routes_by_operational_day,
     normalized_delivery_status,
     pct_devolucao_sobre_rotas_concluidas,
+    pct_valor_devolvido_sobre_base_rotas,
 )
 
 
@@ -124,3 +125,27 @@ def test_projecao_financeira_com_baseline():
     assert out["dias_restantes_no_mes"] == 21
     assert out["vs_meta"] in ("acima", "dentro")
     assert 0 <= out["pct_projetado"] <= 100
+
+
+def test_pct_valor_devolvido_sobre_base_rotas_usa_valor_financeiro():
+    r = SimpleNamespace(
+        valor_financeiro=1000.0,
+        valor_devolucao=None,
+        delivery_status="entregue",
+        delivery_return_reason=None,
+    )
+    p, b = pct_valor_devolvido_sobre_base_rotas(35.0, [r])
+    assert b == 1000.0
+    assert p == 3.5
+
+
+def test_pct_valor_devolvido_sobre_base_rotas_fallback_valor_devolucao():
+    r = SimpleNamespace(
+        valor_financeiro=None,
+        valor_devolucao=500.0,
+        delivery_status="devolucao",
+        delivery_return_reason=None,
+    )
+    p, b = pct_valor_devolvido_sobre_base_rotas(50.0, [r])
+    assert b == 500.0
+    assert p == 10.0

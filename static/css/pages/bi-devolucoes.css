@@ -697,27 +697,3 @@ html.dark .ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-t
 .ga-employee-theme.employees-page[data-page="bi-devolucoes"] #bi-dev-table .bi-dev-th-sortable[aria-sort="descending"] .bi-dev-sort-ind {
   opacity: 1;
 }
-
-/* Devoluções evitadas — sugestão de cliente */
-.bi-dev-evitadas__suggest button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.75rem;
-  line-height: 1.25;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  color: inherit;
-}
-
-.bi-dev-evitadas__suggest button:hover,
-.bi-dev-evitadas__suggest button:focus-visible {
-  background: rgb(241 245 249 / 0.95);
-}
-
-html.dark .bi-dev-evitadas__suggest button:hover,
-html.dark .bi-dev-evitadas__suggest button:focus-visible {
-  background: rgb(30 41 59 / 0.85);
-}

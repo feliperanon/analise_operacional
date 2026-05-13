@@ -25,8 +25,13 @@ from route_duration import route_duration_minutes, route_duration_minutes_mobile
 from devolucao_kpi_canonical import (
     build_mes_fim_projecao_pct_financeiro,
     counts_devolucao_rotas_concluidas,
+    devolucao_competencia_in_period,
+    devolucao_competencia_iso,
     is_encerramento_tardio_automatico_return,
     pct_devolucao_sobre_rotas_concluidas,
+    pct_valor_devolvido_sobre_base_rotas,
+    route_competencia_in_period,
+    route_competencia_operacional_iso,
 )
 from devolucao_perda_labels import (
     canonical_responsabilidade_for_macro_loss as _canonical_responsabilidade_for_macro_loss,
@@ -5125,7 +5130,7 @@ def _build_bi_devolucoes_dataset(
     def _dev_op_date_raw(d: models.Devolucao) -> str:
         return str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None) or "").strip()[:10]
 
-    devs_c = [d for d in devs_raw if _in_operational_date_range_iso(_dev_op_date_raw(d), period_start, period_end)]
+    devs_c = [d for d in devs_raw if devolucao_competencia_in_period(d, period_start, period_end)]
     devs_c.sort(
         key=lambda x: (_dev_op_date_raw(x), str(getattr(x, "data_romaneio", None) or "")),
         reverse=True,
@@ -5288,8 +5293,8 @@ def _build_bi_devolucoes_dataset(
         key=lambda e: e.name,
     )
 
-    # Mesmo critério da Central de Comando (dashboard TV / devolucao_mes em main.py):
-    # % = paradas com status "devolucao" / paradas concluídas ("entregue" + "devolucao"), só rotas type=delivery.
+    # Mesmo critério do painel TV / `main.devolucao_mes`: rotas cuja competência da Route.date cai no período;
+    # % financeiro = valor devolvido (cadastro, competência) ÷ base R$ (`pct_valor_devolvido_sobre_base_rotas`).
     rq_base = (
         select(models.Route)
         .where(models.Route.type == "delivery")
@@ -5306,17 +5311,14 @@ def _build_bi_devolucoes_dataset(
     routes_delivery_period = session.exec(rq_base).all()
     routes_delivery_period = [
         r for r in routes_delivery_period
-        if _in_operational_date_range_iso(str(getattr(r, "date", None) or "").strip(), period_start, period_end)
+        if route_competencia_in_period(r, period_start, period_end)
     ]
     pct_devolucao_rotas = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
-    # Receita (valor_financeiro) por dia operacional (data da rota) — mesmo eixo do gráfico e das devoluções na lista.
+    # Receita (valor_financeiro) por dia de competência operacional — mesmo eixo do gráfico e das devoluções na lista.
     receita_por_dia_comp: dict[str, float] = {}
     for _r_fin in routes_delivery_period:
-        _raw_d = getattr(_r_fin, "date", None)
-        _op_r = str(_raw_d or "").strip()[:10]
-        if len(_op_r) < 10:
-            _op_r = _competence_date_or_self(str(_raw_d or "").strip()) or ""
+        _op_r = route_competencia_operacional_iso(_r_fin)
         if len(_op_r) < 10:
             continue
         _vf = getattr(_r_fin, "valor_financeiro", None)
@@ -5324,19 +5326,17 @@ def _build_bi_devolucoes_dataset(
             continue
         receita_por_dia_comp[_op_r] = receita_por_dia_comp.get(_op_r, 0.0) + float(_vf)
 
-    # Base financeira (referência): soma valor_financeiro das rotas de entrega no período (mesmos filtros de rota)
-    valor_base_rotas = sum(float(r.valor_financeiro or 0) for r in routes_delivery_period if r.valor_financeiro is not None)
     devs_pre_acima: List[models.Devolucao] = list(devs)
     dev_por_dia_mtd: dict[str, float] = {}
     for _d_k in devs_pre_acima:
-        _op_k = _dev_op_date_raw(_d_k)
-        if not _in_operational_date_range_iso(_op_k, period_start, period_end):
+        _op_k = devolucao_competencia_iso(_d_k)
+        if not (len(_op_k) == 10 and period_start <= _op_k <= period_end):
             continue
         dev_por_dia_mtd[_op_k] = dev_por_dia_mtd.get(_op_k, 0.0) + float(_d_k.valor or 0)
     total_valor_kpi = sum(float(d.valor or 0) for d in devs_pre_acima)
     total_qtd_kpi = len(devs_pre_acima)
-    pct_devolucao_financeiro: Optional[float] = (
-        round(100.0 * total_valor_kpi / valor_base_rotas, 2) if valor_base_rotas > 0 else None
+    pct_devolucao_financeiro, valor_base_rotas = pct_valor_devolvido_sobre_base_rotas(
+        float(total_valor_kpi), routes_delivery_period
     )
     meta_pp = 2.0
     valor_meta_permitido: Optional[float] = (

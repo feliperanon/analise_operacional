@@ -7,12 +7,14 @@ Operacional (% rotas):
 - Exceção: status devolução com motivo de encerramento tardio automático (variações de texto,
   sem acentos na comparação) conta como entregue — alinhado ao painel TV e ao consolidado BI Entregas.
 
-Financeiro (valor):
-- O valor devolvido exibido nos KPIs agregados vem do cadastro `Devolucao` (+ lacunas de rota
-  sem registro), em `bi_delivery_routes._build_bi_delivery_dataset` (`all_financial_rows`), sem
-  usar ajuste de responsabilidade (isso é só por motorista no gamification).
-- A taxa % valor usa denominador (valor entregue + valor devolvido), ou seja, faturamento
-  efetivo que inclui todas as devoluções do período.
+Financeiro (valor) — KPI meta ≤ 2% (BI Devoluções / Central / TV):
+- Numerador: soma `Devolucao.valor` no período, **competência operacional** (mesma regra de
+  `competence_date_str` em data de entrega ou romaneio), excluindo `duplicate_of_id`.
+- Denominador: soma nas rotas `type=delivery` cuja **competência** da `Route.date` cai no período:
+  `valor_financeiro` quando informado; se a rota for devolução sem `valor_financeiro`, usa
+  `valor_devolucao` (paridade com `pct_valor_devolvido_sobre_base_rotas`).
+- BI Entregas / Clientes / Vendedor podem exibir **outros** índices (ex.: devolvido ÷ planejado,
+  ou devoluções ÷ faturamento do vendedor); o rótulo deixa explícito quando não for este KPI.
 
 Projeção fim de mês:
 - `build_mes_fim_projecao_pct_rotas`: % paradas (operacional), média por dia da semana no histórico pré-mês.
@@ -25,6 +27,7 @@ from __future__ import annotations
 from calendar import monthrange
 from collections import defaultdict
 from datetime import date, timedelta
+import math
 import unicodedata
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -74,6 +77,61 @@ def counts_devolucao_rotas_concluidas(routes: Iterable[Any]) -> Tuple[int, int]:
 def pct_devolucao_sobre_rotas_concluidas(routes: Iterable[Any]) -> float:
     n_ret, n_done = counts_devolucao_rotas_concluidas(routes)
     return round((n_ret / n_done * 100.0), 1) if n_done else 0.0
+
+
+def devolucao_competencia_iso(d: Any) -> str:
+    """Data YYYY-MM-DD de competência do cadastro Devolucao (entrega ou romaneio)."""
+    from utils.business_calendar import competence_date_str
+
+    raw_ent = getattr(d, "data_entrega", None)
+    raw_rom = getattr(d, "data_romaneio", None)
+    comp = competence_date_str(raw_ent or raw_rom)
+    if comp and len(str(comp).strip()) >= 10:
+        return str(comp).strip()[:10]
+    rom = str(raw_rom or "").strip()[:10]
+    return rom if len(rom) == 10 else ""
+
+
+def devolucao_competencia_in_period(d: Any, period_start: str, period_end: str) -> bool:
+    comp = devolucao_competencia_iso(d)
+    return bool(comp) and len(comp) == 10 and period_start <= comp <= period_end
+
+
+def route_competencia_operacional_iso(route: Any) -> str:
+    """Competência da data operacional da rota de entrega (Route.date)."""
+    from utils.business_calendar import competence_date_str
+
+    raw = getattr(route, "date", None)
+    comp = competence_date_str(raw) if raw else ""
+    if comp and len(str(comp).strip()) >= 10:
+        return str(comp).strip()[:10]
+    s = str(raw or "").strip()[:10]
+    return s if len(s) == 10 else ""
+
+
+def route_competencia_in_period(route: Any, period_start: str, period_end: str) -> bool:
+    comp = route_competencia_operacional_iso(route)
+    return bool(comp) and period_start <= comp <= period_end
+
+
+def pct_valor_devolvido_sobre_base_rotas(valor_devolvido: float, routes_delivery: Iterable[Any]) -> Tuple[Optional[float], float]:
+    """% valor devolvido (cadastro agregado) sobre base R$ nas rotas do mesmo recorte."""
+    base = 0.0
+    for r in routes_delivery:
+        vf = getattr(r, "valor_financeiro", None)
+        if vf is not None:
+            base += float(vf)
+            continue
+        if normalized_delivery_status(r) == "devolucao":
+            vd = getattr(r, "valor_devolucao", None)
+            if vd is not None:
+                base += float(vd)
+    if base <= 0:
+        return None, 0.0
+    pct = round(100.0 * float(valor_devolvido or 0) / base, 2)
+    if not math.isfinite(pct):
+        return None, round(base, 2)
+    return pct, round(base, 2)
 
 
 def _route_operational_day_iso(route: Any) -> str:
