@@ -5,7 +5,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
             <div class="min-w-0">
-              <span class="sys-kpi-label text-orange-600 dark:text-orange-300">% devolução (valor)</span>
+              <span class="sys-kpi-label text-orange-600 dark:text-orange-300" title="Valor devolvido (filtro) ÷ soma do valor financeiro das rotas de entrega no período. É o % usado na meta ≤ 2%.">% devolução financeira</span>
               <div class="mt-0.5">
                 <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">
                   {% if pct_devolucao_financeiro is not none %}{{ pct_devolucao_financeiro|fmt_br_2 }}%{% else %}—{% endif %}
@@ -17,9 +17,12 @@
             </svg>
           </div>
           <div class="employees-kpi__meta">
-            <span class="employees-text-muted text-[11px]">
-              {% if valor_base_disponivel %}Meta ≤ {{ meta_pp|fmt_br_2 }}% · base {{ valor_base_rotas|fmt_br_moeda }}{% else %}Base financeira pendente{% endif %}
+            <span class="employees-text-muted text-[11px] leading-snug block">
+              {% if valor_base_disponivel %}Meta ≤ {{ meta_pp|fmt_br_2 }}% · base rotas {{ valor_base_rotas|fmt_br_moeda }}{% else %}Base financeira pendente (sem valor_financeiro nas rotas){% endif %}
             </span>
+            {% if pct_devolucao_financeiro is not none and valor_base_disponivel %}
+            <span class="employees-text-muted text-[11px] leading-snug block mt-0.5">Mesmo numerador do cartão «Valor devolvido» (competência operacional, sem duplicata de planilha).</span>
+            {% endif %}
           </div>
         </div>
       </div>
@@ -28,7 +31,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
             <div class="min-w-0">
-              <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Valor devolvido</span>
+              <span class="sys-kpi-label text-amber-600 dark:text-amber-300" title="Soma dos valores das devoluções que entram no filtro do BI (data operacional / competência), excluindo duplicata de Excel.">Valor devolvido (BI)</span>
               <div class="mt-0.5">
                 <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">{{ total_valor|fmt_br_moeda }}</span>
               </div>
@@ -37,7 +40,10 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
           </div>
-          <div class="employees-kpi__meta"><span class="employees-text-muted text-[11px]">Período filtrado</span></div>
+          <div class="employees-kpi__meta">
+            <span class="employees-text-muted text-[11px] leading-snug block">{{ total_qtd|fmt_br_int }} ocorrências · competência (não só data do romaneio)</span>
+            <span class="employees-text-muted text-[11px] leading-snug block mt-0.5">Em <a href="/devolucoes" class="underline decoration-slate-400/50 underline-offset-2 hover:text-slate-700 dark:hover:text-slate-200">Cadastro</a>, o card «Período» usa só data do romaneio — o total em R$ pode diferir.</span>
+          </div>
         </div>
       </div>
 
@@ -45,7 +51,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
             <div class="min-w-0">
-              <span class="sys-kpi-label text-blue-600 dark:text-blue-300">% devolução (paradas)</span>
+              <span class="sys-kpi-label text-blue-600 dark:text-blue-300" title="Indicador operacional: paradas em devolução ÷ paradas concluídas. Não é o % financeiro da meta (use o cartão laranja).">% operacional (paradas)</span>
               <div class="mt-0.5">
                 <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">{{ pct_devolucao_rotas|fmt_br_1 }}%</span>
               </div>
@@ -55,7 +61,7 @@
             </svg>
           </div>
           <div class="employees-kpi__meta">
-            <span class="employees-text-muted text-[11px]">{{ rotas_kpi_devolucao|fmt_br_int }} / {{ rotas_kpi_concluidas|fmt_br_int }} paradas concluídas</span>
+            <span class="employees-text-muted text-[11px] leading-snug block">{{ rotas_kpi_devolucao|fmt_br_int }} / {{ rotas_kpi_concluidas|fmt_br_int }} paradas · complementar ao % financeiro</span>
           </div>
         </div>
       </div>
