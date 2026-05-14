@@ -241,6 +241,16 @@ def _safe_pct(numerator: float, denominator: float) -> float:
     return (num / den) * 100.0
 
 
+def _bi_client_return_pct_planned(planned_v: float, delivered_v: float, returned_v: float) -> float:
+    """% devolvido sobre base comercial (máx. entre planejado, entregue e devolvido).
+
+    Evita percentuais absurdos quando ``planned_value`` ≈ 0 mas há devoluções MANUAIS
+    ou rotas sem valor planejado — o antigo ``max(planned, 0.01)`` inflava o índice.
+    """
+    den = max(float(planned_v or 0.0), float(delivered_v or 0.0), float(returned_v or 0.0), 0.01)
+    return round(_safe_pct(float(returned_v or 0.0), den), 2)
+
+
 # Custo operacional estimado (R$/hora) — parâmetro explicável no tooltip
 _BI_EXEC_HOURLY_COST = 75.0
 
@@ -2184,9 +2194,10 @@ def _build_bi_clientes_dataset(
         else:
             suggested_action = "Revisão conjunta comercial + operação no ponto."
 
-        return_pct_planned = round(
-            _safe_pct(float(item["returned_value"] or 0.0), max(float(item["planned_value"] or 0.0), 0.01)),
-            2,
+        return_pct_planned = _bi_client_return_pct_planned(
+            float(item["planned_value"] or 0.0),
+            float(item["delivered_value"] or 0.0),
+            float(item["returned_value"] or 0.0),
         )
         delivery_efficiency_pct = round(
             _safe_pct(int(item["delivered_visits"] or 0), max(int(item["visits"] or 0), 1)),
@@ -2225,6 +2236,7 @@ def _build_bi_clientes_dataset(
                 "return_pct_planned": return_pct_planned,
                 "delivery_efficiency_pct": delivery_efficiency_pct,
                 "treatable_returned_value": treatable_val,
+                "_treatable_motivos": bci_clientes.treatable_motivo_breakdown(item.get("motivos")),
                 "total_duration_m": round(item["total_duration_m"], 1),
                 "avg_duration_m": avg_duration_m,
                 "reopen_count": item["reopen_count"],
@@ -2528,7 +2540,11 @@ def _build_bi_clientes_dataset(
 
     macro_v = ec["macro_value_global"]
     planned_tot = float(ec.get("planned_total") or 0)
-    return_pct_planned_global = round(_safe_pct(ec["returned_total"], max(planned_tot, 0.01)), 2)
+    return_pct_planned_global = _bi_client_return_pct_planned(
+        planned_tot,
+        float(ec.get("delivered_total") or 0.0),
+        float(ec.get("returned_total") or 0.0),
+    )
     tot_delivered_grid = sum(float(r.get("delivered_value") or 0) for r in ranking_rows) or 1.0
     top10_delivered_block = sorted(ranking_rows, key=lambda r: float(r.get("delivered_value") or 0), reverse=True)[:10]
     top10_share_delivered = round(
@@ -2552,6 +2568,40 @@ def _build_bi_clientes_dataset(
         )
     )
     treatable_total = round(sum(float(r.get("treatable_returned_value") or 0) for r in ranking_rows), 2)
+
+    treatable_drilldown: list[dict[str, Any]] = []
+    for _r in ranking_rows:
+        tm = _r.pop("_treatable_motivos", None) or []
+        tv = float(_r.get("treatable_returned_value") or 0)
+        if tv <= 0:
+            continue
+        hints = bci_clientes.suggest_treatable_resolutions(
+            treatable_motivos=tm,
+            top_motivo_name=str(_r.get("top_motivo_name") or ""),
+            top_responsabilidade_name=str(_r.get("top_responsabilidade_name") or ""),
+            classification_code=str(_r.get("classification_code") or ""),
+            action_recommendation=str(_r.get("action_recommendation") or ""),
+        )
+        treatable_drilldown.append(
+            {
+                "client_id": _r.get("client_id"),
+                "client_name": _r.get("client_name"),
+                "client_code": _r.get("client_code"),
+                "vendedor_name": _r.get("vendedor_name"),
+                "treatable_returned_value": tv,
+                "returned_value": float(_r.get("returned_value") or 0),
+                "delivered_value": float(_r.get("delivered_value") or 0),
+                "top_motivo_name": _r.get("top_motivo_name"),
+                "top_responsabilidade_name": _r.get("top_responsabilidade_name"),
+                "classification_title": _r.get("classification_title"),
+                "treatable_motivos": tm,
+                "hints": hints,
+            }
+        )
+    treatable_drilldown.sort(key=lambda x: -float(x["treatable_returned_value"]))
+    treatable_drilldown = treatable_drilldown[:120]
+    treatable_drilldown_json = _json_for_inline_script(treatable_drilldown)
+
     main_motivo_period = "—"
     if ranking_rows:
         from collections import Counter
@@ -2632,13 +2682,15 @@ def _build_bi_clientes_dataset(
         key=lambda r: float(r.get("operational_impact") or 0),
         reverse=True,
     )[:10]
+    p75_delivered_thr = sorted(dvals_f)[max(0, int(len(dvals_f) * 0.75) - 1)] if dvals_f else 0.0
+    large_risk_pool = [
+        r
+        for r in ranking_rows
+        if float(r.get("delivered_value") or 0) >= p75_delivered_thr
+        and float(r.get("return_pct_planned") or 0) > bci_clientes.META_DEVOLUCAO_VALOR_PCT
+    ]
     large_risk_block = sorted(
-        [
-            r
-            for r in ranking_rows
-            if float(r.get("delivered_value") or 0) >= (sorted(dvals_f)[max(0, int(len(dvals_f) * 0.75) - 1)] if dvals_f else 0)
-            and float(r.get("return_pct_planned") or 0) > bci_clientes.META_DEVOLUCAO_VALOR_PCT
-        ],
+        large_risk_pool,
         key=lambda r: float(r.get("return_pct_planned") or 0),
         reverse=True,
     )[:10]
@@ -2689,6 +2741,75 @@ def _build_bi_clientes_dataset(
             for r in motivos_por_cliente
         ],
     }
+
+    large_risk_drilldown: list[dict[str, Any]] = []
+    for r in sorted(large_risk_pool, key=lambda x: float(x.get("return_pct_planned") or 0), reverse=True)[:80]:
+        large_risk_drilldown.append(
+            {
+                "client_id": r.get("client_id"),
+                "client_name": r.get("client_name"),
+                "client_code": r.get("client_code"),
+                "vendedor_name": r.get("vendedor_name"),
+                "return_pct_planned": round(float(r.get("return_pct_planned") or 0), 2),
+                "returned_value": round(float(r.get("returned_value") or 0), 2),
+                "delivered_value": round(float(r.get("delivered_value") or 0), 2),
+                "classification_title": r.get("classification_title"),
+                "top_motivo_name": r.get("top_motivo_name"),
+                "top_responsabilidade_name": r.get("top_responsabilidade_name"),
+                "context": bci_clientes.large_risk_context_lines(r),
+                "hints": bci_clientes.large_risk_solution_lines(r),
+            }
+        )
+    large_risk_drilldown_json = _json_for_inline_script(large_risk_drilldown)
+
+    critical_drilldown: list[dict[str, Any]] = []
+    for r in sorted(
+        critical_clients,
+        key=lambda x: (int(x.get("risk_score") or 0), float(x.get("returned_value") or 0)),
+        reverse=True,
+    )[:200]:
+        critical_drilldown.append(
+            {
+                "client_id": r.get("client_id"),
+                "client_name": r.get("client_name"),
+                "client_code": r.get("client_code"),
+                "vendedor_name": r.get("vendedor_name"),
+                "classification_title": r.get("classification_title"),
+                "risk_score": int(r.get("risk_score") or 0),
+                "risk_label": r.get("risk_label"),
+                "return_pct_planned": round(float(r.get("return_pct_planned") or 0), 2),
+                "returned_value": round(float(r.get("returned_value") or 0), 2),
+                "top_motivo_name": r.get("top_motivo_name"),
+                "has_history": bool(r.get("has_previous_data")),
+                "delta_return_rate_value": round(float(r.get("delta_return_rate_value") or 0), 2) if r.get("has_previous_data") else None,
+                "context": bci_clientes.critical_client_context_lines(r),
+                "hints": bci_clientes.critical_client_solution_lines(r),
+            }
+        )
+    critical_drilldown_json = _json_for_inline_script(critical_drilldown)
+
+    good_rows = [
+        r
+        for r in ranking_rows
+        if str(r.get("classification_code") or "") in ("PREMIUM_OPERACIONAL", "ESTAVEL")
+        and int(r.get("cliente_score") or 0) >= 72
+    ]
+    good_drilldown: list[dict[str, Any]] = []
+    for r in sorted(good_rows, key=lambda x: float(x.get("delivered_value") or 0), reverse=True)[:300]:
+        good_drilldown.append(
+            {
+                "client_id": r.get("client_id"),
+                "client_name": r.get("client_name"),
+                "client_code": r.get("client_code"),
+                "vendedor_name": r.get("vendedor_name"),
+                "cliente_score": int(r.get("cliente_score") or 0),
+                "classification_title": r.get("classification_title"),
+                "delivered_value": round(float(r.get("delivered_value") or 0), 2),
+                "return_pct_planned": round(float(r.get("return_pct_planned") or 0), 2),
+                "summary": bci_clientes.good_client_summary_line(r),
+            }
+        )
+    good_clients_drilldown_json = _json_for_inline_script(good_drilldown)
 
     executive_headlines = []
     tmacro = sum(macro_v.values()) or 1.0
@@ -3305,9 +3426,14 @@ def _build_bi_clientes_dataset(
         "motivos_filter_options": motivos_filter_options,
         "responsabilidades_filter_options": responsabilidades_filter_options,
         "detail_rows_json": _json_for_inline_script(detail_rows[:200]),
+        "intel_clients_json": intel_clients_json,
         "intel_clients_truncated": intel_clients_truncated,
         "classification_filter_options": classification_filter_options,
         "routes_intel_json": routes_intel_json,
+        "treatable_drilldown_json": treatable_drilldown_json,
+        "large_risk_drilldown_json": large_risk_drilldown_json,
+        "critical_drilldown_json": critical_drilldown_json,
+        "good_clients_drilldown_json": good_clients_drilldown_json,
     }
 
 
@@ -5145,7 +5271,12 @@ def _build_bi_devolucoes_dataset(
     devs_raw = [d for d in devs_raw if not getattr(d, "duplicate_of_id", None)]
 
     def _dev_op_date_raw(d: models.Devolucao) -> str:
-        return str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None) or "").strip()[:10]
+        """Dia civil da operação no gráfico e agregações diárias: romaneio (logística); senão entrega."""
+        rom = str(getattr(d, "data_romaneio", None) or "").strip()[:10]
+        if len(rom) == 10:
+            return rom
+        ent = str(getattr(d, "data_entrega", None) or "").strip()[:10]
+        return ent if len(ent) == 10 else ""
 
     devs_c = [d for d in devs_raw if devolucao_competencia_in_period(d, period_start, period_end)]
     devs_c.sort(
@@ -5332,9 +5463,10 @@ def _build_bi_devolucoes_dataset(
     ]
     pct_devolucao_rotas = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
-    # Base financeira do KPI (vf ou fallback vd em devolução) por dia de competência — alinhado a
-    # `pct_valor_devolvido_sobre_base_rotas`, gráfico diário e projeção fim de mês.
+    # Base financeira do KPI por dia de competência (projeção fim de mês / MTD por competência).
     receita_por_dia_comp: dict[str, float] = {}
+    # Mesma base R$ agregada pelo dia civil da rota (Route.date), alinhada ao eixo do gráfico de evolução.
+    receita_por_dia_operacional: dict[str, float] = {}
     for _r_fin in routes_delivery_period:
         _op_r = route_competencia_operacional_iso(_r_fin)
         if len(_op_r) < 10:
@@ -5343,6 +5475,9 @@ def _build_bi_devolucoes_dataset(
         if _base_d is None:
             continue
         receita_por_dia_comp[_op_r] = receita_por_dia_comp.get(_op_r, 0.0) + float(_base_d)
+        dcal = str(getattr(_r_fin, "date", None) or "").strip()[:10]
+        if len(dcal) == 10:
+            receita_por_dia_operacional[dcal] = receita_por_dia_operacional.get(dcal, 0.0) + float(_base_d)
 
     devs_pre_acima: List[models.Devolucao] = list(devs)
     dev_por_dia_mtd: dict[str, float] = {}
@@ -5353,8 +5488,15 @@ def _build_bi_devolucoes_dataset(
         dev_por_dia_mtd[_op_k] = dev_por_dia_mtd.get(_op_k, 0.0) + float(_d_k.valor or 0)
     total_valor_kpi = sum(float(d.valor or 0) for d in devs_pre_acima)
     total_qtd_kpi = len(devs_pre_acima)
+    standalone_base_kpi = sum(
+        float(d.valor or 0)
+        for d in devs_pre_acima
+        if getattr(d, "route_id", None) is None
+    )
     pct_devolucao_financeiro, valor_base_rotas = pct_valor_devolvido_sobre_base_rotas(
-        float(total_valor_kpi), routes_delivery_period
+        float(total_valor_kpi),
+        routes_delivery_period,
+        suplemento_base_financeira=standalone_base_kpi,
     )
     meta_pp = 2.0
     valor_meta_permitido: Optional[float] = (
@@ -5649,10 +5791,8 @@ def _build_bi_devolucoes_dataset(
 
         val = float(d.valor or 0)
         op_raw = _dev_op_date_raw(d)
-        # Competência: filtros mensais / consolidado (mantida para referência em linha e modal).
-        dt_str = _competence_date_or_self(op_raw)
-        # Calendário operacional: gráfico diário, semana e heatmaps alinhados à data real da entrega/romaneio.
-        dt_operacional = op_raw if len(op_raw) >= 10 else dt_str
+        dt_str = devolucao_competencia_iso(d) or ""
+        dt_operacional = op_raw if len(op_raw) >= 10 else (dt_str if len(dt_str) >= 10 else "")
 
         # per_day (eixo = dia calendário da operação)
         slot = per_day.setdefault(dt_operacional, {"data": dt_operacional, "qtd": 0, "valor": 0.0})
@@ -5916,7 +6056,7 @@ def _build_bi_devolucoes_dataset(
     evolucao_diaria: list[dict] = []
     for ds in days_sorted:
         slot_dev = per_day.get(ds, {"data": ds, "qtd": 0, "valor": 0.0})
-        rec = round(float(receita_por_dia_comp.get(ds, 0.0)), 2)
+        rec = round(float(receita_por_dia_operacional.get(ds, 0.0)), 2)
         meta_2 = round(0.02 * rec, 2) if rec > 0 else None
         val_fl = float(slot_dev.get("valor") or 0)
         pct_dia = round(100.0 * val_fl / rec, 2) if rec > 0 else None
@@ -5981,6 +6121,23 @@ def _build_bi_devolucoes_dataset(
         vals = [heatmap_dow_dom[dow].get(dom, 0) for dow in range(7)]
         if any(v > 0 for v in vals):
             heatmap_dom_dow.append({"dom": dom, "values": vals})
+
+    # Faixa ao lado da evolução semanal: totais por dia da semana no período (todas as semanas ISO).
+    dow_short_lbl = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+    dow_tot_period = [0] * 7
+    for _wk, dow_map in heatmap_week.items():
+        for di in range(7):
+            dow_tot_period[di] += int(dow_map.get(di, 0) or 0)
+    max_cdow = max(dow_tot_period) if dow_tot_period else 0
+    heatmap_dow_strip: list[dict[str, Any]] = []
+    for i in range(7):
+        cnt = int(dow_tot_period[i])
+        heatmap_dow_strip.append({
+            "dow": dow_short_lbl[i],
+            "dow_full": DOW_LABELS[i],
+            "count": cnt,
+            "intensity": round((float(cnt) / float(max_cdow)) if max_cdow > 0 else 0.0, 4),
+        })
 
     # acima_300 breakdown
     total_acima_300 = sum(1 for d in devs_pre_acima if (d.acima_300 or "NAO") == "SIM")
@@ -6163,6 +6320,7 @@ def _build_bi_devolucoes_dataset(
         "heatmap_matrix": heatmap_matrix,
         "heatmap_weeks_labels": weeks_label,
         "heatmap_dom_dow": heatmap_dom_dow,
+        "heatmap_dow_strip": heatmap_dow_strip,
         "dow_labels": DOW_LABELS,
         # tabela detalhada (últimos 500 da query)
         "rows_detail": rows_detail[:500],

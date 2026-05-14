@@ -47,6 +47,197 @@ def treatable_return_value(motivos: Optional[dict[str, dict]], returned_value: f
     return round(min(total, float(returned_value)), 2)
 
 
+def treatable_motivo_breakdown(motivos: Optional[dict[str, dict]]) -> list[dict[str, Any]]:
+    """Motivos tratáveis com valor (para drill-down do KPI impacto evitável)."""
+    out: list[dict[str, Any]] = []
+    if not motivos:
+        return out
+    for mot, data in motivos.items():
+        nm = _norm(mot)
+        if not any(f in nm for f in TREATABLE_MOTIVO_FRAGMENTS):
+            continue
+        v = float(data.get("value") or 0.0)
+        if v <= 0:
+            continue
+        out.append(
+            {
+                "motivo": str(mot).strip() or "—",
+                "value": round(v, 2),
+                "count": int(data.get("count") or 0),
+            }
+        )
+    out.sort(key=lambda x: -float(x["value"]))
+    return out[:8]
+
+
+def suggest_treatable_resolutions(
+    *,
+    treatable_motivos: list[dict[str, Any]],
+    top_motivo_name: str,
+    top_responsabilidade_name: str,
+    classification_code: str,
+    action_recommendation: str,
+) -> list[str]:
+    """
+    Roteiro curto priorizado a partir de classificação, motivos tratáveis e macro de responsabilidade.
+
+    Heurística fixa no código (sem chamada a modelo de ML externo).
+    """
+    tips: list[str] = []
+    ar = str(action_recommendation or "").strip()
+    if ar:
+        tips.append(ar)
+    code = str(classification_code or "").strip().upper()
+    if code == "PEQUENO_ALTO_IMPACTO":
+        tips.append("Cliente de menor volume: padronizar pedido e confirmação D-1 para reduzir retrabalho.")
+
+    seen_mot: set[str] = set()
+    for row in treatable_motivos[:6]:
+        mot = _norm(str(row.get("motivo") or ""))
+        if not mot or mot in seen_mot:
+            continue
+        seen_mot.add(mot)
+        if "pagamento" in mot:
+            tips.append("Pagamento: validar limite, forma e conciliação antes da próxima expedição.")
+        elif "horário" in mot or "horario" in mot:
+            tips.append("Horário/janela: atualizar cadastro e confirmar recebimento na véspera.")
+        elif "cliente ausente" in mot or ("ausente" in mot and "cliente" in mot):
+            tips.append("Ausência no local: SLA de segunda visita e confirmação de contato.")
+        elif "pedido errado" in mot or "produto errado" in mot or "preço errado" in mot or "preco errado" in mot:
+            tips.append("Pedido/produto/preço: checklist SKU, quantidade e tabela na separação.")
+        elif "nao entregue" in mot or "não entregue" in mot or "nao foi entregue" in mot:
+            tips.append("Não entregue: revisar roteirização, prioridade da parada e comunicação com o motorista.")
+
+    tr = _norm(top_responsabilidade_name)
+    if tr and tr not in ("-", "—", "nao informado", "não informado", "nao informado."):
+        if "logist" in tr:
+            tips.append(f"Macro {top_responsabilidade_name}: reforçar conferência de carga e documentação de rota.")
+        elif "comercial" in tr or "cliente" in tr or "mercado" in tr:
+            tips.append(f"Macro {top_responsabilidade_name}: alinhar expectativa e documentos comerciais antes da rota.")
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for t in tips:
+        tt = t.strip()
+        if not tt:
+            continue
+        key = tt.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(tt)
+        if len(out) >= 6:
+            break
+    return out
+
+
+def large_risk_context_lines(row: dict[str, Any]) -> list[str]:
+    """Por que o cliente aparece em 'grandes com risco' (% devolução alto + volume)."""
+    rp = float(row.get("return_pct_planned") or 0)
+    rv = float(row.get("returned_value") or 0)
+    dv = float(row.get("delivered_value") or 0)
+    ro = int(row.get("returned_occurrences") or 0)
+    vi = int(row.get("visits") or 0)
+    tm = str(row.get("top_motivo_name") or "").strip()
+    tr = str(row.get("top_responsabilidade_name") or "").strip()
+    lines: list[str] = [
+        f"Índice de devolução sobre base comercial: {rp:.1f}% (referência interna > {META_DEVOLUCAO_VALOR_PCT:.0f}% indica risco).",
+        f"Valor devolvido no período: R$ {_br_money(rv)} · valor entregue: R$ {_br_money(dv)}.",
+    ]
+    if vi > 0:
+        lines.append(f"Paradas com registro: {vi}; ocorrências com devolução: {ro}.")
+    if tm and tm not in ("-", "—"):
+        lines.append(f"Motivo principal nas devoluções: {tm}.")
+    if tr and tr not in ("-", "—", "Não informado", "nao informado"):
+        lines.append(f"Responsabilidade dominante no valor devolvido: {tr}.")
+    return lines[:6]
+
+
+def large_risk_solution_lines(row: dict[str, Any]) -> list[str]:
+    tips: list[str] = []
+    ar = str(row.get("action_recommendation") or "").strip()
+    if ar:
+        tips.append(ar)
+    tips.extend(_motivo_heuristic_lines(str(row.get("top_motivo_name") or "")))
+    return _dedupe_tip_lines(tips, max_items=6)
+
+
+def critical_client_context_lines(row: dict[str, Any]) -> list[str]:
+    code = str(row.get("classification_code") or "").strip().upper()
+    title = str(row.get("classification_title") or "").strip()
+    rs = int(row.get("risk_score") or 0)
+    rp = float(row.get("return_pct_planned") or 0)
+    lines: list[str] = []
+    if title:
+        lines.append(f"Classificação: {title}.")
+    elif code:
+        lines.append(f"Perfil de classificação: {code}.")
+    if rs >= 70:
+        lines.append(f"Score de risco operacional elevado ({rs}/100 — combina devolução, tempo e recorrência).")
+    if rp >= 3.0:
+        lines.append(f"Índice de devolução (valor) {rp:.1f}% acima do patamar de atenção (3%).")
+    rv = float(row.get("returned_value") or 0)
+    if rv > 0:
+        lines.append(f"Valor devolvido no período: R$ {_br_money(rv)}.")
+    tm = str(row.get("top_motivo_name") or "").strip()
+    if tm and tm not in ("-", "—"):
+        lines.append(f"Motivo principal: {tm}.")
+    if row.get("has_previous_data"):
+        d = float(row.get("delta_return_rate_value") or 0)
+        lines.append(f"Comparativo ao período anterior: variação do índice financeiro de devolução {d:+.1f} p.p.")
+    return lines[:7]
+
+
+def critical_client_solution_lines(row: dict[str, Any]) -> list[str]:
+    tips: list[str] = []
+    ar = str(row.get("action_recommendation") or "").strip()
+    if ar:
+        tips.append(ar)
+    tips.extend(_motivo_heuristic_lines(str(row.get("top_motivo_name") or "")))
+    if int(row.get("reopen_count") or 0) > 0:
+        tips.append("Há reaberturas de entrega: revisar conferência de carga e comunicação com o cliente.")
+    return _dedupe_tip_lines(tips, max_items=7)
+
+
+def good_client_summary_line(row: dict[str, Any]) -> str:
+    sc = int(row.get("cliente_score") or 0)
+    rp = float(row.get("return_pct_planned") or 0)
+    dv = float(row.get("delivered_value") or 0)
+    title = str(row.get("classification_title") or "").strip() or str(row.get("classification_code") or "")
+    return f"Score {sc} · {title} · devolução {rp:.1f}% · R$ entregue {_br_money(dv)}"
+
+
+def _motivo_heuristic_lines(top_motivo: str) -> list[str]:
+    m = _norm(top_motivo)
+    out: list[str] = []
+    if "pagamento" in m:
+        out.append("Fluxo financeiro: antecipar validação de limite e forma de pagamento com o cliente.")
+    if "horário" in m or "horario" in m or "janela" in m:
+        out.append("Janela de atendimento: cruzar horário cadastrado com confirmação na véspera.")
+    if "ausente" in m or "fechad" in m:
+        out.append("Recebimento: reforçar contato e segunda tentativa com SLA definido.")
+    if "pedido" in m and "err" in m:
+        out.append("Qualidade do pedido: checklist comercial + separação (SKU, quantidade, preço).")
+    return out
+
+
+def _dedupe_tip_lines(tips: list[str], *, max_items: int) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for t in tips:
+        tt = str(t or "").strip()
+        if not tt:
+            continue
+        k = tt.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(tt)
+        if len(out) >= max_items:
+            break
+    return out
+
+
 def impacto_operacional(
     return_pct_val: float,
     return_pct_stops: float,

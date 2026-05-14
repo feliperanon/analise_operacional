@@ -696,16 +696,119 @@
       }
     };
 
-    document.addEventListener("click", function (e) {
-      var el = e.target.closest("[data-bi-cli-open]");
-      if (!el) return;
-      var cid = el.getAttribute("data-bi-cli-open");
-      openDrawer(cid);
-    });
     document.querySelectorAll("[data-bi-cli-close]").forEach(function (b) {
       b.addEventListener("click", closeDrawer);
     });
 
+    function closeTreatableModal() {
+      var m = document.getElementById("bi-cli-treatable-modal");
+      if (!m) return;
+      m.classList.add("hidden");
+      m.setAttribute("aria-hidden", "true");
+    }
+
+    function openTreatableModal() {
+      var m = document.getElementById("bi-cli-treatable-modal");
+      var body = document.getElementById("bi-cli-treatable-body");
+      if (!m || !body) return;
+      var rows = readJson("bi-cli-treatable-json");
+      if (!Array.isArray(rows)) rows = [];
+      if (!rows.length) {
+        body.innerHTML =
+          "<p class=\"employees-text-muted py-6 text-center text-sm\">Nenhum cliente com impacto evitável neste recorte (ou valor zerado).</p>";
+      } else {
+        body.innerHTML = rows
+          .map(function (row) {
+            var cid = row.client_id != null ? String(row.client_id) : "";
+            var motivos = (row.treatable_motivos || [])
+              .map(function (x) {
+                return (
+                  "<li class=\"flex justify-between gap-2 border-b border-slate-100 py-1 dark:border-slate-800\"><span class=\"min-w-0 truncate\">" +
+                  escapeHtml(x.motivo) +
+                  "</span><span class=\"shrink-0 tabular-nums text-slate-600 dark:text-slate-300\">" +
+                  fmtMoney(x.value) +
+                  "</span></li>"
+                );
+              })
+              .join("");
+            var hints = (row.hints || [])
+              .map(function (h) {
+                return "<li class=\"mt-1.5 leading-snug\">" + escapeHtml(h) + "</li>";
+              })
+              .join("");
+            return (
+              "<article class=\"mb-4 rounded-xl border border-slate-200/90 bg-slate-50/60 p-3 last:mb-0 dark:border-slate-700 dark:bg-slate-800/40\">" +
+              "<div class=\"flex flex-wrap items-start justify-between gap-2\">" +
+              "<div class=\"min-w-0\">" +
+              "<p class=\"font-semibold leading-tight\">" +
+              escapeHtml(row.client_name || "—") +
+              "</p>" +
+              "<p class=\"employees-text-muted mt-0.5 text-xs\">" +
+              escapeHtml(row.client_code || "") +
+              (row.vendedor_name ? " · " + escapeHtml(row.vendedor_name) : "") +
+              "</p></div>" +
+              "<div class=\"text-right\">" +
+              "<p class=\"text-xs text-violet-700 dark:text-violet-300\">Evitável</p>" +
+              "<p class=\"tabular-nums font-semibold text-violet-800 dark:text-violet-200\">" +
+              fmtMoney(row.treatable_returned_value) +
+              "</p>" +
+              "<p class=\"employees-text-muted text-[11px]\">dev. total " +
+              fmtMoney(row.returned_value) +
+              "</p></div></div>" +
+              (row.classification_title
+                ? "<p class=\"employees-text-muted mt-2 text-xs\">Classificação: " + escapeHtml(row.classification_title) + "</p>"
+                : "") +
+              (motivos
+                ? "<p class=\"mt-2 text-xs font-medium text-slate-700 dark:text-slate-200\">Motivos tratáveis (valor)</p><ul class=\"mt-1 text-xs\">" +
+                  motivos +
+                  "</ul>"
+                : "") +
+              (hints
+                ? "<p class=\"mt-3 text-xs font-medium text-slate-700 dark:text-slate-200\">Sugestões automáticas</p><ol class=\"list-decimal pl-4 text-xs text-slate-700 dark:text-slate-300\">" +
+                  hints +
+                  "</ol>"
+                : "") +
+              (cid
+                ? "<div class=\"mt-3\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
+                  escapeHtml(cid) +
+                  "\">Abrir ficha do cliente</button></div>"
+                : "") +
+              "</article>"
+            );
+          })
+          .join("");
+      }
+      m.classList.remove("hidden");
+      m.setAttribute("aria-hidden", "false");
+    }
+
+    var kpiTreat = document.getElementById("bi-cli-kpi-treatable-open");
+    if (kpiTreat) {
+      kpiTreat.addEventListener("click", openTreatableModal);
+      kpiTreat.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          openTreatableModal();
+        }
+      });
+    }
+    document.querySelectorAll("[data-bi-cli-treatable-close]").forEach(function (b) {
+      b.addEventListener("click", closeTreatableModal);
+    });
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Escape") return;
+      var modal = document.getElementById("bi-cli-treatable-modal");
+      if (modal && !modal.classList.contains("hidden")) closeTreatableModal();
+    });
+
+    document.addEventListener("click", function (e) {
+      var el = e.target.closest("[data-bi-cli-open]");
+      if (!el) return;
+      var modal = document.getElementById("bi-cli-treatable-modal");
+      if (modal && !modal.classList.contains("hidden") && modal.contains(el)) closeTreatableModal();
+      var cid = el.getAttribute("data-bi-cli-open");
+      openDrawer(cid);
+    });
     renderTable();
     initCharts();
   }

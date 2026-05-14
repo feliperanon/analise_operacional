@@ -628,7 +628,7 @@
             borderDash: [4, 3],
             fill: false,
             tension: 0.25,
-            spanGaps: false,
+            spanGaps: true,
             pointRadius: 3,
             pointHoverRadius: 5,
             order: 2,

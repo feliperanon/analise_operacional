@@ -5,7 +5,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
             <div class="min-w-0">
-              <span class="sys-kpi-label text-orange-600 dark:text-orange-300" title="Valor devolvido ÷ base R$ das rotas no período; meta ≤ 2%.">% devolução financeira</span>
+              <span class="sys-kpi-label text-orange-600 dark:text-orange-300" title="Valor devolvido ÷ base R$ das rotas no período; meta ≤ 2%.">% devolução</span>
               <div class="mt-0.5">
                 <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">
                   {% if pct_devolucao_financeiro is not none %}{{ pct_devolucao_financeiro|fmt_br_2 }}%{% else %}—{% endif %}
@@ -47,7 +47,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
             <div class="min-w-0">
-              <span class="sys-kpi-label text-blue-600 dark:text-blue-300" title="Indicador operacional: paradas em devolução ÷ paradas concluídas. Não é o % financeiro da meta (use o cartão laranja).">% operacional (paradas)</span>
+              <span class="sys-kpi-label text-blue-600 dark:text-blue-300" title="Indicador operacional: paradas em devolução ÷ paradas concluídas. Não é o % financeiro da meta (use o cartão laranja).">% operacional</span>
               <div class="mt-0.5">
                 <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">{{ pct_devolucao_rotas|fmt_br_1 }}%</span>
               </div>
@@ -57,7 +57,7 @@
             </svg>
           </div>
           <div class="employees-kpi__meta">
-            <span class="employees-text-muted text-[11px] leading-snug block">{{ rotas_kpi_devolucao|fmt_br_int }} / {{ rotas_kpi_concluidas|fmt_br_int }} paradas · complementar ao % financeiro</span>
+            <span class="employees-text-muted text-[11px] leading-snug block">{{ rotas_kpi_devolucao|fmt_br_int }} / {{ rotas_kpi_concluidas|fmt_br_int }} paradas</span>
           </div>
         </div>
       </div>
@@ -66,7 +66,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
             <div class="min-w-0">
-              <span class="sys-kpi-label text-indigo-600 dark:text-indigo-300">Desvio da meta (valor)</span>
+              <span class="sys-kpi-label text-indigo-600 dark:text-indigo-300">Desvio da meta</span>
               <div class="mt-0.5">
                 <span class="employees-kpi__value bi-dev-kpi-value tabular-nums">
                   {% if desvio_pp is not none %}{% if desvio_pp > 0 %}+{% endif %}{{ desvio_pp|fmt_br_2 }} p.p.{% else %}—{% endif %}
@@ -91,7 +91,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
             <div class="min-w-0">
-              <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Meta permitida / excedente</span>
+              <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Meta permitida</span>
               <div class="mt-0.5">
                 <span class="employees-kpi__value bi-dev-kpi-value tabular-nums text-sm sm:text-base">
                   {% if valor_meta_permitido is not none %}{{ valor_meta_permitido|fmt_br_moeda }}{% else %}Aguardando base financeira{% endif %}

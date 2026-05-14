@@ -126,6 +126,46 @@ def test_projecao_financeira_com_baseline():
     assert out["dias_restantes_no_mes"] == 21
     assert out["vs_meta"] in ("acima", "dentro")
     assert 0 <= out["pct_projetado"] <= 100
+    assert out.get("metodo_projecao") == "dow_baseline"
+
+
+def test_projecao_financeiro_baseline_curto_usa_linear_mtd():
+    """Sem 14+ dias no histórico pré-mês: extrapola pela média diária do recorte no mês."""
+    date_i = date(2025, 5, 1)
+    date_f = date(2025, 5, 10)
+    base_mtd = {"2025-05-03": 2000.0, "2025-05-04": 1000.0}
+    dev_mtd = {"2025-05-03": 50.0, "2025-05-04": 25.0}
+    base_bl = {f"2025-04-{i:02d}": 500.0 for i in range(1, 6)}
+    dev_bl = {f"2025-04-{i:02d}": 10.0 for i in range(1, 6)}
+    out = build_mes_fim_projecao_pct_financeiro(
+        date_i, date_f, base_mtd, dev_mtd, base_bl, dev_bl, min_baseline_days=14
+    )
+    assert out is not None
+    assert out["ativa"] is True
+    assert out.get("metodo_projecao") == "linear_mtd"
+    assert 0 <= out["pct_projetado"] <= 100
+    assert out["dias_restantes_no_mes"] == 21
+
+
+def test_projecao_financeiro_ignora_nan_no_mtd_com_baseline():
+    import math
+
+    date_i = date(2025, 5, 1)
+    date_f = date(2025, 5, 10)
+    base_mtd = {"2025-05-03": 1000.0, "2025-05-04": float("nan")}
+    dev_mtd = {"2025-05-03": 30.0, "2025-05-04": float("nan")}
+    base_bl: dict[str, float] = {}
+    dev_bl: dict[str, float] = {}
+    d0 = date(2025, 1, 1)
+    for i in range(20):
+        ds = (d0 + timedelta(days=i)).strftime("%Y-%m-%d")
+        base_bl[ds] = 1000.0
+        dev_bl[ds] = 20.0
+    out = build_mes_fim_projecao_pct_financeiro(
+        date_i, date_f, base_mtd, dev_mtd, base_bl, dev_bl, min_baseline_days=14
+    )
+    assert out is not None and out["ativa"] is True
+    assert math.isfinite(float(out["pct_projetado"]))
 
 
 def test_pct_valor_devolvido_sobre_base_rotas_usa_valor_financeiro():
@@ -170,3 +210,35 @@ def test_pct_valor_devolvido_sobre_base_rotas_fallback_valor_devolucao():
     p, b = pct_valor_devolvido_sobre_base_rotas(50.0, [r])
     assert b == 500.0
     assert p == 10.0
+
+
+def test_pct_valor_devolvido_suplemento_base_financeira():
+    """Devoluções sem rota (manual) somam à base, alinhado ao BI Entregas."""
+    r = SimpleNamespace(
+        valor_financeiro=None,
+        valor_devolucao=None,
+        delivery_status="entregue",
+        delivery_return_reason=None,
+    )
+    p, b = pct_valor_devolvido_sobre_base_rotas(25.0, [r], suplemento_base_financeira=500.0)
+    assert b == 500.0
+    assert p == 5.0
+
+
+def test_pct_valor_devolvido_sem_base_usa_valor_como_base_minima():
+    """Sem faturamento nas rotas nem suplemento: mesma regra do BI (`base = valor devolvido`)."""
+    r = SimpleNamespace(
+        valor_financeiro=None,
+        valor_devolucao=None,
+        delivery_status="entregue",
+        delivery_return_reason=None,
+    )
+    p, b = pct_valor_devolvido_sobre_base_rotas(80.0, [r])
+    assert b == 80.0
+    assert p == 100.0
+
+
+def test_pct_valor_devolvido_sem_valor_e_sem_base():
+    p, b = pct_valor_devolvido_sobre_base_rotas(0.0, [])
+    assert p is None
+    assert b == 0.0

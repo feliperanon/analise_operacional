@@ -13,13 +13,18 @@ Financeiro (valor) — KPI meta ≤ 2% (BI Devoluções / Central / TV):
 - Denominador: soma nas rotas `type=delivery` cuja **competência** da `Route.date` cai no período:
   `valor_financeiro` quando informado; se a rota for devolução sem `valor_financeiro`, usa
   `valor_devolucao` (paridade com `pct_valor_devolvido_sobre_base_rotas`).
+- Opcionalmente soma-se `suplemento_base_financeira` (ex.: devoluções cadastradas **sem** `route_id`,
+  alinhado ao `prev_month_planned_val + prev_month_manual_valor` do BI Entregas). Se a base
+  continuar ≤ 0 e o numerador for > 0, usa-se o próprio valor devolvido como base mínima
+  (mesmo fechamento do BI quando `prev_month_base <= 0`).
 - BI Entregas / Clientes / Vendedor podem exibir **outros** índices (ex.: devolvido ÷ planejado,
   ou devoluções ÷ faturamento do vendedor); o rótulo deixa explícito quando não for este KPI.
 
 Projeção fim de mês:
 - `build_mes_fim_projecao_pct_rotas`: % paradas (operacional), média por dia da semana no histórico pré-mês.
-- `build_mes_fim_projecao_pct_financeiro`: % valor devolvido sobre faturamento (mesma lógica do KPI financeiro),
-  projetando numerador e denominador por dia da semana no histórico pré-mês; não é modelo de ML externo.
+- `build_mes_fim_projecao_pct_financeiro`: % valor devolvido sobre faturamento; prioriza perfil por dia da semana
+  no histórico pré-mês; se inviável (poucos dias de histórico, NaN/Inf nos agregados), usa extrapolação pela
+  média diáncia já observada no recorte MTD do mês (`metodo_projecao`: `dow_baseline` | `linear_mtd`).
 """
 
 from __future__ import annotations
@@ -32,6 +37,15 @@ import unicodedata
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 _DONE_STATUSES = frozenset({"entregue", "devolucao"})
+
+
+def _coerce_fin(x: Any) -> float:
+    """Converte para float finito; valores inválidos ou não finitos viram 0 (evita NaN na projeção)."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return 0.0
+    return v if math.isfinite(v) else 0.0
 
 
 def _normalize_return_reason_for_match(val: Optional[str]) -> str:
@@ -129,16 +143,25 @@ def route_base_financeiro_kpi(route: Any) -> Optional[float]:
     return None
 
 
-def pct_valor_devolvido_sobre_base_rotas(valor_devolvido: float, routes_delivery: Iterable[Any]) -> Tuple[Optional[float], float]:
+def pct_valor_devolvido_sobre_base_rotas(
+    valor_devolvido: float,
+    routes_delivery: Iterable[Any],
+    *,
+    suplemento_base_financeira: float = 0.0,
+) -> Tuple[Optional[float], float]:
     """% valor devolvido (cadastro agregado) sobre base R$ nas rotas do mesmo recorte."""
     base = 0.0
     for r in routes_delivery:
         contrib = route_base_financeiro_kpi(r)
         if contrib is not None:
             base += contrib
+    base += max(0.0, float(suplemento_base_financeira or 0.0))
+    vd = float(valor_devolvido or 0)
+    if base <= 0 and vd > 0:
+        base = vd
     if base <= 0:
         return None, 0.0
-    pct = round(100.0 * float(valor_devolvido or 0) / base, 2)
+    pct = round(100.0 * vd / base, 2)
     if not math.isfinite(pct):
         return None, round(base, 2)
     return pct, round(base, 2)
@@ -299,9 +322,8 @@ def build_mes_fim_projecao_pct_financeiro(
 ) -> Optional[Dict[str, Any]]:
     """
     Estimativa do % financeiro (valor devolvido ÷ faturamento das rotas) ao último dia do mês,
-    para recorte mensal parcial. Mesma ideia que `build_mes_fim_projecao_pct_rotas`: por cada dia
-    futuro do mês, soma a média histórica (por dia da semana) de base e de valor devolvido
-    observados no baseline; combina com o MTD já realizado.
+    para recorte mensal parcial. Tenta perfil por dia da semana no histórico pré-mês; se faltar
+    histórico ou o resultado não for numérico válido, extrapola pela média diária do MTD no mês.
     """
     if (date_i.year, date_i.month) != (date_f.year, date_f.month):
         return None
@@ -310,9 +332,9 @@ def build_mes_fim_projecao_pct_financeiro(
     if date_f >= month_last:
         return None
 
-    mtd_base = sum(float(v) for v in base_por_dia_mtd.values())
-    mtd_dev = sum(float(v) for v in dev_por_dia_mtd.values())
-    if mtd_base <= 0:
+    mtd_base = sum(_coerce_fin(v) for v in base_por_dia_mtd.values())
+    mtd_dev = sum(_coerce_fin(v) for v in dev_por_dia_mtd.values())
+    if not math.isfinite(mtd_base + mtd_dev) or mtd_base <= 0:
         return {
             "ativa": False,
             "mensagem": (
@@ -321,13 +343,85 @@ def build_mes_fim_projecao_pct_financeiro(
             ),
         }
 
+    dias_restantes = 0
+    d = date_f + timedelta(days=1)
+    while d <= month_last:
+        dias_restantes += 1
+        d += timedelta(days=1)
+    if dias_restantes <= 0:
+        return None
+
+    mtd_span = max(1, (date_f - date_i).days + 1)
+
+    disclaimer = (
+        "Indicativo: pressupõe que o ritmo recente se mantenha; "
+        "não utiliza modelo de aprendizado de máquina treinado fora desta regra."
+    )
+
+    def _payload_ok(
+        proj_b: float,
+        proj_v: float,
+        exp_b: float,
+        exp_v: float,
+        resumo_metodo: str,
+        metodo_projecao: str,
+        n_day_obs: int,
+    ) -> Dict[str, Any]:
+        proj_pct = round(100.0 * proj_v / proj_b, 2)
+        vs_meta = "dentro" if proj_pct <= meta_pp else "acima"
+        return {
+            "ativa": True,
+            "pct_projetado": proj_pct,
+            "vs_meta": vs_meta,
+            "meta_pp": float(meta_pp),
+            "dias_restantes_no_mes": dias_restantes,
+            "dias_baseline_calendario": n_day_obs,
+            "mtd_base": round(mtd_base, 2),
+            "mtd_dev": round(mtd_dev, 2),
+            "proj_base": round(proj_b, 2),
+            "proj_dev": round(proj_v, 2),
+            "resumo_metodo": resumo_metodo,
+            "disclaimer": disclaimer,
+            "metodo_projecao": metodo_projecao,
+        }
+
+    def _try_linear_mtd() -> Optional[Dict[str, Any]]:
+        rate_b = mtd_base / float(mtd_span)
+        rate_v = mtd_dev / float(mtd_span)
+        exp_b = rate_b * float(dias_restantes)
+        exp_v = rate_v * float(dias_restantes)
+        proj_b = mtd_base + exp_b
+        proj_v = mtd_dev + exp_v
+        if not math.isfinite(proj_b + proj_v + exp_b + exp_v) or proj_b <= 0:
+            return None
+        proj_pct = round(100.0 * proj_v / proj_b, 2)
+        if not math.isfinite(proj_pct):
+            return None
+        return _payload_ok(
+            proj_b,
+            proj_v,
+            exp_b,
+            exp_v,
+            (
+                f"Média diária do recorte no mês ({mtd_span} dia(s) com dados agregados) aplicada aos "
+                f"{dias_restantes} dia(s) restante(s) do mês civil — usado quando o histórico pré-mês não permite "
+                "perfil semanal confiável ou o perfil semanal gerou valor inválido."
+            ),
+            "linear_mtd",
+            0,
+        )
+
     baseline_days = set(base_por_dia_baseline.keys()) | set(dev_por_dia_baseline.keys())
     if len(baseline_days) < min_baseline_days:
+        out_lin = _try_linear_mtd()
+        if out_lin:
+            return out_lin
         return {
             "ativa": False,
             "mensagem": (
                 "Projeção ao fim do mês: histórico insuficiente para perfil por dia da semana "
-                f"(mínimo {min_baseline_days} dias com movimento antes do mês)."
+                f"(mínimo {min_baseline_days} dias antes do mês) e não foi possível extrapolar pela média diária "
+                "do período (base ou dias inválidos)."
             ),
         }
 
@@ -345,8 +439,8 @@ def build_mes_fim_projecao_pct_financeiro(
             dow = date(y, m, dd).weekday()
         except (TypeError, ValueError):
             continue
-        b = float(base_por_dia_baseline.get(day_iso, 0.0))
-        v = float(dev_por_dia_baseline.get(day_iso, 0.0))
+        b = _coerce_fin(base_por_dia_baseline.get(day_iso, 0.0))
+        v = _coerce_fin(dev_por_dia_baseline.get(day_iso, 0.0))
         sums_b[dow] += b
         sums_v[dow] += v
         cnt_w[dow] += 1
@@ -355,6 +449,9 @@ def build_mes_fim_projecao_pct_financeiro(
         n_day_obs += 1
 
     if n_day_obs <= 0:
+        out_lin = _try_linear_mtd()
+        if out_lin:
+            return out_lin
         return {"ativa": False, "mensagem": "Projeção ao fim do mês: baseline sem dias válidos."}
 
     mean_b: List[float] = []
@@ -363,67 +460,57 @@ def build_mes_fim_projecao_pct_financeiro(
     for dow in range(7):
         c = cnt_w[dow]
         if c > 0:
-            mean_b.append(sums_b[dow] / c)
-            mean_v.append(sums_v[dow] / c)
+            mb = _coerce_fin(sums_b[dow] / c)
+            mv = _coerce_fin(sums_v[dow] / c)
+            mean_b.append(mb)
+            mean_v.append(mv)
             has_w.append(True)
         else:
             mean_b.append(0.0)
             mean_v.append(0.0)
             has_w.append(False)
 
-    fb_b = tot_b / n_day_obs
-    fb_v = tot_v / n_day_obs
+    fb_b = _coerce_fin(tot_b / n_day_obs)
+    fb_v = _coerce_fin(tot_v / n_day_obs)
 
     exp_b = 0.0
     exp_v = 0.0
-    d = date_f + timedelta(days=1)
-    dias_restantes = 0
-    while d <= month_last:
-        dias_restantes += 1
-        w = d.weekday()
+    d2 = date_f + timedelta(days=1)
+    while d2 <= month_last:
+        w = d2.weekday()
         exp_b += mean_b[w] if has_w[w] else fb_b
         exp_v += mean_v[w] if has_w[w] else fb_v
-        d += timedelta(days=1)
+        d2 += timedelta(days=1)
 
-    if dias_restantes <= 0:
-        return None
+    exp_b = _coerce_fin(exp_b)
+    exp_v = _coerce_fin(exp_v)
+    proj_b = _coerce_fin(mtd_base + exp_b)
+    proj_v = _coerce_fin(mtd_dev + exp_v)
 
-    proj_b = mtd_base + exp_b
-    proj_v = mtd_dev + exp_v
-    if proj_b <= 0:
-        return {
-            "ativa": False,
-            "mensagem": "Projeção ao fim do mês: faturamento projetado para o mês é nulo ou negativo.",
-        }
+    if proj_b > 0 and math.isfinite(proj_b + proj_v):
+        proj_pct = round(100.0 * proj_v / proj_b, 2)
+        if math.isfinite(proj_pct):
+            return _payload_ok(
+                proj_b,
+                proj_v,
+                exp_b,
+                exp_v,
+                (
+                    "Perfil por dia da semana com base em dias anteriores ao mês corrente "
+                    f"({n_day_obs} dia(s) com base ou devolução no histórico)."
+                ),
+                "dow_baseline",
+                n_day_obs,
+            )
 
-    proj_pct = round(100.0 * proj_v / proj_b, 2)
-    if not math.isfinite(proj_pct):
-        return {
-            "ativa": False,
-            "mensagem": (
-                "Projeção ao fim do mês: indisponível — combinação de MTD e histórico gerou valor não numérico; "
-                "verifique consistência de datas e valores no período."
-            ),
-        }
-    vs_meta = "dentro" if proj_pct <= meta_pp else "acima"
+    out_lin = _try_linear_mtd()
+    if out_lin:
+        return out_lin
 
     return {
-        "ativa": True,
-        "pct_projetado": proj_pct,
-        "vs_meta": vs_meta,
-        "meta_pp": float(meta_pp),
-        "dias_restantes_no_mes": dias_restantes,
-        "dias_baseline_calendario": n_day_obs,
-        "mtd_base": round(mtd_base, 2),
-        "mtd_dev": round(mtd_dev, 2),
-        "proj_base": round(proj_b, 2),
-        "proj_dev": round(proj_v, 2),
-        "resumo_metodo": (
-            "Perfil por dia da semana com base em dias anteriores ao mês corrente "
-            f"({n_day_obs} dia(s) com base ou devolução no histórico)."
-        ),
-        "disclaimer": (
-            "Indicativo: pressupõe que o ritmo e o padrão semanal recentes se mantenham; "
-            "não utiliza modelo de aprendizado de máquina treinado fora desta regra."
+        "ativa": False,
+        "mensagem": (
+            "Projeção ao fim do mês: indisponível — o perfil semanal do histórico e a extrapolação linear "
+            "pela média diária do mês não produziram percentual válido; verifique valores nas rotas e devoluções."
         ),
     }

@@ -63,25 +63,42 @@
       <span class="mt-1 block text-[11px] text-slate-500 group-open:hidden dark:text-slate-400">Toque para expandir</span>
       {% endif %}
     </summary>
-    <div class="overflow-x-auto p-2 sm:p-3">
-      <table class="bi-dev-weekly-table min-w-[260px] w-full text-left text-xs sm:text-sm">
-        <thead class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          <tr>
-            <th class="py-1.5 pr-2">Semana</th>
-            <th class="py-1.5 pr-2 text-right">Qtd.</th>
-            <th class="py-1.5 text-right">Valor</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80">
-          {% for w in evolucao_semanal[-16:] %}
-          <tr class="tabular-nums">
-            <td class="py-1.5 pr-2 font-mono text-[11px] text-slate-700 dark:text-slate-200">{{ w.semana }}</td>
-            <td class="py-1.5 pr-2 text-right">{{ w.qtd|fmt_br_int }}</td>
-            <td class="py-1.5 text-right font-medium">{{ w.valor|fmt_br_moeda }}</td>
-          </tr>
+    <div class="bi-dev-weekly__body flex flex-col gap-3 p-2 sm:flex-row sm:items-stretch sm:gap-4 sm:p-3">
+      <div class="min-w-0 flex-1 overflow-x-auto">
+        <table class="bi-dev-weekly-table min-w-[260px] w-full text-left text-xs sm:text-sm">
+          <thead class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <tr>
+              <th class="py-1.5 pr-2">Semana</th>
+              <th class="py-1.5 pr-2 text-right">Qtd.</th>
+              <th class="py-1.5 text-right">Valor</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-700/80">
+            {% for w in evolucao_semanal[-16:] %}
+            <tr class="tabular-nums">
+              <td class="py-1.5 pr-2 font-mono text-[11px] text-slate-700 dark:text-slate-200">{{ w.semana }}</td>
+              <td class="py-1.5 pr-2 text-right">{{ w.qtd|fmt_br_int }}</td>
+              <td class="py-1.5 text-right font-medium">{{ w.valor|fmt_br_moeda }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if heatmap_dow_strip and heatmap_dow_strip|length > 0 %}
+      <aside class="bi-dev-dow-heat shrink-0 rounded-lg border border-slate-200/70 bg-slate-50/40 p-2.5 dark:border-slate-600/55 dark:bg-slate-900/25 sm:max-w-[11.5rem] sm:border-l sm:border-slate-200/70 sm:pl-4 dark:sm:border-slate-600/55" aria-label="Concentração de devoluções por dia da semana no período">
+        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dia da semana</p>
+        <p class="mt-0.5 text-[10px] leading-snug text-slate-500/90 dark:text-slate-500">Volume no período filtrado (cor mais forte = mais ocorrências).</p>
+        <div class="mt-2.5 flex justify-between gap-1" role="presentation">
+          {% for row in heatmap_dow_strip %}
+          {% set a = 0.06 + (row.intensity * 0.5) %}
+          <div class="flex min-w-0 flex-1 flex-col items-center gap-1" title="{{ row.dow_full }}: {{ row.count|fmt_br_int }} devolução(ões)">
+            <div class="bi-dev-dow-heat__swatch h-7 w-full max-w-[2.4rem] rounded-sm ring-1 ring-inset ring-slate-200/60 dark:ring-slate-600/50 sm:h-9" style="background-color: rgba(234, 88, 12, {{ a|round(3) }});"></div>
+            <span class="font-mono text-[9px] font-medium text-slate-600 dark:text-slate-400">{{ row.dow }}</span>
+          </div>
           {% endfor %}
-        </tbody>
-      </table>
+        </div>
+      </aside>
+      {% endif %}
     </div>
   </details>
   {% endif %}

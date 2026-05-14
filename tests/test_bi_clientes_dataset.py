@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 from pathlib import Path
 import sys
 
@@ -283,6 +284,12 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
     assert dataset["kpis"]["responsibility_concentration_pct"] == 100.0
     assert dataset["detail_client"]["client_id"] == client_a.id
     assert dataset["detail_total"] == 4
+    assert "intel_clients_json" in dataset
+    intel = json.loads(dataset["intel_clients_json"])
+    assert isinstance(intel, list) and len(intel) >= 1
+    assert any(r.get("client_id") == client_a.id for r in intel)
+    assert "treatable_drilldown_json" in dataset
+    assert isinstance(json.loads(dataset["treatable_drilldown_json"]), list)
 
 
 def test_build_bi_clientes_dataset_ignores_placeholder_midnight_start_for_duration():
@@ -350,3 +357,12 @@ def test_build_bi_clientes_dataset_ignores_placeholder_midnight_start_for_durati
     assert row["visit_time"] == ""
     assert client_row["total_duration_m"] == 0.0
     assert client_row["window_checks"] == 0
+
+
+def test_bi_client_return_pct_planned_avoids_tiny_planned_denominator():
+    """Sem planejado, % não deve usar R$ 0,01 (explodia com devoluções manuais)."""
+    pct = bi_delivery_routes._bi_client_return_pct_planned(0.0, 9748.75, 500.0)
+    assert abs(pct - (500.0 / 9748.75 * 100.0)) < 0.02
+    assert bi_delivery_routes._bi_client_return_pct_planned(0.0, 9748.75, 9748.75) == 100.0
+    assert bi_delivery_routes._bi_client_return_pct_planned(0.0, 0.0, 9748.75) == 100.0
+    assert bi_delivery_routes._safe_pct(9748.75, 0.01) > 1_000_000

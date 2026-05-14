@@ -3819,6 +3819,17 @@ def _build_informativo_extras(
     prev_valor = sum(float(d.valor or 0) for d in devs_prev)
     curr_valor = sum(float(d.valor or 0) for d in devs_curr)
 
+    def _valor_kpi_standalone_sem_rota(devs: List[Any]) -> float:
+        """Devoluções sem rota vinculada entram na base financeira como no BI Entregas (manual)."""
+        return sum(
+            float(getattr(d, "valor", 0) or 0)
+            for d in devs
+            if not getattr(d, "duplicate_of_id", None) and getattr(d, "route_id", None) is None
+        )
+
+    suplemento_base_prev = _valor_kpi_standalone_sem_rota(devs_prev)
+    suplemento_base_curr = _valor_kpi_standalone_sem_rota(devs_curr)
+
     # Janela estendida para classificar por competência operacional na virada de mês.
     window_start = query_lo
     window_end = query_hi
@@ -3844,8 +3855,12 @@ def _build_informativo_extras(
     pct_prev = pct_devolucao_sobre_rotas_concluidas(routes_prev)
     pct_curr = pct_devolucao_sobre_rotas_concluidas(routes_curr_m)
     delta_pp = round(float(pct_prev) - float(pct_curr), 1)
-    pct_fin_prev, _ = _pct_devolucao_financeiro_sistema(prev_valor, routes_prev)
-    pct_fin_curr, _ = _pct_devolucao_financeiro_sistema(curr_valor, routes_curr_m)
+    pct_fin_prev, _ = _pct_devolucao_financeiro_sistema(
+        prev_valor, routes_prev, suplemento_base_financeira=suplemento_base_prev
+    )
+    pct_fin_curr, _ = _pct_devolucao_financeiro_sistema(
+        curr_valor, routes_curr_m, suplemento_base_financeira=suplemento_base_curr
+    )
     if pct_fin_prev is not None and not math.isfinite(float(pct_fin_prev)):
         pct_fin_prev = None
     if pct_fin_curr is not None and not math.isfinite(float(pct_fin_curr)):
@@ -3970,9 +3985,18 @@ def _kpi_devolucao_mes_registros(
     return total_v, cnt
 
 
-def _pct_devolucao_financeiro_sistema(valor_devolvido: float, routes_delivery: List[Any]) -> tuple[Optional[float], float]:
+def _pct_devolucao_financeiro_sistema(
+    valor_devolvido: float,
+    routes_delivery: List[Any],
+    *,
+    suplemento_base_financeira: float = 0.0,
+) -> tuple[Optional[float], float]:
     """Delega ao módulo canônico (`pct_valor_devolvido_sobre_base_rotas`)."""
-    return pct_valor_devolvido_sobre_base_rotas(valor_devolvido, routes_delivery)
+    return pct_valor_devolvido_sobre_base_rotas(
+        valor_devolvido,
+        routes_delivery,
+        suplemento_base_financeira=suplemento_base_financeira,
+    )
 
 
 def _infer_shift_name(now_br: datetime) -> str:
