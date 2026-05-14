@@ -39,6 +39,14 @@
     };
   }
 
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   var state = {
     rows: [],
     routes: [],
@@ -48,7 +56,89 @@
     page: 1,
     pageSize: 25,
     search: "",
+    chartsBound: false,
+    rankingTabKey: "maior_compra",
   };
+
+  var RANK_TABS = [
+    { key: "maior_compra", label: "Maior compra" },
+    { key: "maior_devolucao", label: "Maior devolução" },
+    { key: "maior_pct", label: "Maior % devolução" },
+    { key: "baixo_volume_pct", label: "Baixo volume · distorção %" },
+    { key: "maior_tempo", label: "Maior tempo" },
+    { key: "pequeno_alto_impacto", label: "Pequeno alto impacto" },
+    { key: "grandes_risco", label: "Grandes com risco" },
+    { key: "melhores", label: "Melhores clientes" },
+  ];
+
+  function rowClassForClient(r) {
+    var c = r.classification_code || "";
+    if (c === "CRITICO") return "bi-client-row--critical";
+    if (c === "ALTO_VALOR_RISCO" || c === "PEQUENO_ALTO_IMPACTO") return "bi-client-row--warning";
+    if (c === "PREMIUM_OPERACIONAL") return "bi-client-row--premium";
+    if (c === "ESTAVEL") return "bi-client-row--stable";
+    return "";
+  }
+
+  function badgeClassForClient(r) {
+    var c = r.classification_code || "";
+    if (c === "CRITICO") return "sys-badge sys-badge--critical";
+    if (c === "ALTO_VALOR_RISCO") return "sys-badge sys-badge--alert";
+    if (c === "PEQUENO_ALTO_IMPACTO") return "sys-badge sys-badge--alert";
+    if (c === "PREMIUM_OPERACIONAL") return "sys-badge sys-badge--ok";
+    if (c === "ESTAVEL") return "sys-badge sys-badge--ok";
+    return "sys-badge sys-badge--neutral";
+  }
+
+  function buildDiagnosis(row) {
+    var rp = Number(row.return_pct_planned || 0);
+    var cls = row.classification_code || "";
+    var rv = Number(row.returned_value || 0);
+    var dv = Number(row.delivered_value || 0);
+    var score = Number(row.cliente_score || 0);
+    var occ = Number(row.returned_occurrences || 0);
+
+    if (rv <= 0.01 && occ === 0) {
+      return "Cliente sem devolução no período. Manter acompanhamento normal.";
+    }
+    if (cls === "CRITICO") {
+      return "Cliente com impacto relevante em devolução. Exige ação imediata e acompanhamento na próxima venda.";
+    }
+    if (cls === "ALTO_VALOR_RISCO" || (dv >= 15000 && rp > 2)) {
+      return "Cliente importante para o faturamento, mas acima da meta. Priorizar validação comercial antes da rota.";
+    }
+    if (cls === "PEQUENO_ALTO_IMPACTO") {
+      return "Cliente de baixo retorno com esforço operacional elevado. Avaliar frequência, janela e confirmação.";
+    }
+    if ((cls === "PREMIUM_OPERACIONAL" || cls === "ESTAVEL") && rp <= 2 && score >= 72) {
+      return "Cliente relevante e estável. Manter padrão atual e monitorar tempo de descarga.";
+    }
+    if (dv >= 15000 && rp <= 2 && score >= 70) {
+      return "Cliente relevante e estável. Manter padrão atual e monitorar tempo de descarga.";
+    }
+    return "Perfil misto no período — usar motivo líder e responsabilidade para priorizar a próxima ação.";
+  }
+
+  function actionBlocksHtml() {
+    return (
+      "<div class=\"mt-4 grid gap-3 sm:grid-cols-3\">" +
+      "<div class=\"rounded-lg border border-slate-200/80 p-3 dark:border-slate-600\">" +
+      "<p class=\"text-xs font-semibold text-indigo-600 dark:text-indigo-300\">Comercial</p>" +
+      "<ul class=\"mt-2 list-disc space-y-1 pl-4 text-xs text-slate-600 dark:text-slate-300\">" +
+      "<li>Confirmar pedido</li><li>Validar forma de pagamento</li><li>Alinhar prazo/preço</li>" +
+      "<li>Conversar com cliente recorrente</li><li>Revisar pedido/produto divergente</li></ul></div>" +
+      "<div class=\"rounded-lg border border-slate-200/80 p-3 dark:border-slate-600\">" +
+      "<p class=\"text-xs font-semibold text-sky-600 dark:text-sky-300\">Logística</p>" +
+      "<ul class=\"mt-2 list-disc space-y-1 pl-4 text-xs text-slate-600 dark:text-slate-300\">" +
+      "<li>Confirmar janela de entrega</li><li>Ajustar ordem da rota</li><li>Monitorar tempo parado</li>" +
+      "<li>Registrar ocorrência</li><li>Validar acesso/descarga</li></ul></div>" +
+      "<div class=\"rounded-lg border border-slate-200/80 p-3 dark:border-slate-600\">" +
+      "<p class=\"text-xs font-semibold text-amber-600 dark:text-amber-300\">Mercado</p>" +
+      "<ul class=\"mt-2 list-disc space-y-1 pl-4 text-xs text-slate-600 dark:text-slate-300\">" +
+      "<li>Identificar cliente ausente</li><li>Rever horário de recebimento</li>" +
+      "<li>Validar se pedido foi solicitado</li><li>Avaliar ponto fechado recorrente</li></ul></div></div>"
+    );
+  }
 
   function mergeIntelWithRanking(intel, ranking) {
     var map = {};
@@ -67,13 +157,7 @@
     var base = state.rows.slice();
     if (q) {
       base = base.filter(function (r) {
-        var blob = [
-          r.client_name,
-          r.client_code,
-          r.vendedor_name,
-          r.top_motivo_name,
-          String(r.client_id || ""),
-        ]
+        var blob = [r.client_name, r.client_code, r.vendedor_name, r.top_motivo_name, String(r.client_id || "")]
           .join(" ")
           .toLowerCase();
         return blob.indexOf(q) !== -1;
@@ -99,27 +183,20 @@
   function totals(slice) {
     var t = {
       visits: 0,
-      delivered_visits: 0,
-      returned_occurrences: 0,
-      planned_value: 0,
       delivered_value: 0,
       returned_value: 0,
-      planned_kg: 0,
-      delivered_kg: 0,
-      returned_kg: 0,
-      reopen_count: 0,
+      durWeighted: 0,
+      durVisits: 0,
     };
     slice.forEach(function (r) {
       t.visits += Number(r.visits || 0);
-      t.delivered_visits += Number(r.delivered_visits || 0);
-      t.returned_occurrences += Number(r.returned_occurrences || 0);
-      t.planned_value += Number(r.planned_value || 0);
       t.delivered_value += Number(r.delivered_value || 0);
       t.returned_value += Number(r.returned_value || 0);
-      t.planned_kg += Number(r.planned_kg || 0);
-      t.delivered_kg += Number(r.delivered_kg || 0);
-      t.returned_kg += Number(r.returned_kg || 0);
-      t.reopen_count += Number(r.reopen_count || 0);
+      var v = Number(r.visits || 0);
+      if (v > 0) {
+        t.durWeighted += Number(r.avg_duration_m || 0) * v;
+        t.durVisits += v;
+      }
     });
     return t;
   }
@@ -133,165 +210,124 @@
     applyFilterSort();
     var start = (state.page - 1) * state.pageSize;
     var pageRows = state.filtered.slice(start, start + state.pageSize);
-    tb.innerHTML = "";
+
+    var frag = document.createDocumentFragment();
     pageRows.forEach(function (r) {
       var tr = document.createElement("tr");
-      var cls = "";
-      if (r.classification_code === "PREMIUM_OPERACIONAL") cls = "bi-cli-row--premium";
-      if (r.classification_code === "CRITICO" || r.classification_code === "ALTO_VALOR_RISCO") cls = "bi-cli-row--critical";
-      tr.className = cls;
+      tr.className = rowClassForClient(r);
+      var badgeCls = badgeClassForClient(r);
       tr.innerHTML =
-        "<td class=\"max-w-[14rem] truncate\">" +
+        "<td class=\"max-w-[14rem]\"><div class=\"truncate font-medium\">" +
         escapeHtml(r.client_name) +
-        "</td>" +
-        "<td>" +
+        "</div><div class=\"truncate text-[11px] text-slate-500\">" +
         escapeHtml(r.client_code || "—") +
-        "</td>" +
+        "</div></td>" +
         "<td class=\"max-w-[10rem] truncate\">" +
         escapeHtml(r.vendedor_name || "—") +
+        "</td>" +
+        "<td class=\"text-right tabular-nums\">" +
+        fmtMoney(r.delivered_value) +
+        "</td>" +
+        "<td class=\"text-right tabular-nums\">" +
+        fmtMoney(r.returned_value) +
+        "</td>" +
+        "<td class=\"text-right tabular-nums\">" +
+        fmtPct(r.return_pct_planned) +
         "</td>" +
         "<td class=\"text-right\">" +
         (r.visits || 0) +
         "</td>" +
         "<td class=\"text-right\">" +
-        (r.delivered_visits || 0) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        (r.returned_occurrences || 0) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtPct(r.return_rate_qtd) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtMoney(r.planned_value) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtMoney(r.delivered_value) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtMoney(r.returned_value) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtPct(r.return_pct_planned) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtKg(r.planned_kg) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtKg(r.delivered_kg) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtKg(r.returned_kg) +
-        "</td>" +
-        "<td class=\"text-right\">" +
         fmtDur(r.avg_duration_m) +
         "</td>" +
-        "<td class=\"text-right\">" +
-        fmtDur(r.max_duration_m) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        (r.reopen_count || 0) +
-        "</td>" +
-        "<td class=\"max-w-[10rem] truncate text-xs\">" +
+        "<td class=\"max-w-[9rem] truncate text-xs\">" +
         escapeHtml(r.top_motivo_name || "—") +
         "</td>" +
         "<td class=\"max-w-[8rem] truncate text-xs\">" +
         escapeHtml(r.top_responsabilidade_name || "—") +
         "</td>" +
-        "<td><span class=\"sys-badge sys-badge--neutral text-[10px]\">" +
+        "<td><span class=\"" +
+        badgeCls +
+        " text-[10px]\">" +
         escapeHtml(r.classification_title || "—") +
         "</span></td>" +
-        "<td class=\"text-right font-semibold\">" +
+        "<td class=\"text-right font-semibold tabular-nums\">" +
         (r.cliente_score != null ? r.cliente_score : "—") +
         "</td>" +
         "<td class=\"text-right\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-2 text-xs\" data-bi-cli-open=\"" +
         String(r.client_id) +
-        "\">Ver detalhe</button></td>";
-      tb.appendChild(tr);
+        "\">Detalhar</button></td>";
+      frag.appendChild(tr);
     });
+    tb.innerHTML = "";
+    tb.appendChild(frag);
 
     if (tf) {
       var tt = totals(state.filtered);
-      var pctStops = tt.visits ? (100 * tt.returned_occurrences) / tt.visits : 0;
-      var pctVal = tt.planned_value ? (100 * tt.returned_value) / tt.planned_value : 0;
+      var pctAgg = tt.delivered_value + tt.returned_value > 0 ? (100 * tt.returned_value) / (tt.delivered_value + tt.returned_value) : 0;
+      var avgAgg = tt.durVisits ? tt.durWeighted / tt.durVisits : 0;
       tf.innerHTML =
-        "<td colspan=\"3\" class=\"font-semibold\">Totais (filtrado)</td>" +
+        "<td colspan=\"2\" class=\"font-semibold\">Totais (filtrado)</td>" +
+        "<td class=\"text-right tabular-nums\">" +
+        fmtMoney(tt.delivered_value) +
+        "</td>" +
+        "<td class=\"text-right tabular-nums\">" +
+        fmtMoney(tt.returned_value) +
+        "</td>" +
+        "<td class=\"text-right tabular-nums\">" +
+        fmtPct(pctAgg) +
+        "</td>" +
         "<td class=\"text-right\">" +
         tt.visits +
         "</td>" +
         "<td class=\"text-right\">" +
-        tt.delivered_visits +
+        fmtDur(avgAgg) +
         "</td>" +
-        "<td class=\"text-right\">" +
-        tt.returned_occurrences +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtPct(pctStops) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtMoney(tt.planned_value) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtMoney(tt.delivered_value) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtMoney(tt.returned_value) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtPct(pctVal) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtKg(tt.planned_kg) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtKg(tt.delivered_kg) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtKg(tt.returned_kg) +
-        "</td>" +
-        "<td colspan=\"6\"></td>";
+        "<td colspan=\"5\"></td>";
     }
 
     if (cards) {
-      cards.innerHTML = "";
+      var cfrag = document.createDocumentFragment();
       pageRows.forEach(function (r) {
-        var d = document.createElement("div");
-        d.className = "bi-cli-mobile-card";
+        var d = document.createElement("article");
+        d.className = "bi-client-mobile-card";
+        var bcls = badgeClassForClient(r);
         d.innerHTML =
           "<div class=\"flex items-start justify-between gap-2\">" +
           "<div class=\"min-w-0\">" +
-          "<p class=\"font-semibold leading-tight\">" +
+          "<strong class=\"leading-tight\">" +
           escapeHtml(r.client_name) +
-          "</p>" +
-          "<p class=\"employees-text-muted text-xs\">" +
-          escapeHtml(r.client_code || "") +
+          "</strong>" +
+          "<p class=\"employees-text-muted text-xs\">Cód. " +
+          escapeHtml(r.client_code || "—") +
           " · " +
-          escapeHtml(r.vendedor_name || "") +
-          "</p></div>" +
-          "<span class=\"sys-badge sys-badge--neutral shrink-0 text-[10px]\">" +
-          escapeHtml(r.classification_title || "") +
-          "</span></div>" +
-          "<div class=\"mt-2 grid grid-cols-2 gap-2 text-xs\">" +
-          "<div><span class=\"employees-text-muted\">Entregue</span><br><strong>" +
+          escapeHtml(r.vendedor_name || "—") +
+          "</p></div></div>" +
+          "<div class=\"bi-client-mobile-metrics mt-2 grid grid-cols-2 gap-2 text-xs\">" +
+          "<span>Entregue <strong class=\"tabular-nums\">" +
           fmtMoney(r.delivered_value) +
-          "</strong></div>" +
-          "<div><span class=\"employees-text-muted\">Devolvido</span><br><strong>" +
+          "</strong></span>" +
+          "<span>Devolvido <strong class=\"tabular-nums\">" +
           fmtMoney(r.returned_value) +
-          "</strong></div>" +
-          "<div><span class=\"employees-text-muted\">% dev.</span><br><strong>" +
+          "</strong></span>" +
+          "<span>% Dev. <strong class=\"tabular-nums\">" +
           fmtPct(r.return_pct_planned) +
-          "</strong></div>" +
-          "<div><span class=\"employees-text-muted\">Tempo médio</span><br><strong>" +
+          "</strong></span>" +
+          "<span>Tempo <strong>" +
           fmtDur(r.avg_duration_m) +
-          "</strong></div></div>" +
-          "<p class=\"employees-text-muted mt-2 text-xs\">Motivo: " +
-          escapeHtml(r.top_motivo_name || "—") +
-          "</p>" +
+          "</strong></span></div>" +
+          "<div class=\"mt-2\"><span class=\"" +
+          bcls +
+          " text-[11px]\">" +
+          escapeHtml(r.classification_title || "—") +
+          "</span></div>" +
           "<div class=\"mt-3\"><button type=\"button\" class=\"sys-btn sys-btn--primary w-full justify-center text-sm\" data-bi-cli-open=\"" +
           String(r.client_id) +
           "\">Ver detalhe</button></div>";
-        cards.appendChild(d);
+        cfrag.appendChild(d);
       });
+      cards.innerHTML = "";
+      cards.appendChild(cfrag);
     }
 
     if (meta) {
@@ -309,14 +345,6 @@
     }
   }
 
-  function escapeHtml(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
-
   function openDrawer(clientId) {
     var id = String(clientId);
     var row = state.rows.find(function (r) {
@@ -332,10 +360,14 @@
         (row.client_code || "—") +
         " · " +
         (row.vendedor_name || "—") +
-        " · Score " +
-        (row.cliente_score != null ? row.cliente_score : "—") +
         " · " +
-        (row.classification_title || "");
+        (row.city || "—") +
+        " · " +
+        (row.status_operacional || "—") +
+        " · " +
+        (row.classification_title || "") +
+        " · Score " +
+        (row.cliente_score != null ? row.cliente_score : "—");
     setTab("visao", row);
     document.querySelectorAll(".bi-cli-drawer__tab").forEach(function (btn) {
       btn.onclick = function () {
@@ -372,7 +404,10 @@
     var hist = routesForClient(cid);
     if (tab === "visao") {
       body.innerHTML =
-        "<div class=\"grid grid-cols-2 gap-2\">" +
+        "<p class=\"rounded-lg border border-slate-200/80 bg-slate-50/80 p-3 text-sm leading-snug dark:border-slate-600 dark:bg-slate-800/40\"><strong>Diagnóstico:</strong> " +
+        escapeHtml(buildDiagnosis(row)) +
+        "</p>" +
+        "<div class=\"mt-3 grid grid-cols-2 gap-2 text-sm\">" +
         "<div><span class=\"employees-text-muted text-xs\">Planejado</span><br><strong>" +
         fmtMoney(row.planned_value) +
         "</strong></div>" +
@@ -385,33 +420,35 @@
         "<div><span class=\"employees-text-muted text-xs\">% dev. valor</span><br><strong>" +
         fmtPct(row.return_pct_planned) +
         "</strong></div>" +
-        "<div><span class=\"employees-text-muted text-xs\">% dev. qtd</span><br><strong>" +
-        fmtPct(row.return_rate_qtd) +
-        "</strong></div>" +
-        "<div><span class=\"employees-text-muted text-xs\">Eficiência entregas</span><br><strong>" +
-        fmtPct(row.delivery_efficiency_pct) +
-        "</strong></div>" +
-        "<div><span class=\"employees-text-muted text-xs\">Visitas</span><br><strong>" +
+        "<div><span class=\"employees-text-muted text-xs\">Paradas / entregues / devoluções</span><br><strong>" +
         (row.visits || 0) +
+        " / " +
+        (row.delivered_visits || 0) +
+        " / " +
+        (row.returned_occurrences || 0) +
+        "</strong></div>" +
+        "<div><span class=\"employees-text-muted text-xs\">Tempo médio / maior</span><br><strong>" +
+        fmtDur(row.avg_duration_m) +
+        " / " +
+        fmtDur(row.max_duration_m) +
         "</strong></div>" +
         "<div><span class=\"employees-text-muted text-xs\">Reaberturas</span><br><strong>" +
         (row.reopen_count || 0) +
         "</strong></div>" +
-        "<div class=\"col-span-2\"><span class=\"employees-text-muted text-xs\">Motivo principal</span><br><strong>" +
+        "<div class=\"col-span-2\"><span class=\"employees-text-muted text-xs\">Motivo / responsabilidade</span><br><strong>" +
         escapeHtml(row.top_motivo_name || "—") +
-        "</strong></div>" +
-        "<div class=\"col-span-2\"><span class=\"employees-text-muted text-xs\">Responsabilidade principal</span><br><strong>" +
+        " · " +
         escapeHtml(row.top_responsabilidade_name || "—") +
-        "</strong></div>" +
-        "</div>";
+        "</strong></div></div>" +
+        actionBlocksHtml();
     } else if (tab === "historico") {
       if (!hist.length) {
         body.innerHTML =
-          "<p class=\"employees-text-muted text-sm\">Sem linhas de rota no recorte leve (amostra). Use exportação ou filtre o cliente na URL com drill-through.</p>";
+          "<p class=\"employees-text-muted text-sm\">Sem linhas de rota na amostra leve. Refine filtros ou use exportação.</p>";
         return;
       }
       var html =
-        "<div class=\"sys-table-wrap sys-table-wrap--x-scroll\"><table class=\"sys-data-table text-xs\"><thead><tr><th>Data</th><th>Pedido</th><th>Motorista</th><th>Placa</th><th>Status</th><th class=\"text-right\">Valor</th><th class=\"text-right\">KG</th><th class=\"text-right\">Min</th><th class=\"text-right\">Reab.</th></tr></thead><tbody>";
+        "<div class=\"sys-table-wrap sys-table-wrap--x-scroll\"><table class=\"sys-data-table text-xs\"><thead><tr><th>Data</th><th>Pedido</th><th>Motivo</th><th>Resp.</th><th class=\"text-right\">R$</th><th>Status</th></tr></thead><tbody>";
       hist.forEach(function (h) {
         html +=
           "<tr><td>" +
@@ -419,19 +456,13 @@
           "</td><td>" +
           escapeHtml(h.order_number || "—") +
           "</td><td class=\"max-w-[8rem] truncate\">" +
-          escapeHtml(h.driver_name || "") +
-          "</td><td>" +
-          escapeHtml(h.plate || "") +
-          "</td><td>" +
-          escapeHtml(h.status || "") +
+          escapeHtml(h.motivo || "—") +
+          "</td><td class=\"max-w-[6rem] truncate\">" +
+          escapeHtml(h.responsabilidade || "—") +
           "</td><td class=\"text-right\">" +
           fmtMoney(h.planned_value) +
-          "</td><td class=\"text-right\">" +
-          fmtKg(h.planned_kg) +
-          "</td><td class=\"text-right\">" +
-          (h.duration_m != null ? fmtDur(h.duration_m) : "—") +
-          "</td><td class=\"text-right\">" +
-          (h.reopen_count || 0) +
+          "</td><td>" +
+          escapeHtml(h.status || "") +
           "</td></tr>";
       });
       html += "</tbody></table></div>";
@@ -441,11 +472,11 @@
         return String(h.status || "").toLowerCase().indexOf("devol") !== -1 || Number(h.returned_value || 0) > 0;
       });
       if (!devs.length) {
-        body.innerHTML = "<p class=\"employees-text-muted text-sm\">Sem devoluções registradas nas paradas da amostra.</p>";
+        body.innerHTML = "<p class=\"employees-text-muted text-sm\">Sem devoluções na amostra de paradas.</p>";
         return;
       }
       var h2 =
-        "<div class=\"sys-table-wrap sys-table-wrap--x-scroll\"><table class=\"sys-data-table text-xs\"><thead><tr><th>Data</th><th>Pedido</th><th>Motivo</th><th>Resp.</th><th class=\"text-right\">R$ dev.</th><th>Motorista</th></tr></thead><tbody>";
+        "<div class=\"sys-table-wrap sys-table-wrap--x-scroll\"><table class=\"sys-data-table text-xs\"><thead><tr><th>Data</th><th>Pedido</th><th>Motivo</th><th>Resp.</th><th class=\"text-right\">R$ dev.</th></tr></thead><tbody>";
       devs.forEach(function (h) {
         h2 +=
           "<tr><td>" +
@@ -458,46 +489,30 @@
           escapeHtml(h.responsabilidade || "—") +
           "</td><td class=\"text-right\">" +
           fmtMoney(h.returned_value) +
-          "</td><td class=\"max-w-[8rem] truncate\">" +
-          escapeHtml(h.driver_name || "") +
           "</td></tr>";
       });
       h2 += "</tbody></table></div>";
       body.innerHTML = h2;
     } else if (tab === "tempos") {
-      var mins = hist.map(function (h) {
-        return h.duration_m;
-      }).filter(function (x) {
-        return x != null;
-      });
-      var avg = mins.length ? mins.reduce(function (a, b) {
-        return a + b;
-      }, 0) / mins.length : 0;
-      var mx = mins.length ? Math.max.apply(null, mins) : 0;
-      var mn = mins.length ? Math.min.apply(null, mins) : 0;
       body.innerHTML =
         "<ul class=\"space-y-1 text-sm\">" +
-        "<li><strong>Tempo médio (amostra paradas):</strong> " +
-        fmtDur(avg) +
+        "<li><strong>Tempo médio (cadastro cliente):</strong> " +
+        fmtDur(row.avg_duration_m) +
         "</li>" +
-        "<li><strong>Maior tempo:</strong> " +
-        fmtDur(mx) +
+        "<li><strong>Maior tempo (pico):</strong> " +
+        fmtDur(row.max_duration_m) +
         "</li>" +
-        "<li><strong>Menor tempo:</strong> " +
-        fmtDur(mn) +
-        "</li>" +
-        "<li class=\"employees-text-muted text-xs\">Comparação com média geral do período está nos KPIs do topo.</li>" +
-        "</ul>";
+        "<li><strong>Tempo total operacional:</strong> " +
+        fmtDur(row.total_duration_m) +
+        "</li></ul>";
     } else if (tab === "volume") {
       body.innerHTML =
         "<ul class=\"space-y-1 text-sm\">" +
-        "<li><strong>KG planejado:</strong> " +
+        "<li><strong>KG planejado / entregue / devolvido:</strong> " +
         fmtKg(row.planned_kg) +
-        "</li>" +
-        "<li><strong>KG entregue:</strong> " +
+        " / " +
         fmtKg(row.delivered_kg) +
-        "</li>" +
-        "<li><strong>KG devolvido:</strong> " +
+        " / " +
         fmtKg(row.returned_kg) +
         "</li>" +
         "<li><strong>R$ planejado / entregue / devolvido:</strong> " +
@@ -506,21 +521,16 @@
         fmtMoney(row.delivered_value) +
         " / " +
         fmtMoney(row.returned_value) +
-        "</li>" +
-        "</ul>";
+        "</li></ul>";
     } else {
-      var html =
-        "<ul class=\"list-disc pl-4 text-sm\">" +
-        "<li>" +
+      body.innerHTML =
+        "<p class=\"text-sm\"><strong>Recomendado:</strong> " +
         escapeHtml(row.action_recommendation || "Manter monitoramento.") +
-        "</li>" +
-        "<li>Abrir <a class=\"text-sky-600 underline\" href=\"/bi/devolucoes\">BI Devoluções</a> filtrando o cliente no cadastro financeiro.</li>" +
-        "<li>Abrir <a class=\"text-sky-600 underline\" href=\"/bi/delivery\">BI Entregas</a> para ver paradas por motorista neste período.</li>" +
-        "</ul>" +
+        "</p>" +
+        actionBlocksHtml() +
         "<div class=\"mt-3 flex flex-wrap gap-2\">" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-2 text-xs\" id=\"bi-cli-wa-btn\">Copiar resumo WhatsApp</button>" +
-        "</div>";
-      body.innerHTML = html;
+        "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-2 text-xs\" id=\"bi-cli-wa-btn\">Copiar resumo</button>" +
+        "<a class=\"sys-btn sys-btn--secondary h-8 px-2 text-xs\" href=\"/bi/devolucoes\">BI Devoluções</a></div>";
       var waBtn = document.getElementById("bi-cli-wa-btn");
       if (waBtn) {
         waBtn.onclick = function () {
@@ -535,7 +545,6 @@
           );
         };
       }
-      return;
     }
   }
 
@@ -544,10 +553,7 @@
     var form = document.getElementById("bi-cli-filters-form");
     var df = form && form.querySelector("[name=date_from]");
     var dt = form && form.querySelector("[name=date_to]");
-    var period =
-      df && dt && df.value && dt.value
-        ? df.value + " a " + dt.value
-        : "(ver filtros na tela)";
+    var period = df && dt && df.value && dt.value ? df.value + " a " + dt.value : "(ver filtros)";
     return (
       "Cliente: " +
       (row.client_name || "") +
@@ -565,19 +571,24 @@
       (row.top_motivo_name || "") +
       "\nClassificação: " +
       (row.classification_title || "") +
+      "\nDiagnóstico: " +
+      buildDiagnosis(row) +
       "\nAção sugerida: " +
       (row.action_recommendation || "") +
       (fq ? "\nURL: " + location.origin + "/bi/clientes?" + fq : "")
     );
   }
 
-  function initCharts() {
+  function mountCharts() {
+    if (state.chartsBound || typeof Chart === "undefined") return;
     var payload = readJson("bi-cli-chart-json");
-    if (!payload || typeof Chart === "undefined") return;
+    if (!payload) return;
     var common = { responsive: true, maintainAspectRatio: false };
-    if (payload.daily_delivered_vs_returned && payload.daily_delivered_vs_returned.length) {
+
+    var elD = document.getElementById("biCliChartDaily");
+    if (elD && payload.daily_delivered_vs_returned && payload.daily_delivered_vs_returned.length) {
       var d = payload.daily_delivered_vs_returned;
-      new Chart(document.getElementById("biCliChartDaily"), {
+      new Chart(elD, {
         type: "line",
         data: {
           labels: d.map(function (x) {
@@ -591,9 +602,12 @@
         options: Object.assign({ scales: { x: { ticks: { maxRotation: 0 } } } }, common),
       });
     }
-    if (payload.pareto_returns_top && payload.pareto_returns_top.length) {
-      var p = payload.pareto_returns_top.slice(0, 12);
-      new Chart(document.getElementById("biCliChartPareto"), {
+
+    var elP = document.getElementById("biCliChartParetoMotivos");
+    var paretoM = payload.pareto_motivos && payload.pareto_motivos.length ? payload.pareto_motivos : payload.pareto_returns_top;
+    if (elP && paretoM && paretoM.length) {
+      var p = paretoM.slice(0, 12);
+      new Chart(elP, {
         type: "bar",
         data: {
           labels: p.map(function (x) {
@@ -604,9 +618,11 @@
         options: Object.assign({ indexAxis: "y", plugins: { legend: { display: false } } }, common),
       });
     }
-    if (payload.matrix_impact_x_compra && payload.matrix_impact_x_compra.length) {
+
+    var elM = document.getElementById("biCliChartMatrix");
+    if (elM && payload.matrix_impact_x_compra && payload.matrix_impact_x_compra.length) {
       var m = payload.matrix_impact_x_compra;
-      new Chart(document.getElementById("biCliChartMatrix"), {
+      new Chart(elM, {
         type: "bubble",
         data: {
           datasets: [
@@ -629,18 +645,10 @@
         ),
       });
     }
-    if (payload.time_rank && payload.time_rank.labels && payload.time_rank.labels.length) {
-      new Chart(document.getElementById("biCliChartTime"), {
-        type: "bar",
-        data: {
-          labels: payload.time_rank.labels.slice(0, 12),
-          datasets: [{ label: "Tempo médio (min)", data: (payload.time_rank.avg_minutes || []).slice(0, 12), backgroundColor: "rgb(96,165,250)" }],
-        },
-        options: Object.assign({ indexAxis: "y", plugins: { legend: { display: false } } }, common),
-      });
-    }
-    if (payload.macro_loss && payload.macro_loss.labels && payload.macro_loss.labels.length) {
-      new Chart(document.getElementById("biCliChartResp"), {
+
+    var elR = document.getElementById("biCliChartResp");
+    if (elR && payload.macro_loss && payload.macro_loss.labels && payload.macro_loss.labels.length) {
+      new Chart(elR, {
         type: "doughnut",
         data: {
           labels: payload.macro_loss.labels,
@@ -649,6 +657,85 @@
         options: common,
       });
     }
+    state.chartsBound = true;
+  }
+
+  function initChartsIfNeeded() {
+    var mount = document.getElementById("bi-cli-charts-mount");
+    if (!mount) return;
+    var isMd = typeof window.matchMedia !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
+    if (isMd) {
+      mount.classList.remove("hidden");
+      mountCharts();
+    }
+  }
+
+  function renderRankingPanel() {
+    var tabsEl = document.getElementById("bi-cli-rank-tabs");
+    var panel = document.getElementById("bi-cli-rank-panel");
+    if (!tabsEl || !panel) return;
+    var data = readJson("bi-cli-ranking-tabs-json") || {};
+    if (!tabsEl.dataset.bound) {
+      tabsEl.dataset.bound = "1";
+      RANK_TABS.forEach(function (t, idx) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "bi-client-tab" + (idx === 0 ? " is-active" : "");
+        b.setAttribute("data-rank-tab", t.key);
+        b.textContent = t.label;
+        b.addEventListener("click", function () {
+          state.rankingTabKey = t.key;
+          tabsEl.querySelectorAll(".bi-client-tab").forEach(function (x) {
+            x.classList.toggle("is-active", x.getAttribute("data-rank-tab") === t.key);
+          });
+          renderRankingPanel();
+        });
+        tabsEl.appendChild(b);
+      });
+    }
+    var rows = data[state.rankingTabKey] || [];
+    var hint =
+      state.rankingTabKey === "maior_pct"
+        ? "<p class=\"employees-text-muted mb-2 text-xs\">Apenas clientes com entregue ≥ R$ 2.500 (evita distorção de microvolume).</p>"
+        : state.rankingTabKey === "baixo_volume_pct"
+          ? "<p class=\"employees-text-muted mb-2 text-xs\">Clientes abaixo do piso de volume com % alto — analisar com cautela; não comparar diretamente com grandes contas.</p>"
+          : "";
+    if (!rows.length) {
+      panel.innerHTML = hint + "<p class=\"employees-text-muted text-sm\">Sem dados nesta aba para o recorte.</p>";
+      return;
+    }
+    var h =
+      hint +
+      "<div class=\"sys-table-wrap sys-table-wrap--x-scroll\"><table class=\"sys-data-table text-xs\"><thead><tr>" +
+      "<th>Cliente</th><th>Código</th><th class=\"text-right\">Entregue</th><th class=\"text-right\">Devolvido</th>" +
+      "<th class=\"text-right\">% Dev.</th><th class=\"text-right\">Tempo médio</th><th>Classificação</th><th></th></tr></thead><tbody>";
+    rows.forEach(function (r) {
+      var cid = r.client_id != null ? String(r.client_id) : "";
+      h +=
+        "<tr><td class=\"max-w-[12rem] truncate font-medium\">" +
+        escapeHtml(r.client_name || "—") +
+        "</td><td>" +
+        escapeHtml(r.client_code || "—") +
+        "</td><td class=\"text-right tabular-nums\">" +
+        fmtMoney(r.delivered_value) +
+        "</td><td class=\"text-right tabular-nums\">" +
+        fmtMoney(r.returned_value) +
+        "</td><td class=\"text-right tabular-nums\">" +
+        fmtPct(r.return_pct_planned) +
+        "</td><td class=\"text-right\">" +
+        fmtDur(r.avg_duration_m) +
+        "</td><td class=\"max-w-[8rem] truncate\">" +
+        escapeHtml(r.classification_title || "—") +
+        "</td><td class=\"text-right\">" +
+        (cid
+          ? "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-7 px-2 text-[11px]\" data-bi-cli-open=\"" +
+            escapeHtml(cid) +
+            "\">Detalhar</button>"
+          : "") +
+        "</td></tr>";
+    });
+    h += "</tbody></table></div>";
+    panel.innerHTML = h;
   }
 
   function boot() {
@@ -682,19 +769,25 @@
       );
     }
 
-    document.getElementById("bi-cli-prev").onclick = function () {
-      if (state.page > 1) {
-        state.page--;
-        renderTable();
-      }
-    };
-    document.getElementById("bi-cli-next").onclick = function () {
-      var maxPage = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-      if (state.page < maxPage) {
-        state.page++;
-        renderTable();
-      }
-    };
+    var prev = document.getElementById("bi-cli-prev");
+    var next = document.getElementById("bi-cli-next");
+    if (prev) {
+      prev.onclick = function () {
+        if (state.page > 1) {
+          state.page--;
+          renderTable();
+        }
+      };
+    }
+    if (next) {
+      next.onclick = function () {
+        var maxPage = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+        if (state.page < maxPage) {
+          state.page++;
+          renderTable();
+        }
+      };
+    }
 
     document.querySelectorAll("[data-bi-cli-close]").forEach(function (b) {
       b.addEventListener("click", closeDrawer);
@@ -715,7 +808,7 @@
       if (!Array.isArray(rows)) rows = [];
       if (!rows.length) {
         body.innerHTML =
-          "<p class=\"employees-text-muted py-6 text-center text-sm\">Nenhum cliente com impacto evitável neste recorte (ou valor zerado).</p>";
+          "<p class=\"employees-text-muted py-6 text-center text-sm\">Nenhum cliente com impacto evitável neste recorte.</p>";
       } else {
         body.innerHTML = rows
           .map(function (row) {
@@ -751,27 +844,17 @@
               "<p class=\"text-xs text-violet-700 dark:text-violet-300\">Evitável</p>" +
               "<p class=\"tabular-nums font-semibold text-violet-800 dark:text-violet-200\">" +
               fmtMoney(row.treatable_returned_value) +
-              "</p>" +
-              "<p class=\"employees-text-muted text-[11px]\">dev. total " +
-              fmtMoney(row.returned_value) +
               "</p></div></div>" +
-              (row.classification_title
-                ? "<p class=\"employees-text-muted mt-2 text-xs\">Classificação: " + escapeHtml(row.classification_title) + "</p>"
-                : "") +
               (motivos
-                ? "<p class=\"mt-2 text-xs font-medium text-slate-700 dark:text-slate-200\">Motivos tratáveis (valor)</p><ul class=\"mt-1 text-xs\">" +
-                  motivos +
-                  "</ul>"
+                ? "<ul class=\"mt-1 text-xs\">" + motivos + "</ul>"
                 : "") +
               (hints
-                ? "<p class=\"mt-3 text-xs font-medium text-slate-700 dark:text-slate-200\">Sugestões automáticas</p><ol class=\"list-decimal pl-4 text-xs text-slate-700 dark:text-slate-300\">" +
-                  hints +
-                  "</ol>"
+                ? "<ol class=\"mt-2 list-decimal pl-4 text-xs text-slate-700 dark:text-slate-300\">" + hints + "</ol>"
                 : "") +
               (cid
                 ? "<div class=\"mt-3\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
                   escapeHtml(cid) +
-                  "\">Abrir ficha do cliente</button></div>"
+                  "\">Abrir ficha</button></div>"
                 : "") +
               "</article>"
             );
@@ -856,13 +939,6 @@
       var html = rows
         .map(function (row) {
           var cid = row.client_id != null ? String(row.client_id) : "";
-          var dlt =
-            row.has_history && row.delta_return_rate_value != null
-              ? "<p class=\"mt-1 text-xs text-slate-600 dark:text-slate-400\">Histórico: variação do índice financeiro de devolução (p.p.) <strong>" +
-                (row.delta_return_rate_value > 0 ? "+" : "") +
-                escapeHtml(String(row.delta_return_rate_value)) +
-                "</strong></p>"
-              : "";
           return (
             "<article class=\"mb-4 rounded-xl border border-red-200/60 bg-red-50/30 p-3 last:mb-0 dark:border-red-900/40 dark:bg-red-950/20\">" +
             "<div class=\"flex flex-wrap justify-between gap-2\">" +
@@ -874,41 +950,100 @@
             "</p></div>" +
             "<div class=\"text-right text-xs\"><span class=\"font-semibold text-red-700 dark:text-red-300\">Risco " +
             escapeHtml(String(row.risk_score != null ? row.risk_score : "—")) +
-            "</span><br><span class=\"employees-text-muted\">" +
-            escapeHtml(row.risk_label || "") +
             "</span></div></div>" +
             "<p class=\"mt-2 text-xs text-slate-600 dark:text-slate-400\">" +
             escapeHtml(row.classification_title || "") +
-            " · % dev. valor " +
+            " · % dev. " +
             Number(row.return_pct_planned || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
-            "% · R$ devolvido " +
+            "% · " +
             fmtMoney(row.returned_value) +
             "</p>" +
-            dlt +
-            "<p class=\"mt-2 text-xs font-semibold text-slate-800 dark:text-slate-100\">Contexto</p>" +
+            "<p class=\"mt-2 text-xs font-semibold\">Contexto</p>" +
             renderOlLines(row.context || []) +
-            "<p class=\"mt-2 text-xs font-semibold text-slate-800 dark:text-slate-100\">Sugestões</p>" +
+            "<p class=\"mt-2 text-xs font-semibold\">Sugestões</p>" +
             renderOlLines(row.hints || []) +
             (cid
               ? "<div class=\"mt-3\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
                 escapeHtml(cid) +
-                "\">Abrir ficha do cliente</button></div>"
+                "\">Abrir ficha</button></div>"
               : "") +
             "</article>"
           );
         })
         .join("");
-      openInsightModal(
-        "Clientes críticos (" + rows.length + ")",
-        html,
-        "Inclui classificação crítica ou alto risco, score de risco operacional ≥ 70 ou % devolução (valor) ≥ 3%. Sugestões automáticas por regras."
-      );
+      openInsightModal("Clientes críticos (" + rows.length + ")", html, null);
+    }
+
+    function openLargeRiskListModal() {
+      var rows = readJsonArray("bi-cli-large-risk-json");
+      if (!rows.length) {
+        openInsightModal("Alto valor com risco", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum caso neste recorte.</p>", null);
+        return;
+      }
+      var html = rows
+        .map(function (row) {
+          var cid = row.client_id != null ? String(row.client_id) : "";
+          return (
+            "<article class=\"mb-3 rounded-lg border border-amber-200/70 bg-amber-50/25 p-3 dark:border-amber-900/40 dark:bg-amber-950/15\">" +
+            "<p class=\"font-semibold\">" +
+            escapeHtml(row.client_name || "—") +
+            "</p>" +
+            "<p class=\"employees-text-muted text-xs\">" +
+            escapeHtml(row.client_code || "") +
+            " · % dev. " +
+            Number(row.return_pct_planned || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
+            "% · " +
+            fmtMoney(row.returned_value) +
+            "</p>" +
+            renderOlLines(row.context || []) +
+            (cid
+              ? "<div class=\"mt-2\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
+                escapeHtml(cid) +
+                "\">Abrir ficha</button></div>"
+              : "") +
+            "</article>"
+          );
+        })
+        .join("");
+      openInsightModal("Alto valor com risco (" + rows.length + ")", html, null);
+    }
+
+    function openSmallHighListModal() {
+      var rows = readJsonArray("bi-cli-small-high-json");
+      if (!rows.length) {
+        openInsightModal("Pequeno cliente, grande impacto", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum caso neste recorte.</p>", null);
+        return;
+      }
+      var html = rows
+        .map(function (row) {
+          var cid = row.client_id != null ? String(row.client_id) : "";
+          return (
+            "<article class=\"mb-3 rounded-lg border border-violet-200/70 bg-violet-50/20 p-3 dark:border-violet-900/35 dark:bg-violet-950/15\">" +
+            "<p class=\"font-semibold\">" +
+            escapeHtml(row.client_name || "—") +
+            "</p>" +
+            "<p class=\"employees-text-muted text-xs\">Impacto " +
+            Number(row.operational_impact || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
+            " · tempo médio " +
+            fmtDur(row.avg_duration_m) +
+            "</p>" +
+            renderOlLines(row.hints || row.context || []) +
+            (cid
+              ? "<div class=\"mt-2\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
+                escapeHtml(cid) +
+                "\">Abrir ficha</button></div>"
+              : "") +
+            "</article>"
+          );
+        })
+        .join("");
+      openInsightModal("Pequeno cliente, grande impacto", html, null);
     }
 
     function openGoodListModal() {
       var rows = readJsonArray("bi-cli-good-json");
       if (!rows.length) {
-        openInsightModal("Clientes bons", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum cliente neste perfil no recorte.</p>", null);
+        openInsightModal("Clientes bons", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum cliente neste perfil.</p>", null);
         return;
       }
       var html = rows
@@ -932,11 +1067,7 @@
           );
         })
         .join("");
-      openInsightModal(
-        "Clientes bons (até " + rows.length + " nesta lista)",
-        html,
-        "Premium ou estável com score ≥ 72. Lista ordenada por valor entregue (limite de exibição no servidor)."
-      );
+      openInsightModal("Melhores clientes (lista)", html, null);
     }
 
     document.querySelectorAll("[data-bi-cli-insight-close]").forEach(function (b) {
@@ -954,74 +1085,14 @@
       if (modal && !modal.classList.contains("hidden")) closeTreatableModal();
     });
 
-    document.addEventListener("click", function (e) {
-      var rc = e.target.closest("[data-bi-cli-reading]");
-      if (rc) {
-        e.preventDefault();
-        var ck = rc.getAttribute("data-bi-cli-reading");
-        var rows = readJsonArray("bi-cli-reading-json");
-        var card = null;
-        for (var j = 0; j < rows.length; j++) {
-          if (String(rows[j].card_key || "") === String(ck)) {
-            card = rows[j];
-            break;
-          }
-        }
-        if (card) {
-          var bodyRead =
-            "<p class=\"employees-text-body mb-3 text-sm leading-snug text-slate-700 dark:text-slate-300\">" +
-            escapeHtml(card.body || "") +
-            "</p>" +
-            "<p class=\"text-xs font-semibold text-slate-800 dark:text-slate-100\">O que isso significa</p>" +
-            renderOlLines(card.context || []) +
-            "<p class=\"mt-4 text-xs font-semibold text-slate-800 dark:text-slate-100\">Sugestões de ação</p>" +
-            renderOlLines(card.hints || []);
-          openInsightModal(
-            card.title || "Leitura operacional",
-            bodyRead,
-            "Texto gerado por regras a partir do recorte e filtros atuais; complemente com a tabela de clientes e os KPIs acima."
-          );
-        }
-        return;
-      }
-      var lr = e.target.closest("[data-bi-cli-large-risk]");
-      if (lr) {
-        e.preventDefault();
-        var idAttr = lr.getAttribute("data-bi-cli-large-risk");
-        var pool = readJsonArray("bi-cli-large-risk-json");
-        var row = null;
-        for (var i = 0; i < pool.length; i++) {
-          if (String(pool[i].client_id) === String(idAttr)) {
-            row = pool[i];
-            break;
-          }
-        }
-        if (!row) return;
-        var cid = row.client_id != null ? String(row.client_id) : "";
-        var html =
-          "<p class=\"employees-text-muted text-xs\">% dev. valor: <strong class=\"text-amber-700 dark:text-amber-300\">" +
-          Number(row.return_pct_planned || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
-          "%</strong> · R$ devolvido " +
-          fmtMoney(row.returned_value) +
-          " · R$ entregue " +
-          fmtMoney(row.delivered_value) +
-          "</p>" +
-          "<p class=\"mt-3 text-xs font-semibold text-slate-800 dark:text-slate-100\">Por que está em risco</p>" +
-          renderOlLines(row.context || []) +
-          "<p class=\"mt-4 text-xs font-semibold text-slate-800 dark:text-slate-100\">Sugestões</p>" +
-          renderOlLines(row.hints || []) +
-          (cid
-            ? "<div class=\"mt-4\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
-              escapeHtml(cid) +
-              "\">Abrir ficha do cliente</button></div>"
-            : "");
-        openInsightModal(
-          row.client_name || "Cliente",
-          html,
-          "Grandes com risco: quartil superior de compra (75º percentil) com devolução acima da meta interna de 2% sobre a base comercial."
-        );
-        return;
-      }
+    document.querySelectorAll(".js-bi-cli-action").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var act = btn.getAttribute("data-action");
+        if (act === "critical") openCriticalListModal();
+        else if (act === "large_risk") openLargeRiskListModal();
+        else if (act === "small_high") openSmallHighListModal();
+        else if (act === "treatable") openTreatableModal();
+      });
     });
 
     var kpiCrit = document.getElementById("bi-cli-kpi-critical-open");
@@ -1055,8 +1126,26 @@
       var cid = el.getAttribute("data-bi-cli-open");
       openDrawer(cid);
     });
+
+    var chartsBtn = document.getElementById("bi-cli-charts-load-btn");
+    var chartsMount = document.getElementById("bi-cli-charts-mount");
+    if (chartsBtn && chartsMount) {
+      chartsBtn.addEventListener("click", function () {
+        chartsMount.classList.remove("hidden");
+        chartsBtn.classList.add("hidden");
+        mountCharts();
+      });
+    }
+
+    renderRankingPanel();
     renderTable();
-    initCharts();
+    initChartsIfNeeded();
+
+    if (typeof window.matchMedia !== "undefined") {
+      window.matchMedia("(min-width: 768px)").addEventListener("change", function (ev) {
+        if (ev.matches && chartsMount && !chartsMount.classList.contains("hidden")) mountCharts();
+      });
+    }
   }
 
   window.BiClientesPage = { boot: boot };

@@ -294,6 +294,22 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
     assert isinstance(json.loads(dataset["critical_drilldown_json"]), list)
     assert isinstance(json.loads(dataset["good_clients_drilldown_json"]), list)
     assert isinstance(json.loads(dataset["reading_cards_json"]), list)
+    tabs = json.loads(dataset["client_ranking_tabs_json"])
+    assert set(tabs.keys()) == {
+        "maior_compra",
+        "maior_devolucao",
+        "maior_pct",
+        "baixo_volume_pct",
+        "maior_tempo",
+        "pequeno_alto_impacto",
+        "grandes_risco",
+        "melhores",
+    }
+    ds = dataset["decision_strip"]
+    assert ds["situation_key"] in ("ok", "warn", "crit")
+    assert "situation_hint" in ds and len(ds["situation_hint"]) > 10
+    assert "secondary_note" in ds
+    assert dataset["primeira_acao_texto"]
 
 
 def test_build_bi_clientes_dataset_ignores_placeholder_midnight_start_for_duration():

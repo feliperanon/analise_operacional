@@ -1,17 +1,17 @@
 {% extends "base_gestao_avista.html" %}
 
-{% block title %}BI Clientes · Gestão Avista{% endblock %}
+{% block title %}Inteligência de Clientes · Gestão Avista{% endblock %}
 
 {% block header_breadcrumb %}
-<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / BI &amp; Métricas / BI Clientes</p>
+<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / BI &amp; Métricas / Inteligência de Clientes</p>
 {% endblock %}
 
 {% block header_title %}
-<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">BI Clientes</h1>
+<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Inteligência de Clientes</h1>
 {% endblock %}
 
 {% block header_subtitle %}
-<p class="text-xs text-gray-500 dark:text-gray-400">Análise operacional por cliente: compra, devolução, volume, tempo de atendimento e impacto na rota.</p>
+<p class="text-xs text-gray-500 dark:text-gray-400">Acompanhe compra, devolução, tempo, volume e impacto operacional por cliente.</p>
 {% endblock %}
 
 {% block head_extra %}
@@ -21,8 +21,7 @@
 
 {% block content %}
 <div
-  class="ga-employee-theme bi-clientes-page employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3"
-  x-data="{ drawerOpen: false, drawerTab: 'visao' }"
+  class="ga-employee-theme bi-clientes-page employees-shell employees-page employees-page--premium space-y-4 pt-2 md:space-y-5 md:pt-3"
   id="bi-clientes-root"
   data-filters-query="{{ filters_query|e }}"
   data-intel-truncated="{{ '1' if intel_clients_truncated else '0' }}"
@@ -33,323 +32,406 @@
   </div>
   {% endif %}
 
-  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
-    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
-    <div class="relative flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between xl:gap-8">
-      <div class="flex min-w-0 items-start gap-4">
-        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
-          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-          </svg>
+  <header class="bi-cli-exec-header sys-card sys-card--surface sys-card--comfort flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div class="min-w-0">
+      <h2 class="sys-section-heading text-lg font-semibold tracking-tight sm:text-xl">Inteligência de Clientes</h2>
+      <p class="employees-text-muted mt-1 max-w-2xl text-sm">Acompanhe compra, devolução, tempo, volume e impacto operacional por cliente.</p>
+      <p class="employees-text-muted mt-1 text-xs">{{ executive_kpis.period_current }}</p>
+    </div>
+    <div class="flex w-full flex-shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+      <details class="bi-cli-export-dd relative">
+        <summary class="sys-btn sys-btn--secondary employees-cta h-9 cursor-pointer list-none px-3 text-sm marker:hidden [&::-webkit-details-marker]:hidden">Exportar</summary>
+        <div class="bi-cli-export-dd__panel absolute right-0 z-20 mt-1 min-w-[11rem] rounded-xl border border-slate-200/90 bg-white py-1 shadow-lg dark:border-slate-600 dark:bg-slate-900">
+          <a class="block px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800" href="/bi/clientes/export?format=xlsx&amp;{{ filters_query }}">Planilha XLSX</a>
+          <a class="block px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800" href="/bi/clientes/export?format=csv&amp;{{ filters_query }}">CSV</a>
+          <a class="block px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800" href="/bi/clientes/export?format=pdf&amp;{{ filters_query }}">PDF</a>
         </div>
-        <div class="min-w-0">
-          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">BI &amp; Métricas</span>
-          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Inteligência operacional de clientes</h2>
-          <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">Prioridade: cliente. Motorista e rota aparecem como contexto e filtro — decisão comercial e logística no mesmo painel.</p>
-          <p class="employees-text-muted mt-2 text-xs">{{ executive_kpis.period_current }}</p>
-        </div>
+      </details>
+      <a href="/bi/clientes" class="sys-btn sys-btn--ghost-danger employees-cta h-9 px-3 text-sm">Limpar filtros</a>
+      <a href="/bi/devolucoes" class="sys-btn sys-btn--primary employees-cta h-9 px-3 text-sm">BI Devoluções</a>
+    </div>
+  </header>
+
+  <section
+    class="bi-client-decision-strip sys-card sys-card--surface sys-card--comfort bi-client-decision-strip--{{ decision_strip.situation_key }}"
+    aria-label="Resumo do período"
+  >
+    <p class="bi-client-decision-strip__title">Resumo do período</p>
+    <div class="bi-client-decision-grid">
+      <div class="bi-client-decision-item">
+        <span>Situação do período</span>
+        <strong>{{ decision_strip.situation_label }}</strong>
+        <small>{{ decision_strip.situation_hint }}</small>
       </div>
-      <div class="employees-hero__toolbar flex w-full flex-wrap items-center gap-2 xl:ml-auto xl:w-auto xl:flex-shrink-0 xl:justify-end">
-        <a href="/bi/clientes/export?format=xlsx&amp;{{ filters_query }}" class="sys-btn sys-btn--secondary employees-cta h-9 px-3 text-sm">Exportar XLSX</a>
-        <a href="/bi/clientes/export?format=csv&amp;{{ filters_query }}" class="sys-btn sys-btn--secondary employees-cta h-9 px-3 text-sm">Exportar CSV</a>
-        <a href="/bi/clientes/export?format=pdf&amp;{{ filters_query }}" class="sys-btn sys-btn--secondary employees-cta h-9 px-3 text-sm">Exportar PDF</a>
-        <a href="/bi/devolucoes" class="sys-btn sys-btn--secondary employees-cta h-9 px-3 text-sm">BI Devoluções</a>
-        <a href="/bi/delivery" class="sys-btn sys-btn--secondary employees-cta h-9 px-3 text-sm">BI Entregas</a>
-        <a href="/bi/clientes" class="sys-btn sys-btn--ghost-danger employees-cta h-9 px-3 text-sm">Limpar filtros</a>
+      <div class="bi-client-decision-item">
+        <span>Índice atual</span>
+        <strong>{{ decision_strip.current_pct|fmt_br_1 }}%</strong>
+        <small>Meta: {{ decision_strip.meta_pct|fmt_br_1 }}% · {% if decision_strip.diff_pp > 0 %}+{% endif %}{{ decision_strip.diff_pp|fmt_br_1 }} p.p. vs meta</small>
+      </div>
+      <div class="bi-client-decision-item">
+        <span>Valor devolvido</span>
+        <strong>{{ decision_strip.returned_value|fmt_br_moeda }}</strong>
+        <small>Impacto financeiro do período</small>
+      </div>
+      <div class="bi-client-decision-item">
+        <span>Impacto evitável</span>
+        <strong>{{ decision_strip.treatable_value|fmt_br_moeda }}</strong>
+        <small>Motivos tratáveis</small>
+      </div>
+      <div class="bi-client-decision-item">
+        <span>Motivo líder</span>
+        <strong>{{ decision_strip.main_motivo }}</strong>
+        <small>Prioridade de correção</small>
+      </div>
+      <div class="bi-client-decision-item">
+        <span>Responsabilidade dominante</span>
+        <strong>{{ decision_strip.main_responsibility }}</strong>
+        <small>{{ decision_strip.main_responsibility_raw }}</small>
       </div>
     </div>
+    {% if decision_strip.secondary_note %}
+    <p class="bi-client-decision-secondary mt-3 rounded-lg border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-xs font-medium text-amber-950 dark:border-amber-800/50 dark:bg-amber-950/25 dark:text-amber-100">
+      {{ decision_strip.secondary_note }}
+    </p>
+    {% endif %}
+  </section>
 
-    <form id="bi-cli-filters-form" method="get" action="/bi/clientes" class="relative mt-5 border-t border-slate-200/80 pt-5 dark:border-slate-700/60">
+  <section class="sys-card sys-card--surface sys-card--comfort">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <h3 class="sys-section-heading text-base">Filtros aplicados</h3>
+      <p class="employees-text-muted text-xs sm:text-right">Motorista, placa e rota são contexto operacional — decisão por cliente.</p>
+    </div>
+    <div class="bi-cli-active-chips mt-3 flex flex-wrap gap-2">
+      <span class="sys-badge sys-badge--neutral">Período: {{ filters.date_from }} → {{ filters.date_to }}</span>
+      {% if filters.vendedor_id is not none %}
+      <span class="sys-badge sys-badge--neutral">Vendedor:
+        {% if filters.vendedor_id == -1 %}Sem vendedor{% else %}{% for s in sellers_filter %}{% if s.id == filters.vendedor_id %}{{ s.name }}{% endif %}{% endfor %}{% endif %}
+      </span>
+      {% endif %}
+      {% if filters.city and filters.city != 'Todos' %}
+      <span class="sys-badge sys-badge--neutral">Cidade: {{ filters.city }}</span>
+      {% endif %}
+      {% if filters.classification_filter and filters.classification_filter|string|lower != 'todos' %}
+      <span class="sys-badge sys-badge--neutral">Classificação: {{ filters.classification_filter }}</span>
+      {% endif %}
+      {% if filters.motivo_filter and filters.motivo_filter != 'Todos' %}
+      <span class="sys-badge sys-badge--neutral">Motivo: {{ filters.motivo_filter }}</span>
+      {% endif %}
+      {% if filters.responsabilidade_filter and filters.responsabilidade_filter != 'Todos' %}
+      <span class="sys-badge sys-badge--neutral">Resp.: {{ filters.responsabilidade_filter }}</span>
+      {% endif %}
+      {% if filters.status and filters.status != 'Todos' %}
+      <span class="sys-badge sys-badge--neutral">Status entrega: {{ filters.status }}</span>
+      {% endif %}
+      {% if filters.search_q %}
+      <span class="sys-badge sys-badge--neutral">Busca: “{{ filters.search_q }}”</span>
+      {% endif %}
+    </div>
+
+    <form id="bi-cli-filters-form" method="get" action="/bi/clientes" class="mt-4">
       {% if filters.client_id %}
       <input type="hidden" name="client_id" value="{{ filters.client_id }}">
       {% endif %}
-      <div class="bi-cli-filters-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Data inicial</span>
-          <input class="sys-input" type="date" name="date_from" value="{{ filters.date_from }}">
+
+      <details class="bi-cli-filter-details group mt-2">
+        <summary class="sys-btn sys-btn--secondary inline-flex h-9 cursor-pointer list-none items-center px-3 text-sm marker:hidden [&::-webkit-details-marker]:hidden">
+          Abrir filtros avançados
+        </summary>
+        <div class="bi-cli-filter-details__body mt-4 space-y-5 border-t border-slate-200/80 pt-4 dark:border-slate-700/60">
+          <div>
+            <p class="bi-cli-filter-block-title">A) Período e operação</p>
+            <div class="bi-cli-filters-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Data inicial</span>
+                <input class="sys-input" type="date" name="date_from" value="{{ filters.date_from }}">
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Data final</span>
+                <input class="sys-input" type="date" name="date_to" value="{{ filters.date_to }}">
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Turno</span>
+                <select class="sys-select" name="shift">{% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}<option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>{% endfor %}</select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Status entrega</span>
+                <select class="sys-select" name="status">{% for s in statuses_filter %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Placa</span>
+                <select class="sys-select" name="plate"><option value="Todos">Todas</option>{% for p in plates_filter %}<option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Motorista</span>
+                <select class="sys-select" name="driver_id"><option value="">Todos</option>{% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="bi-cli-filter-block-title">B) Cliente e comercial</p>
+            <div class="bi-cli-filters-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="flex min-w-0 flex-col gap-1 lg:col-span-2">
+                <span class="sys-section__label sys-section__label--field">Busca</span>
+                <input class="sys-input" type="search" name="search_q" value="{{ filters.search_q or '' }}" placeholder="Cliente, código, vendedor, motivo…" autocomplete="off" id="bi-cli-search-server">
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Escopo</span>
+                <select class="sys-select" name="client_scope" title="Grupo: agrega lojas do mesmo grupo">
+                  <option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só este cliente</option>
+                  <option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Grupo (agregado)</option>
+                </select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Vendedor</span>
+                <select class="sys-select" name="vendedor_id">
+                  <option value="">Todos</option>
+                  <option value="-1" {% if filters.vendedor_id == -1 %}selected{% endif %}>Sem vendedor</option>
+                  {% for s in sellers_filter %}
+                  <option value="{{ s.id }}" {% if filters.vendedor_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Cidade</span>
+                <select class="sys-select" name="city"><option value="Todos">Todas</option>{% for item in cities_filter %}<option value="{{ item }}" {% if filters.city == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Status cliente</span>
+                <select class="sys-select" name="client_status"><option value="Todos">Todos</option>{% for item in client_statuses_filter %}<option value="{{ item }}" {% if filters.client_status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="bi-cli-filter-block-title">C) Devolução e risco</p>
+            <div class="bi-cli-filters-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Devolução (filtro)</span>
+                <select class="sys-select" name="returns_filter">
+                  <option value="Todos" {% if (filters.returns_filter or 'Todos') == 'Todos' %}selected{% endif %}>Todos</option>
+                  <option value="com_devolucao" {% if filters.returns_filter == 'com_devolucao' %}selected{% endif %}>Com devolução</option>
+                  <option value="acima_meta" {% if filters.returns_filter == 'acima_meta' %}selected{% endif %}>Acima da meta (2% s/ planejado)</option>
+                </select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Classificação</span>
+                <select class="sys-select" name="classification_filter">
+                  {% for opt in classification_filter_options %}
+                  <option value="{{ opt.id }}" {% if (filters.classification_filter or 'Todos') == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Motivo devolução</span>
+                <select class="sys-select" name="motivo_filter">
+                  <option value="Todos">Todos</option>
+                  {% for m in motivos_filter_options %}<option value="{{ m }}" {% if filters.motivo_filter == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Responsabilidade</span>
+                <select class="sys-select" name="responsabilidade_filter">
+                  <option value="Todos">Todos</option>
+                  {% for r in responsabilidades_filter_options %}<option value="{{ r }}" {% if filters.responsabilidade_filter == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                </select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Faixa % devolução</span>
+                <select class="sys-select" name="return_band">
+                  {% for val, lab in [('Todos','Todos'),('zero','0%'),('ate_2','Até 2%'),('2_5','2%–5%'),('acima_5','Acima de 5%')] %}
+                  <option value="{{ val }}" {% if (filters.return_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="bi-cli-filter-block-title">D) Volume e tempo</p>
+            <div class="bi-cli-filters-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Faixa compra (R$ entregue)</span>
+                <select class="sys-select" name="purchase_band">
+                  {% for val, lab in [('Todos','Todos'),('ate_5k','Até 5k'),('5k_20k','5k–20k'),('20k_50k','20k–50k'),('acima_50k','Acima de 50k')] %}
+                  <option value="{{ val }}" {% if (filters.purchase_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Faixa tempo médio</span>
+                <select class="sys-select" name="duration_band">
+                  {% for val, lab in [('Todos','Todos'),('ate_30','Até 30 min'),('30_60','30–60'),('60_90','60–90'),('acima_90','Acima de 90')] %}
+                  <option value="{{ val }}" {% if (filters.duration_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="flex min-w-0 flex-col gap-1">
+                <span class="sys-section__label sys-section__label--field">Prioridade cliente</span>
+                <select class="sys-select" name="priority"><option value="Todos">Todas</option>{% for item in priorities_filter %}<option value="{{ item }}" {% if filters.priority == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="submit" class="sys-btn sys-btn--primary h-9 px-4 text-sm">Aplicar filtros</button>
+          </div>
         </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Data final</span>
-          <input class="sys-input" type="date" name="date_to" value="{{ filters.date_to }}">
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Turno</span>
-          <select class="sys-select" name="shift">{% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}<option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>{% endfor %}</select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Motorista</span>
-          <select class="sys-select" name="driver_id"><option value="">Todos</option>{% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Placa</span>
-          <select class="sys-select" name="plate"><option value="Todos">Todas</option>{% for p in plates_filter %}<option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Status entrega</span>
-          <select class="sys-select" name="status">{% for s in statuses_filter %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Escopo</span>
-          <select class="sys-select" name="client_scope" title="Grupo: agrega lojas do mesmo grupo">
-            <option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só este cliente</option>
-            <option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Grupo (agregado)</option>
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Vendedor</span>
-          <select class="sys-select" name="vendedor_id">
-            <option value="">Todos</option>
-            <option value="-1" {% if filters.vendedor_id == -1 %}selected{% endif %}>Sem vendedor</option>
-            {% for s in sellers_filter %}
-            <option value="{{ s.id }}" {% if filters.vendedor_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Cidade</span>
-          <select class="sys-select" name="city"><option value="Todos">Todas</option>{% for item in cities_filter %}<option value="{{ item }}" {% if filters.city == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Devolução (filtro)</span>
-          <select class="sys-select" name="returns_filter">
-            <option value="Todos" {% if (filters.returns_filter or 'Todos') == 'Todos' %}selected{% endif %}>Todos</option>
-            <option value="com_devolucao" {% if filters.returns_filter == 'com_devolucao' %}selected{% endif %}>Com devolução</option>
-            <option value="acima_meta" {% if filters.returns_filter == 'acima_meta' %}selected{% endif %}>Acima da meta (2% s/ planejado)</option>
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Classificação</span>
-          <select class="sys-select" name="classification_filter">
-            {% for opt in classification_filter_options %}
-            <option value="{{ opt.id }}" {% if (filters.classification_filter or 'Todos') == opt.id %}selected{% endif %}>{{ opt.label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Motivo devolução</span>
-          <select class="sys-select" name="motivo_filter">
-            <option value="Todos">Todos</option>
-            {% for m in motivos_filter_options %}<option value="{{ m }}" {% if filters.motivo_filter == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Responsabilidade</span>
-          <select class="sys-select" name="responsabilidade_filter">
-            <option value="Todos">Todos</option>
-            {% for r in responsabilidades_filter_options %}<option value="{{ r }}" {% if filters.responsabilidade_filter == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Faixa compra (R$ entregue)</span>
-          <select class="sys-select" name="purchase_band">
-            {% for val, lab in [('Todos','Todos'),('ate_5k','Até 5k'),('5k_20k','5k–20k'),('20k_50k','20k–50k'),('acima_50k','Acima de 50k')] %}
-            <option value="{{ val }}" {% if (filters.purchase_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Faixa % dev. s/ planej.</span>
-          <select class="sys-select" name="return_band">
-            {% for val, lab in [('Todos','Todos'),('zero','0%'),('ate_2','Até 2%'),('2_5','2%–5%'),('acima_5','Acima de 5%')] %}
-            <option value="{{ val }}" {% if (filters.return_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Faixa tempo médio</span>
-          <select class="sys-select" name="duration_band">
-            {% for val, lab in [('Todos','Todos'),('ate_30','Até 30 min'),('30_60','30–60'),('60_90','60–90'),('acima_90','Acima de 90')] %}
-            <option value="{{ val }}" {% if (filters.duration_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Prioridade cliente</span>
-          <select class="sys-select" name="priority"><option value="Todos">Todas</option>{% for item in priorities_filter %}<option value="{{ item }}" {% if filters.priority == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
-        </div>
-        <div class="flex min-w-0 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Status cliente</span>
-          <select class="sys-select" name="client_status"><option value="Todos">Todos</option>{% for item in client_statuses_filter %}<option value="{{ item }}" {% if filters.client_status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
-        </div>
-      </div>
-      <div class="mt-4 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:items-end sm:gap-3">
-        <div class="flex min-w-0 flex-1 flex-col gap-1">
-          <span class="sys-section__label sys-section__label--field">Busca (debounce no navegador)</span>
-          <input class="sys-input" type="search" name="search_q" value="{{ filters.search_q or '' }}" placeholder="Buscar cliente, código, vendedor, pedido ou motivo..." autocomplete="off" id="bi-cli-search-server">
-        </div>
-        <div class="flex flex-shrink-0 flex-wrap gap-2">
-          <button type="submit" class="sys-btn sys-btn--primary h-9 px-4 text-sm">Aplicar filtros</button>
-        </div>
-      </div>
+      </details>
       {% if filters.group_filter_note %}
       <p class="mt-3 text-sm text-amber-600 dark:text-amber-300/90">{{ filters.group_filter_note }}</p>
       {% endif %}
     </form>
-  </div>
+  </section>
 
   <div class="sys-kpi-shell w-full">
-    <div class="sys-kpi-grid employees-kpi-row" aria-label="Indicadores do período">
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
+    <div class="sys-kpi-grid employees-kpi-row bi-cli-kpi-grid-8" aria-label="Indicadores principais">
+      <div class="sys-kpi-card employees-kpi bi-client-kpi bi-client-kpi--info group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
         <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-            <div class="min-w-0">
-              <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Clientes atendidos</span>
-              <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.uniq_clients|fmt_br_int }}</span></div>
-            </div>
-            <svg class="h-4 w-4 shrink-0 text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          </div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Clientes únicos no recorte filtrado</p>
+          <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Clientes atendidos</span>
+          <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.uniq_clients|fmt_br_int }}</strong>
+          <small class="employees-text-muted">Carteira no recorte</small>
         </div>
       </div>
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(148, 163, 184, 0.72);">
-        <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <span class="sys-kpi-label">Valor planejado</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.planned_value_total|fmt_br_moeda }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Soma do valor planejado nas paradas</p>
-        </div>
-      </div>
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
+      <div class="sys-kpi-card employees-kpi bi-client-kpi bi-client-kpi--success group" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Valor entregue</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.delivered_value|fmt_br_moeda }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Efetivo em rotas (período)</p>
+          <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.delivered_value|fmt_br_moeda }}</strong>
+          <small class="employees-text-muted">Efetivo no período</small>
         </div>
       </div>
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.72);">
+      <div class="sys-kpi-card employees-kpi bi-client-kpi bi-client-kpi--danger group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.72);">
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-red-600 dark:text-red-300">Valor devolvido</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.returned_value|fmt_br_moeda }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Base financeira consolidada</p>
+          <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.returned_value|fmt_br_moeda }}</strong>
+          <small class="employees-text-muted">Consolidado</small>
         </div>
       </div>
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
+      <div class="sys-kpi-card employees-kpi bi-client-kpi {% if executive_kpis.return_pct_planned_global > executive_kpis.return_pct_kpi_danger_points %}bi-client-kpi--danger{% elif executive_kpis.return_pct_planned_global > executive_kpis.return_pct_kpi_warn_points %}bi-client-kpi--warn{% else %}bi-client-kpi--success{% endif %} group" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Índice devolução (valor)</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.return_pct_planned_global|fmt_br_1 }}%</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Devolvido sobre base comercial no recorte (planejado, entregue ou devolvido — o que for maior).</p>
+          <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.return_pct_planned_global|fmt_br_1 }}%</strong>
+          <small class="employees-text-muted">Meta 2%</small>
         </div>
       </div>
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(244, 114, 182, 0.72);">
+      <div class="sys-kpi-card employees-kpi bi-client-kpi bi-client-kpi--info group" style="--employees-kpi-accent: rgba(244, 114, 182, 0.72);">
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label">Índice devolução (paradas)</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.return_pct_stops_global|fmt_br_1 }}%</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Qtd devoluções ÷ paradas</p>
+          <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.return_pct_stops_global|fmt_br_1 }}%</strong>
+          <small class="employees-text-muted">Qtd dev. ÷ paradas</small>
         </div>
       </div>
       <div
-        class="sys-kpi-card employees-kpi group cursor-pointer transition hover:ring-2 hover:ring-red-400/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-        style="--employees-kpi-accent: rgba(239, 68, 68, 0.72);"
+        class="sys-kpi-card employees-kpi bi-client-kpi bi-client-kpi--danger group cursor-pointer transition hover:ring-2 hover:ring-red-400/40"
         id="bi-cli-kpi-critical-open"
         role="button"
         tabindex="0"
-        title="Ver lista de clientes críticos"
-        aria-label="Clientes críticos: abrir lista"
+        title="Ver lista"
       >
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-red-600 dark:text-red-300">Clientes críticos</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.clients_critical_intel|fmt_br_int }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Classificação crítica / alto risco / % elevado — clique para listar e ver sugestões</p>
+          <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.clients_critical_intel|fmt_br_int }}</strong>
+          <small class="employees-text-muted">Ação imediata</small>
         </div>
       </div>
       <div
-        class="sys-kpi-card employees-kpi group cursor-pointer transition hover:ring-2 hover:ring-emerald-400/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-        style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);"
-        id="bi-cli-kpi-good-open"
-        role="button"
-        tabindex="0"
-        title="Ver clientes com bom desempenho operacional"
-        aria-label="Clientes bons: abrir lista"
-      >
-        <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Clientes bons</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.clients_good_intel|fmt_br_int }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Premium ou estável com score ≥ 72 — clique para visualizar</p>
-        </div>
-      </div>
-      <div
-        class="sys-kpi-card employees-kpi group cursor-pointer transition hover:ring-2 hover:ring-violet-400/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
-        style="--employees-kpi-accent: rgba(167, 139, 250, 0.72);"
+        class="sys-kpi-card employees-kpi bi-client-kpi bi-client-kpi--violet group cursor-pointer transition hover:ring-2 hover:ring-violet-400/40"
         id="bi-cli-kpi-treatable-open"
         role="button"
         tabindex="0"
-        title="Clique para ver clientes e sugestões automáticas"
-        aria-label="Impacto evitável: abrir lista de clientes e sugestões"
+        title="Ver lista"
       >
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-violet-600 dark:text-violet-300">Impacto evitável</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.treatable_returned_total|fmt_br_moeda }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Devoluções com motivos tratáveis (estimativa) — clique para detalhar</p>
+          <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.treatable_returned_total|fmt_br_moeda }}</strong>
+          <small class="employees-text-muted">Motivos tratáveis</small>
+        </div>
+      </div>
+      <div
+        class="sys-kpi-card employees-kpi bi-client-kpi bi-client-kpi--success group cursor-pointer transition hover:ring-2 hover:ring-emerald-400/40"
+        id="bi-cli-kpi-good-open"
+        role="button"
+        tabindex="0"
+        title="Ver lista"
+      >
+        <div class="sys-kpi-cell-inner employees-kpi__inner">
+          <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Clientes bons</span>
+          <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.clients_good_intel|fmt_br_int }}</strong>
+          <small class="employees-text-muted">Premium / estável</small>
         </div>
       </div>
     </div>
   </div>
 
-  <section class="sys-card sys-card--surface sys-card--comfort">
-    <h3 class="sys-section-heading mb-3 text-base">Leitura operacional do período</h3>
-    <p class="employees-text-muted mb-3 text-xs">Clique em um card para ver o contexto e sugestões de ação (regras automáticas).</p>
-    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-      {% for card in reading_cards %}
-      <button
-        type="button"
-        class="group w-full cursor-pointer rounded-md border-0 bg-transparent p-0 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
-        data-bi-cli-reading="{{ card.card_key }}"
-        aria-label="Detalhar: {{ card.title }}"
-      >
-        <div class="bi-cli-insight-card ring-transparent transition group-hover:ring-2 group-hover:ring-slate-300/75 dark:group-hover:ring-slate-600/70">
-          <p class="employees-text-section-label">{{ card.title }}</p>
-          <p class="employees-text-body mt-1 text-sm leading-snug">{{ card.body }}</p>
-        </div>
-      </button>
+  <section class="bi-client-action-section" aria-labelledby="bi-cli-action-h">
+    <h3 id="bi-cli-action-h" class="sys-section-heading mb-3 text-base">Onde atuar primeiro</h3>
+    <div class="bi-client-action-grid">
+      <article class="bi-action-card bi-action-card--danger">
+        <span>Clientes críticos</span>
+        <strong class="tabular-nums">{{ action_first_summary.criticos.count|fmt_br_int }}</strong>
+        <small>{{ action_first_summary.criticos.motivo }} · devolvido {{ action_first_summary.criticos.value|fmt_br_moeda }}</small>
+        <p class="bi-action-card__action">Ação: tratar primeiro os clientes acima da meta e com maior valor devolvido.</p>
+        <button type="button" class="sys-btn sys-btn--secondary js-bi-cli-action" data-action="critical">Ver lista</button>
+      </article>
+      <article class="bi-action-card bi-action-card--warning">
+        <span>Alto valor com risco</span>
+        <strong class="tabular-nums">{{ action_first_summary.alto_valor_risco.count|fmt_br_int }}</strong>
+        <small>{{ action_first_summary.alto_valor_risco.motivo }} · entregue {{ action_first_summary.alto_valor_risco.value|fmt_br_moeda }}</small>
+        <p class="bi-action-card__action">Ação: proteger faturamento alto com validação comercial antes da rota.</p>
+        <button type="button" class="sys-btn sys-btn--secondary js-bi-cli-action" data-action="large_risk">Ver lista</button>
+      </article>
+      <article class="bi-action-card bi-action-card--violet">
+        <span>Pequeno cliente, grande impacto</span>
+        <strong class="tabular-nums">{{ action_first_summary.pequeno_grande_impacto.count|fmt_br_int }}</strong>
+        <small>{{ action_first_summary.pequeno_grande_impacto.motivo }} · devolvido {{ action_first_summary.pequeno_grande_impacto.value|fmt_br_moeda }}</small>
+        <p class="bi-action-card__action">Ação: avaliar frequência, janela de entrega e confirmação antes de carregar.</p>
+        <button type="button" class="sys-btn sys-btn--secondary js-bi-cli-action" data-action="small_high">Ver lista</button>
+      </article>
+      <article class="bi-action-card bi-action-card--success">
+        <span>Oportunidade rápida</span>
+        <strong class="tabular-nums">{{ action_first_summary.oportunidade.value|fmt_br_moeda }}</strong>
+        <small>{{ action_first_summary.oportunidade.motivo }} · {{ action_first_summary.oportunidade.count|fmt_br_int }} cliente(s)</small>
+        <p class="bi-action-card__action">Ação: atacar motivos corrigíveis antes da separação e saída da rota.</p>
+        <button type="button" class="sys-btn sys-btn--secondary js-bi-cli-action" data-action="treatable">Ver lista</button>
+      </article>
+    </div>
+  </section>
+
+  <div class="sys-card sys-card--surface sys-card--comfort bi-cli-priority-callout">
+    <p class="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">O que fazer primeiro</p>
+    <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-100">{{ primeira_acao_texto }}</p>
+  </div>
+
+  <section class="sys-card sys-card--surface sys-card--comfort" aria-labelledby="bi-cli-read-h">
+    <h3 id="bi-cli-read-h" class="sys-section-heading mb-3 text-base">Leitura operacional</h3>
+    <div class="bi-cli-insight-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {% for ic in insight_cards_ui %}
+      <div class="bi-client-insight-card">
+        <span class="bi-client-insight-card__label">{{ ic.title }}</span>
+        <strong class="bi-client-insight-card__headline">{{ ic.headline }}</strong>
+        <p class="bi-client-insight-card__interp">{{ ic.interpretation }}</p>
+        <small class="bi-client-insight-card__action">Ação: {{ ic.action }}</small>
+      </div>
       {% endfor %}
     </div>
   </section>
 
-  <section class="grid gap-4 lg:grid-cols-2">
-    <div class="sys-card sys-card--surface sys-card--comfort">
-      <h3 class="sys-section-heading mb-2 text-sm">Top 10 · valor entregue</h3>
-      <div class="bi-cli-mini-rank">{% for it in analytic_blocks.top10_valor_comprado %}
-        <div class="bi-cli-mini-rank__row"><span class="min-w-0 truncate">{{ it.name }}</span><span class="tabular-nums font-semibold">{{ it.value|fmt_br_moeda }}</span></div>
-        {% else %}<p class="employees-text-muted text-sm">Sem dados.</p>{% endfor %}</div>
-    </div>
-    <div class="sys-card sys-card--surface sys-card--comfort">
-      <h3 class="sys-section-heading mb-2 text-sm">Top 10 · valor devolvido</h3>
-      <div class="bi-cli-mini-rank">{% for it in analytic_blocks.top10_valor_devolvido %}
-        <div class="bi-cli-mini-rank__row"><span class="min-w-0 truncate">{{ it.name }}</span><span class="tabular-nums font-semibold">{{ it.value|fmt_br_moeda }}</span></div>
-        {% else %}<p class="employees-text-muted text-sm">Sem dados.</p>{% endfor %}</div>
-    </div>
-    <div class="sys-card sys-card--surface sys-card--comfort">
-      <h3 class="sys-section-heading mb-2 text-sm">Pequenos com maior impacto</h3>
-      <div class="bi-cli-mini-rank">{% for it in analytic_blocks.pequenos_alto_impacto %}
-        <div class="bi-cli-mini-rank__row"><span class="min-w-0 truncate">{{ it.name }}</span><span class="text-xs text-slate-500">impacto {{ it.impact|fmt_br_1 }}</span></div>
-        {% else %}<p class="employees-text-muted text-sm">Sem casos.</p>{% endfor %}</div>
-    </div>
-    <div class="sys-card sys-card--surface sys-card--comfort">
-      <h3 class="sys-section-heading mb-2 text-sm">Grandes com risco (&gt;2% s/ planej.)</h3>
-      <p class="employees-text-muted mb-2 text-xs">Clique no cliente para ver o contexto do risco e sugestões.</p>
-      <div class="bi-cli-mini-rank">{% for it in analytic_blocks.grandes_com_risco %}
-        <button
-          type="button"
-          class="bi-cli-mini-rank__row bi-cli-mini-rank__row--action w-full cursor-pointer bg-transparent text-left text-inherit transition hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
-          data-bi-cli-large-risk="{{ it.id }}"
-        ><span class="min-w-0 truncate">{{ it.name }}</span><span class="tabular-nums text-amber-600 dark:text-amber-300">{{ it.pct|fmt_br_1 }}%</span></button>
-        {% else %}<p class="employees-text-muted text-sm">Sem casos.</p>{% endfor %}</div>
-    </div>
+  <section class="sys-card sys-card--surface sys-card--comfort">
+    <h3 class="sys-section-heading mb-3 text-base">Ranking de clientes</h3>
+    <div class="bi-client-tabs flex flex-wrap gap-1 border-b border-slate-200/80 pb-2 dark:border-slate-700/60" id="bi-cli-rank-tabs" role="tablist"></div>
+    <div id="bi-cli-rank-panel" class="bi-client-ranking-list mt-3 min-h-[12rem]"></div>
   </section>
 
   <section class="sys-card sys-card--surface sys-card--comfort">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h3 class="sys-section-heading text-base">Clientes (ordenar no navegador)</h3>
-        <p class="employees-text-muted text-sm">Desktop: tabela com scroll. Mobile: cards. Busca local com debounce no campo abaixo.</p>
+        <h3 class="sys-section-heading text-base">Clientes</h3>
+        <p class="employees-text-muted text-xs">Tabela de decisão · busca com debounce</p>
       </div>
       <div class="flex w-full max-w-md flex-col gap-1 sm:w-auto">
-        <span class="sys-section__label sys-section__label--field">Busca rápida (cliente)</span>
-        <input class="sys-input" type="search" id="bi-cli-search-local" placeholder="Buscar cliente, código, vendedor, pedido ou motivo..." autocomplete="off">
+        <span class="sys-section__label sys-section__label--field">Busca rápida</span>
+        <input class="sys-input" type="search" id="bi-cli-search-local" placeholder="Nome, código, vendedor…" autocomplete="off">
       </div>
     </div>
     {% if ranking_total == 0 %}
     <div class="sys-empty-state mt-6">
-      <p class="text-sm font-medium text-slate-700 dark:text-slate-200">Nenhum cliente encontrado para os filtros selecionados. Ajuste o período ou limpe os filtros.</p>
+      <p class="text-sm font-medium text-slate-700 dark:text-slate-200">Nenhum cliente encontrado para os filtros selecionados.</p>
     </div>
     {% else %}
     <div class="mt-4 hidden md:block">
@@ -358,25 +440,15 @@
           <thead>
             <tr>
               <th data-sort="client_name">Cliente</th>
-              <th data-sort="client_code">Código</th>
               <th data-sort="vendedor_name">Vendedor</th>
+              <th data-sort="delivered_value" class="text-right">Entregue</th>
+              <th data-sort="returned_value" class="text-right">Devolvido</th>
+              <th data-sort="return_pct_planned" class="text-right">% Dev.</th>
               <th data-sort="visits" class="text-right">Paradas</th>
-              <th data-sort="delivered_visits" class="text-right">Entregues</th>
-              <th data-sort="returned_occurrences" class="text-right">Devoluções</th>
-              <th data-sort="return_rate_qtd" class="text-right">% dev. qtd</th>
-              <th data-sort="planned_value" class="text-right">R$ plan.</th>
-              <th data-sort="delivered_value" class="text-right">R$ entregue</th>
-              <th data-sort="returned_value" class="text-right">R$ devolvido</th>
-              <th data-sort="return_pct_planned" class="text-right">% dev. valor</th>
-              <th data-sort="planned_kg" class="text-right">KG plan.</th>
-              <th data-sort="delivered_kg" class="text-right">KG ent.</th>
-              <th data-sort="returned_kg" class="text-right">KG dev.</th>
               <th data-sort="avg_duration_m" class="text-right">Tempo médio</th>
-              <th data-sort="max_duration_m" class="text-right">Maior tempo</th>
-              <th data-sort="reopen_count" class="text-right">Reab.</th>
-              <th>Motivo</th>
-              <th>Responsab.</th>
-              <th>Classif.</th>
+              <th>Motivo líder</th>
+              <th>Responsabilidade</th>
+              <th>Classificação</th>
               <th data-sort="cliente_score" class="text-right">Score</th>
               <th class="text-right">Ação</th>
             </tr>
@@ -399,34 +471,45 @@
     {% endif %}
   </section>
 
-  <section class="sys-card sys-card--surface sys-card--comfort">
-    <h3 class="sys-section-heading mb-3 text-base">Gráficos leves</h3>
-    <div class="grid gap-4 lg:grid-cols-2">
-      <div><canvas id="biCliChartDaily" height="220"></canvas></div>
-      <div><canvas id="biCliChartPareto" height="220"></canvas></div>
-      <div class="lg:col-span-2"><canvas id="biCliChartMatrix" height="260"></canvas></div>
-      <div><canvas id="biCliChartTime" height="220"></canvas></div>
-      <div><canvas id="biCliChartResp" height="220"></canvas></div>
+  <section class="sys-card sys-card--surface sys-card--comfort" id="bi-cli-visual-section">
+    <h3 class="sys-section-heading mb-1 text-base">Análise visual</h3>
+    <p class="employees-text-muted mb-3 text-xs">Até 4 gráficos alinhados à decisão por cliente.</p>
+    <button type="button" class="sys-btn sys-btn--secondary mb-4 md:hidden" id="bi-cli-charts-load-btn">Carregar análise visual</button>
+    <div id="bi-cli-charts-mount" class="hidden md:block">
+      <div class="bi-cli-chart-grid grid gap-4 lg:grid-cols-2">
+        <figure class="bi-cli-chart-figure">
+          <figcaption class="bi-cli-chart-cap">Evolução diária da devolução</figcaption>
+          <p class="bi-cli-chart-hint">Use para ver se a devolução concentra em poucos dias ou se é recorrente no período.</p>
+          <div class="bi-cli-chart-canvas"><canvas id="biCliChartDaily" height="200"></canvas></div>
+        </figure>
+        <figure class="bi-cli-chart-figure">
+          <figcaption class="bi-cli-chart-cap">Pareto dos motivos (R$)</figcaption>
+          <p class="bi-cli-chart-hint">Mostra quais motivos mais pesam no valor devolvido atribuído ao motivo principal por cliente.</p>
+          <div class="bi-cli-chart-canvas"><canvas id="biCliChartParetoMotivos" height="200"></canvas></div>
+        </figure>
+        <figure class="bi-cli-chart-figure lg:col-span-2">
+          <figcaption class="bi-cli-chart-cap">Matriz: valor entregue × % devolução</figcaption>
+          <p class="bi-cli-chart-hint">Bolhas à direita e no alto combinam compra relevante com índice de devolução elevado.</p>
+          <div class="bi-cli-chart-canvas bi-cli-chart-canvas--wide"><canvas id="biCliChartMatrix" height="240"></canvas></div>
+        </figure>
+        <figure class="bi-cli-chart-figure lg:col-span-2">
+          <figcaption class="bi-cli-chart-cap">Responsabilidade por valor devolvido</figcaption>
+          <p class="bi-cli-chart-hint">Indica qual macro de responsabilidade domina o valor devolvido no recorte (comercial, logística, mercado…).</p>
+          <div class="bi-cli-chart-canvas bi-cli-chart-canvas--mid"><canvas id="biCliChartResp" height="220"></canvas></div>
+        </figure>
+      </div>
     </div>
   </section>
 </div>
 
-<!-- Modal impacto evitável (clientes + sugestões heurísticas) -->
 <div id="bi-cli-treatable-modal" class="emp-modal-shell fixed inset-0 z-[60] hidden" aria-hidden="true">
   <div class="emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-treatable-close="1"></div>
   <div class="pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
-    <div
-      class="pointer-events-auto flex max-h-[min(88vh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="bi-cli-treatable-title"
-    >
+    <div class="pointer-events-auto flex max-h-[min(88vh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-treatable-title">
       <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
         <div class="min-w-0">
-          <h3 id="bi-cli-treatable-title" class="sys-section-heading text-base">Impacto evitável — detalhe</h3>
-          <p class="employees-text-muted mt-1 text-xs leading-snug">
-            Clientes do recorte com devoluções em <strong>motivos tratáveis</strong> (pedido, pagamento, horário, ausência, etc.). Sugestões geradas por regras do sistema (classificação + motivos); não usam modelo de IA externo.
-          </p>
+          <h3 id="bi-cli-treatable-title" class="sys-section-heading text-base">Impacto evitável</h3>
+          <p class="employees-text-muted mt-1 text-xs leading-snug">Motivos tratáveis; sugestões por regras do sistema.</p>
         </div>
         <button type="button" class="sys-btn sys-btn--secondary h-9 shrink-0 px-2" data-bi-cli-treatable-close="1" aria-label="Fechar">✕</button>
       </div>
@@ -435,16 +518,10 @@
   </div>
 </div>
 
-<!-- Modal genérico: risco grande / críticos / bons -->
 <div id="bi-cli-insight-modal" class="emp-modal-shell fixed inset-0 z-[62] hidden" aria-hidden="true">
   <div class="emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-insight-close="1"></div>
   <div class="pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
-    <div
-      class="pointer-events-auto flex max-h-[min(90vh,780px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="bi-cli-insight-title"
-    >
+    <div class="pointer-events-auto flex max-h-[min(90vh,780px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-insight-title">
       <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
         <h3 id="bi-cli-insight-title" class="sys-section-heading pr-2 text-base leading-snug">Detalhe</h3>
         <button type="button" class="sys-btn sys-btn--secondary h-9 shrink-0 px-2" data-bi-cli-insight-close="1" aria-label="Fechar">✕</button>
@@ -455,7 +532,6 @@
   </div>
 </div>
 
-<!-- Drawer detalhe (padrão modal employees: backdrop + painel) -->
 <div id="bi-cli-drawer" class="emp-modal-shell fixed inset-0 z-50 hidden" aria-hidden="true">
   <div class="emp-modal-backdrop absolute inset-0" data-bi-cli-close="1"></div>
   <div class="bi-cli-drawer pointer-events-none absolute inset-y-0 right-0 flex max-w-full justify-end p-3 sm:p-4">
@@ -472,7 +548,7 @@
         <button type="button" class="bi-cli-drawer__tab" data-tab="historico">Histórico</button>
         <button type="button" class="bi-cli-drawer__tab" data-tab="devolucoes">Devoluções</button>
         <button type="button" class="bi-cli-drawer__tab" data-tab="tempos">Tempos</button>
-        <button type="button" class="bi-cli-drawer__tab" data-tab="volume">Produtos/volume</button>
+        <button type="button" class="bi-cli-drawer__tab" data-tab="volume">Volume</button>
         <button type="button" class="bi-cli-drawer__tab" data-tab="acoes">Ações</button>
       </div>
       <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-2 text-sm" id="bi-cli-d-body"></div>
@@ -488,9 +564,11 @@
 <script type="application/json" id="bi-cli-large-risk-json">{{ large_risk_drilldown_json|safe }}</script>
 <script type="application/json" id="bi-cli-critical-json">{{ critical_drilldown_json|safe }}</script>
 <script type="application/json" id="bi-cli-good-json">{{ good_clients_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-small-high-json">{{ small_high_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-ranking-tabs-json">{{ client_ranking_tabs_json|safe }}</script>
 <script type="application/json" id="bi-cli-reading-json">{{ reading_cards_json|safe }}</script>
 <script src="/static/vendor/chart.umd.min.js"></script>
-<script src="/static/js/pages/bi-clientes.js?v=4"></script>
+<script src="/static/js/pages/bi-clientes.js?v=6"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     if (window.lucide && lucide.createIcons) lucide.createIcons();

@@ -2545,8 +2545,8 @@ def _build_bi_clientes_dataset(
     med_f = float(statistics.median(sorted(dvals_f))) if dvals_f else 0.0
     ad_f = [float(r.get("avg_duration_m") or 0) for r in ranking_rows if int(r.get("visits") or 0) > 0]
     avg_dur_f = float(statistics.mean(ad_f)) if ad_f else avg_duration_global
-    n_small_high = sum(
-        1
+    small_high_pool_full = [
+        r
         for r in ranking_rows
         if float(r.get("delivered_value") or 0) < med_f
         and (
@@ -2554,7 +2554,8 @@ def _build_bi_clientes_dataset(
             or float(r.get("avg_duration_m") or 0) > avg_dur_f
             or int(r.get("reopen_count") or 0) > 0
         )
-    )
+    ]
+    n_small_high = len(small_high_pool_full)
     treatable_total = round(sum(float(r.get("treatable_returned_value") or 0) for r in ranking_rows), 2)
 
     treatable_drilldown: list[dict[str, Any]] = []
@@ -2611,7 +2612,7 @@ def _build_bi_clientes_dataset(
         1
         for r in ranking_rows
         if str(r.get("classification_code") or "") in ("PREMIUM_OPERACIONAL", "ESTAVEL")
-        and int(r.get("cliente_score") or 0) >= 72
+        and int(r.get("cliente_score") or 0) >= bci_clientes.BEST_CLIENT_MIN_SCORE
     )
 
     # KPIs do topo: mesmo universo da tabela (ranking_rows após todos os filtros, ex.: busca por NB).
@@ -2683,6 +2684,8 @@ def _build_bi_clientes_dataset(
             ),
             2,
         ),
+        "return_pct_kpi_warn_points": round(float(bci_clientes.KPI_RETURN_RATE_WARNING) * 100.0, 6),
+        "return_pct_kpi_danger_points": round(float(bci_clientes.KPI_RETURN_RATE_DANGER) * 100.0, 6),
     }
 
     reading_cards = bci_clientes.build_operational_reading_cards(
@@ -2702,16 +2705,17 @@ def _build_bi_clientes_dataset(
 
     top10_returned = sorted(ranking_rows, key=lambda r: float(r.get("returned_value") or 0), reverse=True)[:10]
     small_high_block = sorted(
-        [r for r in ranking_rows if float(r.get("delivered_value") or 0) < med_f and float(r.get("operational_impact") or 0) > 0],
+        [r for r in small_high_pool_full if float(r.get("operational_impact") or 0) > 0],
         key=lambda r: float(r.get("operational_impact") or 0),
         reverse=True,
     )[:10]
     p75_delivered_thr = sorted(dvals_f)[max(0, int(len(dvals_f) * 0.75) - 1)] if dvals_f else 0.0
+    min_grande_del = max(float(p75_delivered_thr or 0), float(bci_clientes.LARGE_RISK_MIN_DELIVERED_FLOOR_BRL))
     large_risk_pool = [
         r
         for r in ranking_rows
-        if float(r.get("delivered_value") or 0) >= p75_delivered_thr
-        and float(r.get("return_pct_planned") or 0) > bci_clientes.META_DEVOLUCAO_VALOR_PCT
+        if float(r.get("delivered_value") or 0) >= min_grande_del
+        and float(r.get("return_pct_planned") or 0) > float(bci_clientes.LARGE_RISK_MIN_RETURN_RATE) * 100.0
     ]
     large_risk_block = sorted(
         large_risk_pool,
@@ -2816,7 +2820,7 @@ def _build_bi_clientes_dataset(
         r
         for r in ranking_rows
         if str(r.get("classification_code") or "") in ("PREMIUM_OPERACIONAL", "ESTAVEL")
-        and int(r.get("cliente_score") or 0) >= 72
+        and int(r.get("cliente_score") or 0) >= bci_clientes.BEST_CLIENT_MIN_SCORE
     ]
     good_drilldown: list[dict[str, Any]] = []
     for r in sorted(good_rows, key=lambda x: float(x.get("delivered_value") or 0), reverse=True)[:300]:
@@ -2834,6 +2838,155 @@ def _build_bi_clientes_dataset(
             }
         )
     good_clients_drilldown_json = _json_for_inline_script(good_drilldown)
+
+    def _first_motivo_from_rows(rows: list[dict]) -> str:
+        agg: dict[str, float] = {}
+        for rr in rows:
+            m = str(rr.get("top_motivo_name") or "").strip()
+            if m and m not in ("-", "—"):
+                agg[m] = agg.get(m, 0.0) + float(rr.get("returned_value") or 0)
+        if not agg:
+            return main_motivo_period
+        return max(agg.items(), key=lambda x: x[1])[0]
+
+    small_high_drilldown: list[dict[str, Any]] = []
+    for r in sorted(small_high_pool_full, key=lambda x: float(x.get("operational_impact") or 0), reverse=True)[:200]:
+        small_high_drilldown.append(
+            {
+                "client_id": r.get("client_id"),
+                "client_name": r.get("client_name"),
+                "client_code": r.get("client_code"),
+                "vendedor_name": r.get("vendedor_name"),
+                "delivered_value": round(float(r.get("delivered_value") or 0), 2),
+                "returned_value": round(float(r.get("returned_value") or 0), 2),
+                "return_pct_planned": round(float(r.get("return_pct_planned") or 0), 2),
+                "avg_duration_m": round(float(r.get("avg_duration_m") or 0), 1),
+                "classification_title": r.get("classification_title"),
+                "top_motivo_name": r.get("top_motivo_name"),
+                "operational_impact": round(float(r.get("operational_impact") or 0), 2),
+                "context": bci_clientes.critical_client_context_lines(r)[:4],
+                "hints": bci_clientes.critical_client_solution_lines(r)[:4],
+            }
+        )
+    small_high_drilldown_json = _json_for_inline_script(small_high_drilldown)
+
+    action_first_summary = {
+        "criticos": {
+            "count": len(critical_clients),
+            "value": round(sum(float(r.get("returned_value") or 0) for r in critical_clients), 2),
+            "motivo": _first_motivo_from_rows(critical_clients),
+        },
+        "alto_valor_risco": {
+            "count": len(large_risk_pool),
+            "value": round(sum(float(r.get("delivered_value") or 0) for r in large_risk_pool), 2),
+            "motivo": _first_motivo_from_rows(large_risk_pool),
+        },
+        "pequeno_grande_impacto": {
+            "count": len(small_high_pool_full),
+            "value": round(sum(float(r.get("returned_value") or 0) for r in small_high_pool_full), 2),
+            "motivo": _first_motivo_from_rows(small_high_pool_full),
+        },
+        "oportunidade": {
+            "count": len(treatable_drilldown),
+            "value": float(treatable_total),
+            "motivo": "Motivos tratáveis",
+        },
+    }
+
+    def _rank_tab_row(r: dict) -> dict:
+        return {
+            "client_id": r.get("client_id"),
+            "client_name": r.get("client_name"),
+            "client_code": r.get("client_code"),
+            "vendedor_name": r.get("vendedor_name"),
+            "delivered_value": round(float(r.get("delivered_value") or 0), 2),
+            "returned_value": round(float(r.get("returned_value") or 0), 2),
+            "return_pct_planned": round(float(r.get("return_pct_planned") or 0), 2),
+            "avg_duration_m": round(float(r.get("avg_duration_m") or 0), 1),
+            "max_duration_m": round(float(r.get("max_duration_m") or 0), 1),
+            "classification_title": r.get("classification_title"),
+            "cliente_score": int(r.get("cliente_score") or 0),
+        }
+
+    MIN_VOL_PCT = float(bci_clientes.MIN_VOLUME_ENTREGUE_PAR_RANKING_PCT_BRL)
+    pct_rank_pool = [
+        r
+        for r in ranking_rows
+        if float(r.get("delivered_value") or 0) >= MIN_VOL_PCT
+        and float(r.get("delivered_value") or 0) + float(r.get("returned_value") or 0) > 0
+    ]
+    baixo_vol_pct_pool = [
+        r
+        for r in ranking_rows
+        if float(r.get("delivered_value") or 0) < float(bci_clientes.LOW_VOLUME_DISTORTION_MAX_DELIVERED_BRL)
+        and float(r.get("return_pct_planned") or 0) > float(bci_clientes.LOW_VOLUME_DISTORTION_MIN_RETURN_RATE) * 100.0
+    ]
+    tempo_rank_pool = [r for r in ranking_rows if int(r.get("visits") or 0) > 0]
+    melhores_pool = [
+        r
+        for r in ranking_rows
+        if float(r.get("delivered_value") or 0) >= med_f
+        and float(r.get("return_pct_planned") or 0) <= float(bci_clientes.BEST_CLIENT_MAX_RETURN_RATE) * 100.0
+        and int(r.get("cliente_score") or 0) >= bci_clientes.BEST_CLIENT_MIN_SCORE
+        and (
+            int(r.get("visits") or 0) == 0
+            or float(r.get("avg_duration_m") or 0)
+            <= max(avg_dur_f * float(bci_clientes.BEST_CLIENT_AVG_TIME_FACTOR), float(bci_clientes.BEST_CLIENT_MIN_TIME_FALLBACK_MINUTES))
+        )
+    ]
+    client_ranking_tabs = {
+        "maior_compra": [_rank_tab_row(x) for x in sorted(ranking_rows, key=lambda z: float(z.get("delivered_value") or 0), reverse=True)[:25]],
+        "maior_devolucao": [_rank_tab_row(x) for x in sorted(ranking_rows, key=lambda z: float(z.get("returned_value") or 0), reverse=True)[:25]],
+        "maior_pct": [
+            _rank_tab_row(x)
+            for x in sorted(pct_rank_pool, key=lambda z: float(z.get("return_pct_planned") or 0), reverse=True)[:25]
+        ],
+        "baixo_volume_pct": [
+            _rank_tab_row(x)
+            for x in sorted(baixo_vol_pct_pool, key=lambda z: float(z.get("return_pct_planned") or 0), reverse=True)[:25]
+        ],
+        "maior_tempo": [
+            _rank_tab_row(x)
+            for x in sorted(
+                tempo_rank_pool,
+                key=lambda z: (float(z.get("avg_duration_m") or 0), float(z.get("max_duration_m") or 0)),
+                reverse=True,
+            )[:25]
+        ],
+        "pequeno_alto_impacto": [
+            _rank_tab_row(x)
+            for x in sorted(small_high_pool_full, key=lambda z: float(z.get("operational_impact") or 0), reverse=True)[:25]
+        ],
+        "grandes_risco": [_rank_tab_row(x) for x in sorted(large_risk_pool, key=lambda z: float(z.get("return_pct_planned") or 0), reverse=True)[:25]],
+        "melhores": [_rank_tab_row(x) for x in sorted(melhores_pool, key=lambda z: float(z.get("delivered_value") or 0), reverse=True)[:25]],
+    }
+    client_ranking_tabs_json = _json_for_inline_script(client_ranking_tabs)
+
+    main_dom_label, main_dom_detail = bci_clientes.dominante_operacional_por_valor_devolvido(ranking_rows)
+    decision_strip = bci_clientes.build_decision_strip_intel(
+        pct_gl=float(executive_kpis["return_pct_planned_global"] or 0),
+        meta_pct=float(bci_clientes.META_DEVOLUCAO_VALOR_PCT),
+        treatable_total=float(executive_kpis["treatable_returned_total"] or 0),
+        returned_total=float(executive_kpis["returned_value"] or 0),
+        critical_count=len(critical_clients),
+        n_clients=len(ranking_rows),
+        main_motivo=main_motivo_period,
+        main_responsibility=main_dom_label,
+        main_responsibility_detail=main_dom_detail,
+    )
+
+    insight_cards_ui: list[dict[str, str]] = []
+    for c in reading_cards[:9]:
+        _hints = c.get("hints") or []
+        _ctx = c.get("context") or []
+        insight_cards_ui.append(
+            {
+                "title": c.get("title") or "—",
+                "headline": c.get("body") or "—",
+                "interpretation": (_ctx[0] if _ctx else "—"),
+                "action": (_hints[0] if _hints else "Manter acompanhamento na rotina semanal."),
+            }
+        )
 
     executive_headlines = []
     tmacro = sum(macro_v.values()) or 1.0
@@ -3120,6 +3273,16 @@ def _build_bi_clientes_dataset(
     du_sorted = sorted(exec_cur["driver_unprod"].items(), key=lambda x: -x[1])[:10]
     cu_sorted = sorted(exec_cur["cause_unprod_time"].items(), key=lambda x: -x[1])[:8]
 
+    motivo_val_agg: dict[str, float] = {}
+    for _r in ranking_rows:
+        _m = str(_r.get("top_motivo_name") or "").strip()
+        if _m and _m not in ("-", "—"):
+            motivo_val_agg[_m] = motivo_val_agg.get(_m, 0.0) + float(_r.get("returned_value") or 0)
+    pareto_motivos_chart = sorted(
+        ({"name": k, "value": round(v, 2)} for k, v in motivo_val_agg.items()),
+        key=lambda x: -x["value"],
+    )[:18]
+
     daily_evolution_map: dict[str, dict[str, float]] = {}
     for rr in filtered_rows:
         if str(rr.get("source") or "").upper() != "ROTA":
@@ -3275,6 +3438,7 @@ def _build_bi_clientes_dataset(
             "scores": [int(r.get("wear_score") or 0) for r in ranking_rows[:15]],
             "tiers": [r.get("wear_tier") or "" for r in ranking_rows[:15]],
         },
+        "pareto_motivos": pareto_motivos_chart,
     }
 
     filters = {
@@ -3407,6 +3571,16 @@ def _build_bi_clientes_dataset(
             break
     routes_intel_json = _json_for_inline_script(routes_intel_slim)
 
+    primeira_acao_texto = bci_clientes.primeira_acao_prioridade_sp(
+        treatable_total=float(executive_kpis["treatable_returned_total"] or 0),
+        returned_total=float(executive_kpis["returned_value"] or 0),
+        critical_count=len(critical_clients),
+        large_risk_count=len(large_risk_pool),
+        small_high_count=len(small_high_pool_full),
+        n_clients=len(ranking_rows),
+        fallback=(recommendations[0] if recommendations else "Manter acompanhamento diário da carteira."),
+    )
+
     classification_filter_options = [
         {"id": "Todos", "label": "Todas"},
         {"id": "PREMIUM_OPERACIONAL", "label": "Cliente premium operacional"},
@@ -3459,6 +3633,12 @@ def _build_bi_clientes_dataset(
         "large_risk_drilldown_json": large_risk_drilldown_json,
         "critical_drilldown_json": critical_drilldown_json,
         "good_clients_drilldown_json": good_clients_drilldown_json,
+        "decision_strip": decision_strip,
+        "insight_cards_ui": insight_cards_ui,
+        "action_first_summary": action_first_summary,
+        "small_high_drilldown_json": small_high_drilldown_json,
+        "client_ranking_tabs_json": client_ranking_tabs_json,
+        "primeira_acao_texto": primeira_acao_texto,
     }
 
 

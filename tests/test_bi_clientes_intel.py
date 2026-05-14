@@ -66,3 +66,86 @@ def test_suggest_treatable_resolutions_dedupes_and_limits():
     assert any("Plano de ação" in h for h in hints)
     assert any("Pagamento" in h for h in hints)
     assert len(hints) <= 6
+
+
+def test_dominio_operacional_por_motivo_souza_pinto():
+    assert bci.dominio_operacional_por_motivo("Pedido / produto errado") == "Comercial"
+    assert bci.dominio_operacional_por_motivo("Cliente fechado") == "Mercado"
+    assert bci.dominio_operacional_por_motivo("Pedido não entregue") == "Logística"
+    assert bci.dominio_operacional_por_motivo("") == "Sem classificação"
+    assert bci.dominio_operacional_por_motivo("Horário entrega") == "Sem classificação"
+    assert bci.dominio_operacional_por_motivo("Horário entrega — atraso operacional") == "Logística"
+
+
+def test_build_decision_strip_intel_thresholds():
+    base = dict(
+        treatable_total=0.0,
+        returned_total=10000.0,
+        critical_count=0,
+        n_clients=50,
+        main_motivo="X",
+        main_responsibility="Comercial",
+        main_responsibility_detail="60% do valor devolvido no recorte · demais áreas no restante",
+    )
+    ok = bci.build_decision_strip_intel(pct_gl=1.8, meta_pct=2.0, **base)
+    assert ok["situation_key"] == "ok"
+    assert "dentro da meta" in ok["situation_hint"].lower()
+
+    warn = bci.build_decision_strip_intel(pct_gl=2.5, meta_pct=2.0, **base)
+    assert warn["situation_key"] == "warn"
+
+    crit = bci.build_decision_strip_intel(pct_gl=3.5, meta_pct=2.0, **base)
+    assert crit["situation_key"] == "crit"
+    assert "crítico" in crit["situation_hint"].lower()
+
+
+def test_primeira_acao_prioridade_sp_order():
+    fb = "Fallback recomendação."
+    out = bci.primeira_acao_prioridade_sp(
+        treatable_total=4000.0,
+        returned_total=10000.0,
+        critical_count=20,
+        large_risk_count=10,
+        small_high_count=30,
+        n_clients=100,
+        fallback=fb,
+    )
+    assert "tratável" in out.lower() or "tratavel" in out.lower()
+
+    out2 = bci.primeira_acao_prioridade_sp(
+        treatable_total=0.0,
+        returned_total=50000.0,
+        critical_count=15,
+        large_risk_count=2,
+        small_high_count=5,
+        n_clients=100,
+        fallback=fb,
+    )
+    assert "Comercial" in out2 and "Logística" in out2
+
+
+def test_dominante_operacional_por_valor_devolvido_weights_by_motivo():
+    rows = [
+        {"top_motivo_name": "Cliente fechado", "returned_value": 100.0},
+        {"top_motivo_name": "Pedido errado", "returned_value": 300.0},
+    ]
+    label, detail = bci.dominante_operacional_por_valor_devolvido(rows)
+    assert label == "Comercial"
+    assert "%" in detail
+
+
+def test_ranking_pct_pool_excludes_low_volume_from_maior_pct_integration():
+    """Clientes com entregue baixo não entram no ranking principal de % (lógica no dataset)."""
+    rows = [
+        {"delivered_value": 500.0, "returned_value": 400.0, "return_pct_planned": 80.0},
+        {"delivered_value": 10000.0, "returned_value": 500.0, "return_pct_planned": 5.0},
+    ]
+    MIN_VOL = float(bci.MIN_VOLUME_ENTREGUE_PAR_RANKING_PCT_BRL)
+    pct_rank_pool = [
+        r
+        for r in rows
+        if float(r.get("delivered_value") or 0) >= MIN_VOL
+        and float(r.get("delivered_value") or 0) + float(r.get("returned_value") or 0) > 0
+    ]
+    assert len(pct_rank_pool) == 1
+    assert pct_rank_pool[0]["return_pct_planned"] == 5.0
