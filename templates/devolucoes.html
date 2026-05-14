@@ -28,16 +28,13 @@
 {% set _stats = period_stats or {} %}
 {% set _links = links or {} %}
 {% set _sort_links = sort_links or {} %}
-{% set _last_import = last_import_summary or {} %}
-{% set _by_source = _stats.get('by_source') or {} %}
 {% set _status_view = _filters.get('status_view') or 'all' %}
 {% set _sort_key = _filters.get('sort') or 'data' %}
 {% set _sort_dir = _filters.get('dir') or 'desc' %}
 {% set _motorista_filter = _filters.get('motorista_id') %}
-{% set _last_has_gap = (_last_import.get('invalid_count', 0) | int) > 0 or (_last_import.get('skipped_count', 0) | int) > 0 %}
 
 <div
-  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3"
+  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-4 pt-2 md:pt-3"
   data-page="devolucoes"
   lang="pt-BR"
   data-reconnect-start="{{ _filters.get('start_date') or '' }}"
@@ -83,7 +80,7 @@
               {{ _stats.get('validated_count_fmt', '0') }} validados
             </span>
             <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-              {{ _stats.get('total_valor_fmt', 'R$ 0,00') }}
+              {{ _stats.get('list_total_valor_fmt', _stats.get('total_valor_fmt', 'R$ 0,00')) }}
             </span>
             <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
               {{ _filters.get('period_label') or 'Período atual' }}
@@ -168,8 +165,8 @@
             <div class="min-w-0">
               <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Período</span>
               <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                <span class="employees-kpi__value tabular-nums">{{ _stats.get('total_count_fmt', '0') }}</span>
-                <span class="employees-kpi__denom text-sm">{{ _stats.get('total_valor_fmt', 'R$ 0,00') }}</span>
+                <span class="employees-kpi__value tabular-nums">{{ _pagination.get('total_count_fmt', _stats.get('total_count_fmt', '0')) }}</span>
+                <span class="employees-kpi__denom text-sm">{{ _stats.get('list_total_valor_fmt', _stats.get('total_valor_fmt', 'R$ 0,00')) }}</span>
               </div>
             </div>
             <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,7 +174,7 @@
             </svg>
           </div>
           <div class="employees-kpi__meta">
-            <span class="employees-text-muted">Visão principal por data do romaneio</span>
+            <span class="employees-text-muted">Mesmo critério da tabela (todas as páginas)</span>
           </div>
         </div>
       </a>
@@ -259,42 +256,6 @@
       </a>
     </div>
   </div>
-
-  <section class="devolucoes-context-strip sys-card sys-card--surface px-4 py-3.5 sm:px-5" aria-label="Complemento ao período e última importação">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-10">
-      <div class="min-w-0 flex-1 space-y-1.5">
-        <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Complemento ao romaneio</p>
-        <p class="text-xs leading-relaxed text-slate-500 dark:text-slate-500">KPIs acima usam data do romaneio; abaixo, data efetiva e origem no mesmo período. O <a href="/bi/devolucoes{% if _filters.get('date_from') and _filters.get('date_to') %}?date_from={{ _filters.get('date_from') }}&amp;date_to={{ _filters.get('date_to') }}{% endif %}" class="font-medium text-sky-700 underline decoration-sky-500/30 underline-offset-2 hover:text-sky-600 dark:text-sky-300 dark:hover:text-sky-200">BI Devoluções</a> usa data operacional (competência) e o % financeiro sobre a base das rotas — totais em R$ e quantidades podem divergir desta tela.</p>
-        <div class="flex flex-wrap items-baseline gap-x-1 gap-y-1 text-[13px] text-slate-700 dark:text-slate-300">
-          <span class="tabular-nums"><span class="text-slate-500 dark:text-slate-500">Efetivo</span> <strong class="font-semibold text-slate-900 dark:text-slate-100">{{ _stats.get('effetiva_count_fmt', '0') }}</strong> <span class="text-slate-400 dark:text-slate-600">·</span> {{ _stats.get('effetiva_valor_fmt', 'R$ 0,00') }}</span>
-          {% for key in ['EXCEL', 'MOBILE', 'WEB', 'MANUAL'] %}
-            {% if key in _by_source %}
-            <span class="text-slate-400 dark:text-slate-600">·</span>
-            <span class="text-slate-600 dark:text-slate-400">{{ key }} {{ _by_source[key].get('count_fmt', '0') }} · {{ _by_source[key].get('valor_fmt', '') }}</span>
-            {% endif %}
-          {% endfor %}
-        </div>
-      </div>
-      <div class="devolucoes-context-strip__import min-w-0 border-t border-slate-200/70 pt-3 text-[13px] dark:border-slate-700/70 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0 lg:max-w-md">
-        {% if _last_import.get('batch_id') %}
-        <p class="text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">Última importação</p>
-        <p class="mt-1 truncate font-medium text-slate-800 dark:text-slate-100" title="{{ _last_import.get('filename') }}">{{ _last_import.get('filename') }}</p>
-        <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-500">
-          {% if _last_import.get('committed_at_fmt') %}{{ _last_import.get('committed_at_fmt') }}{% else %}Data indisponível{% endif %}
-          {% if _last_has_gap %}<span class="text-amber-600/90 dark:text-amber-400/90"> · há divergências</span>{% endif %}
-        </p>
-        <p class="mt-2 font-mono text-xs tabular-nums leading-relaxed text-slate-600 dark:text-slate-400">
-          {{ _last_import.get('total_rows_fmt', '0') }} linhas → {{ _last_import.get('created_count_fmt', '0') }} grav. · {{ _last_import.get('invalid_count_fmt', '0') }} inv. · {{ _last_import.get('skipped_count_fmt', '0') }} ign.
-        </p>
-        {% if _last_import.get('invalid_count', 0) %}
-        <a href="/api/devolucoes/import/{{ _last_import.get('batch_id') }}/errors.xlsx" class="mt-2 inline-block text-xs font-medium text-amber-700 underline decoration-amber-700/30 underline-offset-2 hover:text-amber-600 dark:text-amber-400/90 dark:decoration-amber-400/25">Baixar linhas inválidas</a>
-        {% endif %}
-        {% else %}
-        <p class="text-xs text-slate-500 dark:text-slate-500">Nenhuma importação consolidada ainda.</p>
-        {% endif %}
-      </div>
-    </div>
-  </section>
 
   <form id="devolucoesFilterForm" method="GET" action="/devolucoes" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
     <input type="hidden" name="page" value="1">

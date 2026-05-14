@@ -156,7 +156,7 @@ window.addEventListener("error", function (evt) {
                 <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido (cadastro) ÷ base em R$ nas rotas (valor_financeiro ou valor_devolução em devolução); meta ≤ 2%">Devolução mês passado (% valor · meta 2%)</span>
+                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido ÷ base R$ das rotas no período; meta ≤ 2%.">Devolução mês passado (% valor · meta 2%)</span>
                             <p id="hdr-prev-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_prev %}{% if prev_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}{% else %}gv-stat-muted{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{% if use_fin_prev %}{{ pf_prev|fmt_br_2 }}{% else %}—{% endif %}</span><span id="hdr-prev-pct-suf">{% if use_fin_prev %}%{% endif %}</span></p>
                         </div>
                         <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -169,7 +169,7 @@ window.addEventListener("error", function (evt) {
                 <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido (cadastro) ÷ base em R$ nas rotas (valor_financeiro ou valor_devolução em devolução); meta ≤ 2%">Devolução mês atual (% valor · meta 2%)</span>
+                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido ÷ base R$ das rotas no período; meta ≤ 2%.">Devolução mês atual (% valor · meta 2%)</span>
                             <p id="hdr-curr-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_curr %}{% if curr_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}{% else %}gv-stat-muted{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{% if use_fin_curr %}{{ pf_curr|fmt_br_2 }}{% else %}—{% endif %}</span><span id="hdr-curr-pct-suf">{% if use_fin_curr %}%{% endif %}</span></p>
                         </div>
                         <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

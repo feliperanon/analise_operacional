@@ -22,12 +22,6 @@ html.ga-devolucoes-html {
   border: 1px solid var(--dev-border);
 }
 
-/* Faixa única: complemento ao romaneio + última importação */
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-context-strip {
-  border-color: var(--dev-border);
-  box-shadow: none;
-}
-
 .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucao-row--selected {
   background: rgba(37, 99, 235, 0.06);
 }

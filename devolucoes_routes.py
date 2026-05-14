@@ -946,8 +946,6 @@ def init_devolucoes_router(
             session.rollback()
 
         # Período principal = DATA ROMANEIO (como planilha Excel: coluna DATA ROMANEIO, linhas de dados após cabeçalhos).
-        # Data efetiva (entrega senão romaneio) pode incluir mais linhas no mesmo mês civil e inflava o total vs Excel.
-        eff_date = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
         rom_in_period = and_(
             models.Devolucao.data_romaneio >= start_date,
             models.Devolucao.data_romaneio <= end_date,
@@ -985,68 +983,6 @@ def init_devolucoes_router(
         )
         period_orphan_count = session.exec(orphan_period_q).one()
         period_validated_count = max(0, int(total_count or 0) - int(period_aguardando_count or 0))
-
-        # Referência operacional: mesma janela de datas, mas por data efetiva (pode divergir do Excel).
-        eff_count_q = select(func.count(models.Devolucao.id)).where(eff_date >= start_date).where(eff_date <= end_date)
-        period_effetiva_count = session.exec(eff_count_q).one()
-        sum_valor_eff_q = (
-            select(func.coalesce(func.sum(models.Devolucao.valor), 0.0))
-            .where(eff_date >= start_date)
-            .where(eff_date <= end_date)
-        )
-        period_effetiva_valor = float(session.exec(sum_valor_eff_q).one() or 0.0)
-
-        # Origem no período por DATA ROMANEIO (alinhado à listagem e aos KPIs principais).
-        src_key = func.upper(func.coalesce(func.trim(models.Devolucao.source), literal("")))
-        src_label = case(
-            (src_key == literal(""), literal("EXCEL")),
-            else_=src_key,
-        )
-        group_src_q = (
-            select(
-                src_label.label("origem"),
-                func.count(models.Devolucao.id).label("cnt"),
-                func.coalesce(func.sum(models.Devolucao.valor), 0.0).label("sv"),
-            )
-            .where(rom_in_period)
-            .group_by(src_label)
-        )
-        by_source: Dict[str, Dict[str, Any]] = {}
-        for row in session.exec(group_src_q).all():
-            label = (getattr(row, "origem", None) or "EXCEL").strip() or "EXCEL"
-            sv = float(row.sv or 0.0)
-            by_source[label] = {
-                "count": int(row.cnt),
-                "count_fmt": _fmt_int_br(int(row.cnt)),
-                "valor": sv,
-                "valor_fmt": _fmt_moeda_br(sv),
-            }
-
-        latest_import_batch = session.exec(
-            select(models.DevolucaoImportBatch)
-            .where(models.DevolucaoImportBatch.status == "committed")
-            .order_by(models.DevolucaoImportBatch.committed_at.desc(), models.DevolucaoImportBatch.id.desc())
-        ).first()
-        last_import_summary = None
-        if latest_import_batch:
-            total_rows = int(latest_import_batch.total_rows or 0)
-            invalid_count = int(latest_import_batch.invalid_count or 0)
-            created_count = int(latest_import_batch.valid_count or 0)
-            skipped_count = max(0, total_rows - invalid_count - created_count)
-            last_import_summary = {
-                "batch_id": latest_import_batch.id,
-                "filename": latest_import_batch.filename or "import.xlsx",
-                "total_rows": total_rows,
-                "total_rows_fmt": _fmt_int_br(total_rows),
-                "invalid_count": invalid_count,
-                "invalid_count_fmt": _fmt_int_br(invalid_count),
-                "created_count": created_count,
-                "created_count_fmt": _fmt_int_br(created_count),
-                "skipped_count": skipped_count,
-                "skipped_count_fmt": _fmt_int_br(skipped_count),
-                "committed_at": latest_import_batch.committed_at.isoformat() if latest_import_batch.committed_at else None,
-                "committed_at_fmt": _fmt_data_hora_pt_br(latest_import_batch.committed_at.isoformat()) if latest_import_batch.committed_at else "",
-            }
 
         source_expr = func.upper(func.coalesce(func.trim(models.Devolucao.source), literal("")))
         source_label_expr = case(
@@ -1136,8 +1072,16 @@ def init_devolucoes_router(
             .outerjoin(models.Employee, models.Employee.id == models.Devolucao.motorista_id)
             .outerjoin(models.Route, models.Route.id == models.Devolucao.route_id)
         )
+        sum_joins = (
+            select(func.coalesce(func.sum(models.Devolucao.valor), 0.0))
+            .select_from(models.Devolucao)
+            .outerjoin(models.Client, models.Client.id == models.Devolucao.client_id)
+            .outerjoin(models.Employee, models.Employee.id == models.Devolucao.motorista_id)
+            .outerjoin(models.Route, models.Route.id == models.Devolucao.route_id)
+        )
 
         filtered_total_count = int(session.exec(apply_list_filters(count_joins)).one() or 0)
+        filtered_total_valor = float(session.exec(apply_list_filters(sum_joins)).one() or 0.0)
         total_pages = max(1, (filtered_total_count + per_page_effective - 1) // per_page_effective) if filtered_total_count else 1
         if page > total_pages:
             page = total_pages
@@ -1365,6 +1309,8 @@ def init_devolucoes_router(
                     "total_count_fmt": _fmt_int_br(total_count),
                     "total_valor": period_total_valor,
                     "total_valor_fmt": _fmt_moeda_br(period_total_valor),
+                    "list_total_valor": filtered_total_valor,
+                    "list_total_valor_fmt": _fmt_moeda_br(filtered_total_valor),
                     "aguardando_count": period_aguardando_count,
                     "aguardando_count_fmt": _fmt_int_br(period_aguardando_count),
                     "duplicate_excel_count": period_duplicate_excel_count,
@@ -1373,13 +1319,7 @@ def init_devolucoes_router(
                     "orphan_count_fmt": _fmt_int_br(period_orphan_count),
                     "validated_count": period_validated_count,
                     "validated_count_fmt": _fmt_int_br(period_validated_count),
-                    "effetiva_count": period_effetiva_count,
-                    "effetiva_count_fmt": _fmt_int_br(period_effetiva_count),
-                    "effetiva_valor": period_effetiva_valor,
-                    "effetiva_valor_fmt": _fmt_moeda_br(period_effetiva_valor),
-                    "by_source": by_source,
                 },
-                "last_import_summary": last_import_summary,
                 "links": links,
                 "sort_links": sort_links,
                 "page_size_options": [50, 100, 200],
