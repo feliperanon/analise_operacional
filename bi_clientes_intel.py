@@ -453,59 +453,149 @@ def build_operational_reading_cards(
     main_resp: str,
     main_resp_value: float,
     treatable_value: float,
-) -> list[dict[str, str]]:
-    cards: list[dict[str, str]] = []
+) -> list[dict[str, Any]]:
+    """Cards da seção 'Leitura operacional' com texto resumido + contexto e sugestões para drill-down."""
+    cards: list[dict[str, Any]] = []
     if returned_total > 0:
         cards.append(
             {
+                "card_key": "impacto_financeiro",
                 "title": "Impacto financeiro",
                 "body": f"Os clientes do recorte concentram R$ {_br_money(returned_total)} em devoluções no período.",
+                "context": [
+                    f"Valor devolvido consolidado no recorte: R$ {_br_money(returned_total)}.",
+                    f"Valor entregue no mesmo recorte (rotas): R$ {_br_money(delivered_total)}.",
+                    f"Valor planejado nas paradas (referência): R$ {_br_money(planned_total)}.",
+                    "O número inclui devoluções de rota e registros manuais vinculados ao período e aos filtros atuais.",
+                ],
+                "hints": [
+                    "Abrir o ranking 'Top 10 · valor devolvido' e a tabela de clientes ordenada por R$ devolvido.",
+                    "Cruzar com o card 'Motivo líder' e com o mapa de responsabilidades no painel executivo.",
+                    "Priorizar reunião comercial + operação nos 5 maiores valores antes de ações amplas.",
+                ],
             }
         )
     if n_small_high_impact > 0:
         cards.append(
             {
+                "card_key": "baixo_retorno",
                 "title": "Baixo retorno, alto custo",
                 "body": f"{n_small_high_impact} cliente(s) compram pouco, mas geram tempo ou devolução acima da mediana.",
+                "context": [
+                    f"Contagem de clientes: {n_small_high_impact} em um universo de {n_clients} monitorados no recorte.",
+                    "Critério: valor entregue abaixo da mediana do recorte e (devolução OU tempo médio acima da mediana OU reaberturas).",
+                    "Indica desproporção entre esforço operacional (tempo, retrabalho) e faturamento entregue.",
+                ],
+                "hints": [
+                    "Revisar janela, confirmação de presença e tamanho econômico do pedido nesses pontos.",
+                    "Agrupar entregas ou ajustar frequência onde o custo por visita estiver alto.",
+                    "Avaliar com comercial se o mix ou o dia de visita ainda faz sentido para o perfil da loja.",
+                ],
             }
         )
     if top10_delivered_share_pct > 0:
         cards.append(
             {
+                "card_key": "concentracao",
                 "title": "Concentração",
                 "body": f"Os 10 maiores clientes representam {top10_delivered_share_pct:.1f}% do valor entregue no período.",
+                "context": [
+                    f"Participação dos 10 maiores em relação ao total entregue no recorte: {top10_delivered_share_pct:.1f}%.",
+                    "Concentração elevada aumenta risco de queda de serviço se poucos pontos falharem ao mesmo tempo.",
+                ],
+                "hints": [
+                    "Garantir plano de contingência (frota e pessoal) nos dias de pico desses clientes.",
+                    "Diversificar crescimento: metas por região ou vendedor para não depender só dos top 10.",
+                ],
             }
         )
     if n_above_meta > 0:
         cards.append(
             {
+                "card_key": "meta_2",
                 "title": "Meta 2%",
                 "body": f"{n_above_meta} cliente(s) estão acima da meta de {META_DEVOLUCAO_VALOR_PCT:.0f}% de devolução sobre valor planejado.",
+                "context": [
+                    f"Clientes acima da referência interna de {META_DEVOLUCAO_VALOR_PCT:.0f}% no índice '% dev. valor' (por cliente): {n_above_meta}.",
+                    "O índice por cliente usa como base max(planejado, entregue, devolvido) para evitar distorção sem planejado.",
+                    "Não confundir com o KPI global da tela, que usa a mesma filosofia agregada no período.",
+                ],
+                "hints": [
+                    "Filtrar na tabela principal por '% dev. valor' e atuar primeiro nos maiores valores devolvidos.",
+                    "Repetir análise após corrigir cadastro (preço, grade, janela) nos casos dominados por 'pedido/produto errado'.",
+                    "Usar a classificação automática (crítico / alto risco) para priorizar visita ou call do responsável comercial.",
+                ],
             }
         )
     if main_motivo and main_motivo not in ("-", "—"):
-        cards.append({"title": "Motivo líder", "body": f"O principal motivo de devolução no período foi: {main_motivo}."})
+        mh = _motivo_heuristic_lines(main_motivo)
+        cards.append(
+            {
+                "card_key": "motivo_lider",
+                "title": "Motivo líder",
+                "body": f"O principal motivo de devolução no período foi: {main_motivo}.",
+                "context": [
+                    f"Motivo mais frequente no recorte (ponderado por ocorrências): {main_motivo}.",
+                    "Útil para alinhar treinamento de separação, comercial e mensagem ao motorista.",
+                ],
+                "hints": mh
+                if mh
+                else [
+                    "Detalhar no BI Devoluções por motivo e por cliente para ver concentração.",
+                    "Definir dono da ação (comercial, logística ou cadastro) conforme o subtipo do motivo.",
+                ],
+            }
+        )
     if main_resp and main_resp not in ("-", "—"):
         mv = f"R$ {_br_money(main_resp_value)}"
         cards.append(
             {
+                "card_key": "responsabilidade",
                 "title": "Responsabilidade",
                 "body": f"A responsabilidade com maior impacto financeiro foi {main_resp} ({mv} em devoluções).",
+                "context": [
+                    f"Macro de responsabilidade com maior soma de valor devolvido: {main_resp}.",
+                    f"Valor aproximado associado: {mv} (pode sobrepor motivos no mesmo romaneio).",
+                ],
+                "hints": [
+                    "Levar o número para a reunião da área dona do macro e quebrar por motivo e por cliente.",
+                    "Se for Logística: foco em carga, documento e sequência de rota; se Comercial: pedido, preço e prazo.",
+                    "Registrar ações corretivas com prazo e acompanhar queda no valor devolvido na próxima semana.",
+                ],
             }
         )
     if treatable_value > 0:
         tv = f"R$ {_br_money(treatable_value)}"
         cards.append(
             {
+                "card_key": "oportunidade",
                 "title": "Oportunidade",
                 "body": f"Há oportunidade de reduzir {tv} atuando nos motivos tratáveis (pedido, pagamento, horário, ausência).",
+                "context": [
+                    f"Estimativa de valor devolvido ligado a motivos considerados tratáveis no modelo atual: {tv}.",
+                    "Motivos tratáveis incluem trechos como pedido errado, pagamento, horário, cliente ausente, não entregue, etc.",
+                ],
+                "hints": [
+                    "No KPI 'Impacto evitável', abrir a lista de clientes e sugestões automáticas por motivo.",
+                    "Padronizar checklist D-1 (confirmação de janela e pagamento) nos clientes que mais aparecem.",
+                    "Medir queda desse montante após duas semanas de ação focada nos top casos.",
+                ],
             }
         )
     if not cards:
         cards.append(
             {
+                "card_key": "periodo_neutro",
                 "title": "Período",
                 "body": "Recorte sem alertas extremos; manter monitoramento semanal dos principais clientes.",
+                "context": [
+                    "Nenhum dos gatilhos habituais (volume de devolução, meta 2%, motivo dominante, etc.) disparou com força.",
+                    "Continue acompanhando tendência semanal mesmo sem alerta vermelho.",
+                ],
+                "hints": [
+                    "Manter revisão leve dos top 20 clientes por valor entregue.",
+                    "Revalidar filtros (período curto demais pode esconder problema sazonal).",
+                ],
             }
         )
     return cards[:8]

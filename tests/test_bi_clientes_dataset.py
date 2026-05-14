@@ -290,6 +290,10 @@ def test_build_bi_clientes_dataset_aggregates_time_frequency_and_returns():
     assert any(r.get("client_id") == client_a.id for r in intel)
     assert "treatable_drilldown_json" in dataset
     assert isinstance(json.loads(dataset["treatable_drilldown_json"]), list)
+    assert isinstance(json.loads(dataset["large_risk_drilldown_json"]), list)
+    assert isinstance(json.loads(dataset["critical_drilldown_json"]), list)
+    assert isinstance(json.loads(dataset["good_clients_drilldown_json"]), list)
+    assert isinstance(json.loads(dataset["reading_cards_json"]), list)
 
 
 def test_build_bi_clientes_dataset_ignores_placeholder_midnight_start_for_duration():

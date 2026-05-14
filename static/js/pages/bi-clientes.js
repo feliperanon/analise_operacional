@@ -795,17 +795,263 @@
     document.querySelectorAll("[data-bi-cli-treatable-close]").forEach(function (b) {
       b.addEventListener("click", closeTreatableModal);
     });
+
+    function closeInsightModal() {
+      var m = document.getElementById("bi-cli-insight-modal");
+      if (!m) return;
+      m.classList.add("hidden");
+      m.setAttribute("aria-hidden", "true");
+      var sub = document.getElementById("bi-cli-insight-sub");
+      if (sub) {
+        sub.textContent = "";
+        sub.classList.add("hidden");
+      }
+    }
+
+    function openInsightModal(title, html, subtext) {
+      var m = document.getElementById("bi-cli-insight-modal");
+      var t = document.getElementById("bi-cli-insight-title");
+      var body = document.getElementById("bi-cli-insight-body");
+      var sub = document.getElementById("bi-cli-insight-sub");
+      if (!m || !t || !body) return;
+      t.textContent = title || "Detalhe";
+      body.innerHTML = html || "";
+      if (sub) {
+        if (subtext) {
+          sub.textContent = subtext;
+          sub.classList.remove("hidden");
+        } else {
+          sub.textContent = "";
+          sub.classList.add("hidden");
+        }
+      }
+      m.classList.remove("hidden");
+      m.setAttribute("aria-hidden", "false");
+    }
+
+    function readJsonArray(id) {
+      var v = readJson(id);
+      return Array.isArray(v) ? v : [];
+    }
+
+    function renderOlLines(lines) {
+      if (!lines || !lines.length) return "";
+      return (
+        "<ol class=\"mt-1 list-decimal space-y-1.5 pl-4 text-xs leading-snug text-slate-700 dark:text-slate-300\">" +
+        lines
+          .map(function (x) {
+            return "<li>" + escapeHtml(x) + "</li>";
+          })
+          .join("") +
+        "</ol>"
+      );
+    }
+
+    function openCriticalListModal() {
+      var rows = readJsonArray("bi-cli-critical-json");
+      if (!rows.length) {
+        openInsightModal("Clientes críticos", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum cliente crítico neste recorte.</p>", null);
+        return;
+      }
+      var html = rows
+        .map(function (row) {
+          var cid = row.client_id != null ? String(row.client_id) : "";
+          var dlt =
+            row.has_history && row.delta_return_rate_value != null
+              ? "<p class=\"mt-1 text-xs text-slate-600 dark:text-slate-400\">Histórico: variação do índice financeiro de devolução (p.p.) <strong>" +
+                (row.delta_return_rate_value > 0 ? "+" : "") +
+                escapeHtml(String(row.delta_return_rate_value)) +
+                "</strong></p>"
+              : "";
+          return (
+            "<article class=\"mb-4 rounded-xl border border-red-200/60 bg-red-50/30 p-3 last:mb-0 dark:border-red-900/40 dark:bg-red-950/20\">" +
+            "<div class=\"flex flex-wrap justify-between gap-2\">" +
+            "<div class=\"min-w-0\"><p class=\"font-semibold leading-tight\">" +
+            escapeHtml(row.client_name || "—") +
+            "</p><p class=\"employees-text-muted mt-0.5 text-xs\">" +
+            escapeHtml(row.client_code || "") +
+            (row.vendedor_name ? " · " + escapeHtml(row.vendedor_name) : "") +
+            "</p></div>" +
+            "<div class=\"text-right text-xs\"><span class=\"font-semibold text-red-700 dark:text-red-300\">Risco " +
+            escapeHtml(String(row.risk_score != null ? row.risk_score : "—")) +
+            "</span><br><span class=\"employees-text-muted\">" +
+            escapeHtml(row.risk_label || "") +
+            "</span></div></div>" +
+            "<p class=\"mt-2 text-xs text-slate-600 dark:text-slate-400\">" +
+            escapeHtml(row.classification_title || "") +
+            " · % dev. valor " +
+            Number(row.return_pct_planned || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
+            "% · R$ devolvido " +
+            fmtMoney(row.returned_value) +
+            "</p>" +
+            dlt +
+            "<p class=\"mt-2 text-xs font-semibold text-slate-800 dark:text-slate-100\">Contexto</p>" +
+            renderOlLines(row.context || []) +
+            "<p class=\"mt-2 text-xs font-semibold text-slate-800 dark:text-slate-100\">Sugestões</p>" +
+            renderOlLines(row.hints || []) +
+            (cid
+              ? "<div class=\"mt-3\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
+                escapeHtml(cid) +
+                "\">Abrir ficha do cliente</button></div>"
+              : "") +
+            "</article>"
+          );
+        })
+        .join("");
+      openInsightModal(
+        "Clientes críticos (" + rows.length + ")",
+        html,
+        "Inclui classificação crítica ou alto risco, score de risco operacional ≥ 70 ou % devolução (valor) ≥ 3%. Sugestões automáticas por regras."
+      );
+    }
+
+    function openGoodListModal() {
+      var rows = readJsonArray("bi-cli-good-json");
+      if (!rows.length) {
+        openInsightModal("Clientes bons", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum cliente neste perfil no recorte.</p>", null);
+        return;
+      }
+      var html = rows
+        .map(function (row) {
+          var cid = row.client_id != null ? String(row.client_id) : "";
+          return (
+            "<article class=\"mb-3 flex flex-wrap items-start justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50/25 px-3 py-2 dark:border-emerald-900/35 dark:bg-emerald-950/15\">" +
+            "<div class=\"min-w-0 flex-1\">" +
+            "<p class=\"font-medium leading-tight\">" +
+            escapeHtml(row.client_name || "—") +
+            "</p>" +
+            "<p class=\"employees-text-muted mt-0.5 text-xs\">" +
+            escapeHtml(row.summary || "") +
+            "</p></div>" +
+            (cid
+              ? "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 shrink-0 px-2 text-xs\" data-bi-cli-open=\"" +
+                escapeHtml(cid) +
+                "\">Ficha</button>"
+              : "") +
+            "</article>"
+          );
+        })
+        .join("");
+      openInsightModal(
+        "Clientes bons (até " + rows.length + " nesta lista)",
+        html,
+        "Premium ou estável com score ≥ 72. Lista ordenada por valor entregue (limite de exibição no servidor)."
+      );
+    }
+
+    document.querySelectorAll("[data-bi-cli-insight-close]").forEach(function (b) {
+      b.addEventListener("click", closeInsightModal);
+    });
+
     document.addEventListener("keydown", function (ev) {
       if (ev.key !== "Escape") return;
+      var ins = document.getElementById("bi-cli-insight-modal");
+      if (ins && !ins.classList.contains("hidden")) {
+        closeInsightModal();
+        return;
+      }
       var modal = document.getElementById("bi-cli-treatable-modal");
       if (modal && !modal.classList.contains("hidden")) closeTreatableModal();
     });
 
     document.addEventListener("click", function (e) {
+      var rc = e.target.closest("[data-bi-cli-reading]");
+      if (rc) {
+        e.preventDefault();
+        var ck = rc.getAttribute("data-bi-cli-reading");
+        var rows = readJsonArray("bi-cli-reading-json");
+        var card = null;
+        for (var j = 0; j < rows.length; j++) {
+          if (String(rows[j].card_key || "") === String(ck)) {
+            card = rows[j];
+            break;
+          }
+        }
+        if (card) {
+          var bodyRead =
+            "<p class=\"employees-text-body mb-3 text-sm leading-snug text-slate-700 dark:text-slate-300\">" +
+            escapeHtml(card.body || "") +
+            "</p>" +
+            "<p class=\"text-xs font-semibold text-slate-800 dark:text-slate-100\">O que isso significa</p>" +
+            renderOlLines(card.context || []) +
+            "<p class=\"mt-4 text-xs font-semibold text-slate-800 dark:text-slate-100\">Sugestões de ação</p>" +
+            renderOlLines(card.hints || []);
+          openInsightModal(
+            card.title || "Leitura operacional",
+            bodyRead,
+            "Texto gerado por regras a partir do recorte e filtros atuais; complemente com a tabela de clientes e os KPIs acima."
+          );
+        }
+        return;
+      }
+      var lr = e.target.closest("[data-bi-cli-large-risk]");
+      if (lr) {
+        e.preventDefault();
+        var idAttr = lr.getAttribute("data-bi-cli-large-risk");
+        var pool = readJsonArray("bi-cli-large-risk-json");
+        var row = null;
+        for (var i = 0; i < pool.length; i++) {
+          if (String(pool[i].client_id) === String(idAttr)) {
+            row = pool[i];
+            break;
+          }
+        }
+        if (!row) return;
+        var cid = row.client_id != null ? String(row.client_id) : "";
+        var html =
+          "<p class=\"employees-text-muted text-xs\">% dev. valor: <strong class=\"text-amber-700 dark:text-amber-300\">" +
+          Number(row.return_pct_planned || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
+          "%</strong> · R$ devolvido " +
+          fmtMoney(row.returned_value) +
+          " · R$ entregue " +
+          fmtMoney(row.delivered_value) +
+          "</p>" +
+          "<p class=\"mt-3 text-xs font-semibold text-slate-800 dark:text-slate-100\">Por que está em risco</p>" +
+          renderOlLines(row.context || []) +
+          "<p class=\"mt-4 text-xs font-semibold text-slate-800 dark:text-slate-100\">Sugestões</p>" +
+          renderOlLines(row.hints || []) +
+          (cid
+            ? "<div class=\"mt-4\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
+              escapeHtml(cid) +
+              "\">Abrir ficha do cliente</button></div>"
+            : "");
+        openInsightModal(
+          row.client_name || "Cliente",
+          html,
+          "Grandes com risco: quartil superior de compra (75º percentil) com devolução acima da meta interna de 2% sobre a base comercial."
+        );
+        return;
+      }
+    });
+
+    var kpiCrit = document.getElementById("bi-cli-kpi-critical-open");
+    if (kpiCrit) {
+      kpiCrit.addEventListener("click", openCriticalListModal);
+      kpiCrit.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          openCriticalListModal();
+        }
+      });
+    }
+    var kpiGood = document.getElementById("bi-cli-kpi-good-open");
+    if (kpiGood) {
+      kpiGood.addEventListener("click", openGoodListModal);
+      kpiGood.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          openGoodListModal();
+        }
+      });
+    }
+
+    document.addEventListener("click", function (e) {
       var el = e.target.closest("[data-bi-cli-open]");
       if (!el) return;
-      var modal = document.getElementById("bi-cli-treatable-modal");
-      if (modal && !modal.classList.contains("hidden") && modal.contains(el)) closeTreatableModal();
+      var treat = document.getElementById("bi-cli-treatable-modal");
+      if (treat && !treat.classList.contains("hidden") && treat.contains(el)) closeTreatableModal();
+      var ins = document.getElementById("bi-cli-insight-modal");
+      if (ins && !ins.classList.contains("hidden") && ins.contains(el)) closeInsightModal();
       var cid = el.getAttribute("data-bi-cli-open");
       openDrawer(cid);
     });

@@ -2675,6 +2675,7 @@ def _build_bi_clientes_dataset(
         main_resp_value=main_resp_period_val,
         treatable_value=treatable_total,
     )
+    reading_cards_json = _json_for_inline_script(reading_cards)
 
     top10_returned = sorted(ranking_rows, key=lambda r: float(r.get("returned_value") or 0), reverse=True)[:10]
     small_high_block = sorted(
@@ -3421,6 +3422,7 @@ def _build_bi_clientes_dataset(
         "managerial_actions": managerial_actions,
         "heatmap_city_kpis": heatmap_city_kpis,
         "reading_cards": reading_cards,
+        "reading_cards_json": reading_cards_json,
         "analytic_blocks": analytic_blocks,
         "sellers_filter": sellers_filter,
         "motivos_filter_options": motivos_filter_options,
@@ -5270,17 +5272,40 @@ def _build_bi_devolucoes_dataset(
     # Alinhar ao consolidado / KPI mensal (main._kpi_devolucao_mes_romaneio_calendario): não somar duplicatas.
     devs_raw = [d for d in devs_raw if not getattr(d, "duplicate_of_id", None)]
 
-    def _dev_op_date_raw(d: models.Devolucao) -> str:
-        """Dia civil da operação no gráfico e agregações diárias: romaneio (logística); senão entrega."""
-        rom = str(getattr(d, "data_romaneio", None) or "").strip()[:10]
+    def _dev_chart_day_iso(d: models.Devolucao) -> str:
+        """
+        Dia civil no eixo do gráfico e agregações diárias.
+
+        Prioriza datas que caiam em [period_start, period_end] (eixo do BI), para não perder
+        ocorrências com romaneio antes do 1º dia civil do mês comercial ou fora do recorte.
+        Se romaneio e entrega estão na janela e diferem, usa romaneio (logística).
+        """
+        raw_rom = str(getattr(d, "data_romaneio", None) or "").strip()
+        raw_ent = str(getattr(d, "data_entrega", None) or "").strip()
+        rom = raw_rom[:10] if len(raw_rom) >= 10 else ""
+        ent = raw_ent[:10] if len(raw_ent) >= 10 else ""
+        comp = devolucao_competencia_iso(d) or ""
+
+        def _inwin(p: str) -> bool:
+            return len(p) == 10 and period_start <= p <= period_end
+
+        if _inwin(rom) and _inwin(ent) and rom != ent:
+            return rom
+        if _inwin(rom):
+            return rom
+        if _inwin(ent):
+            return ent
+        if len(comp) >= 10 and _inwin(comp[:10]):
+            return comp[:10]
         if len(rom) == 10:
             return rom
-        ent = str(getattr(d, "data_entrega", None) or "").strip()[:10]
-        return ent if len(ent) == 10 else ""
+        if len(ent) == 10:
+            return ent
+        return comp[:10] if len(comp) >= 10 else ""
 
     devs_c = [d for d in devs_raw if devolucao_competencia_in_period(d, period_start, period_end)]
     devs_c.sort(
-        key=lambda x: (_dev_op_date_raw(x), str(getattr(x, "data_romaneio", None) or "")),
+        key=lambda x: (_dev_chart_day_iso(x), str(getattr(x, "data_romaneio", None) or "")),
         reverse=True,
     )
 
@@ -5790,7 +5815,7 @@ def _build_bi_devolucoes_dataset(
         vendedor_nome = vendedor.name if vendedor else "—"
 
         val = float(d.valor or 0)
-        op_raw = _dev_op_date_raw(d)
+        op_raw = _dev_chart_day_iso(d)
         dt_str = devolucao_competencia_iso(d) or ""
         dt_operacional = op_raw if len(op_raw) >= 10 else (dt_str if len(dt_str) >= 10 else "")
 

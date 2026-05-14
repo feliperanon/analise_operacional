@@ -231,7 +231,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Índice devolução (valor)</span>
           <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.return_pct_planned_global|fmt_br_1 }}%</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Devolvido ÷ valor planejado nas paradas (BI rotas). Não é o KPI meta 2% do cadastro (aquele é devolvido ÷ base R$ das rotas, BI Devoluções / TV).</p>
+          <p class="employees-kpi__meta employees-text-muted text-xs">Devolvido sobre base comercial no recorte (planejado, entregue ou devolvido — o que for maior).</p>
         </div>
       </div>
       <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(244, 114, 182, 0.72);">
@@ -241,25 +241,34 @@
           <p class="employees-kpi__meta employees-text-muted text-xs">Qtd devoluções ÷ paradas</p>
         </div>
       </div>
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(96, 165, 250, 0.72);">
-        <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <span class="sys-kpi-label text-sky-600 dark:text-sky-300">Tempo médio / cliente</span>
-          <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.avg_duration_clients_m|fmt_br_duracao }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Média das médias por cliente (paradas com tempo)</p>
-        </div>
-      </div>
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(239, 68, 68, 0.72);">
+      <div
+        class="sys-kpi-card employees-kpi group cursor-pointer transition hover:ring-2 hover:ring-red-400/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
+        style="--employees-kpi-accent: rgba(239, 68, 68, 0.72);"
+        id="bi-cli-kpi-critical-open"
+        role="button"
+        tabindex="0"
+        title="Ver lista de clientes críticos"
+        aria-label="Clientes críticos: abrir lista"
+      >
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-red-600 dark:text-red-300">Clientes críticos</span>
           <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.clients_critical_intel|fmt_br_int }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Classificação crítica / alto risco / % elevado</p>
+          <p class="employees-kpi__meta employees-text-muted text-xs">Classificação crítica / alto risco / % elevado — clique para listar e ver sugestões</p>
         </div>
       </div>
-      <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);">
+      <div
+        class="sys-kpi-card employees-kpi group cursor-pointer transition hover:ring-2 hover:ring-emerald-400/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+        style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);"
+        id="bi-cli-kpi-good-open"
+        role="button"
+        tabindex="0"
+        title="Ver clientes com bom desempenho operacional"
+        aria-label="Clientes bons: abrir lista"
+      >
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Clientes bons</span>
           <div class="mt-1"><span class="employees-kpi__value tabular-nums">{{ executive_kpis.clients_good_intel|fmt_br_int }}</span></div>
-          <p class="employees-kpi__meta employees-text-muted text-xs">Premium ou estável com score ≥ 72</p>
+          <p class="employees-kpi__meta employees-text-muted text-xs">Premium ou estável com score ≥ 72 — clique para visualizar</p>
         </div>
       </div>
       <div
@@ -282,12 +291,20 @@
 
   <section class="sys-card sys-card--surface sys-card--comfort">
     <h3 class="sys-section-heading mb-3 text-base">Leitura operacional do período</h3>
+    <p class="employees-text-muted mb-3 text-xs">Clique em um card para ver o contexto e sugestões de ação (regras automáticas).</p>
     <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {% for card in reading_cards %}
-      <div class="bi-cli-insight-card">
-        <p class="employees-text-section-label">{{ card.title }}</p>
-        <p class="employees-text-body mt-1 text-sm leading-snug">{{ card.body }}</p>
-      </div>
+      <button
+        type="button"
+        class="group w-full cursor-pointer rounded-md border-0 bg-transparent p-0 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+        data-bi-cli-reading="{{ card.card_key }}"
+        aria-label="Detalhar: {{ card.title }}"
+      >
+        <div class="bi-cli-insight-card ring-transparent transition group-hover:ring-2 group-hover:ring-slate-300/75 dark:group-hover:ring-slate-600/70">
+          <p class="employees-text-section-label">{{ card.title }}</p>
+          <p class="employees-text-body mt-1 text-sm leading-snug">{{ card.body }}</p>
+        </div>
+      </button>
       {% endfor %}
     </div>
   </section>
@@ -313,8 +330,13 @@
     </div>
     <div class="sys-card sys-card--surface sys-card--comfort">
       <h3 class="sys-section-heading mb-2 text-sm">Grandes com risco (&gt;2% s/ planej.)</h3>
+      <p class="employees-text-muted mb-2 text-xs">Clique no cliente para ver o contexto do risco e sugestões.</p>
       <div class="bi-cli-mini-rank">{% for it in analytic_blocks.grandes_com_risco %}
-        <div class="bi-cli-mini-rank__row"><span class="min-w-0 truncate">{{ it.name }}</span><span class="tabular-nums text-amber-600 dark:text-amber-300">{{ it.pct|fmt_br_1 }}%</span></div>
+        <button
+          type="button"
+          class="bi-cli-mini-rank__row bi-cli-mini-rank__row--action w-full cursor-pointer bg-transparent text-left text-inherit transition hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
+          data-bi-cli-large-risk="{{ it.id }}"
+        ><span class="min-w-0 truncate">{{ it.name }}</span><span class="tabular-nums text-amber-600 dark:text-amber-300">{{ it.pct|fmt_br_1 }}%</span></button>
         {% else %}<p class="employees-text-muted text-sm">Sem casos.</p>{% endfor %}</div>
     </div>
   </section>
@@ -418,6 +440,26 @@
   </div>
 </div>
 
+<!-- Modal genérico: risco grande / críticos / bons -->
+<div id="bi-cli-insight-modal" class="emp-modal-shell fixed inset-0 z-[62] hidden" aria-hidden="true">
+  <div class="emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-insight-close="1"></div>
+  <div class="pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
+    <div
+      class="pointer-events-auto flex max-h-[min(90vh,780px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bi-cli-insight-title"
+    >
+      <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
+        <h3 id="bi-cli-insight-title" class="sys-section-heading pr-2 text-base leading-snug">Detalhe</h3>
+        <button type="button" class="sys-btn sys-btn--secondary h-9 shrink-0 px-2" data-bi-cli-insight-close="1" aria-label="Fechar">✕</button>
+      </div>
+      <p id="bi-cli-insight-sub" class="hidden border-b border-slate-100 px-4 py-2 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400"></p>
+      <div id="bi-cli-insight-body" class="min-h-0 flex-1 overflow-y-auto px-4 py-3 text-sm"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Drawer detalhe (padrão modal employees: backdrop + painel) -->
 <div id="bi-cli-drawer" class="emp-modal-shell fixed inset-0 z-50 hidden" aria-hidden="true">
   <div class="emp-modal-backdrop absolute inset-0" data-bi-cli-close="1"></div>
@@ -448,8 +490,12 @@
 <script type="application/json" id="bi-cli-routes-json">{{ routes_intel_json|safe }}</script>
 <script type="application/json" id="bi-cli-chart-json">{{ chart_payload_json|safe }}</script>
 <script type="application/json" id="bi-cli-treatable-json">{{ treatable_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-large-risk-json">{{ large_risk_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-critical-json">{{ critical_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-good-json">{{ good_clients_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-reading-json">{{ reading_cards_json|safe }}</script>
 <script src="/static/vendor/chart.umd.min.js"></script>
-<script src="/static/js/pages/bi-clientes.js?v=2"></script>
+<script src="/static/js/pages/bi-clientes.js?v=4"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
