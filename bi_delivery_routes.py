@@ -150,6 +150,23 @@ def _fmt_br_data(s):
     return str(s)
 
 
+def _fmt_br_date(val):
+    """Data em dd/mm/yyyy (str YYYY-MM-DD, date ou datetime) — alinhado ao filtro global em main.py."""
+    if val is None:
+        return "—"
+    try:
+        if isinstance(val, datetime):
+            return val.strftime("%d/%m/%Y")
+        if isinstance(val, str) and len(val.strip()) >= 10:
+            d = datetime.strptime(val.strip()[:10], "%Y-%m-%d").date()
+            return d.strftime("%d/%m/%Y")
+        if hasattr(val, "year") and hasattr(val, "month") and hasattr(val, "day") and not isinstance(val, datetime):
+            return val.strftime("%d/%m/%Y")
+    except Exception:
+        pass
+    return str(val) if val else "—"
+
+
 def _fmt_nb_br(nb: Any) -> str:
     """NB numérico com milhar (BR); texto alfanumérico sem alterar."""
     if nb is None:
@@ -225,6 +242,7 @@ templates.env.filters["fmt_br_1"] = _fmt_br_1
 templates.env.filters["fmt_br_2"] = _fmt_br_2
 templates.env.filters["fmt_br_int"] = _fmt_br_int
 templates.env.filters["fmt_br_data"] = _fmt_br_data
+templates.env.filters["fmt_br_date"] = _fmt_br_date
 templates.env.filters["fmt_br_moeda"] = _fmt_br_moeda
 templates.env.filters["fmt_br_duracao"] = _fmt_br_duracao
 
