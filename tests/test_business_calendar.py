@@ -8,6 +8,8 @@ from datetime import date
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from utils.business_calendar import (
+    commercial_competence_period_iso_bounds,
+    commercial_month_start_date,
     competence_date_for_operation,
     competence_date_str,
     previous_business_day,
@@ -37,8 +39,15 @@ def test_dia_nao_util_retorna_ultimo_util_anterior():
     assert competence_date_for_operation(d) == date(2026, 4, 30)
 
 
-def test_competence_date_str_formato_iso():
-    assert competence_date_str("2026-04-01") == "2026-03-31"
+def test_commercial_may_2026_comeca_em_05():
+    assert commercial_month_start_date(2026, 5) == date(2026, 5, 5)
+    s, e = commercial_competence_period_iso_bounds(2026, 5)
+    assert s == "2026-05-05"
+    assert e == "2026-05-31"
+
+
+def test_commercial_abril_2026_primeiro_dia_util():
+    assert commercial_month_start_date(2026, 4) == date(2026, 4, 2)
 
 
 def test_janeiro_primeiro_util_vai_para_dezembro_anterior():

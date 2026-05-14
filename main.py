@@ -3392,33 +3392,41 @@ def _last_calendar_day_date(year: int, month: int) -> date:
 
 def _receita_mensal_delivery_sistema(session: Session, year: int, month: int) -> Optional[float]:
     """
-    Receita (R$) para meta 2%: soma de valor_financeiro das rotas type=delivery com Route.date
-    entre o 1º dia útil do mês (calendário comercial) e o fim do período —
-    último dia do mês se o mês já passou; se for o mês corrente, até hoje (inclusive).
+    Receita (R$) para meta 2%: soma de valor_financeiro das rotas type=delivery cuja **competência**
+    da Route.date cai no mês comercial (mesmos limites de `commercial_competence_period_iso_bounds`).
+    Mês corrente: até hoje (inclusive) no teto de competência.
     """
-    from utils.business_calendar import first_business_day_of_month
+    from utils.business_calendar import commercial_competence_period_iso_bounds, competence_date_str
 
     today = date.today()
     if year > today.year or (year == today.year and month > today.month):
         return None
-    end_d = _last_calendar_day_date(year, month)
-    if year == today.year and month == today.month:
-        end_d = min(end_d, today)
-    start_d = first_business_day_of_month(year, month)
-    if start_d > end_d:
+    ms, me_full = commercial_competence_period_iso_bounds(year, month)
+    try:
+        d0 = datetime.strptime(ms, "%Y-%m-%d").date()
+        d1 = datetime.strptime(me_full, "%Y-%m-%d").date()
+    except Exception:
         return None
-    ms = start_d.strftime("%Y-%m-%d")
-    me = end_d.strftime("%Y-%m-%d")
+    me_cap = min(d1, today) if year == today.year and month == today.month else d1
+    me = me_cap.strftime("%Y-%m-%d")
+    if d0 > me_cap:
+        return None
+    window_start = (d0 - timedelta(days=10)).strftime("%Y-%m-%d")
+    window_end = (me_cap + timedelta(days=10)).strftime("%Y-%m-%d")
     try:
         routes = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
-            .where(models.Route.date >= ms)
-            .where(models.Route.date <= me)
+            .where(models.Route.date >= window_start)
+            .where(models.Route.date <= window_end)
         ).all()
     except Exception:
         return None
-    total = sum(float(getattr(r, "valor_financeiro", None) or 0.0) for r in (routes or []))
+    total = 0.0
+    for r in routes or []:
+        comp = competence_date_str(getattr(r, "date", None)) or str(getattr(r, "date", "") or "")[:10]
+        if len(comp) >= 10 and ms <= comp <= me:
+            total += float(getattr(r, "valor_financeiro", None) or 0.0)
     return round(float(total), 2)
 
 
@@ -3442,30 +3450,43 @@ def _kpi_devolucao_mes_romaneio_calendario(
 
 def _devolucao_mensal_system_month_values(session: Session, year: int, month: int) -> Dict[str, Optional[float]]:
     """
-    KPIs só do sistema para o índice mensal:
-    - %: critério canônico (devoluções ÷ rotas concluídas) sobre rotas type=delivery com Route.date
-      no mês civil (1º ao último dia).
-    - Valor R$: soma Devolucao.valor com data_romaneio nesse mesmo intervalo civil.
-    - Receita R$: soma Route.valor_financeiro das entregas com Route.date do 1º dia útil do mês
-      até o último dia do mês (mês fechado) ou até hoje (mês corrente).
+    KPIs só do sistema para o índice mensal (mês comercial por competência):
+    - %: critério canônico (devoluções ÷ rotas concluídas) sobre rotas type=delivery cuja
+      competência da Route.date cai no mês comercial (primeiro dia útil da virada … último dia civil).
+    - Valor R$: soma Devolucao.valor com competência operacional no mesmo intervalo (sem duplicata).
+    - Receita R$: soma valor_financeiro das rotas cuja competência (Route.date) cai no mês comercial.
     """
-    ms, me = _month_date_range_str(year, month)
+    from utils.business_calendar import commercial_competence_period_iso_bounds, competence_date_str
+
+    ms, me = commercial_competence_period_iso_bounds(year, month)
     try:
-        routes_month = session.exec(
+        d0 = datetime.strptime(ms, "%Y-%m-%d").date()
+        d1 = datetime.strptime(me, "%Y-%m-%d").date()
+    except Exception:
+        return {"pct": None, "valor": None, "receita": None}
+    window_start = (d0 - timedelta(days=10)).strftime("%Y-%m-%d")
+    window_end = (d1 + timedelta(days=10)).strftime("%Y-%m-%d")
+    try:
+        routes_raw = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")
-            .where(models.Route.date >= ms)
-            .where(models.Route.date <= me)
+            .where(models.Route.date >= window_start)
+            .where(models.Route.date <= window_end)
         ).all()
     except Exception:
-        routes_month = []
+        routes_raw = []
+    routes_month = []
+    for r in routes_raw:
+        comp = competence_date_str(getattr(r, "date", None)) or str(getattr(r, "date", "") or "")[:10]
+        if ms <= comp <= me:
+            routes_month.append(r)
     try:
         p_raw = pct_devolucao_sobre_rotas_concluidas(routes_month)
         p = round(float(p_raw), 2)
     except Exception:
         p = None
     try:
-        valor_v, _cnt = _kpi_devolucao_mes_romaneio_calendario(session, ms, me)
+        valor_v, _cnt = _kpi_devolucao_mes_registros(session, ms, me, None)
         v = round(float(valor_v), 2)
     except Exception:
         v = None
@@ -3582,19 +3603,22 @@ def _build_informativo_extras(
     motorista_ids_scope: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     """Dados do painel Informativo: aniversários, férias, ranking devolução, avisos, comparativo de meses."""
-    from utils.business_calendar import competence_date_str
+    from utils.business_calendar import commercial_competence_period_iso_bounds, competence_date_str
 
-    month_start = selected_date.replace(day=1)
-    if selected_date.month == 12:
-        next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1)
+    cy, cm = selected_date.year, selected_date.month
+    month_start_str, month_end_str = commercial_competence_period_iso_bounds(cy, cm)
+    if cm == 1:
+        py, pm = cy - 1, 12
     else:
-        next_month_start = selected_date.replace(month=selected_date.month + 1, day=1)
-    month_start_str = month_start.strftime("%Y-%m-%d")
-    month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
-    prev_month_end = month_start - timedelta(days=1)
-    prev_month_start = prev_month_end.replace(day=1)
-    prev_month_start_str = prev_month_start.strftime("%Y-%m-%d")
-    prev_month_end_str = prev_month_end.strftime("%Y-%m-%d")
+        py, pm = cy, cm - 1
+    prev_month_start_str, prev_month_end_str = commercial_competence_period_iso_bounds(py, pm)
+
+    curr_d0 = datetime.strptime(month_start_str, "%Y-%m-%d").date()
+    curr_d1 = datetime.strptime(month_end_str, "%Y-%m-%d").date()
+    prev_d0 = datetime.strptime(prev_month_start_str, "%Y-%m-%d").date()
+    prev_d1 = datetime.strptime(prev_month_end_str, "%Y-%m-%d").date()
+    query_lo = (min(prev_d0, curr_d0) - timedelta(days=10)).strftime("%Y-%m-%d")
+    query_hi = (max(prev_d1, curr_d1) + timedelta(days=10)).strftime("%Y-%m-%d")
 
     emp_active = [e for e in employees_all if (getattr(e, "status", None) or "").lower() != "fired"]
     emp_by_id = {e.id: e for e in emp_active if e.id is not None}
@@ -3643,12 +3667,11 @@ def _build_informativo_extras(
 
     devs_curr_q = (
         select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= (prev_month_start - timedelta(days=10)).strftime("%Y-%m-%d"))
-        .where(models.Devolucao.data_romaneio <= (next_month_start + timedelta(days=10)).strftime("%Y-%m-%d"))
+        .where(models.Devolucao.data_romaneio >= query_lo)
+        .where(models.Devolucao.data_romaneio <= query_hi)
     )
     if motorista_ids_scope:
         devs_curr_q = devs_curr_q.where(models.Devolucao.motorista_id.in_(motorista_ids_scope))
-    from utils.business_calendar import competence_date_str
     devs_curr_raw = session.exec(devs_curr_q).all()
     devs_curr = []
     for d in devs_curr_raw:
@@ -3782,8 +3805,8 @@ def _build_informativo_extras(
 
     devs_prev_q = (
         select(models.Devolucao)
-        .where(models.Devolucao.data_romaneio >= (prev_month_start - timedelta(days=10)).strftime("%Y-%m-%d"))
-        .where(models.Devolucao.data_romaneio <= (prev_month_end + timedelta(days=10)).strftime("%Y-%m-%d"))
+        .where(models.Devolucao.data_romaneio >= query_lo)
+        .where(models.Devolucao.data_romaneio <= query_hi)
     )
     if motorista_ids_scope:
         devs_prev_q = devs_prev_q.where(models.Devolucao.motorista_id.in_(motorista_ids_scope))
@@ -3797,8 +3820,8 @@ def _build_informativo_extras(
     curr_valor = sum(float(d.valor or 0) for d in devs_curr)
 
     # Janela estendida para classificar por competência operacional na virada de mês.
-    window_start = (prev_month_start - timedelta(days=10)).strftime("%Y-%m-%d")
-    window_end = (next_month_start + timedelta(days=10)).strftime("%Y-%m-%d")
+    window_start = query_lo
+    window_end = query_hi
     routes_window_q = (
         select(models.Route)
         .where(models.Route.type == "delivery")
@@ -4359,16 +4382,14 @@ async def dashboard_entry(
         "items_by_driver": items_by_driver,
         "items_list": devolucao_items,
     }
-    month_start = selected_date.replace(day=1)
-    if selected_date.month == 12:
-        next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1)
-    else:
-        next_month_start = selected_date.replace(month=selected_date.month + 1, day=1)
-    month_start_str = month_start.strftime("%Y-%m-%d")
-    month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
-    from utils.business_calendar import competence_date_str
-    window_start = (month_start - timedelta(days=10)).strftime("%Y-%m-%d")
-    window_end = (next_month_start + timedelta(days=10)).strftime("%Y-%m-%d")
+    from utils.business_calendar import commercial_competence_period_iso_bounds, competence_date_str
+
+    cy, cm = selected_date.year, selected_date.month
+    month_start_str, month_end_str = commercial_competence_period_iso_bounds(cy, cm)
+    d0 = datetime.strptime(month_start_str, "%Y-%m-%d").date()
+    d1 = datetime.strptime(month_end_str, "%Y-%m-%d").date()
+    window_start = (d0 - timedelta(days=10)).strftime("%Y-%m-%d")
+    window_end = (d1 + timedelta(days=10)).strftime("%Y-%m-%d")
     routes_month_window = session.exec(
         select(models.Route)
         .where(models.Route.type == "delivery")
@@ -4771,13 +4792,14 @@ async def api_dashboard_tv_data(
             "items_list": devolucao_items,
         }
 
-        month_start = selected_date.replace(day=1)
-        next_month_start = selected_date.replace(year=selected_date.year + 1, month=1, day=1) if selected_date.month == 12 else selected_date.replace(month=selected_date.month + 1, day=1)
-        month_start_str = month_start.strftime("%Y-%m-%d")
-        month_end_str = (next_month_start - timedelta(days=1)).strftime("%Y-%m-%d")
-        from utils.business_calendar import competence_date_str
-        window_start = (month_start - timedelta(days=10)).strftime("%Y-%m-%d")
-        window_end = (next_month_start + timedelta(days=10)).strftime("%Y-%m-%d")
+        from utils.business_calendar import commercial_competence_period_iso_bounds, competence_date_str
+
+        cy, cm = selected_date.year, selected_date.month
+        month_start_str, month_end_str = commercial_competence_period_iso_bounds(cy, cm)
+        d0 = datetime.strptime(month_start_str, "%Y-%m-%d").date()
+        d1 = datetime.strptime(month_end_str, "%Y-%m-%d").date()
+        window_start = (d0 - timedelta(days=10)).strftime("%Y-%m-%d")
+        window_end = (d1 + timedelta(days=10)).strftime("%Y-%m-%d")
         routes_month_window = session.exec(
             select(models.Route)
             .where(models.Route.type == "delivery")

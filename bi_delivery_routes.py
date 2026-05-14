@@ -39,7 +39,7 @@ from devolucao_perda_labels import (
     macro_loss_label as _macro_loss_label,
 )
 from devolucao_evitada_constants import EVITADA_TIPO_LABELS, EVITADA_TIPOS_ORDENADOS, label_tipo_evitada
-from utils.business_calendar import competence_date_str
+from utils.business_calendar import commercial_competence_period_iso_bounds, competence_date_str
 
 import bi_clientes_intel as bci_clientes
 
@@ -5066,6 +5066,22 @@ def _build_bi_devolucoes_dataset(
     date_f = _d(date_to) or today
     if date_i > date_f:
         date_i, date_f = date_f, date_i
+
+    def _is_full_calendar_month(di: date, df: date) -> bool:
+        if di.day != 1 or di > df:
+            return False
+        last = (
+            (date(di.year + 1, 1, 1) - timedelta(days=1))
+            if di.month == 12
+            else (date(di.year, di.month + 1, 1) - timedelta(days=1))
+        )
+        return df == last
+
+    # Mês civil completo no filtro → alinhar ao mês comercial (ex.: maio/2026 começa em 05/05).
+    if _is_full_calendar_month(date_i, date_f):
+        ps, pe = commercial_competence_period_iso_bounds(date_i.year, date_i.month)
+        date_i = datetime.strptime(ps, "%Y-%m-%d").date()
+        date_f = datetime.strptime(pe, "%Y-%m-%d").date()
 
     period_start, period_end, window_start, window_end = _competence_period_window(date_i, date_f)
     date_str_i = window_start
