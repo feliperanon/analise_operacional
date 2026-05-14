@@ -16,7 +16,7 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
-<link rel="stylesheet" href="/static/css/pages/bi-clientes.css">
+<link rel="stylesheet" href="/static/css/pages/bi-clientes.css?v=9">
 {% endblock %}
 
 {% block content %}
@@ -41,7 +41,7 @@
     <div class="flex w-full flex-shrink-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
       <details class="bi-cli-export-dd relative">
         <summary class="sys-btn sys-btn--secondary employees-cta h-9 cursor-pointer list-none px-3 text-sm marker:hidden [&::-webkit-details-marker]:hidden">Exportar</summary>
-        <div class="bi-cli-export-dd__panel absolute right-0 z-20 mt-1 min-w-[11rem] rounded-xl border border-slate-200/90 bg-white py-1 shadow-lg dark:border-slate-600 dark:bg-slate-900">
+        <div class="bi-cli-export-dd__panel absolute right-0 mt-1 min-w-[11rem] rounded-xl border border-slate-200/90 bg-white py-1 shadow-lg dark:border-slate-600 dark:bg-slate-900">
           <a class="block px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800" href="/bi/clientes/export?format=xlsx&amp;{{ filters_query }}">Planilha XLSX</a>
           <a class="block px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800" href="/bi/clientes/export?format=csv&amp;{{ filters_query }}">CSV</a>
           <a class="block px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-800" href="/bi/clientes/export?format=pdf&amp;{{ filters_query }}">PDF</a>
@@ -102,7 +102,7 @@
       <p class="employees-text-muted text-xs sm:text-right">Motorista, placa e rota são contexto operacional — decisão por cliente.</p>
     </div>
     <div class="bi-cli-active-chips mt-3 flex flex-wrap gap-2">
-      <span class="sys-badge sys-badge--neutral">Período: {{ filters.date_from }} → {{ filters.date_to }}</span>
+      <span class="sys-badge sys-badge--neutral">Período: {{ filters.date_from|fmt_br_date }} a {{ filters.date_to|fmt_br_date }}</span>
       {% if filters.vendedor_id is not none %}
       <span class="sys-badge sys-badge--neutral">Vendedor:
         {% if filters.vendedor_id == -1 %}Sem vendedor{% else %}{% for s in sellers_filter %}{% if s.id == filters.vendedor_id %}{{ s.name }}{% endif %}{% endfor %}{% endif %}
@@ -209,7 +209,7 @@
                 <select class="sys-select" name="returns_filter">
                   <option value="Todos" {% if (filters.returns_filter or 'Todos') == 'Todos' %}selected{% endif %}>Todos</option>
                   <option value="com_devolucao" {% if filters.returns_filter == 'com_devolucao' %}selected{% endif %}>Com devolução</option>
-                  <option value="acima_meta" {% if filters.returns_filter == 'acima_meta' %}selected{% endif %}>Acima da meta (2% s/ planejado)</option>
+                  <option value="acima_meta" {% if filters.returns_filter == 'acima_meta' %}selected{% endif %}>Acima da meta (2 % sobre o planejado)</option>
                 </select>
               </div>
               <div class="flex min-w-0 flex-col gap-1">
@@ -237,7 +237,7 @@
               <div class="flex min-w-0 flex-col gap-1">
                 <span class="sys-section__label sys-section__label--field">Faixa % devolução</span>
                 <select class="sys-select" name="return_band">
-                  {% for val, lab in [('Todos','Todos'),('zero','0%'),('ate_2','Até 2%'),('2_5','2%–5%'),('acima_5','Acima de 5%')] %}
+                  {% for val, lab in [('Todos','Todos'),('zero','0 %'),('ate_2','Até 2 %'),('2_5','2 % a 5 %'),('acima_5','Acima de 5 %')] %}
                   <option value="{{ val }}" {% if (filters.return_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
                   {% endfor %}
                 </select>
@@ -307,7 +307,7 @@
         <div class="sys-kpi-cell-inner employees-kpi__inner">
           <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Índice devolução (valor)</span>
           <strong class="bi-client-kpi__val tabular-nums">{{ executive_kpis.return_pct_planned_global|fmt_br_1 }}%</strong>
-          <small class="employees-text-muted">Meta 2%</small>
+          <small class="employees-text-muted">Meta {{ decision_strip.meta_pct|fmt_br_1 }} %</small>
         </div>
       </div>
       <div class="sys-kpi-card employees-kpi bi-client-kpi bi-client-kpi--info group" style="--employees-kpi-accent: rgba(244, 114, 182, 0.72);">
@@ -367,28 +367,28 @@
         <strong class="tabular-nums">{{ action_first_summary.criticos.count|fmt_br_int }}</strong>
         <small>{{ action_first_summary.criticos.motivo }} · devolvido {{ action_first_summary.criticos.value|fmt_br_moeda }}</small>
         <p class="bi-action-card__action">Ação: tratar primeiro os clientes acima da meta e com maior valor devolvido.</p>
-        <button type="button" class="sys-btn sys-btn--secondary js-bi-cli-action" data-action="critical">Ver lista</button>
+        <button type="button" class="bi-action-card__btn sys-btn sys-btn--secondary js-bi-cli-action" data-action="critical">Ver lista</button>
       </article>
       <article class="bi-action-card bi-action-card--warning">
         <span>Alto valor com risco</span>
         <strong class="tabular-nums">{{ action_first_summary.alto_valor_risco.count|fmt_br_int }}</strong>
         <small>{{ action_first_summary.alto_valor_risco.motivo }} · entregue {{ action_first_summary.alto_valor_risco.value|fmt_br_moeda }}</small>
         <p class="bi-action-card__action">Ação: proteger faturamento alto com validação comercial antes da rota.</p>
-        <button type="button" class="sys-btn sys-btn--secondary js-bi-cli-action" data-action="large_risk">Ver lista</button>
+        <button type="button" class="bi-action-card__btn sys-btn sys-btn--secondary js-bi-cli-action" data-action="large_risk">Ver lista</button>
       </article>
       <article class="bi-action-card bi-action-card--violet">
         <span>Pequeno cliente, grande impacto</span>
         <strong class="tabular-nums">{{ action_first_summary.pequeno_grande_impacto.count|fmt_br_int }}</strong>
         <small>{{ action_first_summary.pequeno_grande_impacto.motivo }} · devolvido {{ action_first_summary.pequeno_grande_impacto.value|fmt_br_moeda }}</small>
         <p class="bi-action-card__action">Ação: avaliar frequência, janela de entrega e confirmação antes de carregar.</p>
-        <button type="button" class="sys-btn sys-btn--secondary js-bi-cli-action" data-action="small_high">Ver lista</button>
+        <button type="button" class="bi-action-card__btn sys-btn sys-btn--secondary js-bi-cli-action" data-action="small_high">Ver lista</button>
       </article>
       <article class="bi-action-card bi-action-card--success">
         <span>Oportunidade rápida</span>
         <strong class="tabular-nums">{{ action_first_summary.oportunidade.value|fmt_br_moeda }}</strong>
         <small>{{ action_first_summary.oportunidade.motivo }} · {{ action_first_summary.oportunidade.count|fmt_br_int }} cliente(s)</small>
         <p class="bi-action-card__action">Ação: atacar motivos corrigíveis antes da separação e saída da rota.</p>
-        <button type="button" class="sys-btn sys-btn--secondary js-bi-cli-action" data-action="treatable">Ver lista</button>
+        <button type="button" class="bi-action-card__btn sys-btn sys-btn--secondary js-bi-cli-action" data-action="treatable">Ver lista</button>
       </article>
     </div>
   </section>
@@ -418,15 +418,18 @@
     <div id="bi-cli-rank-panel" class="bi-client-ranking-list mt-3 min-h-[12rem]"></div>
   </section>
 
-  <section class="sys-card sys-card--surface sys-card--comfort">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+  <section class="bi-cli-clients-section sys-card sys-card--surface sys-card--comfort">
+    <div class="bi-cli-clients-head">
+      <div class="bi-cli-clients-head__titles">
         <h3 class="sys-section-heading text-base">Clientes</h3>
-        <p class="employees-text-muted text-xs">Tabela de decisão · busca com debounce</p>
+        <p class="employees-text-muted text-xs">Lista operacional filtrada</p>
       </div>
-      <div class="flex w-full max-w-md flex-col gap-1 sm:w-auto">
-        <span class="sys-section__label sys-section__label--field">Busca rápida</span>
-        <input class="sys-input" type="search" id="bi-cli-search-local" placeholder="Nome, código, vendedor…" autocomplete="off">
+      <div class="bi-cli-clients-head__tools">
+        <div class="bi-cli-clients-search-wrap">
+          <span class="sys-section__label sys-section__label--field">Busca rápida</span>
+          <input class="sys-input" type="search" id="bi-cli-search-local" placeholder="Nome, código, vendedor…" autocomplete="off">
+        </div>
+        <p class="employees-text-muted text-xs bi-cli-page-meta tabular-nums" id="bi-cli-page-meta-toolbar" aria-live="polite"></p>
       </div>
     </div>
     {% if ranking_total == 0 %}
@@ -434,9 +437,18 @@
       <p class="text-sm font-medium text-slate-700 dark:text-slate-200">Nenhum cliente encontrado para os filtros selecionados.</p>
     </div>
     {% else %}
+    {% if ranking_total > 20 %}
+    <div class="bi-cli-pagination-bar bi-cli-pagination-bar--top mt-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-3 dark:border-slate-700/60">
+      <p class="employees-text-muted text-xs bi-cli-page-meta tabular-nums" id="bi-cli-page-meta-top"></p>
+      <div class="flex gap-2">
+        <button type="button" class="bi-cli-prev sys-btn sys-btn--secondary h-8 px-3 text-xs">Anterior</button>
+        <button type="button" class="bi-cli-next sys-btn sys-btn--secondary h-8 px-3 text-xs">Próxima</button>
+      </div>
+    </div>
+    {% endif %}
     <div class="mt-4 hidden md:block">
       <div class="sys-table-wrap sys-table-wrap--x-scroll">
-        <table class="sys-data-table text-sm" id="bi-cli-table-desktop">
+        <table class="sys-data-table text-sm bi-cli-table-desktop" id="bi-cli-table-desktop">
           <thead>
             <tr>
               <th data-sort="client_name">Cliente</th>
@@ -461,11 +473,11 @@
       </div>
     </div>
     <div class="mt-4 space-y-3 md:hidden" id="bi-cli-cards-mobile"></div>
-    <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 pt-3 dark:border-slate-700/60">
-      <p class="employees-text-muted text-xs" id="bi-cli-page-meta"></p>
+    <div class="bi-cli-pagination-bar bi-cli-pagination-bar--bottom mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 pt-3 dark:border-slate-700/60">
+      <p class="employees-text-muted text-xs bi-cli-page-meta tabular-nums" id="bi-cli-page-meta"></p>
       <div class="flex gap-2">
-        <button type="button" class="sys-btn sys-btn--secondary h-8 px-3 text-xs" id="bi-cli-prev">Anterior</button>
-        <button type="button" class="sys-btn sys-btn--secondary h-8 px-3 text-xs" id="bi-cli-next">Próxima</button>
+        <button type="button" class="bi-cli-prev sys-btn sys-btn--secondary h-8 px-3 text-xs">Anterior</button>
+        <button type="button" class="bi-cli-next sys-btn sys-btn--secondary h-8 px-3 text-xs">Próxima</button>
       </div>
     </div>
     {% endif %}
@@ -502,9 +514,33 @@
   </section>
 </div>
 
-<div id="bi-cli-treatable-modal" class="emp-modal-shell fixed inset-0 z-[60] hidden" aria-hidden="true">
-  <div class="emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-treatable-close="1"></div>
-  <div class="pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
+<script type="application/json" id="bi-cli-intel-json">{{ intel_clients_json|safe }}</script>
+<script type="application/json" id="bi-cli-detail-json">{{ detail_rows_json|safe }}</script>
+<script type="application/json" id="bi-cli-routes-json">{{ routes_intel_json|safe }}</script>
+<script type="application/json" id="bi-cli-chart-json">{{ chart_payload_json|safe }}</script>
+<script type="application/json" id="bi-cli-treatable-json">{{ treatable_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-large-risk-json">{{ large_risk_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-critical-json">{{ critical_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-good-json">{{ good_clients_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-small-high-json">{{ small_high_drilldown_json|safe }}</script>
+<script type="application/json" id="bi-cli-ranking-tabs-json">{{ client_ranking_tabs_json|safe }}</script>
+<script type="application/json" id="bi-cli-reading-json">{{ reading_cards_json|safe }}</script>
+<script src="/static/vendor/chart.umd.min.js"></script>
+<script src="/static/js/pages/bi-clientes.js?v=9"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.lucide && lucide.createIcons) lucide.createIcons();
+    if (window.BiClientesPage && window.BiClientesPage.boot) window.BiClientesPage.boot();
+  });
+</script>
+{% endblock %}
+
+{# Portais fora do main: .gv-panel-stack (z-index:1) prendia fixed e competia com menu (overlay 40 / drawer 50). #}
+{% block layout_portal %}
+<div class="ga-employee-theme bi-clientes-page employees-page bi-clientes-portals print-hidden" data-bi-clientes-portals>
+<div id="bi-cli-treatable-modal" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
+  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-treatable-close="1"></div>
+  <div class="bi-cli-modal-shell__layer pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
     <div class="pointer-events-auto flex max-h-[min(88vh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-treatable-title">
       <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
         <div class="min-w-0">
@@ -518,9 +554,9 @@
   </div>
 </div>
 
-<div id="bi-cli-insight-modal" class="emp-modal-shell fixed inset-0 z-[62] hidden" aria-hidden="true">
-  <div class="emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-insight-close="1"></div>
-  <div class="pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
+<div id="bi-cli-insight-modal" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
+  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-insight-close="1"></div>
+  <div class="bi-cli-modal-shell__layer pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
     <div class="pointer-events-auto flex max-h-[min(90vh,780px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-insight-title">
       <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
         <h3 id="bi-cli-insight-title" class="sys-section-heading pr-2 text-base leading-snug">Detalhe</h3>
@@ -532,9 +568,9 @@
   </div>
 </div>
 
-<div id="bi-cli-drawer" class="emp-modal-shell fixed inset-0 z-50 hidden" aria-hidden="true">
-  <div class="emp-modal-backdrop absolute inset-0" data-bi-cli-close="1"></div>
-  <div class="bi-cli-drawer pointer-events-none absolute inset-y-0 right-0 flex max-w-full justify-end p-3 sm:p-4">
+<div id="bi-cli-drawer" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
+  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop absolute inset-0 bg-slate-900/40 dark:bg-black/50" data-bi-cli-close="1"></div>
+  <div class="bi-cli-modal-shell__layer bi-cli-drawer pointer-events-none absolute inset-y-0 right-0 flex max-w-full justify-end p-3 sm:p-4">
     <div class="bi-cli-drawer pointer-events-auto flex h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
       <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
         <div class="min-w-0">
@@ -555,24 +591,5 @@
     </div>
   </div>
 </div>
-
-<script type="application/json" id="bi-cli-intel-json">{{ intel_clients_json|safe }}</script>
-<script type="application/json" id="bi-cli-detail-json">{{ detail_rows_json|safe }}</script>
-<script type="application/json" id="bi-cli-routes-json">{{ routes_intel_json|safe }}</script>
-<script type="application/json" id="bi-cli-chart-json">{{ chart_payload_json|safe }}</script>
-<script type="application/json" id="bi-cli-treatable-json">{{ treatable_drilldown_json|safe }}</script>
-<script type="application/json" id="bi-cli-large-risk-json">{{ large_risk_drilldown_json|safe }}</script>
-<script type="application/json" id="bi-cli-critical-json">{{ critical_drilldown_json|safe }}</script>
-<script type="application/json" id="bi-cli-good-json">{{ good_clients_drilldown_json|safe }}</script>
-<script type="application/json" id="bi-cli-small-high-json">{{ small_high_drilldown_json|safe }}</script>
-<script type="application/json" id="bi-cli-ranking-tabs-json">{{ client_ranking_tabs_json|safe }}</script>
-<script type="application/json" id="bi-cli-reading-json">{{ reading_cards_json|safe }}</script>
-<script src="/static/vendor/chart.umd.min.js"></script>
-<script src="/static/js/pages/bi-clientes.js?v=6"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function () {
-    if (window.lucide && lucide.createIcons) lucide.createIcons();
-    if (window.BiClientesPage && window.BiClientesPage.boot) window.BiClientesPage.boot();
-  });
-</script>
+</div>
 {% endblock %}

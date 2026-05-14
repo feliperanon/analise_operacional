@@ -267,8 +267,9 @@ textarea.sys-input {
   padding-bottom: 0.625rem;
 }
 
-/* Botão menu (drawer) — usado em vários templates dashboard */
+/* Botão menu (drawer) — usado em vários templates dashboard; abaixo do drawer (50), acima do conteúdo */
 .gv-menu-btn {
+  z-index: 60;
   border: 1px solid var(--sys-border);
   background: var(--sys-surface);
   color: var(--sys-text-muted);

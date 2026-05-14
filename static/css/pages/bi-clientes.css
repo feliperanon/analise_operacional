@@ -3,6 +3,51 @@
  * Escopo: .ga-employee-theme.bi-clientes-page
  */
 
+/* Camadas (z-index): conteúdo (1) < dropdown exportar (35) < header global (30) / menu (50) / botão menu (60) < modais BI (80) */
+:root {
+  --bi-z-content: 1;
+  --bi-z-dropdown: 35;
+  --bi-z-modal-backdrop: 79;
+  --bi-z-modal-layer: 80;
+  --bi-z-modal: 80;
+}
+
+/* Só nesta rota: remove z-index:1 do painel que prendia fixed dentro do main abaixo do menu */
+body.dashboard-app main.gv-shell:has(#bi-clientes-root) .ga-panel-stack.gv-panel-stack {
+  z-index: auto;
+}
+
+/* Exportar: painel acima dos cards, abaixo do sidebar aberto */
+.ga-employee-theme.bi-clientes-page .bi-cli-export-dd {
+  position: relative;
+  z-index: var(--bi-z-content);
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-export-dd__panel {
+  z-index: var(--bi-z-dropdown);
+  box-shadow: var(--sys-shadow-lg, 0 12px 40px rgb(15 23 42 / 0.12));
+}
+
+/* Modais / drawer (portais em layout_portal): acima do menu global */
+#bi-cli-treatable-modal.bi-cli-modal-shell,
+#bi-cli-insight-modal.bi-cli-modal-shell,
+#bi-cli-drawer.bi-cli-modal-shell,
+#bi-cli-detail-drawer {
+  z-index: var(--bi-z-modal) !important;
+}
+
+#bi-cli-treatable-modal .bi-cli-modal-shell__backdrop,
+#bi-cli-insight-modal .bi-cli-modal-shell__backdrop,
+#bi-cli-drawer .bi-cli-modal-shell__backdrop {
+  z-index: var(--bi-z-modal-backdrop);
+}
+
+#bi-cli-treatable-modal .bi-cli-modal-shell__layer,
+#bi-cli-insight-modal .bi-cli-modal-shell__layer,
+#bi-cli-drawer .bi-cli-modal-shell__layer {
+  z-index: var(--bi-z-modal-layer);
+}
+
 .ga-employee-theme.bi-clientes-page .bi-cli-drawer {
   box-shadow: var(--sys-shadow-lg, 0 12px 40px rgb(15 23 42 / 0.18));
 }
@@ -54,18 +99,6 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-cli-drawer__tab.is-active {
   font-size: 0.8125rem;
 }
 
-.ga-employee-theme.bi-clientes-page .bi-cli-mobile-card {
-  border-radius: var(--sys-radius-lg, 0.75rem);
-  border: 1px solid var(--sys-border, #e2e8f0);
-  padding: 0.85rem 1rem;
-  background: var(--sys-surface, #fff);
-}
-
-html.dark .ga-employee-theme.bi-clientes-page .bi-cli-mobile-card {
-  background: rgb(15 23 42 / 0.55);
-  border-color: rgb(51 65 85 / 0.65);
-}
-
 .ga-employee-theme.bi-clientes-page .bi-cli-row--premium {
   box-shadow: inset 3px 0 0 0 rgb(16 185 129 / 0.85);
 }
@@ -98,10 +131,6 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-cli-insight-card {
   border-radius: var(--sys-radius-lg, 0.75rem);
 }
 
-.ga-employee-theme.bi-clientes-page .bi-cli-export-dd__panel {
-  box-shadow: var(--sys-shadow-lg, 0 12px 40px rgb(15 23 42 / 0.12));
-}
-
 .ga-employee-theme.bi-clientes-page .bi-cli-active-chips .sys-badge {
   max-width: 100%;
   text-overflow: ellipsis;
@@ -122,7 +151,7 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-cli-insight-card {
   .ga-employee-theme.bi-clientes-page details.bi-cli-filter-details[open] {
     position: fixed;
     inset: 0;
-    z-index: 55;
+    z-index: var(--bi-z-dropdown);
     margin: 0;
     border-radius: 0;
     max-height: 100vh;
@@ -255,9 +284,9 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-cli-insight-card {
   padding: 1rem 1rem 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  min-height: 8.5rem;
-  transition: box-shadow 0.15s, transform 0.15s;
+  gap: 0.4rem;
+  min-height: 0;
+  transition: box-shadow 0.15s ease;
 }
 .ga-employee-theme.bi-clientes-page .bi-action-card:hover {
   box-shadow: var(--sys-shadow-md, 0 6px 20px rgb(15 23 42 / 0.08));
@@ -283,6 +312,13 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-cli-insight-card {
 .ga-employee-theme.bi-clientes-page .bi-action-card .sys-btn {
   margin-top: auto;
   align-self: flex-start;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-action-card__btn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  margin-top: 0.35rem;
 }
 
 .ga-employee-theme.bi-clientes-page .bi-action-card__action {
@@ -377,19 +413,200 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-client-tab.is-active {
   color: var(--sys-text-primary, #f1f5f9);
 }
 
+/* Listagem mobile compacta */
 .ga-employee-theme.bi-clientes-page .bi-client-mobile-card {
-  border-radius: var(--sys-radius-lg, 0.75rem);
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
   border: 1px solid var(--sys-border, #e2e8f0);
-  padding: 0.85rem 1rem;
   background: var(--sys-surface, #fff);
+  position: relative;
+  z-index: auto;
 }
+
+.ga-employee-theme.bi-clientes-page .bi-client-mobile-card__row1 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-client-mobile-card__name {
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-client-mobile-card__badge {
+  font-size: 10px;
+  line-height: 1.2;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-client-mobile-card__sub {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-client-mobile-card__row3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-client-mobile-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-client-mobile-metrics span {
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(248, 250, 252, 0.75);
+  border-radius: 999px;
+  padding: 4px 7px;
+  font-size: 11px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+html.dark .ga-employee-theme.bi-clientes-page .bi-client-mobile-metrics span {
+  background: rgb(30 41 59 / 0.45);
+  border-color: rgb(71 85 105 / 0.45);
+}
+
 html.dark .ga-employee-theme.bi-clientes-page .bi-client-mobile-card {
   background: rgb(15 23 42 / 0.55);
   border-color: rgb(51 65 85 / 0.65);
 }
 
-.ga-employee-theme.bi-clientes-page .bi-client-mobile-metrics strong {
-  display: inline;
+.ga-employee-theme.bi-clientes-page .bi-client-card-detail-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+  border-radius: 999px;
+  height: auto;
+}
+
+.ga-employee-theme.bi-clientes-page #bi-cli-cards-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Seção Clientes: cabeçalho + busca */
+.ga-employee-theme.bi-clientes-page .bi-cli-clients-section {
+  margin-top: 0.25rem;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-clients-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .ga-employee-theme.bi-clientes-page .bi-cli-clients-head {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-clients-head__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .ga-employee-theme.bi-clientes-page .bi-cli-clients-head__tools {
+    width: auto;
+    max-width: min(100%, 28rem);
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-clients-search-wrap {
+  flex: 1;
+  min-width: min(100%, 12rem);
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-page-meta--toolbar {
+  flex: 0 0 auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .ga-employee-theme.bi-clientes-page .bi-cli-page-meta--toolbar {
+    width: 100%;
+    text-align: left;
+  }
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-pagination-bar--top {
+  margin-top: 0.5rem;
+}
+
+/* Tabela desktop compacta */
+.ga-employee-theme.bi-clientes-page #bi-cli-table-desktop th,
+.ga-employee-theme.bi-clientes-page #bi-cli-table-desktop td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  font-size: 12px;
+}
+
+@media (min-width: 1024px) {
+  .ga-employee-theme.bi-clientes-page #bi-cli-table-desktop th,
+  .ga-employee-theme.bi-clientes-page #bi-cli-table-desktop td {
+    font-size: 13px;
+  }
+}
+
+.ga-employee-theme.bi-clientes-page #bi-cli-table-desktop .bi-client-card-detail-btn {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 11px;
+  border-radius: 0.5rem;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-client-classification-badge {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* “Onde atuar primeiro”: botões menores (regras em .bi-action-card__btn) */
+.ga-employee-theme.bi-clientes-page .bi-cli-insight-grid,
+.ga-employee-theme.bi-clientes-page .bi-client-ranking-list,
+.ga-employee-theme.bi-clientes-page .bi-client-tabs {
+  position: relative;
+  z-index: auto;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-ranking-list {
+  min-height: 8rem;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-clientes-page .sys-kpi-card,
+.ga-employee-theme.bi-clientes-page .sys-card--surface {
+  z-index: auto;
 }
 
 .ga-employee-theme.bi-clientes-page .bi-client-row--critical td {

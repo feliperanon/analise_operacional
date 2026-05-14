@@ -27,6 +27,15 @@
     return mn === 0 ? h + " h" : h + " h " + mn + " min";
   }
 
+  /** YYYY-MM-DD (ou início de ISO) → dd/mm/aaaa; texto inesperado devolvido sem alterar (use escapeHtml no uso). */
+  function fmtDateIsoToBr(s) {
+    if (s == null || s === "") return "—";
+    var t = String(s).trim();
+    var m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return t;
+    return m[3] + "/" + m[2] + "/" + m[1];
+  }
+
   function debounce(fn, ms) {
     var t;
     return function () {
@@ -45,6 +54,20 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function getEffectivePageSize() {
+    if (typeof window.matchMedia === "undefined") return 25;
+    return window.matchMedia("(max-width: 767px)").matches ? 12 : 25;
+  }
+
+  function syncPageSize() {
+    var ps = getEffectivePageSize();
+    if (state.pageSize === ps) return;
+    state.pageSize = ps;
+    var maxPage = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+    if (state.page > maxPage) state.page = maxPage;
+    if (state.page < 1) state.page = 1;
   }
 
   var state = {
@@ -205,24 +228,33 @@
     var tb = document.getElementById("bi-cli-tbody");
     var tf = document.getElementById("bi-cli-tfoot");
     var cards = document.getElementById("bi-cli-cards-mobile");
-    var meta = document.getElementById("bi-cli-page-meta");
     if (!tb) return;
     applyFilterSort();
+    syncPageSize();
     var start = (state.page - 1) * state.pageSize;
     var pageRows = state.filtered.slice(start, start + state.pageSize);
+
+    var motTitle = function (s) {
+      return escapeHtml(String(s || "—")).replace(/"/g, "&quot;");
+    };
 
     var frag = document.createDocumentFragment();
     pageRows.forEach(function (r) {
       var tr = document.createElement("tr");
       tr.className = rowClassForClient(r);
       var badgeCls = badgeClassForClient(r);
+      var mot = r.top_motivo_name || "—";
+      var resp = r.top_responsabilidade_name || "—";
+      var clsTitle = r.classification_title || "—";
       tr.innerHTML =
         "<td class=\"max-w-[14rem]\"><div class=\"truncate font-medium\">" +
         escapeHtml(r.client_name) +
         "</div><div class=\"truncate text-[11px] text-slate-500\">" +
         escapeHtml(r.client_code || "—") +
         "</div></td>" +
-        "<td class=\"max-w-[10rem] truncate\">" +
+        "<td class=\"max-w-[10rem] truncate\" title=\"" +
+        motTitle(r.vendedor_name) +
+        "\">" +
         escapeHtml(r.vendedor_name || "—") +
         "</td>" +
         "<td class=\"text-right tabular-nums\">" +
@@ -240,21 +272,27 @@
         "<td class=\"text-right\">" +
         fmtDur(r.avg_duration_m) +
         "</td>" +
-        "<td class=\"max-w-[9rem] truncate text-xs\">" +
-        escapeHtml(r.top_motivo_name || "—") +
+        "<td class=\"max-w-[9rem] truncate text-xs\" title=\"" +
+        motTitle(mot) +
+        "\">" +
+        escapeHtml(mot) +
         "</td>" +
-        "<td class=\"max-w-[8rem] truncate text-xs\">" +
-        escapeHtml(r.top_responsabilidade_name || "—") +
+        "<td class=\"max-w-[8rem] truncate text-xs\" title=\"" +
+        motTitle(resp) +
+        "\">" +
+        escapeHtml(resp) +
         "</td>" +
         "<td><span class=\"" +
         badgeCls +
-        " text-[10px]\">" +
-        escapeHtml(r.classification_title || "—") +
+        " bi-client-classification-badge max-w-[10rem] truncate text-[10px]\" title=\"" +
+        motTitle(clsTitle) +
+        "\">" +
+        escapeHtml(clsTitle) +
         "</span></td>" +
         "<td class=\"text-right font-semibold tabular-nums\">" +
         (r.cliente_score != null ? r.cliente_score : "—") +
         "</td>" +
-        "<td class=\"text-right\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-2 text-xs\" data-bi-cli-open=\"" +
+        "<td class=\"text-right\"><button type=\"button\" class=\"sys-btn sys-btn--secondary bi-client-card-detail-btn\" data-bi-cli-open=\"" +
         String(r.client_id) +
         "\">Detalhar</button></td>";
       frag.appendChild(tr);
@@ -292,57 +330,61 @@
         var d = document.createElement("article");
         d.className = "bi-client-mobile-card";
         var bcls = badgeClassForClient(r);
+        var clsT = r.classification_title || "—";
         d.innerHTML =
-          "<div class=\"flex items-start justify-between gap-2\">" +
-          "<div class=\"min-w-0\">" +
-          "<strong class=\"leading-tight\">" +
+          "<div class=\"bi-client-mobile-card__row1\">" +
+          "<strong class=\"bi-client-mobile-card__name truncate\">" +
           escapeHtml(r.client_name) +
           "</strong>" +
-          "<p class=\"employees-text-muted text-xs\">Cód. " +
+          "<span class=\"bi-client-mobile-card__badge " +
+          bcls +
+          " max-w-[42%] shrink-0 truncate\" title=\"" +
+          motTitle(clsT) +
+          "\">" +
+          escapeHtml(clsT) +
+          "</span></div>" +
+          "<p class=\"bi-client-mobile-card__sub employees-text-muted\">Cód. " +
           escapeHtml(r.client_code || "—") +
           " · " +
           escapeHtml(r.vendedor_name || "—") +
-          "</p></div></div>" +
-          "<div class=\"bi-client-mobile-metrics mt-2 grid grid-cols-2 gap-2 text-xs\">" +
-          "<span>Entregue <strong class=\"tabular-nums\">" +
+          "</p>" +
+          "<div class=\"bi-client-mobile-card__row3\">" +
+          "<div class=\"bi-client-mobile-metrics\" role=\"list\">" +
+          "<span role=\"listitem\">Entreg. " +
           fmtMoney(r.delivered_value) +
-          "</strong></span>" +
-          "<span>Devolvido <strong class=\"tabular-nums\">" +
+          "</span>" +
+          "<span role=\"listitem\">Dev. " +
           fmtMoney(r.returned_value) +
-          "</strong></span>" +
-          "<span>% Dev. <strong class=\"tabular-nums\">" +
+          "</span>" +
+          "<span role=\"listitem\">" +
           fmtPct(r.return_pct_planned) +
-          "</strong></span>" +
-          "<span>Tempo <strong>" +
+          "</span>" +
+          "<span role=\"listitem\">" +
           fmtDur(r.avg_duration_m) +
-          "</strong></span></div>" +
-          "<div class=\"mt-2\"><span class=\"" +
-          bcls +
-          " text-[11px]\">" +
-          escapeHtml(r.classification_title || "—") +
           "</span></div>" +
-          "<div class=\"mt-3\"><button type=\"button\" class=\"sys-btn sys-btn--primary w-full justify-center text-sm\" data-bi-cli-open=\"" +
+          "<button type=\"button\" class=\"sys-btn sys-btn--secondary bi-client-card-detail-btn shrink-0\" data-bi-cli-open=\"" +
           String(r.client_id) +
-          "\">Ver detalhe</button></div>";
+          "\">Detalhar</button></div>";
         cfrag.appendChild(d);
       });
       cards.innerHTML = "";
       cards.appendChild(cfrag);
     }
 
-    if (meta) {
-      meta.textContent =
-        "Mostrando " +
-        (state.filtered.length === 0 ? 0 : start + 1) +
-        "–" +
-        Math.min(start + state.pageSize, state.filtered.length) +
-        " de " +
-        state.filtered.length +
-        " · página " +
-        state.page +
-        " / " +
-        Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-    }
+    var metaText =
+      "Mostrando " +
+      (state.filtered.length === 0 ? 0 : start + 1) +
+      " a " +
+      Math.min(start + state.pageSize, state.filtered.length) +
+      " de " +
+      state.filtered.length +
+      " · página " +
+      state.page +
+      " / " +
+      Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+    document.querySelectorAll(".bi-cli-page-meta").forEach(function (el) {
+      el.textContent = metaText;
+    });
   }
 
   function openDrawer(clientId) {
@@ -452,7 +494,7 @@
       hist.forEach(function (h) {
         html +=
           "<tr><td>" +
-          escapeHtml(h.date || "") +
+          escapeHtml(fmtDateIsoToBr(h.date)) +
           "</td><td>" +
           escapeHtml(h.order_number || "—") +
           "</td><td class=\"max-w-[8rem] truncate\">" +
@@ -480,7 +522,7 @@
       devs.forEach(function (h) {
         h2 +=
           "<tr><td>" +
-          escapeHtml(h.date || "") +
+          escapeHtml(fmtDateIsoToBr(h.date)) +
           "</td><td>" +
           escapeHtml(h.order_number || "—") +
           "</td><td class=\"max-w-[10rem] truncate\">" +
@@ -553,7 +595,10 @@
     var form = document.getElementById("bi-cli-filters-form");
     var df = form && form.querySelector("[name=date_from]");
     var dt = form && form.querySelector("[name=date_to]");
-    var period = df && dt && df.value && dt.value ? df.value + " a " + dt.value : "(ver filtros)";
+    var period =
+      df && dt && df.value && dt.value
+        ? fmtDateIsoToBr(df.value) + " a " + fmtDateIsoToBr(dt.value)
+        : "(ver filtros)";
     return (
       "Cliente: " +
       (row.client_name || "") +
@@ -592,7 +637,7 @@
         type: "line",
         data: {
           labels: d.map(function (x) {
-            return x.date;
+            return fmtDateIsoToBr(x.date);
           }),
           datasets: [
             { label: "Entregue", data: d.map(function (x) { return x.delivered; }), borderColor: "rgb(16,185,129)", tension: 0.2 },
@@ -638,7 +683,7 @@
           {
             scales: {
               x: { title: { display: true, text: "R$ entregue" } },
-              y: { title: { display: true, text: "% devolução s/ planejado" } },
+              y: { title: { display: true, text: "% devolução sobre o planejado" } },
             },
           },
           common
@@ -742,6 +787,7 @@
     state.rows = readJson("bi-cli-intel-json") || [];
     state.routes = readJson("bi-cli-routes-json") || [];
     state.page = 1;
+    state.pageSize = getEffectivePageSize();
 
     document.querySelectorAll("[data-sort]").forEach(function (th) {
       th.style.cursor = "pointer";
@@ -769,25 +815,32 @@
       );
     }
 
-    var prev = document.getElementById("bi-cli-prev");
-    var next = document.getElementById("bi-cli-next");
-    if (prev) {
-      prev.onclick = function () {
-        if (state.page > 1) {
-          state.page--;
-          renderTable();
-        }
-      };
+    function goPrev() {
+      if (state.page > 1) {
+        state.page--;
+        renderTable();
+      }
     }
-    if (next) {
-      next.onclick = function () {
-        var maxPage = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-        if (state.page < maxPage) {
-          state.page++;
-          renderTable();
-        }
-      };
+    function goNext() {
+      var maxPage = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+      if (state.page < maxPage) {
+        state.page++;
+        renderTable();
+      }
     }
+    document.querySelectorAll(".bi-cli-prev").forEach(function (el) {
+      el.onclick = goPrev;
+    });
+    document.querySelectorAll(".bi-cli-next").forEach(function (el) {
+      el.onclick = goNext;
+    });
+
+    var onResize = debounce(function () {
+      var before = state.pageSize;
+      syncPageSize();
+      if (before !== state.pageSize) renderTable();
+    }, 200);
+    window.addEventListener("resize", onResize);
 
     document.querySelectorAll("[data-bi-cli-close]").forEach(function (b) {
       b.addEventListener("click", closeDrawer);
