@@ -3908,8 +3908,8 @@ def _build_informativo_extras(
         "devolucao_ranking_ajudantes": devolucao_ranking_helper,
         "bulletins": bulletin_list,
         "devolucao_compare": {
-            "prev_month_label": prev_month_start.strftime("%m/%Y"),
-            "curr_month_label": month_start.strftime("%m/%Y"),
+            "prev_month_label": f"{pm:02d}/{py}",
+            "curr_month_label": f"{cm:02d}/{cy}",
             "prev_valor": round(prev_valor, 2),
             "curr_valor": round(curr_valor, 2),
             "prev_pct_rotas": pct_prev,
