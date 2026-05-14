@@ -58,139 +58,134 @@
         <a href="/bi/clientes" class="sys-btn sys-btn--ghost-danger employees-cta h-9 px-3 text-sm">Limpar filtros</a>
       </div>
     </div>
-  </div>
 
-  <form id="bi-cli-filters-form" method="get" action="/bi/clientes" class="sys-card sys-card--surface sys-card--comfort">
-    <div class="sys-filter-bar sys-filter-bar--end flex flex-wrap gap-3">
-      <div class="flex min-w-[10rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Data inicial</span>
-        <input class="sys-input" type="date" name="date_from" value="{{ filters.date_from }}">
+    <form id="bi-cli-filters-form" method="get" action="/bi/clientes" class="relative mt-5 border-t border-slate-200/80 pt-5 dark:border-slate-700/60">
+      {% if filters.client_id %}
+      <input type="hidden" name="client_id" value="{{ filters.client_id }}">
+      {% endif %}
+      <div class="bi-cli-filters-grid grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Data inicial</span>
+          <input class="sys-input" type="date" name="date_from" value="{{ filters.date_from }}">
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Data final</span>
+          <input class="sys-input" type="date" name="date_to" value="{{ filters.date_to }}">
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Turno</span>
+          <select class="sys-select" name="shift">{% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}<option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>{% endfor %}</select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Motorista</span>
+          <select class="sys-select" name="driver_id"><option value="">Todos</option>{% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Placa</span>
+          <select class="sys-select" name="plate"><option value="Todos">Todas</option>{% for p in plates_filter %}<option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Status entrega</span>
+          <select class="sys-select" name="status">{% for s in statuses_filter %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Escopo</span>
+          <select class="sys-select" name="client_scope" title="Grupo: agrega lojas do mesmo grupo">
+            <option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só este cliente</option>
+            <option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Grupo (agregado)</option>
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Vendedor</span>
+          <select class="sys-select" name="vendedor_id">
+            <option value="">Todos</option>
+            <option value="-1" {% if filters.vendedor_id == -1 %}selected{% endif %}>Sem vendedor</option>
+            {% for s in sellers_filter %}
+            <option value="{{ s.id }}" {% if filters.vendedor_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Cidade</span>
+          <select class="sys-select" name="city"><option value="Todos">Todas</option>{% for item in cities_filter %}<option value="{{ item }}" {% if filters.city == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Devolução (filtro)</span>
+          <select class="sys-select" name="returns_filter">
+            <option value="Todos" {% if (filters.returns_filter or 'Todos') == 'Todos' %}selected{% endif %}>Todos</option>
+            <option value="com_devolucao" {% if filters.returns_filter == 'com_devolucao' %}selected{% endif %}>Com devolução</option>
+            <option value="acima_meta" {% if filters.returns_filter == 'acima_meta' %}selected{% endif %}>Acima da meta (2% s/ planejado)</option>
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Classificação</span>
+          <select class="sys-select" name="classification_filter">
+            {% for opt in classification_filter_options %}
+            <option value="{{ opt.id }}" {% if (filters.classification_filter or 'Todos') == opt.id %}selected{% endif %}>{{ opt.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Motivo devolução</span>
+          <select class="sys-select" name="motivo_filter">
+            <option value="Todos">Todos</option>
+            {% for m in motivos_filter_options %}<option value="{{ m }}" {% if filters.motivo_filter == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Responsabilidade</span>
+          <select class="sys-select" name="responsabilidade_filter">
+            <option value="Todos">Todos</option>
+            {% for r in responsabilidades_filter_options %}<option value="{{ r }}" {% if filters.responsabilidade_filter == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Faixa compra (R$ entregue)</span>
+          <select class="sys-select" name="purchase_band">
+            {% for val, lab in [('Todos','Todos'),('ate_5k','Até 5k'),('5k_20k','5k–20k'),('20k_50k','20k–50k'),('acima_50k','Acima de 50k')] %}
+            <option value="{{ val }}" {% if (filters.purchase_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Faixa % dev. s/ planej.</span>
+          <select class="sys-select" name="return_band">
+            {% for val, lab in [('Todos','Todos'),('zero','0%'),('ate_2','Até 2%'),('2_5','2%–5%'),('acima_5','Acima de 5%')] %}
+            <option value="{{ val }}" {% if (filters.return_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Faixa tempo médio</span>
+          <select class="sys-select" name="duration_band">
+            {% for val, lab in [('Todos','Todos'),('ate_30','Até 30 min'),('30_60','30–60'),('60_90','60–90'),('acima_90','Acima de 90')] %}
+            <option value="{{ val }}" {% if (filters.duration_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Prioridade cliente</span>
+          <select class="sys-select" name="priority"><option value="Todos">Todas</option>{% for item in priorities_filter %}<option value="{{ item }}" {% if filters.priority == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+        </div>
+        <div class="flex min-w-0 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Status cliente</span>
+          <select class="sys-select" name="client_status"><option value="Todos">Todos</option>{% for item in client_statuses_filter %}<option value="{{ item }}" {% if filters.client_status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+        </div>
       </div>
-      <div class="flex min-w-[10rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Data final</span>
-        <input class="sys-input" type="date" name="date_to" value="{{ filters.date_to }}">
+      <div class="mt-4 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:items-end sm:gap-3">
+        <div class="flex min-w-0 flex-1 flex-col gap-1">
+          <span class="sys-section__label sys-section__label--field">Busca (debounce no navegador)</span>
+          <input class="sys-input" type="search" name="search_q" value="{{ filters.search_q or '' }}" placeholder="Buscar cliente, código, vendedor, pedido ou motivo..." autocomplete="off" id="bi-cli-search-server">
+        </div>
+        <div class="flex flex-shrink-0 flex-wrap gap-2">
+          <button type="submit" class="sys-btn sys-btn--primary h-9 px-4 text-sm">Aplicar filtros</button>
+        </div>
       </div>
-      <div class="flex min-w-[8rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Turno</span>
-        <select class="sys-select" name="shift">{% for sh in ["Todos", "Manhã", "Tarde", "Noite"] %}<option value="{{ sh }}" {% if filters.shift == sh %}selected{% endif %}>{{ sh }}</option>{% endfor %}</select>
-      </div>
-      <div class="flex min-w-[11rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Motorista</span>
-        <select class="sys-select" name="driver_id"><option value="">Todos</option>{% for d in drivers_filter %}<option value="{{ d.id }}" {% if filters.driver_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select>
-      </div>
-      <div class="flex min-w-[8rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Placa</span>
-        <select class="sys-select" name="plate"><option value="Todos">Todas</option>{% for p in plates_filter %}<option value="{{ p }}" {% if filters.plate == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select>
-      </div>
-      <div class="flex min-w-[9rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Status entrega</span>
-        <select class="sys-select" name="status">{% for s in statuses_filter %}<option value="{{ s }}" {% if filters.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
-      </div>
-    </div>
-    <div class="sys-filter-bar sys-filter-bar--end mt-3 flex flex-wrap gap-3 border-t border-slate-200/80 pt-3 dark:border-slate-700/60">
-      <div class="flex min-w-[12rem] flex-1 flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Cliente</span>
-        <select class="sys-select" name="client_id"><option value="">Todos</option>{% for item in clients_filter %}<option value="{{ item.id }}" {% if filters.client_id == item.id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select>
-      </div>
-      <div class="flex min-w-[10rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Escopo</span>
-        <select class="sys-select" name="client_scope" title="Grupo: agrega lojas do mesmo grupo">
-          <option value="solo" {% if (filters.client_scope or 'solo') == 'solo' %}selected{% endif %}>Só este cliente</option>
-          <option value="group" {% if filters.client_scope == 'group' %}selected{% endif %}>Grupo (agregado)</option>
-        </select>
-      </div>
-      <div class="flex min-w-[11rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Vendedor</span>
-        <select class="sys-select" name="vendedor_id">
-          <option value="">Todos</option>
-          <option value="-1" {% if filters.vendedor_id == -1 %}selected{% endif %}>Sem vendedor</option>
-          {% for s in sellers_filter %}
-          <option value="{{ s.id }}" {% if filters.vendedor_id == s.id %}selected{% endif %}>{{ s.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="flex min-w-[9rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Cidade</span>
-        <select class="sys-select" name="city"><option value="Todos">Todas</option>{% for item in cities_filter %}<option value="{{ item }}" {% if filters.city == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
-      </div>
-      <div class="flex min-w-[9rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Devolução (filtro)</span>
-        <select class="sys-select" name="returns_filter">
-          <option value="Todos" {% if (filters.returns_filter or 'Todos') == 'Todos' %}selected{% endif %}>Todos</option>
-          <option value="com_devolucao" {% if filters.returns_filter == 'com_devolucao' %}selected{% endif %}>Com devolução</option>
-          <option value="acima_meta" {% if filters.returns_filter == 'acima_meta' %}selected{% endif %}>Acima da meta (2% s/ planejado)</option>
-        </select>
-      </div>
-      <div class="flex min-w-[10rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Classificação</span>
-        <select class="sys-select" name="classification_filter">
-          {% for opt in classification_filter_options %}
-          <option value="{{ opt.id }}" {% if (filters.classification_filter or 'Todos') == opt.id %}selected{% endif %}>{{ opt.label }}</option>
-          {% endfor %}
-        </select>
-      </div>
-    </div>
-    <div class="sys-filter-bar sys-filter-bar--end mt-3 flex flex-wrap gap-3 border-t border-slate-200/80 pt-3 dark:border-slate-700/60">
-      <div class="flex min-w-[11rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Motivo devolução</span>
-        <select class="sys-select" name="motivo_filter">
-          <option value="Todos">Todos</option>
-          {% for m in motivos_filter_options %}<option value="{{ m }}" {% if filters.motivo_filter == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="flex min-w-[11rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Responsabilidade</span>
-        <select class="sys-select" name="responsabilidade_filter">
-          <option value="Todos">Todos</option>
-          {% for r in responsabilidades_filter_options %}<option value="{{ r }}" {% if filters.responsabilidade_filter == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="flex min-w-[9rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Faixa compra (R$ entregue)</span>
-        <select class="sys-select" name="purchase_band">
-          {% for val, lab in [('Todos','Todos'),('ate_5k','Até 5k'),('5k_20k','5k–20k'),('20k_50k','20k–50k'),('acima_50k','Acima de 50k')] %}
-          <option value="{{ val }}" {% if (filters.purchase_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="flex min-w-[9rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Faixa % dev. s/ planej.</span>
-        <select class="sys-select" name="return_band">
-          {% for val, lab in [('Todos','Todos'),('zero','0%'),('ate_2','Até 2%'),('2_5','2%–5%'),('acima_5','Acima de 5%')] %}
-          <option value="{{ val }}" {% if (filters.return_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="flex min-w-[9rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Faixa tempo médio</span>
-        <select class="sys-select" name="duration_band">
-          {% for val, lab in [('Todos','Todos'),('ate_30','Até 30 min'),('30_60','30–60'),('60_90','60–90'),('acima_90','Acima de 90')] %}
-          <option value="{{ val }}" {% if (filters.duration_band or 'Todos') == val %}selected{% endif %}>{{ lab }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="flex min-w-[10rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Prioridade cliente</span>
-        <select class="sys-select" name="priority"><option value="Todos">Todas</option>{% for item in priorities_filter %}<option value="{{ item }}" {% if filters.priority == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
-      </div>
-      <div class="flex min-w-[10rem] flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Status cliente</span>
-        <select class="sys-select" name="client_status"><option value="Todos">Todos</option>{% for item in client_statuses_filter %}<option value="{{ item }}" {% if filters.client_status == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
-      </div>
-    </div>
-    <div class="mt-3 flex flex-col gap-2 border-t border-slate-200/80 pt-3 dark:border-slate-700/60 sm:flex-row sm:items-end">
-      <div class="flex min-w-0 flex-1 flex-col gap-1">
-        <span class="sys-section__label sys-section__label--field">Busca (debounce no navegador)</span>
-        <input class="sys-input" type="search" name="search_q" value="{{ filters.search_q or '' }}" placeholder="Buscar cliente, código, vendedor, pedido ou motivo..." autocomplete="off" id="bi-cli-search-server">
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button type="submit" class="sys-btn sys-btn--primary h-9 px-4 text-sm">Aplicar filtros</button>
-      </div>
-    </div>
-    {% if filters.group_filter_note %}
-    <p class="mt-2 text-sm text-amber-600 dark:text-amber-300/90">{{ filters.group_filter_note }}</p>
-    {% endif %}
-  </form>
+      {% if filters.group_filter_note %}
+      <p class="mt-3 text-sm text-amber-600 dark:text-amber-300/90">{{ filters.group_filter_note }}</p>
+      {% endif %}
+    </form>
+  </div>
 
   <div class="sys-kpi-shell w-full">
     <div class="sys-kpi-grid employees-kpi-row" aria-label="Indicadores do período">

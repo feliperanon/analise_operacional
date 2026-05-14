@@ -2518,10 +2518,6 @@ def _build_bi_clientes_dataset(
     top_city_share = round(_safe_pct(top_city_row["visits"], total_visits), 1) if top_city_row else 0.0
 
     ec, ep = exec_cur, exec_prev
-    fin_b = max(float(ec["financial_base"] or 0), 0.01)
-    fin_b_prev = max(float(ep["financial_base"] or 0), 0.01)
-    pct_dev = round(_safe_pct(ec["returned_total"], fin_b), 2)
-    pct_dev_prev = round(_safe_pct(ep["returned_total"], fin_b_prev), 2)
 
     def _delta_pct_exec(a, b):
         try:
@@ -2535,16 +2531,8 @@ def _build_bi_clientes_dataset(
 
     clients_over_60 = sum(1 for r in ranking_rows if float(r.get("avg_duration_m") or 0) > 60)
     clients_over_90 = sum(1 for r in ranking_rows if float(r.get("avg_duration_m") or 0) > 90)
-    waste_pct = round(_safe_pct(ec["unproductive_total"], ec["duration_total"]), 2) if ec["duration_total"] > 0 else 0.0
-    waste_prev = round(_safe_pct(ep["unproductive_total"], ep["duration_total"]), 2) if ep["duration_total"] > 0 else 0.0
 
     macro_v = ec["macro_value_global"]
-    planned_tot = float(ec.get("planned_total") or 0)
-    return_pct_planned_global = _bi_client_return_pct_planned(
-        planned_tot,
-        float(ec.get("delivered_total") or 0.0),
-        float(ec.get("returned_total") or 0.0),
-    )
     tot_delivered_grid = sum(float(r.get("delivered_value") or 0) for r in ranking_rows) or 1.0
     top10_delivered_block = sorted(ranking_rows, key=lambda r: float(r.get("delivered_value") or 0), reverse=True)[:10]
     top10_share_delivered = round(
@@ -2626,28 +2614,63 @@ def _build_bi_clientes_dataset(
         and int(r.get("cliente_score") or 0) >= 72
     )
 
+    # KPIs do topo: mesmo universo da tabela (ranking_rows após todos os filtros, ex.: busca por NB).
+    kpi_planned = round(sum(float(r.get("planned_value") or 0) for r in ranking_rows), 2)
+    kpi_delivered = round(sum(float(r.get("delivered_value") or 0) for r in ranking_rows), 2)
+    kpi_returned = round(sum(float(r.get("returned_value") or 0) for r in ranking_rows), 2)
+    kpi_fin_b = max(kpi_delivered + kpi_returned, 0.01)
+    kpi_pct_dev = round(_safe_pct(kpi_returned, kpi_fin_b), 2)
+    kpi_return_pct_planned_global = _bi_client_return_pct_planned(kpi_planned, kpi_delivered, kpi_returned)
+    kpi_visits = sum(int(r.get("visits") or 0) for r in ranking_rows)
+    kpi_duration_total = round(sum(float(r.get("total_duration_m") or 0) for r in ranking_rows), 1)
+    kpi_unproductive = round(sum(float(r.get("unproductive_m") or 0) for r in ranking_rows), 1)
+    kpi_productive = round(max(0.0, kpi_duration_total - kpi_unproductive), 1)
+    kpi_waste_pct = round(_safe_pct(kpi_unproductive, kpi_duration_total), 2) if kpi_duration_total > 0 else 0.0
+
+    prev_planned = prev_delivered = prev_returned = 0.0
+    prev_duration_total = 0.0
+    prev_unproductive_sum = 0.0
+    for r in ranking_rows:
+        ck = _client_row_key(r.get("client_id"), str(r.get("client_name") or ""))
+        piv = previous_client_agg.get(ck, {})
+        prev_planned += float(piv.get("planned_value") or 0.0)
+        prev_delivered += float(piv.get("delivered_value") or 0.0)
+        prev_returned += float(piv.get("returned_value") or 0.0)
+        prev_duration_total += float(piv.get("total_duration_m") or 0.0)
+        prev_unproductive_sum += float(ep["unprod_by_key"].get(ck, 0.0) or 0.0)
+    prev_planned = round(prev_planned, 2)
+    prev_delivered = round(prev_delivered, 2)
+    prev_returned = round(prev_returned, 2)
+    prev_duration_total = round(prev_duration_total, 1)
+    prev_unproductive_sum = round(prev_unproductive_sum, 1)
+    prev_fin_b = max(prev_delivered + prev_returned, 0.01)
+    prev_pct_dev = round(_safe_pct(prev_returned, prev_fin_b), 2)
+    prev_waste_pct = (
+        round(_safe_pct(prev_unproductive_sum, prev_duration_total), 2) if prev_duration_total > 0 else 0.0
+    )
+
     executive_kpis = {
-        "delivered_value": ec["delivered_total"],
-        "returned_value": ec["returned_total"],
-        "return_pct_value": pct_dev,
-        "total_duration_min": ec["duration_total"],
-        "unproductive_min": ec["unproductive_total"],
-        "productive_min": ec["productive_total"],
-        "waste_pct": waste_pct,
+        "delivered_value": kpi_delivered,
+        "returned_value": kpi_returned,
+        "return_pct_value": kpi_pct_dev,
+        "total_duration_min": kpi_duration_total,
+        "unproductive_min": kpi_unproductive,
+        "productive_min": kpi_productive,
+        "waste_pct": kpi_waste_pct,
         "monitored_clients": len(ranking_rows),
-        "deliveries_count": ec["visits_rota"],
+        "deliveries_count": kpi_visits,
         "clients_with_returns": len(clients_with_returns),
         "clients_avg_over_60": clients_over_60,
         "clients_avg_over_90": clients_over_90,
-        "delta_delivered_pct": _delta_pct_exec(ec["delivered_total"], ep["delivered_total"]),
-        "delta_return_pp": round(pct_dev - pct_dev_prev, 2),
-        "delta_duration_pct": _delta_pct_exec(ec["duration_total"], ep["duration_total"]),
-        "delta_unproductive_pct": _delta_pct_exec(ec["unproductive_total"], ep["unproductive_total"]),
-        "delta_waste_pp": round(waste_pct - waste_prev, 2),
+        "delta_delivered_pct": _delta_pct_exec(kpi_delivered, prev_delivered),
+        "delta_return_pp": round(kpi_pct_dev - prev_pct_dev, 2),
+        "delta_duration_pct": _delta_pct_exec(kpi_duration_total, prev_duration_total),
+        "delta_unproductive_pct": _delta_pct_exec(kpi_unproductive, prev_unproductive_sum),
+        "delta_waste_pp": round(kpi_waste_pct - prev_waste_pct, 2),
         "period_current": current_label,
         "period_previous": previous_label,
-        "planned_value_total": round(planned_tot, 2),
-        "return_pct_planned_global": return_pct_planned_global,
+        "planned_value_total": kpi_planned,
+        "return_pct_planned_global": kpi_return_pct_planned_global,
         "uniq_clients": len(ranking_rows),
         "clients_critical_intel": len(critical_clients),
         "clients_good_intel": clients_good_intel,
@@ -2663,9 +2686,9 @@ def _build_bi_clientes_dataset(
     }
 
     reading_cards = bci_clientes.build_operational_reading_cards(
-        returned_total=float(ec["returned_total"] or 0),
-        delivered_total=float(ec["delivered_total"] or 0),
-        planned_total=planned_tot,
+        returned_total=float(kpi_returned),
+        delivered_total=float(kpi_delivered),
+        planned_total=float(kpi_planned),
         n_clients=len(ranking_rows),
         n_above_meta=n_above_meta,
         n_small_high_impact=n_small_high,
