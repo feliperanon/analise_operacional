@@ -56,10 +56,167 @@
       .replace(/"/g, "&quot;");
   }
 
+  var MODAL_LIST_CHUNK = 25;
+
+  function syncBiModalOpenState() {
+    var ins = document.getElementById("bi-cli-insight-modal");
+    var tr = document.getElementById("bi-cli-treatable-modal");
+    var dr = document.getElementById("bi-cli-drawer");
+    var open =
+      (ins && !ins.classList.contains("hidden")) ||
+      (tr && !tr.classList.contains("hidden")) ||
+      (dr && !dr.classList.contains("hidden"));
+    if (open) document.body.classList.add("bi-modal-open");
+    else document.body.classList.remove("bi-modal-open");
+  }
+
+  function truncateOneLine(s, max) {
+    s = String(s || "").replace(/\s+/g, " ").trim();
+    max = max || 140;
+    if (!s) return "";
+    if (s.length <= max) return s;
+    return s.slice(0, max - 1) + "…";
+  }
+
+  function modalActionLine(row) {
+    if (row.summary) return truncateOneLine(row.summary, 160);
+    var h = row.hints;
+    if (Array.isArray(h) && h[0]) return truncateOneLine(h[0], 160);
+    var c = row.context;
+    if (Array.isArray(c) && c[0]) return truncateOneLine(c[0], 160);
+    if (row.action_recommendation) return truncateOneLine(row.action_recommendation, 160);
+    return "Abrir ficha para ver contexto e sugestões completas.";
+  }
+
+  function fmtPctFromDeliveredReturned(row) {
+    if (row.return_pct_planned != null && row.return_pct_planned !== "") return fmtPct(row.return_pct_planned);
+    var d = Number(row.delivered_value || 0) + Number(row.returned_value || 0);
+    if (d <= 0) return "—";
+    return fmtPct((100 * Number(row.returned_value || 0)) / d);
+  }
+
+  function renderModalClientRow(row, profile) {
+    var cid = row.client_id != null ? String(row.client_id) : "";
+    var name = escapeHtml(row.client_name || "—");
+    var sub =
+      "NB " +
+      escapeHtml(String(row.client_code || "—").trim() || "—") +
+      " · " +
+      escapeHtml(row.vendedor_name || "—");
+    var cls = escapeHtml(row.classification_title || "—");
+    var pct = fmtPctFromDeliveredReturned(row);
+    var retMoney = fmtMoney(row.returned_value != null ? row.returned_value : 0);
+    var motivo = escapeHtml(String(row.top_motivo_name || "—").trim() || "—");
+    var actionSmall = escapeHtml(modalActionLine(row));
+
+    var riskHtml = "";
+    if (profile === "critical") {
+      var rs = row.risk_score != null ? String(row.risk_score) : "—";
+      riskHtml =
+        '<span class="sys-badge sys-badge--critical shrink-0" title="Score de risco">Risco ' + escapeHtml(rs) + "</span>";
+    } else if (profile === "large_risk") {
+      riskHtml =
+        '<span class="sys-badge sys-badge--alert shrink-0" title="% devolução (valor)">' + escapeHtml(pct) + "</span>";
+    } else if (profile === "small_high") {
+      var imp = Number(row.operational_impact || 0).toLocaleString("pt-BR", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
+      riskHtml =
+        '<span class="sys-badge sys-badge--alert shrink-0" title="Impacto operacional">Impacto ' + escapeHtml(imp) + "</span>";
+    } else if (profile === "good") {
+      var sc = row.cliente_score != null ? String(row.cliente_score) : "—";
+      riskHtml = '<span class="sys-badge sys-badge--ok shrink-0">Score ' + escapeHtml(sc) + "</span>";
+    } else if (profile === "treatable") {
+      riskHtml =
+        '<span class="sys-badge shrink-0 border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-700 dark:bg-violet-950/50 dark:text-violet-200" title="Valor evitável (tratável)">' +
+        escapeHtml(fmtMoney(row.treatable_returned_value || 0)) +
+        "</span>";
+    }
+
+    var retChip = profile === "good" ? fmtMoney(row.delivered_value || 0) : retMoney;
+    var retLabel = profile === "good" ? "Entregue" : "Devolv.";
+
+    var openBtn = cid
+      ? '<button type="button" class="sys-btn sys-btn--secondary bi-client-card-detail-btn shrink-0" data-bi-cli-open="' +
+        escapeHtml(cid) +
+        '">Abrir ficha</button>'
+      : "";
+
+    return (
+      '<article class="bi-modal-client-row">' +
+      '<div class="bi-modal-client-row__top">' +
+      "<strong class=\"min-w-0 truncate\">" +
+      name +
+      "</strong>" +
+      riskHtml +
+      "</div>" +
+      '<p class="bi-modal-client-row__sub">' +
+      sub +
+      "</p>" +
+      '<div class="bi-modal-client-row__metrics">' +
+      "<span title=\"Classificação\">" +
+      cls +
+      "</span>" +
+      '<span title="% devolução (valor)">' +
+      escapeHtml(pct) +
+      "</span>" +
+      '<span title="' +
+      escapeHtml(retLabel) +
+      '">' +
+      escapeHtml(retChip) +
+      "</span>" +
+      '<span title="Motivo líder">' +
+      motivo +
+      "</span></div>" +
+      '<div class="bi-modal-client-row__footer">' +
+      "<small>" +
+      actionSmall +
+      "</small>" +
+      openBtn +
+      "</div></article>"
+    );
+  }
+
+  function renderModalListInto(bodyEl, allRows, profile, shownCount) {
+    if (!bodyEl) return;
+    var limit =
+      typeof shownCount === "number" && shownCount > 0 ? shownCount : MODAL_LIST_CHUNK;
+    limit = Math.min(Math.max(limit, 0), allRows.length);
+    var slice = allRows.slice(0, limit);
+    var html = '<div class="bi-modal-client-list">';
+    slice.forEach(function (row) {
+      html += renderModalClientRow(row, profile);
+    });
+    html += "</div>";
+    if (allRows.length > limit) {
+      html +=
+        '<div class="bi-modal-load-more flex justify-center pt-2">' +
+        '<button type="button" class="sys-btn sys-btn--secondary h-8 px-3 text-xs" data-bi-cli-modal-more="1">Mostrar mais</button></div>';
+    }
+    bodyEl.innerHTML = html;
+    var moreBtn = bodyEl.querySelector("[data-bi-cli-modal-more]");
+    if (moreBtn) {
+      moreBtn.addEventListener("click", function () {
+        renderModalListInto(bodyEl, allRows, profile, limit + MODAL_LIST_CHUNK);
+      });
+    }
+  }
+
+  function isNarrowViewport() {
+    return typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+  }
+
   function getEffectivePageSize() {
     if (typeof window.matchMedia === "undefined") return 25;
-    return window.matchMedia("(max-width: 767px)").matches ? 12 : 25;
+    return isNarrowViewport() ? 10 : 25;
   }
+
+  function rankInitialVisible() {
+    return isNarrowViewport() ? 5 : 12;
+  }
+
+  var RANK_MORE_STEP = 5;
 
   function syncPageSize() {
     var ps = getEffectivePageSize();
@@ -81,6 +238,8 @@
     search: "",
     chartsBound: false,
     rankingTabKey: "maior_compra",
+    rankingVisibleCount: null,
+    _lastNarrow: null,
   };
 
   var RANK_TABS = [
@@ -420,6 +579,7 @@
       drawer.classList.remove("hidden");
       drawer.setAttribute("aria-hidden", "false");
     }
+    syncBiModalOpenState();
   }
 
   function closeDrawer() {
@@ -428,6 +588,7 @@
       drawer.classList.add("hidden");
       drawer.setAttribute("aria-hidden", "true");
     }
+    syncBiModalOpenState();
   }
 
   function routesForClient(cid) {
@@ -710,6 +871,7 @@
     if (!mount) return;
     var isMd = typeof window.matchMedia !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
     if (isMd) {
+      mount.classList.add("is-loaded");
       mount.classList.remove("hidden");
       mountCharts();
     }
@@ -730,6 +892,7 @@
         b.textContent = t.label;
         b.addEventListener("click", function () {
           state.rankingTabKey = t.key;
+          state.rankingVisibleCount = rankInitialVisible();
           tabsEl.querySelectorAll(".bi-client-tab").forEach(function (x) {
             x.classList.toggle("is-active", x.getAttribute("data-rank-tab") === t.key);
           });
@@ -738,6 +901,7 @@
         tabsEl.appendChild(b);
       });
     }
+    if (state.rankingVisibleCount == null) state.rankingVisibleCount = rankInitialVisible();
     var rows = data[state.rankingTabKey] || [];
     var hint =
       state.rankingTabKey === "maior_pct"
@@ -749,38 +913,98 @@
       panel.innerHTML = hint + "<p class=\"employees-text-muted text-sm\">Sem dados nesta aba para o recorte.</p>";
       return;
     }
-    var h =
-      hint +
-      "<div class=\"sys-table-wrap sys-table-wrap--x-scroll\"><table class=\"sys-data-table text-xs\"><thead><tr>" +
-      "<th>Cliente</th><th>Código</th><th class=\"text-right\">Entregue</th><th class=\"text-right\">Devolvido</th>" +
-      "<th class=\"text-right\">% Dev.</th><th class=\"text-right\">Tempo médio</th><th>Classificação</th><th></th></tr></thead><tbody>";
-    rows.forEach(function (r) {
-      var cid = r.client_id != null ? String(r.client_id) : "";
-      h +=
-        "<tr><td class=\"max-w-[12rem] truncate font-medium\">" +
-        escapeHtml(r.client_name || "—") +
-        "</td><td>" +
-        escapeHtml(r.client_code || "—") +
-        "</td><td class=\"text-right tabular-nums\">" +
-        fmtMoney(r.delivered_value) +
-        "</td><td class=\"text-right tabular-nums\">" +
-        fmtMoney(r.returned_value) +
-        "</td><td class=\"text-right tabular-nums\">" +
-        fmtPct(r.return_pct_planned) +
-        "</td><td class=\"text-right\">" +
-        fmtDur(r.avg_duration_m) +
-        "</td><td class=\"max-w-[8rem] truncate\">" +
-        escapeHtml(r.classification_title || "—") +
-        "</td><td class=\"text-right\">" +
-        (cid
-          ? "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-7 px-2 text-[11px]\" data-bi-cli-open=\"" +
-            escapeHtml(cid) +
-            "\">Detalhar</button>"
-          : "") +
-        "</td></tr>";
-    });
-    h += "</tbody></table></div>";
-    panel.innerHTML = h;
+    var total = rows.length;
+    var visible = Math.min(total, Math.max(1, state.rankingVisibleCount));
+    var slice = rows.slice(0, visible);
+    var meta =
+      '<p class="bi-cli-rank-shown-meta employees-text-muted mb-2 text-xs tabular-nums">Mostrando ' +
+      visible +
+      " de " +
+      total +
+      "</p>";
+    var mobile = isNarrowViewport();
+    var bodyHtml = "";
+
+    if (mobile) {
+      bodyHtml += '<div class="bi-cli-rank-mobile-list flex flex-col gap-2">';
+      slice.forEach(function (r) {
+        var cid = r.client_id != null ? String(r.client_id) : "";
+        bodyHtml +=
+          '<article class="bi-rank-mobile-row">' +
+          '<div class="bi-rank-mobile-row__head flex items-start justify-between gap-2">' +
+          "<div class=\"min-w-0 flex-1\">" +
+          "<strong class=\"block truncate text-[13px] leading-tight\">" +
+          escapeHtml(r.client_name || "—") +
+          "</strong>" +
+          "<small class=\"mt-0.5 block truncate text-[11px] text-slate-500 dark:text-slate-400\">NB " +
+          escapeHtml(String(r.client_code || "—")) +
+          " · " +
+          escapeHtml(r.vendedor_name || "—") +
+          "</small></div>" +
+          (cid
+            ? "<button type=\"button\" class=\"sys-btn sys-btn--secondary bi-client-card-detail-btn shrink-0\" data-bi-cli-open=\"" +
+              escapeHtml(cid) +
+              "\">Detalhar</button>"
+            : "") +
+          "</div>" +
+          '<div class="bi-rank-mobile-row__nums flex flex-wrap gap-1.5 text-[11px] tabular-nums text-slate-600 dark:text-slate-300">' +
+          "<span>Entregue " +
+          fmtMoney(r.delivered_value) +
+          "</span>" +
+          "<span>Dev. " +
+          fmtPct(r.return_pct_planned) +
+          "</span></div>" +
+          "</article>";
+      });
+      bodyHtml += "</div>";
+    } else {
+      bodyHtml +=
+        "<div class=\"sys-table-wrap sys-table-wrap--x-scroll\"><table class=\"sys-data-table text-xs\"><thead><tr>" +
+        "<th>Cliente</th><th>Código</th><th class=\"text-right\">Entregue</th><th class=\"text-right\">Devolvido</th>" +
+        "<th class=\"text-right\">% Dev.</th><th class=\"text-right\">Tempo médio</th><th>Classificação</th><th></th></tr></thead><tbody>";
+      slice.forEach(function (r) {
+        var cid = r.client_id != null ? String(r.client_id) : "";
+        bodyHtml +=
+          "<tr><td class=\"max-w-[12rem] truncate font-medium\">" +
+          escapeHtml(r.client_name || "—") +
+          "</td><td>" +
+          escapeHtml(r.client_code || "—") +
+          "</td><td class=\"text-right tabular-nums\">" +
+          fmtMoney(r.delivered_value) +
+          "</td><td class=\"text-right tabular-nums\">" +
+          fmtMoney(r.returned_value) +
+          "</td><td class=\"text-right tabular-nums\">" +
+          fmtPct(r.return_pct_planned) +
+          "</td><td class=\"text-right\">" +
+          fmtDur(r.avg_duration_m) +
+          "</td><td class=\"max-w-[8rem] truncate\">" +
+          escapeHtml(r.classification_title || "—") +
+          "</td><td class=\"text-right\">" +
+          (cid
+            ? "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-7 px-2 text-[11px]\" data-bi-cli-open=\"" +
+              escapeHtml(cid) +
+              "\">Detalhar</button>"
+            : "") +
+          "</td></tr>";
+      });
+      bodyHtml += "</tbody></table></div>";
+    }
+
+    var moreHtml = "";
+    if (visible < total) {
+      moreHtml =
+        '<div class="mt-3 flex justify-center">' +
+        '<button type="button" class="bi-cli-rank-more sys-btn sys-btn--secondary h-8 px-3 text-xs">Ver mais do ranking</button></div>';
+    }
+
+    panel.innerHTML = hint + meta + bodyHtml + moreHtml;
+    var moreBtn = panel.querySelector(".bi-cli-rank-more");
+    if (moreBtn) {
+      moreBtn.addEventListener("click", function () {
+        state.rankingVisibleCount = Math.min(total, visible + RANK_MORE_STEP);
+        renderRankingPanel();
+      });
+    }
   }
 
   function boot() {
@@ -788,6 +1012,8 @@
     state.routes = readJson("bi-cli-routes-json") || [];
     state.page = 1;
     state.pageSize = getEffectivePageSize();
+    state._lastNarrow = isNarrowViewport();
+    state.rankingVisibleCount = rankInitialVisible();
 
     document.querySelectorAll("[data-sort]").forEach(function (th) {
       th.style.cursor = "pointer";
@@ -839,6 +1065,13 @@
       var before = state.pageSize;
       syncPageSize();
       if (before !== state.pageSize) renderTable();
+      var narrow = isNarrowViewport();
+      if (narrow !== state._lastNarrow) {
+        state._lastNarrow = narrow;
+        state.rankingVisibleCount = rankInitialVisible();
+        renderRankingPanel();
+      }
+      if (!narrow) initChartsIfNeeded();
     }, 200);
     window.addEventListener("resize", onResize);
 
@@ -846,11 +1079,17 @@
       b.addEventListener("click", closeDrawer);
     });
 
+    function readJsonArray(id) {
+      var v = readJson(id);
+      return Array.isArray(v) ? v : [];
+    }
+
     function closeTreatableModal() {
       var m = document.getElementById("bi-cli-treatable-modal");
       if (!m) return;
       m.classList.add("hidden");
       m.setAttribute("aria-hidden", "true");
+      syncBiModalOpenState();
     }
 
     function openTreatableModal() {
@@ -863,59 +1102,11 @@
         body.innerHTML =
           "<p class=\"employees-text-muted py-6 text-center text-sm\">Nenhum cliente com impacto evitável neste recorte.</p>";
       } else {
-        body.innerHTML = rows
-          .map(function (row) {
-            var cid = row.client_id != null ? String(row.client_id) : "";
-            var motivos = (row.treatable_motivos || [])
-              .map(function (x) {
-                return (
-                  "<li class=\"flex justify-between gap-2 border-b border-slate-100 py-1 dark:border-slate-800\"><span class=\"min-w-0 truncate\">" +
-                  escapeHtml(x.motivo) +
-                  "</span><span class=\"shrink-0 tabular-nums text-slate-600 dark:text-slate-300\">" +
-                  fmtMoney(x.value) +
-                  "</span></li>"
-                );
-              })
-              .join("");
-            var hints = (row.hints || [])
-              .map(function (h) {
-                return "<li class=\"mt-1.5 leading-snug\">" + escapeHtml(h) + "</li>";
-              })
-              .join("");
-            return (
-              "<article class=\"mb-4 rounded-xl border border-slate-200/90 bg-slate-50/60 p-3 last:mb-0 dark:border-slate-700 dark:bg-slate-800/40\">" +
-              "<div class=\"flex flex-wrap items-start justify-between gap-2\">" +
-              "<div class=\"min-w-0\">" +
-              "<p class=\"font-semibold leading-tight\">" +
-              escapeHtml(row.client_name || "—") +
-              "</p>" +
-              "<p class=\"employees-text-muted mt-0.5 text-xs\">" +
-              escapeHtml(row.client_code || "") +
-              (row.vendedor_name ? " · " + escapeHtml(row.vendedor_name) : "") +
-              "</p></div>" +
-              "<div class=\"text-right\">" +
-              "<p class=\"text-xs text-violet-700 dark:text-violet-300\">Evitável</p>" +
-              "<p class=\"tabular-nums font-semibold text-violet-800 dark:text-violet-200\">" +
-              fmtMoney(row.treatable_returned_value) +
-              "</p></div></div>" +
-              (motivos
-                ? "<ul class=\"mt-1 text-xs\">" + motivos + "</ul>"
-                : "") +
-              (hints
-                ? "<ol class=\"mt-2 list-decimal pl-4 text-xs text-slate-700 dark:text-slate-300\">" + hints + "</ol>"
-                : "") +
-              (cid
-                ? "<div class=\"mt-3\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
-                  escapeHtml(cid) +
-                  "\">Abrir ficha</button></div>"
-                : "") +
-              "</article>"
-            );
-          })
-          .join("");
+        renderModalListInto(body, rows, "treatable");
       }
       m.classList.remove("hidden");
       m.setAttribute("aria-hidden", "false");
+      syncBiModalOpenState();
     }
 
     var kpiTreat = document.getElementById("bi-cli-kpi-treatable-open");
@@ -942,6 +1133,7 @@
         sub.textContent = "";
         sub.classList.add("hidden");
       }
+      syncBiModalOpenState();
     }
 
     function openInsightModal(title, html, subtext) {
@@ -951,7 +1143,8 @@
       var sub = document.getElementById("bi-cli-insight-sub");
       if (!m || !t || !body) return;
       t.textContent = title || "Detalhe";
-      body.innerHTML = html || "";
+      if (typeof html === "function") html(body);
+      else body.innerHTML = html || "";
       if (sub) {
         if (subtext) {
           sub.textContent = subtext;
@@ -963,24 +1156,7 @@
       }
       m.classList.remove("hidden");
       m.setAttribute("aria-hidden", "false");
-    }
-
-    function readJsonArray(id) {
-      var v = readJson(id);
-      return Array.isArray(v) ? v : [];
-    }
-
-    function renderOlLines(lines) {
-      if (!lines || !lines.length) return "";
-      return (
-        "<ol class=\"mt-1 list-decimal space-y-1.5 pl-4 text-xs leading-snug text-slate-700 dark:text-slate-300\">" +
-        lines
-          .map(function (x) {
-            return "<li>" + escapeHtml(x) + "</li>";
-          })
-          .join("") +
-        "</ol>"
-      );
+      syncBiModalOpenState();
     }
 
     function openCriticalListModal() {
@@ -989,42 +1165,9 @@
         openInsightModal("Clientes críticos", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum cliente crítico neste recorte.</p>", null);
         return;
       }
-      var html = rows
-        .map(function (row) {
-          var cid = row.client_id != null ? String(row.client_id) : "";
-          return (
-            "<article class=\"mb-4 rounded-xl border border-red-200/60 bg-red-50/30 p-3 last:mb-0 dark:border-red-900/40 dark:bg-red-950/20\">" +
-            "<div class=\"flex flex-wrap justify-between gap-2\">" +
-            "<div class=\"min-w-0\"><p class=\"font-semibold leading-tight\">" +
-            escapeHtml(row.client_name || "—") +
-            "</p><p class=\"employees-text-muted mt-0.5 text-xs\">" +
-            escapeHtml(row.client_code || "") +
-            (row.vendedor_name ? " · " + escapeHtml(row.vendedor_name) : "") +
-            "</p></div>" +
-            "<div class=\"text-right text-xs\"><span class=\"font-semibold text-red-700 dark:text-red-300\">Risco " +
-            escapeHtml(String(row.risk_score != null ? row.risk_score : "—")) +
-            "</span></div></div>" +
-            "<p class=\"mt-2 text-xs text-slate-600 dark:text-slate-400\">" +
-            escapeHtml(row.classification_title || "") +
-            " · % dev. " +
-            Number(row.return_pct_planned || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
-            "% · " +
-            fmtMoney(row.returned_value) +
-            "</p>" +
-            "<p class=\"mt-2 text-xs font-semibold\">Contexto</p>" +
-            renderOlLines(row.context || []) +
-            "<p class=\"mt-2 text-xs font-semibold\">Sugestões</p>" +
-            renderOlLines(row.hints || []) +
-            (cid
-              ? "<div class=\"mt-3\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
-                escapeHtml(cid) +
-                "\">Abrir ficha</button></div>"
-              : "") +
-            "</article>"
-          );
-        })
-        .join("");
-      openInsightModal("Clientes críticos (" + rows.length + ")", html, null);
+      openInsightModal("Clientes críticos (" + rows.length + ")", function (body) {
+        renderModalListInto(body, rows, "critical");
+      }, null);
     }
 
     function openLargeRiskListModal() {
@@ -1033,32 +1176,9 @@
         openInsightModal("Alto valor com risco", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum caso neste recorte.</p>", null);
         return;
       }
-      var html = rows
-        .map(function (row) {
-          var cid = row.client_id != null ? String(row.client_id) : "";
-          return (
-            "<article class=\"mb-3 rounded-lg border border-amber-200/70 bg-amber-50/25 p-3 dark:border-amber-900/40 dark:bg-amber-950/15\">" +
-            "<p class=\"font-semibold\">" +
-            escapeHtml(row.client_name || "—") +
-            "</p>" +
-            "<p class=\"employees-text-muted text-xs\">" +
-            escapeHtml(row.client_code || "") +
-            " · % dev. " +
-            Number(row.return_pct_planned || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
-            "% · " +
-            fmtMoney(row.returned_value) +
-            "</p>" +
-            renderOlLines(row.context || []) +
-            (cid
-              ? "<div class=\"mt-2\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
-                escapeHtml(cid) +
-                "\">Abrir ficha</button></div>"
-              : "") +
-            "</article>"
-          );
-        })
-        .join("");
-      openInsightModal("Alto valor com risco (" + rows.length + ")", html, null);
+      openInsightModal("Alto valor com risco (" + rows.length + ")", function (body) {
+        renderModalListInto(body, rows, "large_risk");
+      }, null);
     }
 
     function openSmallHighListModal() {
@@ -1067,30 +1187,9 @@
         openInsightModal("Pequeno cliente, grande impacto", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum caso neste recorte.</p>", null);
         return;
       }
-      var html = rows
-        .map(function (row) {
-          var cid = row.client_id != null ? String(row.client_id) : "";
-          return (
-            "<article class=\"mb-3 rounded-lg border border-violet-200/70 bg-violet-50/20 p-3 dark:border-violet-900/35 dark:bg-violet-950/15\">" +
-            "<p class=\"font-semibold\">" +
-            escapeHtml(row.client_name || "—") +
-            "</p>" +
-            "<p class=\"employees-text-muted text-xs\">Impacto " +
-            Number(row.operational_impact || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) +
-            " · tempo médio " +
-            fmtDur(row.avg_duration_m) +
-            "</p>" +
-            renderOlLines(row.hints || row.context || []) +
-            (cid
-              ? "<div class=\"mt-2\"><button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-3 text-xs\" data-bi-cli-open=\"" +
-                escapeHtml(cid) +
-                "\">Abrir ficha</button></div>"
-              : "") +
-            "</article>"
-          );
-        })
-        .join("");
-      openInsightModal("Pequeno cliente, grande impacto", html, null);
+      openInsightModal("Pequeno cliente, grande impacto (" + rows.length + ")", function (body) {
+        renderModalListInto(body, rows, "small_high");
+      }, null);
     }
 
     function openGoodListModal() {
@@ -1099,28 +1198,9 @@
         openInsightModal("Clientes bons", "<p class=\"employees-text-muted py-4 text-center text-sm\">Nenhum cliente neste perfil.</p>", null);
         return;
       }
-      var html = rows
-        .map(function (row) {
-          var cid = row.client_id != null ? String(row.client_id) : "";
-          return (
-            "<article class=\"mb-3 flex flex-wrap items-start justify-between gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50/25 px-3 py-2 dark:border-emerald-900/35 dark:bg-emerald-950/15\">" +
-            "<div class=\"min-w-0 flex-1\">" +
-            "<p class=\"font-medium leading-tight\">" +
-            escapeHtml(row.client_name || "—") +
-            "</p>" +
-            "<p class=\"employees-text-muted mt-0.5 text-xs\">" +
-            escapeHtml(row.summary || "") +
-            "</p></div>" +
-            (cid
-              ? "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 shrink-0 px-2 text-xs\" data-bi-cli-open=\"" +
-                escapeHtml(cid) +
-                "\">Ficha</button>"
-              : "") +
-            "</article>"
-          );
-        })
-        .join("");
-      openInsightModal("Melhores clientes (lista)", html, null);
+      openInsightModal("Melhores clientes (" + rows.length + ")", function (body) {
+        renderModalListInto(body, rows, "good");
+      }, null);
     }
 
     document.querySelectorAll("[data-bi-cli-insight-close]").forEach(function (b) {
@@ -1135,7 +1215,12 @@
         return;
       }
       var modal = document.getElementById("bi-cli-treatable-modal");
-      if (modal && !modal.classList.contains("hidden")) closeTreatableModal();
+      if (modal && !modal.classList.contains("hidden")) {
+        closeTreatableModal();
+        return;
+      }
+      var dr = document.getElementById("bi-cli-drawer");
+      if (dr && !dr.classList.contains("hidden")) closeDrawer();
     });
 
     document.querySelectorAll(".js-bi-cli-action").forEach(function (btn) {
@@ -1184,9 +1269,20 @@
     var chartsMount = document.getElementById("bi-cli-charts-mount");
     if (chartsBtn && chartsMount) {
       chartsBtn.addEventListener("click", function () {
+        chartsMount.classList.add("is-loaded");
         chartsMount.classList.remove("hidden");
         chartsBtn.classList.add("hidden");
         mountCharts();
+      });
+    }
+
+    var rankCollapse = document.getElementById("bi-cli-rank-collapse-btn");
+    var rankBody = document.getElementById("bi-cli-rank-body");
+    if (rankCollapse && rankBody) {
+      rankCollapse.addEventListener("click", function () {
+        var collapsed = rankBody.classList.toggle("bi-cli-rank-body--collapsed");
+        rankCollapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        rankCollapse.textContent = collapsed ? "Expandir ranking" : "Recolher ranking";
       });
     }
 

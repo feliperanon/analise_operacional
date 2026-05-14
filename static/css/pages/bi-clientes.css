@@ -28,12 +28,12 @@ body.dashboard-app main.gv-shell:has(#bi-clientes-root) .ga-panel-stack.gv-panel
   box-shadow: var(--sys-shadow-lg, 0 12px 40px rgb(15 23 42 / 0.12));
 }
 
-/* Modais / drawer (portais em layout_portal): acima do menu global */
-#bi-cli-treatable-modal.bi-cli-modal-shell,
-#bi-cli-insight-modal.bi-cli-modal-shell,
-#bi-cli-drawer.bi-cli-modal-shell,
+/* Modais / drawer (layout_portal): acima do header (z-30), overlay menu (z-40), sidebar (z-50), gv-menu-btn */
+#bi-cli-treatable-modal,
+#bi-cli-insight-modal,
+#bi-cli-drawer,
 #bi-cli-detail-drawer {
-  z-index: var(--bi-z-modal) !important;
+  z-index: 80 !important;
 }
 
 #bi-cli-treatable-modal .bi-cli-modal-shell__backdrop,
@@ -46,6 +46,152 @@ body.dashboard-app main.gv-shell:has(#bi-clientes-root) .ga-panel-stack.gv-panel
 #bi-cli-insight-modal .bi-cli-modal-shell__layer,
 #bi-cli-drawer .bi-cli-modal-shell__layer {
   z-index: var(--bi-z-modal-layer);
+}
+
+body.bi-modal-open {
+  overflow: hidden;
+}
+
+body.bi-modal-open .gv-shell,
+body.bi-modal-open .ga-main-scroll {
+  overflow: hidden;
+}
+
+.bi-cli-modal-shell__layer--list {
+  align-items: flex-end;
+  padding: 0;
+}
+
+@media (min-width: 768px) {
+  .bi-cli-modal-shell__layer--list {
+    align-items: center;
+    padding: 1.5rem;
+  }
+}
+
+.bi-modal-panel {
+  max-width: 820px;
+  width: min(820px, calc(100vw - 32px));
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
+@media (max-width: 767px) {
+  .bi-modal-panel {
+    width: 100%;
+    max-width: none;
+    max-height: 88vh;
+    border-radius: 18px 18px 0 0;
+  }
+}
+
+.bi-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex-shrink: 0;
+  background: inherit;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+html.dark .bi-modal-header {
+  background: rgb(15 23 42 / 0.98);
+}
+
+html:not(.dark) .bi-modal-header {
+  background: rgb(255 255 255 / 0.98);
+}
+
+.bi-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bi-modal-client-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bi-modal-load-more {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.bi-modal-client-row {
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  display: grid;
+  gap: 6px;
+}
+
+html.dark .bi-modal-client-row,
+.dark .bi-modal-client-row {
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.bi-modal-client-row__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bi-modal-client-row__top strong {
+  font-size: 13px;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.bi-modal-client-row__sub {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--sys-text-muted, #64748b);
+}
+
+.bi-modal-client-row__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bi-modal-client-row__metrics span {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 3px 7px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bi-modal-client-row__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bi-modal-client-row__footer small {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--sys-text-muted, #64748b);
 }
 
 .ga-employee-theme.bi-clientes-page .bi-cli-drawer {
@@ -632,6 +778,95 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-client-row--premium td {
 }
 html.dark .ga-employee-theme.bi-clientes-page .bi-client-row--stable td {
   background: rgba(30, 58, 138, 0.2);
+}
+
+/* —— Mobile: ranking compacto, gráficos sob demanda, separação seções —— */
+@media (max-width: 767px) {
+  .ga-employee-theme.bi-clientes-page .bi-cli-rank-section + .bi-cli-clients-section {
+    margin-top: 0.75rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+    padding-top: 0.75rem;
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-cli-rank-body--collapsed {
+    display: none !important;
+  }
+
+  #bi-cli-charts-mount.bi-cli-charts-mount:not(.is-loaded) {
+    display: none !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden;
+  }
+
+  #bi-cli-charts-mount.bi-cli-charts-mount.is-loaded {
+    display: block !important;
+    visibility: visible;
+    max-height: none;
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-rank-mobile-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 12px;
+    background: var(--sys-surface, #fff);
+  }
+
+  html.dark .ga-employee-theme.bi-clientes-page .bi-rank-mobile-row {
+    background: rgb(15 23 42 / 0.55);
+    border-color: rgb(51 65 85 / 0.55);
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-client-mobile-card {
+    padding: 8px 10px;
+    gap: 5px;
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-client-mobile-card__row1 {
+    align-items: center;
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-client-mobile-card__name {
+    font-size: 12px;
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-client-mobile-card__sub {
+    font-size: 10.5px;
+    line-height: 1.2;
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-client-mobile-metrics {
+    gap: 4px;
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-client-mobile-metrics span {
+    font-size: 10.5px;
+    padding: 3px 6px;
+  }
+
+  .ga-employee-theme.bi-clientes-page .bi-client-card-detail-btn {
+    min-height: 26px;
+    height: 26px;
+    padding: 0 8px;
+    font-size: 10.5px;
+    border-radius: 999px;
+  }
+
+  .ga-employee-theme.bi-clientes-page #bi-cli-cards-mobile {
+    gap: 6px;
+  }
+}
+
+@media (min-width: 768px) {
+  #bi-cli-rank-collapse-btn {
+    display: none !important;
+  }
 }
 
 .ga-employee-theme.bi-clientes-page .bi-cli-chart-figure {

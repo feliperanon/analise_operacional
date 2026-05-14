@@ -16,7 +16,7 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
-<link rel="stylesheet" href="/static/css/pages/bi-clientes.css?v=9">
+<link rel="stylesheet" href="/static/css/pages/bi-clientes.css?v=12">
 {% endblock %}
 
 {% block content %}
@@ -412,17 +412,27 @@
     </div>
   </section>
 
-  <section class="sys-card sys-card--surface sys-card--comfort">
-    <h3 class="sys-section-heading mb-3 text-base">Ranking de clientes</h3>
-    <div class="bi-client-tabs flex flex-wrap gap-1 border-b border-slate-200/80 pb-2 dark:border-slate-700/60" id="bi-cli-rank-tabs" role="tablist"></div>
-    <div id="bi-cli-rank-panel" class="bi-client-ranking-list mt-3 min-h-[12rem]"></div>
+  <section class="sys-card sys-card--surface sys-card--comfort bi-cli-rank-section" id="bi-cli-rank-section" aria-labelledby="bi-cli-rank-h">
+    <div class="flex flex-wrap items-start justify-between gap-2">
+      <div class="min-w-0">
+        <h3 id="bi-cli-rank-h" class="sys-section-heading mb-1 text-base">Ranking de clientes</h3>
+        <p class="employees-text-muted text-xs">Destaques do período</p>
+        <p class="employees-text-muted mt-0.5 text-[11px] leading-snug">Destaques por critério</p>
+      </div>
+      <button type="button" id="bi-cli-rank-collapse-btn" class="sys-btn sys-btn--secondary h-8 shrink-0 px-2 text-xs md:hidden" aria-expanded="true">Recolher ranking</button>
+    </div>
+    <div id="bi-cli-rank-body" class="bi-cli-rank-body mt-2">
+      <div class="bi-client-tabs flex flex-wrap gap-1 border-b border-slate-200/80 pb-2 dark:border-slate-700/60" id="bi-cli-rank-tabs" role="tablist"></div>
+      <div id="bi-cli-rank-panel" class="bi-client-ranking-list mt-2"></div>
+    </div>
   </section>
 
+  {# Listagem principal de clientes: única seção (tabela desktop, cards mobile, busca, paginação). #}
   <section class="bi-cli-clients-section sys-card sys-card--surface sys-card--comfort">
     <div class="bi-cli-clients-head">
       <div class="bi-cli-clients-head__titles">
         <h3 class="sys-section-heading text-base">Clientes</h3>
-        <p class="employees-text-muted text-xs">Lista operacional filtrada</p>
+        <p class="employees-text-muted text-xs">Lista completa filtrada</p>
       </div>
       <div class="bi-cli-clients-head__tools">
         <div class="bi-cli-clients-search-wrap">
@@ -485,9 +495,10 @@
 
   <section class="sys-card sys-card--surface sys-card--comfort" id="bi-cli-visual-section">
     <h3 class="sys-section-heading mb-1 text-base">Análise visual</h3>
-    <p class="employees-text-muted mb-3 text-xs">Até 4 gráficos alinhados à decisão por cliente.</p>
-    <button type="button" class="sys-btn sys-btn--secondary mb-4 md:hidden" id="bi-cli-charts-load-btn">Carregar análise visual</button>
-    <div id="bi-cli-charts-mount" class="hidden md:block">
+    <p class="employees-text-muted mb-2 text-xs md:hidden">Carregue os gráficos somente quando precisar analisar tendência e distribuição.</p>
+    <p class="employees-text-muted mb-3 hidden text-xs md:block">Até 4 gráficos alinhados à decisão por cliente.</p>
+    <button type="button" class="sys-btn sys-btn--secondary mb-3 md:hidden" id="bi-cli-charts-load-btn">Carregar análise visual</button>
+    <div id="bi-cli-charts-mount" class="bi-cli-charts-mount hidden md:block">
       <div class="bi-cli-chart-grid grid gap-4 lg:grid-cols-2">
         <figure class="bi-cli-chart-figure">
           <figcaption class="bi-cli-chart-cap">Evolução diária da devolução</figcaption>
@@ -526,7 +537,7 @@
 <script type="application/json" id="bi-cli-ranking-tabs-json">{{ client_ranking_tabs_json|safe }}</script>
 <script type="application/json" id="bi-cli-reading-json">{{ reading_cards_json|safe }}</script>
 <script src="/static/vendor/chart.umd.min.js"></script>
-<script src="/static/js/pages/bi-clientes.js?v=9"></script>
+<script src="/static/js/pages/bi-clientes.js?v=12"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
@@ -535,42 +546,44 @@
 </script>
 {% endblock %}
 
-{# Portais fora do main: .gv-panel-stack (z-index:1) prendia fixed e competia com menu (overlay 40 / drawer 50). #}
+{# Portais no fim do body (fora do main): modais + drawer com z-index 80; scroll da página trava via body.bi-modal-open. #}
 {% block layout_portal %}
 <div class="ga-employee-theme bi-clientes-page employees-page bi-clientes-portals print-hidden" data-bi-clientes-portals>
 <div id="bi-cli-treatable-modal" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
-  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-treatable-close="1"></div>
-  <div class="bi-cli-modal-shell__layer pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
-    <div class="pointer-events-auto flex max-h-[min(88vh,760px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-treatable-title">
-      <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
-        <div class="min-w-0">
+  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop fixed inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-treatable-close="1"></div>
+  <div class="bi-cli-modal-shell__layer bi-cli-modal-shell__layer--list pointer-events-none fixed inset-0 flex justify-center">
+    <div class="bi-modal-panel pointer-events-auto border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-treatable-title">
+      <div class="bi-modal-header flex items-start justify-between gap-2 px-4 py-3">
+        <div class="min-w-0 flex-1">
           <h3 id="bi-cli-treatable-title" class="sys-section-heading text-base">Impacto evitável</h3>
-          <p class="employees-text-muted mt-1 text-xs leading-snug">Motivos tratáveis; sugestões por regras do sistema.</p>
+          <p class="employees-text-muted mt-1 text-xs leading-snug">Lista rápida — detalhes na ficha do cliente.</p>
         </div>
         <button type="button" class="sys-btn sys-btn--secondary h-9 shrink-0 px-2" data-bi-cli-treatable-close="1" aria-label="Fechar">✕</button>
       </div>
-      <div id="bi-cli-treatable-body" class="min-h-0 flex-1 overflow-y-auto px-4 py-3 text-sm"></div>
+      <div id="bi-cli-treatable-body" class="bi-modal-body text-sm"></div>
     </div>
   </div>
 </div>
 
 <div id="bi-cli-insight-modal" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
-  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop absolute inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-insight-close="1"></div>
-  <div class="bi-cli-modal-shell__layer pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:items-center sm:p-6">
-    <div class="pointer-events-auto flex max-h-[min(90vh,780px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-insight-title">
-      <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
-        <h3 id="bi-cli-insight-title" class="sys-section-heading pr-2 text-base leading-snug">Detalhe</h3>
+  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop fixed inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-insight-close="1"></div>
+  <div class="bi-cli-modal-shell__layer bi-cli-modal-shell__layer--list pointer-events-none fixed inset-0 flex justify-center">
+    <div class="bi-modal-panel pointer-events-auto border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-insight-title">
+      <div class="bi-modal-header flex items-start justify-between gap-2 px-4 py-3">
+        <div class="min-w-0 flex-1">
+          <h3 id="bi-cli-insight-title" class="sys-section-heading text-base leading-snug">Detalhe</h3>
+          <p id="bi-cli-insight-sub" class="mt-1 hidden text-xs leading-snug text-slate-600 dark:text-slate-400"></p>
+        </div>
         <button type="button" class="sys-btn sys-btn--secondary h-9 shrink-0 px-2" data-bi-cli-insight-close="1" aria-label="Fechar">✕</button>
       </div>
-      <p id="bi-cli-insight-sub" class="hidden border-b border-slate-100 px-4 py-2 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-400"></p>
-      <div id="bi-cli-insight-body" class="min-h-0 flex-1 overflow-y-auto px-4 py-3 text-sm"></div>
+      <div id="bi-cli-insight-body" class="bi-modal-body text-sm"></div>
     </div>
   </div>
 </div>
 
 <div id="bi-cli-drawer" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
-  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop absolute inset-0 bg-slate-900/40 dark:bg-black/50" data-bi-cli-close="1"></div>
-  <div class="bi-cli-modal-shell__layer bi-cli-drawer pointer-events-none absolute inset-y-0 right-0 flex max-w-full justify-end p-3 sm:p-4">
+  <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop fixed inset-0 bg-slate-900/40 dark:bg-black/50" data-bi-cli-close="1"></div>
+  <div class="bi-cli-modal-shell__layer bi-cli-drawer pointer-events-none fixed inset-0 flex max-w-full justify-end p-3 sm:p-4">
     <div class="bi-cli-drawer pointer-events-auto flex h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
       <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
         <div class="min-w-0">
