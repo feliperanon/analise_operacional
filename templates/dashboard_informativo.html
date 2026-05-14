@@ -56,9 +56,11 @@ window.addEventListener("error", function (evt) {
 {% set dhoje = inf.get('devolucao_hoje_pct', 0) %}
 {% set pf_prev = cmp.get('prev_pct_financeiro') %}
 {% set pf_curr = cmp.get('curr_pct_financeiro') %}
-{% set use_fin_cmp = pf_prev is not none and pf_curr is not none %}
-{% set prev_p = (pf_prev|float) if use_fin_cmp else none %}
-{% set curr_p = (pf_curr|float) if use_fin_cmp else none %}
+{% set use_fin_prev = pf_prev is not none %}
+{% set use_fin_curr = pf_curr is not none %}
+{% set use_fin_delta = use_fin_prev and use_fin_curr %}
+{% set prev_p = (pf_prev|float) if use_fin_prev else none %}
+{% set curr_p = (pf_curr|float) if use_fin_curr else none %}
 {% set dhoje_f = dhoje|default(0)|float %}
 {% set use_fin_hoje = inf.get('devolucao_hoje_financeiro') %}
 {% set bulletins = inf.get('bulletins') or [] %}
@@ -155,7 +157,7 @@ window.addEventListener("error", function (evt) {
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
                             <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido (cadastro) ÷ base em R$ nas rotas (valor_financeiro ou valor_devolução em devolução); meta ≤ 2%">Devolução mês passado (% valor · meta 2%)</span>
-                            <p id="hdr-prev-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_cmp %}{% if prev_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}{% else %}gv-stat-muted{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{% if use_fin_cmp %}{{ pf_prev|fmt_br_2 }}{% else %}—{% endif %}</span><span id="hdr-prev-pct-suf">{% if use_fin_cmp %}%{% endif %}</span></p>
+                            <p id="hdr-prev-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_prev %}{% if prev_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}{% else %}gv-stat-muted{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{% if use_fin_prev %}{{ pf_prev|fmt_br_2 }}{% else %}—{% endif %}</span><span id="hdr-prev-pct-suf">{% if use_fin_prev %}%{% endif %}</span></p>
                         </div>
                         <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
@@ -168,7 +170,7 @@ window.addEventListener("error", function (evt) {
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
                             <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido (cadastro) ÷ base em R$ nas rotas (valor_financeiro ou valor_devolução em devolução); meta ≤ 2%">Devolução mês atual (% valor · meta 2%)</span>
-                            <p id="hdr-curr-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_cmp %}{% if curr_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}{% else %}gv-stat-muted{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{% if use_fin_cmp %}{{ pf_curr|fmt_br_2 }}{% else %}—{% endif %}</span><span id="hdr-curr-pct-suf">{% if use_fin_cmp %}%{% endif %}</span></p>
+                            <p id="hdr-curr-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_curr %}{% if curr_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}{% else %}gv-stat-muted{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{% if use_fin_curr %}{{ pf_curr|fmt_br_2 }}{% else %}—{% endif %}</span><span id="hdr-curr-pct-suf">{% if use_fin_curr %}%{% endif %}</span></p>
                         </div>
                         <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -181,9 +183,13 @@ window.addEventListener("error", function (evt) {
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
                             <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Diferença (mês atual − passado)</span>
-                            <p id="hdr-delta" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_cmp %}{% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}{% else %}gv-stat-muted{% endif %}">
-                                {% if use_fin_cmp %}
+                            <p id="hdr-delta" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_delta %}{% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}{% else %}gv-stat-muted{% endif %}">
+                                {% if use_fin_delta %}
                                     {% if curr_p > prev_p %}▲ +{{ (curr_p - prev_p)|fmt_br_2 }} p.p.{% elif curr_p < prev_p %}▼ −{{ (prev_p - curr_p)|fmt_br_2 }} p.p.{% else %}= 0 p.p.{% endif %}
+                                {% elif use_fin_curr and not use_fin_prev %}
+                                    Só mês atual com base R$
+                                {% elif use_fin_prev and not use_fin_curr %}
+                                    Só mês passado com base R$
                                 {% else %}
                                     Sem base R$ para comparar
                                 {% endif %}
@@ -837,31 +843,40 @@ window.addEventListener("error", function (evt) {
                 if (barTrack && barTrack.setAttribute) {
                     barTrack.setAttribute('aria-valuenow', String(Math.round(pct)));
                 }
-                var useFinCmp = cmp.prev_pct_financeiro != null && cmp.prev_pct_financeiro !== undefined
-                    && cmp.curr_pct_financeiro != null && cmp.curr_pct_financeiro !== undefined;
-                var prevV = useFinCmp ? Number(cmp.prev_pct_financeiro) : NaN;
-                var currV = useFinCmp ? Number(cmp.curr_pct_financeiro) : NaN;
-                function fmtDevCmpCell(v) {
-                    if (!useFinCmp) return '—';
+                var hasPrevFin = cmp.prev_pct_financeiro != null && cmp.prev_pct_financeiro !== undefined;
+                var hasCurrFin = cmp.curr_pct_financeiro != null && cmp.curr_pct_financeiro !== undefined;
+                var prevV = hasPrevFin ? Number(cmp.prev_pct_financeiro) : NaN;
+                var currV = hasCurrFin ? Number(cmp.curr_pct_financeiro) : NaN;
+                function fmtOnePct(v, ok) {
+                    if (!ok) return '—';
                     var n = Number(v);
                     if (!Number.isFinite(n)) n = 0;
                     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 }
                 var hPrev = document.getElementById('hdr-prev-pct');
                 var hCurr = document.getElementById('hdr-curr-pct');
-                if (hPrev) hPrev.textContent = fmtDevCmpCell(prevV);
-                if (hCurr) hCurr.textContent = fmtDevCmpCell(currV);
+                if (hPrev) hPrev.textContent = fmtOnePct(prevV, hasPrevFin);
+                if (hCurr) hCurr.textContent = fmtOnePct(currV, hasCurrFin);
                 var sufPrev = document.getElementById('hdr-prev-pct-suf');
                 var sufCurr = document.getElementById('hdr-curr-pct-suf');
-                if (sufPrev) sufPrev.textContent = useFinCmp ? '%' : '';
-                if (sufCurr) sufCurr.textContent = useFinCmp ? '%' : '';
+                if (sufPrev) sufPrev.textContent = hasPrevFin ? '%' : '';
+                if (sufCurr) sufCurr.textContent = hasCurrFin ? '%' : '';
                 var linePrev = document.getElementById('hdr-prev-line');
                 var lineCurr = document.getElementById('hdr-curr-line');
-                if (linePrev) linePrev.className = 'gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi ' + devolucaoPctLineClass(prevV, useFinCmp);
-                if (lineCurr) lineCurr.className = 'gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi ' + devolucaoPctLineClass(currV, useFinCmp);
+                if (linePrev) linePrev.className = 'gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi ' + devolucaoPctLineClass(prevV, hasPrevFin);
+                if (lineCurr) lineCurr.className = 'gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi ' + devolucaoPctLineClass(currV, hasCurrFin);
                 var hd = document.getElementById('hdr-delta');
                 if (hd) {
-                    var dl = useFinCmp ? fmtDeltaLine(prevV, currV, true) : { cls: 'gv-stat-muted', text: 'Sem base R$ para comparar' };
+                    var dl;
+                    if (hasPrevFin && hasCurrFin) {
+                        dl = fmtDeltaLine(prevV, currV, true);
+                    } else if (hasCurrFin && !hasPrevFin) {
+                        dl = { cls: 'gv-stat-muted', text: 'Só mês atual com base R$' };
+                    } else if (hasPrevFin && !hasCurrFin) {
+                        dl = { cls: 'gv-stat-muted', text: 'Só mês passado com base R$' };
+                    } else {
+                        dl = { cls: 'gv-stat-muted', text: 'Sem base R$ para comparar' };
+                    }
                     hd.textContent = dl.text;
                     hd.className = 'gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi ' + dl.cls;
                 }

@@ -30,6 +30,7 @@ from devolucao_kpi_canonical import (
     is_encerramento_tardio_automatico_return,
     pct_devolucao_sobre_rotas_concluidas,
     pct_valor_devolvido_sobre_base_rotas,
+    route_base_financeiro_kpi,
     route_competencia_in_period,
     route_competencia_operacional_iso,
 )
@@ -5331,16 +5332,17 @@ def _build_bi_devolucoes_dataset(
     ]
     pct_devolucao_rotas = pct_devolucao_sobre_rotas_concluidas(routes_delivery_period)
 
-    # Receita (valor_financeiro) por dia de competência operacional — mesmo eixo do gráfico e das devoluções na lista.
+    # Base financeira do KPI (vf ou fallback vd em devolução) por dia de competência — alinhado a
+    # `pct_valor_devolvido_sobre_base_rotas`, gráfico diário e projeção fim de mês.
     receita_por_dia_comp: dict[str, float] = {}
     for _r_fin in routes_delivery_period:
         _op_r = route_competencia_operacional_iso(_r_fin)
         if len(_op_r) < 10:
             continue
-        _vf = getattr(_r_fin, "valor_financeiro", None)
-        if _vf is None:
+        _base_d = route_base_financeiro_kpi(_r_fin)
+        if _base_d is None:
             continue
-        receita_por_dia_comp[_op_r] = receita_por_dia_comp.get(_op_r, 0.0) + float(_vf)
+        receita_por_dia_comp[_op_r] = receita_por_dia_comp.get(_op_r, 0.0) + float(_base_d)
 
     devs_pre_acima: List[models.Devolucao] = list(devs)
     dev_por_dia_mtd: dict[str, float] = {}
@@ -5420,29 +5422,21 @@ def _build_bi_devolucoes_dataset(
                     else:
                         rq_hist = rq_hist.where(models.Route.client_id.in_(client_ids_dev))
                 routes_hist_raw = session.exec(rq_hist).all()
-                bs_i_s = bs_start.strftime("%Y-%m-%d")
-                bs_f_s = bs_end.strftime("%Y-%m-%d")
-                routes_baseline = [
-                    r
-                    for r in routes_hist_raw
-                    if _in_operational_date_range_iso(str(getattr(r, "date", None) or "").strip(), bs_i_s, bs_f_s)
-                ]
-                base_por_dia_baseline: dict[str, float] = {}
-                for _r_bl in routes_baseline:
-                    _raw_bl = getattr(_r_bl, "date", None)
-                    _op_bl = str(_raw_bl or "").strip()[:10]
-                    if len(_op_bl) < 10:
-                        _op_bl = _competence_date_or_self(str(_raw_bl or "").strip()) or ""
-                    if len(_op_bl) < 10:
-                        continue
-                    _vfb = getattr(_r_bl, "valor_financeiro", None)
-                    if _vfb is None:
-                        continue
-                    base_por_dia_baseline[_op_bl] = base_por_dia_baseline.get(_op_bl, 0.0) + float(_vfb)
-
                 bs_period_start, bs_period_end, bs_window_start, bs_window_end = _competence_period_window(
                     bs_start, bs_end
                 )
+                routes_baseline = [
+                    r for r in routes_hist_raw if route_competencia_in_period(r, bs_period_start, bs_period_end)
+                ]
+                base_por_dia_baseline: dict[str, float] = {}
+                for _r_bl in routes_baseline:
+                    _op_bl = route_competencia_operacional_iso(_r_bl)
+                    if len(_op_bl) < 10:
+                        continue
+                    _base_bl = route_base_financeiro_kpi(_r_bl)
+                    if _base_bl is None:
+                        continue
+                    base_por_dia_baseline[_op_bl] = base_por_dia_baseline.get(_op_bl, 0.0) + float(_base_bl)
                 q_hist_dev = (
                     select(models.Devolucao)
                     .where(
@@ -5474,9 +5468,7 @@ def _build_bi_devolucoes_dataset(
                 devs_hist_raw = session.exec(q_hist_dev.order_by(models.Devolucao.data_romaneio.desc())).all()
                 devs_hist_raw = [d for d in devs_hist_raw if not getattr(d, "duplicate_of_id", None)]
                 devs_hist_c = [
-                    d
-                    for d in devs_hist_raw
-                    if _in_operational_date_range_iso(_dev_op_date_raw(d), bs_period_start, bs_period_end)
+                    d for d in devs_hist_raw if devolucao_competencia_in_period(d, bs_period_start, bs_period_end)
                 ]
                 devs_hist_work = [d for d in devs_hist_c if _valor_faixa_ok(d, valor_faixa or "all")]
                 if somente_criticas:
@@ -5487,8 +5479,8 @@ def _build_bi_devolucoes_dataset(
                     ]
                 dev_por_dia_baseline: dict[str, float] = {}
                 for _d_bl in devs_hist_work:
-                    _op_db = _dev_op_date_raw(_d_bl)
-                    if not _in_operational_date_range_iso(_op_db, bs_period_start, bs_period_end):
+                    _op_db = devolucao_competencia_iso(_d_bl)
+                    if not (len(_op_db) == 10 and bs_period_start <= _op_db <= bs_period_end):
                         continue
                     dev_por_dia_baseline[_op_db] = dev_por_dia_baseline.get(_op_db, 0.0) + float(_d_bl.valor or 0)
 
@@ -5895,7 +5887,7 @@ def _build_bi_devolucoes_dataset(
             "motivos": motivos_list,
         }
 
-    # Evolução diária: todos os dias do filtro (inclui dias sem devolução), meta = 2% da receita real daquele dia
+    # Evolução diária: todos os dias do filtro (inclui dias sem devolução), meta = 2% da base financeira do KPI naquele dia
     def _date_str_range_inclusive(s: str, e: str) -> List[str]:
         out: List[str] = []
         try:

@@ -114,18 +114,28 @@ def route_competencia_in_period(route: Any, period_start: str, period_end: str) 
     return bool(comp) and period_start <= comp <= period_end
 
 
+def route_base_financeiro_kpi(route: Any) -> Optional[float]:
+    """
+    Contribuição de uma rota ao denominador do KPI financeiro (faturamento/base R$),
+    ou None se a rota não entra na base (sem valor financeiro e sem fallback de devolução).
+    """
+    vf = getattr(route, "valor_financeiro", None)
+    if vf is not None:
+        return float(vf)
+    if normalized_delivery_status(route) == "devolucao":
+        vd = getattr(route, "valor_devolucao", None)
+        if vd is not None:
+            return float(vd)
+    return None
+
+
 def pct_valor_devolvido_sobre_base_rotas(valor_devolvido: float, routes_delivery: Iterable[Any]) -> Tuple[Optional[float], float]:
     """% valor devolvido (cadastro agregado) sobre base R$ nas rotas do mesmo recorte."""
     base = 0.0
     for r in routes_delivery:
-        vf = getattr(r, "valor_financeiro", None)
-        if vf is not None:
-            base += float(vf)
-            continue
-        if normalized_delivery_status(r) == "devolucao":
-            vd = getattr(r, "valor_devolucao", None)
-            if vd is not None:
-                base += float(vd)
+        contrib = route_base_financeiro_kpi(r)
+        if contrib is not None:
+            base += contrib
     if base <= 0:
         return None, 0.0
     pct = round(100.0 * float(valor_devolvido or 0) / base, 2)
@@ -387,6 +397,14 @@ def build_mes_fim_projecao_pct_financeiro(
         }
 
     proj_pct = round(100.0 * proj_v / proj_b, 2)
+    if not math.isfinite(proj_pct):
+        return {
+            "ativa": False,
+            "mensagem": (
+                "Projeção ao fim do mês: indisponível — combinação de MTD e histórico gerou valor não numérico; "
+                "verifique consistência de datas e valores no período."
+            ),
+        }
     vs_meta = "dentro" if proj_pct <= meta_pp else "acima"
 
     return {

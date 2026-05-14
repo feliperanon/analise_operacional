@@ -11,6 +11,7 @@ from devolucao_kpi_canonical import (
     normalized_delivery_status,
     pct_devolucao_sobre_rotas_concluidas,
     pct_valor_devolvido_sobre_base_rotas,
+    route_base_financeiro_kpi,
 )
 
 
@@ -137,6 +138,26 @@ def test_pct_valor_devolvido_sobre_base_rotas_usa_valor_financeiro():
     p, b = pct_valor_devolvido_sobre_base_rotas(35.0, [r])
     assert b == 1000.0
     assert p == 3.5
+
+
+def test_route_base_financeiro_kpi_fallback_valor_devolucao():
+    r = SimpleNamespace(
+        valor_financeiro=None,
+        valor_devolucao=500.0,
+        delivery_status="devolucao",
+        delivery_return_reason=None,
+    )
+    assert route_base_financeiro_kpi(r) == 500.0
+
+
+def test_route_base_financeiro_kpi_sem_contribuicao():
+    r = SimpleNamespace(
+        valor_financeiro=None,
+        valor_devolucao=None,
+        delivery_status="entregue",
+        delivery_return_reason=None,
+    )
+    assert route_base_financeiro_kpi(r) is None
 
 
 def test_pct_valor_devolvido_sobre_base_rotas_fallback_valor_devolucao():
