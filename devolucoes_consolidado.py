@@ -553,11 +553,12 @@ def consolidado_avaliar_resumo(
 
     devs_by_ajudante: Dict[int, List[models.Devolucao]] = defaultdict(list)
     for d in devolucoes:
-        eid = effective_ajudante_id(
+        # Mesma regra da lista / modal: toda a equipe da rota que aparece em ajudante_ids enxerga a devolução,
+        # não só o primeiro helper (evita % e R$ zerados para o 2º ajudante).
+        for hid in effective_ajudante_ids_for_summary(
             d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date
-        )
-        if eid is not None:
-            devs_by_ajudante[int(eid)].append(d)
+        ):
+            devs_by_ajudante[int(hid)].append(d)
 
     out_ajudantes = []
     # Inclui ajudantes com devoluções e também os que só tiveram entregas no período.
@@ -1023,8 +1024,10 @@ def ajudante_returns_mobile_bundle(
 
     mine_by_day: Dict[str, List[models.Devolucao]] = {}
     for d in devolucoes:
-        eid = effective_ajudante_id(d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date)
-        if eid != ajudante_id:
+        ids_d = effective_ajudante_ids_for_summary(
+            d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date
+        )
+        if ajudante_id not in ids_d:
             continue
         day = str(d.data_romaneio or "")[:10]
         if len(day) < 10:
@@ -1200,8 +1203,10 @@ def top_clients_ajudante(session: Session, ajudante_id: int, date_from: str, dat
     filtered = [
         d
         for d in devolucoes
-        if effective_ajudante_id(d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date)
-        == ajudante_id
+        if ajudante_id
+        in effective_ajudante_ids_for_summary(
+            d, route_helpers, route_by_client_driver_date, session_helpers_by_driver_date
+        )
     ]
     client_ids = list({d.client_id for d in filtered if d.client_id})
     clients = (
