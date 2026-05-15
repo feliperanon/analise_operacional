@@ -4,8 +4,9 @@
     var el = document.getElementById(id);
     if (!el || !el.textContent) return null;
     try {
-      return JSON.parse(el.textContent);
+      return JSON.parse(el.textContent.trim());
     } catch (e) {
+      console.warn("[bi-clientes] JSON inválido em #" + id, e);
       return null;
     }
   }
@@ -16,6 +17,96 @@
   function fmtPct(v) {
     return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
   }
+
+  function fmtDeltaPp(delta) {
+    var n = Number(delta);
+    if (!isFinite(n)) return "\u2014";
+    return (n > 0 ? "+" : "") + n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " p.p.";
+  }
+
+  function fmtDeltaPctChange(current, previous) {
+    var c = Number(current) || 0;
+    var p = Number(previous) || 0;
+    if (p <= 0) return c <= 0 ? "\u2014" : "+100%";
+    var pct = ((c - p) / p) * 100;
+    return (pct >= 0 ? "+" : "") + pct.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+  }
+
+  function periodLabels() {
+    var root = document.getElementById("bi-clientes-root");
+    return {
+      current: (root && root.getAttribute("data-period-current")) || "Per\u00edodo atual",
+      previous: (root && root.getAttribute("data-period-previous")) || "Per\u00edodo anterior",
+    };
+  }
+
+  function deltaToneClass(delta, invert) {
+    var n = Number(delta);
+    if (!isFinite(n) || n === 0) return "bi-cli-delta--neutral";
+    var bad = invert ? n < 0 : n > 0;
+    return bad ? "bi-cli-delta--bad" : "bi-cli-delta--good";
+  }
+
+  function periodCompareHtml(row) {
+    if (!row.has_previous_data) {
+      return '<p class="employees-text-muted mt-3 text-xs">Sem base do per\u00edodo anterior equivalente para comparar.</p>';
+    }
+    var periods = periodLabels();
+    var items = [
+      {
+        label: "Valor entregue",
+        current: fmtMoney(row.delivered_value),
+        previous: fmtMoney(row.previous_delivered_value),
+        delta: fmtDeltaPctChange(row.delivered_value, row.previous_delivered_value),
+        deltaClass: deltaToneClass(row.delta_delivered_value, false),
+      },
+      {
+        label: "Valor devolvido",
+        current: fmtMoney(row.returned_value),
+        previous: fmtMoney(row.previous_returned_value),
+        delta: fmtDeltaPctChange(row.returned_value, row.previous_returned_value),
+        deltaClass: deltaToneClass(row.delta_returned_value, true),
+      },
+      {
+        label: "\u00cdndice devolu\u00e7\u00e3o (valor)",
+        current: fmtPct(row.return_pct_planned),
+        previous: fmtPct(row.previous_return_rate_value),
+        delta: fmtDeltaPp(row.delta_return_rate_value),
+        deltaClass: deltaToneClass(row.delta_return_rate_value, true),
+      },
+    ];
+    var cells = items
+      .map(function (it) {
+        return (
+          '<div class="bi-cli-period-compare__item">' +
+          '<p class="employees-text-muted text-xs">' +
+          escapeHtml(it.label) +
+          "</p>" +
+          '<p class="mt-0.5 font-semibold tabular-nums">' +
+          escapeHtml(it.current) +
+          ' <span class="bi-cli-delta ' +
+          it.deltaClass +
+          ' text-xs font-medium">(' +
+          escapeHtml(it.delta) +
+          ")</span></p>" +
+          '<p class="employees-text-muted text-[11px]">Antes: ' +
+          escapeHtml(it.previous) +
+          "</p></div>"
+        );
+      })
+      .join("");
+    return (
+      '<section class="bi-cli-period-compare mt-3 rounded-xl border border-slate-200/80 bg-slate-50/70 p-3 dark:border-slate-600 dark:bg-slate-800/35" aria-label="Comparativo com per\u00edodo anterior">' +
+      '<p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Comparativo \u00b7 ' +
+      escapeHtml(periods.previous) +
+      " \u2192 " +
+      escapeHtml(periods.current) +
+      '</p><div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">' +
+      cells +
+      "</div></section>"
+    );
+  }
+
   function fmtKg(v) {
     return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + " kg";
   }
@@ -317,6 +408,38 @@
     return "Perfil misto no período — usar motivo líder e responsabilidade para priorizar a próxima ação.";
   }
 
+  function buildAutoActionSuggestion(row) {
+    var parts = [];
+    var motivo = String(row.top_motivo_name || "").trim();
+    var occ = Number(row.returned_occurrences) || 0;
+    var rv = Number(row.returned_value) || 0;
+    var rp = Number(row.return_pct_planned) || 0;
+    var avg = Number(row.avg_duration_m) || 0;
+    var cls = String(row.classification_code || "").toUpperCase();
+    if (motivo && motivo !== "\u2014" && occ > 0 && rv > 0) {
+      parts.push(
+        "Este cliente registrou " +
+          occ +
+          ' devolu\u00e7\u00e3o(\u00f5es) com motivo l\u00edder "' +
+          motivo +
+          '", totalizando ' +
+          fmtMoney(rv) +
+          " no per\u00edodo."
+      );
+    }
+    if (row.suggested_action) parts.push(String(row.suggested_action).trim());
+    if (rp > 5) parts.push("Agendar liga\u00e7\u00e3o comercial para alinhamento de expectativas (\u00edndice acima de 5%).");
+    if (avg > 90) parts.push("Avaliar janela de entrega e sequ\u00eancia na rota (tempo m\u00e9dio acima de 90 min).");
+    if (/pedido/i.test(motivo) && /err/i.test(motivo)) {
+      parts.push("Revisar processo de separa\u00e7\u00e3o e confirmar o pedido 24h antes da entrega.");
+    }
+    if (cls === "CRITICO" || rp > 8) {
+      parts.push("Avaliar viabilidade de manuten\u00e7\u00e3o na carteira com Comercial e Opera\u00e7\u00f5es.");
+    }
+    if (!parts.length) parts.push(row.action_recommendation || "Manter monitoramento e revisar na pr\u00f3xima rota.");
+    return parts.join(" ");
+  }
+
   function actionBlocksHtml() {
     return (
       "<div class=\"mt-4 grid gap-3 sm:grid-cols-3\">" +
@@ -450,6 +573,8 @@
           "</span>" +
           "<span role=\"listitem\">" +
           fmtPct(r.return_pct_planned) +
+          " " +
+          trendBadgeHtml(r) +
           "</span>" +
           "<span role=\"listitem\">" +
           fmtDur(r.avg_duration_m) +
@@ -492,6 +617,8 @@
           "</td>" +
           "<td class=\"text-right tabular-nums\">" +
           fmtPct(r.return_pct_planned) +
+          " " +
+          trendBadgeHtml(r) +
           "</td>" +
           "<td class=\"text-right\">" +
           (r.visits || 0) +
@@ -578,19 +705,22 @@
     var title = document.getElementById("bi-cli-d-title");
     var sub = document.getElementById("bi-cli-d-sub");
     if (title) title.textContent = row.client_name || "Cliente";
-    if (sub)
-      sub.textContent =
-        (row.client_code || "—") +
+    if (sub) {
+      var trend = trendBadgeHtml(row);
+      sub.innerHTML =
+        escapeHtml(row.client_code || "—") +
         " · " +
-        (row.vendedor_name || "—") +
+        escapeHtml(row.vendedor_name || "—") +
         " · " +
-        (row.city || "—") +
+        escapeHtml(row.city || "—") +
         " · " +
-        (row.status_operacional || "—") +
+        escapeHtml(row.status_operacional || "—") +
         " · " +
-        (row.classification_title || "") +
+        escapeHtml(row.classification_title || "") +
         " · Score " +
-        (row.cliente_score != null ? row.cliente_score : "—");
+        escapeHtml(row.cliente_score != null ? String(row.cliente_score) : "—") +
+        (trend ? " · " + trend : "");
+    }
     setTab("visao", row);
     document.querySelectorAll(".bi-cli-drawer__tab").forEach(function (btn) {
       btn.onclick = function () {
@@ -617,6 +747,25 @@
     return (state.routes || []).filter(function (r) {
       return String(r.client_id) === String(cid);
     });
+  }
+
+  function hasReturnTrendUp(row) {
+    var hist = routesForClient(row.client_id)
+      .slice()
+      .sort(function (a, b) {
+        return String(a.date || "").localeCompare(String(b.date || ""));
+      });
+    if (hist.length < 3) return false;
+    var last3 = hist.slice(-3);
+    var v0 = Number(last3[0].returned_value) || 0;
+    var v1 = Number(last3[1].returned_value) || 0;
+    var v2 = Number(last3[2].returned_value) || 0;
+    return v0 < v1 && v1 < v2 && v2 > 0;
+  }
+
+  function trendBadgeHtml(row) {
+    if (!hasReturnTrendUp(row)) return "";
+    return '<span class="bi-cli-trend-badge" title="Devolu\u00e7\u00e3o crescente nas \u00faltimas 3 paradas da amostra">\u2191 Tend\u00eancia</span>';
   }
 
   function setTab(tab, row) {
@@ -665,6 +814,7 @@
         " · " +
         escapeHtml(row.top_responsabilidade_name || "—") +
         "</strong></div></div>" +
+        periodCompareHtml(row) +
         actionBlocksHtml();
     } else if (tab === "historico") {
       if (!hist.length) {
@@ -749,12 +899,17 @@
         "</li></ul>";
     } else {
       body.innerHTML =
-        "<p class=\"text-sm\"><strong>Recomendado:</strong> " +
+        "<p class=\"bi-cli-auto-action rounded-lg border border-indigo-200/70 bg-indigo-50/50 p-3 text-sm leading-snug dark:border-indigo-800/50 dark:bg-indigo-950/30\">" +
+        escapeHtml(buildAutoActionSuggestion(row)) +
+        "</p>" +
+        "<p class=\"mt-2 text-xs employees-text-muted\"><strong>Classifica\u00e7\u00e3o:</strong> " +
+        escapeHtml(row.classification_title || "\u2014") +
+        " \u00b7 <strong>Recomenda\u00e7\u00e3o:</strong> " +
         escapeHtml(row.action_recommendation || "Manter monitoramento.") +
         "</p>" +
         actionBlocksHtml() +
-        "<div class=\"mt-3 flex flex-wrap gap-2\">" +
-        "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-8 px-2 text-xs\" id=\"bi-cli-wa-btn\">Copiar resumo</button>" +
+        '<div class="mt-3 flex flex-wrap gap-2">' +
+        '<button type="button" class="sys-btn sys-btn--secondary h-8 px-2 text-xs" id="bi-cli-wa-btn">Copiar resumo</button>' +
         "<a class=\"sys-btn sys-btn--secondary h-8 px-2 text-xs\" href=\"/bi/devolucoes\">BI Devoluções</a></div>";
       var waBtn = document.getElementById("bi-cli-wa-btn");
       if (waBtn) {
@@ -809,6 +964,8 @@
 
   function mountCharts() {
     if (state.chartsBound || typeof Chart === "undefined") return;
+    var mount = document.getElementById("bi-cli-charts-mount");
+    if (!mount || window.getComputedStyle(mount).display === "none") return;
     var payload = readJson("bi-cli-chart-json");
     if (!payload) return;
     var common = { responsive: true, maintainAspectRatio: false };
@@ -886,16 +1043,61 @@
       });
     }
     state.chartsBound = true;
+    requestAnimationFrame(function () {
+      ["biCliChartDaily", "biCliChartParetoMotivos", "biCliChartMatrix", "biCliChartResp"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el && Chart.getChart) {
+          var ch = Chart.getChart(el);
+          if (ch) ch.resize();
+        }
+      });
+    });
+  }
+
+  function scheduleMountCharts() {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        mountCharts();
+      });
+    });
+  }
+
+  function revealChartsMount() {
+    var mount = document.getElementById("bi-cli-charts-mount");
+    if (!mount) return;
+    mount.classList.add("is-loaded");
+    mount.classList.remove("hidden");
   }
 
   function initChartsIfNeeded() {
-    var mount = document.getElementById("bi-cli-charts-mount");
-    if (!mount) return;
     var isMd = typeof window.matchMedia !== "undefined" && window.matchMedia("(min-width: 768px)").matches;
-    if (isMd) {
-      mount.classList.add("is-loaded");
-      mount.classList.remove("hidden");
-      mountCharts();
+    if (!isMd) return;
+    revealChartsMount();
+    scheduleMountCharts();
+  }
+
+  function initChartsWhenVisible() {
+    var section = document.getElementById("bi-cli-visual-section");
+    if (!section || typeof IntersectionObserver === "undefined") {
+      initChartsIfNeeded();
+      return;
+    }
+    var observer = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          revealChartsMount();
+          scheduleMountCharts();
+          observer.disconnect();
+        });
+      },
+      { rootMargin: "120px 0px", threshold: 0.05 }
+    );
+    observer.observe(section);
+    var rect = section.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 120 && rect.bottom > -120) {
+      revealChartsMount();
+      scheduleMountCharts();
     }
   }
 
@@ -1310,10 +1512,9 @@
     var chartsMount = document.getElementById("bi-cli-charts-mount");
     if (chartsBtn && chartsMount) {
       chartsBtn.addEventListener("click", function () {
-        chartsMount.classList.add("is-loaded");
-        chartsMount.classList.remove("hidden");
+        revealChartsMount();
         chartsBtn.classList.add("hidden");
-        mountCharts();
+        scheduleMountCharts();
       });
     }
 
@@ -1329,11 +1530,15 @@
 
     renderRankingPanel();
     renderTable();
-    initChartsIfNeeded();
+    initChartsWhenVisible();
 
     if (typeof window.matchMedia !== "undefined") {
       window.matchMedia("(min-width: 768px)").addEventListener("change", function (ev) {
-        if (ev.matches && chartsMount && !chartsMount.classList.contains("hidden")) mountCharts();
+        if (!chartsMount) return;
+        if (ev.matches) {
+          revealChartsMount();
+          if (!state.chartsBound) scheduleMountCharts();
+        }
       });
     }
   }

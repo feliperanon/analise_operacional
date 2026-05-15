@@ -2086,6 +2086,10 @@ def _build_bi_clientes_dataset(
         delta_return_rate_value = round(return_rate_value - prev_return_rate_value, 2)
         delta_return_rate_qtd = round(return_rate_qtd - prev_return_rate_qtd, 2)
         delta_returned_value = round(float(item["returned_value"] or 0.0) - prev_returned_value, 2)
+        prev_delivered_value = (
+            round(float(previous_item.get("delivered_value", 0.0) or 0.0), 2) if has_previous_data else 0.0
+        )
+        delta_delivered_value = round(float(item.get("delivered_value") or 0.0) - prev_delivered_value, 2)
 
         top_driver_name = "-"
         top_driver_visits = 0
@@ -2272,9 +2276,11 @@ def _build_bi_clientes_dataset(
                 "previous_return_rate_qtd": prev_return_rate_qtd,
                 "previous_return_rate_value": prev_return_rate_value,
                 "previous_returned_value": prev_returned_value,
+                "previous_delivered_value": prev_delivered_value,
                 "delta_return_rate_qtd": delta_return_rate_qtd,
                 "delta_return_rate_value": delta_return_rate_value,
                 "delta_returned_value": delta_returned_value,
+                "delta_delivered_value": delta_delivered_value,
                 "window_checks": window_checks,
                 "window_hits": window_hits,
                 "window_misses": window_misses,
@@ -3629,7 +3635,7 @@ def _build_bi_clientes_dataset(
         "priorities_filter": sorted(priorities_filter),
         "client_statuses_filter": sorted(client_statuses_filter),
         "segmentos_filter": sorted(segmentos_filter),
-        "chart_payload_json": json.dumps(chart_payload, ensure_ascii=False),
+        "chart_payload_json": _json_for_inline_script(chart_payload),
         "all_client_rows": ranking_rows,
         "executive_kpis": executive_kpis,
         "executive_headlines": executive_headlines,

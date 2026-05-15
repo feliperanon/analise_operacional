@@ -958,5 +958,76 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-client-row--stable td {
   max-width: 420px;
 }
 .ga-employee-theme.bi-clientes-page .bi-cli-chart-canvas canvas {
+  display: block;
+  width: 100% !important;
   max-height: 100% !important;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  margin: 0;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  line-height: 1.45;
+  border: 1px dashed rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.65);
+}
+
+html.dark .ga-employee-theme.bi-clientes-page .bi-cli-chart-empty {
+  background: rgba(15, 23, 42, 0.45);
+  border-color: rgba(71, 85, 105, 0.55);
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-trend-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #b91c1c;
+  background: rgba(254, 226, 226, 0.95);
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+html.dark .ga-employee-theme.bi-clientes-page .bi-cli-trend-badge {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.55);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-delta--good {
+  color: #15803d;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-delta--bad {
+  color: #b91c1c;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-delta--neutral {
+  color: #64748b;
+}
+
+html.dark .ga-employee-theme.bi-clientes-page .bi-cli-delta--good {
+  color: #4ade80;
+}
+
+html.dark .ga-employee-theme.bi-clientes-page .bi-cli-delta--bad {
+  color: #f87171;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-period-compare__item {
+  padding: 0.35rem 0.15rem;
+}
+
+.ga-employee-theme.bi-clientes-page .bi-cli-auto-action {
+  color: var(--sys-text-primary, #0f172a);
 }

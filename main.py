@@ -32627,10 +32627,11 @@ async def employee_detail(
         }
     }
 
-    # Calculate Tenure
+    # Calculate Tenure (admission_date pode vir como datetime ou date do SQLite)
     tenure_str = "-"
-    if employee.admission_date:
-        delta = today.date() - employee.admission_date.date()
+    adm_date = safe_parse_iso_date(employee.admission_date)
+    if adm_date:
+        delta = today_date_br - adm_date
         years = delta.days // 365
         months = (delta.days % 365) // 30
         tenure_str = f"{years} anos, {months} meses"
@@ -32710,7 +32711,7 @@ async def employee_detail(
     work_days_list = []
     if employee.work_days:
         try:
-            wd_val = employee.work_days
+            wd_val = str(employee.work_days)
             # Check if it looks like JSON list
             if wd_val.strip().startswith("["):
                  work_days_list = json.loads(wd_val)
@@ -32858,7 +32859,7 @@ async def employee_detail(
             "original_registration": sub_as_new.original_registration_id,
             "original_id": sub_as_new.original_employee_id,
             "reason": "Demissão" if sub_as_new.reason == 'fired' else "Afastamento",
-            "date": sub_as_new.substitution_date.strftime("%d/%m/%Y")
+            "date": fmt_ddmmyyyy(sub_as_new.substitution_date),
         }
     
     if sub_as_old:
@@ -32868,7 +32869,7 @@ async def employee_detail(
             "new_registration": sub_as_old.new_registration_id,
             "new_id": sub_as_old.new_employee_id,
             "reason": "Demissão" if sub_as_old.reason == 'fired' else "Afastamento",
-            "date": sub_as_old.substitution_date.strftime("%d/%m/%Y")
+            "date": fmt_ddmmyyyy(sub_as_old.substitution_date),
         }
 
     emp_phone_e164, _emp_phone_disp = normalize_phone_br(getattr(employee, "phone", None))

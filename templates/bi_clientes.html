@@ -16,7 +16,7 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
-<link rel="stylesheet" href="/static/css/pages/bi-clientes.css?v=14">
+<link rel="stylesheet" href="/static/css/pages/bi-clientes.css?v=16">
 {% endblock %}
 
 {% block content %}
@@ -25,6 +25,8 @@
   id="bi-clientes-root"
   data-filters-query="{{ filters_query|e }}"
   data-intel-truncated="{{ '1' if intel_clients_truncated else '0' }}"
+  data-period-current="{{ executive_kpis.period_current|e }}"
+  data-period-previous="{{ executive_kpis.period_previous|e }}"
 >
   {% if intel_clients_truncated %}
   <div class="sys-alert sys-alert--info flex items-start gap-3" role="status">
@@ -537,7 +539,7 @@
 <script type="application/json" id="bi-cli-ranking-tabs-json">{{ client_ranking_tabs_json|safe }}</script>
 <script type="application/json" id="bi-cli-reading-json">{{ reading_cards_json|safe }}</script>
 <script src="/static/vendor/chart.umd.min.js"></script>
-<script src="/static/js/pages/bi-clientes.js?v=14"></script>
+<script src="/static/js/pages/bi-clientes.js?v=16"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     if (window.lucide && lucide.createIcons) lucide.createIcons();

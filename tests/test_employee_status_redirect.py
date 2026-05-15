@@ -34,3 +34,11 @@ def test_employee_status_get_redirects_to_employee_detail():
 
     assert response.status_code == 303
     assert response.headers["location"] == "/employees/781"
+
+
+def test_safe_parse_iso_date_accepts_date_and_datetime():
+    from datetime import date, datetime
+
+    d = date(2020, 3, 15)
+    assert main.safe_parse_iso_date(d) == d
+    assert main.safe_parse_iso_date(datetime(2020, 3, 15, 10, 30)) == d
