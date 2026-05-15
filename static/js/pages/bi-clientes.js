@@ -207,6 +207,22 @@
     return typeof window.matchMedia !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
   }
 
+  function isMobileView() {
+    return isNarrowViewport();
+  }
+
+  function clearMobileCards() {
+    var mobile = document.getElementById("bi-cli-cards-mobile");
+    if (mobile) mobile.innerHTML = "";
+  }
+
+  function clearDesktopTableRows() {
+    var tbody = document.getElementById("bi-cli-tbody");
+    var tfoot = document.getElementById("bi-cli-tfoot");
+    if (tbody) tbody.innerHTML = "";
+    if (tfoot) tfoot.innerHTML = "";
+  }
+
   function getEffectivePageSize() {
     if (typeof window.matchMedia === "undefined") return 25;
     return isNarrowViewport() ? 10 : 25;
@@ -387,7 +403,7 @@
     var tb = document.getElementById("bi-cli-tbody");
     var tf = document.getElementById("bi-cli-tfoot");
     var cards = document.getElementById("bi-cli-cards-mobile");
-    if (!tb) return;
+    if (!tb && !cards) return;
     applyFilterSort();
     syncPageSize();
     var start = (state.page - 1) * state.pageSize;
@@ -397,93 +413,10 @@
       return escapeHtml(String(s || "—")).replace(/"/g, "&quot;");
     };
 
-    var frag = document.createDocumentFragment();
-    pageRows.forEach(function (r) {
-      var tr = document.createElement("tr");
-      tr.className = rowClassForClient(r);
-      var badgeCls = badgeClassForClient(r);
-      var mot = r.top_motivo_name || "—";
-      var resp = r.top_responsabilidade_name || "—";
-      var clsTitle = r.classification_title || "—";
-      tr.innerHTML =
-        "<td class=\"max-w-[14rem]\"><div class=\"truncate font-medium\">" +
-        escapeHtml(r.client_name) +
-        "</div><div class=\"truncate text-[11px] text-slate-500\">" +
-        escapeHtml(r.client_code || "—") +
-        "</div></td>" +
-        "<td class=\"max-w-[10rem] truncate\" title=\"" +
-        motTitle(r.vendedor_name) +
-        "\">" +
-        escapeHtml(r.vendedor_name || "—") +
-        "</td>" +
-        "<td class=\"text-right tabular-nums\">" +
-        fmtMoney(r.delivered_value) +
-        "</td>" +
-        "<td class=\"text-right tabular-nums\">" +
-        fmtMoney(r.returned_value) +
-        "</td>" +
-        "<td class=\"text-right tabular-nums\">" +
-        fmtPct(r.return_pct_planned) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        (r.visits || 0) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtDur(r.avg_duration_m) +
-        "</td>" +
-        "<td class=\"max-w-[9rem] truncate text-xs\" title=\"" +
-        motTitle(mot) +
-        "\">" +
-        escapeHtml(mot) +
-        "</td>" +
-        "<td class=\"max-w-[8rem] truncate text-xs\" title=\"" +
-        motTitle(resp) +
-        "\">" +
-        escapeHtml(resp) +
-        "</td>" +
-        "<td><span class=\"" +
-        badgeCls +
-        " bi-client-classification-badge max-w-[10rem] truncate text-[10px]\" title=\"" +
-        motTitle(clsTitle) +
-        "\">" +
-        escapeHtml(clsTitle) +
-        "</span></td>" +
-        "<td class=\"text-right font-semibold tabular-nums\">" +
-        (r.cliente_score != null ? r.cliente_score : "—") +
-        "</td>" +
-        "<td class=\"text-right\"><button type=\"button\" class=\"sys-btn sys-btn--secondary bi-client-card-detail-btn\" data-bi-cli-open=\"" +
-        String(r.client_id) +
-        "\">Detalhar</button></td>";
-      frag.appendChild(tr);
-    });
-    tb.innerHTML = "";
-    tb.appendChild(frag);
+    if (isMobileView()) {
+      if (!cards) return;
+      clearDesktopTableRows();
 
-    if (tf) {
-      var tt = totals(state.filtered);
-      var pctAgg = tt.delivered_value + tt.returned_value > 0 ? (100 * tt.returned_value) / (tt.delivered_value + tt.returned_value) : 0;
-      var avgAgg = tt.durVisits ? tt.durWeighted / tt.durVisits : 0;
-      tf.innerHTML =
-        "<td colspan=\"2\" class=\"font-semibold\">Totais (filtrado)</td>" +
-        "<td class=\"text-right tabular-nums\">" +
-        fmtMoney(tt.delivered_value) +
-        "</td>" +
-        "<td class=\"text-right tabular-nums\">" +
-        fmtMoney(tt.returned_value) +
-        "</td>" +
-        "<td class=\"text-right tabular-nums\">" +
-        fmtPct(pctAgg) +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        tt.visits +
-        "</td>" +
-        "<td class=\"text-right\">" +
-        fmtDur(avgAgg) +
-        "</td>" +
-        "<td colspan=\"5\"></td>";
-    }
-
-    if (cards) {
       var cfrag = document.createDocumentFragment();
       pageRows.forEach(function (r) {
         var d = document.createElement("article");
@@ -528,6 +461,95 @@
       });
       cards.innerHTML = "";
       cards.appendChild(cfrag);
+    } else {
+      if (!tb) return;
+      clearMobileCards();
+
+      var frag = document.createDocumentFragment();
+      pageRows.forEach(function (r) {
+        var tr = document.createElement("tr");
+        tr.className = rowClassForClient(r);
+        var badgeCls = badgeClassForClient(r);
+        var mot = r.top_motivo_name || "—";
+        var resp = r.top_responsabilidade_name || "—";
+        var clsTitle = r.classification_title || "—";
+        tr.innerHTML =
+          "<td class=\"max-w-[14rem]\"><div class=\"truncate font-medium\">" +
+          escapeHtml(r.client_name) +
+          "</div><div class=\"truncate text-[11px] text-slate-500\">" +
+          escapeHtml(r.client_code || "—") +
+          "</div></td>" +
+          "<td class=\"max-w-[10rem] truncate\" title=\"" +
+          motTitle(r.vendedor_name) +
+          "\">" +
+          escapeHtml(r.vendedor_name || "—") +
+          "</td>" +
+          "<td class=\"text-right tabular-nums\">" +
+          fmtMoney(r.delivered_value) +
+          "</td>" +
+          "<td class=\"text-right tabular-nums\">" +
+          fmtMoney(r.returned_value) +
+          "</td>" +
+          "<td class=\"text-right tabular-nums\">" +
+          fmtPct(r.return_pct_planned) +
+          "</td>" +
+          "<td class=\"text-right\">" +
+          (r.visits || 0) +
+          "</td>" +
+          "<td class=\"text-right\">" +
+          fmtDur(r.avg_duration_m) +
+          "</td>" +
+          "<td class=\"max-w-[9rem] truncate text-xs\" title=\"" +
+          motTitle(mot) +
+          "\">" +
+          escapeHtml(mot) +
+          "</td>" +
+          "<td class=\"max-w-[8rem] truncate text-xs\" title=\"" +
+          motTitle(resp) +
+          "\">" +
+          escapeHtml(resp) +
+          "</td>" +
+          "<td><span class=\"" +
+          badgeCls +
+          " bi-client-classification-badge max-w-[10rem] truncate text-[10px]\" title=\"" +
+          motTitle(clsTitle) +
+          "\">" +
+          escapeHtml(clsTitle) +
+          "</span></td>" +
+          "<td class=\"text-right font-semibold tabular-nums\">" +
+          (r.cliente_score != null ? r.cliente_score : "—") +
+          "</td>" +
+          "<td class=\"text-right\"><button type=\"button\" class=\"sys-btn sys-btn--secondary bi-client-card-detail-btn\" data-bi-cli-open=\"" +
+          String(r.client_id) +
+          "\">Detalhar</button></td>";
+        frag.appendChild(tr);
+      });
+      tb.innerHTML = "";
+      tb.appendChild(frag);
+
+      if (tf) {
+        var tt = totals(state.filtered);
+        var pctAgg = tt.delivered_value + tt.returned_value > 0 ? (100 * tt.returned_value) / (tt.delivered_value + tt.returned_value) : 0;
+        var avgAgg = tt.durVisits ? tt.durWeighted / tt.durVisits : 0;
+        tf.innerHTML =
+          "<td colspan=\"2\" class=\"font-semibold\">Totais (filtrado)</td>" +
+          "<td class=\"text-right tabular-nums\">" +
+          fmtMoney(tt.delivered_value) +
+          "</td>" +
+          "<td class=\"text-right tabular-nums\">" +
+          fmtMoney(tt.returned_value) +
+          "</td>" +
+          "<td class=\"text-right tabular-nums\">" +
+          fmtPct(pctAgg) +
+          "</td>" +
+          "<td class=\"text-right\">" +
+          tt.visits +
+          "</td>" +
+          "<td class=\"text-right\">" +
+          fmtDur(avgAgg) +
+          "</td>" +
+          "<td colspan=\"5\"></td>";
+      }
     }
 
     var metaText =
@@ -1062,17 +1084,20 @@
     });
 
     var onResize = debounce(function () {
-      var before = state.pageSize;
+      var beforePs = state.pageSize;
+      var beforeNarrow = state._lastNarrow;
       syncPageSize();
-      if (before !== state.pageSize) renderTable();
       var narrow = isNarrowViewport();
-      if (narrow !== state._lastNarrow) {
+      var listNeedsRerender = narrow !== beforeNarrow || beforePs !== state.pageSize;
+      if (narrow !== beforeNarrow) {
         state._lastNarrow = narrow;
         state.rankingVisibleCount = rankInitialVisible();
         renderRankingPanel();
+        state.page = 1;
       }
+      if (listNeedsRerender) renderTable();
       if (!narrow) initChartsIfNeeded();
-    }, 200);
+    }, 150);
     window.addEventListener("resize", onResize);
 
     document.querySelectorAll("[data-bi-cli-close]").forEach(function (b) {
@@ -1206,6 +1231,22 @@
     document.querySelectorAll("[data-bi-cli-insight-close]").forEach(function (b) {
       b.addEventListener("click", closeInsightModal);
     });
+
+    function wireListModalLayerDismiss() {
+      function wire(shellId, closeFn) {
+        var shell = document.getElementById(shellId);
+        if (!shell) return;
+        var layer = shell.querySelector(".bi-cli-modal-shell__layer--list");
+        if (!layer) return;
+        layer.addEventListener("click", function (e) {
+          if (e.target !== layer) return;
+          closeFn();
+        });
+      }
+      wire("bi-cli-treatable-modal", closeTreatableModal);
+      wire("bi-cli-insight-modal", closeInsightModal);
+    }
+    wireListModalLayerDismiss();
 
     document.addEventListener("keydown", function (ev) {
       if (ev.key !== "Escape") return;

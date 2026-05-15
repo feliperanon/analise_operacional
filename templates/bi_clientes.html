@@ -16,7 +16,7 @@
 
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
-<link rel="stylesheet" href="/static/css/pages/bi-clientes.css?v=12">
+<link rel="stylesheet" href="/static/css/pages/bi-clientes.css?v=14">
 {% endblock %}
 
 {% block content %}
@@ -456,7 +456,7 @@
       </div>
     </div>
     {% endif %}
-    <div class="mt-4 hidden md:block">
+    <div class="bi-cli-desktop-list mt-4">
       <div class="sys-table-wrap sys-table-wrap--x-scroll">
         <table class="sys-data-table text-sm bi-cli-table-desktop" id="bi-cli-table-desktop">
           <thead>
@@ -482,7 +482,7 @@
         </table>
       </div>
     </div>
-    <div class="mt-4 space-y-3 md:hidden" id="bi-cli-cards-mobile"></div>
+    <div class="bi-cli-mobile-list mt-4 space-y-3" id="bi-cli-cards-mobile"></div>
     <div class="bi-cli-pagination-bar bi-cli-pagination-bar--bottom mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/80 pt-3 dark:border-slate-700/60">
       <p class="employees-text-muted text-xs bi-cli-page-meta tabular-nums" id="bi-cli-page-meta"></p>
       <div class="flex gap-2">
@@ -537,7 +537,7 @@
 <script type="application/json" id="bi-cli-ranking-tabs-json">{{ client_ranking_tabs_json|safe }}</script>
 <script type="application/json" id="bi-cli-reading-json">{{ reading_cards_json|safe }}</script>
 <script src="/static/vendor/chart.umd.min.js"></script>
-<script src="/static/js/pages/bi-clientes.js?v=12"></script>
+<script src="/static/js/pages/bi-clientes.js?v=14"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     if (window.lucide && lucide.createIcons) lucide.createIcons();
@@ -551,7 +551,7 @@
 <div class="ga-employee-theme bi-clientes-page employees-page bi-clientes-portals print-hidden" data-bi-clientes-portals>
 <div id="bi-cli-treatable-modal" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
   <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop fixed inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-treatable-close="1"></div>
-  <div class="bi-cli-modal-shell__layer bi-cli-modal-shell__layer--list pointer-events-none fixed inset-0 flex justify-center">
+  <div class="bi-cli-modal-shell__layer bi-cli-modal-shell__layer--list fixed inset-0 flex justify-center">
     <div class="bi-modal-panel pointer-events-auto border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-treatable-title">
       <div class="bi-modal-header flex items-start justify-between gap-2 px-4 py-3">
         <div class="min-w-0 flex-1">
@@ -567,7 +567,7 @@
 
 <div id="bi-cli-insight-modal" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
   <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop fixed inset-0 bg-slate-900/55 dark:bg-black/60" data-bi-cli-insight-close="1"></div>
-  <div class="bi-cli-modal-shell__layer bi-cli-modal-shell__layer--list pointer-events-none fixed inset-0 flex justify-center">
+  <div class="bi-cli-modal-shell__layer bi-cli-modal-shell__layer--list fixed inset-0 flex justify-center">
     <div class="bi-modal-panel pointer-events-auto border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900" role="dialog" aria-modal="true" aria-labelledby="bi-cli-insight-title">
       <div class="bi-modal-header flex items-start justify-between gap-2 px-4 py-3">
         <div class="min-w-0 flex-1">
@@ -583,8 +583,9 @@
 
 <div id="bi-cli-drawer" class="bi-cli-modal-shell emp-modal-shell fixed inset-0 hidden" aria-hidden="true">
   <div class="bi-cli-modal-shell__backdrop emp-modal-backdrop fixed inset-0 bg-slate-900/40 dark:bg-black/50" data-bi-cli-close="1"></div>
-  <div class="bi-cli-modal-shell__layer bi-cli-drawer pointer-events-none fixed inset-0 flex max-w-full justify-end p-3 sm:p-4">
-    <div class="bi-cli-drawer pointer-events-auto flex h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+  <div class="bi-cli-modal-shell__layer bi-cli-drawer-layer fixed inset-0 flex max-w-full justify-end p-3 sm:p-4">
+    <div class="bi-cli-drawer-hit" data-bi-cli-close="1" aria-hidden="true"></div>
+    <div class="bi-cli-drawer bi-cli-drawer-panel flex h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
       <div class="flex items-start justify-between gap-2 border-b border-slate-200/80 px-4 py-3 dark:border-slate-700">
         <div class="min-w-0">
           <h3 class="sys-section-heading truncate text-lg" id="bi-cli-d-title">Cliente</h3>

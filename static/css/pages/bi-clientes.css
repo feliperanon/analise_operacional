@@ -36,6 +36,41 @@ body.dashboard-app main.gv-shell:has(#bi-clientes-root) .ga-panel-stack.gv-panel
   z-index: 80 !important;
 }
 
+/* Portais BI: employees.css coloca backdrop-filter no .emp-modal-shell — no shell full-screen isso pode bloquear cliques/scroll nos filhos */
+.bi-clientes-portals > #bi-cli-treatable-modal.emp-modal-shell,
+.bi-clientes-portals > #bi-cli-insight-modal.emp-modal-shell,
+.bi-clientes-portals > #bi-cli-drawer.emp-modal-shell {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.bi-clientes-portals .emp-modal-backdrop {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#bi-cli-drawer .bi-cli-drawer-layer {
+  pointer-events: auto;
+}
+
+#bi-cli-drawer .bi-cli-drawer-hit {
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#bi-cli-drawer .bi-cli-drawer-panel {
+  pointer-events: auto;
+  touch-action: auto;
+}
+
+#bi-cli-drawer #bi-cli-d-body {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
 #bi-cli-treatable-modal .bi-cli-modal-shell__backdrop,
 #bi-cli-insight-modal .bi-cli-modal-shell__backdrop,
 #bi-cli-drawer .bi-cli-modal-shell__backdrop {
@@ -644,10 +679,35 @@ html.dark .ga-employee-theme.bi-clientes-page .bi-client-mobile-card {
   height: auto;
 }
 
-.ga-employee-theme.bi-clientes-page #bi-cli-cards-mobile {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* Lista Clientes: desktop vs mobile (não depender só de Tailwind — #bi-cli-cards-mobile tinha display:flex global que vencia md:hidden) */
+.bi-cli-mobile-list {
+  display: none;
+}
+
+.bi-cli-desktop-list {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .bi-cli-desktop-list {
+    display: none !important;
+  }
+
+  .bi-cli-mobile-list {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .bi-cli-desktop-list {
+    display: block !important;
+  }
+
+  .bi-cli-mobile-list {
+    display: none !important;
+  }
 }
 
 /* Seção Clientes: cabeçalho + busca */
