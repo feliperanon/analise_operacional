@@ -120,6 +120,16 @@
                 <a href="/separacao/logs-import" class="order-last text-center text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400 sm:order-none sm:mr-2 sm:text-left">
                     Histórico de envios (planilha)
                 </a>
+                {% if delivery_driver_employees %}
+                <button
+                    type="button"
+                    onclick="openAddManualStopModal(null, '', '{{ selected_date_from }}', '{{ selected_shift }}')"
+                    class="sys-btn sys-btn--secondary order-last w-full justify-center text-xs sm:order-none sm:w-auto"
+                >
+                    <i data-lucide="user-plus" class="h-3.5 w-3.5"></i>
+                    Parada manual
+                </button>
+                {% endif %}
                 <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
                     <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
                         <span class="employees-cta__icon" aria-hidden="true">
@@ -1148,13 +1158,29 @@
                         para {{ selected_date_fmt }}.
                         {% endif %}
                     </p>
-                    <a
-                        href="/separacao?date_from={{ suggest_week_ago }}&date_to={{ selected_date_to }}&shift={{ selected_shift | urlencode }}"
-                        class="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
-                    >
-                        <i data-lucide="calendar" class="h-4 w-4"></i>
-                        Ver última semana
-                    </a>
+                    <div class="flex flex-col items-center justify-center gap-3 sm:flex-row">
+                        {% if delivery_driver_employees %}
+                        <button
+                            type="button"
+                            onclick="openAddManualStopModal(null, '', '{{ selected_date_from }}', '{{ selected_shift }}')"
+                            class="sys-btn sys-btn--primary inline-flex items-center gap-2"
+                        >
+                            <i data-lucide="user-plus" class="h-4 w-4"></i>
+                            Incluir parada manual
+                        </button>
+                        {% else %}
+                        <p class="max-w-md text-xs employees-text-muted">
+                            Para incluir parada manual, cadastre ao menos um motorista ativo no turno <strong>{{ selected_shift }}</strong> com a permissão <strong>Entregas</strong> em Colaboradores.
+                        </p>
+                        {% endif %}
+                        <a
+                            href="/separacao?date_from={{ suggest_week_ago }}&date_to={{ selected_date_to }}&shift={{ selected_shift | urlencode }}"
+                            class="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-300"
+                        >
+                            <i data-lucide="calendar" class="h-4 w-4"></i>
+                            Ver última semana
+                        </a>
+                    </div>
                 </div>
                 {% endif %}
             </div>
@@ -1357,6 +1383,34 @@
             <input type="hidden" name="date_from" value="{{ selected_date_from }}">
             <input type="hidden" name="date_to" value="{{ selected_date_to }}">
             {% endif %}
+
+            <div id="add-stop-route-fields" class="hidden space-y-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+                <p class="text-xs employees-text-muted">Escolha motorista, caminhão e data. A primeira parada manual abre a rota no dia.</p>
+                <div>
+                    <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide" for="add-stop-employee-select">Motorista *</label>
+                    <select id="add-stop-employee-select" class="sys-input w-full text-sm">
+                        <option value="">Selecione…</option>
+                        {% for emp in delivery_driver_employees %}
+                        <option value="{{ emp.id }}">{{ emp.name|emp_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                        <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide" for="add-stop-vehicle-select">Caminhão (placa) *</label>
+                        <select id="add-stop-vehicle-select" class="sys-input w-full text-sm">
+                            <option value="">Selecione…</option>
+                            {% for veh in delivery_vehicles %}
+                            <option value="{{ veh.placa }}">{{ veh.placa }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide" for="add-stop-date-visible">Data *</label>
+                        <input type="date" id="add-stop-date-visible" value="{{ selected_date_from }}" class="sys-input w-full text-sm">
+                    </div>
+                </div>
+            </div>
 
             <div>
                 <label class="employees-text-caption mb-1 block text-xs font-semibold uppercase tracking-wide">Buscar cliente</label>
@@ -2261,10 +2315,55 @@
         );
     }
 
+    function isAddStopPlateOk(plate) {
+        const n = String(plate || '').replace(/\W/g, '');
+        return n.length >= 7;
+    }
+
+    function syncAddStopSubmitState() {
+        const submitBtn = document.getElementById('add-stop-submit');
+        if (!submitBtn) return;
+        const hasClient = !!String(document.getElementById('add-stop-client-id').value || '').trim();
+        const routeFields = document.getElementById('add-stop-route-fields');
+        let routeOk = true;
+        if (routeFields && !routeFields.classList.contains('hidden')) {
+            const empSel = document.getElementById('add-stop-employee-select');
+            const vehSel = document.getElementById('add-stop-vehicle-select');
+            const dateVis = document.getElementById('add-stop-date-visible');
+            routeOk = !!(empSel && empSel.value && vehSel && vehSel.value && dateVis && dateVis.value);
+        } else {
+            routeOk = !!String(document.getElementById('add-stop-employee-id').value || '').trim()
+                && isAddStopPlateOk(document.getElementById('add-stop-vehicle-plate').value)
+                && !!String(document.getElementById('add-stop-date').value || '').trim();
+        }
+        submitBtn.disabled = !(hasClient && routeOk);
+    }
+
     function openAddManualStopModal(employeeId, vehiclePlate, date, shift) {
-        document.getElementById('add-stop-employee-id').value = employeeId;
-        document.getElementById('add-stop-vehicle-plate').value = vehiclePlate || '';
-        document.getElementById('add-stop-date').value = date || '';
+        const needsRoutePick = employeeId == null || employeeId === '' || !isAddStopPlateOk(vehiclePlate);
+        const routeFields = document.getElementById('add-stop-route-fields');
+        if (routeFields) routeFields.classList.toggle('hidden', !needsRoutePick);
+
+        const empSel = document.getElementById('add-stop-employee-select');
+        const vehSel = document.getElementById('add-stop-vehicle-select');
+        const dateVis = document.getElementById('add-stop-date-visible');
+
+        if (needsRoutePick) {
+            document.getElementById('add-stop-employee-id').value = '';
+            document.getElementById('add-stop-vehicle-plate').value = '';
+            if (empSel) empSel.value = employeeId ? String(employeeId) : '';
+            if (vehSel && vehiclePlate && isAddStopPlateOk(vehiclePlate)) vehSel.value = vehiclePlate;
+            else if (vehSel) vehSel.value = '';
+            if (dateVis) dateVis.value = date || '{{ selected_date_from }}';
+            document.getElementById('add-stop-date').value = (dateVis && dateVis.value) || date || '';
+        } else {
+            document.getElementById('add-stop-employee-id').value = employeeId;
+            document.getElementById('add-stop-vehicle-plate').value = vehiclePlate || '';
+            if (empSel) empSel.value = String(employeeId);
+            if (vehSel) vehSel.value = vehiclePlate || '';
+        }
+
+        document.getElementById('add-stop-date').value = date || (dateVis && dateVis.value) || '';
         document.getElementById('add-stop-shift').value = shift || 'Manhã';
         document.getElementById('add-stop-tonnage').value = '';
         document.getElementById('add-stop-valor').value = '';
@@ -2273,6 +2372,7 @@
         clearAddStopClient();
         document.getElementById('addManualStopModal').showModal();
         document.getElementById('add-stop-client-search').focus();
+        syncAddStopSubmitState();
         lucide.createIcons();
     }
 
@@ -2280,7 +2380,7 @@
         document.getElementById('add-stop-client-id').value = '';
         document.getElementById('add-stop-client-selected').classList.add('hidden');
         document.getElementById('add-stop-client-search').placeholder = 'Nome, NB ou endereço... (mín. 2 caracteres)';
-        document.getElementById('add-stop-submit').disabled = true;
+        syncAddStopSubmitState();
     }
 
     function selectAddStopClient(id, name, nb, endereco) {
@@ -2291,7 +2391,7 @@
         document.getElementById('add-stop-client-suggestions').classList.add('hidden');
         document.getElementById('add-stop-client-search').value = '';
         document.getElementById('add-stop-client-search').placeholder = 'Cliente selecionado — clique em "Remover e buscar outro" para trocar';
-        document.getElementById('add-stop-submit').disabled = false;
+        syncAddStopSubmitState();
         lucide.createIcons();
     }
 
@@ -2360,6 +2460,35 @@
         searchEl.addEventListener('blur', function () {
             setTimeout(() => suggestionsEl.classList.add('hidden'), 150);
         });
+
+        ['add-stop-employee-select', 'add-stop-vehicle-select', 'add-stop-date-visible'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', syncAddStopSubmitState);
+        });
+
+        const manualForm = document.getElementById('add-manual-stop-form');
+        if (manualForm) {
+            manualForm.addEventListener('submit', function (e) {
+                const routeFields = document.getElementById('add-stop-route-fields');
+                if (routeFields && !routeFields.classList.contains('hidden')) {
+                    const empSel = document.getElementById('add-stop-employee-select');
+                    const vehSel = document.getElementById('add-stop-vehicle-select');
+                    const dateVis = document.getElementById('add-stop-date-visible');
+                    if (!empSel || !empSel.value || !vehSel || !vehSel.value || !dateVis || !dateVis.value) {
+                        e.preventDefault();
+                        alert('Selecione motorista, caminhão e data.');
+                        return;
+                    }
+                    document.getElementById('add-stop-employee-id').value = empSel.value;
+                    document.getElementById('add-stop-vehicle-plate').value = vehSel.value;
+                    document.getElementById('add-stop-date').value = dateVis.value;
+                }
+                if (!document.getElementById('add-stop-client-id').value) {
+                    e.preventDefault();
+                    alert('Selecione um cliente na busca (mínimo 2 caracteres).');
+                }
+            });
+        }
     }
 
     function initDeliveryHelperPickers() {

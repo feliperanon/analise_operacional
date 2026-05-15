@@ -20222,12 +20222,16 @@ async def separacao_page(
         key=lambda x: x.name
     )
     delivery_driver_employees = sorted(
-        session.exec(
-            select(models.Employee).where(
-                models.Employee.status != "fired",
-                models.Employee.mobile_access_separation == True,
-            )
-        ).all(),
+        [
+            e
+            for e in session.exec(
+                select(models.Employee).where(
+                    models.Employee.status != "fired",
+                    models.Employee.mobile_access_separation == True,
+                )
+            ).all()
+            if (getattr(e, "work_shift", None) or "Manhã") == shift
+        ],
         key=lambda x: (x.name or "").casefold(),
     )
     delivery_vehicles = sorted(
@@ -22450,11 +22454,18 @@ async def delivery_add_stop(
     if not emp:
         feedback_encoded = urlencode({"delivery_feedback": "Motorista não encontrado.", "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
-    if not getattr(emp, "mobile_access_separation", False):
+
+    plate_clean = _norm_plate(vehicle_plate)
+    if not plate_clean or len(plate_clean) < 7:
         feedback_encoded = urlencode({
-            "delivery_feedback": "Motorista sem Entregas habilitado no cadastro.",
+            "delivery_feedback": "Informe uma placa válida (7 caracteres) para a parada manual.",
             "delivery_feedback_level": "error",
         })
+        return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
+
+    assignment_err = _validate_delivery_assignment(session, date, employee_id, plate_clean)
+    if assignment_err:
+        feedback_encoded = urlencode({"delivery_feedback": assignment_err, "delivery_feedback_level": "error"})
         return RedirectResponse(url=f"{redirect_base}&{feedback_encoded}", status_code=303)
 
     now = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -22472,7 +22483,7 @@ async def delivery_add_stop(
         valor_financeiro=float(valor_financeiro) if valor_financeiro is not None else None,
         type="delivery",
         delivery_status="pendente",
-        delivery_vehicle_plate=vehicle_plate.strip().upper(),
+        delivery_vehicle_plate=plate_clean,
         delivery_order_number=(delivery_order_number or "").strip() or None,
         delivery_client_code=client.nb,
         delivery_address=addr or None,
