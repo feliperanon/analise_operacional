@@ -103,6 +103,25 @@ def _scalar_count(result: Any) -> int:
         return 0
 
 
+def merge_unique_helper_id_lists(*lists: Optional[List[Any]]) -> List[int]:
+    """Une várias listas de IDs de ajudantes sem duplicar (positivos apenas)."""
+    seen: set[int] = set()
+    out: List[int] = []
+    for lst in lists:
+        if not lst:
+            continue
+        for raw in lst:
+            try:
+                hid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if hid <= 0 or hid in seen:
+                continue
+            seen.add(hid)
+            out.append(hid)
+    return out
+
+
 def parse_route_helper_ids(helpers_json: Optional[str]) -> List[int]:
     if not helpers_json:
         return []
@@ -181,7 +200,7 @@ def effective_ajudante_ids_for_summary(
     route_by_client_driver_date: dict,
     session_helpers_by_driver_date: dict,
 ) -> List[int]:
-    """Retorna TODOS os ajudantes efetivos da devolução para o resumo por ajudante."""
+    """Retorna todos os IDs de ajudantes ligados à devolução (cadastro + equipe completa da rota/sessão)."""
     out: List[int] = []
     seen = set()
 
@@ -351,8 +370,8 @@ def _build_helper_maps(session: Session, date_from: str, date_to: str) -> Tuple[
         ids = _resolve_helper_ids(raw)
         if ids and r.client_id and r.employee_id:
             key = (r.client_id, r.employee_id, str(r.date)[:10])
-            if key not in route_by_client_driver_date:
-                route_by_client_driver_date[key] = ids
+            prev = route_by_client_driver_date.get(key)
+            route_by_client_driver_date[key] = merge_unique_helper_id_lists(prev, ids)
 
     session_helpers_by_driver_date: Dict[tuple, List[int]] = {}
     sessions_in_range = session.exec(
@@ -365,8 +384,8 @@ def _build_helper_maps(session: Session, date_from: str, date_to: str) -> Tuple[
         ids = _resolve_helper_ids(raw)
         if ids and ds.employee_id:
             key = (str(getattr(ds, "date", "") or "")[:10], ds.employee_id)
-            if key not in session_helpers_by_driver_date:
-                session_helpers_by_driver_date[key] = ids
+            prev = session_helpers_by_driver_date.get(key)
+            session_helpers_by_driver_date[key] = merge_unique_helper_id_lists(prev, ids)
 
     return route_helpers, route_by_client_driver_date, session_helpers_by_driver_date, emp_by_name
 

@@ -40,6 +40,7 @@ from devolucao_perda_labels import (
     macro_loss_label as _macro_loss_label,
 )
 from devolucao_evitada_constants import EVITADA_TIPO_LABELS, EVITADA_TIPOS_ORDENADOS, label_tipo_evitada
+from devolucoes_consolidado import merge_unique_helper_id_lists
 from utils.business_calendar import commercial_competence_period_iso_bounds, competence_date_str
 
 import bi_clientes_intel as bci_clientes
@@ -5637,8 +5638,8 @@ def _build_bi_devolucoes_dataset(
             ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
             if ids and r.client_id and r.employee_id:
                 key = (r.client_id, r.employee_id, str(r.date)[:10])
-                if key not in route_by_client_driver_date:
-                    route_by_client_driver_date[key] = ids
+                prev = route_by_client_driver_date.get(key)
+                route_by_client_driver_date[key] = merge_unique_helper_id_lists(prev, ids)
     except Exception:
         pass
 
@@ -5655,8 +5656,8 @@ def _build_bi_devolucoes_dataset(
             ids = _parse_route_helper_ids(raw) or _parse_helpers_to_ids(raw, emp_by_name)
             if ids and ds.employee_id:
                 key = (str(getattr(ds, "date", "") or "")[:10], ds.employee_id)
-                if key not in session_helpers_by_driver_date:
-                    session_helpers_by_driver_date[key] = ids
+                prev = session_helpers_by_driver_date.get(key)
+                session_helpers_by_driver_date[key] = merge_unique_helper_id_lists(prev, ids)
     except Exception:
         pass
 
