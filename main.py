@@ -1536,6 +1536,17 @@ def fmt_br_2(val):
     except Exception:
         return str(val)
 
+
+def fmt_br_moeda(val):
+    """Real brasileiro: R$ 1.234,56 (mesmo contrato que bi_delivery_routes._fmt_br_moeda)."""
+    if val is None:
+        return "R$ 0,00"
+    try:
+        return "R$ " + fmt_br_2(val)
+    except Exception:
+        return "R$ —"
+
+
 def fmt_br_duracao(val):
     """Duração em minutos (padrão BR): 0-60 → 'X min'; >60 → 'H:MM hr'."""
     if val is None:
@@ -1604,6 +1615,7 @@ templates.env.filters["fmt_br"] = fmt_br
 templates.env.filters["fmt_br_int"] = fmt_br_int
 templates.env.filters["fmt_br_pct"] = fmt_br_pct
 templates.env.filters["fmt_br_2"] = fmt_br_2
+templates.env.filters["fmt_br_moeda"] = fmt_br_moeda
 templates.env.filters["fmt_br_duracao"] = fmt_br_duracao
 templates.env.filters["fmt_br_datetime"] = fmt_br_datetime
 templates.env.filters["fmt_br_date"] = fmt_br_date
