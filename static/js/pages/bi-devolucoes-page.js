@@ -36,6 +36,8 @@
   var cursor = 0;
   var searchTimer = 0;
   var currentQuickFilter = "";
+  /** Campo dedicado ao clicar no ranking (motivo / responsabilidade / cliente); evita substring em nomes de cliente. */
+  var listSearchField = "";
   var sortKey = null;
   var sortDir = "asc";
 
@@ -438,8 +440,42 @@
     }
   }
 
+  function normListTerm(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function rowMatchesListSearch(row, term, field) {
+    if (!term) return true;
+    if (field === "responsabilidade") {
+      return normListTerm(row.responsabilidade) === term;
+    }
+    if (field === "motivo") {
+      return normListTerm(row.motivo) === term;
+    }
+    if (field === "cliente") {
+      return normListTerm(row.cliente) === term;
+    }
+    var bag = [
+      row.cliente,
+      row.client_nb,
+      row.client_nb_fmt,
+      row.vendedor,
+      row.motorista,
+      row.ajudante,
+      row.motivo,
+      row.responsabilidade,
+      row.source,
+      row.cluster
+    ]
+      .join(" ")
+      .toLowerCase();
+    return bag.indexOf(term) >= 0;
+  }
+
   function runClientFilters() {
-    var term = (searchInput && searchInput.value ? searchInput.value : "").trim().toLowerCase();
+    var term = normListTerm(searchInput && searchInput.value ? searchInput.value : "");
     filteredRows = allRows.filter(function (row) {
       var st = computeStatus(row);
       var stLower = st.toLowerCase();
@@ -449,22 +485,7 @@
       if (currentQuickFilter === "acima_meta") {
         if (Number(row.valor || 0) < 300) return false;
       }
-      if (!term) return true;
-      var bag = [
-        row.cliente,
-        row.client_nb,
-        row.client_nb_fmt,
-        row.vendedor,
-        row.motorista,
-        row.ajudante,
-        row.motivo,
-        row.responsabilidade,
-        row.source,
-        row.cluster
-      ]
-        .join(" ")
-        .toLowerCase();
-      return bag.indexOf(term) >= 0;
+      return rowMatchesListSearch(row, term, listSearchField);
     });
     applyCurrentSort();
     updateSortHeaders();
@@ -823,6 +844,7 @@
       var causeBtn = event.target.closest("[data-bi-cause-search]");
       if (causeBtn && searchInput) {
         searchInput.value = causeBtn.getAttribute("data-bi-cause-search") || "";
+        listSearchField = causeBtn.getAttribute("data-bi-search-field") || "";
         currentQuickFilter = "";
         runClientFilters();
         document.getElementById("bi-dev-table-panel") &&
@@ -906,6 +928,7 @@
 
   if (searchInput) {
     searchInput.addEventListener("input", function () {
+      listSearchField = "";
       clearTimeout(searchTimer);
       searchTimer = setTimeout(runClientFilters, DEBOUNCE_MS);
     });

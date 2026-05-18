@@ -80,7 +80,7 @@
       <div class="bi-dev-rank-card__body flex max-h-[20rem] flex-col gap-1 overflow-auto p-2 sm:p-3">
         {% if top_motivos and top_motivos|length > 0 %}
           {% for m in top_motivos[:10] %}
-          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ m.motivo|e }}" title="Filtrar lista por este motivo">
+          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ m.motivo|e }}" data-bi-search-field="motivo" title="Filtrar lista por este motivo">
             <div class="bi-dev-rank-row__top">
               <span class="bi-dev-rank-row__title">{{ m.motivo }}</span>
               <svg class="bi-dev-rank-row__icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
@@ -103,7 +103,7 @@
       <div class="bi-dev-rank-card__body flex max-h-[20rem] flex-col gap-1 overflow-auto p-2 sm:p-3">
         {% if resp_breakdown and resp_breakdown|length > 0 %}
           {% for r in resp_breakdown[:10] %}
-          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ r.responsabilidade|e }}" title="Filtrar lista por esta área">
+          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ r.responsabilidade|e }}" data-bi-search-field="responsabilidade" title="Filtrar lista por esta área">
             <div class="bi-dev-rank-row__top">
               <span class="bi-dev-rank-row__title">{{ r.responsabilidade }}</span>
               <svg class="bi-dev-rank-row__icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
@@ -127,7 +127,7 @@
         {% if top_clientes and top_clientes|length > 0 %}
           {% for c in top_clientes[:10] %}
           {% set pctc = (100.0 * (c.valor | float) / (total_valor | float)) if (total_valor and (total_valor | float) > 0) else 0 %}
-          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ c.cliente|e }}" title="Filtrar lista por este cliente">
+          <button type="button" class="bi-dev-rank-row group text-left" data-bi-cause-search="{{ c.cliente|e }}" data-bi-search-field="cliente" title="Filtrar lista por este cliente">
             <div class="bi-dev-rank-row__top">
               <span class="bi-dev-rank-row__title">{{ c.cliente }}</span>
               <svg class="bi-dev-rank-row__icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
