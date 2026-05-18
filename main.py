@@ -15158,7 +15158,18 @@ async def client_details(request: Request, client_id: int, session: Session = De
     emp_counter = {}
     
     emp_map = {e.id: e.name for e in session.exec(select(models.Employee)).all()}
-    
+
+    devolucao_valor_by_route: dict[int, float] = {}
+    route_ids_dev = [r.id for r in routes if r.id and (getattr(r, "delivery_status", "") or "").strip().lower() == "devolucao"]
+    if route_ids_dev:
+        for d in session.exec(
+            select(models.Devolucao).where(models.Devolucao.route_id.in_(route_ids_dev))
+        ).all():
+            rid = getattr(d, "route_id", None)
+            if rid:
+                v = float(d.valor or 0.0)
+                devolucao_valor_by_route[int(rid)] = max(devolucao_valor_by_route.get(int(rid), 0.0), v)
+
     history = []
     
     for r in routes:
@@ -15225,15 +15236,23 @@ async def client_details(request: Request, client_id: int, session: Session = De
             # t em kg (coerente com mobile/delivery); produtividade kg/h
             prod_kg_h = round(t / hours, 2) if hours > 0 else 0.0
 
-        # History Row (peso em kg; produtividade kg/h)
+        # History Row (peso em kg; valor R$; produtividade kg/h)
         status_raw = (getattr(r, "delivery_status", "") or "").strip().lower()
         operation_type = "devolucao" if status_raw == "devolucao" else "entrega"
+        vf_row = float(getattr(r, "valor_financeiro", None) or 0.0)
+        vdev_row = float(getattr(r, "valor_devolucao", None) or 0.0)
+        if operation_type == "devolucao":
+            valor_row = vdev_row if vdev_row > 0 else devolucao_valor_by_route.get(int(r.id or 0), 0.0) or vf_row
+        else:
+            valor_row = vf_row
         history.append({
             "date_fmt": r_date.strftime("%d/%m/%Y"),
             "shift": r.shift,
             "employee_name": emp_map.get(r.employee_id, "Desconhecido"),
             "operation_type": operation_type,
             "tonnage_kg_fmt": fmt_br_2(t),
+            "valor": valor_row,
+            "valor_fmt": fmt_br_moeda(valor_row),
             "duration_fmt": dur_str,
             "productivity": prod_kg_h,
             "productivity_fmt": fmt_br_2(prod_kg_h),

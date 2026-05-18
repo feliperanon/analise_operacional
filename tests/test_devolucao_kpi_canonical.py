@@ -7,6 +7,11 @@ from devolucao_kpi_canonical import (
     build_mes_fim_projecao_pct_financeiro,
     build_mes_fim_projecao_pct_rotas,
     counts_devolucao_rotas_concluidas,
+    devolucao_chart_day_iso,
+    devolucao_competencia_in_period,
+    devolucao_in_user_period,
+    devolucao_operacional_in_period,
+    devolucao_resolved_operacional_iso,
     group_routes_by_operational_day,
     normalized_delivery_status,
     pct_devolucao_sobre_rotas_concluidas,
@@ -242,3 +247,33 @@ def test_pct_valor_devolvido_sem_valor_e_sem_base():
     p, b = pct_valor_devolvido_sobre_base_rotas(0.0, [])
     assert p is None
     assert b == 0.0
+
+
+def test_devolucao_in_user_period_entrega_no_recorte_competencia_fora():
+    """Mobile: romaneio 15/05, entrega 18/05 — deve entrar no filtro civil 18–31."""
+    d = SimpleNamespace(data_romaneio="2026-05-15", data_entrega="2026-05-18")
+    assert not devolucao_competencia_in_period(d, "2026-05-18", "2026-05-31")
+    assert devolucao_operacional_in_period(d, "2026-05-18", "2026-05-31")
+    assert devolucao_in_user_period(d, "2026-05-18", "2026-05-31")
+    assert devolucao_chart_day_iso(d, "2026-05-18", "2026-05-31") == "2026-05-18"
+
+
+def test_devolucao_chart_day_prefers_entrega_when_romaneio_also_in_period():
+    """Listagem/gráfico não podem mostrar romaneio se a entrega foi em outro dia."""
+    d = SimpleNamespace(data_romaneio="2026-05-15", data_entrega="2026-05-18")
+    assert devolucao_chart_day_iso(d, "2026-05-01", "2026-05-31") == "2026-05-18"
+
+
+def test_devolucao_resolved_uses_created_at_when_mobile_romaneio_equals_entrega():
+    """Mobile: romaneio e entrega gravados como 15/05, registro real em 18/05."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    d = SimpleNamespace(
+        data_romaneio="2026-05-15",
+        data_entrega="2026-05-15",
+        source="MOBILE",
+        created_at=datetime(2026, 5, 18, 8, 34, tzinfo=ZoneInfo("America/Sao_Paulo")),
+    )
+    assert devolucao_resolved_operacional_iso(d) == "2026-05-18"
+    assert devolucao_chart_day_iso(d, "2026-05-18", "2026-05-31") == "2026-05-18"

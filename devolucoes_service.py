@@ -11,6 +11,7 @@ import hashlib
 import json
 from io import BytesIO
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 from typing import Any, Optional, List, Tuple, Dict
 from dataclasses import dataclass, field
 
@@ -1504,6 +1505,15 @@ def _parse_route_helper_ids(helpers_json: Optional[str]) -> List[int]:
         return []
 
 
+def _devolucao_data_entrega_from_route(route: "Route", source: str) -> str:
+    """Dia civil da ocorrência: hoje no mobile/web; romaneio da rota no Excel legado."""
+    src = (source or "").strip().upper()
+    if src in ("MOBILE", "WEB", "ROTA"):
+        return datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+    rd = str(getattr(route, "date", None) or "").strip()[:10]
+    return rd if len(rd) == 10 else datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%Y-%m-%d")
+
+
 def sync_route_to_devolucao(
     session: Session,
     route: "Route",
@@ -1545,11 +1555,14 @@ def sync_route_to_devolucao(
         ajudante_id = helper_ids[1]
     elif ajudante_id == motorista_id:
         ajudante_id = None
+    data_entrega_op = _devolucao_data_entrega_from_route(route, source)
     existing = session.exec(select(Devolucao).where(Devolucao.route_id == route.id)).first()
     if existing:
         existing.valor = valor
         existing.motivo_id = motivo.id
         existing.responsabilidade_id = resp.id
+        if (source or "").strip().upper() in ("MOBILE", "WEB", "ROTA"):
+            existing.data_entrega = data_entrega_op
         # Não apagar ajudante já gravado quando a rota ainda não lista ajudantes (cadastro tardio na
         # devolução/escala). Quando a rota passa a ter ajudante(s), sincroniza a partir dela.
         if ajudante_id is not None:
@@ -1581,7 +1594,7 @@ def sync_route_to_devolucao(
     dev = Devolucao(
         route_id=route.id,
         data_romaneio=data_romaneio_ref,
-        data_entrega=route.date,
+        data_entrega=data_entrega_op,
         client_id=route.client_id,
         vendedor_id=vendedor_id,
         motorista_id=motorista_id,

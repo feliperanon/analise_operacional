@@ -31,10 +31,12 @@ from __future__ import annotations
 
 from calendar import monthrange
 from collections import defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+import json
 import math
 import unicodedata
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 _DONE_STATUSES = frozenset({"entregue", "devolucao"})
 
@@ -109,6 +111,141 @@ def devolucao_competencia_iso(d: Any) -> str:
 def devolucao_competencia_in_period(d: Any, period_start: str, period_end: str) -> bool:
     comp = devolucao_competencia_iso(d)
     return bool(comp) and len(comp) == 10 and period_start <= comp <= period_end
+
+
+def _iso_date_from_datetime_value(val: Any, tz_name: str = "America/Sao_Paulo") -> str:
+    if val is None:
+        return ""
+    if isinstance(val, datetime):
+        try:
+            z = ZoneInfo(tz_name)
+            dt = val.replace(tzinfo=z) if val.tzinfo is None else val.astimezone(z)
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            return val.strftime("%Y-%m-%d")[:10]
+    s = str(val).strip()
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        return s[:10]
+    if "T" in s:
+        try:
+            dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=ZoneInfo(tz_name))
+            return dt.astimezone(ZoneInfo(tz_name)).strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    return ""
+
+
+def _iso_from_returned_at(raw: Optional[str]) -> str:
+    s = str(raw or "").strip()
+    if not s:
+        return ""
+    if len(s) >= 10 and s[4] == "-" and s[7] == "-":
+        return s[:10]
+    if "T" in s or " " in s:
+        return _iso_date_from_datetime_value(s)
+    return ""
+
+
+def _iso_from_route_delivery_log(route: Any, event: str = "devolucao") -> str:
+    raw = getattr(route, "delivery_time_log", None)
+    if not raw:
+        return ""
+    try:
+        history = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return ""
+    if not isinstance(history, list):
+        return ""
+    want = (event or "").strip().lower()
+    for item in reversed(history):
+        if not isinstance(item, dict):
+            continue
+        if (item.get("event") or "").strip().lower() != want:
+            continue
+        for key in ("at", "time"):
+            d = _iso_date_from_datetime_value(item.get(key))
+            if len(d) == 10:
+                return d
+    return ""
+
+
+def devolucao_resolved_operacional_iso(d: Any, route: Any = None) -> str:
+    """
+    Dia civil em que a devolução ocorreu (exibição BI / listagem).
+
+    Mobile grava romaneio (competência) e muitas vezes data_entrega = Route.date (dia da rota),
+    não o dia em que o motorista registrou a devolução — usa log da rota e created_at como fallback.
+    """
+    raw_ent = str(getattr(d, "data_entrega", None) or "").strip()
+    raw_rom = str(getattr(d, "data_romaneio", None) or "").strip()
+    ent = raw_ent[:10] if len(raw_ent) >= 10 else ""
+    rom = raw_rom[:10] if len(raw_rom) >= 10 else ""
+
+    if route is not None:
+        for candidate in (
+            _iso_from_returned_at(getattr(route, "delivery_returned_at", None)),
+            _iso_from_route_delivery_log(route, "devolucao"),
+        ):
+            if len(candidate) == 10:
+                return candidate
+
+    cdate = _iso_date_from_datetime_value(getattr(d, "created_at", None))
+    src = str(getattr(d, "source", None) or "").strip().upper()
+    if len(cdate) == 10 and src in ("MOBILE", "WEB", "ROTA"):
+        if len(rom) == 10 and cdate > rom:
+            return cdate
+        if len(ent) == 10 and len(rom) == 10 and ent == rom and cdate > rom:
+            return cdate
+        if len(ent) < 10 and len(rom) == 10:
+            return cdate
+
+    if len(ent) == 10 and len(rom) == 10 and ent != rom:
+        return ent if ent >= rom else rom
+    if len(ent) == 10:
+        return ent
+    if len(rom) == 10:
+        return rom
+    return cdate if len(cdate) == 10 else ""
+
+
+def devolucao_operacional_iso(d: Any, route: Any = None) -> str:
+    """Dia civil da operação (entrega efetiva quando resolvível)."""
+    return devolucao_resolved_operacional_iso(d, route)
+
+
+def devolucao_operacional_in_period(d: Any, period_start: str, period_end: str, route: Any = None) -> bool:
+    op = devolucao_operacional_iso(d, route)
+    return len(op) == 10 and period_start <= op <= period_end
+
+
+def devolucao_in_user_period(d: Any, period_start: str, period_end: str, route: Any = None) -> bool:
+    """
+    Recorte do BI / listagem por intervalo civil escolhido pelo usuário.
+
+    Inclui por competência (KPI mensal) ou quando a data operacional resolvida cai no período.
+    """
+    return devolucao_competencia_in_period(d, period_start, period_end) or devolucao_operacional_in_period(
+        d, period_start, period_end, route
+    )
+
+
+def devolucao_chart_day_iso(d: Any, period_start: str, period_end: str, route: Any = None) -> str:
+    """Dia civil no eixo do gráfico e listagem BI (data real da ocorrência)."""
+    op = devolucao_resolved_operacional_iso(d, route)
+    comp = devolucao_competencia_iso(d) or ""
+
+    def _inwin(p: str) -> bool:
+        return len(p) == 10 and period_start <= p <= period_end
+
+    if len(op) == 10 and _inwin(op):
+        return op
+    if len(op) == 10:
+        return op
+    if len(comp) >= 10 and _inwin(comp[:10]):
+        return comp[:10]
+    return comp[:10] if len(comp) >= 10 else ""
 
 
 def route_competencia_operacional_iso(route: Any) -> str:

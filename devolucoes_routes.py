@@ -47,6 +47,7 @@ from devolucoes_service import (
 )
 from devolucoes_service import _load_cadastros as devolucoes_load_cadastros
 from devolucoes_consolidado import consolidado_avaliar_resumo
+from devolucao_kpi_canonical import devolucao_resolved_operacional_iso
 from utils.business_calendar import competence_date_str
 from devolucao_evitada_constants import EVITADA_TIPO_LABELS
 
@@ -945,10 +946,11 @@ def init_devolucoes_router(
         except Exception:
             session.rollback()
 
-        # Período principal = DATA ROMANEIO (como planilha Excel: coluna DATA ROMANEIO, linhas de dados após cabeçalhos).
+        # Período = data efetiva (entrega ou romaneio), alinhado à coluna Data da listagem.
+        effective_date_col = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
         rom_in_period = and_(
-            models.Devolucao.data_romaneio >= start_date,
-            models.Devolucao.data_romaneio <= end_date,
+            effective_date_col >= start_date,
+            effective_date_col <= end_date,
         )
         count_q = select(func.count(models.Devolucao.id)).where(rom_in_period)
         total_count = session.exec(count_q).one()
@@ -1109,7 +1111,10 @@ def init_devolucoes_router(
             vendedor = employee_contact_map.get(dev.vendedor_id)
             dup_of = getattr(dev, "duplicate_of_id", None)
             vstat = (getattr(dev, "validation_status", None) or "").strip()
-            data_efetiva = str(dev.data_entrega or dev.data_romaneio or "")[:10]
+            linked_route_row = route_map.get(dev.route_id) if dev.route_id else None
+            data_efetiva = devolucao_resolved_operacional_iso(dev, linked_route_row) or str(
+                dev.data_entrega or dev.data_romaneio or ""
+            )[:10]
             plate = ""
             if dev.route_id and dev.route_id in route_map:
                 plate = (route_map[dev.route_id].delivery_vehicle_plate or "").strip()

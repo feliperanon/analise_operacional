@@ -25,8 +25,10 @@ from route_duration import route_duration_minutes, route_duration_minutes_mobile
 from devolucao_kpi_canonical import (
     build_mes_fim_projecao_pct_financeiro,
     counts_devolucao_rotas_concluidas,
+    devolucao_chart_day_iso,
     devolucao_competencia_in_period,
     devolucao_competencia_iso,
+    devolucao_in_user_period,
     is_encerramento_tardio_automatico_return,
     pct_devolucao_sobre_rotas_concluidas,
     pct_valor_devolvido_sobre_base_rotas,
@@ -5521,40 +5523,26 @@ def _build_bi_devolucoes_dataset(
     # Alinhar ao consolidado / KPI mensal (main._kpi_devolucao_mes_romaneio_calendario): não somar duplicatas.
     devs_raw = [d for d in devs_raw if not getattr(d, "duplicate_of_id", None)]
 
-    def _dev_chart_day_iso(d: models.Devolucao) -> str:
-        """
-        Dia civil no eixo do gráfico e agregações diárias.
+    route_ids_pre = sorted({int(d.route_id) for d in devs_raw if getattr(d, "route_id", None)})
+    route_by_id_pre: dict[int, models.Route] = {}
+    if route_ids_pre:
+        try:
+            for r in session.exec(select(models.Route).where(models.Route.id.in_(route_ids_pre))).all():
+                if getattr(r, "id", None) is not None:
+                    route_by_id_pre[int(r.id)] = r
+        except Exception:
+            pass
 
-        Prioriza datas que caiam em [period_start, period_end] (eixo do BI), para não perder
-        ocorrências com romaneio antes do 1º dia civil do mês comercial ou fora do recorte.
-        Se romaneio e entrega estão na janela e diferem, usa romaneio (logística).
-        """
-        raw_rom = str(getattr(d, "data_romaneio", None) or "").strip()
-        raw_ent = str(getattr(d, "data_entrega", None) or "").strip()
-        rom = raw_rom[:10] if len(raw_rom) >= 10 else ""
-        ent = raw_ent[:10] if len(raw_ent) >= 10 else ""
-        comp = devolucao_competencia_iso(d) or ""
+    def _route_for_dev(d: models.Devolucao) -> Optional[models.Route]:
+        rid = getattr(d, "route_id", None)
+        return route_by_id_pre.get(int(rid)) if rid else None
 
-        def _inwin(p: str) -> bool:
-            return len(p) == 10 and period_start <= p <= period_end
-
-        if _inwin(rom) and _inwin(ent) and rom != ent:
-            return rom
-        if _inwin(rom):
-            return rom
-        if _inwin(ent):
-            return ent
-        if len(comp) >= 10 and _inwin(comp[:10]):
-            return comp[:10]
-        if len(rom) == 10:
-            return rom
-        if len(ent) == 10:
-            return ent
-        return comp[:10] if len(comp) >= 10 else ""
-
-    devs_c = [d for d in devs_raw if devolucao_competencia_in_period(d, period_start, period_end)]
+    devs_c = [d for d in devs_raw if devolucao_in_user_period(d, period_start, period_end, _route_for_dev(d))]
     devs_c.sort(
-        key=lambda x: (_dev_chart_day_iso(x), str(getattr(x, "data_romaneio", None) or "")),
+        key=lambda x: (
+            devolucao_chart_day_iso(x, period_start, period_end, _route_for_dev(x)),
+            str(getattr(x, "data_romaneio", None) or ""),
+        ),
         reverse=True,
     )
 
@@ -5756,7 +5744,7 @@ def _build_bi_devolucoes_dataset(
     devs_pre_acima: List[models.Devolucao] = list(devs)
     dev_por_dia_mtd: dict[str, float] = {}
     for _d_k in devs_pre_acima:
-        _op_k = devolucao_competencia_iso(_d_k)
+        _op_k = devolucao_chart_day_iso(_d_k, period_start, period_end, _route_for_dev(_d_k))
         if not (len(_op_k) == 10 and period_start <= _op_k <= period_end):
             continue
         dev_por_dia_mtd[_op_k] = dev_por_dia_mtd.get(_op_k, 0.0) + float(_d_k.valor or 0)
@@ -6064,7 +6052,7 @@ def _build_bi_devolucoes_dataset(
         vendedor_nome = vendedor.name if vendedor else "—"
 
         val = float(d.valor or 0)
-        op_raw = _dev_chart_day_iso(d)
+        op_raw = devolucao_chart_day_iso(d, period_start, period_end, _route_for_dev(d))
         dt_str = devolucao_competencia_iso(d) or ""
         dt_operacional = op_raw if len(op_raw) >= 10 else (dt_str if len(dt_str) >= 10 else "")
 
