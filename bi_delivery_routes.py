@@ -2435,6 +2435,10 @@ def _build_bi_clientes_dataset(
             str(r.get("top_motivo_name") or ""),
             str(r.get("top_responsabilidade_name") or ""),
         )
+        r.update(bci_clientes.client_recurrence_fields(r))
+        _prio_label, _prio_tone = bci_clientes.client_priority_label(r)
+        r["priority_label"] = _prio_label
+        r["priority_tone"] = _prio_tone
 
     if vendedor_id is not None:
         if int(vendedor_id) == -1:
@@ -2942,6 +2946,11 @@ def _build_bi_clientes_dataset(
     }
 
     def _rank_tab_row(r: dict) -> dict:
+        visits = int(r.get("visits") or 0)
+        return_count = int(r.get("return_count") or r.get("returned_occurrences") or 0)
+        return_recurrence_pct = float(r.get("return_recurrence_pct") or 0)
+        if visits > 0 and not return_recurrence_pct:
+            return_recurrence_pct = round((return_count / visits) * 100.0, 1)
         return {
             "client_id": r.get("client_id"),
             "client_name": r.get("client_name"),
@@ -2950,10 +2959,19 @@ def _build_bi_clientes_dataset(
             "delivered_value": round(float(r.get("delivered_value") or 0), 2),
             "returned_value": round(float(r.get("returned_value") or 0), 2),
             "return_pct_planned": round(float(r.get("return_pct_planned") or 0), 2),
+            "visits": visits,
+            "return_count": return_count,
+            "return_recurrence_pct": return_recurrence_pct,
+            "recurrence_label": r.get("recurrence_label") or f"{return_count} de {visits} visitas",
+            "leader_reason": r.get("leader_reason") or r.get("top_motivo_name") or "—",
+            "dominant_responsibility": r.get("dominant_responsibility") or r.get("top_responsabilidade_name") or "—",
+            "classification": r.get("classification") or r.get("classification_title") or "—",
+            "classification_title": r.get("classification_title"),
+            "priority_label": r.get("priority_label") or "—",
+            "priority_tone": r.get("priority_tone") or "neutral",
+            "cliente_score": int(r.get("cliente_score") or 0),
             "avg_duration_m": round(float(r.get("avg_duration_m") or 0), 1),
             "max_duration_m": round(float(r.get("max_duration_m") or 0), 1),
-            "classification_title": r.get("classification_title"),
-            "cliente_score": int(r.get("cliente_score") or 0),
         }
 
     MIN_VOL_PCT = float(bci_clientes.MIN_VOLUME_ENTREGUE_PAR_RANKING_PCT_BRL)
@@ -5538,6 +5556,8 @@ def _build_bi_devolucoes_dataset(
         return route_by_id_pre.get(int(rid)) if rid else None
 
     devs_c = [d for d in devs_raw if devolucao_in_user_period(d, period_start, period_end, _route_for_dev(d))]
+    # KPI % valor (TV / dashboard informativo): só competência operacional, sem recorte civil extra da listagem.
+    devs_kpi_comp = [d for d in devs_raw if devolucao_competencia_in_period(d, period_start, period_end)]
     devs_c.sort(
         key=lambda x: (
             devolucao_chart_day_iso(x, period_start, period_end, _route_for_dev(x)),
@@ -5742,17 +5762,18 @@ def _build_bi_devolucoes_dataset(
             receita_por_dia_operacional[dcal] = receita_por_dia_operacional.get(dcal, 0.0) + float(_base_d)
 
     devs_pre_acima: List[models.Devolucao] = list(devs)
+    devs_fin_kpi: List[models.Devolucao] = list(devs_kpi_comp)
     dev_por_dia_mtd: dict[str, float] = {}
     for _d_k in devs_pre_acima:
         _op_k = devolucao_chart_day_iso(_d_k, period_start, period_end, _route_for_dev(_d_k))
         if not (len(_op_k) == 10 and period_start <= _op_k <= period_end):
             continue
         dev_por_dia_mtd[_op_k] = dev_por_dia_mtd.get(_op_k, 0.0) + float(_d_k.valor or 0)
-    total_valor_kpi = sum(float(d.valor or 0) for d in devs_pre_acima)
-    total_qtd_kpi = len(devs_pre_acima)
+    total_valor_kpi = sum(float(d.valor or 0) for d in devs_fin_kpi)
+    total_qtd_kpi = len(devs_fin_kpi)
     standalone_base_kpi = sum(
         float(d.valor or 0)
-        for d in devs_pre_acima
+        for d in devs_fin_kpi
         if getattr(d, "route_id", None) is None
     )
     pct_devolucao_financeiro, valor_base_rotas = pct_valor_devolvido_sobre_base_rotas(

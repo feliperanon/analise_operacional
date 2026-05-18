@@ -77,6 +77,37 @@ def test_dominio_operacional_por_motivo_souza_pinto():
     assert bci.dominio_operacional_por_motivo("Horário entrega — atraso operacional") == "Logística"
 
 
+def test_client_recurrence_fields():
+    row = {"visits": 10, "returned_occurrences": 3, "top_motivo_name": "Pagamento", "top_responsabilidade_name": "Comercial"}
+    out = bci.client_recurrence_fields(row)
+    assert out["return_count"] == 3
+    assert out["return_recurrence_pct"] == 30.0
+    assert out["recurrence_label"] == "3 de 10 visitas"
+    assert out["leader_reason"] == "Pagamento"
+
+
+def test_client_recurrence_fields_zero_visits():
+    out = bci.client_recurrence_fields({"visits": 0, "returned_occurrences": 0})
+    assert out["return_recurrence_pct"] == 0.0
+    assert out["recurrence_label"] == "0 de 0 visitas"
+
+
+def test_client_priority_label_critical_recurrent():
+    label, tone = bci.client_priority_label(
+        {"returned_value": 900.0, "return_count": 2, "return_pct_planned": 8.0}
+    )
+    assert label == "Crítico recorrente"
+    assert tone == "danger"
+
+
+def test_client_priority_label_low_risk():
+    label, tone = bci.client_priority_label(
+        {"returned_value": 50.0, "return_count": 0, "return_pct_planned": 0.0}
+    )
+    assert label == "Baixo risco"
+    assert tone == "ok"
+
+
 def test_build_decision_strip_intel_thresholds():
     base = dict(
         treatable_total=0.0,

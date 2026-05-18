@@ -69,6 +69,46 @@ def safe_share(value: float, total: float) -> float:
     return float(value or 0.0) / t
 
 
+def client_recurrence_fields(row: dict) -> dict[str, Any]:
+    """Visitas, devoluções e recorrência para ranking/listagem BI Clientes."""
+    visits = max(0, int(row.get("visits") or 0))
+    return_count = max(0, int(row.get("returned_occurrences") or row.get("return_count") or 0))
+    pct = round((return_count / visits) * 100.0, 1) if visits > 0 else 0.0
+    return {
+        "return_count": return_count,
+        "return_recurrence_pct": pct,
+        "recurrence_label": f"{return_count} de {visits} visitas",
+        "leader_reason": str(row.get("top_motivo_name") or "—"),
+        "dominant_responsibility": str(row.get("top_responsabilidade_name") or "—"),
+        "classification": str(row.get("classification_title") or "—"),
+    }
+
+
+def client_priority_label(row: dict) -> tuple[str, str]:
+    """
+    Rótulo de prioridade operacional para o ranking.
+    Retorna (label, tone) com tone em danger | warn | ok | neutral.
+    """
+    rv = float(row.get("returned_value") or 0)
+    rc = max(0, int(row.get("returned_occurrences") or row.get("return_count") or 0))
+    rp = float(row.get("return_pct_planned") or row.get("return_rate_value") or 0)
+    high_value = rv >= 800.0
+
+    if rv <= 0.01 and rc == 0:
+        return "Baixo risco", "ok"
+    if high_value and rc >= 2:
+        return "Crítico recorrente", "danger"
+    if rc >= 3:
+        return "Recorrente operacional", "danger"
+    if high_value and rc == 1:
+        return "Alto impacto financeiro", "warn"
+    if rp >= 5.0 and rc <= 1:
+        return "Pontual com impacto", "warn"
+    if rv < 300.0 and rc <= 1:
+        return "Baixo risco", "ok"
+    return "Atenção", "neutral"
+
+
 def is_many_critical(
     n_clients: int,
     critical_count: int,

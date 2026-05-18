@@ -147,6 +147,10 @@
       .replace(/"/g, "&quot;");
   }
 
+  function motTitle(s) {
+    return escapeHtml(String(s || "—")).replace(/"/g, "&quot;");
+  }
+
   var MODAL_LIST_CHUNK = 25;
 
   function syncBiModalOpenState() {
@@ -379,6 +383,201 @@
     return "sys-badge sys-badge--neutral";
   }
 
+  function returnCountOf(r) {
+    if (r.return_count != null && r.return_count !== "") return Number(r.return_count) || 0;
+    return Number(r.returned_occurrences) || 0;
+  }
+
+  function priorityBadgeClass(tone) {
+    if (tone === "danger") return "sys-badge sys-badge--critical bi-cli-priority-badge";
+    if (tone === "warn") return "sys-badge sys-badge--alert bi-cli-priority-badge";
+    if (tone === "ok") return "sys-badge sys-badge--ok bi-cli-priority-badge";
+    return "sys-badge sys-badge--neutral bi-cli-priority-badge";
+  }
+
+  function priorityBadgeHtml(r) {
+    var label = r.priority_label || r.classification_title || "—";
+    var tone = r.priority_tone || "neutral";
+    return (
+      '<span class="' +
+      priorityBadgeClass(tone) +
+      '" title="' +
+      motTitle(label) +
+      '">' +
+      escapeHtml(label) +
+      "</span>"
+    );
+  }
+
+  function recurrencePctOf(r) {
+    var visits = Number(r.visits) || 0;
+    var rc = returnCountOf(r);
+    var pct = Number(r.return_recurrence_pct);
+    if (!isFinite(pct) && visits > 0) pct = (rc / visits) * 100;
+    return isFinite(pct) ? pct : 0;
+  }
+
+  function recurrenceCellHtml(r) {
+    var visits = Number(r.visits) || 0;
+    var rc = returnCountOf(r);
+    var label = r.recurrence_label || rc + " de " + visits + " visitas";
+    var pct = recurrencePctOf(r);
+    return (
+      '<div class="bi-cli-recurrence">' +
+      '<span class="block text-xs font-medium text-slate-800 dark:text-slate-100">' +
+      escapeHtml(label) +
+      "</span>" +
+      (visits > 0
+        ? '<span class="employees-text-muted block text-[10px] tabular-nums">' +
+          escapeHtml(fmtPct(pct)) +
+          " recorrência</span>"
+        : '<span class="employees-text-muted block text-[10px]">—</span>') +
+      "</div>"
+    );
+  }
+
+  var RANK_TAB_SHOWS_TIME = { maior_tempo: true };
+  var RANK_TAB_SHOWS_RECURRENCE = {
+    maior_devolucao: true,
+    maior_pct: true,
+    baixo_volume_pct: true,
+    pequeno_alto_impacto: true,
+    grandes_risco: true,
+    maior_compra: true,
+    maior_tempo: true,
+  };
+
+  function detailBtnHtml(cid, compact) {
+    if (!cid) return "";
+    var cls = compact
+      ? "sys-btn sys-btn--secondary bi-client-card-detail-btn shrink-0 h-7 px-2 text-[11px]"
+      : "sys-btn sys-btn--secondary bi-client-card-detail-btn shrink-0";
+    return (
+      '<button type="button" class="' +
+      cls +
+      '" data-bi-cli-open="' +
+      escapeHtml(String(cid)) +
+      '">Detalhar</button>'
+    );
+  }
+
+  function rankLeaderReason(r) {
+    return r.leader_reason || r.top_motivo_name || "—";
+  }
+
+  function rankDominantResp(r) {
+    return r.dominant_responsibility || r.top_responsabilidade_name || "—";
+  }
+
+  function buildRankMobileCard(r) {
+    var cid = r.client_id != null ? String(r.client_id) : "";
+    var visits = Number(r.visits) || 0;
+    var rc = returnCountOf(r);
+    return (
+      '<article class="bi-rank-mobile-card">' +
+      '<div class="bi-rank-mobile-card__head">' +
+      '<div class="min-w-0 flex-1">' +
+      '<strong class="bi-rank-mobile-card__name truncate">' +
+      escapeHtml(r.client_name || "—") +
+      "</strong>" +
+      '<p class="bi-rank-mobile-card__code employees-text-muted">Cód. ' +
+      escapeHtml(String(r.client_code || "—")) +
+      "</p></div>" +
+      priorityBadgeHtml(r) +
+      "</div>" +
+      '<div class="bi-rank-mobile-card__metrics" role="list">' +
+      '<div class="bi-rank-mobile-card__metric" role="listitem"><span class="bi-cli-metric-lbl">Entregue</span><strong class="tabular-nums">' +
+      fmtMoney(r.delivered_value) +
+      "</strong></div>" +
+      '<div class="bi-rank-mobile-card__metric" role="listitem"><span class="bi-cli-metric-lbl">Devolvido</span><strong class="tabular-nums">' +
+      fmtMoney(r.returned_value) +
+      "</strong></div>" +
+      '<div class="bi-rank-mobile-card__metric" role="listitem"><span class="bi-cli-metric-lbl">% Dev.</span><strong class="tabular-nums">' +
+      fmtPct(r.return_pct_planned) +
+      "</strong></div>" +
+      '<div class="bi-rank-mobile-card__metric" role="listitem"><span class="bi-cli-metric-lbl">Visitas</span><strong class="tabular-nums">' +
+      visits +
+      "</strong></div>" +
+      '<div class="bi-rank-mobile-card__metric" role="listitem"><span class="bi-cli-metric-lbl">Devoluções</span><strong class="tabular-nums">' +
+      rc +
+      "</strong></div>" +
+      '<div class="bi-rank-mobile-card__metric bi-rank-mobile-card__metric--wide" role="listitem"><span class="bi-cli-metric-lbl">Recorrência</span><strong class="text-xs font-medium">' +
+      escapeHtml(r.recurrence_label || rc + " de " + visits + " visitas") +
+      (visits > 0 ? ' <span class="employees-text-muted font-normal">' + fmtPct(recurrencePctOf(r)) + "</span>" : "") +
+      "</strong></div></div>" +
+      '<div class="bi-rank-mobile-card__foot">' +
+      '<p class="bi-rank-mobile-card__meta truncate"><span class="bi-cli-metric-lbl">Motivo</span> ' +
+      escapeHtml(rankLeaderReason(r)) +
+      "</p>" +
+      '<p class="bi-rank-mobile-card__meta truncate"><span class="bi-cli-metric-lbl">Responsável</span> ' +
+      escapeHtml(rankDominantResp(r)) +
+      "</p>" +
+      (cid ? detailBtnHtml(cid, true) : "") +
+      "</div></article>"
+    );
+  }
+
+  function buildClientMobileCard(r) {
+    var bcls = badgeClassForClient(r);
+    var clsT = r.classification_title || "—";
+    var visits = Number(r.visits) || 0;
+    var rc = returnCountOf(r);
+    var mot = r.top_motivo_name || "—";
+    var resp = r.top_responsabilidade_name || "—";
+    return (
+      '<div class="bi-client-mobile-card__row1">' +
+      '<strong class="bi-client-mobile-card__name truncate">' +
+      escapeHtml(r.client_name) +
+      "</strong>" +
+      '<span class="bi-client-mobile-card__badge ' +
+      bcls +
+      ' max-w-[42%] shrink-0 truncate" title="' +
+      motTitle(clsT) +
+      '">' +
+      escapeHtml(clsT) +
+      "</span></div>" +
+      '<p class="bi-client-mobile-card__sub employees-text-muted">Cód. ' +
+      escapeHtml(r.client_code || "—") +
+      " · " +
+      escapeHtml(r.vendedor_name || "—") +
+      "</p>" +
+      '<div class="bi-client-mobile-card__metrics bi-client-mobile-card__metrics--consult" role="list">' +
+      '<span role="listitem"><span class="bi-cli-metric-lbl">Entregue</span> ' +
+      fmtMoney(r.delivered_value) +
+      "</span>" +
+      '<span role="listitem"><span class="bi-cli-metric-lbl">Devolvido</span> ' +
+      fmtMoney(r.returned_value) +
+      "</span>" +
+      '<span role="listitem"><span class="bi-cli-metric-lbl">% Dev.</span> ' +
+      fmtPct(r.return_pct_planned) +
+      " " +
+      trendBadgeHtml(r) +
+      "</span>" +
+      '<span role="listitem"><span class="bi-cli-metric-lbl">Visitas</span> ' +
+      visits +
+      "</span>" +
+      '<span role="listitem"><span class="bi-cli-metric-lbl">Devoluções</span> ' +
+      rc +
+      "</span>" +
+      '<span role="listitem" class="bi-client-mobile-card__metric-wide"><span class="bi-cli-metric-lbl">Recorrência</span> ' +
+      escapeHtml(r.recurrence_label || rc + " de " + visits + " visitas") +
+      (visits > 0 ? " · " + fmtPct(recurrencePctOf(r)) : "") +
+      "</span>" +
+      '<span role="listitem" class="bi-client-mobile-card__metric-wide"><span class="bi-cli-metric-lbl">Motivo</span> ' +
+      escapeHtml(mot) +
+      "</span>" +
+      '<span role="listitem" class="bi-client-mobile-card__metric-wide"><span class="bi-cli-metric-lbl">Responsável</span> ' +
+      escapeHtml(resp) +
+      "</span>" +
+      '<span role="listitem"><span class="bi-cli-metric-lbl">Score</span> ' +
+      (r.cliente_score != null ? r.cliente_score : "—") +
+      "</span></div>" +
+      '<div class="bi-client-mobile-card__foot">' +
+      detailBtnHtml(r.client_id, false) +
+      "</div>"
+    );
+  }
+
   function buildDiagnosis(row) {
     var rp = Number(row.return_pct_planned || 0);
     var cls = row.classification_code || "";
@@ -532,10 +731,6 @@
     var start = (state.page - 1) * state.pageSize;
     var pageRows = state.filtered.slice(start, start + state.pageSize);
 
-    var motTitle = function (s) {
-      return escapeHtml(String(s || "—")).replace(/"/g, "&quot;");
-    };
-
     if (isMobileView()) {
       if (!cards) return;
       clearDesktopTableRows();
@@ -544,44 +739,7 @@
       pageRows.forEach(function (r) {
         var d = document.createElement("article");
         d.className = "bi-client-mobile-card";
-        var bcls = badgeClassForClient(r);
-        var clsT = r.classification_title || "—";
-        d.innerHTML =
-          "<div class=\"bi-client-mobile-card__row1\">" +
-          "<strong class=\"bi-client-mobile-card__name truncate\">" +
-          escapeHtml(r.client_name) +
-          "</strong>" +
-          "<span class=\"bi-client-mobile-card__badge " +
-          bcls +
-          " max-w-[42%] shrink-0 truncate\" title=\"" +
-          motTitle(clsT) +
-          "\">" +
-          escapeHtml(clsT) +
-          "</span></div>" +
-          "<p class=\"bi-client-mobile-card__sub employees-text-muted\">Cód. " +
-          escapeHtml(r.client_code || "—") +
-          " · " +
-          escapeHtml(r.vendedor_name || "—") +
-          "</p>" +
-          "<div class=\"bi-client-mobile-card__row3\">" +
-          "<div class=\"bi-client-mobile-metrics\" role=\"list\">" +
-          "<span role=\"listitem\">Entreg. " +
-          fmtMoney(r.delivered_value) +
-          "</span>" +
-          "<span role=\"listitem\">Dev. " +
-          fmtMoney(r.returned_value) +
-          "</span>" +
-          "<span role=\"listitem\">" +
-          fmtPct(r.return_pct_planned) +
-          " " +
-          trendBadgeHtml(r) +
-          "</span>" +
-          "<span role=\"listitem\">" +
-          fmtDur(r.avg_duration_m) +
-          "</span></div>" +
-          "<button type=\"button\" class=\"sys-btn sys-btn--secondary bi-client-card-detail-btn shrink-0\" data-bi-cli-open=\"" +
-          String(r.client_id) +
-          "\">Detalhar</button></div>";
+        d.innerHTML = buildClientMobileCard(r);
         cfrag.appendChild(d);
       });
       cards.innerHTML = "";
@@ -620,11 +778,11 @@
           " " +
           trendBadgeHtml(r) +
           "</td>" +
-          "<td class=\"text-right\">" +
+          "<td class=\"text-right tabular-nums\">" +
           (r.visits || 0) +
           "</td>" +
-          "<td class=\"text-right\">" +
-          fmtDur(r.avg_duration_m) +
+          "<td class=\"text-right tabular-nums\">" +
+          returnCountOf(r) +
           "</td>" +
           "<td class=\"max-w-[9rem] truncate text-xs\" title=\"" +
           motTitle(mot) +
@@ -669,12 +827,10 @@
           "<td class=\"text-right tabular-nums\">" +
           fmtPct(pctAgg) +
           "</td>" +
-          "<td class=\"text-right\">" +
+          "<td class=\"text-right tabular-nums\">" +
           tt.visits +
           "</td>" +
-          "<td class=\"text-right\">" +
-          fmtDur(avgAgg) +
-          "</td>" +
+          "<td></td>" +
           "<td colspan=\"5\"></td>";
       }
     }
@@ -1150,68 +1306,80 @@
     var bodyHtml = "";
 
     if (mobile) {
-      bodyHtml += '<div class="bi-cli-rank-mobile-list flex flex-col gap-2">';
+      bodyHtml += '<div class="bi-cli-rank-mobile-list">';
       slice.forEach(function (r) {
-        var cid = r.client_id != null ? String(r.client_id) : "";
-        bodyHtml +=
-          '<article class="bi-rank-mobile-row">' +
-          '<div class="bi-rank-mobile-row__head flex items-start justify-between gap-2">' +
-          "<div class=\"min-w-0 flex-1\">" +
-          "<strong class=\"block truncate text-[13px] leading-tight\">" +
-          escapeHtml(r.client_name || "—") +
-          "</strong>" +
-          "<small class=\"mt-0.5 block truncate text-[11px] text-slate-500 dark:text-slate-400\">NB " +
-          escapeHtml(String(r.client_code || "—")) +
-          " · " +
-          escapeHtml(r.vendedor_name || "—") +
-          "</small></div>" +
-          (cid
-            ? "<button type=\"button\" class=\"sys-btn sys-btn--secondary bi-client-card-detail-btn shrink-0\" data-bi-cli-open=\"" +
-              escapeHtml(cid) +
-              "\">Detalhar</button>"
-            : "") +
-          "</div>" +
-          '<div class="bi-rank-mobile-row__nums flex flex-wrap gap-1.5 text-[11px] tabular-nums text-slate-600 dark:text-slate-300">' +
-          "<span>Entregue " +
-          fmtMoney(r.delivered_value) +
-          "</span>" +
-          "<span>Dev. " +
-          fmtPct(r.return_pct_planned) +
-          "</span></div>" +
-          "</article>";
+        bodyHtml += buildRankMobileCard(r);
       });
       bodyHtml += "</div>";
     } else {
+      var showTime = !!RANK_TAB_SHOWS_TIME[state.rankingTabKey];
       bodyHtml +=
-        "<div class=\"sys-table-wrap sys-table-wrap--x-scroll\"><table class=\"sys-data-table text-xs\"><thead><tr>" +
-        "<th>Cliente</th><th>Código</th><th class=\"text-right\">Entregue</th><th class=\"text-right\">Devolvido</th>" +
-        "<th class=\"text-right\">% Dev.</th><th class=\"text-right\">Tempo médio</th><th>Classificação</th><th></th></tr></thead><tbody>";
+        '<div class="sys-table-wrap"><table class="sys-data-table text-xs bi-cli-rank-table"><thead><tr>' +
+        "<th>Cliente</th>" +
+        '<th class="text-right">Entregue</th>' +
+        '<th class="text-right">Devolvido</th>' +
+        '<th class="text-right">% Dev.</th>' +
+        '<th class="text-right">Visitas</th>' +
+        '<th class="text-right">Devoluções</th>' +
+        "<th>Recorrência</th>" +
+        (showTime ? '<th class="text-right">Tempo médio</th>' : "") +
+        "<th>Motivo líder</th>" +
+        "<th>Responsável</th>" +
+        '<th class="text-right bi-cli-rank-table__action">Ação</th>' +
+        "</tr></thead><tbody>";
       slice.forEach(function (r) {
         var cid = r.client_id != null ? String(r.client_id) : "";
+        var visits = Number(r.visits) || 0;
+        var rc = returnCountOf(r);
         bodyHtml +=
-          "<tr><td class=\"max-w-[12rem] truncate font-medium\">" +
+          "<tr>" +
+          '<td class="bi-cli-rank-table__client max-w-[11rem]">' +
+          '<div class="truncate font-medium">' +
           escapeHtml(r.client_name || "—") +
-          "</td><td>" +
-          escapeHtml(r.client_code || "—") +
-          "</td><td class=\"text-right tabular-nums\">" +
+          "</div>" +
+          '<div class="truncate text-[10px] text-slate-500">' +
+          escapeHtml(String(r.client_code || "—")) +
+          "</div>" +
+          '<div class="mt-1">' +
+          priorityBadgeHtml(r) +
+          "</div></td>" +
+          '<td class="text-right tabular-nums whitespace-nowrap">' +
           fmtMoney(r.delivered_value) +
-          "</td><td class=\"text-right tabular-nums\">" +
+          "</td>" +
+          '<td class="text-right tabular-nums whitespace-nowrap">' +
           fmtMoney(r.returned_value) +
-          "</td><td class=\"text-right tabular-nums\">" +
+          "</td>" +
+          '<td class="text-right tabular-nums whitespace-nowrap">' +
           fmtPct(r.return_pct_planned) +
-          "</td><td class=\"text-right\">" +
-          fmtDur(r.avg_duration_m) +
-          "</td><td class=\"max-w-[8rem] truncate\">" +
-          escapeHtml(r.classification_title || "—") +
-          "</td><td class=\"text-right\">" +
-          (cid
-            ? "<button type=\"button\" class=\"sys-btn sys-btn--secondary h-7 px-2 text-[11px]\" data-bi-cli-open=\"" +
-              escapeHtml(cid) +
-              "\">Detalhar</button>"
+          "</td>" +
+          '<td class="text-right tabular-nums">' +
+          visits +
+          "</td>" +
+          '<td class="text-right tabular-nums">' +
+          rc +
+          "</td>" +
+          '<td class="max-w-[8rem]">' +
+          recurrenceCellHtml(r) +
+          "</td>" +
+          (showTime
+            ? '<td class="text-right tabular-nums whitespace-nowrap">' + fmtDur(r.avg_duration_m) + "</td>"
             : "") +
+          '<td class="max-w-[9rem] truncate text-xs" title="' +
+          motTitle(rankLeaderReason(r)) +
+          '">' +
+          escapeHtml(rankLeaderReason(r)) +
+          "</td>" +
+          '<td class="max-w-[8rem] truncate text-xs" title="' +
+          motTitle(rankDominantResp(r)) +
+          '">' +
+          escapeHtml(rankDominantResp(r)) +
+          "</td>" +
+          '<td class="text-right bi-cli-rank-table__action">' +
+          (cid ? detailBtnHtml(cid, true) : "") +
           "</td></tr>";
       });
       bodyHtml += "</tbody></table></div>";
+
     }
 
     var moreHtml = "";

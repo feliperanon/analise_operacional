@@ -3687,6 +3687,8 @@ def _build_informativo_extras(
     devs_curr_raw = session.exec(devs_curr_q).all()
     devs_curr = []
     for d in devs_curr_raw:
+        if getattr(d, "duplicate_of_id", None):
+            continue
         comp = competence_date_str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None)) or str(getattr(d, "data_romaneio", "") or "")[:10]
         if month_start_str <= comp <= month_end_str:
             devs_curr.append(d)
@@ -3825,6 +3827,8 @@ def _build_informativo_extras(
     devs_prev_raw = session.exec(devs_prev_q).all()
     devs_prev = []
     for d in devs_prev_raw:
+        if getattr(d, "duplicate_of_id", None):
+            continue
         comp = competence_date_str(getattr(d, "data_entrega", None) or getattr(d, "data_romaneio", None)) or str(getattr(d, "data_romaneio", "") or "")[:10]
         if prev_month_start_str <= comp <= prev_month_end_str:
             devs_prev.append(d)
