@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 from fastapi import Request, Depends, UploadFile, File, APIRouter, Query
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlmodel import Session, select, func, delete
-from sqlalchemy import tuple_, and_, or_, func, literal, case
+from sqlalchemy import tuple_, and_, or_, func, literal, case, cast, Date
 from sqlalchemy.exc import IntegrityError
 from types import SimpleNamespace
 from pydantic import BaseModel
@@ -80,15 +80,17 @@ def _devolucao_in_period_sql(start_date: str, end_date: str) -> Any:
     ent = _devolucao_date_sql(models.Devolucao.data_entrega)
     rom = _devolucao_date_sql(models.Devolucao.data_romaneio)
     src = func.upper(func.coalesce(func.trim(models.Devolucao.source), literal("")))
-    created_day = func.date(models.Devolucao.created_at)
+    created_day = cast(models.Devolucao.created_at, Date)
+    rom_day = cast(rom, Date)
 
     stored_in = and_(effective >= start_date, effective <= end_date)
     ent_in = and_(ent >= start_date, ent <= end_date)
     mobile_registered = and_(
         src.in_(_MOBILE_SOURCES_SQL),
-        created_day >= start_date,
-        created_day <= end_date,
-        rom < created_day,
+        created_day >= cast(literal(start_date), Date),
+        created_day <= cast(literal(end_date), Date),
+        rom.isnot(None),
+        rom_day < created_day,
     )
     return or_(stored_in, ent_in, mobile_registered)
 
