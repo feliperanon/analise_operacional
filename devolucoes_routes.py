@@ -54,6 +54,44 @@ from devolucao_evitada_constants import EVITADA_TIPO_LABELS
 # Período padrão em /devolucoes/avaliar: somente a partir deste dia do mês (competência operacional).
 AVALIAR_DEFAULT_MONTH_START_DAY = 5
 
+_MOBILE_SOURCES_SQL = ("MOBILE", "WEB", "ROTA")
+
+
+def _devolucao_date_sql(column) -> Any:
+    """Data YYYY-MM-DD no SQL, ignorando string vazia."""
+    return func.nullif(func.trim(column), "")
+
+
+def _devolucao_effective_date_sql() -> Any:
+    return func.coalesce(
+        _devolucao_date_sql(models.Devolucao.data_entrega),
+        _devolucao_date_sql(models.Devolucao.data_romaneio),
+    )
+
+
+def _devolucao_in_period_sql(start_date: str, end_date: str) -> Any:
+    """
+    Filtro de período alinhado à coluna Data da listagem (data operacional resolvida).
+
+    Inclui mobile/web quando o registro foi criado no período mas o romaneio é anterior
+    (ex.: romaneio 15/05, devolução registrada em 18/05).
+    """
+    effective = _devolucao_effective_date_sql()
+    ent = _devolucao_date_sql(models.Devolucao.data_entrega)
+    rom = _devolucao_date_sql(models.Devolucao.data_romaneio)
+    src = func.upper(func.coalesce(func.trim(models.Devolucao.source), literal("")))
+    created_day = func.date(models.Devolucao.created_at)
+
+    stored_in = and_(effective >= start_date, effective <= end_date)
+    ent_in = and_(ent >= start_date, ent <= end_date)
+    mobile_registered = and_(
+        src.in_(_MOBILE_SOURCES_SQL),
+        created_day >= start_date,
+        created_day <= end_date,
+        rom < created_day,
+    )
+    return or_(stored_in, ent_in, mobile_registered)
+
 
 def _normalized_employee_role_text(role: Optional[str]) -> str:
     """Alinha a `main._normalized_employee_role` / cargo motorista vs ajudante."""
@@ -946,12 +984,8 @@ def init_devolucoes_router(
         except Exception:
             session.rollback()
 
-        # Período = data efetiva (entrega ou romaneio), alinhado à coluna Data da listagem.
-        effective_date_col = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
-        rom_in_period = and_(
-            effective_date_col >= start_date,
-            effective_date_col <= end_date,
-        )
+        # Período = data operacional (mesma regra da coluna Data / devolucao_resolved_operacional_iso).
+        rom_in_period = _devolucao_in_period_sql(start_date, end_date)
         count_q = select(func.count(models.Devolucao.id)).where(rom_in_period)
         total_count = session.exec(count_q).one()
 
@@ -993,7 +1027,7 @@ def init_devolucoes_router(
             else_=source_expr,
         )
         validation_expr = func.upper(func.coalesce(func.trim(models.Devolucao.validation_status), literal("")))
-        effective_date_expr = func.coalesce(models.Devolucao.data_entrega, models.Devolucao.data_romaneio)
+        effective_date_expr = _devolucao_effective_date_sql()
         client_name_expr = func.upper(
             func.coalesce(models.Client.razao_social, models.Client.name, models.Client.nome_fantasia, literal(""))
         )
