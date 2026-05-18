@@ -386,3 +386,17 @@ def test_bi_client_return_pct_planned_avoids_tiny_planned_denominator():
     assert bi_delivery_routes._bi_client_return_pct_planned(0.0, 9748.75, 9748.75) == 100.0
     assert bi_delivery_routes._bi_client_return_pct_planned(0.0, 0.0, 9748.75) == 100.0
     assert bi_delivery_routes._safe_pct(9748.75, 0.01) > 1_000_000
+
+
+def test_json_for_inline_script_replaces_nan_with_null():
+    payload = {
+        "exec_compare_bars": {
+            "previous": [float("nan"), 44719.12, float("inf"), -float("inf")],
+        },
+        "delta": float("nan"),
+    }
+    raw = bi_delivery_routes._json_for_inline_script(payload)
+    parsed = json.loads(raw)
+    assert parsed["exec_compare_bars"]["previous"] == [None, 44719.12, None, None]
+    assert parsed["delta"] is None
+    assert "NaN" not in raw

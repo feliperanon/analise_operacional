@@ -53,12 +53,33 @@ _BI_MOT_RSP_CACHE: dict = {"ts": 0.0, "mot": None, "rsp": None}
 _BI_MOT_RSP_TTL_SEC = 300.0
 
 
+def _finite_number(value: Any, default: float = 0.0) -> float:
+    try:
+        n = float(value if value is not None else default)
+    except (TypeError, ValueError):
+        return default
+    if not math.isfinite(n):
+        return default
+    return n
+
+
+def _sanitize_json_numbers(obj: Any) -> Any:
+    """Converte NaN/Inf em None para JSON válido no navegador (Chart.js / JSON.parse)."""
+    if isinstance(obj, float):
+        return None if not math.isfinite(obj) else obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_json_numbers(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_json_numbers(v) for v in obj]
+    if isinstance(obj, tuple):
+        return [_sanitize_json_numbers(v) for v in obj]
+    return obj
+
+
 def _json_for_inline_script(obj: Any) -> str:
     """JSON para <script type=\"application/json\">: impede que '</' em texto feche a tag e invalide o parse."""
-    try:
-        raw = json.dumps(obj, ensure_ascii=False, default=str, allow_nan=False)
-    except (ValueError, TypeError, OverflowError):
-        raw = json.dumps(obj, ensure_ascii=False, default=str)
+    safe = _sanitize_json_numbers(obj)
+    raw = json.dumps(safe, ensure_ascii=False, default=str, allow_nan=False)
     return raw.replace("</", "\\u003c/")
 
 
