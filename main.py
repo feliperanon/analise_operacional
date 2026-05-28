@@ -32383,6 +32383,20 @@ async def employees_template(request: Request):
     )
 
 
+@app.get("/employees/template/excluir")
+async def employees_template_excluir(request: Request):
+    """Planilha com matrículas para exclusão em lote (cadastros importados incorretamente)."""
+    from employees_import import build_bulk_delete_list_bytes
+
+    require_login(request)
+    content = build_bulk_delete_list_bytes()
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="excluir_colaboradores_lista.xlsx"'},
+    )
+
+
 @app.post("/employees/add")
 async def add_employee(
     request: Request,
