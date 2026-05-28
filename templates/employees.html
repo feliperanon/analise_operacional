@@ -623,14 +623,17 @@
                 </svg>
             </button>
         </div>
-        <p class="mb-4 text-sm text-slate-600 dark:text-slate-400">
-            Envie um .xlsx com a coluna <strong>Registration</strong> ou <strong>Matrícula</strong> (uma matrícula por linha).
-            Use a aba <em>Excluir_exemplo</em> do modelo baixado. Esta ação é permanente.
+        <p class="mb-3 text-sm text-slate-600 dark:text-slate-400">
+            Envie um Excel com a coluna <strong>Registration</strong> ou <strong>Matrícula</strong> (uma matrícula por linha).
+            <strong class="text-rose-700 dark:text-rose-300">Não use</strong> o arquivo Fechamento de Ponto (.xls de faltas/comissões).
+        </p>
+        <p class="mb-4">
+            <a href="/static/templates/excluir_colaboradores_lista.xlsx" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400" download="excluir_colaboradores_lista.xlsx">Baixar lista pronta (39 matrículas da importação errada)</a>
         </p>
         <form action="/employees/import/delete" method="POST" enctype="multipart/form-data" class="space-y-4"
             onsubmit="return confirm('Excluir permanentemente os colaboradores listados na planilha?');">
             <div class="emp-modal-dropzone">
-                <input type="file" name="file" accept=".xlsx" required
+                <input type="file" name="file" accept=".xlsx,.xls" required
                     class="text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-rose-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-rose-700 dark:text-slate-300">
             </div>
             <div class="flex justify-end gap-3 pt-2">

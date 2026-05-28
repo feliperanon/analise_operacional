@@ -34061,7 +34061,7 @@ async def import_delete_employees(
     require_login(request)
     content = await file.read()
     try:
-        registrations = registrations_from_excel(content)
+        registrations = registrations_from_excel(content, file.filename or "")
         if not registrations:
             return RedirectResponse(
                 url="/employees?error=Nenhuma matrícula encontrada na planilha.",
