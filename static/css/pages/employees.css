@@ -1879,7 +1879,40 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   pointer-events: auto;
 }
 
-/* Fechados: nunca sobrescrever Tailwind .hidden (evita empilhar todos os modais na carga) */
+/* Um único backdrop (evita várias camadas de blur empilhadas) */
+.employees-shared-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgb(15 23 42 / 0.45);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+html.dark .employees-shared-backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.employees-shared-backdrop[hidden],
+.employees-shared-backdrop.hidden {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* Portal fechado: nenhum modal visível (reforço além do atributo hidden) */
+.employees-modals-root:not([data-modal-open="true"]) .emp-modal-shell,
+.employees-modals-root:not([data-modal-open="true"]) .emp-modal-layer,
+.employees-page-modals:not([data-modal-open="true"]) .emp-modal-shell,
+.employees-page-modals:not([data-modal-open="true"]) .emp-modal-layer {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Fechados: nunca sobrescrever Tailwind .hidden / atributo hidden */
+.employees-modals-root .emp-modal-shell[hidden],
+.employees-modals-root .emp-modal-layer[hidden],
 .employees-modals-root .emp-modal-shell.hidden,
 .employees-modals-root .emp-modal-layer.hidden,
 .employees-page-modals .emp-modal-shell.hidden,
@@ -1889,10 +1922,10 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   pointer-events: none !important;
 }
 
-.employees-modals-root .emp-modal-shell:not(.hidden),
-.employees-modals-root .emp-modal-layer:not(.hidden),
-.employees-page-modals .emp-modal-shell:not(.hidden),
-.employees-page-modals .emp-modal-layer:not(.hidden) {
+.employees-modals-root .emp-modal-shell:not([hidden]):not(.hidden),
+.employees-modals-root .emp-modal-layer:not([hidden]):not(.hidden),
+.employees-page-modals .emp-modal-shell:not([hidden]):not(.hidden),
+.employees-page-modals .emp-modal-layer:not([hidden]):not(.hidden) {
   position: fixed;
   inset: 0;
   z-index: 20001;
@@ -1901,20 +1934,16 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   justify-content: center;
   padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
     max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  pointer-events: none;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.employees-modals-root .emp-modal-shell:not([hidden]):not(.hidden) .emp-modal-align,
+.employees-modals-root .emp-modal-layer:not([hidden]):not(.hidden) .emp-modal-align,
+.employees-page-modals .emp-modal-shell:not([hidden]):not(.hidden) .emp-modal-align,
+.employees-page-modals .emp-modal-layer:not([hidden]):not(.hidden) .emp-modal-align {
   pointer-events: auto;
-}
-
-.emp-modal-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: rgb(15 23 42 / 0.45);
-  backdrop-filter: blur(6px);
-  cursor: pointer;
-}
-
-html.dark .emp-modal-backdrop {
-  background: rgb(0 0 0 / 0.6);
 }
 
 .emp-modal-align {

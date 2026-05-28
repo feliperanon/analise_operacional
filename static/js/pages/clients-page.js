@@ -3,22 +3,60 @@
     return document.getElementById(id);
   }
 
+  var novoClienteTrigger = null;
+
   function setBodyLock(locked) {
     document.body.classList.toggle("overflow-hidden", !!locked);
+    document.documentElement.classList.toggle("clients-modal-open", !!locked);
+  }
+
+  function isNovoClienteModalOpen() {
+    var modal = byId("novoClienteModal");
+    return modal && !modal.classList.contains("hidden");
+  }
+
+  function blurIfInside(modal) {
+    var active = document.activeElement;
+    if (active && modal && modal.contains(active) && typeof active.blur === "function") {
+      active.blur();
+    }
   }
 
   window.openNovoClienteModal = function () {
     var modal = byId("novoClienteModal");
     if (!modal) return;
+    var trigger = document.activeElement;
+    if (trigger && trigger.id !== "novoClienteModal") {
+      novoClienteTrigger = trigger;
+    }
     modal.classList.remove("hidden");
+    modal.removeAttribute("aria-hidden");
     setBodyLock(true);
+    var nameInput = byId("new-client-name");
+    var focusName = function () {
+      if (nameInput && typeof nameInput.focus === "function") {
+        nameInput.focus({ preventScroll: true });
+      }
+    };
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(focusName);
+    } else {
+      focusName();
+    }
   };
 
   window.closeNovoClienteModal = function () {
     var modal = byId("novoClienteModal");
-    if (!modal) return;
+    if (!modal || modal.classList.contains("hidden")) return;
+    blurIfInside(modal);
     modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
     setBodyLock(false);
+    var trigger = novoClienteTrigger || byId("btn-novo-cliente");
+    if (trigger && typeof trigger.focus === "function") {
+      trigger.focus({ preventScroll: true });
+    }
+    novoClienteTrigger = null;
   };
 
   function normalizeWhatsappPhoneDigits(value) {
@@ -109,11 +147,17 @@
   }
 
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") window.closeNovoClienteModal();
+    if (event.key !== "Escape" || !isNovoClienteModalOpen()) return;
+    event.preventDefault();
+    window.closeNovoClienteModal();
   });
 
   document.addEventListener("DOMContentLoaded", function () {
     bindWhatsappPhoneInputs(document);
     updateBulkCount();
+    var modal = byId("novoClienteModal");
+    if (modal) {
+      bindWhatsappPhoneInputs(modal);
+    }
   });
 })();

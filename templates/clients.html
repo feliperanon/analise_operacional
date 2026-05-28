@@ -95,14 +95,21 @@
     {% endif %}
 
     <div class="sys-card sys-card--surface clients-filter-card clients-toolbar-unified">
-        <div class="clients-unified-toolbar__top border-b border-slate-200/50 px-4 py-1.5 dark:border-slate-700/40">
-            <p class="min-w-0 text-[11px] font-medium leading-snug text-slate-500 dark:text-slate-400 sm:text-xs">
-                <span class="tabular-nums text-slate-900 dark:text-slate-100">{{ clients_stats.total_filtered|fmt_br_int }}</span> na lista
-                <span class="text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
-                <span class="tabular-nums">{{ clients_stats.segment_count|fmt_br_int }}</span> segmentos
-                <span class="text-slate-400 dark:text-slate-500" aria-hidden="true"> · </span>
-                <span class="tabular-nums">{{ clients_stats.group_count|fmt_br_int }}</span> grupos
-            </p>
+        <div class="clients-kpi-strip clients-unified-toolbar__top" role="status" aria-label="Resumo da lista filtrada">
+            <div class="clients-kpi-strip__item">
+                <span class="clients-kpi-strip__value tabular-nums">{{ clients_stats.total_filtered|fmt_br_int }}</span>
+                <span class="clients-kpi-strip__label">na lista</span>
+            </div>
+            <div class="clients-kpi-strip__divider" aria-hidden="true"></div>
+            <div class="clients-kpi-strip__item">
+                <span class="clients-kpi-strip__value tabular-nums">{{ clients_stats.segment_count|fmt_br_int }}</span>
+                <span class="clients-kpi-strip__label">segmentos</span>
+            </div>
+            <div class="clients-kpi-strip__divider" aria-hidden="true"></div>
+            <div class="clients-kpi-strip__item">
+                <span class="clients-kpi-strip__value tabular-nums">{{ clients_stats.group_count|fmt_br_int }}</span>
+                <span class="clients-kpi-strip__label">grupos</span>
+            </div>
         </div>
 
         {# Form GET vazio: campos usam form="clients-list-filters" para evitar <form> dentro de <form> no import #}
@@ -181,7 +188,7 @@
                             </a>
                         </div>
                     </div>
-                    <button type="button" onclick="openNovoClienteModal()" class="employees-cta sys-btn sys-btn--success inline-flex min-w-0 max-w-full shrink justify-center whitespace-nowrap px-2.5 sm:px-3">
+                    <button type="button" id="btn-novo-cliente" onclick="openNovoClienteModal()" class="employees-cta sys-btn sys-btn--success inline-flex min-w-0 max-w-full shrink justify-center whitespace-nowrap px-2.5 sm:px-3">
                         <span class="employees-cta__icon" aria-hidden="true">
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -389,11 +396,18 @@
         {% endif %}
         {% else %}
         <div class="clients-empty-state">
-            <svg class="mx-auto mb-4 h-12 w-12 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M5 7l1.5 11.5A2 2 0 008.48 20h7.04a2 2 0 001.98-1.5L19 7"></path>
-            </svg>
-            <p class="text-base font-semibold text-slate-700 dark:text-slate-200">Nenhum cliente encontrado.</p>
-            <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Revise os filtros acima, importe uma planilha ou crie um novo cliente.</p>
+            <div class="clients-empty-state__icon" aria-hidden="true">
+                <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 7h18M5 7l1.5 11.5A2 2 0 008.48 20h7.04a2 2 0 001.98-1.5L19 7M9 11h6M9 15h4"></path>
+                </svg>
+            </div>
+            <p class="clients-empty-state__title">Nenhum cliente encontrado.</p>
+            <p class="clients-empty-state__hint">Ajuste os filtros, importe uma planilha ou cadastre um cliente manualmente.</p>
+            <div class="clients-empty-state__actions">
+                <button type="button" onclick="openNovoClienteModal()" class="sys-btn sys-btn--success justify-center">Novo cliente</button>
+                <button type="button" onclick="document.querySelector('.clients-filter-toolbar-cta .employees-cta--import')?.click()" class="sys-btn sys-btn--secondary justify-center">Importar planilha</button>
+                <a href="/clients" class="sys-btn sys-btn--secondary justify-center">Limpar filtros</a>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -405,101 +419,148 @@
 {% endblock %}
 
 {% block layout_portal %}
-<div id="novoClienteModal" class="clients-modal hidden">
-    <div class="clients-modal__backdrop" onclick="closeNovoClienteModal()"></div>
+<div id="novoClienteModal" class="clients-modal hidden" role="dialog" aria-modal="true" aria-labelledby="novoClienteModalTitle" aria-hidden="true">
+    <div class="clients-modal__backdrop" onclick="closeNovoClienteModal()" aria-hidden="true"></div>
     <div class="clients-modal__dialog">
         <div class="clients-modal__card sys-card sys-card--surface">
-            <div class="clients-modal__head">
-                <div>
-                    <h3 class="sys-section-heading text-lg">Novo cliente</h3>
+            <header class="clients-modal__head">
+                <div class="clients-modal__head-main">
+                    <div class="clients-modal__head-icon" aria-hidden="true">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M5 7l1.5 11.5A2 2 0 008.48 20h7.04a2 2 0 001.98-1.5L19 7"></path>
+                        </svg>
+                    </div>
+                    <div class="clients-modal__head-text">
+                        <span class="clients-modal__badge">Cadastro manual</span>
+                        <h2 id="novoClienteModalTitle" class="clients-modal__title">Novo cliente</h2>
+                        <p class="clients-modal__subtitle">Cadastre os dados principais da carteira comercial.</p>
+                    </div>
                 </div>
-                <button type="button" onclick="closeNovoClienteModal()" class="clients-modal-close" aria-label="Fechar">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button type="button" onclick="closeNovoClienteModal()" class="clients-modal-close" aria-label="Fechar cadastro de cliente">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
-            </div>
+            </header>
 
             <form action="/clients/add" method="post" class="clients-modal__form">
-                <div class="clients-modal__grid">
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label for="new-client-name" class="clients-field-label">Nome *</label>
-                        <input id="new-client-name" type="text" name="name" required placeholder="Razao social ou nome fantasia" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-nb" class="clients-field-label">NB</label>
-                        <input id="new-client-nb" type="text" name="nb" placeholder="Codigo" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label for="new-client-vendedor" class="clients-field-label">Colaborador (venda)</label>
-                        <select id="new-client-vendedor" name="vendedor_id" class="clients-control">
-                            <option value="">— Sem colaborador</option>
-                            {% for v in vendedores_list %}
-                            <option value="{{ v.id }}">{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
-                            {% endfor %}
-                        </select>
-                        <p class="clients-field-help">Lista de colaboradores ativos; o vínculo usa o código do vendedor na ficha do colaborador.</p>
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-me" class="clients-field-label">Setor</label>
-                        <input id="new-client-me" type="text" name="me" placeholder="Setor" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-sa" class="clients-field-label">MESA</label>
-                        <input id="new-client-sa" type="text" name="sa" placeholder="MESA" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-visita" class="clients-field-label">Visita</label>
-                        <input id="new-client-visita" type="text" name="visita" placeholder="Frequencia" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-fantasia" class="clients-field-label">FANTAS</label>
-                        <input id="new-client-fantasia" type="text" name="nome_fantasia" placeholder="Nome fantasia" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-razao" class="clients-field-label">Razao social</label>
-                        <input id="new-client-razao" type="text" name="razao_social" placeholder="Razao social" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-municipio" class="clients-field-label">Municipio</label>
-                        <input id="new-client-municipio" type="text" name="municipio" placeholder="Cidade" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-bairro" class="clients-field-label">Bairro</label>
-                        <input id="new-client-bairro" type="text" name="bairro" placeholder="Bairro" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label for="new-client-endereco" class="clients-field-label">Endereco</label>
-                        <input id="new-client-endereco" type="text" name="endereco" placeholder="Endereco" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field clients-filter-field--span-2">
-                        <label for="new-client-fone" class="clients-field-label">WhatsApp principal</label>
-                        <input
-                            id="new-client-fone"
-                            type="text"
-                            name="fone"
-                            placeholder="+5531999550189"
-                            inputmode="tel"
-                            autocomplete="tel"
-                            maxlength="14"
-                            data-whatsapp-phone="true"
-                            class="clients-control">
-                        <p class="clients-field-help">Padrao API: +55 + DDD + numero. Ex.: +5531999550189.</p>
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-segmento" class="clients-field-label">Segmento</label>
-                        <input id="new-client-segmento" type="text" name="segmento" placeholder="Segmento" class="clients-control">
-                    </div>
-                    <div class="clients-filter-field">
-                        <label for="new-client-status" class="clients-field-label">Status</label>
-                        <input id="new-client-status" type="text" name="status_cliente" placeholder="Ativo, Inativo..." class="clients-control">
-                    </div>
+                <div class="clients-modal__body">
+                    <section class="clients-modal__section" aria-labelledby="clients-modal-section-ident">
+                        <div class="clients-modal__section-head">
+                            <h3 id="clients-modal-section-ident" class="clients-modal__section-title">Identificação</h3>
+                            <p class="clients-modal__section-desc">Nome e referências do cadastro na carteira.</p>
+                        </div>
+                        <div class="clients-modal__grid">
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--span-2">
+                                <label for="new-client-name" class="clients-field-label">Nome do cliente *</label>
+                                <input id="new-client-name" type="text" name="name" required placeholder="Como o cliente aparece na lista" class="clients-control" autocomplete="organization">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--compact">
+                                <label for="new-client-nb" class="clients-field-label">NB</label>
+                                <input id="new-client-nb" type="text" name="nb" placeholder="Código NB" class="clients-control">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field">
+                                <label for="new-client-fantasia" class="clients-field-label">Nome fantasia</label>
+                                <input id="new-client-fantasia" type="text" name="nome_fantasia" placeholder="Nome fantasia" class="clients-control">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field">
+                                <label for="new-client-razao" class="clients-field-label">Razão social</label>
+                                <input id="new-client-razao" type="text" name="razao_social" placeholder="Razão social" class="clients-control">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="clients-modal__section" aria-labelledby="clients-modal-section-comercial">
+                        <div class="clients-modal__section-head">
+                            <h3 id="clients-modal-section-comercial" class="clients-modal__section-title">Vínculo comercial</h3>
+                            <p class="clients-modal__section-desc">Responsável pela venda e parâmetros operacionais.</p>
+                        </div>
+                        <div class="clients-modal__grid">
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--span-2">
+                                <label for="new-client-vendedor" class="clients-field-label">Vendedor responsável</label>
+                                <select id="new-client-vendedor" name="vendedor_id" class="clients-control">
+                                    <option value="">— Sem colaborador</option>
+                                    {% for v in vendedores_list %}
+                                    <option value="{{ v.id }}">{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                                <p class="clients-field-help">Colaboradores ativos; o vínculo usa o código do vendedor na ficha do colaborador.</p>
+                            </div>
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--compact">
+                                <label for="new-client-me" class="clients-field-label">Setor</label>
+                                <input id="new-client-me" type="text" name="me" placeholder="Setor" class="clients-control">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--compact">
+                                <label for="new-client-sa" class="clients-field-label">MESA</label>
+                                <input id="new-client-sa" type="text" name="sa" placeholder="MESA" class="clients-control">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--compact">
+                                <label for="new-client-visita" class="clients-field-label">Visita</label>
+                                <input id="new-client-visita" type="text" name="visita" placeholder="Frequência" class="clients-control">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="clients-modal__section" aria-labelledby="clients-modal-section-local">
+                        <div class="clients-modal__section-head">
+                            <h3 id="clients-modal-section-local" class="clients-modal__section-title">Localização</h3>
+                            <p class="clients-modal__section-desc">Cidade e endereço para roteirização e contato.</p>
+                        </div>
+                        <div class="clients-modal__grid">
+                            <div class="clients-filter-field clients-modal__field">
+                                <label for="new-client-municipio" class="clients-field-label">Município</label>
+                                <input id="new-client-municipio" type="text" name="municipio" placeholder="Cidade" class="clients-control">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field">
+                                <label for="new-client-bairro" class="clients-field-label">Bairro</label>
+                                <input id="new-client-bairro" type="text" name="bairro" placeholder="Bairro" class="clients-control">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--span-2">
+                                <label for="new-client-endereco" class="clients-field-label">Endereço</label>
+                                <input id="new-client-endereco" type="text" name="endereco" placeholder="Rua, número e complemento" class="clients-control">
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="clients-modal__section" aria-labelledby="clients-modal-section-contato">
+                        <div class="clients-modal__section-head">
+                            <h3 id="clients-modal-section-contato" class="clients-modal__section-title">Contato e classificação</h3>
+                            <p class="clients-modal__section-desc">Canal principal e enquadramento comercial.</p>
+                        </div>
+                        <div class="clients-modal__grid">
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--span-2">
+                                <label for="new-client-fone" class="clients-field-label">WhatsApp principal</label>
+                                <input
+                                    id="new-client-fone"
+                                    type="text"
+                                    name="fone"
+                                    placeholder="+5531999550189"
+                                    inputmode="tel"
+                                    autocomplete="tel"
+                                    maxlength="14"
+                                    data-whatsapp-phone="true"
+                                    class="clients-control">
+                                <p class="clients-field-help">Padrão API: +55 + DDD + número. Ex.: +5531999550189.</p>
+                            </div>
+                            <div class="clients-filter-field clients-modal__field">
+                                <label for="new-client-segmento" class="clients-field-label">Segmento</label>
+                                <input id="new-client-segmento" type="text" name="segmento" placeholder="Ex.: Varejo, atacado…" class="clients-control">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field">
+                                <label for="new-client-status" class="clients-field-label">Status</label>
+                                <input id="new-client-status" type="text" name="status_cliente" placeholder="Ativo, inativo, pré-cadastro…" class="clients-control">
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
-                <div class="clients-modal__actions">
-                    <button type="button" onclick="closeNovoClienteModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
-                    <button type="submit" class="sys-btn sys-btn--primary justify-center">Adicionar cliente</button>
-                </div>
+                <footer class="clients-modal__actions">
+                    <p class="clients-modal__actions-hint">Revise os dados antes de salvar.</p>
+                    <div class="clients-modal__actions-buttons">
+                        <button type="button" onclick="closeNovoClienteModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
+                        <button type="submit" class="sys-btn sys-btn--success justify-center">Adicionar cliente</button>
+                    </div>
+                </footer>
             </form>
         </div>
     </div>

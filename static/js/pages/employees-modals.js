@@ -1,11 +1,12 @@
 /**
- * Gerenciamento de modais da página /employees (foco, aria-hidden, inert, ESC, backdrop).
+ * Gerenciamento de modais da página /employees (foco, aria-hidden, inert, ESC, backdrop único).
  */
 (function () {
     'use strict';
 
     var SELECTOR_SHELL = '.emp-modal-shell, .emp-modal-layer';
     var portal = null;
+    var sharedBackdrop = null;
     var lastTrigger = null;
     var openStack = [];
 
@@ -16,8 +17,29 @@
         return portal;
     }
 
+    function getSharedBackdrop() {
+        if (!sharedBackdrop) {
+            sharedBackdrop = document.getElementById('employees-shared-backdrop');
+        }
+        return sharedBackdrop;
+    }
+
     function isOpen(el) {
-        return el && !el.classList.contains('hidden');
+        return el && !el.hasAttribute('hidden');
+    }
+
+    function hideModalEl(el) {
+        if (!el) return;
+        el.setAttribute('hidden', '');
+        el.classList.add('hidden');
+        el.setAttribute('aria-hidden', 'true');
+    }
+
+    function showModalEl(el) {
+        if (!el) return;
+        el.removeAttribute('hidden');
+        el.classList.remove('hidden');
+        el.removeAttribute('aria-hidden');
     }
 
     function getOpenModals() {
@@ -37,14 +59,24 @@
         var root = getPortal();
         if (!root) return;
         var anyOpen = getOpenModals().length > 0;
+        var backdrop = getSharedBackdrop();
+
         if (anyOpen) {
             root.setAttribute('data-modal-open', 'true');
             root.removeAttribute('aria-hidden');
             if ('inert' in root) root.inert = false;
+            if (backdrop) {
+                backdrop.removeAttribute('hidden');
+                backdrop.classList.remove('hidden');
+            }
             document.documentElement.classList.add('employees-modal-open');
             document.body.classList.add('employees-modal-open');
         } else {
             blurIfInside(root);
+            if (backdrop) {
+                backdrop.setAttribute('hidden', '');
+                backdrop.classList.add('hidden');
+            }
             var applyClosed = function () {
                 if (getOpenModals().length > 0) return;
                 root.removeAttribute('data-modal-open');
@@ -83,7 +115,7 @@
         var list = focusableIn(modal);
         var target = preferred && list.indexOf(preferred) >= 0 ? preferred : list[0];
         if (!target) {
-            target = modal.querySelector('.emp-modal-close');
+            target = modal.querySelector('.emp-modal-close, [data-emp-modal-close]');
         }
         if (target && typeof target.focus === 'function') {
             try {
@@ -120,14 +152,14 @@
         getOpenModals().forEach(function (other) {
             if (other.id !== id) {
                 blurIfInside(other);
-                other.classList.add('hidden');
+                hideModalEl(other);
             }
         });
         openStack = openStack.filter(function (mid) {
             return mid === id;
         });
 
-        modal.classList.remove('hidden');
+        showModalEl(modal);
         modal.setAttribute('aria-modal', 'true');
         if (!modal.getAttribute('role')) modal.setAttribute('role', 'dialog');
 
@@ -138,11 +170,7 @@
 
         var body = modal.querySelector('.emp-modal-body');
         if (body) body.scrollTop = 0;
-        modal.scrollTop = 0;
 
-        openStack = openStack.filter(function (mid) {
-            return mid !== id;
-        });
         openStack.push(id);
 
         setPortalOpenState();
@@ -157,7 +185,7 @@
         if (!modal || !isOpen(modal)) return;
 
         blurIfInside(modal);
-        modal.classList.add('hidden');
+        hideModalEl(modal);
 
         openStack = openStack.filter(function (mid) {
             return mid !== id;
@@ -171,14 +199,13 @@
     }
 
     function closeAllEmployeeModals() {
-        var open = getOpenModals();
-        open.forEach(function (modal) {
+        getOpenModals().forEach(function (modal) {
             blurIfInside(modal);
-            modal.classList.add('hidden');
+            hideModalEl(modal);
         });
         openStack = [];
-        setPortalOpenState();
         restoreTrigger();
+        setPortalOpenState();
     }
 
     function closeTopEmployeeModal() {
@@ -201,12 +228,11 @@
     }
 
     function onBackdropClick(evt) {
-        var backdrop = evt.target.closest('[data-emp-modal-dismiss]');
+        var backdrop = evt.target.closest('#employees-shared-backdrop, [data-emp-modal-dismiss]');
         if (!backdrop) return;
-        var modal = backdrop.closest(SELECTOR_SHELL);
-        if (modal && isOpen(modal)) {
-            closeEmployeeModal(modal.id, evt);
-        }
+        var open = getOpenModals();
+        if (!open.length) return;
+        closeEmployeeModal(open[open.length - 1].id, evt);
     }
 
     function onKeydown(evt) {
@@ -217,21 +243,29 @@
         closeTopEmployeeModal();
     }
 
-    function init() {
+    function sealAllModalsClosed() {
         var root = getPortal();
         if (!root) return;
-
-        root.querySelectorAll(SELECTOR_SHELL).forEach(function (modal) {
-            modal.classList.add('hidden');
-        });
+        root.querySelectorAll(SELECTOR_SHELL).forEach(hideModalEl);
+        var backdrop = getSharedBackdrop();
+        if (backdrop) {
+            backdrop.setAttribute('hidden', '');
+            backdrop.classList.add('hidden');
+        }
         openStack = [];
         lastTrigger = null;
         document.documentElement.classList.remove('employees-modal-open');
         document.body.classList.remove('employees-modal-open');
         root.removeAttribute('data-modal-open');
-
         if ('inert' in root) root.inert = true;
         root.setAttribute('aria-hidden', 'true');
+    }
+
+    function init() {
+        var root = getPortal();
+        if (!root) return;
+
+        sealAllModalsClosed();
 
         root.addEventListener('click', onBackdropClick);
 

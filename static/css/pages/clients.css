@@ -82,6 +82,55 @@
   padding-right: 1rem;
 }
 
+/* Faixa compacta de indicadores no topo do card de filtros */
+.ga-employee-theme.employees-page.clients-page .clients-kpi-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid rgb(226 232 240 / 0.55);
+  background: linear-gradient(180deg, rgb(248 250 252 / 0.9) 0%, rgb(255 255 255 / 0.4) 100%);
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-kpi-strip__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-kpi-strip__value {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--emp-text-strong, rgb(15 23 42));
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-kpi-strip__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--emp-text-muted, rgb(100 116 139));
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-kpi-strip__divider {
+  width: 1px;
+  height: 1.1rem;
+  flex-shrink: 0;
+  background: rgb(203 213 225 / 0.85);
+}
+
+html.dark .ga-employee-theme.employees-page.clients-page .clients-kpi-strip {
+  border-bottom-color: rgb(51 65 85 / 0.65);
+  background: linear-gradient(180deg, rgb(30 41 59 / 0.55) 0%, rgb(15 23 42 / 0.2) 100%);
+}
+
+html.dark .ga-employee-theme.employees-page.clients-page .clients-kpi-strip__divider {
+  background: rgb(71 85 105 / 0.9);
+}
+
 .ga-employee-theme.employees-page.clients-page .clients-toolbar-unified .clients-filter-form-anchor {
   position: absolute;
   width: 0;
@@ -338,9 +387,7 @@ html.dark
 }
 
 .ga-employee-theme.employees-page.clients-page .clients-filter-form:not(.clients-filter-form--stacked),
-.ga-employee-theme.employees-page.clients-page .clients-bulk-form,
-.clients-modal__grid,
-.ga-employee-theme.employees-page.clients-page .clients-modal__grid {
+.ga-employee-theme.employees-page.clients-page .clients-bulk-form {
   display: grid;
   gap: 1rem;
 }
@@ -359,13 +406,7 @@ html.dark
   grid-column: span 1;
 }
 
-.clients-modal__grid,
-.ga-employee-theme.employees-page.clients-page .clients-modal__grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.ga-employee-theme.employees-page.clients-page .clients-filter-field,
-.clients-modal .clients-filter-field {
+.ga-employee-theme.employees-page.clients-page .clients-filter-field {
   grid-column: span 3;
   display: flex;
   flex-direction: column;
@@ -374,9 +415,15 @@ html.dark
 }
 
 .ga-employee-theme.employees-page.clients-page .clients-filter-field--wide,
-.clients-modal .clients-filter-field--span-2,
 .ga-employee-theme.employees-page.clients-page .clients-filter-field--span-2 {
   grid-column: span 6;
+}
+
+.clients-modal .clients-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .ga-employee-theme.employees-page.clients-page
@@ -415,9 +462,7 @@ html.dark
 }
 
 .ga-employee-theme.employees-page.clients-page .clients-filter-actions,
-.ga-employee-theme.employees-page.clients-page .clients-bulk-form__actions,
-.clients-modal__actions,
-.ga-employee-theme.employees-page.clients-page .clients-modal__actions {
+.ga-employee-theme.employees-page.clients-page .clients-bulk-form__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -560,81 +605,318 @@ html.dark
 }
 
 .ga-employee-theme.employees-page.clients-page .clients-empty-state {
-  padding: 3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.75rem 1.5rem 3rem;
   text-align: center;
 }
 
-.clients-modal__card {
-  --emp-border: var(--sys-border);
-  --emp-border-strong: var(--sys-border-strong);
-  --emp-surface: var(--sys-surface);
-  --emp-text-strong: var(--sys-text-primary);
-  --emp-text-body: var(--sys-text-body);
-  --emp-text-muted: var(--sys-text-muted);
-  border: 1px solid rgb(226 232 240);
-  border-radius: 1.25rem;
-  background: rgb(255 255 255);
-  box-shadow: 0 24px 64px rgb(15 23 42 / 0.18);
-}
-
-.clients-modal__head {
+.ga-employee-theme.employees-page.clients-page .clients-empty-state__icon {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1.25rem 1.25rem 1rem;
-  border-bottom: 1px solid rgb(226 232 240);
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  margin-bottom: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgb(226 232 240);
+  background: linear-gradient(165deg, rgb(248 250 252) 0%, rgb(255 255 255) 100%);
+  color: rgb(100 116 139);
 }
 
-.clients-modal__form {
-  padding: 1.25rem;
+.ga-employee-theme.employees-page.clients-page .clients-empty-state__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--emp-text-strong, rgb(30 41 59));
 }
 
+.ga-employee-theme.employees-page.clients-page .clients-empty-state__hint {
+  margin: 0.45rem 0 0;
+  max-width: 26rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--emp-text-muted, rgb(100 116 139));
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 28rem;
+  margin-top: 1.25rem;
+}
+
+.ga-employee-theme.employees-page.clients-page .clients-empty-state__actions .sys-btn {
+  flex: 1 1 auto;
+  min-width: min(100%, 9.5rem);
+}
+
+/* ---------- Modal Novo cliente (/clients) ---------- */
 .clients-modal {
   position: fixed;
   inset: 0;
   z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.clients-modal.hidden {
+  display: none !important;
 }
 
 .clients-modal__backdrop {
   position: absolute;
   inset: 0;
-  background: rgb(15 23 42 / 0.6);
-  backdrop-filter: blur(2px);
+  background: rgb(15 23 42 / 0.55);
+  backdrop-filter: blur(4px);
 }
 
 .clients-modal__dialog {
   position: relative;
   z-index: 1;
   display: flex;
-  min-height: 100%;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
+  width: 100%;
+  max-width: min(58rem, calc(100vw - 2rem));
+  max-height: min(90vh, calc(100dvh - 2rem));
+  min-height: 0;
 }
 
 .clients-modal__card {
-  width: min(60rem, 100%);
-  max-height: min(90vh, calc(100dvh - 2rem));
-  overflow: auto;
+  --emp-border: var(--sys-border, rgb(226 232 240));
+  --emp-border-strong: var(--sys-border-strong, rgb(203 213 225));
+  --emp-surface: var(--sys-surface, rgb(255 255 255));
+  --emp-text-strong: var(--sys-text-primary, rgb(15 23 42));
+  --emp-text-body: var(--sys-text-body, rgb(51 65 85));
+  --emp-text-muted: var(--sys-text-muted, rgb(100 116 139));
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  max-height: inherit;
+  overflow: hidden;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 1.25rem;
+  background: rgb(255 255 255);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.04) inset,
+    0 24px 64px rgb(15 23 42 / 0.2),
+    0 8px 24px rgb(15 23 42 / 0.08);
 }
 
-.clients-modal-close {
-  display: inline-flex;
+.clients-modal__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.25rem 1rem;
+  border-bottom: 1px solid rgb(226 232 240);
+  background: linear-gradient(180deg, rgb(248 250 252 / 0.95) 0%, rgb(255 255 255) 72%);
+}
+
+.clients-modal__head-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.clients-modal__head-icon {
+  display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(199 210 254 / 0.65);
+  background: linear-gradient(145deg, rgb(238 242 255) 0%, rgb(224 231 255) 100%);
+  color: rgb(79 70 229);
+}
+
+.clients-modal__head-text {
+  min-width: 0;
+}
+
+.clients-modal__badge {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgb(199 210 254 / 0.75);
+  background: rgb(238 242 255);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(67 56 202);
+}
+
+.clients-modal__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--emp-text-strong);
+}
+
+.clients-modal__subtitle {
+  margin: 0.3rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--emp-text-muted);
+}
+
+.clients-modal-close {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: rgb(100 116 139);
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .clients-modal-close:hover {
   background: rgb(241 245 249);
   color: rgb(15 23 42);
+}
+
+.clients-modal__form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.clients-modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.clients-modal__section + .clients-modal__section {
+  margin-top: 0.85rem;
+}
+
+.clients-modal__section {
+  padding: 0.85rem 0.95rem 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(226 232 240 / 0.9);
+  background: linear-gradient(180deg, rgb(248 250 252 / 0.55) 0%, rgb(255 255 255 / 0.35) 100%);
+}
+
+.clients-modal__section-head {
+  margin-bottom: 0.75rem;
+}
+
+.clients-modal__section-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--emp-text-strong);
+}
+
+.clients-modal__section-desc {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--emp-text-muted);
+}
+
+.clients-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem 0.75rem;
+}
+
+.clients-modal .clients-modal__field {
+  grid-column: span 1;
+}
+
+.clients-modal .clients-modal__field--span-2 {
+  grid-column: span 2;
+}
+
+.clients-modal .clients-modal__field--compact {
+  grid-column: span 1;
+}
+
+.clients-modal .clients-field-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+.clients-modal .clients-control {
+  min-height: 2.45rem;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.875rem;
+}
+
+.clients-modal .clients-field-help {
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+}
+
+.clients-modal__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 1.25rem 1.1rem;
+  border-top: 1px solid rgb(226 232 240);
+  background: rgb(248 250 252 / 0.92);
+}
+
+.clients-modal__actions-hint {
+  margin: 0;
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--emp-text-muted);
+}
+
+.clients-modal__actions-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.clients-modal__actions-buttons .sys-btn {
+  min-width: 8.5rem;
+}
+
+html.clients-modal-open,
+html.clients-modal-open body {
+  overflow: hidden;
 }
 
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .clients-detail-hero__meta {
@@ -1129,17 +1411,22 @@ html.dark .ga-employee-theme.employees-page.clients-page.clients-detail-page .cl
 
 @media (max-width: 1024px) {
   .ga-employee-theme.employees-page.clients-page .clients-filter-form:not(.clients-filter-form--stacked),
-  .ga-employee-theme.employees-page.clients-page .clients-bulk-form,
-  .clients-modal__grid,
-  .ga-employee-theme.employees-page.clients-page .clients-modal__grid {
+  .ga-employee-theme.employees-page.clients-page .clients-bulk-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .ga-employee-theme.employees-page.clients-page .clients-filter-field,
   .ga-employee-theme.employees-page.clients-page .clients-filter-field--wide,
-  .clients-modal .clients-filter-field,
-  .clients-modal .clients-filter-field--span-2,
   .ga-employee-theme.employees-page.clients-page .clients-filter-field--span-2 {
+    grid-column: span 1;
+  }
+
+  .clients-modal__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .clients-modal .clients-modal__field--span-2,
+  .clients-modal .clients-modal__field--compact {
     grid-column: span 1;
   }
 }
@@ -1176,18 +1463,63 @@ html.dark .ga-employee-theme.employees-page.clients-page.clients-detail-page .cl
 
 @media (max-width: 640px) {
   .ga-employee-theme.employees-page.clients-page .clients-filter-form:not(.clients-filter-form--stacked),
-  .ga-employee-theme.employees-page.clients-page .clients-bulk-form,
-  .clients-modal__grid,
-  .ga-employee-theme.employees-page.clients-page .clients-modal__grid {
+  .ga-employee-theme.employees-page.clients-page .clients-bulk-form {
     grid-template-columns: 1fr;
   }
 
   .ga-employee-theme.employees-page.clients-page .clients-filter-field,
   .ga-employee-theme.employees-page.clients-page .clients-filter-field--wide,
-  .clients-modal .clients-filter-field,
-  .clients-modal .clients-filter-field--span-2,
   .ga-employee-theme.employees-page.clients-page .clients-filter-field--span-2 {
     grid-column: span 1;
+  }
+
+  .clients-modal {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+
+  .clients-modal__dialog {
+    max-width: 100%;
+    max-height: min(94vh, calc(100dvh - 1rem));
+  }
+
+  .clients-modal__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clients-modal .clients-modal__field,
+  .clients-modal .clients-modal__field--span-2,
+  .clients-modal .clients-modal__field--compact {
+    grid-column: span 1;
+  }
+
+  .clients-modal__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clients-modal__actions-hint {
+    text-align: center;
+  }
+
+  .clients-modal__actions-buttons {
+    flex-direction: column-reverse;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .clients-modal__actions-buttons .sys-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ga-employee-theme.employees-page.clients-page .clients-empty-state__actions {
+    flex-direction: column;
+  }
+
+  .ga-employee-theme.employees-page.clients-page .clients-empty-state__actions .sys-btn {
+    width: 100%;
+    min-width: 0;
   }
 
   .ga-employee-theme.employees-page.clients-page
@@ -1224,6 +1556,47 @@ html.dark .ga-employee-theme.employees-page.clients-page.clients-detail-page .cl
 html.dark .clients-modal__card {
   border-color: rgb(51 65 85);
   background: rgb(15 23 42);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.03) inset,
+    0 24px 64px rgb(0 0 0 / 0.45);
+}
+
+html.dark .clients-modal__head {
+  border-color: rgb(51 65 85);
+  background: linear-gradient(180deg, rgb(30 41 59 / 0.85) 0%, rgb(15 23 42) 72%);
+}
+
+html.dark .clients-modal__head-icon {
+  border-color: rgb(67 56 202 / 0.45);
+  background: linear-gradient(145deg, rgb(30 27 75 / 0.85) 0%, rgb(49 46 129 / 0.65) 100%);
+  color: rgb(165 180 252);
+}
+
+html.dark .clients-modal__badge {
+  border-color: rgb(67 56 202 / 0.5);
+  background: rgb(30 27 75 / 0.65);
+  color: rgb(199 210 254);
+}
+
+html.dark .clients-modal__section {
+  border-color: rgb(51 65 85 / 0.9);
+  background: linear-gradient(180deg, rgb(30 41 59 / 0.45) 0%, rgb(15 23 42 / 0.25) 100%);
+}
+
+html.dark .clients-modal__actions {
+  border-color: rgb(51 65 85);
+  background: rgb(15 23 42 / 0.92);
+}
+
+html.dark .clients-modal-close:hover {
+  background: rgb(30 41 59);
+  color: rgb(226 232 240);
+}
+
+html.dark .ga-employee-theme.employees-page.clients-page .clients-empty-state__icon {
+  border-color: rgb(51 65 85);
+  background: linear-gradient(165deg, rgb(30 41 59) 0%, rgb(15 23 42) 100%);
+  color: rgb(148 163 184);
 }
 
 html.dark .ga-employee-theme.employees-page.clients-page .clients-control,
@@ -1235,10 +1608,6 @@ html.dark .clients-modal .clients-control {
 
 html.dark .ga-employee-theme.employees-page.clients-page .clients-data-table__row--selected {
   background: rgb(30 41 59);
-}
-
-html.dark .clients-modal__head {
-  border-color: rgb(51 65 85);
 }
 
 html.dark .ga-employee-theme.employees-page.clients-page .clients-contact-highlight,
