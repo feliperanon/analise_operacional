@@ -581,85 +581,97 @@
 <div id="employees-modals-root" class="ga-employee-theme employees-page employees-page-modals employees-modals-root" data-employees-modals-portal aria-hidden="true">
 
 <!-- Import Modal -->
-<div id="importModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center p-4">
-    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
-        <div class="mb-6 flex items-center justify-between gap-3">
-            <h3 class="sys-section-heading text-lg">Importar Colaboradores</h3>
-            <button type="button" onclick="document.getElementById('importModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <form action="/employees/import" method="POST" enctype="multipart/form-data" class="space-y-4">
-            <div class="emp-modal-dropzone">
-                <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Selecione o arquivo Excel (.xlsx)</p>
-                <input type="file" name="file" accept=".xlsx" required
-                    class="text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700 dark:text-slate-300">
-            </div>
-            <div class="text-xs text-slate-500 dark:text-slate-400">
-                <p>Preencha a aba <strong>Colaboradores</strong> do modelo (mesmos campos do cadastro na tela):</p>
-                <code class="mt-1 inline-block rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] leading-relaxed text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">Nome Completo · Matrícula · Telefone · Código do Vendedor · Cargo · Empresa · Turno Operacional · Data Admissão · Aniversário</code>
-                <p class="mt-1">Obrigatórios: <strong>Nome Completo</strong>, <strong>Matrícula</strong>, <strong>Cargo</strong>. Matrícula única; linhas já cadastradas são ignoradas.</p>
-                <p class="mt-1">Datas em dd/mm/aaaa. Turno: Manhã, Tarde ou Noite. Empresa: Souza Pinto, Exemplar, etc.</p>
-                <p class="mt-2">
-                    <button type="button" class="font-medium text-blue-600 hover:underline dark:text-blue-400"
-                        onclick="empDownloadSpreadsheet('/download/colaboradores-modelo.xlsx','planilha_colaboradores_modelo.xlsx')">Baixar planilha modelo</button>
-                </p>
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="document.getElementById('importModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
-                <button type="submit" class="sys-btn sys-btn--primary">Importar</button>
-            </div>
-        </form>
+<div id="importModal" class="emp-modal-shell hidden" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+        <section class="emp-modal-card emp-modal-card--medium sys-card sys-card--surface sys-card--comfort">
+            <header class="emp-modal-header">
+                <h3 class="sys-section-heading text-lg m-0">Importar Colaboradores</h3>
+                <button type="button" data-emp-modal-close class="emp-modal-close shrink-0" aria-label="Fechar">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </header>
+            <form action="/employees/import" method="POST" enctype="multipart/form-data" class="emp-modal-card-form">
+                <div class="emp-modal-body space-y-4">
+                    <div class="emp-modal-dropzone">
+                        <p class="mb-2 text-sm text-slate-600 dark:text-slate-400">Selecione o arquivo Excel (.xlsx)</p>
+                        <input type="file" name="file" accept=".xlsx" required
+                            class="text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700 dark:text-slate-300">
+                    </div>
+                    <div class="text-xs text-slate-500 dark:text-slate-400">
+                        <p>Preencha a aba <strong>Colaboradores</strong> do modelo (mesmos campos do cadastro na tela):</p>
+                        <code class="mt-1 inline-block rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] leading-relaxed text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">Nome Completo · Matrícula · Telefone · Código do Vendedor · Cargo · Empresa · Turno Operacional · Data Admissão · Aniversário</code>
+                        <p class="mt-1">Obrigatórios: <strong>Nome Completo</strong>, <strong>Matrícula</strong>, <strong>Cargo</strong>. Matrícula única; linhas já cadastradas são ignoradas.</p>
+                        <p class="mt-1">Datas em dd/mm/aaaa. Turno: Manhã, Tarde ou Noite. Empresa: Souza Pinto, Exemplar, etc.</p>
+                        <p class="mt-2">
+                            <button type="button" class="font-medium text-blue-600 hover:underline dark:text-blue-400"
+                                onclick="empDownloadSpreadsheet('/download/colaboradores-modelo.xlsx','planilha_colaboradores_modelo.xlsx')">Baixar planilha modelo</button>
+                        </p>
+                    </div>
+                </div>
+                <footer class="emp-modal-footer">
+                    <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Cancelar</button>
+                    <button type="submit" class="sys-btn sys-btn--primary">Importar</button>
+                </footer>
+            </form>
+        </section>
     </div>
 </div>
 
 <!-- Bulk delete by spreadsheet -->
-<div id="importDeleteModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center p-4">
-    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
-        <div class="mb-6 flex items-center justify-between gap-3">
-            <h3 class="sys-section-heading text-lg">Excluir por planilha</h3>
-            <button type="button" onclick="document.getElementById('importDeleteModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <p class="mb-3 text-sm text-slate-600 dark:text-slate-400">
-            Envie um Excel com a coluna <strong>Registration</strong> ou <strong>Matrícula</strong> (uma matrícula por linha).
-            <strong class="text-rose-700 dark:text-rose-300">Não use</strong> o arquivo Fechamento de Ponto (.xls de faltas/comissões).
-        </p>
-        <p class="mb-4">
-            <button type="button" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-                onclick="empDownloadSpreadsheet('/download/excluir-colaboradores-lista.xlsx','excluir_colaboradores_lista.xlsx')">Baixar lista pronta (39 matrículas da importação errada)</button>
-        </p>
-        <form action="/employees/import/delete" method="POST" enctype="multipart/form-data" class="space-y-4"
-            onsubmit="return confirm('Excluir permanentemente os colaboradores listados na planilha?');">
-            <div class="emp-modal-dropzone">
-                <input type="file" name="file" accept=".xlsx,.xls" required
-                    class="text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-rose-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-rose-700 dark:text-slate-300">
-            </div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="document.getElementById('importDeleteModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
-                <button type="submit" class="sys-btn sys-btn--ghost-danger">Excluir listados</button>
-            </div>
-        </form>
+<div id="importDeleteModal" class="emp-modal-shell hidden" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+        <section class="emp-modal-card emp-modal-card--medium sys-card sys-card--surface sys-card--comfort">
+            <header class="emp-modal-header">
+                <h3 class="sys-section-heading text-lg m-0">Excluir por planilha</h3>
+                <button type="button" data-emp-modal-close class="emp-modal-close shrink-0" aria-label="Fechar">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </header>
+            <form action="/employees/import/delete" method="POST" enctype="multipart/form-data" class="emp-modal-card-form"
+                onsubmit="return confirm('Excluir permanentemente os colaboradores listados na planilha?');">
+                <div class="emp-modal-body space-y-4">
+                    <p class="text-sm text-slate-600 dark:text-slate-400">
+                        Envie um Excel com a coluna <strong>Registration</strong> ou <strong>Matrícula</strong> (uma matrícula por linha).
+                        <strong class="text-rose-700 dark:text-rose-300">Não use</strong> o arquivo Fechamento de Ponto (.xls de faltas/comissões).
+                    </p>
+                    <p>
+                        <button type="button" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                            onclick="empDownloadSpreadsheet('/download/excluir-colaboradores-lista.xlsx','excluir_colaboradores_lista.xlsx')">Baixar lista pronta (39 matrículas da importação errada)</button>
+                    </p>
+                    <div class="emp-modal-dropzone">
+                        <input type="file" name="file" accept=".xlsx,.xls" required
+                            class="text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-rose-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-rose-700 dark:text-slate-300">
+                    </div>
+                </div>
+                <footer class="emp-modal-footer">
+                    <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Cancelar</button>
+                    <button type="submit" class="sys-btn sys-btn--ghost-danger">Excluir listados</button>
+                </footer>
+            </form>
+        </section>
     </div>
 </div>
 
 <!-- Target Edit Modal -->
-<div id="targetModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4">
-    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto max-h-[90vh] w-full max-w-xs overflow-y-auto sm:max-w-sm">
-        <div class="mb-4 flex items-center justify-between gap-3">
-            <h3 class="sys-section-heading text-base sm:text-lg">Metas por Empresa</h3>
-            <button type="button" onclick="document.getElementById('targetModal').classList.add('hidden')" class="emp-modal-close shrink-0 p-1" aria-label="Fechar">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <div class="space-y-3">
+<div id="targetModal" class="emp-modal-shell hidden" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+        <section class="emp-modal-card emp-modal-card--narrow sys-card sys-card--surface sys-card--comfort">
+            <header class="emp-modal-header">
+                <h3 class="sys-section-heading text-base sm:text-lg m-0">Metas por Empresa</h3>
+                <button type="button" data-emp-modal-close class="emp-modal-close shrink-0 p-1" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </header>
+            <div class="emp-modal-body space-y-3">
             <!-- Global Limit -->
             <div class="rounded-lg border border-blue-200 bg-sky-50/80 p-2.5 dark:border-blue-500/30 dark:bg-blue-950/30">
                 <label class="sys-section__label sys-section__label--field mb-1 text-[10px] sm:text-xs text-blue-800 dark:text-blue-300">Quantidade Total (Limite)</label>
@@ -689,13 +701,14 @@
             <button type="button" onclick="saveTargets()" id="btn-save-targets" class="sys-btn sys-btn--primary w-full justify-center disabled:cursor-not-allowed disabled:opacity-50">
                 Salvar Metas
             </button>
-        </div>
+            </div>
+        </section>
     </div>
 </div>
 
 <script>
     function openTargetModal() {
-        document.getElementById('targetModal').classList.remove('hidden');
+        openEmployeeModal('targetModal', document.activeElement);
         validateTargets(); // Check initial state
     }
 
@@ -797,21 +810,23 @@
 </script>
 
 <!-- Modal Novo Colaborador -->
-<div id="addModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="add-modal-title">
-    <div class="employees-add-modal-card sys-card sys-card--surface relative z-10 my-auto w-full max-w-2xl overflow-hidden rounded-xl shadow-lg max-h-[min(90vh,calc(100dvh-2rem))] min-h-0">
-        <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 p-4 sm:p-6 dark:border-slate-700">
-            <h3 id="add-modal-title" class="sys-section-heading text-xl">Novo Colaborador</h3>
-            <button type="button" onclick="closeEmpModal('addModal')" class="emp-modal-close p-2" aria-label="Fechar">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <form action="/employees/add" method="POST" class="min-h-0 overflow-hidden">
-            <div id="addModalScroll" class="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-5">
+<div id="addModal" class="emp-modal-shell hidden" role="dialog" aria-modal="true" aria-labelledby="add-modal-title">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+        <section class="emp-modal-card emp-modal-card--wide sys-card sys-card--surface">
+            <header class="emp-modal-header">
+                <h3 id="add-modal-title" class="sys-section-heading text-xl m-0">Novo Colaborador</h3>
+                <button type="button" data-emp-modal-close class="emp-modal-close p-2" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </header>
+            <form action="/employees/add" method="POST" class="emp-modal-card-form">
+            <div id="addModalScroll" class="emp-modal-body emp-modal-body--sections">
             <!-- Identificação -->
             <div class="space-y-3">
-                <h4 class="sys-section-title text-xs text-slate-500 dark:text-slate-400">Identificação</h4>
+                <h4 class="emp-modal-section-title">Identificação</h4>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div class="sm:col-span-2">
                         <label class="sys-section__label sys-section__label--field" for="add-name">Nome Completo</label>
@@ -837,7 +852,7 @@
 
             <!-- Cargo e Empresa -->
             <div class="space-y-3">
-                <h4 class="sys-section-title text-xs text-slate-500 dark:text-slate-400">Cargo e Empresa</h4>
+                <h4 class="emp-modal-section-title">Cargo e Empresa</h4>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>
                         <label class="sys-section__label sys-section__label--field">Cargo</label>
@@ -869,7 +884,7 @@
 
             <!-- Datas -->
             <div class="space-y-3">
-                <h4 class="sys-section-title text-xs text-slate-500 dark:text-slate-400">Datas</h4>
+                <h4 class="emp-modal-section-title">Datas</h4>
                 <div class="grid gap-3 sm:grid-cols-2">
                     <div>
                         <label class="sys-section__label sys-section__label--field">Data Admissão</label>
@@ -883,7 +898,7 @@
             </div>
             <!-- Substituição -->
             <div class="space-y-3 border-t border-slate-200 pt-4 dark:border-slate-700">
-                <h4 class="sys-section-title text-xs text-slate-500 dark:text-slate-400">Substituição</h4>
+                <h4 class="emp-modal-section-title">Substituição</h4>
                 <label class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 transition-colors hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800/50 dark:hover:bg-slate-800">
                     <input type="checkbox" id="is_sub" name="is_substitution" value="true"
                         class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
@@ -916,28 +931,30 @@
                 </div>
             </div>
             </div>
-            <div class="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-900/40 sm:px-6">
-                <button type="button" onclick="closeEmpModal('addModal')" class="sys-btn sys-btn--secondary">Cancelar</button>
+            <footer class="emp-modal-footer">
+                <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Cancelar</button>
                 <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
-            </div>
+            </footer>
         </form>
+        </section>
     </div>
 </div>
 
 <!-- Edit Modal -->
-<div id="editModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4 sm:p-6">
-    <div class="sys-card sys-card--surface flex max-h-[90vh] w-full max-w-3xl min-h-0 flex-col overflow-hidden">
-        <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-700">
-            <h3 class="sys-section-heading text-lg">Editar Colaborador</h3>
-            <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')" class="emp-modal-close p-1" aria-label="Fechar">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
-            <form id="editForm" method="POST" class="space-y-4">
+<div id="editModal" class="emp-modal-shell hidden" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+        <section class="emp-modal-card emp-modal-card--wide sys-card sys-card--surface">
+            <header class="emp-modal-header">
+                <h3 id="edit-modal-title" class="sys-section-heading text-lg m-0">Editar Colaborador</h3>
+                <button type="button" data-emp-modal-close class="emp-modal-close p-1" aria-label="Fechar">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </header>
+            <form id="editForm" method="POST" class="emp-modal-card-form">
+            <div class="emp-modal-body emp-modal-body--sections space-y-4">
                 <!-- Action will be set dynamically -->
                 
                 <div class="grid gap-3 sm:grid-cols-2">
@@ -1072,13 +1089,13 @@
                     </div>
                     <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Deixe em branco para remover.</p>
                 </div>
+            </div>
+            <footer class="emp-modal-footer">
+                <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary text-sm min-h-0 py-2">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--primary text-sm min-h-0 py-2">Salvar</button>
+            </footer>
             </form>
-        </div>
-
-        <div class="flex shrink-0 justify-end gap-2 border-t border-slate-200 p-4 dark:border-slate-700">
-            <button type="button" onclick="document.getElementById('editModal').classList.add('hidden')" class="sys-btn sys-btn--secondary text-sm min-h-0 py-2">Cancelar</button>
-            <button type="submit" form="editForm" class="sys-btn sys-btn--primary text-sm min-h-0 py-2">Salvar</button>
-        </div>
+        </section>
     </div>
 </div>
 
@@ -1089,13 +1106,12 @@
 
 
 <!-- Bulk Occurrences Modal -->
-<div id="bulk-occurrences-modal" class="emp-modal-layer fixed inset-0 hidden" aria-labelledby="bulk-occurrences-modal-title" role="dialog"
-    aria-modal="true">
-    <div class="emp-modal-backdrop absolute inset-0 transition-opacity"></div>
-    <div class="fixed inset-0 z-10 overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-            <div class="sys-card sys-card--surface sys-card--comfort relative my-8 w-full max-w-2xl transform text-left transition-all">
-                <div class="flex items-start gap-4">
+<div id="bulk-occurrences-modal" class="emp-modal-layer hidden" aria-labelledby="bulk-occurrences-modal-title" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+            <section class="emp-modal-card emp-modal-card--wide sys-card sys-card--surface sys-card--comfort">
+                <header class="emp-modal-header border-0 pb-0">
+                <div class="flex items-start gap-4 flex-1 min-w-0">
                     <div class="emp-modal-icon-ring border-red-200 bg-red-50 text-red-600 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-400">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -1106,8 +1122,9 @@
                         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Arquivo Excel &quot;Fechamento de Ponto&quot; (.xls ou .xlsx) com abas mensais</p>
                     </div>
                 </div>
-
-                <div class="mt-5">
+                </header>
+                <div class="emp-modal-body">
+                <div class="mt-2">
                     <label class="sys-section__label sys-section__label--field text-xs" for="bulk-occurrences-file">Arquivo</label>
                     <input type="file" id="bulk-occurrences-file" accept=".xls,.xlsx"
                         class="sys-input w-full text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-800 hover:file:bg-slate-300 dark:file:bg-slate-600 dark:file:text-slate-100 dark:hover:file:bg-slate-500">
@@ -1125,22 +1142,22 @@
                     </ul>
                 </div>
 
-                <div class="mt-6 flex flex-wrap justify-end gap-3">
-                    <button type="button" onclick="document.getElementById('bulk-occurrences-modal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
-                    <button type="button" onclick="saveBulkOccurrences()" class="rounded-md border border-red-700 bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700">Processar Ocorrências</button>
                 </div>
-            </div>
-        </div>
+                <footer class="emp-modal-footer">
+                    <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Cancelar</button>
+                    <button type="button" onclick="saveBulkOccurrences()" class="rounded-md border border-red-700 bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700">Processar Ocorrências</button>
+                </footer>
+            </section>
     </div>
 </div>
 
 <!-- Bulk Cost Center Modal -->
-<div id="bulk-cost-center-modal" class="emp-modal-layer fixed inset-0 hidden" aria-labelledby="bulk-cost-center-modal-title" role="dialog" aria-modal="true">
-    <div class="emp-modal-backdrop absolute inset-0"></div>
-    <div class="fixed inset-0 overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4">
-            <div class="sys-card sys-card--surface sys-card--comfort relative w-full max-w-lg">
-                <div class="flex gap-4">
+<div id="bulk-cost-center-modal" class="emp-modal-layer hidden" aria-labelledby="bulk-cost-center-modal-title" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+            <section class="emp-modal-card emp-modal-card--medium sys-card sys-card--surface sys-card--comfort">
+                <header class="emp-modal-header border-0 pb-0">
+                <div class="flex gap-4 flex-1 min-w-0">
                     <div class="emp-modal-icon-ring border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-500/30 dark:bg-cyan-950/40 dark:text-cyan-400">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                     </div>
@@ -1149,7 +1166,9 @@
                         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Exemplar vs Souza Pinto</p>
                     </div>
                 </div>
-                <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">Defina o escopo e o destino:</p>
+                </header>
+                <div class="emp-modal-body">
+                <p class="text-sm text-slate-600 dark:text-slate-300">Defina o escopo e o destino:</p>
                 <div class="mt-4 space-y-4">
                     <div class="sys-section">
                         <p class="sys-section__label mb-2 text-xs">1. Escopo</p>
@@ -1190,22 +1209,21 @@
 
                     <button type="button" onclick="runBulkCostCenterApply()" class="sys-btn sys-btn--sky w-full justify-center py-3">Aplicar</button>
                 </div>
-                <div class="mt-6 flex justify-end">
-                    <button type="button" onclick="document.getElementById('bulk-cost-center-modal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Fechar</button>
                 </div>
-            </div>
-        </div>
+                <footer class="emp-modal-footer">
+                    <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Fechar</button>
+                </footer>
+            </section>
     </div>
 </div>
 
 <!-- Vacation Modal -->
-<div id="vacation-schedule-modal" class="emp-modal-layer fixed inset-0 hidden" aria-labelledby="vacation-modal-title" role="dialog"
-    aria-modal="true">
-    <div class="emp-modal-backdrop absolute inset-0 transition-opacity"></div>
-    <div class="fixed inset-0 z-10 overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-            <div class="sys-card sys-card--surface sys-card--comfort relative my-8 w-full max-w-lg transform text-left transition-all">
-                <div class="mb-6 flex items-center gap-4">
+<div id="vacation-schedule-modal" class="emp-modal-layer hidden" aria-labelledby="vacation-modal-title" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+            <section class="emp-modal-card emp-modal-card--medium sys-card sys-card--surface sys-card--comfort">
+                <header class="emp-modal-header border-0 pb-0">
+                <div class="flex items-center gap-4 flex-1 min-w-0">
                     <div class="emp-modal-icon-ring--lg border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-400">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -1216,8 +1234,9 @@
                         <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Defina o período de férias do colaborador.</p>
                     </div>
                 </div>
-
-                <form id="vacation-form" onsubmit="event.preventDefault(); saveVacationSchedule();">
+                </header>
+                <form id="vacation-form" class="emp-modal-card-form" onsubmit="event.preventDefault(); saveVacationSchedule();">
+                <div class="emp-modal-body">
                     <input type="hidden" id="vacation-emp-reg">
                     <div class="grid gap-4 sm:grid-cols-2">
                         <div>
@@ -1230,24 +1249,23 @@
                         </div>
                     </div>
 
-                    <div class="mt-8 flex flex-wrap justify-end gap-3">
-                        <button type="button" onclick="closeVacationModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+                </div>
+                <footer class="emp-modal-footer">
+                        <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Cancelar</button>
                         <button type="submit" class="sys-btn sys-btn--primary">Salvar Programação</button>
-                    </div>
+                </footer>
                 </form>
-            </div>
-        </div>
+            </section>
     </div>
 </div>
 
 <!-- Bulk Vacation Modal -->
-<div id="bulk-vacation-modal" class="emp-modal-layer fixed inset-0 hidden" aria-labelledby="bulk-vacation-modal-title" role="dialog"
-    aria-modal="true">
-    <div class="emp-modal-backdrop absolute inset-0 transition-opacity"></div>
-    <div class="fixed inset-0 z-10 overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
-            <div class="sys-card sys-card--surface sys-card--comfort relative my-8 w-full max-w-2xl transform text-left transition-all">
-                <div class="mb-4 flex items-center gap-4">
+<div id="bulk-vacation-modal" class="emp-modal-layer hidden" aria-labelledby="bulk-vacation-modal-title" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+            <section class="emp-modal-card emp-modal-card--wide sys-card sys-card--surface sys-card--comfort">
+                <header class="emp-modal-header border-0 pb-0">
+                <div class="flex items-center gap-4 flex-1 min-w-0">
                     <div class="emp-modal-icon-ring border-blue-200 bg-blue-50 text-blue-600 dark:border-blue-500/30 dark:bg-blue-950/40 dark:text-blue-400">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -1258,8 +1276,9 @@
                         <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Cole os dados do Excel abaixo (Matrícula | Nome | Início | Fim)</p>
                     </div>
                 </div>
-
-                <div class="mb-4">
+                </header>
+                <div class="emp-modal-body">
+                <div class="mb-2">
                     <label class="sys-sr-only" for="bulk-vacation-text">Dados colados</label>
                     <textarea id="bulk-vacation-text" class="sys-input emp-modal-textarea-mono w-full whitespace-pre leading-relaxed"
                         placeholder="Exemplo:
@@ -1267,19 +1286,22 @@
 1235	MARIA SOUZA	15/02/2024	25/02/2024"></textarea>
                 </div>
 
-                <div class="flex flex-wrap justify-end gap-3">
-                    <button type="button" onclick="closeBulkVacationModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
-                    <button type="button" onclick="saveBulkVacation()" class="sys-btn sys-btn--primary">Processar Importação</button>
                 </div>
-            </div>
-        </div>
+                <footer class="emp-modal-footer">
+                    <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Cancelar</button>
+                    <button type="button" onclick="saveBulkVacation()" class="sys-btn sys-btn--primary">Processar Importação</button>
+                </footer>
+            </section>
     </div>
 </div>
 
 <!-- Fire Confirmation Modal -->
-<div id="fireModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center p-4">
-    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
-        <div class="mb-4 flex items-center gap-3">
+<div id="fireModal" class="emp-modal-shell hidden" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+    <section class="emp-modal-card emp-modal-card--medium sys-card sys-card--surface sys-card--comfort">
+        <header class="emp-modal-header border-0 pb-0">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
             <div class="emp-modal-icon-ring--lg border-red-200 bg-red-50 text-red-600 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-400">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -1287,11 +1309,12 @@
             </div>
             <div class="min-w-0">
                 <h3 class="sys-section-heading text-lg">Confirmar Demissão</h3>
-                <p class="text-sm text-slate-500 dark:text-slate-400" id="fire-employee-name"></p>
+                <p class="text-sm text-slate-500 dark:text-slate-400 m-0" id="fire-employee-name"></p>
             </div>
         </div>
-
-        <form id="fireForm" method="POST">
+        </header>
+        <form id="fireForm" method="POST" class="emp-modal-card-form">
+        <div class="emp-modal-body">
             <input type="hidden" name="status_action" value="fired">
             <div class="mb-4">
                 <label class="sys-section__label sys-section__label--field" for="termination-date">Data de Fim de Contrato</label>
@@ -1299,18 +1322,23 @@
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Selecione a data de término do contrato</p>
             </div>
 
-            <div class="flex flex-wrap justify-end gap-3">
-                <button type="button" onclick="closeFireModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+        </div>
+        <footer class="emp-modal-footer">
+                <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Cancelar</button>
                 <button type="submit" class="rounded-md border border-red-700 bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700">Confirmar Demissão</button>
-            </div>
+        </footer>
         </form>
+    </section>
     </div>
 </div>
 
 <!-- Return/Reactivate Modal -->
-<div id="returnModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center p-4">
-    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
-        <div class="mb-4 flex items-center gap-3">
+<div id="returnModal" class="emp-modal-shell hidden" role="dialog" aria-modal="true">
+    <div class="emp-modal-backdrop" data-emp-modal-dismiss aria-hidden="true"></div>
+    <div class="emp-modal-align">
+    <section class="emp-modal-card emp-modal-card--medium sys-card sys-card--surface sys-card--comfort">
+        <header class="emp-modal-header border-0 pb-0">
+        <div class="flex items-center gap-3 flex-1 min-w-0">
             <div class="emp-modal-icon-ring--lg border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-400">
                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1319,11 +1347,12 @@
             <div class="min-w-0">
                 <h3 class="sys-section-heading text-lg">Retorno do Colaborador</h3>
                 <p class="text-sm text-slate-500 dark:text-slate-400" id="return-employee-name"></p>
-                <p class="text-xs text-slate-500 dark:text-slate-400" id="return-employee-status"></p>
+                <p class="text-xs text-slate-500 dark:text-slate-400 m-0" id="return-employee-status"></p>
             </div>
         </div>
-
-        <form id="returnForm" method="POST">
+        </header>
+        <form id="returnForm" method="POST" class="emp-modal-card-form">
+        <div class="emp-modal-body">
             <input type="hidden" name="status_action" value="active">
             <div class="mb-4">
                 <label class="sys-section__label sys-section__label--field" for="return-date">Data do Retorno</label>
@@ -1331,11 +1360,13 @@
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">O sistema atualizará as rotinas a partir desta data</p>
             </div>
 
-            <div class="flex flex-wrap justify-end gap-3">
-                <button type="button" onclick="closeReturnModal()" class="sys-btn sys-btn--secondary">Cancelar</button>
+        </div>
+        <footer class="emp-modal-footer">
+                <button type="button" data-emp-modal-close class="sys-btn sys-btn--secondary">Cancelar</button>
                 <button type="submit" class="sys-btn sys-btn--success">Confirmar Retorno</button>
-            </div>
+        </footer>
         </form>
+    </section>
     </div>
 </div>
 
@@ -1367,41 +1398,6 @@
         }
     }
 
-    function syncEmployeesModalPortal() {
-        const portal = document.querySelector('[data-employees-modals-portal]');
-        if (!portal) return;
-        const anyOpen = portal.querySelector('.emp-modal-shell:not(.hidden), .emp-modal-layer:not(.hidden)');
-        if (anyOpen) {
-            portal.setAttribute('data-modal-open', 'true');
-            portal.removeAttribute('aria-hidden');
-            document.body.classList.add('employees-modal-open');
-        } else {
-            portal.removeAttribute('data-modal-open');
-            portal.setAttribute('aria-hidden', 'true');
-            document.body.classList.remove('employees-modal-open');
-        }
-    }
-
-    function closeEmpModal(id) {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-        syncEmployeesModalPortal();
-    }
-
-    function openAddEmployeeModal() {
-        document.querySelectorAll('.employees-hero__import-wrap [x-data]').forEach(function (el) {
-            if (el.__x && el.__x.$data && 'open' in el.__x.$data) el.__x.$data.open = false;
-        });
-        const shell = document.getElementById('addModal');
-        if (!shell) return;
-        shell.classList.remove('hidden');
-        shell.scrollTop = 0;
-        const body = document.getElementById('addModalScroll');
-        if (body) body.scrollTop = 0;
-        syncEmployeesModalPortal();
-        document.getElementById('add-name')?.focus();
-    }
-
     function maskPhoneBR(input) {
         let v = (input.value || '').replace(/\D/g, '');
         if (v.length > 11) v = v.slice(0, 11);
@@ -1425,10 +1421,6 @@
         if (addPhone) addPhone.addEventListener('input', function () { maskPhoneBR(this); });
         const editPhone = document.getElementById('editPhone');
         if (editPhone) editPhone.addEventListener('input', function () { maskPhoneBR(this); });
-        document.querySelector('[data-employees-modals-portal]')?.addEventListener('click', function (ev) {
-            const shell = ev.target.closest('.emp-modal-shell, .emp-modal-layer');
-            if (shell && ev.target === shell) closeEmpModal(shell.id);
-        });
     });
 
     // --- Edit Modal Logic ---
@@ -1547,7 +1539,7 @@
             // If vacation already passed, fields stay empty (will be cleared on next save)
         }
 
-        document.getElementById('editModal').classList.remove('hidden');
+        openEmployeeModal('editModal', document.activeElement);
     }
 
     // --- Fire Modal Logic ---
@@ -1556,11 +1548,11 @@
         document.getElementById('fire-employee-name').innerText = empName;
         document.getElementById('termination-date').value = new Date().toISOString().split('T')[0];
         document.getElementById('termination-date').max = new Date().toISOString().split('T')[0];
-        document.getElementById('fireModal').classList.remove('hidden');
+        openEmployeeModal('fireModal', document.activeElement);
     }
 
     function closeFireModal() {
-        document.getElementById('fireModal').classList.add('hidden');
+        closeEmployeeModal('fireModal');
     }
 
     // --- Return Modal Logic ---
@@ -1580,11 +1572,11 @@
         
         // Set default date to today
         document.getElementById('return-date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('returnModal').classList.remove('hidden');
+        openEmployeeModal('returnModal', document.activeElement);
     }
 
     function closeReturnModal() {
-        document.getElementById('returnModal').classList.add('hidden');
+        closeEmployeeModal('returnModal');
     }
 
     // --- Filter Logic ---
@@ -2027,17 +2019,15 @@
         if (elStart) elStart.value = '';
         if (elEnd) elEnd.value = '';
 
-        if (elModal) elModal.classList.remove('hidden');
+        if (elModal) openEmployeeModal('vacation-schedule-modal', document.activeElement);
     }
 
     function closeVacationModal() {
-        const el = document.getElementById('vacation-schedule-modal');
-        if (el) el.classList.add('hidden');
+        closeEmployeeModal('vacation-schedule-modal');
     }
 
     function closeBulkVacationModal() {
-        const el = document.getElementById('bulk-vacation-modal');
-        if (el) el.classList.add('hidden');
+        closeEmployeeModal('bulk-vacation-modal');
     }
 
     async function saveVacationSchedule() {
@@ -2104,7 +2094,7 @@
             const done = response.ok && (result.ok === true || result.success === true || (imported !== null && imported >= 0));
             if (done) {
                 alert(result.message || (imported !== null ? `Importadas ${imported} ocorrências.` : 'Importação concluída.'));
-                document.getElementById('bulk-occurrences-modal').classList.add('hidden');
+                closeEmployeeModal('bulk-occurrences-modal');
                 fileInput.value = '';
                 document.getElementById('bulk-occurrences-file-name').textContent = '';
                 location.reload();
@@ -2160,7 +2150,7 @@
                 formData.append('center', bccDest);
                 const res = await fetch('/api/employees/bulk-cost-center-all', { method: 'POST', body: formData });
                 const data = await res.json();
-                if (res.ok && data.success) { alert(data.message); document.getElementById('bulk-cost-center-modal').classList.add('hidden'); location.reload(); }
+                if (res.ok && data.success) { alert(data.message); closeEmployeeModal('bulk-cost-center-modal'); location.reload(); }
                 else { alert('Erro: ' + (data.error || 'Desconhecido')); }
             } catch (e) { console.error(e); alert('Erro de conexão.'); }
         } else if (bccScope === 'roles') {
@@ -2174,7 +2164,7 @@
                     body: JSON.stringify({ selected_roles: roles, selected_center: bccDest, others_center: other })
                 });
                 const data = await res.json();
-                if (res.ok && data.success) { alert(data.message); document.getElementById('bulk-cost-center-modal').classList.add('hidden'); location.reload(); }
+                if (res.ok && data.success) { alert(data.message); closeEmployeeModal('bulk-cost-center-modal'); location.reload(); }
                 else { alert('Erro: ' + (data.error || 'Desconhecido')); }
             } catch (e) { console.error(e); alert('Erro de conexão.'); }
         } else {
@@ -2189,7 +2179,7 @@
                 formData.append('others_center', other);
                 const res = await fetch('/api/employees/bulk-cost-center-from-file', { method: 'POST', body: formData });
                 const data = await res.json();
-                if (res.ok && data.success) { alert(data.message); document.getElementById('bulk-cost-center-modal').classList.add('hidden'); fileInput.value = ''; location.reload(); }
+                if (res.ok && data.success) { alert(data.message); closeEmployeeModal('bulk-cost-center-modal'); fileInput.value = ''; location.reload(); }
                 else { alert('Erro: ' + (data.error || 'Desconhecido')); }
             } catch (e) { console.error(e); alert('Erro de conexão.'); }
         }

@@ -45,11 +45,19 @@
             document.body.classList.add('employees-modal-open');
         } else {
             blurIfInside(root);
-            root.removeAttribute('data-modal-open');
-            if ('inert' in root) root.inert = true;
-            root.setAttribute('aria-hidden', 'true');
-            document.documentElement.classList.remove('employees-modal-open');
-            document.body.classList.remove('employees-modal-open');
+            var applyClosed = function () {
+                if (getOpenModals().length > 0) return;
+                root.removeAttribute('data-modal-open');
+                if ('inert' in root) root.inert = true;
+                root.setAttribute('aria-hidden', 'true');
+                document.documentElement.classList.remove('employees-modal-open');
+                document.body.classList.remove('employees-modal-open');
+            };
+            if (typeof requestAnimationFrame === 'function') {
+                requestAnimationFrame(applyClosed);
+            } else {
+                applyClosed();
+            }
         }
     }
 
@@ -146,11 +154,10 @@
         });
 
         var stillOpen = getOpenModals();
-        setPortalOpenState();
-
         if (stillOpen.length === 0) {
             restoreTrigger();
         }
+        setPortalOpenState();
     }
 
     function closeAllEmployeeModals() {
@@ -225,6 +232,8 @@
     window.closeEmpModal = closeEmployeeModal;
 
     window.openAddEmployeeModal = function () {
+        var body = document.getElementById('addModalScroll');
+        if (body) body.scrollTop = 0;
         openEmployeeModal('addModal', document.activeElement);
     };
 
