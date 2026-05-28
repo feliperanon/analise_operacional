@@ -117,6 +117,16 @@
 
         closeAlpineImportDropdown();
 
+        getOpenModals().forEach(function (other) {
+            if (other.id !== id) {
+                blurIfInside(other);
+                other.classList.add('hidden');
+            }
+        });
+        openStack = openStack.filter(function (mid) {
+            return mid === id;
+        });
+
         modal.classList.remove('hidden');
         modal.setAttribute('aria-modal', 'true');
         if (!modal.getAttribute('role')) modal.setAttribute('role', 'dialog');
@@ -210,6 +220,15 @@
     function init() {
         var root = getPortal();
         if (!root) return;
+
+        root.querySelectorAll(SELECTOR_SHELL).forEach(function (modal) {
+            modal.classList.add('hidden');
+        });
+        openStack = [];
+        lastTrigger = null;
+        document.documentElement.classList.remove('employees-modal-open');
+        document.body.classList.remove('employees-modal-open');
+        root.removeAttribute('data-modal-open');
 
         if ('inert' in root) root.inert = true;
         root.setAttribute('aria-hidden', 'true');

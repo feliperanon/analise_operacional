@@ -1879,10 +1879,20 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   pointer-events: auto;
 }
 
-.employees-modals-root .emp-modal-shell,
-.employees-modals-root .emp-modal-layer,
-.employees-page-modals .emp-modal-shell,
-.employees-page-modals .emp-modal-layer {
+/* Fechados: nunca sobrescrever Tailwind .hidden (evita empilhar todos os modais na carga) */
+.employees-modals-root .emp-modal-shell.hidden,
+.employees-modals-root .emp-modal-layer.hidden,
+.employees-page-modals .emp-modal-shell.hidden,
+.employees-page-modals .emp-modal-layer.hidden {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.employees-modals-root .emp-modal-shell:not(.hidden),
+.employees-modals-root .emp-modal-layer:not(.hidden),
+.employees-page-modals .emp-modal-shell:not(.hidden),
+.employees-page-modals .emp-modal-layer:not(.hidden) {
   position: fixed;
   inset: 0;
   z-index: 20001;
@@ -1891,13 +1901,6 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   justify-content: center;
   padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
     max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  pointer-events: none;
-}
-
-.employees-modals-root .emp-modal-shell:not(.hidden),
-.employees-modals-root .emp-modal-layer:not(.hidden),
-.employees-page-modals .emp-modal-shell:not(.hidden),
-.employees-page-modals .emp-modal-layer:not(.hidden) {
   pointer-events: auto;
 }
 
