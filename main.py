@@ -15847,6 +15847,7 @@ async def clients_import(
             me = _opt_val(row.get(col_map.get("me"))) if "me" in col_map else None
             sa = _opt_val(row.get(col_map.get("sa"))) if "sa" in col_map else None
             visita = _opt_val(row.get(col_map.get("visita"))) if "visita" in col_map else None
+            entrega = compute_entrega_from_visita(visita)
             nome_fantasia = _opt_val(row.get(col_map.get("fantas"))) if "fantas" in col_map else None
             razao_social = _opt_val(row.get(col_map.get("razao_social"))) if "razao_social" in col_map else None
             municipio = _opt_val(row.get(col_map.get("municipio"))) if "municipio" in col_map else None
@@ -15856,6 +15857,11 @@ async def clients_import(
             segmento = _opt_val(row.get(col_map.get("segmento"))) if "segmento" in col_map else None
             status_cliente = _opt_val(row.get(col_map.get("status"))) if "status" in col_map else None
             cnpj_cpf = _opt_val(row.get(col_map.get("cnpj_cpf"))) if "cnpj_cpf" in col_map else None
+
+            if nome_fantasia and razao_social and name == nome_fantasia:
+                pass
+            elif razao_social and not nome_fantasia:
+                name = razao_social
 
             endereco = normalize_address(endereco_raw) if endereco_raw else None
             endereco_norm = normalize_address(endereco_raw).upper().replace(" ", "") if endereco_raw else None
@@ -15895,6 +15901,7 @@ async def clients_import(
                         me=me,
                         sa=sa,
                         visita=visita,
+                        entrega=entrega,
                         nome_fantasia=nome_fantasia,
                         razao_social=razao_social,
                         cnpj_cpf=cnpj_cpf,
@@ -15937,6 +15944,7 @@ async def clients_import(
                 me=me,
                 sa=sa,
                 visita=visita,
+                entrega=entrega,
                 nome_fantasia=nome_fantasia,
                 razao_social=razao_social,
                 cnpj_cpf=cnpj_cpf,
@@ -15992,6 +16000,7 @@ async def clients_import(
                 me=s.me,
                 sa=s.sa,
                 visita=s.visita,
+                entrega=s.entrega or compute_entrega_from_visita(s.visita),
                 nome_fantasia=s.nome_fantasia,
                 razao_social=s.razao_social,
                 cnpj_cpf=s.cnpj_cpf,
@@ -16006,7 +16015,7 @@ async def clients_import(
             )
             session.add(c)
             session.flush()
-            vid_new = resolve_employee_id_by_seller_code(session, s.setor)
+            vid_new = resolve_employee_id_by_code_or_name(session, s.setor)
             apply_vendedor_to_client(session, c, vid_new)
             if not vid_new and s.setor:
                 c.setor = (s.setor or "").strip() or None
