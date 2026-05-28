@@ -1864,38 +1864,53 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   }
 }
 
-/* ----- Modais (pele clara + dark, alinhada ao design system) ----- */
-/* Portal (#layout_portal): acima do drawer do menu (z-50) e do botão Menu (z-60) */
-.ga-employee-theme.employees-page-modals .emp-modal-shell,
-.ga-employee-theme.employees-page-modals .emp-modal-layer {
-  z-index: 10060;
-}
-
-.ga-employee-theme.employees-page-modals[data-employees-modals-portal]:not([data-modal-open]) {
+/* ----- Modais: portal fixo no body (acima do menu z-50 e KPIs da página) ----- */
+.employees-modals-root {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
   pointer-events: none;
+  isolation: isolate;
 }
 
-.ga-employee-theme.employees-page-modals[data-modal-open] {
+.employees-modals-root[data-modal-open] {
   pointer-events: auto;
 }
 
+.employees-modals-root .emp-modal-shell:not(.hidden),
+.employees-modals-root .emp-modal-layer:not(.hidden) {
+  pointer-events: auto;
+}
+
+.employees-modals-root .emp-modal-shell,
+.employees-modals-root .emp-modal-layer {
+  z-index: 1;
+}
+
+.employees-modals-root .emp-modal-shell .sys-card,
+.employees-modals-root .emp-modal-layer .sys-card {
+  position: relative;
+  z-index: 2;
+}
+
 .ga-employee-theme.employees-page .emp-modal-shell,
-.ga-employee-theme.employees-page-modals .emp-modal-shell {
-  background: rgb(15 23 42 / 0.4);
+.ga-employee-theme.employees-modals-root .emp-modal-shell {
+  background: rgb(15 23 42 / 0.45);
   backdrop-filter: blur(6px);
 }
 
 html.dark .ga-employee-theme.employees-page .emp-modal-shell,
-html.dark .ga-employee-theme.employees-page-modals .emp-modal-shell {
-  background: rgb(0 0 0 / 0.55);
-}
-
-.ga-employee-theme.employees-page-modals .emp-modal-shell--add {
-  padding-top: max(5rem, calc(env(safe-area-inset-top, 0px) + 4.5rem));
+html.dark .ga-employee-theme.employees-modals-root .emp-modal-shell {
+  background: rgb(0 0 0 / 0.6);
 }
 
 body.employees-modal-open {
   overflow: hidden;
+}
+
+body.employees-modal-open .ta-dash-header,
+body.employees-modal-open .gv-menu-btn {
+  z-index: 40;
 }
 
 .ga-employee-theme.employees-page .emp-modal-backdrop {
