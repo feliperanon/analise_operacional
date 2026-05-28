@@ -1853,13 +1853,37 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
 }
 
 /* ----- Modais (pele clara + dark, alinhada ao design system) ----- */
-.ga-employee-theme.employees-page .emp-modal-shell {
+/* Portal (#layout_portal): acima do drawer do menu (z-50) e do botão Menu (z-60) */
+.ga-employee-theme.employees-page-modals .emp-modal-shell,
+.ga-employee-theme.employees-page-modals .emp-modal-layer {
+  z-index: 10060;
+}
+
+.ga-employee-theme.employees-page-modals[data-employees-modals-portal]:not([data-modal-open]) {
+  pointer-events: none;
+}
+
+.ga-employee-theme.employees-page-modals[data-modal-open] {
+  pointer-events: auto;
+}
+
+.ga-employee-theme.employees-page .emp-modal-shell,
+.ga-employee-theme.employees-page-modals .emp-modal-shell {
   background: rgb(15 23 42 / 0.4);
   backdrop-filter: blur(6px);
 }
 
-html.dark .ga-employee-theme.employees-page .emp-modal-shell {
+html.dark .ga-employee-theme.employees-page .emp-modal-shell,
+html.dark .ga-employee-theme.employees-page-modals .emp-modal-shell {
   background: rgb(0 0 0 / 0.55);
+}
+
+.ga-employee-theme.employees-page-modals .emp-modal-shell--add {
+  padding-top: max(5rem, calc(env(safe-area-inset-top, 0px) + 4.5rem));
+}
+
+body.employees-modal-open {
+  overflow: hidden;
 }
 
 .ga-employee-theme.employees-page .emp-modal-backdrop {

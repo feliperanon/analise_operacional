@@ -109,7 +109,7 @@
                                 <span class="employees-menu-item__hint">Cadastro em massa (.xlsx)</span>
                             </span>
                         </button>
-                        <a href="/employees/template" class="employees-menu-item employees-menu-item--block" download="planilha_colaboradores_modelo.xlsx">
+                        <a href="/static/templates/planilha_colaboradores_modelo.xlsx" class="employees-menu-item employees-menu-item--block" download="planilha_colaboradores_modelo.xlsx">
                             <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             </span>
@@ -573,9 +573,13 @@
     </div>
 
 </div>
+{% endblock %}
+
+{% block layout_portal %}
+<div class="ga-employee-theme employees-page employees-page-modals" data-employees-modals-portal aria-hidden="true">
 
 <!-- Import Modal -->
-<div id="importModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+<div id="importModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center p-4">
     <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
         <div class="mb-6 flex items-center justify-between gap-3">
             <h3 class="sys-section-heading text-lg">Importar Colaboradores</h3>
@@ -597,7 +601,7 @@
                 <p class="mt-1">Opcionais: <code class="font-mono">Data Admissão</code>, <code class="font-mono">Data Nascimento</code> (dd/mm/aaaa).</p>
                 <p class="mt-1">* <strong>Registration</strong> (matrícula) deve ser única. Linhas com matrícula já cadastrada são ignoradas.</p>
                 <p class="mt-2">
-                    <a href="/employees/template" class="font-medium text-blue-600 hover:underline dark:text-blue-400" download="planilha_colaboradores_modelo.xlsx">Baixar planilha modelo</a>
+                    <a href="/static/templates/planilha_colaboradores_modelo.xlsx" class="font-medium text-blue-600 hover:underline dark:text-blue-400" download="planilha_colaboradores_modelo.xlsx">Baixar planilha modelo</a>
                 </p>
             </div>
             <div class="flex justify-end gap-3 pt-2">
@@ -609,7 +613,7 @@
 </div>
 
 <!-- Bulk delete by spreadsheet -->
-<div id="importDeleteModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+<div id="importDeleteModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center p-4">
     <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
         <div class="mb-6 flex items-center justify-between gap-3">
             <h3 class="sys-section-heading text-lg">Excluir por planilha</h3>
@@ -638,7 +642,7 @@
 </div>
 
 <!-- Target Edit Modal -->
-<div id="targetModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center overflow-y-auto p-4">
+<div id="targetModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4">
     <div class="sys-card sys-card--surface sys-card--comfort relative z-10 my-auto max-h-[90vh] w-full max-w-xs overflow-y-auto sm:max-w-sm">
         <div class="mb-4 flex items-center justify-between gap-3">
             <h3 class="sys-section-heading text-base sm:text-lg">Metas por Empresa</h3>
@@ -786,12 +790,11 @@
 </script>
 
 <!-- Modal Novo Colaborador -->
-<div id="addModal" class="emp-modal-shell fixed inset-0 z-50 hidden overflow-y-auto">
-    <div class="flex min-h-full items-start justify-center px-4 pb-10 pt-6 sm:px-6 sm:pb-12 sm:pt-8">
-    <div class="employees-add-modal-card sys-card sys-card--surface w-full max-w-2xl overflow-hidden rounded-xl shadow-lg max-h-[min(90vh,calc(100dvh-2rem))] min-h-0">
+<div id="addModal" class="emp-modal-shell emp-modal-shell--add fixed inset-0 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-20 sm:items-center sm:pb-10 sm:pt-16" role="dialog" aria-modal="true" aria-labelledby="add-modal-title">
+    <div class="employees-add-modal-card sys-card sys-card--surface relative z-10 w-full max-w-2xl overflow-hidden rounded-xl shadow-lg max-h-[min(calc(100dvh-5.5rem),90vh)] min-h-0">
         <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 p-4 sm:p-6 dark:border-slate-700">
-            <h3 class="sys-section-heading text-xl">Novo Colaborador</h3>
-            <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')" class="emp-modal-close p-2" aria-label="Fechar">
+            <h3 id="add-modal-title" class="sys-section-heading text-xl">Novo Colaborador</h3>
+            <button type="button" onclick="closeEmpModal('addModal')" class="emp-modal-close p-2" aria-label="Fechar">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -907,47 +910,15 @@
             </div>
             </div>
             <div class="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-900/40 sm:px-6">
-                <button type="button" onclick="document.getElementById('addModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="button" onclick="closeEmpModal('addModal')" class="sys-btn sys-btn--secondary">Cancelar</button>
                 <button type="submit" class="sys-btn sys-btn--primary">Salvar</button>
             </div>
         </form>
     </div>
-    </div>
 </div>
 
-<script>
-function openAddEmployeeModal() {
-    const shell = document.getElementById('addModal');
-    if (!shell) return;
-    shell.classList.remove('hidden');
-    shell.scrollTop = 0;
-    const body = document.getElementById('addModalScroll');
-    if (body) body.scrollTop = 0;
-}
-// Máscara telefone BR: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
-function maskPhoneBR(input) {
-    let v = (input.value || '').replace(/\D/g, '');
-    if (v.length > 11) v = v.slice(0, 11);
-    if (v.length > 6) input.value = '(' + v.slice(0,2) + ') ' + v.slice(2,7) + '-' + v.slice(7);
-    else if (v.length > 2) input.value = '(' + v.slice(0,2) + ') ' + v.slice(2);
-    else if (v.length > 0) input.value = '(' + v;
-    else input.value = '';
-}
-function formatPhoneForDisplay(phone) {
-    if (!phone || typeof phone !== 'string') return '';
-    const d = phone.replace(/\D/g, '');
-    if (d.length >= 10) return '(' + d.slice(0,2) + ') ' + (d.length === 11 ? d.slice(2,7) + '-' + d.slice(7) : d.slice(2,6) + '-' + d.slice(6));
-    return phone;
-}
-document.addEventListener('DOMContentLoaded', function() {
-    const addPhone = document.getElementById('addPhone');
-    if (addPhone) addPhone.addEventListener('input', function() { maskPhoneBR(this); });
-    const editPhone = document.getElementById('editPhone');
-    if (editPhone) editPhone.addEventListener('input', function() { maskPhoneBR(this); });
-});
-</script>
 <!-- Edit Modal -->
-<div id="editModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+<div id="editModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4 pb-8 pt-20 sm:items-center sm:pt-16">
     <div class="sys-card sys-card--surface flex max-h-[90vh] w-full max-w-3xl min-h-0 flex-col overflow-hidden">
         <div class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-slate-700">
             <h3 class="sys-section-heading text-lg">Editar Colaborador</h3>
@@ -1111,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 <!-- Bulk Occurrences Modal -->
-<div id="bulk-occurrences-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="bulk-occurrences-modal-title" role="dialog"
+<div id="bulk-occurrences-modal" class="emp-modal-layer fixed inset-0 hidden" aria-labelledby="bulk-occurrences-modal-title" role="dialog"
     aria-modal="true">
     <div class="emp-modal-backdrop absolute inset-0 transition-opacity"></div>
     <div class="fixed inset-0 z-10 overflow-y-auto">
@@ -1157,7 +1128,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Bulk Cost Center Modal -->
-<div id="bulk-cost-center-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="bulk-cost-center-modal-title" role="dialog" aria-modal="true">
+<div id="bulk-cost-center-modal" class="emp-modal-layer fixed inset-0 hidden" aria-labelledby="bulk-cost-center-modal-title" role="dialog" aria-modal="true">
     <div class="emp-modal-backdrop absolute inset-0"></div>
     <div class="fixed inset-0 overflow-y-auto">
         <div class="flex min-h-full items-center justify-center p-4">
@@ -1221,7 +1192,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Vacation Modal -->
-<div id="vacation-schedule-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="vacation-modal-title" role="dialog"
+<div id="vacation-schedule-modal" class="emp-modal-layer fixed inset-0 hidden" aria-labelledby="vacation-modal-title" role="dialog"
     aria-modal="true">
     <div class="emp-modal-backdrop absolute inset-0 transition-opacity"></div>
     <div class="fixed inset-0 z-10 overflow-y-auto">
@@ -1263,7 +1234,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Bulk Vacation Modal -->
-<div id="bulk-vacation-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="bulk-vacation-modal-title" role="dialog"
+<div id="bulk-vacation-modal" class="emp-modal-layer fixed inset-0 hidden" aria-labelledby="bulk-vacation-modal-title" role="dialog"
     aria-modal="true">
     <div class="emp-modal-backdrop absolute inset-0 transition-opacity"></div>
     <div class="fixed inset-0 z-10 overflow-y-auto">
@@ -1299,7 +1270,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Fire Confirmation Modal -->
-<div id="fireModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+<div id="fireModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center p-4">
     <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
         <div class="mb-4 flex items-center gap-3">
             <div class="emp-modal-icon-ring--lg border-red-200 bg-red-50 text-red-600 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-400">
@@ -1330,7 +1301,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <!-- Return/Reactivate Modal -->
-<div id="returnModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+<div id="returnModal" class="emp-modal-shell fixed inset-0 hidden flex items-center justify-center p-4">
     <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
         <div class="mb-4 flex items-center gap-3">
             <div class="emp-modal-icon-ring--lg border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/40 dark:text-emerald-400">
@@ -1361,7 +1332,71 @@ document.addEventListener('DOMContentLoaded', function() {
     </div>
 </div>
 
+</div>
+{% endblock %}
+
+{% block body_scripts %}
 <script>
+    function syncEmployeesModalPortal() {
+        const portal = document.querySelector('[data-employees-modals-portal]');
+        if (!portal) return;
+        const anyOpen = portal.querySelector('.emp-modal-shell:not(.hidden), .emp-modal-layer:not(.hidden)');
+        if (anyOpen) {
+            portal.setAttribute('data-modal-open', 'true');
+            portal.removeAttribute('aria-hidden');
+            document.body.classList.add('employees-modal-open');
+        } else {
+            portal.removeAttribute('data-modal-open');
+            portal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('employees-modal-open');
+        }
+    }
+
+    function closeEmpModal(id) {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+        syncEmployeesModalPortal();
+    }
+
+    function openAddEmployeeModal() {
+        const shell = document.getElementById('addModal');
+        if (!shell) return;
+        shell.classList.remove('hidden');
+        shell.scrollTop = 0;
+        const body = document.getElementById('addModalScroll');
+        if (body) body.scrollTop = 0;
+        syncEmployeesModalPortal();
+    }
+
+    function maskPhoneBR(input) {
+        let v = (input.value || '').replace(/\D/g, '');
+        if (v.length > 11) v = v.slice(0, 11);
+        if (v.length > 6) input.value = '(' + v.slice(0, 2) + ') ' + v.slice(2, 7) + '-' + v.slice(7);
+        else if (v.length > 2) input.value = '(' + v.slice(0, 2) + ') ' + v.slice(2);
+        else if (v.length > 0) input.value = '(' + v;
+        else input.value = '';
+    }
+
+    function formatPhoneForDisplay(phone) {
+        if (!phone || typeof phone !== 'string') return '';
+        const d = phone.replace(/\D/g, '');
+        if (d.length >= 10) {
+            return '(' + d.slice(0, 2) + ') ' + (d.length === 11 ? d.slice(2, 7) + '-' + d.slice(7) : d.slice(2, 6) + '-' + d.slice(6));
+        }
+        return phone;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const addPhone = document.getElementById('addPhone');
+        if (addPhone) addPhone.addEventListener('input', function () { maskPhoneBR(this); });
+        const editPhone = document.getElementById('editPhone');
+        if (editPhone) editPhone.addEventListener('input', function () { maskPhoneBR(this); });
+        document.querySelector('[data-employees-modals-portal]')?.addEventListener('click', function (ev) {
+            const shell = ev.target.closest('.emp-modal-shell, .emp-modal-layer');
+            if (shell && ev.target === shell) closeEmpModal(shell.id);
+        });
+    });
+
     // --- Edit Modal Logic ---
     function openEditModal(emp) {
         document.getElementById('editForm').action = '/employees/' + emp.id + '/update';

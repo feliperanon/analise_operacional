@@ -4,6 +4,7 @@ Utilitários para importação em massa de colaboradores (modelo Excel e exclus�
 from __future__ import annotations
 
 import io
+import re
 import unicodedata
 from typing import List, Optional, Tuple
 
@@ -11,6 +12,12 @@ import pandas as pd
 from sqlmodel import Session, select
 
 import models
+
+# Matrículas dos cadastros importados incorretamente (lista operacional conhecida).
+DEFAULT_WRONG_IMPORT_REGISTRATIONS: List[str] = (
+    ["ESP-999", "ESP-777", "ESP-900"]
+    + [f"{i}.0" for i in range(1, 37)]
+)
 
 
 def normalize_text(value: str) -> str:
@@ -35,20 +42,107 @@ def pick_column(columns, *candidates):
     return None
 
 
-def registrations_from_excel(content: bytes) -> List[str]:
-    """Extrai matrículas únicas de um .xlsx (primeira aba com coluna de matrícula)."""
-    excel = pd.ExcelFile(io.BytesIO(content))
-    sheet_names = excel.sheet_names or [0]
+def _excel_engine(filename: str) -> Optional[str]:
+    name = (filename or "").lower()
+    if name.endswith(".xls") and not name.endswith(".xlsx"):
+        return "xlrd"
+    return None
+
+
+def _read_excel_bytes(content: bytes, filename: str = "", **kwargs) -> pd.DataFrame:
+    bio = io.BytesIO(content)
+    engine = _excel_engine(filename)
+    if engine:
+        return pd.read_excel(bio, engine=engine, **kwargs)
+    return pd.read_excel(bio, **kwargs)
+
+
+def _excel_sheet_names(content: bytes, filename: str = "") -> List[str]:
+    bio = io.BytesIO(content)
+    engine = _excel_engine(filename)
+    if engine:
+        return list(pd.ExcelFile(bio, engine=engine).sheet_names)
+    return list(pd.ExcelFile(bio).sheet_names)
+
+
+def _detect_fechamento_de_ponto(content: bytes, filename: str) -> bool:
+    name = normalize_text(filename)
+    if "fechamento" in name and "ponto" in name:
+        return True
+    try:
+        for sheet in _excel_sheet_names(content, filename)[:4]:
+            df = _read_excel_bytes(content, filename, sheet_name=sheet, header=None, nrows=12)
+            blob = normalize_text(" ".join(str(v) for v in df.values.flatten() if pd.notna(v)))
+            if "fechamento de ponto" in blob or "fechamento de ponto e comiss" in blob:
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _format_registration_cell(value) -> str:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    if isinstance(value, float):
+        if value == int(value):
+            return f"{int(value)}.0"
+        return str(value).strip()
+    s = str(value).strip()
+    if not s or s.lower() == "nan":
+        return ""
+    if re.fullmatch(r"\d+", s):
+        return f"{s}.0"
+    return s
+
+
+def registration_lookup_variants(reg_id: str) -> List[str]:
+    """Variantes para buscar matrícula no banco (ex.: 1 ↔ 1.0)."""
+    reg_id = (reg_id or "").strip()
+    if not reg_id:
+        return []
+    variants = [reg_id]
+    try:
+        f = float(reg_id.replace(",", "."))
+        if f == int(f):
+            n = int(f)
+            variants.extend([f"{n}.0", str(n)])
+    except ValueError:
+        pass
+    out: List[str] = []
+    seen = set()
+    for v in variants:
+        if v and v not in seen:
+            seen.add(v)
+            out.append(v)
+    return out
+
+
+def registrations_from_excel(content: bytes, filename: str = "") -> List[str]:
+    """Extrai matrículas únicas de planilha .xlsx/.xls (aba Excluir_exemplo ou coluna Matrícula/Registration)."""
+    if _detect_fechamento_de_ponto(content, filename):
+        raise ValueError(
+            "Este arquivo é Fechamento de Ponto (faltas/comissões), não lista de matrículas. "
+            "Baixe a planilha 'excluir_colaboradores_lista.xlsx' no menu Excluir por planilha, "
+            "ou use a aba Excluir_exemplo do modelo de colaboradores."
+        )
+
+    sheet_names = _excel_sheet_names(content, filename) or [0]
     target_sheet = sheet_names[0]
     for s in sheet_names:
-        if normalize_text(s) == "colaboradores":
+        ns = normalize_text(s)
+        if ns in ("excluir_exemplo", "excluir", "exclusao", "matriculas", "matrículas"):
             target_sheet = s
             break
 
-    df_temp = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=None, nrows=10)
+    df_temp = _read_excel_bytes(content, filename, sheet_name=target_sheet, header=None, nrows=15)
     header_row = 0
     expected_headers = {
-        "matricula", "matrícula", "registration", "registration id", "registro",
+        "matricula",
+        "matrícula",
+        "registration",
+        "registration id",
+        "registro",
+        "matriculas",
     }
     for idx, row in df_temp.iterrows():
         row_values = {normalize_text(v) for v in row.values if pd.notna(v)}
@@ -56,23 +150,57 @@ def registrations_from_excel(content: bytes) -> List[str]:
             header_row = idx
             break
 
-    df = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=header_row)
+    df = _read_excel_bytes(content, filename, sheet_name=target_sheet, header=header_row)
     df.columns = df.columns.astype(str).str.strip()
 
     col_registration = pick_column(
         df.columns,
-        "Matrícula", "Matricula", "Registration", "Registration ID", "Registro",
+        "Matrícula",
+        "Matricula",
+        "Registration",
+        "Registration ID",
+        "Registro",
+        "Registro ID",
+        "Nº",
+        "Nº.",
+        "No",
+        "Numero",
+        "Número",
     )
+
+    if not col_registration and len(df.columns) == 1:
+        col_registration = df.columns[0]
+
+    if not col_registration:
+        for c in df.columns:
+            sample = df[c].dropna().head(20).tolist()
+            if not sample:
+                continue
+            hits = sum(
+                1
+                for v in sample
+                if _format_registration_cell(v)
+                and normalize_text(_format_registration_cell(v)) not in expected_headers
+            )
+            if hits >= max(2, len(sample) // 2):
+                col_registration = c
+                break
+
     if not col_registration:
         raise ValueError(
-            "Coluna de matrícula não encontrada. Use 'Registration' ou 'Matrícula' no cabeçalho."
+            "Coluna de matrícula não encontrada. Use um .xlsx com cabeçalho "
+            "'Registration' ou 'Matrícula' (uma matrícula por linha). "
+            "Não use Fechamento de Ponto — baixe 'excluir_colaboradores_lista.xlsx' na tela."
         )
 
     seen = set()
     regs: List[str] = []
     for _, row in df.iterrows():
-        reg_id = str(row.get(col_registration, "")).strip()
-        if not reg_id or reg_id.lower() == "nan":
+        reg_id = _format_registration_cell(row.get(col_registration, ""))
+        if not reg_id:
+            continue
+        key = normalize_text(reg_id)
+        if key in expected_headers:
             continue
         if reg_id in seen:
             continue
@@ -141,6 +269,16 @@ def delete_employee_cascade(session: Session, emp_id: int) -> None:
         session.delete(emp)
 
 
+def _find_employee_by_registration(session: Session, reg_id: str) -> Optional[models.Employee]:
+    for variant in registration_lookup_variants(reg_id):
+        emp = session.exec(
+            select(models.Employee).where(models.Employee.registration_id == variant)
+        ).first()
+        if emp:
+            return emp
+    return None
+
+
 def bulk_delete_by_registrations(
     session: Session, registrations: List[str]
 ) -> Tuple[int, int, List[str]]:
@@ -151,9 +289,7 @@ def bulk_delete_by_registrations(
     deleted = 0
     not_found: List[str] = []
     for reg_id in registrations:
-        emp = session.exec(
-            select(models.Employee).where(models.Employee.registration_id == reg_id)
-        ).first()
+        emp = _find_employee_by_registration(session, reg_id)
         if not emp:
             not_found.append(reg_id)
             continue
@@ -161,6 +297,16 @@ def bulk_delete_by_registrations(
         deleted += 1
     session.commit()
     return deleted, len(not_found), not_found
+
+
+def build_bulk_delete_list_bytes(registrations: Optional[List[str]] = None) -> bytes:
+    """Planilha só com coluna Registration para exclusão em lote."""
+    regs = registrations if registrations is not None else list(DEFAULT_WRONG_IMPORT_REGISTRATIONS)
+    df = pd.DataFrame({"Registration": regs})
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, engine="openpyxl", sheet_name="Excluir")
+    buf.seek(0)
+    return buf.read()
 
 
 def build_import_template_bytes() -> bytes:
@@ -215,11 +361,11 @@ def build_import_template_bytes() -> bytes:
                 "Valores aceitos: Manhã | Tarde | Noite",
                 "Use o nome exato da empresa como aparece nos cards da tela Colaboradores.",
                 "Na tela Colaboradores → Importar → Planilha Excel. Só insere matrículas novas.",
-                "Menu Importar → Excluir por planilha. Apenas coluna Registration/Matrícula.",
+                "Importar → Excluir por planilha. Use excluir_colaboradores_lista.xlsx (NÃO Fechamento de Ponto).",
             ],
         }
     )
-    delete_example = pd.DataFrame([{"Registration": "12345"}, {"Registration": "12346"}])
+    delete_example = pd.DataFrame({"Registration": DEFAULT_WRONG_IMPORT_REGISTRATIONS[:5]})
 
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:

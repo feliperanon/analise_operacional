@@ -32368,6 +32368,21 @@ async def get_candidates(request: Request, status: str, session: Session = Depen
         "registration_id": e.registration_id
     } for e in employees]
 
+
+@app.get("/employees/template")
+async def employees_template(request: Request):
+    """Planilha modelo para importação em massa de colaboradores."""
+    from employees_import import build_import_template_bytes
+
+    require_login(request)
+    content = build_import_template_bytes()
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="planilha_colaboradores_modelo.xlsx"'},
+    )
+
+
 @app.post("/employees/add")
 async def add_employee(
     request: Request,
@@ -34032,20 +34047,6 @@ async def import_occurrences_from_fechamento(
         "skipped_unknown": stats["skipped_unknown"],
         "sample_unknown": list(stats["sample_unknown"])[:15],
     })
-
-
-@app.get("/employees/template")
-async def employees_template(request: Request):
-    """Planilha modelo para importação em massa de colaboradores."""
-    from employees_import import build_import_template_bytes
-
-    require_login(request)
-    content = build_import_template_bytes()
-    return Response(
-        content=content,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=planilha_colaboradores_modelo.xlsx"},
-    )
 
 
 @app.post("/employees/import/delete")
