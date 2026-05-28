@@ -8,11 +8,20 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv, dotenv_values
 
+import gcp_database
+from gcp_platform import gcp_platform_active, is_cloud_sql_host
+
 BASE_DIR = Path(__file__).resolve().parent
 _env_path = BASE_DIR / ".env"
 _cwd_env_path = (Path.cwd() / ".env").resolve()
 
-for _env_key in ("DATABASE_URL", "RENDER_DATABASE_URL", "RENDER_POSTGRES_URL"):
+for _env_key in (
+    "DATABASE_URL",
+    "RENDER_DATABASE_URL",
+    "RENDER_POSTGRES_URL",
+    "GOOGLE_DATABASE_URL",
+    "GCP_DATABASE_URL",
+):
     if (_env_key in os.environ) and not str(os.environ.get(_env_key) or "").strip():
         os.environ.pop(_env_key, None)
 
@@ -34,22 +43,35 @@ def _normalize_url(url: str) -> str:
     return url
 
 
+def _sslmode_for_url(db_url: str) -> str:
+    explicit = (os.environ.get("DB_SSLMODE") or "").strip()
+    if explicit:
+        return explicit
+    # Socket Unix do Cloud Run (/cloudsql/...) não usa TLS da mesma forma que IP público.
+    if "/cloudsql/" in (db_url or ""):
+        return "disable"
+    return "require"
+
+
 def _build_connect_args(db_url: str, *, connect_timeout_sec: Optional[int] = None) -> dict:
     if "sqlite" in db_url:
         return {"check_same_thread": False}
     # connect_timeout evita travar o reload do Uvicorn (e o terminal) se a rede/Postgres demorar.
     default_to = int(os.environ.get("DB_CONNECT_TIMEOUT", "12") or "12")
     to = connect_timeout_sec if connect_timeout_sec is not None else max(3, min(default_to, 60))
-    # Postgres (Render) options + UTF-8 explícito
-    return {
+    sslmode = _sslmode_for_url(db_url)
+    args = {
         "keepalives": 1,
         "keepalives_idle": 30,
         "keepalives_interval": 10,
         "keepalives_count": 5,
-        "sslmode": "require",
+        "sslmode": sslmode,
         "options": "-c client_encoding=UTF8",
         "connect_timeout": to,
     }
+    if sslmode == "disable":
+        args.pop("sslmode", None)
+    return args
 
 
 def _can_connect(db_url: str, debug: bool, *, log_failure: bool = True) -> bool:
@@ -81,10 +103,32 @@ def _can_connect(db_url: str, debug: bool, *, log_failure: bool = True) -> bool:
         return False
 
 
+def _active_remote_source_label(db_url: str) -> str:
+    try:
+        from urllib.parse import urlparse
+
+        host = (urlparse(db_url).hostname or "").lower()
+    except Exception:
+        host = ""
+    if "/cloudsql/" in (db_url or "") or is_cloud_sql_host(host):
+        return "gcp"
+    if "render.com" in host:
+        return "render"
+    if gcp_platform_active():
+        return "gcp"
+    return "remote"
+
+
 def _ordered_remote_candidates() -> list[tuple[str, str]]:
     ordered: list[tuple[str, str]] = []
     seen: set[str] = set()
-    keys = ("DATABASE_URL", "RENDER_DATABASE_URL", "RENDER_POSTGRES_URL")
+    keys = (
+        "DATABASE_URL",
+        "GOOGLE_DATABASE_URL",
+        "GCP_DATABASE_URL",
+        "RENDER_DATABASE_URL",
+        "RENDER_POSTGRES_URL",
+    )
     sources = (
         ("env", os.environ),
         ("file", _env_file_values),
@@ -97,6 +141,10 @@ def _ordered_remote_candidates() -> list[tuple[str, str]]:
                 continue
             seen.add(candidate)
             ordered.append((source_name, candidate))
+    socket_url = gcp_database.build_socket_database_url()
+    if socket_url and socket_url not in seen:
+        seen.add(socket_url)
+        ordered.append(("cloud_sql_socket", socket_url))
     return ordered
 
 
@@ -106,16 +154,22 @@ primary_candidates = _ordered_remote_candidates()
 # Performance: only echo SQL in DEBUG mode
 DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
 REQUIRE_RENDER_DB = os.environ.get("REQUIRE_RENDER_DB", "false").lower() == "true"
+REQUIRE_GCP_DB = os.environ.get("REQUIRE_GCP_DB", "false").lower() == "true"
 FORCE_LOCAL_DB = os.environ.get("FORCE_LOCAL_DB", "false").lower() == "true"
 _RENDER_PLATFORM = (os.environ.get("RENDER") or "").strip().lower() in ("1", "true", "yes", "on")
-# No Render, nunca fazer fallback silencioso para SQLite se Postgres foi configurado e falhou.
-_STRICT_REMOTE = REQUIRE_RENDER_DB or _RENDER_PLATFORM
+_GCP_PLATFORM = gcp_platform_active()
+# Em produção na nuvem, nunca fazer fallback silencioso para SQLite se Postgres foi configurado e falhou.
+_STRICT_REMOTE = REQUIRE_RENDER_DB or REQUIRE_GCP_DB or _RENDER_PLATFORM or _GCP_PLATFORM
 
 db_url = local_sqlite_url
 if FORCE_LOCAL_DB:
     # Desenvolvimento local: permite subir a aplicação mesmo quando o Postgres remoto
     # está indisponível ou REQUIRE_RENDER_DB=true no .env compartilhado.
     os.environ["ACTIVE_DATABASE_SOURCE"] = "local_forced"
+elif gcp_database.should_use_connector() and gcp_database.probe_connector(DEBUG):
+    db_url = "postgresql+psycopg2://(cloud-sql-connector)"
+    os.environ["ACTIVE_DATABASE_SOURCE"] = "gcp_connector"
+    os.environ["ACTIVE_DATABASE_URL_SOURCE"] = "cloud_sql_connector"
 elif primary_candidates:
     import logging
 
@@ -143,19 +197,20 @@ elif primary_candidates:
             time.sleep(pause_sec)
     if chosen_url:
         db_url = chosen_url
-        os.environ["ACTIVE_DATABASE_SOURCE"] = "render"
+        os.environ["ACTIVE_DATABASE_SOURCE"] = _active_remote_source_label(chosen_url)
         os.environ["ACTIVE_DATABASE_URL_SOURCE"] = chosen_source
     else:
         raise RuntimeError(
-            "Falha ao conectar no PostgreSQL configurado (DATABASE_URL / RENDER_*). "
-            "Verifique URL, rede, TLS (Render exige SSL) e firewall. "
-            "Para subir só com SQLite local, defina FORCE_LOCAL_DB=true e remova DATABASE_URL do .env/ambiente."
+            "Falha ao conectar no PostgreSQL configurado (DATABASE_URL / GOOGLE_* / RENDER_* / Cloud SQL). "
+            "Verifique URL, rede, TLS, IP autorizado (Cloud SQL) e firewall. "
+            "Para subir só com SQLite local, defina FORCE_LOCAL_DB=true e remova URLs do .env/ambiente."
         )
 else:
     if _STRICT_REMOTE:
         raise RuntimeError(
-            "Nenhuma URL de PostgreSQL encontrada (DATABASE_URL / RENDER_*). "
-            "Defina DATABASE_URL no painel do Render ou desative RENDER para desenvolvimento local."
+            "Nenhuma URL de PostgreSQL encontrada. "
+            "Defina DATABASE_URL (Google Cloud SQL, Render, etc.) ou variáveis CLOUD_SQL_* — "
+            "ou desative GCP/RENDER e REQUIRE_*_DB para desenvolvimento local."
         )
     os.environ["ACTIVE_DATABASE_SOURCE"] = "local"
 
@@ -169,12 +224,14 @@ _engine_kw = dict(
 
 
 def _is_production_profile() -> bool:
-    """Pool maior em produção: ENV/ENVIRONMENT ou host Render (RENDER=true no painel)."""
+    """Pool maior em produção: ENV/ENVIRONMENT, Render ou Google Cloud."""
     env = (os.environ.get("ENV") or "").strip().lower()
     env2 = (os.environ.get("ENVIRONMENT") or "").strip().lower()
     if env in ("prod", "production") or env2 in ("prod", "production"):
         return True
-    return (os.environ.get("RENDER") or "").strip().lower() in ("1", "true", "yes", "on")
+    if (os.environ.get("RENDER") or "").strip().lower() in ("1", "true", "yes", "on"):
+        return True
+    return gcp_platform_active()
 
 
 # Postgres remoto (ex.: Render EUA): mais conexões reutilizáveis reduzem latência sob carga.
@@ -187,7 +244,20 @@ if "postgresql" in (db_url or "").lower():
         _engine_kw["pool_size"] = int(os.environ.get("DB_POOL_SIZE", "3") or "3")
         _engine_kw["max_overflow"] = int(os.environ.get("DB_MAX_OVERFLOW", "5") or "5")
 
-engine = create_engine(db_url, **_engine_kw)
+_engine: Optional[object] = None
+if os.environ.get("ACTIVE_DATABASE_SOURCE") == "gcp_connector":
+    _engine = gcp_database.create_engine_with_connector(**_engine_kw)
+elif gcp_database.should_use_connector():
+    raise RuntimeError(
+        "Cloud SQL Connector configurado (CLOUD_SQL_CONNECTION_NAME + usuário/senha/banco) "
+            "mas a conexão falhou. Instale: pip install cloud-sql-python-connector pg8000. "
+        "No PC local, rode o Cloud SQL Auth Proxy ou use IP público em DATABASE_URL."
+    )
+
+if _engine is None:
+    _engine = create_engine(db_url, **_engine_kw)
+
+engine = _engine
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

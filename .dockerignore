@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.venv
+__pycache__
+*.pyc
+.git
+node_modules
+database.db
+backup_render.dump
+*.md
+!docs/GOOGLE_CLOUD_SETUP.md
+terminals
+.ai-workspace
+.cursor
