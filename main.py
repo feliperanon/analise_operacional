@@ -2995,6 +2995,12 @@ def require_login(request: Request):
 
     return user
 
+
+from employees_import import register_download_routes
+
+register_download_routes(app, require_login)
+
+
 def require_mobile_module(employee, module: str):
     if module == "separation":
         allowed = _has_mobile_delivery_driver_access(employee)
@@ -32367,34 +32373,6 @@ async def get_candidates(request: Request, status: str, session: Session = Depen
         "name": e.name,
         "registration_id": e.registration_id
     } for e in employees]
-
-
-@app.get("/employees/template")
-async def employees_template(request: Request):
-    """Planilha modelo para importação em massa de colaboradores."""
-    from employees_import import build_import_template_bytes
-
-    require_login(request)
-    content = build_import_template_bytes()
-    return Response(
-        content=content,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="planilha_colaboradores_modelo.xlsx"'},
-    )
-
-
-@app.get("/employees/template/excluir")
-async def employees_template_excluir(request: Request):
-    """Planilha com matrículas para exclusão em lote (cadastros importados incorretamente)."""
-    from employees_import import build_bulk_delete_list_bytes
-
-    require_login(request)
-    content = build_bulk_delete_list_bytes()
-    return Response(
-        content=content,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": 'attachment; filename="excluir_colaboradores_lista.xlsx"'},
-    )
 
 
 @app.post("/employees/add")

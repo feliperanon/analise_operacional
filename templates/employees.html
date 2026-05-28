@@ -109,7 +109,7 @@
                                 <span class="employees-menu-item__hint">Cadastro em massa (.xlsx)</span>
                             </span>
                         </button>
-                        <a href="/employees/template" class="employees-menu-item employees-menu-item--block" download="planilha_colaboradores_modelo.xlsx">
+                        <a href="/employees/import/template" class="employees-menu-item employees-menu-item--block" download="planilha_colaboradores_modelo.xlsx">
                             <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             </span>
@@ -601,7 +601,7 @@
                 <p class="mt-1">Opcionais: <code class="font-mono">Data Admissão</code>, <code class="font-mono">Data Nascimento</code> (dd/mm/aaaa).</p>
                 <p class="mt-1">* <strong>Registration</strong> (matrícula) deve ser única. Linhas com matrícula já cadastrada são ignoradas.</p>
                 <p class="mt-2">
-                    <a href="/employees/template" class="font-medium text-blue-600 hover:underline dark:text-blue-400" download="planilha_colaboradores_modelo.xlsx">Baixar planilha modelo</a>
+                    <a href="/employees/import/template" class="font-medium text-blue-600 hover:underline dark:text-blue-400" download="planilha_colaboradores_modelo.xlsx">Baixar planilha modelo</a>
                 </p>
             </div>
             <div class="flex justify-end gap-3 pt-2">
@@ -628,7 +628,7 @@
             <strong class="text-rose-700 dark:text-rose-300">Não use</strong> o arquivo Fechamento de Ponto (.xls de faltas/comissões).
         </p>
         <p class="mb-4">
-            <a href="/employees/template/excluir" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400" download="excluir_colaboradores_lista.xlsx">Baixar lista pronta (39 matrículas da importação errada)</a>
+            <a href="/employees/import/template-excluir" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400" download="excluir_colaboradores_lista.xlsx">Baixar lista pronta (39 matrículas da importação errada)</a>
         </p>
         <form action="/employees/import/delete" method="POST" enctype="multipart/form-data" class="space-y-4"
             onsubmit="return confirm('Excluir permanentemente os colaboradores listados na planilha?');">
