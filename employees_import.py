@@ -377,3 +377,64 @@ def build_import_template_bytes() -> bytes:
         delete_example.to_excel(writer, sheet_name="Excluir_exemplo", index=False)
     buf.seek(0)
     return buf.read()
+
+
+def _xlsx_attachment_response(content: bytes, filename: str) -> Response:
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+def _serve_template_file(static_rel: str, builder, filename: str) -> Response:
+    path = Path("static/templates") / static_rel
+    if path.is_file():
+        return FileResponse(
+            path,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=filename,
+            headers={"Cache-Control": "no-store"},
+        )
+    return _xlsx_attachment_response(builder(), filename)
+
+
+def register_download_routes(app, require_login: Callable) -> None:
+    """Rotas curtas /download/*.xlsx (sem conflito com /employees/{id})."""
+
+    @app.get("/download/colaboradores-modelo.xlsx", include_in_schema=False)
+    async def download_colaboradores_modelo(request: Request):
+        require_login(request)
+        return _serve_template_file(
+            "planilha_colaboradores_modelo.xlsx",
+            build_import_template_bytes,
+            "planilha_colaboradores_modelo.xlsx",
+        )
+
+    @app.get("/download/excluir-colaboradores-lista.xlsx", include_in_schema=False)
+    async def download_excluir_colaboradores_lista(request: Request):
+        require_login(request)
+        return _serve_template_file(
+            "excluir_colaboradores_lista.xlsx",
+            build_bulk_delete_list_bytes,
+            "excluir_colaboradores_lista.xlsx",
+        )
+
+    @app.get("/employees/import/template", include_in_schema=False)
+    async def employees_import_template_redirect(request: Request):
+        return RedirectResponse(url="/download/colaboradores-modelo.xlsx", status_code=307)
+
+    @app.get("/employees/import/template-excluir", include_in_schema=False)
+    async def employees_import_template_excluir_redirect(request: Request):
+        return RedirectResponse(url="/download/excluir-colaboradores-lista.xlsx", status_code=307)
+
+    @app.get("/employees/template", include_in_schema=False)
+    async def employees_template_legacy(request: Request):
+        return RedirectResponse(url="/download/colaboradores-modelo.xlsx", status_code=307)
+
+    @app.get("/employees/template/excluir", include_in_schema=False)
+    async def employees_template_excluir_legacy(request: Request):
+        return RedirectResponse(url="/download/excluir-colaboradores-lista.xlsx", status_code=307)

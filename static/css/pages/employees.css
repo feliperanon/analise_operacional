@@ -80,10 +80,17 @@
 
 /* ----- Hero principal + toolbar executiva ----- */
 .ga-employee-theme.employees-page .employees-hero {
+  position: relative;
+  z-index: 5;
   border: 1px solid var(--emp-border);
   box-shadow: var(--emp-shadow-card), var(--emp-shadow-elevated);
   border-radius: var(--emp-radius-lg);
   background: linear-gradient(165deg, var(--emp-surface) 0%, var(--emp-surface-subtle) 100%);
+}
+
+.ga-employee-theme.employees-page .sys-kpi-shell {
+  position: relative;
+  z-index: 1;
 }
 
 .ga-employee-theme.employees-page .employees-hero__glow {
@@ -223,7 +230,12 @@
 
 .ga-employee-theme.employees-page .employees-hero__import-wrap {
   position: relative;
-  z-index: 30;
+  z-index: 20;
+}
+
+body.employees-modal-open .ga-employee-theme.employees-page .employees-hero__import-wrap,
+body.employees-modal-open .ga-employee-theme.employees-page .employees-hero__import-menu {
+  z-index: 1;
 }
 
 .ga-employee-theme.employees-page .employees-hero__import-menu {
