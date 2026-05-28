@@ -74,6 +74,66 @@
     return digits ? "+55" + digits : "";
   }
 
+  var ENTREGA_LABELS = ["SEGUNDA-FEIRA", "TERÇA-FEIRA", "QUARTA-FEIRA", "QUINTA-FEIRA", "SEXTA-FEIRA"];
+
+  function visitaWeekdayIndex(visita) {
+    if (!visita || !String(visita).trim()) return null;
+    var n = String(visita)
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    var aliases = {
+      seg: 0,
+      segunda: 0,
+      "segunda-feira": 0,
+      ter: 1,
+      terca: 1,
+      "terca-feira": 1,
+      qua: 2,
+      quarta: 2,
+      "quarta-feira": 2,
+      qui: 3,
+      quinta: 3,
+      "quinta-feira": 3,
+      sex: 4,
+      sexta: 4,
+      "sexta-feira": 4,
+      sab: 5,
+      sabado: 5,
+      dom: 6,
+      domingo: 6,
+    };
+    if (Object.prototype.hasOwnProperty.call(aliases, n)) return aliases[n];
+    var first = n.split("-")[0].split(" ")[0];
+    if (Object.prototype.hasOwnProperty.call(aliases, first)) return aliases[first];
+    return null;
+  }
+
+  function computeEntregaFromVisita(visita) {
+    var idx = visitaWeekdayIndex(visita);
+    if (idx === null) return "";
+    if (idx >= 4) return ENTREGA_LABELS[0];
+    return ENTREGA_LABELS[idx + 1];
+  }
+
+  function bindVisitaEntrega(root) {
+    (root || document).querySelectorAll('[data-visita-entrega="true"]').forEach(function (visitaInput) {
+      if (visitaInput.dataset.entregaBound === "1") return;
+      visitaInput.dataset.entregaBound = "1";
+      var entregaInput =
+        byId("new-client-entrega") ||
+        (visitaInput.id === "edit-client-visita" ? byId("edit-client-entrega") : null);
+      if (!entregaInput) return;
+      var sync = function () {
+        entregaInput.value = computeEntregaFromVisita(visitaInput.value);
+      };
+      visitaInput.addEventListener("input", sync);
+      visitaInput.addEventListener("change", sync);
+      sync();
+    });
+  }
+
   function bindWhatsappPhoneInputs(root) {
     (root || document).querySelectorAll('[data-whatsapp-phone="true"]').forEach(function (input) {
       if (input.dataset.phoneBound === "1") return;
@@ -154,10 +214,12 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     bindWhatsappPhoneInputs(document);
+    bindVisitaEntrega(document);
     updateBulkCount();
     var modal = byId("novoClienteModal");
     if (modal) {
       bindWhatsappPhoneInputs(modal);
+      bindVisitaEntrega(modal);
     }
   });
 })();

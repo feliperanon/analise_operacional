@@ -63,7 +63,7 @@
             {% if request.query_params.get("error") == "invalid_file" %}
             Arquivo invalido. Envie um Excel (`.xlsx`, `.xls`) ou CSV valido.
             {% elif request.query_params.get("error") == "missing_columns" %}
-            A planilha precisa ter ao menos a coluna <strong>FANTAS</strong> ou <strong>Razao Social</strong>.
+            A planilha precisa ter ao menos a coluna <strong>FANTASIA</strong> ou <strong>Razão Social</strong>.
             {% else %}
             Erro ao processar o arquivo. Revise o formato e tente novamente.
             {% endif %}
@@ -171,6 +171,7 @@
                                 <p class="clients-import-file px-4 pb-1 break-words" x-show="fileName" x-text="fileName"></p>
                                 <div class="clients-import-actions px-4 pb-3">
                                     <button type="submit" class="sys-btn sys-btn--primary w-full justify-center text-center">Importar agora</button>
+                                    <a href="/clients/export" class="sys-btn sys-btn--secondary w-full justify-center text-center" download>Exportar clientes</a>
                                     <a href="/clients/template" class="sys-btn sys-btn--secondary w-full justify-center text-center" download="planilha_clientes_modelo.xlsx">Baixar modelo</a>
                                 </div>
                             </form>
@@ -478,13 +479,13 @@
                         <div class="clients-modal__grid">
                             <div class="clients-filter-field clients-modal__field clients-modal__field--span-2">
                                 <label for="new-client-vendedor" class="clients-field-label">Vendedor responsável</label>
-                                <select id="new-client-vendedor" name="vendedor_id" class="clients-control">
-                                    <option value="">— Sem colaborador</option>
+                                <input id="new-client-vendedor" name="vendedor_lookup" list="clients-vendedor-datalist" class="clients-control" placeholder="Nome ou código (ex.: 101)" autocomplete="off">
+                                <datalist id="clients-vendedor-datalist">
                                     {% for v in vendedores_list %}
-                                    <option value="{{ v.id }}">{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
+                                    <option value="{{ v.seller_code or v.name|emp_name }}">{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
                                     {% endfor %}
-                                </select>
-                                <p class="clients-field-help">Colaboradores ativos; o vínculo usa o código do vendedor na ficha do colaborador.</p>
+                                </datalist>
+                                <p class="clients-field-help">Digite o nome ou o código do vendedor (ex.: 101). Colaboradores ativos vinculam pelo código na ficha.</p>
                             </div>
                             <div class="clients-filter-field clients-modal__field clients-modal__field--compact">
                                 <label for="new-client-me" class="clients-field-label">Setor</label>
@@ -496,7 +497,12 @@
                             </div>
                             <div class="clients-filter-field clients-modal__field clients-modal__field--compact">
                                 <label for="new-client-visita" class="clients-field-label">Visita</label>
-                                <input id="new-client-visita" type="text" name="visita" placeholder="Frequência" class="clients-control">
+                                <input id="new-client-visita" type="text" name="visita" placeholder="Ex.: SEGUNDA-FEIRA" class="clients-control" data-visita-entrega="true">
+                            </div>
+                            <div class="clients-filter-field clients-modal__field clients-modal__field--compact">
+                                <label for="new-client-entrega" class="clients-field-label">Entrega</label>
+                                <input id="new-client-entrega" type="text" class="clients-control" readonly tabindex="-1" placeholder="D+1 útil (automático)" aria-live="polite">
+                                <p class="clients-field-help">Calculado a partir da visita (pula sábado e domingo).</p>
                             </div>
                         </div>
                     </section>

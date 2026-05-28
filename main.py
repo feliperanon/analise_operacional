@@ -15095,41 +15095,25 @@ async def list_clients(session: Session = Depends(get_session)):
 
 @app.get("/clients/template")
 async def clients_template(request: Request):
-    """Retorna planilha Excel modelo para importação de clientes."""
+    """Retorna planilha Excel modelo para importação de clientes (formato Souza Pinto)."""
     import pandas as pd
     require_login(request)
     df = pd.DataFrame([
         {
-            "NB": "001",
-            "SETOR": "110",
-            "Setor": "Varejo",
-            "VISITA": "Semanal",
-            "FANTAS": "Supermercado ABC",
-            "Razão Social": "ABC Comércio Ltda",
-            "CNPJ/CPF": "12.345.678/0001-90",
-            "MUNICÍPIO": "São Paulo",
-            "BAIRRO": "Centro",
-            "ENDEREÇO": "Rua Exemplo, 100",
-            "FONE": "(11) 3333-4444",
-            "SEGMENTO": "Alimentício",
-            "STATUS": "Ativo",
-            "MESA": "Norte",
-        },
-        {
-            "NB": "002",
-            "SETOR": "201",
-            "Setor": "Atacado",
-            "VISITA": "Quinzenal",
-            "FANTAS": "Atacadão XYZ",
-            "Razão Social": "XYZ Distribuidora S.A.",
-            "CNPJ/CPF": "",
-            "MUNICÍPIO": "Curitiba",
-            "BAIRRO": "Industrial",
-            "ENDEREÇO": "Av. Indústria, 500",
-            "FONE": "(41) 99999-0000",
-            "SEGMENTO": "Logística",
-            "STATUS": "Ativo",
-            "MESA": "Sul",
+            "NB": "10001",
+            "SETOR": "101",
+            "MESA": "100",
+            "VISITA": "SEGUNDA-FEIRA",
+            "FANTASIA": "SILVANA MARGARET",
+            "Municipio": "BELO HORIZONTE",
+            "Bairro": "FLORESTA",
+            "ENDEREÇO": "AVENIDA CONTORNO - 2447",
+            "Telefone": "31983137375",
+            "CNPJ/CPF": "761.446.076-68",
+            "SEGMENTO": "RESTAURANTE",
+            "STATUS": "ATIVO",
+            "Razão Social": "SILVANA MARGARET DOS ANJOS SANTOS",
+            "Data Cadastro": "2011-02-23",
         },
     ])
     buf = io.BytesIO()
@@ -15139,6 +15123,59 @@ async def clients_template(request: Request):
         content=buf.read(),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=planilha_clientes_modelo.xlsx"},
+    )
+
+
+def _client_export_row(session: Session, client: models.Client) -> dict:
+    """Uma linha no formato da planilha corporativa de clientes."""
+    card = vendedor_card_for_client(session, client)
+    setor = (card.get("seller_code") if card else None) or client.setor or ""
+    fone_out = client.fone or ""
+    if client.fone_e164:
+        _, disp = normalize_phone_br(client.fone_e164)
+        fone_out = disp or client.fone_e164
+    created = ""
+    if getattr(client, "created_at", None):
+        try:
+            created = client.created_at.strftime("%Y-%m-%d")
+        except Exception:
+            created = str(client.created_at)[:10]
+    entrega = getattr(client, "entrega", None) or compute_entrega_from_visita(client.visita)
+    return {
+        "NB": client.nb or "",
+        "SETOR": setor,
+        "MESA": client.sa or "",
+        "VISITA": client.visita or "",
+        "ENTREGA": entrega or "",
+        "FANTASIA": client.nome_fantasia or client.name or "",
+        "Municipio": client.municipio or "",
+        "Bairro": client.bairro or "",
+        "ENDEREÇO": client.endereco or "",
+        "Telefone": fone_out,
+        "CNPJ/CPF": client.cnpj_cpf or "",
+        "SEGMENTO": client.segmento or "",
+        "STATUS": client.status_cliente or "",
+        "Razão Social": client.razao_social or "",
+        "Data Cadastro": created,
+    }
+
+
+@app.get("/clients/export")
+async def clients_export(request: Request, session: Session = Depends(get_session)):
+    """Exporta clientes cadastrados no formato da planilha corporativa."""
+    import pandas as pd
+    require_login(request)
+    clients = session.exec(select(models.Client).order_by(models.Client.name)).all()
+    rows = [_client_export_row(session, c) for c in clients]
+    df = pd.DataFrame(rows)
+    buf = io.BytesIO()
+    df.to_excel(buf, index=False, engine="openpyxl")
+    buf.seek(0)
+    stamp = datetime.now().strftime("%Y%m%d")
+    return Response(
+        content=buf.read(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="clientes_export_{stamp}.xlsx"'},
     )
 
 
@@ -15641,9 +15678,11 @@ async def update_client(
     nb: Optional[str] = Form(None),
     vendedor_id: Optional[str] = Form(None),
     seller_code: Optional[str] = Form(None),
+    vendedor_lookup: Optional[str] = Form(None),
     me: Optional[str] = Form(None),
     sa: Optional[str] = Form(None),
     visita: Optional[str] = Form(None),
+    entrega: Optional[str] = Form(None),
     nome_fantasia: Optional[str] = Form(None),
     razao_social: Optional[str] = Form(None),
     cnpj_cpf: Optional[str] = Form(None),
@@ -15675,9 +15714,15 @@ async def update_client(
         vid_eff = parse_vendedor_id_form(vendedor_id)
         sc_fb = _opt_form(seller_code)
         if sc_fb:
-            rid = resolve_employee_id_by_seller_code(session, sc_fb)
+            rid = resolve_employee_id_by_code_or_name(session, sc_fb)
             if rid:
                 vid_eff = rid
+        if not vid_eff:
+            vl = _opt_form(vendedor_lookup)
+            if vl:
+                rid_vl = resolve_employee_id_by_code_or_name(session, vl)
+                if rid_vl:
+                    vid_eff = rid_vl
         if not vid_eff:
             me_fb = _opt_form(me)
             if me_fb:
@@ -15694,6 +15739,7 @@ async def update_client(
             me=me,
             sa=sa,
             visita=visita,
+            entrega=entrega,
             nome_fantasia=nome_fantasia,
             razao_social=razao_social,
             cnpj_cpf=cnpj_cpf,
@@ -16226,6 +16272,7 @@ async def clients_import_confirm(
                     me=row.me,
                     sa=row.sa,
                     visita=row.visita,
+                    entrega=row.entrega or compute_entrega_from_visita(row.visita),
                     nome_fantasia=row.nome_fantasia,
                     razao_social=row.razao_social,
                     cnpj_cpf=row.cnpj_cpf,
@@ -16240,7 +16287,7 @@ async def clients_import_confirm(
                 )
                 session.add(c)
                 session.flush()
-                vid_nc = resolve_employee_id_by_seller_code(session, row.setor)
+                vid_nc = resolve_employee_id_by_code_or_name(session, row.setor)
                 apply_vendedor_to_client(session, c, vid_nc)
                 if not vid_nc and row.setor:
                     c.setor = (row.setor or "").strip() or None
