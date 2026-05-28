@@ -32988,75 +32988,9 @@ async def update_employee_status(
     emp = session.get(models.Employee, emp_id)
     if emp:
         if status_action == "delete":
-            # Explicitly fetch and unlink all related records to ensure no FK constraints block deletion
-            
-            # Unlink Events
-            stmt = select(models.Event).where(models.Event.employee_id == emp_id)
-            events = session.exec(stmt).all()
-            for event in events:
-                event.employee_id = None
-                session.add(event)
-            
-            # Delete GameXPTransactions (or unlink if needed)
-            from sqlmodel import delete as sql_delete
-            session.exec(sql_delete(models.GameXPTransaction).where(models.GameXPTransaction.employee_id == emp_id))
-            
-            # Delete XPLedger entries
-            session.exec(sql_delete(models.XPLedger).where(models.XPLedger.employee_id == emp_id))
-            
-            # Delete EmployeeAchievements
-            session.exec(sql_delete(models.EmployeeAchievement).where(models.EmployeeAchievement.employee_id == emp_id))
-            
-            # Delete EmployeeRoutines
-            session.exec(sql_delete(models.EmployeeRoutine).where(models.EmployeeRoutine.employee_id == emp_id))
-            
-            # Delete EmployeeAllocations
-            session.exec(sql_delete(models.EmployeeAllocation).where(models.EmployeeAllocation.employee_id == emp_id))
-            
-            # Unlink Routes
-            routes = session.exec(select(models.Route).where(models.Route.employee_id == emp_id)).all()
-            for route in routes:
-                session.delete(route)
-            
-            # Unlink TranspalletChecklists
-            checklists = session.exec(select(models.TranspalletChecklist).where(models.TranspalletChecklist.employee_id == emp_id)).all()
-            for cl in checklists:
-                session.delete(cl)
-            
-            # Unlink EquipmentTickets
-            tickets = session.exec(select(models.EquipmentTicket).where(models.EquipmentTicket.employee_id == emp_id)).all()
-            for ticket in tickets:
-                session.delete(ticket)
-            
-            # Unlink AbsenceAlertLogs
-            session.exec(sql_delete(models.AbsenceAlertLog).where(models.AbsenceAlertLog.employee_id == emp_id))
-            
-            # Unlink PalletCounts
-            session.exec(sql_delete(models.PalletCount).where(models.PalletCount.employee_id == emp_id))
-            
-            # Unlink PalletMaintenanceTickets
-            session.exec(sql_delete(models.PalletMaintenanceTicket).where(models.PalletMaintenanceTicket.employee_id == emp_id))
-            
-            # Unlink LeaderTaskResponses
-            session.exec(sql_delete(models.LeaderTaskResponse).where(models.LeaderTaskResponse.employee_id == emp_id))
-            
-            # Handle replaced_by self-reference
-            replacers = session.exec(select(models.Employee).where(models.Employee.replaced_by == emp_id)).all()
-            for r in replacers:
-                r.replaced_by = None
-                session.add(r)
-            
-            # Handle SubstitutionHistory
-            session.exec(sql_delete(models.SubstitutionHistory).where(models.SubstitutionHistory.original_employee_id == emp_id))
-            session.exec(sql_delete(models.SubstitutionHistory).where(models.SubstitutionHistory.new_employee_id == emp_id))
-            
-            # Unlink User if linked
-            user_linked = session.exec(select(models.User).where(models.User.employee_id == emp_id)).first()
-            if user_linked:
-                user_linked.employee_id = None
-                session.add(user_linked)
-            
-            session.delete(emp)
+            from employees_import import delete_employee_cascade
+
+            delete_employee_cascade(session, emp_id)
         else:
             # Generate History Event
             event_type = "ocorrencia"
@@ -34098,6 +34032,53 @@ async def import_occurrences_from_fechamento(
         "skipped_unknown": stats["skipped_unknown"],
         "sample_unknown": list(stats["sample_unknown"])[:15],
     })
+
+
+@app.get("/employees/template")
+async def employees_template(request: Request):
+    """Planilha modelo para importação em massa de colaboradores."""
+    from employees_import import build_import_template_bytes
+
+    require_login(request)
+    content = build_import_template_bytes()
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=planilha_colaboradores_modelo.xlsx"},
+    )
+
+
+@app.post("/employees/import/delete")
+async def import_delete_employees(
+    request: Request,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+):
+    """Exclui colaboradores listados por matrícula em planilha .xlsx."""
+    from employees_import import bulk_delete_by_registrations, registrations_from_excel
+
+    require_login(request)
+    content = await file.read()
+    try:
+        registrations = registrations_from_excel(content)
+        if not registrations:
+            return RedirectResponse(
+                url="/employees?error=Nenhuma matrícula encontrada na planilha.",
+                status_code=status.HTTP_303_SEE_OTHER,
+            )
+        deleted, nf_count, not_found = bulk_delete_by_registrations(session, registrations)
+        msg = f"{deleted} colaborador(es) excluído(s) com sucesso."
+        if nf_count:
+            sample = ", ".join(not_found[:5])
+            extra = f" (+{nf_count - 5} outros)" if nf_count > 5 else ""
+            msg += f" {nf_count} matrícula(s) não encontrada(s): {sample}{extra}."
+        return RedirectResponse(url=f"/employees?success={msg}", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        logger.exception("import_delete_employees: %s", e)
+        return RedirectResponse(
+            url=f"/employees?error=Erro na exclusão em lote: {str(e)}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
 
 @app.post("/employees/import")

@@ -109,6 +109,24 @@
                                 <span class="employees-menu-item__hint">Cadastro em massa (.xlsx)</span>
                             </span>
                         </button>
+                        <a href="/employees/template" class="employees-menu-item employees-menu-item--block" download="planilha_colaboradores_modelo.xlsx">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--blue" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Baixar modelo</span>
+                                <span class="employees-menu-item__hint">planilha_colaboradores_modelo.xlsx</span>
+                            </span>
+                        </a>
+                        <button type="button" onclick="document.getElementById('importDeleteModal').classList.remove('hidden')" class="employees-menu-item">
+                            <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </span>
+                            <span class="employees-menu-item__text">
+                                <span class="employees-menu-item__title">Excluir por planilha</span>
+                                <span class="employees-menu-item__hint">Desfazer importação errada (.xlsx)</span>
+                            </span>
+                        </button>
                         <button type="button" onclick="document.getElementById('bulk-occurrences-modal').classList.remove('hidden')" class="employees-menu-item">
                             <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
@@ -574,13 +592,46 @@
                     class="text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700 dark:text-slate-300">
             </div>
             <div class="text-xs text-slate-500 dark:text-slate-400">
-                <p>Colunas esperadas (cabeçalho da primeira aba):</p>
+                <p>Colunas na aba <strong>Colaboradores</strong> (veja também a aba Instruções no modelo):</p>
                 <code class="mt-1 inline-block rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">Name, Registration, Role, Shift, CostCenter</code>
-                <p class="mt-1">* Registration (Matrícula) deve ser única.</p>
+                <p class="mt-1">Opcionais: <code class="font-mono">Data Admissão</code>, <code class="font-mono">Data Nascimento</code> (dd/mm/aaaa).</p>
+                <p class="mt-1">* <strong>Registration</strong> (matrícula) deve ser única. Linhas com matrícula já cadastrada são ignoradas.</p>
+                <p class="mt-2">
+                    <a href="/employees/template" class="font-medium text-blue-600 hover:underline dark:text-blue-400" download="planilha_colaboradores_modelo.xlsx">Baixar planilha modelo</a>
+                </p>
             </div>
             <div class="flex justify-end gap-3 pt-2">
                 <button type="button" onclick="document.getElementById('importModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
                 <button type="submit" class="sys-btn sys-btn--primary">Importar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk delete by spreadsheet -->
+<div id="importDeleteModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+    <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-md">
+        <div class="mb-6 flex items-center justify-between gap-3">
+            <h3 class="sys-section-heading text-lg">Excluir por planilha</h3>
+            <button type="button" onclick="document.getElementById('importDeleteModal').classList.add('hidden')" class="emp-modal-close shrink-0" aria-label="Fechar">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <p class="mb-4 text-sm text-slate-600 dark:text-slate-400">
+            Envie um .xlsx com a coluna <strong>Registration</strong> ou <strong>Matrícula</strong> (uma matrícula por linha).
+            Use a aba <em>Excluir_exemplo</em> do modelo baixado. Esta ação é permanente.
+        </p>
+        <form action="/employees/import/delete" method="POST" enctype="multipart/form-data" class="space-y-4"
+            onsubmit="return confirm('Excluir permanentemente os colaboradores listados na planilha?');">
+            <div class="emp-modal-dropzone">
+                <input type="file" name="file" accept=".xlsx" required
+                    class="text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-rose-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-rose-700 dark:text-slate-300">
+            </div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="document.getElementById('importDeleteModal').classList.add('hidden')" class="sys-btn sys-btn--secondary">Cancelar</button>
+                <button type="submit" class="sys-btn sys-btn--ghost-danger">Excluir listados</button>
             </div>
         </form>
     </div>
