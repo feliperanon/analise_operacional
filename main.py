@@ -90,12 +90,14 @@ from client_import_utils import (
     norm_nb_key,
     norm_cnpj_digits,
     normalize_import_phone_br,
+    compute_entrega_from_visita,
 )
 from client_vendedor import (
     apply_vendedor_to_client,
     list_vendedores,
     parse_vendedor_id_form,
     resolve_employee_id_by_seller_code,
+    resolve_employee_id_by_code_or_name,
     resolve_vendedor_id_for_select,
     vendedor_card_for_client,
 )
@@ -733,7 +735,9 @@ def _lifespan_blocking_db_work() -> None:
         ensure_checklist_odometer_schema()
         ensure_client_schema()
         ensure_column(engine, "client", "cnpj_cpf", "VARCHAR(32)")
+        ensure_column(engine, "client", "entrega", "VARCHAR(64)")
         ensure_column(engine, "clientimportstaging", "cnpj_cpf", "VARCHAR(32)")
+        ensure_column(engine, "clientimportstaging", "entrega", "VARCHAR(64)")
         ensure_client_group_schema()
         ensure_route_schema()
         ensure_delivery_whatsapp_schema()
@@ -8778,6 +8782,7 @@ def ensure_client_schema():
             "me": "VARCHAR(64)",
             "sa": "VARCHAR(128)",
             "visita": "VARCHAR(64)",
+            "entrega": "VARCHAR(64)",
             "nome_fantasia": "VARCHAR(255)",
             "razao_social": "VARCHAR(255)",
             "cnpj_cpf": "VARCHAR(32)",
@@ -14454,6 +14459,7 @@ def _client_snapshot_auditable(client: models.Client) -> Dict[str, str]:
         "me": str(client.me or "").strip(),
         "sa": str(client.sa or "").strip(),
         "visita": str(client.visita or "").strip(),
+        "entrega": str(getattr(client, "entrega", None) or "").strip(),
         "nome_fantasia": str(client.nome_fantasia or "").strip(),
         "razao_social": str(client.razao_social or "").strip(),
         "cnpj_cpf": str(getattr(client, "cnpj_cpf", None) or "").strip(),
@@ -14533,6 +14539,7 @@ def _apply_client_profile_form(
     me: Optional[str],
     sa: Optional[str],
     visita: Optional[str],
+    entrega: Optional[str],
     nome_fantasia: Optional[str],
     razao_social: Optional[str],
     cnpj_cpf: Optional[str],
@@ -14571,6 +14578,7 @@ def _apply_client_profile_form(
     client.me = _opt_form(me)
     client.sa = _opt_form(sa)
     client.visita = _opt_form(visita)
+    client.entrega = _opt_form(entrega) or compute_entrega_from_visita(client.visita)
     client.nome_fantasia = _opt_form(nome_fantasia)
     client.razao_social = _opt_form(razao_social)
     client.cnpj_cpf = _opt_form(cnpj_cpf)
@@ -14635,6 +14643,7 @@ async def add_client(
     name: str = Form(...),
     nb: Optional[str] = Form(None),
     vendedor_id: Optional[str] = Form(None),
+    vendedor_lookup: Optional[str] = Form(None),
     me: Optional[str] = Form(None),
     sa: Optional[str] = Form(None),
     visita: Optional[str] = Form(None),
@@ -14656,13 +14665,15 @@ async def add_client(
             fone_e164_val, _ = normalize_phone_br(fone_val)
             endereco_val = _opt_form(endereco)
             endereco_norm_val = normalize_address(endereco_val).upper().replace(" ", "") if endereco_val and len(endereco_val) >= 10 else None
+            visita_val = _opt_form(visita)
             new_client = models.Client(
                 name=name.strip(),
                 nb=_opt_form(nb),
                 setor=None,
                 me=_opt_form(me),
                 sa=_opt_form(sa),
-                visita=_opt_form(visita),
+                visita=visita_val,
+                entrega=compute_entrega_from_visita(visita_val),
                 nome_fantasia=_opt_form(nome_fantasia),
                 razao_social=_opt_form(razao_social),
                 municipio=_opt_form(municipio),
@@ -14678,7 +14689,14 @@ async def add_client(
             session.add(new_client)
             session.commit()
             session.refresh(new_client)
-            apply_vendedor_to_client(session, new_client, parse_vendedor_id_form(vendedor_id))
+            vid_eff = parse_vendedor_id_form(vendedor_id)
+            if not vid_eff and _opt_form(vendedor_lookup):
+                vid_eff = resolve_employee_id_by_code_or_name(session, vendedor_lookup)
+            apply_vendedor_to_client(session, new_client, vid_eff)
+            if not vid_eff and _opt_form(vendedor_lookup):
+                lk = _opt_form(vendedor_lookup)
+                if lk and lk.isdigit():
+                    new_client.setor = lk
             session.add(new_client)
             session.commit()
             # Tenta geocodificar em background (não bloqueia criação)
@@ -15548,6 +15566,7 @@ def _fill_client_from_import_staging(session: Session, client: models.Client, ro
     client.me = row.me
     client.sa = row.sa
     client.visita = row.visita
+    client.entrega = row.entrega or compute_entrega_from_visita(row.visita)
     client.nome_fantasia = row.nome_fantasia
     client.razao_social = row.razao_social
     client.cnpj_cpf = row.cnpj_cpf
@@ -15559,7 +15578,7 @@ def _fill_client_from_import_staging(session: Session, client: models.Client, ro
     client.fone_e164 = row.fone_e164
     client.segmento = row.segmento
     client.status_cliente = row.status_cliente
-    vid = resolve_employee_id_by_seller_code(session, row.setor)
+    vid = resolve_employee_id_by_code_or_name(session, row.setor)
     apply_vendedor_to_client(session, client, vid)
     if not vid and row.setor:
         client.setor = (row.setor or "").strip() or None
@@ -15579,6 +15598,7 @@ def _client_import_row_has_changes(session: Session, client: models.Client, row:
         "me",
         "sa",
         "visita",
+        "entrega",
         "nome_fantasia",
         "razao_social",
         "cnpj_cpf",
@@ -15596,7 +15616,7 @@ def _client_import_row_has_changes(session: Session, client: models.Client, row:
             return True
 
     new_raw = _client_import_value_cmp(row.setor)
-    vid_new = resolve_employee_id_by_seller_code(session, new_raw)
+    vid_new = resolve_employee_id_by_code_or_name(session, new_raw)
     new_effective = new_raw
     if vid_new:
         emp_new = session.get(models.Employee, vid_new)
@@ -20724,6 +20744,7 @@ async def api_comercial_client_update(
     name: str = Form(...),
     nb: Optional[str] = Form(None),
     vendedor_id: Optional[str] = Form(None),
+    vendedor_lookup: Optional[str] = Form(None),
     me: Optional[str] = Form(None),
     sa: Optional[str] = Form(None),
     visita: Optional[str] = Form(None),

@@ -1,6 +1,7 @@
 """Vínculo de cliente a colaborador (código de vendedor / seller_code)."""
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func
@@ -39,6 +40,38 @@ def resolve_employee_id_by_seller_code(session: Session, code: Optional[str]) ->
         emp2 = session.exec(stmt2).first()
         if emp2:
             return emp2.id
+    return None
+
+
+def resolve_employee_id_by_code_or_name(session: Session, raw: Optional[str]) -> Optional[int]:
+    """Resolve vendedor por código (seller_code), prefixo numérico ou nome do colaborador."""
+    if raw is None or not str(raw).strip():
+        return None
+    text = str(raw).strip()
+    rid = resolve_employee_id_by_seller_code(session, text)
+    if rid:
+        return rid
+    m = re.match(r"^(\d+)", text)
+    if m:
+        rid = resolve_employee_id_by_seller_code(session, m.group(1))
+        if rid:
+            return rid
+    import unicodedata
+
+    def _norm(s: str) -> str:
+        s = unicodedata.normalize("NFD", s or "")
+        return "".join(ch for ch in s if not unicodedata.combining(ch)).lower().strip()
+
+    needle = _norm(text)
+    if not needle:
+        return None
+    for emp in list_vendedores(session):
+        name_n = _norm(emp.name or "")
+        if needle == name_n or (len(needle) >= 3 and needle in name_n):
+            return emp.id
+        sc = (emp.seller_code or "").strip()
+        if sc and (needle == _norm(sc) or needle == sc):
+            return emp.id
     return None
 
 

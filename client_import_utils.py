@@ -235,14 +235,72 @@ def norm_cnpj_digits(raw: Optional[str]) -> Optional[str]:
     return d
 
 
+ENTREGA_WEEKDAY_LABELS = (
+    "SEGUNDA-FEIRA",
+    "TERÇA-FEIRA",
+    "QUARTA-FEIRA",
+    "QUINTA-FEIRA",
+    "SEXTA-FEIRA",
+)
+
+
+def _visita_weekday_index(visita: Optional[str]) -> Optional[int]:
+    """Retorna 0=seg … 4=sex para texto de visita; None se não reconhecer dia da semana."""
+    if visita is None or not str(visita).strip():
+        return None
+    n = _norm_nfd(str(visita).strip()).lower()
+    n = re.sub(r"\s+", " ", n)
+    aliases = {
+        "seg": 0,
+        "segunda": 0,
+        "segunda-feira": 0,
+        "ter": 1,
+        "terca": 1,
+        "terca-feira": 1,
+        "qua": 2,
+        "quarta": 2,
+        "quarta-feira": 2,
+        "qui": 3,
+        "quinta": 3,
+        "quinta-feira": 3,
+        "sex": 4,
+        "sexta": 4,
+        "sexta-feira": 4,
+        "sab": 5,
+        "sabado": 5,
+        "sabado-feira": 5,
+        "dom": 6,
+        "domingo": 6,
+    }
+    if n in aliases:
+        return aliases[n]
+    first = n.split("-")[0].split()[0].strip()
+    if first in aliases:
+        return aliases[first]
+    for key, idx in aliases.items():
+        if len(key) >= 4 and key in n:
+            return idx
+    return None
+
+
+def compute_entrega_from_visita(visita: Optional[str]) -> Optional[str]:
+    """Calcula dia de entrega (D+1 útil): pula sábado e domingo; sexta → segunda."""
+    idx = _visita_weekday_index(visita)
+    if idx is None:
+        return None
+    if idx >= 4:
+        return ENTREGA_WEEKDAY_LABELS[0]
+    return ENTREGA_WEEKDAY_LABELS[idx + 1]
+
+
 def find_col_map(columns: list, norm_func=None) -> dict:
     """Mapeia colunas do arquivo para campos padrão.
 
-    Cabeçalhos esperados (modelo atual):
-    NB, SETOR (código vendedor), Setor (antigo ME — segunda coluna cujo nome normaliza a "setor"),
-    VISITA, FANTAS, Razão Social, CNPJ/CPF, MUNICÍPIO, BAIRRO, ENDEREÇO, FONE, SEGMENTO, STATUS, MESA (antigo SA).
+    Cabeçalhos esperados (modelo Souza Pinto):
+    NB, SETOR (código vendedor), MESA, VISITA, FANTASIA, Municipio, Bairro, ENDEREÇO,
+    Telefone, CNPJ/CPF, SEGMENTO, STATUS, Razão Social, Data Cadastro.
 
-    Compatível com planilhas antigas: ME, SA, uma única coluna SETOR.
+    Compatível com planilhas antigas: FANTAS, ME, SA, coluna de segmento mal nomeada (ex.: *MENTO).
     """
     if norm_func is None:
         def norm_func(s):
@@ -287,7 +345,7 @@ def find_col_map(columns: list, norm_func=None) -> dict:
     singles = {
         "nb": ["nb"],
         "visita": ["visita"],
-        "fantas": ["fantas", "fantasia", "nome fantasia", "nome_fantasia"],
+        "fantas": ["fantas", "fantasia", "nome fantasia", "nome_fantasia", "fantasia"],
         "razao_social": ["razao social", "razão social", "razao_social"],
         "municipio": ["municipio", "município"],
         "bairro": ["bairro"],
@@ -311,4 +369,15 @@ def find_col_map(columns: list, norm_func=None) -> dict:
                     break
             if std in col_map:
                 break
+
+    if "segmento" not in col_map:
+        for c in columns_stripped:
+            if c in used:
+                continue
+            cn = norm_func(c)
+            if "segmento" in cn or cn.endswith("mento"):
+                col_map["segmento"] = c
+                used.add(c)
+                break
+
     return col_map

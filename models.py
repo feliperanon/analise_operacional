@@ -171,6 +171,7 @@ class Client(SQLModel, table=True):
     me: Optional[str] = Field(default=None)
     sa: Optional[str] = Field(default=None)
     visita: Optional[str] = Field(default=None)
+    entrega: Optional[str] = Field(default=None)  # dia útil D+1 a partir de visita (seg–sex)
     nome_fantasia: Optional[str] = Field(default=None, index=True)  # FANTAS
     razao_social: Optional[str] = Field(default=None, index=True)
     cnpj_cpf: Optional[str] = Field(default=None, index=True)
@@ -271,6 +272,7 @@ class ClientImportStaging(SQLModel, table=True):
     me: Optional[str] = None
     sa: Optional[str] = None
     visita: Optional[str] = None
+    entrega: Optional[str] = None
     nome_fantasia: Optional[str] = None
     razao_social: Optional[str] = None
     cnpj_cpf: Optional[str] = None
