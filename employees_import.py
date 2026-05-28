@@ -312,63 +312,122 @@ def build_bulk_delete_list_bytes(registrations: Optional[List[str]] = None) -> b
     return buf.read()
 
 
+# Cabeçalhos do modelo (mesma ordem do formulário "Novo Colaborador")
+EMPLOYEE_IMPORT_COLUMNS = [
+    "Nome Completo",
+    "Matrícula",
+    "Telefone",
+    "Código do Vendedor",
+    "Cargo",
+    "Empresa",
+    "Turno Operacional",
+    "Data Admissão",
+    "Aniversário",
+]
+
+
+def _normalize_shift(value) -> str:
+    shift_raw = str(value or "Manhã").strip()
+    if not shift_raw or shift_raw.lower() == "nan":
+        shift_raw = "Manhã"
+    shift_clean = shift_raw.strip().title()
+    if "Manha" in shift_clean or "Manhã" in shift_clean:
+        return "Manhã"
+    if "Tarde" in shift_clean:
+        return "Tarde"
+    if "Noite" in shift_clean:
+        return "Noite"
+    return shift_clean
+
+
+def _schedule_for_shift(shift_val: str) -> Optional[str]:
+    s_lower = (shift_val or "").lower()
+    if "manhã" in s_lower or "manha" in s_lower:
+        return "05:00 - 13:20"
+    if "tarde" in s_lower:
+        return "12:00 - 20:20"
+    if "noite" in s_lower:
+        return "18:00 - 06:00"
+    return None
+
+
+def _parse_excel_date(value):
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    try:
+        dt = pd.to_datetime(value, errors="coerce", dayfirst=True)
+        if pd.isna(dt):
+            return None
+        return dt.to_pydatetime()
+    except Exception:
+        return None
+
+
 def build_import_template_bytes() -> bytes:
-    """Gera planilha modelo para cadastro em massa."""
+    """Gera planilha modelo alinhada ao formulário Novo Colaborador."""
     data = pd.DataFrame(
         [
             {
-                "Name": "JOÃO DA SILVA",
-                "Registration": "12345",
-                "Role": "MOTORISTA",
-                "Shift": "Manhã",
-                "CostCenter": "Souza Pinto",
+                "Nome Completo": "JOÃO DA SILVA",
+                "Matrícula": "12345",
+                "Telefone": "(31) 99940-9789",
+                "Código do Vendedor": "110",
+                "Cargo": "MOTORISTA",
+                "Empresa": "Souza Pinto",
+                "Turno Operacional": "Manhã",
                 "Data Admissão": "01/03/2024",
-                "Data Nascimento": "15/07/1990",
+                "Aniversário": "15/07/1990",
             },
             {
-                "Name": "MARIA SANTOS",
-                "Registration": "12346",
-                "Role": "AJUDANTE",
-                "Shift": "Tarde",
-                "CostCenter": "Exemplar",
+                "Nome Completo": "MARIA SANTOS",
+                "Matrícula": "12346",
+                "Telefone": "31999887766",
+                "Código do Vendedor": "201",
+                "Cargo": "AJUDANTE",
+                "Empresa": "Exemplar",
+                "Turno Operacional": "Tarde",
                 "Data Admissão": "10/01/2025",
-                "Data Nascimento": "",
+                "Aniversário": "",
             },
         ]
     )
     instructions = pd.DataFrame(
         {
             "Campo": [
-                "Name (obrigatório)",
-                "Registration (obrigatório)",
-                "Role (obrigatório)",
-                "Shift",
-                "CostCenter",
+                "Nome Completo (obrigatório)",
+                "Matrícula (obrigatório)",
+                "Telefone",
+                "Código do Vendedor",
+                "Cargo (obrigatório)",
+                "Empresa",
+                "Turno Operacional",
                 "Data Admissão",
-                "Data Nascimento",
+                "Aniversário",
                 "",
-                "Turno (Shift)",
-                "Empresa (CostCenter)",
+                "Empresa",
+                "Turno Operacional",
                 "Importação",
                 "Exclusão em lote",
             ],
             "Descrição": [
-                "Nome completo do colaborador (será gravado em maiúsculas).",
-                "Matrícula única no sistema. Não repita na mesma planilha.",
-                "Cargo/função (ex.: MOTORISTA, AJUDANTE). Cadastre funções em /funcoes se precisar.",
+                "Igual ao formulário na tela. Nome será gravado em maiúsculas.",
+                "Matrícula única. Não repetir na planilha.",
+                "DDD + número. Ex.: (31) 99940-9789 ou 31999409789. Opcional.",
+                "Para importação de devoluções. Ex.: 110, 201. Opcional.",
+                "Ex.: MOTORISTA, AJUDANTE. Cadastre em /funcoes se precisar.",
+                "Souza Pinto, Exemplar, Geral, Outubro 2020, etc. Padrão: Souza Pinto.",
                 "Manhã, Tarde ou Noite. Padrão: Manhã.",
-                "Empresa/centro de custo: Souza Pinto, Exemplar, Geral, Outubro 2020, etc.",
-                "Opcional. Formato dd/mm/aaaa.",
-                "Opcional. Formato dd/mm/aaaa.",
+                "Formato dd/mm/aaaa. Opcional.",
+                "Data de nascimento, dd/mm/aaaa. Opcional.",
                 "",
+                "Use o nome exato como nos cards da tela Colaboradores.",
                 "Valores aceitos: Manhã | Tarde | Noite",
-                "Use o nome exato da empresa como aparece nos cards da tela Colaboradores.",
-                "Na tela Colaboradores → Importar → Planilha Excel. Só insere matrículas novas.",
-                "Importar → Excluir por planilha. Use excluir_colaboradores_lista.xlsx (NÃO Fechamento de Ponto).",
+                "Colaboradores → Importar → Planilha Excel. Só matrículas novas.",
+                "Menu Excluir por planilha — não use Fechamento de Ponto.",
             ],
         }
     )
-    delete_example = pd.DataFrame({"Registration": DEFAULT_WRONG_IMPORT_REGISTRATIONS[:5]})
+    delete_example = pd.DataFrame({"Matrícula": DEFAULT_WRONG_IMPORT_REGISTRATIONS[:5]})
 
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
@@ -400,6 +459,129 @@ def _serve_template_file(static_rel: str, builder, filename: str) -> Response:
             headers={"Cache-Control": "no-store"},
         )
     return _xlsx_attachment_response(builder(), filename)
+
+
+def import_employees_from_excel(
+    session: Session,
+    content: bytes,
+    normalize_phone_br,
+) -> int:
+    """
+    Importa colaboradores da aba Colaboradores (cabeçalhos do formulário Novo Colaborador).
+    Retorna quantidade inserida. Só cria matrículas novas.
+    """
+    excel = pd.ExcelFile(io.BytesIO(content))
+    sheet_names = excel.sheet_names or [0]
+    target_sheet = sheet_names[0]
+    for s in sheet_names:
+        ns = normalize_text(s)
+        if ns in ("colaboradores", "souza pinto"):
+            target_sheet = s
+            break
+
+    df_temp = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=None, nrows=12)
+    header_row = 0
+    expected_headers = {
+        "matricula", "matrícula", "registration", "nome completo", "nome", "colaborador",
+        "telefone", "cargo", "empresa", "turno operacional", "turno",
+    }
+    for idx, row in df_temp.iterrows():
+        row_values = {normalize_text(v) for v in row.values if pd.notna(v)}
+        if row_values & expected_headers:
+            header_row = idx
+            break
+
+    df = pd.read_excel(io.BytesIO(content), sheet_name=target_sheet, header=header_row)
+    df.columns = df.columns.astype(str).str.strip()
+
+    col_registration = pick_column(
+        df.columns,
+        "Matrícula", "Matricula", "Registration", "Registration ID", "Registro",
+    )
+    if not col_registration:
+        col_registration = pick_column_contains(df.columns, "matricula", "matrícula")
+    if not col_registration:
+        col_registration = pick_column_contains(df.columns, "matricula", "matrícula", "registro")
+
+    col_name = pick_column(
+        df.columns,
+        "Nome Completo", "Colaborador", "Nome Funcionário", "Nome Funcionario", "Nome", "Name",
+    )
+    col_phone = pick_column(df.columns, "Telefone", "Phone", "Celular", "Fone")
+    col_seller = pick_column(
+        df.columns, "Código do Vendedor", "Codigo do Vendedor", "Seller Code", "Codigo Vendedor",
+    )
+    col_role = pick_column(df.columns, "Cargo", "Nome Cargo", "Função", "Funcao", "Role")
+    col_cost_center = pick_column(df.columns, "Empresa", "Centro de Custo", "CostCenter", "Cost Center")
+    col_shift = pick_column(df.columns, "Turno Operacional", "Turno", "Shift")
+    col_admission = pick_column(
+        df.columns, "Data Admissão", "Admissão", "Admissao", "Adminissão", "Adminissao",
+    )
+    col_birthday = pick_column(
+        df.columns, "Aniversário", "Aniversario", "Data Nascimento", "Nascimento", "Data de Nascimento",
+    )
+
+    if not col_registration:
+        raise ValueError(
+            "Coluna Matrícula não encontrada. Use a aba Colaboradores do modelo baixado em Importar."
+        )
+
+    count = 0
+    seen_registration = set()
+    default_company = "Souza Pinto"
+
+    for _, row in df.iterrows():
+        reg_id = str(row.get(col_registration, "")).strip()
+        if not reg_id or reg_id.lower() == "nan":
+            continue
+        if reg_id in seen_registration:
+            continue
+        seen_registration.add(reg_id)
+
+        existing = session.exec(
+            select(models.Employee).where(models.Employee.registration_id == reg_id)
+        ).first()
+        if existing:
+            continue
+
+        shift_val = _normalize_shift(row.get(col_shift, "Manhã") if col_shift else "Manhã")
+        name_raw = (str(row.get(col_name, "Sem Nome")).strip() if col_name else "Sem Nome") or "Sem Nome"
+
+        phone_store = None
+        if col_phone and pd.notna(row.get(col_phone)):
+            phone_e164, _ = normalize_phone_br(str(row.get(col_phone, "")).strip())
+            phone_store = phone_e164[3:] if (phone_e164 and len(phone_e164) >= 13) else None
+
+        seller_code = None
+        if col_seller and pd.notna(row.get(col_seller)):
+            seller_code = str(row.get(col_seller, "")).strip()
+            if not seller_code or seller_code.lower() == "nan":
+                seller_code = None
+
+        cost_center = default_company
+        if col_cost_center and pd.notna(row.get(col_cost_center)):
+            cc = str(row.get(col_cost_center, "")).strip()
+            if cc and cc.lower() != "nan":
+                cost_center = cc
+
+        emp = models.Employee(
+            name=name_raw.upper(),
+            registration_id=reg_id.strip(),
+            phone=phone_store,
+            seller_code=seller_code,
+            role=(str(row.get(col_role, "Operador")).strip() or "Operador").upper(),
+            work_shift=str(shift_val).strip(),
+            cost_center=cost_center,
+            admission_date=_parse_excel_date(row.get(col_admission)) if col_admission else None,
+            birthday=_parse_excel_date(row.get(col_birthday)) if col_birthday else None,
+            work_schedule=_schedule_for_shift(shift_val),
+            status="active",
+        )
+        session.add(emp)
+        count += 1
+
+    session.commit()
+    return count
 
 
 def register_download_routes(app, require_login: Callable) -> None:

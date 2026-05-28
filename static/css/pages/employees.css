@@ -1864,8 +1864,9 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   }
 }
 
-/* ----- Modais: portal fixo no body (acima do menu z-50 e KPIs da página) ----- */
-.employees-modals-root {
+/* ----- Modais /employees: portal no body (acima de header, sidebar, KPIs, tabela) ----- */
+.employees-modals-root,
+.employees-page-modals {
   position: fixed;
   inset: 0;
   z-index: 20000;
@@ -1873,53 +1874,175 @@ html.dark .ga-employee-theme.employees-page .employees-filter-counter {
   isolation: isolate;
 }
 
-.employees-modals-root[data-modal-open] {
-  pointer-events: auto;
-}
-
-.employees-modals-root .emp-modal-shell:not(.hidden),
-.employees-modals-root .emp-modal-layer:not(.hidden) {
+.employees-modals-root[data-modal-open="true"],
+.employees-page-modals[data-modal-open="true"] {
   pointer-events: auto;
 }
 
 .employees-modals-root .emp-modal-shell,
-.employees-modals-root .emp-modal-layer {
-  z-index: 1;
+.employees-modals-root .emp-modal-layer,
+.employees-page-modals .emp-modal-shell,
+.employees-page-modals .emp-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 20001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  pointer-events: none;
 }
 
-.employees-modals-root .emp-modal-shell .sys-card,
-.employees-modals-root .emp-modal-layer .sys-card {
-  position: relative;
-  z-index: 2;
+.employees-modals-root .emp-modal-shell:not(.hidden),
+.employees-modals-root .emp-modal-layer:not(.hidden),
+.employees-page-modals .emp-modal-shell:not(.hidden),
+.employees-page-modals .emp-modal-layer:not(.hidden) {
+  pointer-events: auto;
 }
 
-.ga-employee-theme.employees-page .emp-modal-shell,
-.ga-employee-theme.employees-modals-root .emp-modal-shell {
+.emp-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   background: rgb(15 23 42 / 0.45);
   backdrop-filter: blur(6px);
+  cursor: pointer;
 }
 
-html.dark .ga-employee-theme.employees-page .emp-modal-shell,
-html.dark .ga-employee-theme.employees-modals-root .emp-modal-shell {
+html.dark .emp-modal-backdrop {
   background: rgb(0 0 0 / 0.6);
 }
 
-body.employees-modal-open {
+.emp-modal-align {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: 100%;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.emp-modal-align > .emp-modal-card,
+.emp-modal-align > .sys-card.emp-modal-card {
+  pointer-events: auto;
+}
+
+.emp-modal-card {
+  width: min(100%, 860px);
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 24px;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+}
+
+.emp-modal-card--narrow {
+  width: min(100%, 28rem);
+}
+
+.emp-modal-card--medium {
+  width: min(100%, 32rem);
+}
+
+.emp-modal-card--wide {
+  width: min(100%, 48rem);
+}
+
+.emp-modal-card-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: hidden;
 }
 
+.emp-modal-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--sys-border, #e5e7eb);
+}
+
+html.dark .emp-modal-header {
+  border-bottom-color: rgb(55 65 81);
+}
+
+.emp-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem 1.25rem;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.emp-modal-body--sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.emp-modal-section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sys-text-muted, #64748b);
+  margin: 0 0 0.5rem;
+}
+
+.emp-modal-footer {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--sys-border, #e5e7eb);
+  background: inherit;
+  background-color: var(--sys-surface, #fff);
+}
+
+html.dark .emp-modal-footer {
+  border-top-color: rgb(55 65 81);
+  background-color: var(--sys-surface, rgb(17 24 39));
+}
+
+.emp-modal-body .sys-input,
+.emp-modal-body .sys-select {
+  min-height: 2.5rem;
+}
+
+.emp-modal-body .grid {
+  gap: 0.75rem;
+}
+
+html.employees-modal-open,
+body.employees-modal-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body.employees-modal-open .ta-dash-header,
-body.employees-modal-open .gv-menu-btn {
+body.employees-modal-open .gv-menu-btn,
+body.employees-modal-open .gv-sidebar {
   z-index: 40;
-}
-
-.ga-employee-theme.employees-page .emp-modal-backdrop {
-  background: rgb(15 23 42 / 0.4);
-  backdrop-filter: blur(6px);
-}
-
-html.dark .ga-employee-theme.employees-page .emp-modal-backdrop {
-  background: rgb(0 0 0 / 0.55);
 }
 
 .ga-employee-theme.employees-page .emp-modal-close {
@@ -2044,21 +2167,8 @@ html.dark .ga-employee-theme.employees-page .emp-toggle-track {
   height: 3rem;
 }
 
-/* Novo Colaborador: .sys-card usa flex; grid + minmax(0,1fr) evita área rolável com altura errada (topo do form “cortado”). */
-.ga-employee-theme.employees-page .employees-add-modal-card.sys-card {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.ga-employee-theme.employees-page .employees-add-modal-card.sys-card > form {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.ga-employee-theme.employees-page #addModalScroll {
-  min-height: 0;
+/* Legado: id mantido para scroll reset no JS */
+.ga-employee-theme.employees-modals-root #addModalScroll {
   overflow-anchor: none;
 }
 
