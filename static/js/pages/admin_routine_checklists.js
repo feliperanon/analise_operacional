@@ -31,12 +31,41 @@
             return cb.checked;
         }).length;
         if (selectedCount) selectedCount.textContent = String(count);
-        if (selectedState) selectedState.classList.toggle("hidden", count === 0);
-        if (defaultLabel) defaultLabel.classList.toggle("hidden", count > 0);
+        if (selectedState) selectedState.classList.remove("hidden");
+        if (defaultLabel) defaultLabel.classList.add("hidden");
         if (selectAll) {
             selectAll.indeterminate = count > 0 && count < rowCheckboxes.length;
             selectAll.checked = rowCheckboxes.length > 0 && count === rowCheckboxes.length;
         }
+    }
+
+    function bindDisclosure(toggle, menu, opts) {
+        if (!toggle || !menu) return;
+        var options = opts || {};
+        function setOpen(open) {
+            menu.hidden = !open;
+            toggle.setAttribute("aria-expanded", open ? "true" : "false");
+            toggle.classList.toggle(options.openClass || "is-open", open);
+            if (options.panelClass) {
+                menu.classList.toggle(options.panelClass, open);
+            }
+            if (options.panelAria) {
+                menu.setAttribute("aria-hidden", open ? "false" : "true");
+            }
+        }
+        setOpen(false);
+        toggle.addEventListener("click", function (e) {
+            e.stopPropagation();
+            setOpen(menu.hidden);
+        });
+        document.addEventListener("click", function (e) {
+            if (!menu.hidden && !menu.contains(e.target) && e.target !== toggle) {
+                setOpen(false);
+            }
+        });
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") setOpen(false);
+        });
     }
 
     function init() {
@@ -111,6 +140,28 @@
         bindModalBackdrop($("editModal"), window.closeEditModal);
         bindModalBackdrop($("bulkModal"), window.closeBulkModal);
         bindModalBackdrop($("bulkDeleteConfirmModal"), window.closeBulkDeleteConfirmModal);
+
+        var advToggle = $("checklistAdvancedToggle");
+        var advPanel = $("checklistAdvancedFilters");
+        if (advToggle && advPanel) {
+            advToggle.addEventListener("click", function (e) {
+                e.preventDefault();
+                var open = !advPanel.classList.contains("is-open");
+                advPanel.classList.toggle("is-open", open);
+                advToggle.classList.toggle("is-open", open);
+                advToggle.setAttribute("aria-expanded", open ? "true" : "false");
+                advPanel.setAttribute("aria-hidden", open ? "false" : "true");
+            });
+        }
+
+        bindDisclosure(
+            document.querySelector("[data-checklist-more-toggle]"),
+            document.querySelector("[data-checklist-more-menu]")
+        );
+        bindDisclosure(
+            document.querySelector("[data-checklist-module-more-toggle]"),
+            document.querySelector("[data-checklist-module-more-menu]")
+        );
     }
 
     if (document.readyState === "loading") {

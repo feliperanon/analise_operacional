@@ -3,14 +3,16 @@
 {% block title %}Checklists Operacionais · Gestão Avista{% endblock %}
 {% block header_breadcrumb %}<p class="text-xs font-medium text-gray-500 dark:text-gray-400">Home / Rotinas / Checklists Operacionais</p>{% endblock %}
 {% block header_title %}<h1 class="text-xl font-bold tracking-tight text-gray-800 dark:text-white/90">Checklists Operacionais</h1>{% endblock %}
-{% block header_subtitle %}<p class="text-xs text-gray-500 dark:text-gray-400">Auditoria, acompanhamento e ações em lote de inspeções diárias</p>{% endblock %}
+{% block header_subtitle %}<p class="text-xs text-gray-500 dark:text-gray-400">Auditoria e acompanhamento das inspeções diárias</p>{% endblock %}
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
+<link rel="stylesheet" href="/static/css/pages/admin-routine-checklists.css">
 <script src="/static/js/pages/admin_routine_checklists.js" defer></script>
 {% endblock %}
 
 {% block content %}
-<div class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-5 pt-2 md:pt-3">
+{% set _active_all = not filters.status and not filters.equipment_status and not filters.nonconforming %}
+<div class="checklists-page-compact ga-employee-theme employees-page space-y-3 pt-1 md:pt-2" data-page="checklists-operacionais">
     {% if flash_message %}
     <div class="sys-alert {% if flash_level == 'success' %}sys-alert--success{% elif flash_level == 'error' %}sys-alert--danger{% else %}sys-alert--info{% endif %} flex items-center gap-3" role="alert">
         {% if flash_level == 'success' %}
@@ -27,191 +29,122 @@
     </div>
     {% endif %}
 
-    {% include "_ops_cross_nav.html" %}
-
-    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
-        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
-        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-        <div class="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-            <div class="flex min-w-0 items-start gap-4">
-                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
-                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
-                    </svg>
-                </div>
-                <div class="min-w-0">
-                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">Frota e oficina</span>
-                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Checklists operacionais</h2>
-                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">Lista de checklists em layout padronizado, com filtros simples e operação sem complexidade.</p>
-                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
-                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
-                            {{ summary.approved }} aprovados no recorte
-                        </span>
-                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            {{ summary.pending }} pendentes de revisão
-                        </span>
-                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            {{ pagination.total_count }} linhas na lista filtrada
-                        </span>
-                    </div>
-                </div>
+    <nav class="checklist-module-tabs" aria-label="Módulos frota e rotinas">
+        <a href="/vehicles" class="checklist-module-tabs__tab">Frota</a>
+        <a href="/admin/routine/checklists" class="checklist-module-tabs__tab is-active" aria-current="page">Checklists</a>
+        <a href="/admin/routine/checklists/dashboard" class="checklist-module-tabs__tab">Dashboard</a>
+        <a href="/workshop/service-orders" class="checklist-module-tabs__tab">O.S.</a>
+        <a href="/admin/routine/checklists/settings" class="checklist-module-tabs__tab">Configurações</a>
+        <div class="checklist-module-tabs__more" data-checklist-module-more>
+            <button type="button" class="checklist-module-tabs__more-toggle" data-checklist-module-more-toggle aria-haspopup="true" aria-expanded="false">Mais</button>
+            <div class="checklist-module-tabs__more-menu" data-checklist-module-more-menu hidden>
+                <a href="/vehicles/new" class="checklist-module-tabs__more-link">Cadastro avançado</a>
+                <a href="/vehicles/odometer" class="checklist-module-tabs__more-link">Hodômetro</a>
+                <a href="/admin/equipment/tickets" class="checklist-module-tabs__more-link">Chamados</a>
             </div>
-            <div class="employees-hero__toolbar flex w-full flex-wrap items-center gap-2 lg:ml-auto lg:w-auto lg:max-w-none lg:flex-shrink-0 lg:justify-end">
-                <div x-data="{ open: false }" class="employees-hero__import-wrap relative">
-                    <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary justify-center" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
-                        <span class="employees-cta__icon" aria-hidden="true">
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                        </span>
-                        <span class="employees-cta__label">Importar</span>
-                        <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                    </button>
-                    <div x-show="open" @click.away="open = false" x-transition class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
-                        <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importar e operações em lote</p>
-                        <button type="button" onclick="openImportModal()" class="employees-menu-item">
-                            <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                            </span>
-                            <span class="employees-menu-item__text">
-                                <span class="employees-menu-item__title">Planilha Excel</span>
-                                <span class="employees-menu-item__hint">Cadastro em massa (.xlsx / .xls)</span>
-                            </span>
-                        </button>
-                        <button type="button" onclick="openBulkModal()" class="employees-menu-item">
-                            <span class="employees-menu-item__icon employees-menu-item__icon--amber" aria-hidden="true">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </span>
-                            <span class="employees-menu-item__text">
-                                <span class="employees-menu-item__title">Exclusão em lote</span>
-                                <span class="employees-menu-item__hint">Use após selecionar linhas na tabela</span>
-                            </span>
-                        </button>
-                    </div>
+        </div>
+    </nav>
+
+    <div class="checklist-topbar">
+        <div class="checklist-topbar__actions">
+            <button type="button" onclick="openCreateModal()" class="sys-btn sys-btn--primary">Novo checklist</button>
+            <button type="button" onclick="openImportModal()" class="sys-btn sys-btn--secondary">Importar</button>
+            <div class="checklist-more-actions" data-checklist-more-wrap>
+                <button type="button" class="sys-btn sys-btn--secondary" data-checklist-more-toggle aria-haspopup="true" aria-expanded="false">Mais ações</button>
+                <div class="checklist-more-actions__menu" data-checklist-more-menu hidden>
+                    <a href="/admin/routine/checklists/dashboard" class="checklist-more-actions__item">Painel</a>
+                    <a href="/admin/routine/checklists/settings" class="checklist-more-actions__item">Configurações</a>
+                    <button type="button" class="checklist-more-actions__item" onclick="openBulkModal()">Exclusão em lote</button>
                 </div>
-                <button type="button" onclick="openCreateModal()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary justify-center">
-                    <span class="employees-cta__icon" aria-hidden="true">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    </span>
-                    <span class="employees-cta__label">Novo checklist</span>
-                </button>
-                <a href="/admin/routine/checklists/dashboard" class="employees-cta sys-btn sys-btn--secondary justify-center">Painel</a>
-                <a href="/admin/routine/checklists/settings" class="employees-cta sys-btn sys-btn--secondary justify-center">Configurações</a>
             </div>
         </div>
     </div>
 
-    <div class="sys-kpi-shell w-full">
-        <div class="sys-kpi-grid employees-kpi-row gap-3" aria-label="Resumo de checklists no recorte filtrado">
-            <a href="{{ kpi_urls.all }}" class="sys-kpi-card employees-kpi ops-card--interactive group {% if not filters.status and not filters.equipment_status and not filters.nonconforming %}ring-2 ring-sky-500/40{% endif %} no-underline" style="--employees-kpi-accent: rgba(148, 163, 184, 0.68);">
-                <div class="sys-kpi-cell-inner employees-kpi__inner flex min-h-[92px] flex-col items-center justify-center gap-1 text-center">
-                    <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Total (recorte)</span>
-                    <span class="employees-kpi__value tabular-nums">{{ summary.total }}</span>
-                    <span class="employees-kpi__meta"><span class="employees-text-muted text-[10px]">Limpar foco de status</span></span>
-                </div>
-            </a>
-            <a href="{{ kpi_urls.pending }}" class="sys-kpi-card employees-kpi ops-card--interactive group {% if filters.status == '__pending__' %}ring-2 ring-amber-500/45{% endif %} no-underline" style="--employees-kpi-accent: rgba(245, 158, 11, 0.72);">
-                <div class="sys-kpi-cell-inner employees-kpi__inner flex min-h-[92px] flex-col items-center justify-center gap-1 text-center">
-                    <span class="sys-kpi-label text-amber-700 dark:text-amber-300">Pendentes</span>
-                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ summary.pending }}</span>
-                    <span class="employees-kpi__meta employees-text-muted text-[10px]">Enviado + em revisão</span>
-                </div>
-            </a>
-            <a href="{{ kpi_urls.approved }}" class="sys-kpi-card employees-kpi ops-card--interactive group {% if filters.status == 'approved' %}ring-2 ring-emerald-500/45{% endif %} no-underline" style="--employees-kpi-accent: rgba(52, 211, 153, 0.72);">
-                <div class="sys-kpi-cell-inner employees-kpi__inner flex min-h-[92px] flex-col items-center justify-center gap-1 text-center">
-                    <span class="sys-kpi-label text-emerald-700 dark:text-emerald-300">Aprovados</span>
-                    <span class="employees-kpi__value tabular-nums text-emerald-700 dark:text-emerald-300">{{ summary.approved }}</span>
-                    <span class="employees-kpi__meta employees-text-muted text-[10px]">Filtrar aprovados</span>
-                </div>
-            </a>
-            <a href="{{ kpi_urls.rejected }}" class="sys-kpi-card employees-kpi ops-card--interactive group {% if filters.status == 'rejected' %}ring-2 ring-red-500/45{% endif %} no-underline" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);">
-                <div class="sys-kpi-cell-inner employees-kpi__inner flex min-h-[92px] flex-col items-center justify-center gap-1 text-center">
-                    <span class="sys-kpi-label text-red-700 dark:text-red-300">Rejeitados</span>
-                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ summary.rejected }}</span>
-                    <span class="employees-kpi__meta employees-text-muted text-[10px]">Filtrar rejeitados</span>
-                </div>
-            </a>
-            <a href="{{ kpi_urls.blocked }}" class="sys-kpi-card employees-kpi ops-card--interactive group {% if filters.equipment_status == 'blocked' %}ring-2 ring-orange-500/45{% endif %} no-underline" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);">
-                <div class="sys-kpi-cell-inner employees-kpi__inner flex min-h-[92px] flex-col items-center justify-center gap-1 text-center">
-                    <span class="sys-kpi-label text-orange-700 dark:text-orange-300">Equip. bloqueado</span>
-                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ summary.blocked }}</span>
-                    <span class="employees-kpi__meta employees-text-muted text-[10px]">Só checklists com bloqueio</span>
-                </div>
-            </a>
-            <a href="{{ kpi_urls.nonconforming }}" class="sys-kpi-card employees-kpi ops-card--interactive group {% if filters.nonconforming == '1' %}ring-2 ring-violet-500/45{% endif %} no-underline" style="--employees-kpi-accent: rgba(167, 139, 250, 0.72);">
-                <div class="sys-kpi-cell-inner employees-kpi__inner flex min-h-[92px] flex-col items-center justify-center gap-1 text-center">
-                    <span class="sys-kpi-label text-violet-700 dark:text-violet-300">Itens N.C.</span>
-                    <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ summary.nonconforming }}</span>
-                    <span class="employees-kpi__meta employees-text-muted text-[10px]">Soma no recorte · com ocorrências</span>
-                </div>
-            </a>
-        </div>
+    <div class="checklist-summary-strip" aria-label="Resumo do recorte filtrado">
+        <a href="{{ kpi_urls.all }}" class="checklist-summary-strip__item{% if _active_all %} is-active{% endif %}">
+            <span class="checklist-summary-strip__label">Total:</span>
+            <span class="checklist-summary-strip__value">{{ summary.total }}</span>
+        </a>
+        <a href="{{ kpi_urls.pending }}" class="checklist-summary-strip__item{% if filters.status == '__pending__' %} is-active{% endif %}">
+            <span class="checklist-summary-strip__label">Pendentes:</span>
+            <span class="checklist-summary-strip__value">{{ summary.pending }}</span>
+        </a>
+        <a href="{{ kpi_urls.approved }}" class="checklist-summary-strip__item{% if filters.status == 'approved' %} is-active{% endif %}">
+            <span class="checklist-summary-strip__label">Aprovados:</span>
+            <span class="checklist-summary-strip__value">{{ summary.approved }}</span>
+        </a>
+        <a href="{{ kpi_urls.rejected }}" class="checklist-summary-strip__item{% if filters.status == 'rejected' %} is-active{% endif %}">
+            <span class="checklist-summary-strip__label">Rejeitados:</span>
+            <span class="checklist-summary-strip__value">{{ summary.rejected }}</span>
+        </a>
+        <a href="{{ kpi_urls.blocked }}" class="checklist-summary-strip__item{% if filters.equipment_status == 'blocked' %} is-active{% endif %}">
+            <span class="checklist-summary-strip__label">Bloqueados:</span>
+            <span class="checklist-summary-strip__value">{{ summary.blocked }}</span>
+        </a>
+        <a href="{{ kpi_urls.nonconforming }}" class="checklist-summary-strip__item{% if filters.nonconforming == '1' %} is-active{% endif %}">
+            <span class="checklist-summary-strip__label">Itens N.C.:</span>
+            <span class="checklist-summary-strip__value">{{ summary.nonconforming }}</span>
+        </a>
     </div>
 
-    <form id="filtersForm" method="GET" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
-        <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
-            <div class="employees-filter-bar__inner">
-                <div class="employees-filter-bar__primary">
-                    <div class="employees-filter-bar__primary-scroll">
-                        <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
-                        <div class="ops-toolbar-search employees-filter-bar__search">
-                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            <input type="text" id="searchInput" name="search" value="{{ filters.search }}" placeholder="Colaborador, matrícula ou equipamento" class="ops-toolbar-search__input" autocomplete="off">
-                        </div>
-                        <input type="date" name="date" value="{{ filters.date }}" class="ops-toolbar-control px-3" title="Data do checklist">
-                        <input type="text" id="equipmentInput" name="equipment" value="{{ filters.equipment }}" placeholder="Código equipamento" class="ops-toolbar-control px-3" autocomplete="off">
-                        <select name="status" class="ops-toolbar-control px-3" title="Status do fluxo">
-                            <option value="">Status</option>
-                            <option value="__pending__" {{ "selected" if filters.status == "__pending__" else "" }}>Pendentes (enviado + revisão)</option>
-                            {% for s in status_options %}<option value="{{ s }}" {{ "selected" if filters.status == s else "" }}>{{ status_labels.get(s, s) }}</option>{% endfor %}
-                        </select>
-                        <select name="equipment_status" class="ops-toolbar-control px-3" title="Situação do equipamento cadastrado">
-                            <option value="">Equipamento</option>
-                            <option value="blocked" {{ "selected" if filters.equipment_status == "blocked" else "" }}>Bloqueado</option>
-                        </select>
-                        <select name="shift" class="ops-toolbar-control px-3">
-                            <option value="">Turno</option>{% for s in shift_options %}<option value="{{ s }}" {{ "selected" if filters.shift == s else "" }}>{{ s }}</option>{% endfor %}
-                        </select>
-                        <select name="employee_id" class="ops-toolbar-control px-3 max-w-[14rem]">
-                            <option value="">Colaborador</option>{% for e in employees %}<option value="{{ e.id }}" {{ "selected" if filters.employee_id == e.id else "" }}>{{ e.name|emp_name }}</option>{% endfor %}
-                        </select>
-                        <select name="sort" class="ops-toolbar-control px-3">{% for key, label in sort_options %}<option value="{{ key }}" {{ "selected" if filters.sort == key else "" }}>{{ label }}</option>{% endfor %}</select>
-                    </div>
-                </div>
-                <div class="employees-filter-bar__divider" aria-hidden="true"></div>
-                <div class="employees-filter-bar__secondary">
-                    <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
-                    <a href="{{ kpi_urls.all }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Ver todos</a>
-                    <a href="/admin/routine/checklists" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar" title="Remover todos os filtros">
-                        <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                        <span class="employees-filter-bar__link-sub-text">Limpar</span>
-                    </a>
-                    <input type="hidden" name="per_page" value="{{ pagination.per_page }}">
-                    {% if filters.period_days %}<input type="hidden" name="period_days" value="{{ filters.period_days }}">{% endif %}
-                    {% if filters.nonconforming %}<input type="hidden" name="nonconforming" value="{{ filters.nonconforming }}">{% endif %}
-                    {% if filters.critical %}<input type="hidden" name="critical" value="{{ filters.critical }}">{% endif %}
-                </div>
+    <form id="filtersForm" method="GET" class="checklist-filter-compact sys-card sys-card--surface">
+        <div class="checklist-filter-compact__primary">
+            <div class="ops-toolbar-search checklist-filter-compact__search">
+                <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input type="text" id="searchInput" name="search" value="{{ filters.search }}" placeholder="Buscar por colaborador, matrícula ou equipamento" class="ops-toolbar-search__input" autocomplete="off">
+            </div>
+            <input type="date" name="date" value="{{ filters.date }}" class="ops-toolbar-control checklist-filter-compact__control px-3" title="Data do checklist">
+            <select name="status" class="ops-toolbar-control checklist-filter-compact__control px-3" title="Status do fluxo">
+                <option value="">Status</option>
+                <option value="__pending__" {{ "selected" if filters.status == "__pending__" else "" }}>Pendentes (enviado + revisão)</option>
+                {% for s in status_options %}<option value="{{ s }}" {{ "selected" if filters.status == s else "" }}>{{ status_labels.get(s, s) }}</option>{% endfor %}
+            </select>
+            <div class="checklist-filter-compact__actions">
+                <button type="button" id="checklistAdvancedToggle" class="checklist-filter-compact__toggle" aria-expanded="false" aria-controls="checklistAdvancedFilters">Filtros avançados</button>
+                <button type="submit" class="sys-btn sys-btn--secondary">Aplicar</button>
+                <a href="/admin/routine/checklists" class="ops-toolbar-ghost-btn">Limpar</a>
             </div>
         </div>
+        <div id="checklistAdvancedFilters" class="checklist-advanced-filters" aria-hidden="true">
+            <input type="text" id="equipmentInput" name="equipment" value="{{ filters.equipment }}" placeholder="Código equipamento" class="ops-toolbar-control px-3" autocomplete="off">
+            <select name="equipment_status" class="ops-toolbar-control px-3" title="Situação do equipamento cadastrado">
+                <option value="">Equipamento</option>
+                <option value="blocked" {{ "selected" if filters.equipment_status == "blocked" else "" }}>Bloqueado</option>
+            </select>
+            <select name="shift" class="ops-toolbar-control px-3">
+                <option value="">Turno</option>{% for s in shift_options %}<option value="{{ s }}" {{ "selected" if filters.shift == s else "" }}>{{ s }}</option>{% endfor %}
+            </select>
+            <select name="employee_id" class="ops-toolbar-control px-3">
+                <option value="">Colaborador</option>{% for e in employees %}<option value="{{ e.id }}" {{ "selected" if filters.employee_id == e.id else "" }}>{{ e.name|emp_name }}</option>{% endfor %}
+            </select>
+            <select name="sort" class="ops-toolbar-control px-3">{% for key, label in sort_options %}<option value="{{ key }}" {{ "selected" if filters.sort == key else "" }}>{{ label }}</option>{% endfor %}</select>
+        </div>
+        <input type="hidden" name="per_page" value="{{ pagination.per_page }}">
+        {% if filters.period_days %}<input type="hidden" name="period_days" value="{{ filters.period_days }}">{% endif %}
+        {% if filters.nonconforming %}<input type="hidden" name="nonconforming" value="{{ filters.nonconforming }}">{% endif %}
+        {% if filters.critical %}<input type="hidden" name="critical" value="{{ filters.critical }}">{% endif %}
     </form>
 
     <form action="/admin/routine/checklists/bulk-delete" method="POST" id="bulkDeleteForm">
-        <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
-            <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-                <div class="min-w-0 flex-1">
-                    <p class="employees-table-panel__kicker">Controle operacional</p>
-                    <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista de checklists</h3>
-                    <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">No mobile cada linha vira card com ações rápidas (revisar, editar e seleção para lote).</p>
+        <div id="employees-table-panel" class="checklist-table-panel sys-card sys-card--surface overflow-hidden p-0">
+            <div class="checklist-table-panel__head">
+                <div class="min-w-0">
+                    <h2 class="checklist-table-panel__title">Lista de checklists</h2>
+                    <p class="checklist-table-panel__meta">{{ pagination.total_count }} registros encontrados</p>
                 </div>
-                <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
-                    <span id="defaultLabel">Selecione itens para operações em lote.</span>
-                    <span id="selectedState" class="hidden"><b id="selectedCount">0</b> selecionados</span>
+                <div class="checklist-table-panel__aside">
+                    <span id="selectedState" class="checklist-table-panel__selection"><b id="selectedCount">0</b> selecionados</span>
+                    <span id="defaultLabel" class="sys-sr-only">Selecione itens para operações em lote.</span>
+                    <button type="button" id="openBulkDeleteBtn" class="sys-btn sys-btn--ghost-danger">Excluir selecionados</button>
                 </div>
             </div>
+
+            {% if rows %}
             <div class="sys-table-wrap sys-table-wrap--x-scroll">
                 <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[980px]" id="employeesTable">
                     <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
                         <tr>
-                            <th class="employees-data-table__th px-3 py-2 pl-5"><input type="checkbox" id="selectAll"></th>
+                            <th class="employees-data-table__th px-3 py-2 pl-5"><input type="checkbox" id="selectAll" aria-label="Selecionar todos"></th>
                             <th class="employees-data-table__th px-2 py-2">Data</th>
                             <th class="employees-data-table__th px-2 py-2">Hora</th>
                             <th class="employees-data-table__th px-2 py-2">Turno</th>
@@ -224,7 +157,7 @@
                     </thead>
                     <tbody class="employees-data-table__body divide-y">
                         {% for row in rows %}
-                        <tr class="employee-row employees-data-table__row">
+                        <tr class="group employee-row employees-data-table__row transition-colors">
                             <td class="px-3 py-2 pl-5" data-label="Sel"><input type="checkbox" class="row-checkbox" name="checklist_ids" value="{{ row.checklist.id }}"></td>
                             <td class="employees-data-table__cell px-2 py-2" data-label="Data">{{ row.date_br }}</td>
                             <td class="employees-data-table__cell employees-data-table__cell--muted px-2 py-2" data-label="Hora">{{ row.time_br or "-" }}</td>
@@ -238,30 +171,37 @@
                             <td class="employees-data-table__cell px-2 py-2" data-label="Status">{% if row.checklist.status == "approved" %}<span class="sys-badge sys-badge--ok">{{ row.status_label }}</span>{% elif row.checklist.status == "rejected" %}<span class="sys-badge sys-badge--critical">{{ row.status_label }}</span>{% else %}<span class="sys-badge sys-badge--alert">{{ row.status_label }}</span>{% endif %}</td>
                             <td class="employee-actions-cell px-2 py-2" data-label="Ações">
                                 <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
-                                    <a href="/admin/routine/checklists/{{ row.checklist.id }}" class="employee-action-btn employee-action-btn--return" title="Revisar">R</a>
-                                    <button type="button" class="employee-action-btn employee-action-btn--edit js-checklist-edit" title="Editar"
+                                    <a href="/admin/routine/checklists/{{ row.checklist.id }}" class="employee-action-btn employee-action-btn--return" title="Revisar checklist">R</a>
+                                    <button type="button" class="employee-action-btn employee-action-btn--edit js-checklist-edit" title="Editar checklist"
                                         data-id="{{ row.checklist.id }}"
                                         data-equipment="{{ row.checklist.equipment_code|e }}"
                                         data-observations="{{ (row.checklist.observations or '')|e }}">E</button>
-                                    <a href="/workshop/service-orders?checklist_id={{ row.checklist.id }}" class="employee-action-btn employee-action-btn--vacation" title="Gerar OS">OS</a>
+                                    <a href="/workshop/service-orders?checklist_id={{ row.checklist.id }}" class="employee-action-btn employee-action-btn--vacation" title="Gerar ordem de serviço">OS</a>
                                 </div>
                             </td>
                         </tr>
                         {% endfor %}
-                        {% if not rows %}
-                        <tr><td colspan="9" class="py-10 text-center"><div class="sys-empty-state">Nenhum checklist encontrado com os filtros atuais.</div></td></tr>
-                        {% endif %}
                     </tbody>
                 </table>
             </div>
-            <div class="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-xs text-slate-500 dark:border-slate-700">
+            {% else %}
+            <div class="checklist-empty-state" role="status">
+                <p class="checklist-empty-state__title">Nenhum checklist encontrado</p>
+                <p class="checklist-empty-state__text">Ajuste os filtros ou cadastre um novo checklist.</p>
+                <div class="checklist-empty-state__actions">
+                    <a href="/admin/routine/checklists" class="sys-btn sys-btn--secondary">Limpar filtros</a>
+                    <button type="button" class="sys-btn sys-btn--primary" onclick="openCreateModal()">Novo checklist</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="checklist-table-panel__footer">
                 <span>Exibindo {{ rows|length }} de {{ pagination.total_count }} registros</span>
                 <div class="flex items-center gap-2">
                     {% if pagination.has_prev %}<a class="sys-btn sys-btn--secondary" href="{{ pagination.prev_url }}">Anterior</a>{% endif %}
                     <span>Página {{ pagination.page }} de {{ pagination.total_pages }}</span>
                     {% if pagination.has_next %}<a class="sys-btn sys-btn--secondary" href="{{ pagination.next_url }}">Próxima</a>{% endif %}
                 </div>
-                <button type="button" id="openBulkDeleteBtn" class="sys-btn sys-btn--ghost-danger">Excluir selecionados</button>
             </div>
         </div>
     </form>

@@ -12,32 +12,591 @@ html.ga-devolucoes-html {
 }
 
 /* Navegação (filtro/paginação): feedback leve sem bloquear a UI */
-.ga-employee-theme.employees-page[data-page="devolucoes"].devolucoes-page--navigating #employees-table-panel {
+.devolucoes-page.devolucoes-page--navigating #employees-table-panel {
   opacity: 0.72;
   pointer-events: none;
   transition: opacity 0.16s ease;
 }
 
-.ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-selection-toolbar {
-  border: 1px solid var(--dev-border);
-}
-
+.devolucoes-page .devolucao-row--selected,
 .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucao-row--selected {
   background: rgba(37, 99, 235, 0.06);
 }
 
-.ga-employee-theme.employees-page[data-page="devolucoes"] .sys-kpi-shell .sys-kpi-grid.employees-kpi-row {
-  scroll-snap-type: x proximity;
+/* ---------- Hero compacto ---------- */
+.devolucoes-page .devolucoes-hero {
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--dev-border);
 }
 
-.ga-employee-theme.employees-page[data-page="devolucoes"] .sys-kpi-shell .sys-kpi-grid.employees-kpi-row > .sys-kpi-card.employees-kpi {
-  scroll-snap-align: start;
-}
-
-/* Barra de filtros: segunda linha com vários atalhos (paridade com /employees) */
-.ga-employee-theme.employees-page[data-page="devolucoes"] .employees-filter-bar__secondary--wrap {
+.devolucoes-page .devolucoes-hero__inner {
+  display: flex;
   flex-wrap: wrap;
-  row-gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.devolucoes-page .devolucoes-hero__brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.devolucoes-page .devolucoes-hero__icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgb(199 210 254 / 0.75);
+  background: linear-gradient(145deg, rgb(238 242 255) 0%, rgb(224 231 255) 100%);
+  color: rgb(79 70 229);
+}
+
+.devolucoes-page .devolucoes-hero__eyebrow {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dev-text-muted);
+}
+
+.devolucoes-page .devolucoes-hero__title {
+  margin: 0.1rem 0 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--dev-text-strong);
+}
+
+.devolucoes-page .devolucoes-hero__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--dev-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 36rem;
+}
+
+.devolucoes-page .devolucoes-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.devolucoes-page .devolucoes-hero__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--dev-border);
+  background: var(--dev-bg-soft);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--dev-text);
+}
+
+.devolucoes-page .devolucoes-hero__chip--ok {
+  border-color: rgb(167 243 208 / 0.9);
+  background: rgb(236 253 245);
+  color: rgb(4 120 87);
+}
+
+.devolucoes-page .devolucoes-hero__chip--muted {
+  color: var(--dev-text-muted);
+}
+
+.devolucoes-page .devolucoes-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.devolucoes-page .devolucoes-hero__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.15rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+/* ---------- KPI bar ---------- */
+.devolucoes-page .devolucoes-kpi-bar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.devolucoes-page .devolucoes-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem 0.5rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--dev-border);
+  background: var(--dev-bg);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  border-top-width: 2px;
+}
+
+.devolucoes-page .devolucoes-kpi--period { border-top-color: rgb(59 130 246); }
+.devolucoes-page .devolucoes-kpi--pending { border-top-color: rgb(245 158 11); }
+.devolucoes-page .devolucoes-kpi--ok { border-top-color: rgb(16 185 129); }
+.devolucoes-page .devolucoes-kpi--dup { border-top-color: rgb(244 63 94); }
+.devolucoes-page .devolucoes-kpi--orphan { border-top-color: rgb(56 189 248); }
+
+.devolucoes-page .devolucoes-kpi:hover {
+  border-color: var(--dev-border-strong);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.05);
+}
+
+.devolucoes-page .devolucoes-kpi.ops-card--selected {
+  border-color: rgb(99 102 241 / 0.45);
+  background: linear-gradient(180deg, rgb(238 242 255 / 0.65) 0%, var(--dev-bg) 100%);
+  box-shadow: 0 0 0 1px rgb(99 102 241 / 0.12);
+}
+
+.devolucoes-page .devolucoes-kpi__label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dev-text-muted);
+}
+
+.devolucoes-page .devolucoes-kpi__value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--dev-text-strong);
+}
+
+.devolucoes-page .devolucoes-kpi__hint {
+  font-size: 0.6875rem;
+  color: var(--dev-text-muted);
+}
+
+.devolucoes-page .devolucoes-kpi__sub {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--dev-text);
+  margin-top: 0.05rem;
+}
+
+/* ---------- Toolbar filtros ---------- */
+.devolucoes-page .devolucoes-toolbar {
+  padding: 0.65rem 0.75rem 0.55rem;
+  border: 1px solid var(--dev-border);
+  overflow: hidden;
+}
+
+.devolucoes-page .devolucoes-toolbar__main {
+  display: grid;
+  grid-template-columns: minmax(10rem, 2.2fr) repeat(2, minmax(7.5rem, 1fr)) minmax(7rem, 1fr) minmax(9rem, 1.1fr) minmax(5.5rem, 0.65fr) auto;
+  gap: 0.45rem 0.5rem;
+  align-items: end;
+}
+
+.devolucoes-page .devolucoes-toolbar__label {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dev-text-muted);
+}
+
+.devolucoes-page .devolucoes-toolbar__label--spacer {
+  visibility: hidden;
+}
+
+.devolucoes-page .devolucoes-toolbar__control {
+  display: block;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0.38rem 0.55rem;
+  border: 1px solid var(--dev-border-strong);
+  border-radius: var(--sys-radius-md, 0.5rem);
+  background: var(--dev-bg);
+  font-size: 0.8125rem;
+  color: var(--dev-text-strong);
+}
+
+.devolucoes-page .devolucoes-toolbar__control:focus {
+  outline: none;
+  border-color: rgb(99 102 241 / 0.5);
+  box-shadow: 0 0 0 2px rgb(79 70 229 / 0.12);
+}
+
+.devolucoes-page .devolucoes-toolbar__search {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--dev-border-strong);
+  border-radius: var(--sys-radius-md, 0.5rem);
+  background: var(--dev-bg);
+}
+
+.devolucoes-page .devolucoes-toolbar__control--search {
+  min-height: 0;
+  padding: 0.38rem 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.devolucoes-page .devolucoes-toolbar__control--search:focus {
+  box-shadow: none;
+}
+
+.devolucoes-page .devolucoes-toolbar__apply {
+  min-height: 2.25rem;
+  padding: 0.38rem 0.85rem;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.devolucoes-page .devolucoes-toolbar__shortcuts {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgb(226 232 240 / 0.65);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.devolucoes-page .devolucoes-toolbar__chip {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--dev-border);
+  background: var(--dev-bg-soft);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--dev-text);
+  text-decoration: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.devolucoes-page .devolucoes-toolbar__chip:hover {
+  border-color: var(--dev-border-strong);
+  background: rgb(241 245 249);
+}
+
+.devolucoes-page .devolucoes-toolbar__chip--active {
+  border-color: rgb(99 102 241 / 0.45);
+  background: rgb(238 242 255);
+  color: rgb(67 56 202);
+}
+
+.devolucoes-page .devolucoes-toolbar__chip--muted {
+  color: var(--dev-text-muted);
+}
+
+.devolucoes-page .devolucoes-toolbar__chip--link {
+  border-style: dashed;
+}
+
+/* ---------- Tabela + toolbar lote ---------- */
+.devolucoes-page .devolucoes-table-panel {
+  border: 1px solid var(--dev-border);
+}
+
+.devolucoes-page .devolucoes-table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--dev-border);
+  background: rgb(248 250 252 / 0.85);
+}
+
+.devolucoes-page .devolucoes-table-toolbar__left,
+.devolucoes-page .devolucoes-table-toolbar__right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+}
+
+.devolucoes-page .devolucoes-table-toolbar__select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--dev-text);
+  cursor: pointer;
+}
+
+.devolucoes-page .devolucoes-table-toolbar__count {
+  font-size: 0.75rem;
+  color: var(--dev-text-muted);
+}
+
+.devolucoes-page .devolucoes-table-toolbar__count strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--dev-text-strong);
+}
+
+.devolucoes-page .devolucoes-table-toolbar__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--dev-text-muted);
+  text-decoration: none;
+}
+
+.devolucoes-page .devolucoes-table-toolbar__chip:hover {
+  background: rgb(255 255 255 / 0.8);
+  color: var(--dev-text-strong);
+}
+
+.devolucoes-page .devolucoes-table-toolbar__chip--active {
+  border-color: rgb(99 102 241 / 0.35);
+  background: rgb(255 255 255);
+  color: rgb(67 56 202);
+}
+
+.devolucoes-page .devolucoes-table-toolbar__batch {
+  min-height: 2rem;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+.devolucoes-page .devolucoes-table-panel__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid rgb(226 232 240 / 0.55);
+  font-size: 0.75rem;
+  color: var(--dev-text-muted);
+}
+
+.devolucoes-page .devolucoes-table-panel__range strong {
+  color: var(--dev-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.devolucoes-page .devolucoes-table-panel__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.devolucoes-page .devolucoes-table-panel__pager-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--dev-border);
+  background: var(--dev-bg);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--dev-text);
+  text-decoration: none;
+}
+
+.devolucoes-page .devolucoes-table-panel__pager-btn.is-disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.devolucoes-page .devolucoes-table-panel__pager-info {
+  font-variant-numeric: tabular-nums;
+  padding: 0 0.25rem;
+}
+
+.devolucoes-page .devolucoes-table .employees-data-table__head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.devolucoes-page .devolucoes-table .employees-data-table__th,
+.devolucoes-page .devolucoes-table .employees-data-table__cell,
+.devolucoes-page .devolucoes-table td {
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+
+/* Empty state */
+.devolucoes-page .devolucoes-empty-state {
+  padding: 1.75rem 1rem 2rem;
+  text-align: center;
+}
+
+.devolucoes-page .devolucoes-empty-state__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--dev-text-strong);
+}
+
+.devolucoes-page .devolucoes-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  max-width: 24rem;
+  margin: 0.85rem auto 0;
+}
+
+.devolucoes-page .devolucoes-empty-state__actions .sys-btn {
+  flex: 1 1 auto;
+  min-width: min(100%, 8.5rem);
+  min-height: 2.15rem;
+  font-size: 0.8125rem;
+}
+
+/* Responsivo */
+@media (max-width: 1200px) {
+  .devolucoes-page .devolucoes-toolbar__main {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .devolucoes-page .devolucoes-toolbar__field--search {
+    grid-column: 1 / -1;
+  }
+
+  .devolucoes-page .devolucoes-toolbar__field--apply {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  .devolucoes-page .devolucoes-kpi-bar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .devolucoes-page .devolucoes-kpi-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .devolucoes-page .devolucoes-hero__subtitle {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 640px) {
+  .devolucoes-page .devolucoes-toolbar__main {
+    grid-template-columns: 1fr;
+  }
+
+  .devolucoes-page .devolucoes-toolbar__field--apply {
+    width: 100%;
+  }
+
+  .devolucoes-page .devolucoes-toolbar__apply {
+    width: 100%;
+  }
+
+  .devolucoes-page .devolucoes-kpi-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding-bottom: 0.15rem;
+  }
+
+  .devolucoes-page .devolucoes-kpi {
+    flex: 0 0 min(46vw, 9.5rem);
+    scroll-snap-align: start;
+  }
+
+  .devolucoes-page .devolucoes-hero__actions {
+    width: 100%;
+  }
+
+  .devolucoes-page .devolucoes-hero__btn {
+    flex: 1 1 auto;
+  }
+
+  .devolucoes-page .devolucoes-table-toolbar__right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .devolucoes-page .devolucoes-table-toolbar__batch {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .devolucoes-page .devolucoes-empty-state__actions {
+    flex-direction: column;
+  }
+
+  .devolucoes-page .devolucoes-empty-state__actions .sys-btn {
+    width: 100%;
+  }
+}
+
+html.dark .devolucoes-page .devolucoes-hero__icon {
+  border-color: rgb(67 56 202 / 0.45);
+  background: linear-gradient(145deg, rgb(30 27 75 / 0.85) 0%, rgb(49 46 129 / 0.65) 100%);
+  color: rgb(165 180 252);
+}
+
+html.dark .devolucoes-page .devolucoes-hero__chip--ok {
+  border-color: rgb(6 95 70 / 0.65);
+  background: rgb(6 78 59 / 0.35);
+  color: rgb(110 231 183);
+}
+
+html.dark .devolucoes-page .devolucoes-kpi.ops-card--selected {
+  background: linear-gradient(180deg, rgb(30 27 75 / 0.45) 0%, rgb(15 23 42) 100%);
+}
+
+html.dark .devolucoes-page .devolucoes-table-toolbar {
+  background: rgb(15 23 42 / 0.65);
+}
+
+html.dark .devolucoes-page .devolucoes-toolbar__chip--active,
+html.dark .devolucoes-page .devolucoes-table-toolbar__chip--active {
+  background: rgb(30 27 75 / 0.55);
+  color: rgb(199 210 254);
 }
 
 /*
@@ -91,18 +650,35 @@ html.ga-devolucoes-html .sys-btn.sys-btn--danger:hover {
 /*
  * Modais: openModal() move o nó para document.body — estilos por ID (paridade com .emp-modal-shell em employees.css).
  */
+.devolucoes-modal.emp-modal-shell,
 #importModal.emp-modal-shell,
 #manualDevolucaoModal.emp-modal-shell,
 #batchOperationsModal.emp-modal-shell,
 #confirmActionModal.emp-modal-shell {
-  background: rgb(15 23 42 / 0.4);
+  background: rgb(15 23 42 / 0.45);
   backdrop-filter: blur(6px);
-  z-index: 2000 !important;
+  z-index: 9999 !important;
   isolation: isolate;
+  align-items: center;
+  padding: 1rem;
 }
 
 #importModal.emp-modal-shell {
-  z-index: 2200 !important;
+  z-index: 10000 !important;
+}
+
+html.devolucoes-modal-open,
+html.devolucoes-modal-open body {
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .devolucoes-modal.emp-modal-shell .devolucoes-modal-card {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(94vh, calc(100dvh - 1rem));
+    margin: 0;
+  }
 }
 
 html.dark #importModal.emp-modal-shell,
@@ -189,34 +765,20 @@ html.dark #confirmActionModal.emp-modal-shell {
 }
 
 @media (max-width: 768px) {
-  .ga-employee-theme.employees-page[data-page="devolucoes"] .employees-hero__toolbar {
-    width: 100%;
-  }
-
-  .ga-employee-theme.employees-page[data-page="devolucoes"] .employees-hero__import-wrap {
-    width: 100%;
-  }
-
-  .ga-employee-theme.employees-page[data-page="devolucoes"] .employees-hero__import-wrap .employees-hero__import-menu {
+  .devolucoes-page .devolucoes-hero__import-menu {
     left: 0;
     right: 0;
     width: 100%;
   }
 
-  .ga-employee-theme.employees-page[data-page="devolucoes"] #employeesTable .employee-action-btn {
+  .ga-employee-theme.employees-page[data-page="devolucoes"] #employeesTable .employee-action-btn,
+  .devolucoes-page #employeesTable .employee-action-btn {
     min-height: 2.75rem;
     min-width: 2.75rem;
     touch-action: manipulation;
   }
 }
 
-@media (max-width: 640px) {
-  .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-selection-toolbar .employees-filter-bar__btn,
-  .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucoes-selection-toolbar .filter-btn {
-    width: 100%;
-    justify-content: center;
-  }
-}
 
 html.dark .ga-employee-theme.employees-page[data-page="devolucoes"] .devolucao-row--selected {
   background: rgb(30 58 138 / 0.18);

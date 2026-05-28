@@ -6,6 +6,7 @@
 
   var state = {
     openModalId: null,
+    lastModalTrigger: null,
     confirmHandler: null,
     importPreview: null,
     debounceTimer: 0,
@@ -45,27 +46,46 @@
 
   function setBodyLock(locked) {
     document.body.classList.toggle("overflow-hidden", !!locked);
+    document.documentElement.classList.toggle("devolucoes-modal-open", !!locked);
   }
 
-  function openModal(id) {
+  function blurIfInside(modal) {
+    var active = document.activeElement;
+    if (active && modal && modal.contains(active) && typeof active.blur === "function") {
+      active.blur();
+    }
+  }
+
+  function openModal(id, trigger) {
     ensureModalsTeleported();
     var modal = byId(id);
     if (!modal) return;
+    if (trigger && typeof trigger.focus === "function") {
+      state.lastModalTrigger = trigger;
+    } else if (document.activeElement && document.activeElement !== document.body) {
+      state.lastModalTrigger = document.activeElement;
+    }
     document.querySelectorAll(".emp-modal-shell:not(.hidden)").forEach(function (openShell) {
       if (openShell.id && openShell.id !== id) {
+        blurIfInside(openShell);
         openShell.classList.add("hidden");
         openShell.classList.remove("flex");
+        openShell.setAttribute("aria-hidden", "true");
       }
     });
     modal.classList.remove("hidden");
     modal.classList.add("flex");
+    modal.removeAttribute("aria-hidden");
     modal.scrollTop = 0;
     var modalCard = modal.querySelector(".devolucoes-modal-card");
     if (modalCard) modalCard.scrollTop = 0;
     state.openModalId = id;
     setBodyLock(true);
     window.requestAnimationFrame(function () {
-      var target = modal.querySelector("[data-autofocus], input:not([type='hidden']), select, textarea, button");
+      var target =
+        modal.querySelector("[data-autofocus]") ||
+        modal.querySelector(".emp-modal-close, [data-close-modal]") ||
+        modal.querySelector("input:not([type='hidden']), select, textarea, button");
       if (!target) return;
       try {
         target.focus({ preventScroll: true });
@@ -78,11 +98,22 @@
   function closeModal(id) {
     var modal = byId(id);
     if (!modal) return;
+    blurIfInside(modal);
     modal.classList.add("hidden");
     modal.classList.remove("flex");
+    modal.setAttribute("aria-hidden", "true");
     if (state.openModalId === id) state.openModalId = null;
     if (!document.querySelector(".emp-modal-shell:not(.hidden)")) {
       setBodyLock(false);
+      var trigger = state.lastModalTrigger;
+      state.lastModalTrigger = null;
+      if (trigger && typeof trigger.focus === "function") {
+        try {
+          trigger.focus({ preventScroll: true });
+        } catch (_error2) {
+          trigger.focus();
+        }
+      }
     }
   }
 
@@ -412,9 +443,9 @@
     });
   }
 
-  function openCreateModal() {
+  function openCreateModal(trigger) {
     resetManualForm();
-    openModal("manualDevolucaoModal");
+    openModal("manualDevolucaoModal", trigger);
   }
 
   function openEditModal(button) {
@@ -424,7 +455,7 @@
       return;
     }
     fillManualForm(row);
-    openModal("manualDevolucaoModal");
+    openModal("manualDevolucaoModal", button);
   }
 
   function renderClientSuggestions(items) {
@@ -874,12 +905,12 @@
     if (openButton) {
       var modalId = openButton.getAttribute("data-open-modal");
       if (modalId === "manualDevolucaoModal" && openButton.dataset.modalMode === "create") {
-        openCreateModal();
+        openCreateModal(openButton);
       } else if (modalId === "batchOperationsModal") {
         updateBulkCount();
-        openModal(modalId);
+        openModal(modalId, openButton);
       } else {
-        openModal(modalId);
+        openModal(modalId, openButton);
       }
       return;
     }

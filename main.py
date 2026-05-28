@@ -31906,6 +31906,8 @@ def _funcoes_normalize_header(key: str) -> str:
     if not key:
         return ""
     k = str(key).strip().upper().replace("Ç", "C")
+    k = unicodedata.normalize("NFKD", k)
+    k = "".join(ch for ch in k if not unicodedata.combining(ch))
     for old, new in [(" ", "_"), ("-", "_")]:
         k = k.replace(old, new)
     aliases = {
@@ -31919,6 +31921,101 @@ def _funcoes_normalize_header(key: str) -> str:
         "OBSERVACAOES": "DESCRICAO",
     }
     return aliases.get(k, k)
+
+
+def _funcoes_parse_salario_value(raw: Any) -> Optional[float]:
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
+        try:
+            v = float(raw)
+            return v if v >= 0 else None
+        except Exception:
+            return None
+    raw_sal = str(raw).strip()
+    if not raw_sal or raw_sal.lower() == "nan":
+        return None
+    try:
+        s2 = raw_sal.replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
+        return float(s2)
+    except Exception:
+        return None
+
+
+def _funcoes_colmap_from_headers(headers: List[str]) -> Dict[str, str]:
+    colmap: Dict[str, str] = {}
+    for h in headers:
+        if not h:
+            continue
+        norm = _funcoes_normalize_header(h)
+        if norm and norm not in colmap:
+            colmap[norm] = h
+    return colmap
+
+
+def _funcoes_rows_from_upload(raw: bytes, filename: str) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """Lê CSV ou Excel e devolve linhas com chaves NOME, SALARIO_BASE, DESCRICAO (valores brutos)."""
+    fn = (filename or "").lower()
+    rows_out: List[Dict[str, Any]] = []
+
+    if fn.endswith(".csv"):
+        try:
+            text = raw.decode("utf-8-sig", errors="replace")
+        except Exception:
+            return [], "Não foi possível ler o arquivo (UTF-8)"
+        reader = csv.DictReader(io.StringIO(text))
+        if not reader.fieldnames:
+            return [], "Arquivo sem cabeçalho"
+        colmap = _funcoes_colmap_from_headers(list(reader.fieldnames))
+        if "NOME" not in colmap:
+            return [], "Coluna obrigatória ausente: NOME (ou FUNÇÃO/CARGO)"
+        nome_key = colmap["NOME"]
+        sal_key = colmap.get("SALARIO_BASE")
+        desc_key = colmap.get("DESCRICAO")
+        for row in reader:
+            rows_out.append(
+                {
+                    "NOME": (row.get(nome_key) or "").strip() if nome_key else "",
+                    "SALARIO_BASE": row.get(sal_key) if sal_key else None,
+                    "DESCRICAO": (row.get(desc_key) or "").strip() if desc_key else "",
+                }
+            )
+        return rows_out, None
+
+    if fn.endswith(".xlsx") or fn.endswith(".xls"):
+        try:
+            engine = "openpyxl" if fn.endswith(".xlsx") else "xlrd"
+            df = pd.read_excel(io.BytesIO(raw), engine=engine, header=0)
+        except Exception:
+            return [], "Não foi possível ler o Excel (.xlsx ou .xls)"
+        if df is None or df.empty:
+            return [], "Planilha vazia"
+        colmap = _funcoes_colmap_from_headers([str(c) for c in df.columns])
+        if "NOME" not in colmap:
+            return [], "Coluna obrigatória ausente: NOME (ou FUNÇÃO/CARGO)"
+        nome_col = colmap["NOME"]
+        sal_col = colmap.get("SALARIO_BASE")
+        desc_col = colmap.get("DESCRICAO")
+        for _, series in df.iterrows():
+            nome_val = series.get(nome_col)
+            if pd.isna(nome_val):
+                nome_raw = ""
+            else:
+                nome_raw = str(nome_val).strip()
+            sal_raw = series.get(sal_col) if sal_col else None
+            if sal_raw is not None and pd.isna(sal_raw):
+                sal_raw = None
+            desc_raw = ""
+            if desc_col:
+                d = series.get(desc_col)
+                if d is not None and not pd.isna(d):
+                    desc_raw = str(d).strip()
+            rows_out.append({"NOME": nome_raw, "SALARIO_BASE": sal_raw, "DESCRICAO": desc_raw})
+        return rows_out, None
+
+    return [], "Use um arquivo .csv, .xlsx ou .xls (modelo disponível na tela)"
 
 
 @app.get("/funcoes", response_class=HTMLResponse)
@@ -32083,25 +32180,12 @@ async def funcoes_import(
     require_login(request)
     if not file or not file.filename:
         return RedirectResponse(url="/funcoes?error=Nenhum arquivo enviado", status_code=303)
-    fn = (file.filename or "").lower()
-    if not fn.endswith(".csv"):
-        return RedirectResponse(url="/funcoes?error=Use um arquivo .csv (modelo disponível na tela)", status_code=303)
-    try:
-        raw = await file.read()
-        text = raw.decode("utf-8-sig", errors="replace")
-    except Exception:
-        return RedirectResponse(url="/funcoes?error=Não foi possível ler o arquivo (UTF-8)", status_code=303)
+    raw = await file.read()
+    rows, parse_err = _funcoes_rows_from_upload(raw, file.filename or "")
+    if parse_err:
+        from urllib.parse import quote
 
-    reader = csv.DictReader(io.StringIO(text))
-    if not reader.fieldnames:
-        return RedirectResponse(url="/funcoes?error=CSV sem cabeçalho", status_code=303)
-
-    colmap = {_funcoes_normalize_header(h): h for h in reader.fieldnames if h}
-    if "NOME" not in colmap:
-        return RedirectResponse(
-            url="/funcoes?error=Coluna obrigatória ausente: NOME (ou FUNÇÃO/CARGO)",
-            status_code=303,
-        )
+        return RedirectResponse(url="/funcoes?error=" + quote(parse_err), status_code=303)
 
     existing = session.exec(select(models.CargoMaster.nome)).all()
     existing_set = {(n or "").strip().upper() for n in existing if n}
@@ -32109,11 +32193,8 @@ async def funcoes_import(
     created = 0
     skipped_dup = 0
     skipped_empty = 0
-    row_i = 0
-    for row in reader:
-        row_i += 1
-        nome_key = colmap.get("NOME")
-        raw_nome = (row.get(nome_key) or "").strip() if nome_key else ""
+    for row in rows:
+        raw_nome = (row.get("NOME") or "").strip()
         if not raw_nome:
             skipped_empty += 1
             continue
@@ -32121,20 +32202,8 @@ async def funcoes_import(
         if nome_val in existing_set:
             skipped_dup += 1
             continue
-        sal = None
-        sk = colmap.get("SALARIO_BASE")
-        if sk:
-            raw_sal = (row.get(sk) or "").strip()
-            if raw_sal:
-                try:
-                    s2 = raw_sal.replace("R$", "").replace(" ", "").replace(".", "").replace(",", ".")
-                    sal = float(s2)
-                except Exception:
-                    sal = None
-        desc = None
-        dk = colmap.get("DESCRICAO")
-        if dk:
-            desc = (row.get(dk) or "").strip() or None
+        sal = _funcoes_parse_salario_value(row.get("SALARIO_BASE"))
+        desc = (row.get("DESCRICAO") or "").strip() or None
         c = models.CargoMaster(nome=nome_val, salario_base=sal, descricao=desc, status="ATIVO")
         session.add(c)
         existing_set.add(nome_val)

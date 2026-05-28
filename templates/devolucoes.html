@@ -34,7 +34,7 @@
 {% set _motorista_filter = _filters.get('motorista_id') %}
 
 <div
-  class="ga-employee-theme employees-shell employees-page employees-page--premium space-y-4 pt-2 md:pt-3"
+  class="ga-employee-theme employees-shell employees-page employees-page--premium devolucoes-page space-y-3 pt-2 md:pt-3"
   data-page="devolucoes"
   lang="pt-BR"
   data-reconnect-start="{{ _filters.get('start_date') or '' }}"
@@ -56,54 +56,38 @@
   <div id="page-alert" class="hidden"></div>
   {% endif %}
 
-  <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
-    <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
-    <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-    <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
-      <div class="flex min-w-0 items-start gap-4">
-        <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
-          <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+  <header class="devolucoes-hero sys-card sys-card--surface overflow-visible">
+    <div class="devolucoes-hero__inner">
+      <div class="devolucoes-hero__brand">
+        <div class="devolucoes-hero__icon" aria-hidden="true">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h7l5 5v11a2 2 0 01-2 2z"></path>
           </svg>
         </div>
-        <div class="min-w-0">
-          <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-            Painel operacional
-          </span>
-          <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Controle de devoluções</h2>
-          <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
-            Fluxo unificado para registrar devoluções, revisar duplicidades de planilha e validar ocorrências sem perder o padrão visual da gestão.
-          </p>
-          <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
-            <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-              <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
-              {{ _stats.get('validated_count_fmt', '0') }} validados
-            </span>
-            <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-              {{ _stats.get('list_total_valor_fmt', _stats.get('total_valor_fmt', 'R$ 0,00')) }}
-            </span>
-            <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-              {{ _filters.get('period_label') or 'Período atual' }}
-            </span>
+        <div class="devolucoes-hero__copy min-w-0">
+          <span class="devolucoes-hero__eyebrow">Operação</span>
+          <h2 class="devolucoes-hero__title">Controle de devoluções</h2>
+          <p class="devolucoes-hero__subtitle">Registrar, importar, filtrar e validar ocorrências de entrega.</p>
+          <div class="devolucoes-hero__chips">
+            <span class="devolucoes-hero__chip devolucoes-hero__chip--ok">{{ _stats.get('validated_count_fmt', '0') }} consolidados</span>
+            <span class="devolucoes-hero__chip">{{ _stats.get('list_total_valor_fmt', _stats.get('total_valor_fmt', 'R$ 0,00')) }}</span>
+            <span class="devolucoes-hero__chip devolucoes-hero__chip--muted">{{ _filters.get('period_label') or 'Período atual' }}</span>
           </div>
         </div>
       </div>
 
-      <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
-        {# Mesmo padrão UX que /employees: dropdown com Alpine (fecha ao clicar fora). #}
-        <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
-          <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
-            <span class="employees-cta__icon" aria-hidden="true">
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-              </svg>
-            </span>
-            <span class="employees-cta__label">Importar</span>
-            <svg class="employees-hero__chevron h-3.5 w-3.5 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <div class="devolucoes-hero__actions">
+        <div x-data="{ open: false }" class="devolucoes-hero__import relative">
+          <button type="button" id="btn-devolucoes-import" @click="open = !open" class="sys-btn sys-btn--secondary devolucoes-hero__btn" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
+            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+            </svg>
+            <span>Importar</span>
+            <svg class="h-3.5 w-3.5 shrink-0 opacity-70 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
           </button>
-          <div x-show="open" x-cloak x-transition @click.away="open = false" class="employees-hero__import-menu absolute inset-x-0 top-full z-50 mt-2 py-1.5 sm:left-auto sm:right-0 sm:w-[min(100vw-2rem,20rem)]">
+          <div x-show="open" x-cloak x-transition @click.away="open = false" class="employees-hero__import-menu devolucoes-hero__import-menu absolute right-0 top-full z-50 mt-1.5 py-1.5 w-[min(100vw-2rem,20rem)]">
             <p class="employees-hero__import-menu-title px-4 pb-2 pt-1">Importação e operações</p>
             <button type="button" class="employees-menu-item" @click="open = false" data-open-modal="importModal">
               <span class="employees-menu-item__icon employees-menu-item__icon--emerald" aria-hidden="true">
@@ -129,7 +113,7 @@
               </span>
               <span class="employees-menu-item__text">
                 <span class="employees-menu-item__title">Reconectar órfãos</span>
-                <span class="employees-menu-item__hint">Tenta vincular ocorrências sem rota ao período atual</span>
+                <span class="employees-menu-item__hint">Vincular ocorrências sem rota ao período</span>
               </span>
             </button>
             <div class="employees-hero__import-menu-divider mx-3 my-1" role="presentation"></div>
@@ -145,221 +129,149 @@
           </div>
         </div>
 
-        <button type="button" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto" data-open-modal="manualDevolucaoModal" data-modal-mode="create">
-          <span class="employees-cta__icon" aria-hidden="true">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-          </span>
-          <span class="employees-cta__label">Nova Devolução</span>
+        <button type="button" id="btn-nova-devolucao" class="sys-btn sys-btn--primary devolucoes-hero__btn" data-open-modal="manualDevolucaoModal" data-modal-mode="create">
+          <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          <span>Nova Devolução</span>
         </button>
       </div>
     </div>
+  </header>
+
+  <div class="devolucoes-kpi-bar" aria-label="Situação do período">
+    <a href="{{ _links.get('all', '/devolucoes') }}" class="devolucoes-kpi devolucoes-kpi--period ops-card--interactive {% if _status_view == 'all' %}ops-card--selected{% endif %}">
+      <span class="devolucoes-kpi__label">Período</span>
+      <span class="devolucoes-kpi__value tabular-nums">{{ _pagination.get('total_count_fmt', _stats.get('total_count_fmt', '0')) }}</span>
+      <span class="devolucoes-kpi__hint">Total filtrado</span>
+      <span class="devolucoes-kpi__sub tabular-nums">{{ _stats.get('list_total_valor_fmt', _stats.get('total_valor_fmt', 'R$ 0,00')) }}</span>
+    </a>
+    <a href="{{ _links.get('aguardando', '/devolucoes') }}" class="devolucoes-kpi devolucoes-kpi--pending ops-card--interactive {% if _status_view == 'aguardando' %}ops-card--selected{% endif %}">
+      <span class="devolucoes-kpi__label">Aguardando</span>
+      <span class="devolucoes-kpi__value tabular-nums">{{ _stats.get('aguardando_count_fmt', '0') }}</span>
+      <span class="devolucoes-kpi__hint">A revisar</span>
+    </a>
+    <a href="{{ _links.get('validado', '/devolucoes') }}" class="devolucoes-kpi devolucoes-kpi--ok ops-card--interactive {% if _status_view == 'validado' %}ops-card--selected{% endif %}">
+      <span class="devolucoes-kpi__label">Validados</span>
+      <span class="devolucoes-kpi__value tabular-nums">{{ _stats.get('validated_count_fmt', '0') }}</span>
+      <span class="devolucoes-kpi__hint">Consolidados</span>
+    </a>
+    <a href="{{ _links.get('duplicata', '/devolucoes') }}" class="devolucoes-kpi devolucoes-kpi--dup ops-card--interactive {% if _status_view == 'duplicata' %}ops-card--selected{% endif %}">
+      <span class="devolucoes-kpi__label">Duplicatas</span>
+      <span class="devolucoes-kpi__value tabular-nums">{{ _stats.get('duplicate_excel_count_fmt', '0') }}</span>
+      <span class="devolucoes-kpi__hint">Conflitos</span>
+    </a>
+    <a href="{{ _links.get('orfao', '/devolucoes') }}" class="devolucoes-kpi devolucoes-kpi--orphan ops-card--interactive {% if _status_view == 'orfao' %}ops-card--selected{% endif %}">
+      <span class="devolucoes-kpi__label">Sem rota</span>
+      <span class="devolucoes-kpi__value tabular-nums">{{ _stats.get('orphan_count_fmt', '0') }}</span>
+      <span class="devolucoes-kpi__hint">Sem vínculo</span>
+    </a>
   </div>
 
-  <div class="sys-kpi-shell w-full">
-    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo de devoluções">
-      <a href="{{ _links.get('all', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'all' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
-        <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-            <div class="min-w-0">
-              <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Período</span>
-              <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                <span class="employees-kpi__value tabular-nums">{{ _pagination.get('total_count_fmt', _stats.get('total_count_fmt', '0')) }}</span>
-                <span class="employees-kpi__denom text-sm">{{ _stats.get('list_total_valor_fmt', _stats.get('total_valor_fmt', 'R$ 0,00')) }}</span>
-              </div>
-            </div>
-            <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-          </div>
-          <div class="employees-kpi__meta">
-            <span class="employees-text-muted">Mesmo critério da tabela (todas as páginas)</span>
-          </div>
-        </div>
-      </a>
-
-      <a href="{{ _links.get('aguardando', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'aguardando' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(251, 191, 36, 0.72);">
-        <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-            <div class="min-w-0">
-              <span class="sys-kpi-label text-amber-600 dark:text-amber-300">Aguardando</span>
-              <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ _stats.get('aguardando_count_fmt', '0') }}</span>
-              </div>
-            </div>
-            <svg class="h-4 w-4 shrink-0 text-amber-500 transition group-hover:scale-110 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M10.29 3.86l-7.5 13A1 1 0 003.66 18h16.68a1 1 0 00.87-1.5l-7.5-13a1 1 0 00-1.74 0z"></path>
-            </svg>
-          </div>
-          <div class="employees-kpi__meta">
-            <span class="employees-text-muted">Duplicatas e sem rota na fila</span>
-          </div>
-        </div>
-      </a>
-
-      <a href="{{ _links.get('validado', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'validado' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(16, 185, 129, 0.72);">
-        <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-            <div class="min-w-0">
-              <span class="sys-kpi-label text-emerald-600 dark:text-emerald-300">Validados</span>
-              <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                <span class="employees-kpi__value tabular-nums">{{ _stats.get('validated_count_fmt', '0') }}</span>
-              </div>
-            </div>
-            <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-          </div>
-          <div class="employees-kpi__meta">
-            <span class="employees-text-muted">Base consolidada para o restante do sistema</span>
-          </div>
-        </div>
-      </a>
-
-      <a href="{{ _links.get('duplicata', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'duplicata' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(248, 113, 113, 0.72);">
-        <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-            <div class="min-w-0">
-              <span class="sys-kpi-label text-rose-600 dark:text-rose-300">Duplicatas</span>
-              <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ _stats.get('duplicate_excel_count_fmt', '0') }}</span>
-              </div>
-            </div>
-            <svg class="h-4 w-4 shrink-0 text-rose-500 transition group-hover:scale-110 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636L5.636 18.364M5.636 5.636l12.728 12.728"></path>
-            </svg>
-          </div>
-          <div class="employees-kpi__meta">
-            <span class="employees-text-muted">Planilha conflitando com outros lançamentos</span>
-          </div>
-        </div>
-      </a>
-
-      <a href="{{ _links.get('orfao', '/devolucoes') }}" class="sys-kpi-card employees-kpi ops-card--interactive {% if _status_view == 'orfao' %}ops-card--selected{% endif %} group no-underline" style="--employees-kpi-accent: rgba(56, 189, 248, 0.72);">
-        <div class="sys-kpi-cell-inner employees-kpi__inner">
-          <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-            <div class="min-w-0">
-              <span class="sys-kpi-label text-sky-600 dark:text-sky-300">Sem rota</span>
-              <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                <span class="employees-kpi__value tabular-nums">{{ _stats.get('orphan_count_fmt', '0') }}</span>
-              </div>
-            </div>
-            <svg class="h-4 w-4 shrink-0 text-sky-500 transition group-hover:scale-110 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14L21 3m0 0h-6m6 0v6M14 10L3 21m0 0h6m-6 0v-6"></path>
-            </svg>
-          </div>
-          <div class="employees-kpi__meta">
-            <span class="employees-text-muted">Pontos que ainda exigem reconciliação</span>
-          </div>
-        </div>
-      </a>
-    </div>
-  </div>
-
-  <form id="devolucoesFilterForm" method="GET" action="/devolucoes" class="employees-filter-bar-card sys-card sys-card--surface employees-filter-bar-card--toolbar">
+  <form id="devolucoesFilterForm" method="GET" action="/devolucoes" class="devolucoes-toolbar sys-card sys-card--surface">
     <input type="hidden" name="page" value="1">
     <input type="hidden" name="sort" value="{{ _sort_key }}">
     <input type="hidden" name="dir" value="{{ _sort_dir }}">
     {% if _status_view and _status_view != 'all' %}
     <input type="hidden" name="status_view" value="{{ _status_view }}">
     {% endif %}
-    <div class="employees-filter-bar sys-filter-bar employees-filter-bar--strip m-0 border-0 bg-transparent p-0 shadow-none">
-      <div class="employees-filter-bar__inner">
-        <div class="employees-filter-bar__primary">
-          <div class="employees-filter-bar__primary-scroll">
-            <span class="employees-filter-bar__label employees-filter-bar__label--compact">Busca</span>
-            <div class="ops-toolbar-search employees-filter-bar__search">
-              <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-              </svg>
-              <input type="search" name="q" value="{{ _filters.get('q') or '' }}" placeholder="Cliente, NB, motorista ou placa" class="ops-toolbar-search__input" data-debounce-submit="true">
-            </div>
-            <input type="date" name="date_from" value="{{ _filters.get('date_from') or '' }}" class="ops-toolbar-control px-3">
-            <input type="date" name="date_to" value="{{ _filters.get('date_to') or '' }}" class="ops-toolbar-control px-3">
-            <select name="source" class="ops-toolbar-control px-3">
-              <option value="">Todas origens</option>
-              <option value="EXCEL" {% if _filters.get('source') == 'EXCEL' %}selected{% endif %}>Excel</option>
-              <option value="MOBILE" {% if _filters.get('source') == 'MOBILE' %}selected{% endif %}>Mobile</option>
-              <option value="WEB" {% if _filters.get('source') == 'WEB' %}selected{% endif %}>Web</option>
-              <option value="MANUAL" {% if _filters.get('source') == 'MANUAL' %}selected{% endif %}>Manual</option>
-            </select>
-            <select name="motorista_id" class="ops-toolbar-control px-3">
-              <option value="">Todos motoristas</option>
-              {% for emp in motoristas %}
-              <option value="{{ emp.id }}" {% if _motorista_filter == emp.id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
-              {% endfor %}
-            </select>
-            <select name="per_page" class="ops-toolbar-control px-3">
-              {% for option in page_size_options %}
-              <option value="{{ option }}" {% if _pagination.get('per_page') == option %}selected{% endif %}>{{ option }} por página</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-        <div class="employees-filter-bar__divider" aria-hidden="true"></div>
-        <div class="employees-filter-bar__secondary employees-filter-bar__secondary--wrap">
-          <button type="submit" class="sys-btn sys-btn--secondary employees-filter-bar__btn">Aplicar</button>
-          <a href="{{ _links.get('today', '/devolucoes?hoje=1') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('today_active') %}filter-btn--active{% endif %}">Hoje</a>
-          <a href="{{ _links.get('all', '/devolucoes') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'all' %}filter-btn--active{% endif %}">Ver todos</a>
-          <a href="/devolucoes/avaliar" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar" title="Consolidado e avaliação">
-            <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-            <span class="employees-filter-bar__link-sub-text">Avaliar</span>
-          </a>
-          <span class="employees-text-caption hidden text-[11px] sm:inline">Origem:</span>
-          <a href="{{ _links.get('excel', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('source') == 'EXCEL' %}filter-btn--active{% endif %}">Excel</a>
-          <a href="{{ _links.get('mobile', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('source') == 'MOBILE' %}filter-btn--active{% endif %}">Mobile</a>
-          <a href="{{ _links.get('web', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('source') == 'WEB' %}filter-btn--active{% endif %}">Web</a>
-          <a href="{{ _links.get('manual', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _filters.get('source') == 'MANUAL' %}filter-btn--active{% endif %}">Manual</a>
-          <a href="{{ _links.get('clear', '/devolucoes') }}" class="ops-toolbar-ghost-btn employees-filter-bar__btn">Limpar filtros</a>
+    <div class="devolucoes-toolbar__main">
+      <div class="devolucoes-toolbar__field devolucoes-toolbar__field--search">
+        <label for="devolucoes-filter-q" class="devolucoes-toolbar__label">Busca</label>
+        <div class="devolucoes-toolbar__search">
+          <svg class="h-4 w-4 shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+          <input id="devolucoes-filter-q" type="search" name="q" value="{{ _filters.get('q') or '' }}" placeholder="Cliente, NB, motorista ou placa" class="devolucoes-toolbar__control devolucoes-toolbar__control--search" data-debounce-submit="true">
         </div>
       </div>
+      <div class="devolucoes-toolbar__field">
+        <label for="devolucoes-filter-from" class="devolucoes-toolbar__label">Data inicial</label>
+        <input id="devolucoes-filter-from" type="date" name="date_from" value="{{ _filters.get('date_from') or '' }}" class="devolucoes-toolbar__control">
+      </div>
+      <div class="devolucoes-toolbar__field">
+        <label for="devolucoes-filter-to" class="devolucoes-toolbar__label">Data final</label>
+        <input id="devolucoes-filter-to" type="date" name="date_to" value="{{ _filters.get('date_to') or '' }}" class="devolucoes-toolbar__control">
+      </div>
+      <div class="devolucoes-toolbar__field">
+        <label for="devolucoes-filter-source" class="devolucoes-toolbar__label">Origem</label>
+        <select id="devolucoes-filter-source" name="source" class="devolucoes-toolbar__control">
+          <option value="">Todas origens</option>
+          <option value="EXCEL" {% if _filters.get('source') == 'EXCEL' %}selected{% endif %}>Excel</option>
+          <option value="MOBILE" {% if _filters.get('source') == 'MOBILE' %}selected{% endif %}>Mobile</option>
+          <option value="WEB" {% if _filters.get('source') == 'WEB' %}selected{% endif %}>Web</option>
+          <option value="MANUAL" {% if _filters.get('source') == 'MANUAL' %}selected{% endif %}>Manual</option>
+        </select>
+      </div>
+      <div class="devolucoes-toolbar__field">
+        <label for="devolucoes-filter-motorista" class="devolucoes-toolbar__label">Motorista</label>
+        <select id="devolucoes-filter-motorista" name="motorista_id" class="devolucoes-toolbar__control">
+          <option value="">Todos motoristas</option>
+          {% for emp in motoristas %}
+          <option value="{{ emp.id }}" {% if _motorista_filter == emp.id %}selected{% endif %}>{{ emp.name|emp_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="devolucoes-toolbar__field devolucoes-toolbar__field--compact">
+        <label for="devolucoes-filter-per-page" class="devolucoes-toolbar__label">Itens</label>
+        <select id="devolucoes-filter-per-page" name="per_page" class="devolucoes-toolbar__control">
+          {% for option in page_size_options %}
+          <option value="{{ option }}" {% if _pagination.get('per_page') == option %}selected{% endif %}>{{ option }}/pág.</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="devolucoes-toolbar__field devolucoes-toolbar__field--apply">
+        <span class="devolucoes-toolbar__label devolucoes-toolbar__label--spacer" aria-hidden="true">&nbsp;</span>
+        <button type="submit" class="sys-btn sys-btn--primary devolucoes-toolbar__apply">Aplicar</button>
+      </div>
+    </div>
+    <div class="devolucoes-toolbar__shortcuts" aria-label="Atalhos de filtro">
+      <a href="{{ _links.get('today', '/devolucoes?hoje=1') }}" class="devolucoes-toolbar__chip {% if _filters.get('today_active') %}devolucoes-toolbar__chip--active{% endif %}">Hoje</a>
+      <a href="{{ _links.get('all', '/devolucoes') }}" class="devolucoes-toolbar__chip {% if _status_view == 'all' %}devolucoes-toolbar__chip--active{% endif %}">Ver todos</a>
+      <a href="/devolucoes/avaliar" class="devolucoes-toolbar__chip devolucoes-toolbar__chip--link">Avaliar</a>
+      <a href="{{ _links.get('excel', '/devolucoes') }}" class="devolucoes-toolbar__chip {% if _filters.get('source') == 'EXCEL' %}devolucoes-toolbar__chip--active{% endif %}">Excel</a>
+      <a href="{{ _links.get('mobile', '/devolucoes') }}" class="devolucoes-toolbar__chip {% if _filters.get('source') == 'MOBILE' %}devolucoes-toolbar__chip--active{% endif %}">Mobile</a>
+      <a href="{{ _links.get('web', '/devolucoes') }}" class="devolucoes-toolbar__chip {% if _filters.get('source') == 'WEB' %}devolucoes-toolbar__chip--active{% endif %}">Web</a>
+      <a href="{{ _links.get('manual', '/devolucoes') }}" class="devolucoes-toolbar__chip {% if _filters.get('source') == 'MANUAL' %}devolucoes-toolbar__chip--active{% endif %}">Manual</a>
+      <a href="{{ _links.get('clear', '/devolucoes') }}" class="devolucoes-toolbar__chip devolucoes-toolbar__chip--muted">Limpar filtros</a>
     </div>
   </form>
 
-  <div class="sys-card sys-card--surface sys-card--comfort devolucoes-selection-toolbar">
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div class="flex flex-wrap items-center gap-2">
-        <label class="inline-flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-          <input id="devolucao-bulk-select-all" type="checkbox" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+  <div id="employees-table-panel" class="devolucoes-table-panel sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
+    <div class="devolucoes-table-toolbar devolucoes-selection-toolbar">
+      <div class="devolucoes-table-toolbar__left">
+        <label class="devolucoes-table-toolbar__select-all">
+          <input id="devolucao-bulk-select-all" type="checkbox" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
           <span>Selecionar visíveis</span>
         </label>
-        <span class="employees-filter-counter employees-filter-counter--toolbar">Selecionados: <strong id="bulk-selected-count" class="ml-1">0</strong></span>
+        <span class="devolucoes-table-toolbar__count">Selecionados: <strong id="bulk-selected-count">0</strong></span>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <a href="{{ _links.get('all', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'all' %}filter-btn--active{% endif %}">Ver todos</a>
-        <a href="{{ _links.get('aguardando', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'aguardando' %}filter-btn--active{% endif %}">Aguardando</a>
-        <a href="{{ _links.get('duplicata', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'duplicata' %}filter-btn--active{% endif %}">Duplicatas</a>
-        <a href="{{ _links.get('orfao', '/devolucoes') }}" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn {% if _status_view == 'orfao' %}filter-btn--active{% endif %}">Sem rota</a>
-        <button type="button" class="sys-btn sys-btn--secondary employees-filter-bar__btn" data-open-modal="batchOperationsModal">Operações em lote</button>
+      <div class="devolucoes-table-toolbar__right">
+        <a href="{{ _links.get('aguardando', '/devolucoes') }}" class="devolucoes-table-toolbar__chip {% if _status_view == 'aguardando' %}devolucoes-table-toolbar__chip--active{% endif %}">Aguardando</a>
+        <a href="{{ _links.get('duplicata', '/devolucoes') }}" class="devolucoes-table-toolbar__chip {% if _status_view == 'duplicata' %}devolucoes-table-toolbar__chip--active{% endif %}">Duplicatas</a>
+        <a href="{{ _links.get('orfao', '/devolucoes') }}" class="devolucoes-table-toolbar__chip {% if _status_view == 'orfao' %}devolucoes-table-toolbar__chip--active{% endif %}">Sem rota</a>
+        <button type="button" class="sys-btn sys-btn--secondary devolucoes-table-toolbar__batch" data-open-modal="batchOperationsModal">Operações em lote</button>
       </div>
     </div>
-  </div>
 
-  <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
-    <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-      <div class="min-w-0 flex-1">
-        <p class="employees-table-panel__kicker">Gestão de ocorrências</p>
-        <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista de devoluções</h3>
-        <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">A listagem foi enxugada para usar filtro, ordenação e paginação no servidor. No mobile, cada linha vira card com atalhos de revisão.</p>
-      </div>
-      <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
+    <div class="devolucoes-table-panel__meta">
+      <p class="devolucoes-table-panel__range">
         {% if _pagination.get('total_count', 0) %}
-          Exibindo <strong>{{ _pagination.get('page_start_fmt', '0') }}</strong>–<strong>{{ _pagination.get('page_end_fmt', '0') }}</strong> de <strong>{{ _pagination.get('total_count_fmt', '0') }}</strong> resultado(s).
+        <strong>{{ _pagination.get('page_start_fmt', '0') }}–{{ _pagination.get('page_end_fmt', '0') }}</strong> de <strong>{{ _pagination.get('total_count_fmt', '0') }}</strong>
         {% else %}
-          Nenhum registro encontrado para o filtro atual.
+        Nenhum registro no filtro atual
         {% endif %}
-        <div class="mt-2 flex flex-wrap justify-end gap-2">
-          <a href="{{ _pagination.get('prev_href', '#') }}" class="sys-btn sys-btn--secondary {% if not _pagination.get('has_prev') %}pointer-events-none opacity-50{% endif %}">Anterior</a>
-          <span class="employees-text-caption inline-flex items-center px-1.5">Pág. {{ _pagination.get('page', 1) }} / {{ _pagination.get('total_pages', 1) }}</span>
-          <a href="{{ _pagination.get('next_href', '#') }}" class="sys-btn sys-btn--secondary {% if not _pagination.get('has_next') %}pointer-events-none opacity-50{% endif %}">Próxima</a>
-        </div>
+      </p>
+      <div class="devolucoes-table-panel__pager">
+        <a href="{{ _pagination.get('prev_href', '#') }}" class="devolucoes-table-panel__pager-btn {% if not _pagination.get('has_prev') %}is-disabled{% endif %}">Anterior</a>
+        <span class="devolucoes-table-panel__pager-info">{{ _pagination.get('page', 1) }} / {{ _pagination.get('total_pages', 1) }}</span>
+        <a href="{{ _pagination.get('next_href', '#') }}" class="devolucoes-table-panel__pager-btn {% if not _pagination.get('has_next') %}is-disabled{% endif %}">Próxima</a>
       </div>
     </div>
 
     {% if devolucoes %}
     <div class="sys-table-wrap sys-table-wrap--x-scroll">
-      <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1240px]" id="employeesTable">
+      <table class="devolucoes-table employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[1240px]" id="employeesTable">
         <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
           <tr>
             <th class="employees-data-table__th group px-2 py-2 pl-3">
@@ -484,11 +396,18 @@
       </table>
     </div>
     {% else %}
-    <div class="sys-empty-state m-6">Nenhuma devolução encontrada para o filtro atual.</div>
+    <div class="devolucoes-empty-state">
+      <p class="devolucoes-empty-state__title">Nenhuma devolução encontrada no período filtrado.</p>
+      <div class="devolucoes-empty-state__actions">
+        <a href="{{ _links.get('clear', '/devolucoes') }}" class="sys-btn sys-btn--secondary justify-center">Limpar filtros</a>
+        <button type="button" class="sys-btn sys-btn--primary justify-center" data-open-modal="manualDevolucaoModal" data-modal-mode="create">Nova devolução</button>
+        <button type="button" class="sys-btn sys-btn--secondary justify-center" onclick="document.getElementById('btn-devolucoes-import')?.click()">Importar planilha</button>
+      </div>
+    </div>
     {% endif %}
   </div>
 
-  <div id="importModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-6 pt-24 md:pt-20" role="dialog" aria-modal="true" aria-labelledby="import-modal-title">
+  <div id="importModal" class="devolucoes-modal emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="import-modal-title" aria-hidden="true">
     <div class="sys-card sys-card--surface sys-card--comfort relative z-10 w-full max-w-2xl devolucoes-modal-card">
       <div class="mb-6 flex items-center justify-between gap-3">
         <div>
@@ -548,7 +467,7 @@
     </div>
   </div>
 
-  <div id="manualDevolucaoModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-6 pt-24 md:pt-20" role="dialog" aria-modal="true" aria-labelledby="manual-devolucao-title">
+  <div id="manualDevolucaoModal" class="devolucoes-modal emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="manual-devolucao-title" aria-hidden="true">
     <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-3xl devolucoes-modal-card">
       <div class="mb-6 flex items-center justify-between gap-3">
         <div>
@@ -651,7 +570,7 @@
     </div>
   </div>
 
-  <div id="batchOperationsModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="batch-operations-title">
+  <div id="batchOperationsModal" class="devolucoes-modal emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="batch-operations-title" aria-hidden="true">
     <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-lg devolucoes-modal-card">
       <div class="mb-6 flex items-center justify-between gap-3">
         <div>
@@ -677,7 +596,7 @@
     </div>
   </div>
 
-  <div id="confirmActionModal" class="emp-modal-shell fixed inset-0 z-50 hidden flex items-start justify-center overflow-y-auto p-4 pb-8 pt-16 sm:items-center sm:pt-4" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title">
+  <div id="confirmActionModal" class="devolucoes-modal emp-modal-shell fixed inset-0 hidden flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true" aria-labelledby="confirm-action-title" aria-hidden="true">
     <div class="sys-card sys-card--surface sys-card--comfort w-full max-w-md devolucoes-modal-card">
       <div class="mb-4 flex items-start gap-3">
         <span class="emp-modal-icon-ring emp-modal-icon-ring--lg">
