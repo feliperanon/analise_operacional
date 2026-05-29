@@ -454,19 +454,20 @@ window.addEventListener("error", function (evt) {
                             if (pctStored[idx] != null) return Number(Number(pctStored[idx]).toFixed(2));
                             return null;
                         };
+                        var MIN_DEVOLUCAO_CHART_HEIGHT = 180;
                         var resolvedH = chartPixelHeight;
-                        if (resolvedH == null || resolvedH < 120) {
+                        if (resolvedH == null || resolvedH < MIN_DEVOLUCAO_CHART_HEIGHT) {
                             resolvedH = el && el.getBoundingClientRect
                                 ? Math.floor(el.getBoundingClientRect().height)
                                 : 0;
                         }
-                        if (resolvedH < 120) {
-                            resolvedH = el && el.clientHeight >= 120 ? el.clientHeight : 160;
+                        if (resolvedH < MIN_DEVOLUCAO_CHART_HEIGHT) {
+                            resolvedH = el && el.clientHeight >= MIN_DEVOLUCAO_CHART_HEIGHT ? el.clientHeight : 190;
                         }
                         return {
                             chart: {
                                 type: 'area',
-                                height: Math.max(120, Math.floor(resolvedH)),
+                                height: Math.max(MIN_DEVOLUCAO_CHART_HEIGHT, Math.floor(resolvedH)),
                                 fontFamily: 'inherit',
                                 toolbar: { show: false },
                                 zoom: { enabled: false },
@@ -482,7 +483,7 @@ window.addEventListener("error", function (evt) {
                             },
                             colors: ['#4f46e5', '#ea580c'],
                             stroke: {
-                                width: [3.2, 2.5],
+                                width: [2.8, 2.2],
                                 curve: 'smooth',
                                 dashArray: [0, 6],
                                 connectNulls: false,
@@ -508,7 +509,7 @@ window.addEventListener("error", function (evt) {
                                 axisBorder: { show: true, color: '#cbd5e1' },
                                 axisTicks: { show: true, color: '#cbd5e1' },
                                 labels: {
-                                    style: { fontSize: '13px', fontWeight: 700, colors: '#475569' },
+                                    style: { fontSize: '11px', fontWeight: 700, colors: '#475569' },
                                     offsetY: 2,
                                     hideOverlappingLabels: true,
                                 },
@@ -523,8 +524,8 @@ window.addEventListener("error", function (evt) {
                                 tickAmount: tickAmt,
                                 decimalsInFloat: 0,
                                 title: {
-                                    text: 'Valor (R$)',
-                                    style: { fontSize: '12px', fontWeight: 700, color: '#64748b' },
+                                    text: '',
+                                    show: false,
                                 },
                                 labels: {
                                     formatter: function(val) {
@@ -538,7 +539,7 @@ window.addEventListener("error", function (evt) {
                                         }
                                         return v.toLocaleString('pt-BR');
                                     },
-                                    style: { fontSize: '13px', fontWeight: 600, colors: '#334155' },
+                                    style: { fontSize: '11px', fontWeight: 600, colors: '#334155' },
                                     offsetX: -4,
                                 },
                             },
@@ -547,12 +548,12 @@ window.addEventListener("error", function (evt) {
                             grid: {
                                 strokeDashArray: 5,
                                 borderColor: '#e8eef4',
-                                padding: { top: 14, right: 14, bottom: 6, left: 12 },
+                                padding: { top: 10, right: 10, bottom: 0, left: 4 },
                                 xaxis: { lines: { show: false } },
                                 yaxis: { lines: { show: true } },
                             },
                             markers: {
-                                size: [3, 0],
+                                size: [2.8, 0],
                                 strokeWidth: [2, 0],
                                 strokeColors: ['#ffffff', '#ffffff'],
                                 fillOpacity: 1,
@@ -602,11 +603,11 @@ window.addEventListener("error", function (evt) {
                         if (!el || !el.getBoundingClientRect) return 0;
                         normalizeDevolucaoChartHostStyles();
                         var h = Math.floor(el.getBoundingClientRect().height);
-                        if (h >= 120) return h;
+                        if (h >= 180) return h;
                         var body = el.closest ? el.closest('.gv-devolucao-kpi-body') : null;
                         if (body && body.getBoundingClientRect) {
                             h = Math.floor(body.getBoundingClientRect().height);
-                            if (h >= 120) return h;
+                            if (h >= 180) return h;
                         }
                         var card = el.closest ? el.closest('.gv-card--devolucao-kpi') : null;
                         if (card && card.getBoundingClientRect) {
@@ -617,7 +618,7 @@ window.addEventListener("error", function (evt) {
                             if (head && head.getBoundingClientRect) used += Math.ceil(head.getBoundingClientRect().height);
                             if (legend && legend.getBoundingClientRect) used += Math.ceil(legend.getBoundingClientRect().height);
                             h = cardH - used - 28;
-                            if (h >= 120) return h;
+                            if (h >= 180) return h;
                         }
                         return 0;
                     }
@@ -626,8 +627,8 @@ window.addEventListener("error", function (evt) {
                         if (!chart) return;
                         normalizeDevolucaoChartHostStyles();
                         var h = measureDevolucaoChartHost();
-                        if (h < 120) h = el.clientHeight;
-                        if (h < 120) return;
+                        if (h < 180) h = el.clientHeight;
+                        if (h < 180) h = 190;
                         try {
                             chart.updateOptions({ chart: { height: h } }, true, false);
                         } catch (e2) { /* ignore */ }
@@ -660,8 +661,8 @@ window.addEventListener("error", function (evt) {
                     window._gvRebuildDevolucaoKpi = function(k) {
                         if (!chart || !k || !k.labels) return;
                         var h = measureDevolucaoChartHost();
-                        if (h < 120) h = el.clientHeight;
-                        chart.updateOptions(buildKpiChartOptions(k, h >= 120 ? h : null), true, true);
+                        if (h < 180) h = el.clientHeight;
+                        chart.updateOptions(buildKpiChartOptions(k, h >= 180 ? h : 190), true, true);
                         normalizeDevolucaoChartHostStyles();
                         applyDevolucaoChartHeight();
                     };

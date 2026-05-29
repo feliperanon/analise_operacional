@@ -1342,3 +1342,184 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
   }
 }
 
+/* Coluna central: comunicado como banner visual e grafico mensal legivel. */
+#informativo-root.dashboard-informativo-ga .gv-col-mid {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1.65fr) minmax(190px, 1fr);
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card {
+  min-height: 0;
+  overflow: hidden;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card--focus {
+  display: flex;
+  flex-direction: column;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root {
+  position: relative;
+  height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-pane {
+  position: relative;
+  flex: 1 1 auto !important;
+  width: 100%;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-pane[hidden] {
+  display: none !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-split {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-media {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  border-radius: 0 !important;
+  background: #f8fafc !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-image {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-copy {
+  display: none !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-dots {
+  position: absolute !important;
+  left: 50% !important;
+  bottom: 0.55rem !important;
+  z-index: 5 !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 0.3rem 0.55rem !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.76) !important;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  padding: 0;
+  margin: 0;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.65);
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-dot[aria-current="true"] {
+  width: 1.15rem;
+  background: #0284c7;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-card--devolucao-kpi {
+  min-height: 210px !important;
+  max-height: 280px !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-card--devolucao-kpi .gv-card-head {
+  flex: 0 0 auto;
+  min-height: 2.25rem;
+  padding-bottom: 0.35rem;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-devolucao-kpi-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-devolucao-kpi-legend {
+  flex: 0 0 auto;
+  min-height: 0;
+  padding: 0.35rem 0.75rem !important;
+  gap: 0.45rem 0.85rem !important;
+  font-size: 0.68rem;
+  line-height: 1;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-devolucao-kpi-legend span {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-devolucao-kpi-legend .text-\[10px\],
+#informativo-root.dashboard-informativo-ga .gv-devolucao-kpi-legend .text-\[11px\] {
+  font-size: 0.66rem !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-devolucao-kpi-legend > span:last-child {
+  display: none;
+}
+
+#informativo-root.dashboard-informativo-ga #chart-informativo-devolucao {
+  flex: 1 1 auto;
+  min-height: 165px !important;
+  height: 100% !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga #chart-informativo-devolucao .apexcharts-canvas,
+#informativo-root.dashboard-informativo-ga #chart-informativo-devolucao svg {
+  max-width: 100% !important;
+}
+
+html.dark #informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-media {
+  background: #0f172a !important;
+}
+
+html.dark #informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-dots {
+  background: rgba(15, 23, 42, 0.72) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
