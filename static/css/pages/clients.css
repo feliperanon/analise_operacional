@@ -1036,10 +1036,10 @@ html.clients-modal-open body {
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.7rem;
   min-width: 0;
   font-size: 0.8125rem;
-  line-height: 1.42;
+  line-height: 1.35;
 }
 
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv--split {
@@ -1086,7 +1086,7 @@ html.clients-modal-open body {
 .ga-employee-theme.employees-page.clients-page.clients-detail-page .client-detail-kv__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11.25rem, 1fr));
-  gap: 0.85rem 1.1rem;
+  gap: 0.5rem 1.1rem;
   margin: 0;
 }
 
@@ -1736,8 +1736,8 @@ html.dark .cd-page .cd-prod { color: rgb(52 211 153); }
 
 /* ---------- 1. Cabeçalho executivo ---------- */
 .cd-page .cd-head {
-  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
-  gap: 0.85rem 1.25rem; padding: 1rem 1.25rem;
+  display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+  gap: 0.5rem 1.25rem; padding: 0.7rem 1.1rem; min-height: 0;
 }
 .cd-page .cd-head__main { min-width: 0; flex: 1 1 22rem; }
 .cd-page .cd-head__eyebrow {
@@ -1745,11 +1745,11 @@ html.dark .cd-page .cd-prod { color: rgb(52 211 153); }
   color: var(--emp-text-muted);
 }
 .cd-page .cd-head__title {
-  margin: 0.15rem 0 0; font-size: 1.4rem; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em;
+  margin: 0.1rem 0 0; font-size: 1.25rem; line-height: 1.12; font-weight: 800; letter-spacing: -0.02em;
   color: var(--emp-text-strong);
 }
-.cd-page .cd-head__sub { margin: 0.2rem 0 0; font-size: 0.82rem; color: var(--emp-text-muted); }
-.cd-page .cd-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.7rem; }
+.cd-page .cd-head__sub { margin: 0.1rem 0 0; font-size: 0.8rem; color: var(--emp-text-muted); }
+.cd-page .cd-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem; }
 .cd-page .cd-chip {
   display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem;
   border-radius: 999px; font-size: 0.72rem; font-weight: 600; line-height: 1.2;
@@ -1778,8 +1778,8 @@ html.dark .cd-page .cd-action--danger { color: rgb(253 164 175); border-color: r
 
 /* ---------- 2. Painel de decisão ---------- */
 .cd-page .cd-decision {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 0.9rem 1.1rem;
-  padding: 0.9rem 1.15rem; border-radius: var(--emp-radius-lg);
+  display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.7rem 1.1rem;
+  padding: 0.75rem 1.1rem; border-radius: var(--emp-radius-lg); min-height: 0;
   border: 1px solid var(--emp-border); background: var(--emp-surface);
   border-left-width: 4px; box-shadow: var(--emp-shadow-card);
 }
@@ -1853,23 +1853,23 @@ html.dark .cd-page .cd-kpi--indigo .cd-kpi__value { color: rgb(165 180 252); }
 html.dark .cd-page .cd-kpi--amber .cd-kpi__value, html.dark .cd-page .cd-kpi--warn .cd-kpi__value { color: rgb(251 191 36); }
 html.dark .cd-page .cd-kpi--rose .cd-kpi__value, html.dark .cd-page .cd-kpi--crit .cd-kpi__value { color: rgb(253 164 175); }
 
-/* ---------- Estado vazio ---------- */
+/* ---------- Estado vazio (faixa informativa compacta) ---------- */
 .cd-page .cd-empty {
-  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.35rem;
-  padding: 1.6rem 1rem; border-radius: var(--emp-radius-lg);
+  display: flex; flex-direction: row; align-items: center; text-align: left; gap: 0.25rem 0.75rem;
+  flex-wrap: wrap; padding: 0.7rem 1rem; border-radius: var(--emp-radius-lg);
   border: 1px dashed var(--emp-border); background: var(--emp-surface-subtle); color: var(--emp-text-muted);
 }
-.cd-page .cd-empty svg { width: 2rem; height: 2rem; opacity: 0.6; }
-.cd-page .cd-empty__title { margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--emp-text-body); }
-.cd-page .cd-empty__sub { margin: 0; font-size: 0.78rem; }
+.cd-page .cd-empty svg { width: 1.35rem; height: 1.35rem; opacity: 0.6; flex-shrink: 0; }
+.cd-page .cd-empty__title { margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--emp-text-body); }
+.cd-page .cd-empty__sub { margin: 0; font-size: 0.76rem; }
 .cd-page .cd-empty--ok { border-style: solid; border-color: rgb(16 185 129 / 0.3); background: rgb(16 185 129 / 0.06); }
 .cd-page .cd-empty--ok svg { color: rgb(5 150 105); opacity: 0.9; }
 .cd-page .cd-empty-row { padding: 2rem 1rem; text-align: center; color: var(--emp-text-muted); }
 
 /* ---------- 4. Matriz por período ---------- */
 .cd-page .cd-matrix-scroll { overflow-x: auto; }
-.cd-page .cd-matrix { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
-.cd-page .cd-matrix th, .cd-page .cd-matrix td { padding: 0.55rem 0.85rem; white-space: nowrap; }
+.cd-page .cd-matrix { width: 100%; border-collapse: collapse; font-size: 0.83rem; font-variant-numeric: tabular-nums; }
+.cd-page .cd-matrix th, .cd-page .cd-matrix td { padding: 0.38rem 0.85rem; white-space: nowrap; }
 .cd-page .cd-matrix thead th {
   font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--emp-text-muted); border-bottom: 1px solid var(--emp-border); background: var(--emp-surface-subtle);
@@ -1896,14 +1896,14 @@ html.dark .cd-page .cd-matrix__row--amber th { color: rgb(251 191 36); }
 }
 .cd-page .cd-acc + .cd-acc { margin-top: 0; }
 .cd-page .cd-acc__summary {
-  display: flex; align-items: center; gap: 0.65rem; padding: 0.85rem 1.1rem; cursor: pointer;
+  display: flex; align-items: center; gap: 0.55rem; padding: 0.6rem 1rem; cursor: pointer;
   list-style: none; user-select: none;
   background: linear-gradient(180deg, var(--emp-surface-subtle) 0%, var(--emp-surface) 60%);
 }
 .cd-page .cd-acc__summary::-webkit-details-marker { display: none; }
 .cd-page .cd-acc__summary:focus-visible { outline: 2px solid rgb(99 102 241 / 0.5); outline-offset: -2px; }
-.cd-page .cd-acc__title { display: inline-flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; font-size: 0.92rem; font-weight: 700; color: var(--emp-text-strong); }
-.cd-page .cd-acc__title svg { width: 1.1rem; height: 1.1rem; color: var(--emp-text-muted); flex-shrink: 0; }
+.cd-page .cd-acc__title { display: inline-flex; align-items: center; gap: 0.45rem; flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 700; color: var(--emp-text-strong); }
+.cd-page .cd-acc__title svg { width: 0.95rem; height: 0.95rem; color: var(--emp-text-muted); flex-shrink: 0; }
 .cd-page .cd-acc__badge {
   flex-shrink: 0; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700;
   border: 1px solid var(--emp-border); background: var(--emp-surface-subtle); color: var(--emp-text-muted); font-variant-numeric: tabular-nums;
@@ -1912,9 +1912,9 @@ html.dark .cd-page .cd-matrix__row--amber th { color: rgb(251 191 36); }
 .cd-page .cd-acc__badge--ok { background: rgb(16 185 129 / 0.12); border-color: rgb(16 185 129 / 0.3); color: rgb(4 120 87); }
 html.dark .cd-page .cd-acc__badge--crit { color: rgb(253 164 175); }
 html.dark .cd-page .cd-acc__badge--ok { color: rgb(52 211 153); }
-.cd-page .cd-acc__chevron { width: 1.05rem; height: 1.05rem; color: var(--emp-text-muted); flex-shrink: 0; transition: transform 0.18s ease; }
+.cd-page .cd-acc__chevron { width: 0.95rem; height: 0.95rem; color: var(--emp-text-muted); flex-shrink: 0; transition: transform 0.18s ease; }
 .cd-page .cd-acc[open] .cd-acc__chevron { transform: rotate(180deg); }
-.cd-page .cd-acc__body { padding: 1.1rem; border-top: 1px solid var(--emp-border); }
+.cd-page .cd-acc__body { padding: 0.85rem 1rem; border-top: 1px solid var(--emp-border); }
 .cd-page .cd-acc__body--flush { padding: 0; }
 .cd-page .cd-more-wrap { display: flex; justify-content: center; padding: 0.85rem; border-top: 1px solid var(--emp-border); }
 
