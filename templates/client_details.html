@@ -1079,35 +1079,6 @@
                             </div>
                         </div>
                     </section>
-                    <section class="comercial-modal-section" aria-labelledby="client-edit-sec-janela">
-                        <h4 id="client-edit-sec-janela" class="comercial-modal-section__title">Janela de entrega</h4>
-                        <div class="comercial-modal-grid">
-                            <div class="comercial-modal-line comercial-line-janela">
-                                <div class="comercial-addr-cell comercial-addr-cell--janela-dias">
-                                    <span id="edit-client-janela-dias-legend" class="sys-section__label sys-section__label--field">Dias da semana</span>
-                                    <input type="hidden" name="janela_dias_semana" id="edit-client-janela-dias-json" value="{{ client.janela_dias_semana or '' }}">
-                                    <div class="janela-dias-week" role="group" aria-labelledby="edit-client-janela-dias-legend">
-                                        {% set dias_opts = [('seg', 'Seg'), ('ter', 'Ter'), ('qua', 'Qua'), ('qui', 'Qui'), ('sex', 'Sex'), ('sab', 'Sáb'), ('dom', 'Dom')] %}
-                                        {% for key, lab in dias_opts %}
-                                        <label class="janela-dia-chip">
-                                            <input type="checkbox" class="janela-dia-chip__input js-janela-dia-cb" data-janela-dia="{{ key }}" {% if key in janela_dias_check %}checked{% endif %}>
-                                            <span class="janela-dia-chip__text">{{ lab }}</span>
-                                        </label>
-                                        {% endfor %}
-                                    </div>
-                                    <p class="janela-dias-hint">Toque ou clique para marcar os dias com janela de recebimento. A seleção é salva na ordem seg–dom.</p>
-                                </div>
-                                <div class="comercial-addr-cell">
-                                    <label class="sys-section__label sys-section__label--field" for="edit-client-janela-ini">Janela início</label>
-                                    <input id="edit-client-janela-ini" type="text" name="janela_horario_inicio" value="{{ client.janela_horario_inicio or '' }}" placeholder="08:00" class="sys-input w-full">
-                                </div>
-                                <div class="comercial-addr-cell">
-                                    <label class="sys-section__label sys-section__label--field" for="edit-client-janela-fim">Janela fim</label>
-                                    <input id="edit-client-janela-fim" type="text" name="janela_horario_fim" value="{{ client.janela_horario_fim or '' }}" placeholder="17:00" class="sys-input w-full">
-                                </div>
-                            </div>
-                        </div>
-                    </section>
                     <section class="comercial-modal-section" aria-labelledby="client-edit-sec-obs">
                         <h4 id="client-edit-sec-obs" class="comercial-modal-section__title">Observações</h4>
                         <div class="comercial-modal-grid">
@@ -1143,26 +1114,6 @@
                     <button type="button" onclick="closeEditModal()" class="sys-btn sys-btn--secondary justify-center">Cancelar</button>
                     <button type="submit" class="sys-btn sys-btn--primary justify-center">Salvar alterações</button>
                 </div>
-                <script>
-                (function () {
-                    var shell = document.getElementById('editModalShell');
-                    if (!shell) return;
-                    var form = shell.querySelector('form.comercial-modal-form');
-                    if (!form) return;
-                    var order = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom'];
-                    form.addEventListener('submit', function () {
-                        var hid = document.getElementById('edit-client-janela-dias-json');
-                        if (!hid) return;
-                        var picked = [];
-                        form.querySelectorAll('.js-janela-dia-cb:checked').forEach(function (cb) {
-                            var k = (cb.getAttribute('data-janela-dia') || '').trim().toLowerCase();
-                            if (order.indexOf(k) >= 0 && picked.indexOf(k) < 0) picked.push(k);
-                        });
-                        picked.sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
-                        hid.value = picked.length ? JSON.stringify(picked) : '';
-                    });
-                })();
-                </script>
             </form>
         </div>
     </div>

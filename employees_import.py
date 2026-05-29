@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlmodel import Session, select
 
 import models
+from employees_seller_code import normalize_seller_code
 
 # Matrículas dos cadastros importados incorretamente (lista operacional conhecida).
 DEFAULT_WRONG_IMPORT_REGISTRATIONS: List[str] = (
@@ -282,6 +283,19 @@ def _find_employee_by_registration(session: Session, reg_id: str) -> Optional[mo
     return None
 
 
+def _registration_already_seen(seen: set, reg_id: str) -> bool:
+    """Evita duplicata na planilha quando a matrícula aparece como 210 e 210.0."""
+    reg_id = _format_registration_cell(reg_id) or str(reg_id or "").strip()
+    if not reg_id:
+        return True
+    keys = registration_lookup_variants(reg_id) or [reg_id]
+    if any(k in seen for k in keys):
+        return True
+    for k in keys:
+        seen.add(k)
+    return False
+
+
 def bulk_delete_by_registrations(
     session: Session, registrations: List[str]
 ) -> Tuple[int, int, List[str]]:
@@ -531,17 +545,13 @@ def import_employees_from_excel(
     default_company = "Souza Pinto"
 
     for _, row in df.iterrows():
-        reg_id = str(row.get(col_registration, "")).strip()
-        if not reg_id or reg_id.lower() == "nan":
+        reg_id = _format_registration_cell(row.get(col_registration, ""))
+        if not reg_id:
             continue
-        if reg_id in seen_registration:
+        if _registration_already_seen(seen_registration, reg_id):
             continue
-        seen_registration.add(reg_id)
 
-        existing = session.exec(
-            select(models.Employee).where(models.Employee.registration_id == reg_id)
-        ).first()
-        if existing:
+        if _find_employee_by_registration(session, reg_id):
             continue
 
         shift_val = _normalize_shift(row.get(col_shift, "Manhã") if col_shift else "Manhã")
@@ -554,9 +564,7 @@ def import_employees_from_excel(
 
         seller_code = None
         if col_seller and pd.notna(row.get(col_seller)):
-            seller_code = str(row.get(col_seller, "")).strip()
-            if not seller_code or seller_code.lower() == "nan":
-                seller_code = None
+            seller_code = normalize_seller_code(row.get(col_seller))
 
         cost_center = default_company
         if col_cost_center and pd.notna(row.get(col_cost_center)):

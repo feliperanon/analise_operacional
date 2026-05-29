@@ -3001,6 +3001,7 @@ def require_login(request: Request):
 
 
 from employees_import import register_download_routes
+from employees_seller_code import normalize_seller_code
 
 register_download_routes(app, require_login)
 
@@ -32579,7 +32580,7 @@ async def add_employee(
     new_employee = models.Employee(
         name=name_val,
         registration_id=registration_id,
-        seller_code=seller_code.strip() if seller_code else None,
+        seller_code=normalize_seller_code(seller_code) if seller_code else None,
         phone=phone_store,
         role=role_val,
         work_shift=work_shift,
@@ -33585,7 +33586,7 @@ async def update_employee(
             
         emp.name = (name or "").strip().upper()
         emp.registration_id = registration_id
-        emp.seller_code = seller_code.strip() if seller_code else None
+        emp.seller_code = normalize_seller_code(seller_code) if seller_code else None
         phone_e164, _ = normalize_phone_br(phone)
         emp.phone = phone_e164[3:] if (phone_e164 and len(phone_e164) >= 13) else None
         emp.role = (role or "").strip().upper()
