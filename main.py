@@ -15494,6 +15494,169 @@ async def client_details(request: Request, client_id: int, session: Session = De
     except Exception:
         janela_dias_check = set()
 
+    # ---- Matriz por período (volume/valor vendido e devolvido + % devolução) ----
+    def _pct_safe(num: float, den: float) -> float:
+        if den and den > 0:
+            return min(100.0, round(100.0 * num / den, 1))
+        return 100.0 if (num and num > 0) else 0.0
+
+    def _rs(v: float) -> str:
+        return f"R$ {fmt_br_2(v)}"
+
+    def _kg(v: float) -> str:
+        return f"{fmt_br_2(v)} kg"
+
+    def _pf(v: float) -> str:
+        return f"{fmt_br(v)}%"
+
+    pct_val_today = _pct_safe(valor_dev_today, valor_today)
+    pct_val_week = _pct_safe(valor_dev_week, valor_week)
+    pct_val_month = _pct_safe(valor_dev_month, valor_month)
+    pct_vol_today = _pct_safe(dev_vol_today, stats_today)
+    pct_vol_week = _pct_safe(dev_vol_week, stats_week)
+    pct_vol_month = _pct_safe(dev_vol_month, stats_month)
+
+    periods_matrix = {
+        "columns": ["Hoje", "Semana", "Mês", "Ano"],
+        "rows": [
+            {"label": "Volume vendido", "tone": "indigo",
+             "cells": [_kg(stats_today), _kg(stats_week), _kg(stats_month), _kg(stats_year)]},
+            {"label": "Valor vendido", "tone": "emerald",
+             "cells": [_rs(valor_today), _rs(valor_week), _rs(valor_month), _rs(valor_year)]},
+            {"label": "Volume devolvido", "tone": "rose",
+             "cells": [_kg(dev_vol_today), _kg(dev_vol_week), _kg(dev_vol_month), _kg(max(dev_vol_year, chart_dev_ton_ano))]},
+            {"label": "Valor devolvido", "tone": "amber",
+             "cells": [_rs(valor_dev_today), _rs(valor_dev_week), _rs(valor_dev_month), _rs(max(valor_dev_year, chart_dev_valor_ano))]},
+            {"label": "% devolução valor", "tone": "amber",
+             "cells": [_pf(pct_val_today), _pf(pct_val_week), _pf(pct_val_month), _pf(pct_dev_valor)]},
+            {"label": "% devolução volume", "tone": "rose",
+             "cells": [_pf(pct_vol_today), _pf(pct_vol_week), _pf(pct_vol_month), _pf(pct_dev_vol)]},
+        ],
+    }
+
+    # ---- Resumo gerencial de devoluções ----
+    def _resp_group(nome: str) -> str:
+        n = (nome or "").strip().lower()
+        if not n or n == "-":
+            return "Outros"
+        if "comerc" in n or "vend" in n:
+            return "Comercial"
+        if "log" in n or "transp" in n or "entrega" in n or "motor" in n or "exped" in n:
+            return "Logística"
+        if "client" in n or "mercad" in n or "loja" in n:
+            return "Mercado/Cliente"
+        return "Outros"
+
+    dev_total = len(devolucoes_list)
+    dev_valor_total = sum(float(d.get("valor") or 0.0) for d in devolucoes_list)
+    motivo_counter: Counter = Counter()
+    resp_counter: Counter = Counter()
+    grupo_resp: Dict[str, Dict[str, float]] = {}
+    maior_dev = None
+    for d in devolucoes_list:
+        mot = (d.get("motivo") or "").strip()
+        if mot and mot != "-":
+            motivo_counter[mot] += 1
+        resp = (d.get("responsabilidade") or "").strip()
+        if resp and resp != "-":
+            resp_counter[resp] += 1
+        g = _resp_group(resp)
+        bucket = grupo_resp.setdefault(g, {"count": 0, "valor": 0.0})
+        bucket["count"] += 1
+        bucket["valor"] += float(d.get("valor") or 0.0)
+        if maior_dev is None or float(d.get("valor") or 0.0) > float(maior_dev.get("valor") or 0.0):
+            maior_dev = d
+
+    grupos_order = ["Comercial", "Logística", "Mercado/Cliente", "Outros"]
+    devolucoes_resumo = {
+        "total": dev_total,
+        "valor_total_fmt": fmt_br_2(dev_valor_total),
+        "maior_motivo": (motivo_counter.most_common(1)[0][0] if motivo_counter else "—"),
+        "maior_motivo_qtd": (motivo_counter.most_common(1)[0][1] if motivo_counter else 0),
+        "resp_predominante": (resp_counter.most_common(1)[0][0] if resp_counter else "—"),
+        "resp_predominante_qtd": (resp_counter.most_common(1)[0][1] if resp_counter else 0),
+        "maior_valor_fmt": (fmt_br_2(float(maior_dev.get("valor") or 0.0)) if maior_dev else "0,00"),
+        "maior_valor_data": (maior_dev.get("data_entrega_fmt") or maior_dev.get("data_romaneio_fmt") or "—") if maior_dev else "—",
+        "pct_sobre_vendido": pct_dev_valor,
+        "grupos": [
+            {
+                "nome": g,
+                "count": grupo_resp.get(g, {}).get("count", 0),
+                "valor_fmt": fmt_br_2(grupo_resp.get(g, {}).get("valor", 0.0)),
+            }
+            for g in grupos_order if grupo_resp.get(g, {}).get("count", 0) > 0
+        ],
+    }
+
+    # ---- Diagnóstico automático do cliente (central de decisão) ----
+    ano_movimentou = (stats_year > 0) or (valor_year > 0) or (len(routes) > 0)
+    if not ano_movimentou:
+        diag_level = "neutro"
+        diag_title = "Cliente sem movimentação"
+        diag_message = "Cliente sem movimentação registrada no período."
+        diag_action = "Verifique se houve compras recentes ou se o cadastro deve seguir ativo."
+    elif pct_dev_valor > 3.0:
+        diag_level = "critico"
+        diag_title = "Cliente crítico por devolução"
+        diag_message = f"Devolução em {fmt_br(pct_dev_valor)}% no ano — acima do limite de 3%."
+        diag_action = "Acione comercial e logística para conter as devoluções deste cliente."
+    elif pct_dev_valor > 2.0:
+        diag_level = "atencao"
+        diag_title = "Atenção: devolução acima da meta"
+        diag_message = f"Devolução em {fmt_br(pct_dev_valor)}% no ano — acima da meta de 2%."
+        diag_action = "Monitore motivos e responsabilidade das devoluções."
+    else:
+        diag_level = "ok"
+        diag_title = "Cliente ativo e saudável"
+        diag_message = f"Devolução em {fmt_br(pct_dev_valor)}% no ano — dentro da meta de 2%."
+        diag_action = "Mantenha o relacionamento e o volume de vendas."
+
+    diag_flags: List[dict] = []
+    if ano_movimentou and pct_dev_vol > 3.0:
+        diag_flags.append({"level": "critico", "text": "Volume devolvido crítico"})
+    if not client_phone_e164:
+        diag_flags.append({"level": "atencao", "text": "Sem WhatsApp válido"})
+    if not getattr(client, "client_group_id", None):
+        diag_flags.append({"level": "info", "text": "Sem grupo comercial"})
+    if not client_vendedor_card:
+        diag_flags.append({"level": "atencao", "text": "Sem vendedor vinculado"})
+    cadastro_incompleto = not (
+        (client.cnpj_cpf or "").strip()
+        and (client.municipio or "").strip()
+        and (client_phone_display or "").strip()
+    )
+    if cadastro_incompleto:
+        diag_flags.append({"level": "atencao", "text": "Cadastro incompleto"})
+
+    client_diagnostico = {
+        "level": diag_level,
+        "title": diag_title,
+        "message": diag_message,
+        "action": diag_action,
+        "meta_pct": pct_dev_valor,
+        "flags": diag_flags,
+    }
+
+    # ---- Lista deduplicada de vendedores (lookup leve por código, sem <option> repetidos) ----
+    _vend_seen: set = set()
+    vendedores_lookup: List[dict] = []
+    for _v in vendedores_list_cd:
+        _code = normalize_seller_code(_v.seller_code) or ""
+        _name = (_v.name or "").strip().upper()
+        _key = ("c:" + _code) if _code else ("n:" + _name)
+        if _key in _vend_seen:
+            continue
+        _vend_seen.add(_key)
+        vendedores_lookup.append({"id": _v.id, "code": _code, "name": _name})
+    if vendedor_select_id and not any(x["id"] == vendedor_select_id for x in vendedores_lookup):
+        _sv = session.get(models.Employee, vendedor_select_id)
+        if _sv:
+            vendedores_lookup.append({
+                "id": _sv.id,
+                "code": normalize_seller_code(_sv.seller_code) or "",
+                "name": (_sv.name or "").strip().upper(),
+            })
+
     return templates.TemplateResponse("client_details.html", {
         "request": request,
         "user": user,
@@ -15560,8 +15723,12 @@ async def client_details(request: Request, client_id: int, session: Session = De
         "client_alt_phone_input": client_alt_phone_e164 or (client.fone_alternativo or ""),
         "client_alt_phone_display": client_alt_phone_display or (client.fone_alternativo or ""),
         "vendedores_list": vendedores_list_cd,
+        "vendedores_lookup": vendedores_lookup,
         "vendedor_select_id": vendedor_select_id,
         "client_vendedor_card": client_vendedor_card,
+        "periods_matrix": periods_matrix,
+        "devolucoes_resumo": devolucoes_resumo,
+        "client_diagnostico": client_diagnostico,
     })
 
 @app.post("/clients/{client_id}/group", response_class=RedirectResponse)
