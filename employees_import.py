@@ -377,6 +377,20 @@ def _parse_excel_date(value):
         return None
 
 
+def _resolve_admission_and_birthday(admission_raw, birthday_raw):
+    """
+    Interpreta admissão e nascimento da planilha.
+
+    Planilhas legadas (ex.: Souza Pinto) costumam trazer as colunas trocadas
+    ou com rótulos invertidos. Se o nascimento ficar depois da admissão, inverte.
+    """
+    admission = _parse_excel_date(admission_raw)
+    birthday = _parse_excel_date(birthday_raw)
+    if admission and birthday and birthday > admission:
+        admission, birthday = birthday, admission
+    return admission, birthday
+
+
 def build_import_template_bytes() -> bytes:
     """Gera planilha modelo alinhada ao formulário Novo Colaborador."""
     data = pd.DataFrame(
@@ -529,11 +543,30 @@ def import_employees_from_excel(
     col_cost_center = pick_column(df.columns, "Empresa", "Centro de Custo", "CostCenter", "Cost Center")
     col_shift = pick_column(df.columns, "Turno Operacional", "Turno", "Shift")
     col_admission = pick_column(
-        df.columns, "Data Admissão", "Admissão", "Admissao", "Adminissão", "Adminissao",
+        df.columns,
+        "Data Admissão",
+        "Admissão",
+        "Admissao",
+        "Adminissão",
+        "Adminissao",
+        "Dt.Admissão",
+        "Dt.Admissao",
+        "Dt Admissão",
+        "Dt Admissao",
     )
     col_birthday = pick_column(
-        df.columns, "Aniversário", "Aniversario", "Data Nascimento", "Nascimento", "Data de Nascimento",
+        df.columns,
+        "Aniversário",
+        "Aniversario",
+        "Data Nascimento",
+        "Nascimento",
+        "Data de Nascimento",
+        "Dt.Nascimento",
+        "Dt Nascimento",
+        "Dt. Nascimento",
     )
+    if col_admission and col_birthday and col_admission == col_birthday:
+        col_birthday = None
 
     if not col_registration:
         raise ValueError(
@@ -552,6 +585,13 @@ def import_employees_from_excel(
             continue
 
         if _find_employee_by_registration(session, reg_id):
+            if col_seller and pd.notna(row.get(col_seller)):
+                new_code = normalize_seller_code(row.get(col_seller))
+                if new_code:
+                    existing = _find_employee_by_registration(session, reg_id)
+                    if existing and not (existing.seller_code or "").strip():
+                        existing.seller_code = new_code
+                        session.add(existing)
             continue
 
         shift_val = _normalize_shift(row.get(col_shift, "Manhã") if col_shift else "Manhã")
@@ -572,6 +612,11 @@ def import_employees_from_excel(
             if cc and cc.lower() != "nan":
                 cost_center = cc
 
+        admission_date, birthday = _resolve_admission_and_birthday(
+            row.get(col_admission) if col_admission else None,
+            row.get(col_birthday) if col_birthday else None,
+        )
+
         emp = models.Employee(
             name=name_raw.upper(),
             registration_id=reg_id.strip(),
@@ -580,8 +625,8 @@ def import_employees_from_excel(
             role=(str(row.get(col_role, "Operador")).strip() or "Operador").upper(),
             work_shift=str(shift_val).strip(),
             cost_center=cost_center,
-            admission_date=_parse_excel_date(row.get(col_admission)) if col_admission else None,
-            birthday=_parse_excel_date(row.get(col_birthday)) if col_birthday else None,
+            admission_date=admission_date,
+            birthday=birthday,
             work_schedule=_schedule_for_shift(shift_val),
             status="active",
         )

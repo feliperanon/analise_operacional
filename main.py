@@ -99,6 +99,7 @@ from client_vendedor import (
     resolve_employee_id_by_seller_code,
     resolve_employee_id_by_code_or_name,
     resolve_vendedor_id_for_select,
+    resolve_vendedor_id_from_import_fields,
     vendedor_card_for_client,
 )
 from route_duration import route_duration_minutes, iniciada_elapsed_wall_minutes
@@ -15616,10 +15617,12 @@ def _fill_client_from_import_staging(session: Session, client: models.Client, ro
     client.fone_e164 = row.fone_e164
     client.segmento = row.segmento
     client.status_cliente = row.status_cliente
-    vid = resolve_employee_id_by_code_or_name(session, row.setor)
+    vid = resolve_vendedor_id_from_import_fields(session, row.setor, row.me)
     apply_vendedor_to_client(session, client, vid)
     if not vid and row.setor:
         client.setor = (row.setor or "").strip() or None
+    elif vid and not (client.me or "").strip() and (client.setor or "").strip():
+        client.me = client.setor
 
 
 def _client_import_value_cmp(value: Optional[str]) -> str:
@@ -15653,8 +15656,8 @@ def _client_import_row_has_changes(session: Session, client: models.Client, row:
         if _client_import_value_cmp(getattr(client, field, None)) != _client_import_value_cmp(getattr(row, field, None)):
             return True
 
-    new_raw = _client_import_value_cmp(row.setor)
-    vid_new = resolve_employee_id_by_code_or_name(session, new_raw)
+    new_raw = _client_import_value_cmp(row.setor) or _client_import_value_cmp(row.me)
+    vid_new = resolve_vendedor_id_from_import_fields(session, row.setor, row.me)
     new_effective = new_raw
     if vid_new:
         emp_new = session.get(models.Employee, vid_new)
@@ -16062,10 +16065,12 @@ async def clients_import(
             )
             session.add(c)
             session.flush()
-            vid_new = resolve_employee_id_by_code_or_name(session, s.setor)
+            vid_new = resolve_vendedor_id_from_import_fields(session, s.setor, s.me)
             apply_vendedor_to_client(session, c, vid_new)
             if not vid_new and s.setor:
                 c.setor = (s.setor or "").strip() or None
+            elif vid_new and not (c.me or "").strip() and (c.setor or "").strip():
+                c.me = c.setor
             session.add(c)
             existing_names.add(s.name.lower())
             nk = norm_nb_key(c.nb)
@@ -16094,8 +16099,8 @@ async def clients_import(
 
 
 def _norm_seller_code_cmp(val: Optional[str]) -> str:
-    """Normaliza código de vendedor para comparação (trim, dígitos sem zeros à esquerda)."""
-    s = (val or "").strip()
+    """Normaliza código de vendedor para comparação (trim, 201.0 → 201, zeros à esquerda)."""
+    s = normalize_seller_code(val) or ""
     if not s:
         return ""
     if s.isdigit():
@@ -16288,10 +16293,12 @@ async def clients_import_confirm(
                 )
                 session.add(c)
                 session.flush()
-                vid_nc = resolve_employee_id_by_code_or_name(session, row.setor)
+                vid_nc = resolve_vendedor_id_from_import_fields(session, row.setor, row.me)
                 apply_vendedor_to_client(session, c, vid_nc)
                 if not vid_nc and row.setor:
                     c.setor = (row.setor or "").strip() or None
+                elif vid_nc and not (c.me or "").strip() and (c.setor or "").strip():
+                    c.me = c.setor
                 session.add(c)
                 existing_names.add(row.name.lower())
                 log_created += 1

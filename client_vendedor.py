@@ -8,6 +8,20 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 import models
+from employees_seller_code import normalize_seller_code
+
+
+def _seller_codes_equivalent(a: Optional[str], b: Optional[str]) -> bool:
+    """True quando dois códigos de vendedor representam o mesmo valor (201 == 201.0)."""
+    na = normalize_seller_code(a)
+    nb = normalize_seller_code(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    if na.isdigit() and nb.isdigit():
+        return (na.lstrip("0") or "0") == (nb.lstrip("0") or "0")
+    return False
 
 
 def employee_is_vendedor(emp: models.Employee) -> bool:
@@ -17,29 +31,32 @@ def employee_is_vendedor(emp: models.Employee) -> bool:
 
 def resolve_employee_id_by_seller_code(session: Session, code: Optional[str]) -> Optional[int]:
     """Resolve employee.id a partir do código (seller_code), ignorando cargo."""
-    if code is None or not str(code).strip():
+    want = normalize_seller_code(code)
+    if not want:
         return None
     raw = str(code).strip()
-    stmt = (
-        select(models.Employee)
-        .where(models.Employee.status != "fired")
-        .where(models.Employee.seller_code.is_not(None))
-        .where(func.trim(models.Employee.seller_code) == raw)
-    )
-    emp = session.exec(stmt).first()
-    if emp:
-        return emp.id
-    if raw.isdigit():
-        nz = raw.lstrip("0") or "0"
-        stmt2 = (
+    variants = {raw, want}
+    if want.isdigit():
+        variants.add(want.lstrip("0") or "0")
+    for variant in variants:
+        stmt = (
             select(models.Employee)
             .where(models.Employee.status != "fired")
             .where(models.Employee.seller_code.is_not(None))
-            .where(func.trim(models.Employee.seller_code) == nz)
+            .where(func.trim(models.Employee.seller_code) == variant)
         )
-        emp2 = session.exec(stmt2).first()
-        if emp2:
-            return emp2.id
+        emp = session.exec(stmt).first()
+        if emp:
+            return emp.id
+    stmt_all = (
+        select(models.Employee)
+        .where(models.Employee.status != "fired")
+        .where(models.Employee.seller_code.is_not(None))
+        .where(func.trim(models.Employee.seller_code) != "")
+    )
+    for emp in session.exec(stmt_all).all():
+        if _seller_codes_equivalent(emp.seller_code, want):
+            return emp.id
     return None
 
 
@@ -69,9 +86,22 @@ def resolve_employee_id_by_code_or_name(session: Session, raw: Optional[str]) ->
         name_n = _norm(emp.name or "")
         if needle == name_n or (len(needle) >= 3 and needle in name_n):
             return emp.id
-        sc = (emp.seller_code or "").strip()
-        if sc and (needle == _norm(sc) or needle == sc):
+        sc = normalize_seller_code(emp.seller_code)
+        if sc and (needle == _norm(sc) or _seller_codes_equivalent(sc, text)):
             return emp.id
+    return None
+
+
+def resolve_vendedor_id_from_import_fields(
+    session: Session,
+    setor: Optional[str],
+    me: Optional[str],
+) -> Optional[int]:
+    """Resolve vendedor na importação de clientes (coluna SETOR e fallback ME)."""
+    for raw in (setor, me):
+        rid = resolve_employee_id_by_code_or_name(session, raw)
+        if rid:
+            return rid
     return None
 
 
@@ -112,23 +142,27 @@ def apply_vendedor_to_client(session: Session, client: models.Client, vendedor_i
 def resolve_vendedor_id_for_select(client: models.Client, session: Session) -> Optional[int]:
     if getattr(client, "vendedor_id", None):
         return client.vendedor_id
-    code = (client.setor or "").strip()
-    if not code:
-        return None
-    eid = resolve_employee_id_by_seller_code(session, code)
-    return eid
+    for code in ((client.setor or "").strip(), (client.me or "").strip()):
+        if not code:
+            continue
+        eid = resolve_employee_id_by_seller_code(session, code)
+        if eid:
+            return eid
+    return None
 
 
 def vendedor_card_for_client(session: Session, client: models.Client) -> Optional[Dict[str, Any]]:
     emp = None
     if getattr(client, "vendedor_id", None):
         emp = session.get(models.Employee, client.vendedor_id)
-    if not emp and client.setor:
-        code = (client.setor or "").strip()
-        if code:
+    if not emp:
+        for code in ((client.setor or "").strip(), (client.me or "").strip()):
+            if not code:
+                continue
             eid = resolve_employee_id_by_seller_code(session, code)
             if eid:
                 emp = session.get(models.Employee, eid)
+                break
     if not emp:
         return None
     return {"id": emp.id, "name": emp.name or "", "seller_code": (emp.seller_code or "").strip() or None}

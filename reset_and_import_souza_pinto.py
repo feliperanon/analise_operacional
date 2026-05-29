@@ -5,8 +5,9 @@ import pandas as pd
 from sqlalchemy import text
 from sqlmodel import Session, select
 
-import models
+from employees_import import _resolve_admission_and_birthday
 from database import create_db_and_tables, engine
+import models
 
 
 def _norm(value: str) -> str:
@@ -95,17 +96,10 @@ def import_souza_pinto(file_path: Path) -> dict:
                 continue
             seen.add(reg)
 
-            admission = None
-            if col_adm and pd.notna(row.get(col_adm)):
-                dt = pd.to_datetime(row[col_adm], errors="coerce", dayfirst=True)
-                if pd.notna(dt):
-                    admission = dt.to_pydatetime()
-
-            birthday = None
-            if col_birth and pd.notna(row.get(col_birth)):
-                dt = pd.to_datetime(row[col_birth], errors="coerce", dayfirst=True)
-                if pd.notna(dt):
-                    birthday = dt.to_pydatetime()
+            admission, birthday = _resolve_admission_and_birthday(
+                row.get(col_adm) if col_adm else None,
+                row.get(col_birth) if col_birth else None,
+            )
 
             name_raw = (str(row.get(col_name, "Sem Nome")).strip() or "Sem Nome")
             emp = models.Employee(

@@ -60,8 +60,9 @@
 
         /** Mesma ideia do backend: código numérico compara ignorando zeros à esquerda. */
         function normSellerCompare(s) {
-            const t = String(s || '').trim();
+            let t = String(s || '').trim();
             if (!t) return '';
+            t = t.replace(/\.0+$/, '');
             if (/^\d+$/.test(t)) return t.replace(/^0+/, '') || '0';
             return t.toLowerCase();
         }
@@ -967,7 +968,7 @@
                                     <div class="comercial-venda-setor-card__grid">
                                         <div class="comercial-venda-setor-field">
                                             <label class="sys-section__label sys-section__label--field" for="edit-client-me">Setor</label>
-                                            <input id="edit-client-me" type="text" name="me" value="{{ client.me or '' }}" class="sys-input w-full" placeholder="Ex.: 305" autocomplete="off">
+                                            <input id="edit-client-me" type="text" name="me" value="{{ client.me or client.setor or '' }}" class="sys-input w-full" placeholder="Ex.: 305" autocomplete="off">
                                         </div>
                                         <div class="comercial-venda-setor-field comercial-venda-setor-field--readout">
                                             <span class="sys-section__label sys-section__label--field">Colaborador (venda)</span>
