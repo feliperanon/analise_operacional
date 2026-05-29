@@ -34240,12 +34240,21 @@ async def import_employees(
     require_login(request)
     content = await file.read()
     try:
-        count = import_employees_from_excel(session, content, normalize_phone_br)
+        result = import_employees_from_excel(session, content, normalize_phone_br)
     except Exception as e:
         logger.exception("Import Error: %s", e)
         return RedirectResponse(url=f"/employees?error=Erro na importação: {str(e)}", status_code=status.HTTP_303_SEE_OTHER)
 
-    return RedirectResponse(url=f"/employees?success={count} colaboradores importados com sucesso.", status_code=status.HTTP_303_SEE_OTHER)
+    parts = []
+    if result.created:
+        parts.append(f"{result.created} colaborador(es) importado(s)")
+    if result.seller_updated:
+        parts.append(f"{result.seller_updated} código(s) do vendedor atualizado(s)")
+    if not parts:
+        msg = "Nenhum colaborador novo e nenhum código do vendedor alterado (matrículas já cadastradas e códigos iguais aos da planilha)."
+    else:
+        msg = " e ".join(parts) + " com sucesso."
+    return RedirectResponse(url=f"/employees?success={msg}", status_code=status.HTTP_303_SEE_OTHER)
 @app.exception_handler(HTTPException)
 async def auth_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == status.HTTP_307_TEMPORARY_REDIRECT or exc.status_code == status.HTTP_303_SEE_OTHER:

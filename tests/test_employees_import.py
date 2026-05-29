@@ -75,9 +75,12 @@ def test_import_skips_existing_by_registration_variant(session):
         df.to_excel(writer, sheet_name="Colaboradores", index=False)
     buf.seek(0)
 
-    count = import_employees_from_excel(session, buf.read(), _noop_phone)
-    assert count == 0
+    result = import_employees_from_excel(session, buf.read(), _noop_phone)
+    assert result.created == 0
+    assert result.seller_updated == 1
     assert len(session.exec(select(models.Employee)).all()) == 1
+    emp = session.exec(select(models.Employee)).first()
+    assert emp.seller_code == "210"
 
 
 def test_resolve_admission_and_birthday_swaps_inverted():
@@ -107,8 +110,8 @@ def test_import_swapped_legacy_date_columns(session):
         df.to_excel(writer, sheet_name="Souza Pinto", index=False)
     buf.seek(0)
 
-    count = import_employees_from_excel(session, buf.read(), _noop_phone)
-    assert count == 1
+    result = import_employees_from_excel(session, buf.read(), _noop_phone)
+    assert result.created == 1
     emp = session.exec(select(models.Employee)).first()
     assert emp.admission_date.year == 2024
     assert emp.birthday.year == 1998
@@ -130,8 +133,8 @@ def test_import_normalizes_seller_code(session):
         df.to_excel(writer, sheet_name="Colaboradores", index=False)
     buf.seek(0)
 
-    count = import_employees_from_excel(session, buf.read(), _noop_phone)
-    assert count == 1
+    result = import_employees_from_excel(session, buf.read(), _noop_phone)
+    assert result.created == 1
     emp = session.exec(select(models.Employee)).first()
     assert emp.seller_code == "210"
     assert emp.registration_id == "5001.0"
@@ -165,7 +168,80 @@ def test_import_fills_seller_code_on_existing_employee(session):
         df.to_excel(writer, sheet_name="Colaboradores", index=False)
     buf.seek(0)
 
-    count = import_employees_from_excel(session, buf.read(), _noop_phone)
-    assert count == 0
+    result = import_employees_from_excel(session, buf.read(), _noop_phone)
+    assert result.created == 0
+    assert result.seller_updated == 1
+    emp = session.exec(select(models.Employee)).first()
+    assert emp.seller_code == "201"
+
+
+def test_import_overwrites_different_seller_code(session):
+    session.add(
+        models.Employee(
+            name="JOAO SILVA",
+            registration_id="210.0",
+            seller_code="999",
+            role="VENDEDOR",
+            work_shift="Manhã",
+            cost_center="Souza Pinto",
+            status="active",
+        )
+    )
+    session.commit()
+
+    df = pd.DataFrame(
+        {
+            "Nome Completo": ["JOAO SILVA"],
+            "Matrícula": [210],
+            "Código do Vendedor": [201.0],
+            "Cargo": ["VENDEDOR"],
+            "Empresa": ["Souza Pinto"],
+            "Turno Operacional": ["Manhã"],
+        }
+    )
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Colaboradores", index=False)
+    buf.seek(0)
+
+    result = import_employees_from_excel(session, buf.read(), _noop_phone)
+    assert result.created == 0
+    assert result.seller_updated == 1
+    emp = session.exec(select(models.Employee)).first()
+    assert emp.seller_code == "201"
+
+
+def test_import_keeps_equal_seller_code_without_update(session):
+    session.add(
+        models.Employee(
+            name="JOAO SILVA",
+            registration_id="210.0",
+            seller_code="201",
+            role="VENDEDOR",
+            work_shift="Manhã",
+            cost_center="Souza Pinto",
+            status="active",
+        )
+    )
+    session.commit()
+
+    df = pd.DataFrame(
+        {
+            "Nome Completo": ["JOAO SILVA"],
+            "Matrícula": [210],
+            "Código do Vendedor": [201.0],
+            "Cargo": ["VENDEDOR"],
+            "Empresa": ["Souza Pinto"],
+            "Turno Operacional": ["Manhã"],
+        }
+    )
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Colaboradores", index=False)
+    buf.seek(0)
+
+    result = import_employees_from_excel(session, buf.read(), _noop_phone)
+    assert result.created == 0
+    assert result.seller_updated == 0
     emp = session.exec(select(models.Employee)).first()
     assert emp.seller_code == "201"

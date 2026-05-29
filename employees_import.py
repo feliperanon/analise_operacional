@@ -6,6 +6,7 @@ from __future__ import annotations
 import io
 import re
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
@@ -489,14 +490,27 @@ def _serve_template_file(static_rel: str, builder, filename: str) -> Response:
     return _xlsx_attachment_response(builder(), filename)
 
 
+@dataclass
+class EmployeeImportResult:
+    """Resultado da importação: novos criados e códigos de vendedor atualizados."""
+
+    created: int = 0
+    seller_updated: int = 0
+
+
 def import_employees_from_excel(
     session: Session,
     content: bytes,
     normalize_phone_br,
-) -> int:
+) -> EmployeeImportResult:
     """
     Importa colaboradores da aba Colaboradores (cabeçalhos do formulário Novo Colaborador).
-    Retorna quantidade inserida. Só cria matrículas novas.
+
+    - Cria matrículas novas.
+    - Para matrículas já existentes, atualiza o `seller_code` (Código do Vendedor)
+      quando a planilha trouxer um código diferente do atual.
+
+    Retorna EmployeeImportResult(created, seller_updated).
     """
     excel = pd.ExcelFile(io.BytesIO(content))
     sheet_names = excel.sheet_names or [0]
@@ -573,7 +587,7 @@ def import_employees_from_excel(
             "Coluna Matrícula não encontrada. Use a aba Colaboradores do modelo baixado em Importar."
         )
 
-    count = 0
+    result = EmployeeImportResult()
     seen_registration = set()
     default_company = "Souza Pinto"
 
@@ -584,14 +598,15 @@ def import_employees_from_excel(
         if _registration_already_seen(seen_registration, reg_id):
             continue
 
-        if _find_employee_by_registration(session, reg_id):
+        existing = _find_employee_by_registration(session, reg_id)
+        if existing:
             if col_seller and pd.notna(row.get(col_seller)):
                 new_code = normalize_seller_code(row.get(col_seller))
-                if new_code:
-                    existing = _find_employee_by_registration(session, reg_id)
-                    if existing and not (existing.seller_code or "").strip():
-                        existing.seller_code = new_code
-                        session.add(existing)
+                current_code = normalize_seller_code(existing.seller_code)
+                if new_code and new_code != current_code:
+                    existing.seller_code = new_code
+                    session.add(existing)
+                    result.seller_updated += 1
             continue
 
         shift_val = _normalize_shift(row.get(col_shift, "Manhã") if col_shift else "Manhã")
@@ -631,10 +646,10 @@ def import_employees_from_excel(
             status="active",
         )
         session.add(emp)
-        count += 1
+        result.created += 1
 
     session.commit()
-    return count
+    return result
 
 
 def register_download_routes(app, require_login: Callable) -> None:
