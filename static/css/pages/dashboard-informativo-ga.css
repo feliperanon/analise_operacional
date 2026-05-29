@@ -1366,8 +1366,8 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
 
 #informativo-root.dashboard-informativo-ga .gv-col-mid,
 .informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-col-mid {
-  display: grid !important;
-  grid-template-rows: minmax(260px, 1.35fr) minmax(240px, 1fr) !important;
+  display: flex !important;
+  flex-direction: column !important;
   gap: 0.75rem !important;
   min-height: 0 !important;
   height: 100% !important;
@@ -1382,10 +1382,11 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
 
 #informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card--focus,
 .informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card--focus {
+  flex: 1 1 auto !important;
+  min-height: 280px !important;
+  height: auto !important;
   display: flex !important;
   flex-direction: column !important;
-  min-height: 260px !important;
-  height: 100% !important;
   overflow: hidden !important;
 }
 
@@ -1401,7 +1402,7 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
   position: relative !important;
   flex: 1 1 auto !important;
   height: 100% !important;
-  min-height: 220px !important;
+  min-height: 0 !important;
   padding: 0 !important;
   overflow: hidden !important;
 }
@@ -1424,7 +1425,7 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
 #informativo-root.dashboard-informativo-ga .gv-bulletin-split,
 .informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-split {
   position: relative !important;
-  display: block !important;
+  display: flex !important;
   width: 100% !important;
   height: 100% !important;
   min-height: 0 !important;
@@ -1458,8 +1459,8 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
   display: block !important;
   width: 100% !important;
   height: 100% !important;
-  max-width: none !important;
-  max-height: none !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
   object-fit: contain !important;
   object-position: center center !important;
   opacity: 1 !important;
@@ -1480,8 +1481,11 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
 }
 
 #informativo-root.dashboard-informativo-ga .gv-card--devolucao-kpi,
-.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-card--devolucao-kpi {
-  min-height: 230px !important;
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-card--devolucao-kpi,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-col-mid > .gv-card--devolucao-kpi {
+  flex: 0 0 320px !important;
+  height: 320px !important;
+  min-height: 320px !important;
   max-height: 320px !important;
   display: flex !important;
   flex-direction: column !important;
@@ -1490,8 +1494,8 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
 
 #informativo-root.dashboard-informativo-ga #chart-informativo-devolucao,
 .informativo-tv-mode #informativo-root.dashboard-informativo-ga #chart-informativo-devolucao {
-  min-height: 200px !important;
-  height: 200px !important;
+  min-height: 230px !important;
+  height: 230px !important;
   overflow: hidden !important;
 }
 
@@ -1509,7 +1513,7 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
   padding: 2.5rem 2rem !important;
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important; /* Gradiente escuro premium */
   color: #f8fafc !important;
-  border-radius: 14px;
+  border-radius: 12px;
 }
 
 #informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy-title,
@@ -1548,4 +1552,8 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
   display: none !important;
 }
 
-
+/* Ocultar texto se a imagem estiver presente e válida */
+#informativo-root.dashboard-informativo-ga .gv-bulletin-split:not(.gv-bulletin-split--no-media) .gv-bulletin-copy,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-split:not(.gv-bulletin-split--no-media) .gv-bulletin-copy {
+  display: none !important;
+}

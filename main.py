@@ -1207,22 +1207,22 @@ async def global_exception_handler(request: Request, call_next):
 # Produção (Render): definir INFORMATIVO_MEDIA_ROOT=/var/data (Persistent Disk) e montar o disco nesse caminho.
 # Ficheiros ficam em {INFORMATIVO_MEDIA_ROOT}/informativo/ e URL pública /media/informativo/… (sobrevive a redeploy).
 # Sem isso, upload cai em static/uploads/informativo (efémero no Render) — usar URL externa para comunicados permanentes.
-def get_informativo_media_root() -> Optional[Path]:
+def get_informativo_media_root() -> Path:
     root = os.getenv("INFORMATIVO_MEDIA_ROOT")
     if not root:
-        return None
+        root = str(BASE_DIR / "media")
     try:
         path = Path(root).expanduser().resolve()
+        path.mkdir(parents=True, exist_ok=True)
         return path
     except Exception:
-        return None
+        path = BASE_DIR / "media"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
 def get_informativo_upload_dir() -> Path:
     media_root = get_informativo_media_root()
-    if media_root:
-        upload_dir = media_root / "informativo"
-    else:
-        upload_dir = BASE_DIR / "static" / "uploads" / "informativo"
+    upload_dir = media_root / "informativo"
     try:
         upload_dir.mkdir(parents=True, exist_ok=True)
     except Exception:
@@ -1237,8 +1237,6 @@ def informativo_image_exists(image_url: str) -> bool:
         return True
     if u.startswith("/media/informativo/"):
         media_root = get_informativo_media_root()
-        if not media_root:
-            return False
         filename = u.split("/media/informativo/", 1)[1]
         try:
             return (media_root / "informativo" / filename).is_file()
@@ -1298,12 +1296,9 @@ def migrate_legacy_informative_images(session: Session) -> None:
 
 # Manter constantes para compatibilidade
 _media_root_env_path = get_informativo_media_root()
-INFORMATIVO_MEDIA_ROOT = str(_media_root_env_path) if _media_root_env_path else ""
+INFORMATIVO_MEDIA_ROOT = str(_media_root_env_path)
 INFORMATIVO_IMAGE_DIR = str(get_informativo_upload_dir())
-if INFORMATIVO_MEDIA_ROOT:
-    INFORMATIVO_UPLOAD_PUBLIC_PREFIX = "/media/informativo"
-else:
-    INFORMATIVO_UPLOAD_PUBLIC_PREFIX = "/static/uploads/informativo"
+INFORMATIVO_UPLOAD_PUBLIC_PREFIX = "/media/informativo"
 
 try:
     os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
@@ -1354,13 +1349,12 @@ async def serve_informativo_upload_image(filename: str):
     return Response(content=_INFORMATIVO_MISSING_PNG, media_type="image/png")
 
 # Disco persistente: servir /media/… a partir do volume (ex.: Render Disk em INFORMATIVO_MEDIA_ROOT)
-if INFORMATIVO_MEDIA_ROOT:
-    try:
-        os.makedirs(INFORMATIVO_MEDIA_ROOT, exist_ok=True)
-        os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
-    except OSError:
-        pass
-    app.mount("/media", StaticFiles(directory=INFORMATIVO_MEDIA_ROOT), name="informativo_media")
+try:
+    os.makedirs(INFORMATIVO_MEDIA_ROOT, exist_ok=True)
+    os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
+except OSError:
+    pass
+app.mount("/media", StaticFiles(directory=INFORMATIVO_MEDIA_ROOT), name="media")
 
 # Mount static files (uploads informativo legados: rota GET acima; resto em /static)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -2412,11 +2406,7 @@ async def _save_informativo_image(file: UploadFile) -> str:
     with open(file_path, "wb") as fp:
         fp.write(content)
     
-    media_root = get_informativo_media_root()
-    if media_root:
-        return f"/media/informativo/{safe_name}"
-    else:
-        return f"/static/uploads/informativo/{safe_name}"
+    return f"/media/informativo/{safe_name}"
 
 
 async def _save_informativo_audio(file: UploadFile) -> str:
@@ -5312,6 +5302,11 @@ async def admin_informativo_page(
             "panel_audio_playlist": panel_audio_playlist,
             "panel_audio_youtube_url": panel_audio_youtube_url,
             "panel_audio_volume": panel_audio_volume,
+            "audio_enabled": panel_audio_enabled,
+            "audio_volume": panel_audio_volume,
+            "audio_url": panel_audio_url,
+            "audio_playlist": panel_audio_playlist,
+            "audio_youtube_url": panel_audio_youtube_url,
             "dry_year": dry_year,
             "dr_rows": dr_rows,
             "dr_display": dr_display,
@@ -5344,12 +5339,12 @@ async def admin_informativo_audio_config(
     user=Depends(require_leader),
 ):
     try:
-        # Garante migrações aplicadas mesmo sem restart do processo.
         create_db_and_tables()
 
         form = await request.form()
         audio_enabled_raw = form.get("audio_enabled")
-        audio_enabled = audio_enabled_raw is not None and str(audio_enabled_raw).strip() in ("1", "on", "true", "yes")
+        # Regra: audio_enabled = form.get("audio_enabled") == "1"
+        audio_enabled = audio_enabled_raw == "1"
         audio_url = str(form.get("audio_url") or "").strip()[:500]
         audio_playlist = str(form.get("audio_playlist") or "").strip()
         audio_youtube_url = str(form.get("audio_youtube_url") or "").strip()[:500]
@@ -5362,8 +5357,15 @@ async def admin_informativo_audio_config(
                 return False
             return ("youtube.com" in raw) or ("youtu.be" in raw)
 
+        def _is_direct_audio_url(value: Optional[str]) -> bool:
+            if not value:
+                return True
+            raw = value.strip().split('?', 1)[0].lower()
+            return any(raw.endswith(ext) for ext in (".mp3", ".ogg", ".wav", ".m4a"))
+
         def _safe_volume(raw: Any, fallback: int = 35) -> int:
             try:
+                # Regra: garantir volume entre 0 e 100
                 return max(0, min(100, int(raw)))
             except (TypeError, ValueError):
                 return fallback
@@ -5375,7 +5377,10 @@ async def admin_informativo_audio_config(
             for line in raw.splitlines():
                 item = (line or "").strip()
                 if item and item not in unique_items:
-                    unique_items.append(item[:500])
+                    if _is_direct_audio_url(item) and not _is_youtube_url(item):
+                        unique_items.append(item[:500])
+                    else:
+                        logger.warning(f"[Painel Informativo] Item inválido na playlist: {item}")
             if not unique_items:
                 return None
             out: List[str] = []
@@ -5397,20 +5402,37 @@ async def admin_informativo_audio_config(
         cfg.audio_volume = _safe_volume(audio_volume_raw, fallback=35)
         next_audio_url = audio_url or None
         next_youtube_url = audio_youtube_url or None
-        if next_audio_url and _is_youtube_url(next_audio_url):
-            # Transfere link do YouTube colado por engano no campo de áudio comum
-            next_youtube_url = next_audio_url
-            next_audio_url = None
-        raw_list = audio_playlist
-        normalized_playlist = _normalize_playlist(raw_list, max_total=4000)
+
+        # Regras de separação de áudio/youtube
+        if next_audio_url:
+            if _is_youtube_url(next_audio_url):
+                # Se audio_url receber YouTube, mover automaticamente para audio_youtube_url e limpar audio_url
+                next_youtube_url = next_audio_url
+                next_audio_url = None
+                logger.warn("[Painel Informativo] audio_url recebeu YouTube; use audio_youtube_url.")
+            elif not _is_direct_audio_url(next_audio_url):
+                # Se for outra URL inválida, limpar para manter "somente arquivo direto ou vazio"
+                next_audio_url = None
+
+        if next_youtube_url and not _is_youtube_url(next_youtube_url):
+            if _is_direct_audio_url(next_youtube_url):
+                next_audio_url = next_youtube_url
+            next_youtube_url = None
+
+        # Upload de arquivo de áudio
         if audio_file and getattr(audio_file, "filename", None) and str(audio_file.filename).strip():
             try:
                 next_audio_url = await _save_informativo_audio(audio_file)
             except ValueError:
                 return RedirectResponse(url="/admin/informativo?err_audio=1", status_code=303)
+
+        raw_list = audio_playlist
+        normalized_playlist = _normalize_playlist(raw_list, max_total=4000)
+
         if next_audio_url and normalized_playlist:
             filtered = [u for u in normalized_playlist.splitlines() if u != next_audio_url]
             normalized_playlist = "\n".join(filtered) if filtered else None
+
         cfg.audio_url = next_audio_url
         cfg.audio_playlist = normalized_playlist
         cfg.audio_youtube_url = next_youtube_url
@@ -5565,15 +5587,18 @@ async def admin_informativo_update(
     )
     if has_new_file:
         try:
-            b.uploaded_image_path = await _save_informativo_image(bulletin_image)
+            upl = await _save_informativo_image(bulletin_image)
+            b.uploaded_image_path = upl
+            b.image_url = upl
         except ValueError:
             return RedirectResponse(url=f"/admin/informativo/{bulletin_id}/edit?err_image=1", status_code=303)
-    if form.get("clear_external_image"):
-        b.image_url = None
-    elif form.get("image_url") is not None:
-        raw_img = str(form.get("image_url") or "").strip()
-        if raw_img:
-            b.image_url = _normalize_bulletin_external_url(raw_img)
+    else:
+        if form.get("clear_external_image"):
+            b.image_url = None
+        elif form.get("image_url") is not None:
+            raw_img = str(form.get("image_url") or "").strip()
+            if raw_img:
+                b.image_url = _normalize_bulletin_external_url(raw_img)
     b.title = title[:200]
     b.body = str(form.get("body") or "").strip() or None
     link_field = form.get("link_url")
@@ -5617,10 +5642,15 @@ async def admin_informativo_create(
                 or upl.startswith("/media/informativo/")
             ):
                 upl = None
+    if upl:
+        image_url_val = upl
+    else:
+        image_url_val = ext
+
     b = models.InformativeBulletin(
         title=title[:200],
         body=(body or "").strip() or None,
-        image_url=ext,
+        image_url=image_url_val,
         uploaded_image_path=upl,
         link_url=(link_url or "").strip()[:500] or None,
         sort_order=int(sort_order or 0),
