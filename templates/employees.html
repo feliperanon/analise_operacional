@@ -34,7 +34,7 @@
     display: none !important;
   }
 </style>
-<link rel="stylesheet" href="/static/css/pages/employees.css?v=20260529a">
+<link rel="stylesheet" href="/static/css/pages/employees.css?v=20260529b">
 <script src="/static/js/pages/employees-modals.js?v=20260528e" defer></script>
 {% endblock %}
 
@@ -1546,6 +1546,7 @@
         if (search) search.value = '';
         filterRoleOptions();
         updateRoleFilterLabel();
+        currentPage = 1;
         filterTable();
     }
 
@@ -1600,6 +1601,7 @@
                     selectedRoles.delete(value);
                 }
                 updateRoleFilterLabel();
+                currentPage = 1;
                 filterTable();
             });
         });
@@ -1610,6 +1612,7 @@
 
     function setFilter(filter) {
         currentFilter = filter;
+        currentPage = 1;
         const companyFilters = ['all', ...groupedCenterConfigs.map(center => center.name)];
 
         document.querySelectorAll('.filter-btn').forEach(btn => {

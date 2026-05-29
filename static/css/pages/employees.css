@@ -2275,3 +2275,498 @@ html.dark .ga-employee-theme.employees-page .emp-toggle-track {
     border-radius: 1rem;
   }
 }
+
+/* =========================================================================
+   Otimização operacional: toolbar compacta, chips de resumo, ações enxutas,
+   menu único de ações, paginação e estado vazio.
+   ========================================================================= */
+
+/* ----- Toolbar compacta (substitui o hero pesado) ----- */
+.ga-employee-theme.employees-page .employees-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.ga-employee-theme.employees-page .employees-toolbar__lead {
+  min-width: 0;
+}
+
+.ga-employee-theme.employees-page .employees-toolbar__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: var(--sys-tracking-tight);
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-toolbar__sub {
+  margin: 0.1rem 0 0;
+  font-size: var(--sys-text-xs);
+  color: var(--emp-text-muted);
+  line-height: var(--sys-leading-snug);
+}
+
+.ga-employee-theme.employees-page .employees-toolbar__actions {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .ga-employee-theme.employees-page .employees-toolbar__actions {
+    width: 100%;
+  }
+  .ga-employee-theme.employees-page .employees-toolbar__actions > .employees-hero__import-wrap {
+    flex: 1 1 auto;
+  }
+}
+
+/* ----- Faixa de chips de resumo (KPIs compactos clicáveis) ----- */
+.ga-employee-theme.employees-page .employees-summary-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.4rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 0.2rem;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip {
+  --chip-accent: var(--emp-text-muted);
+  display: inline-flex;
+  flex: 1 0 auto;
+  min-width: 5.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--emp-border);
+  border-left: 3px solid var(--chip-accent);
+  border-radius: var(--emp-radius);
+  background: var(--emp-surface);
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.1;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip:hover {
+  background: var(--emp-surface-subtle);
+  transform: translateY(-1px);
+  box-shadow: var(--sys-shadow-xs);
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--emp-focus-ring);
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip__value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip__denom {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip[aria-pressed="true"] {
+  border-color: var(--chip-accent);
+  background: color-mix(in srgb, var(--chip-accent) 12%, var(--emp-surface));
+  box-shadow: inset 0 0 0 1px var(--chip-accent);
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip[aria-pressed="true"] .employees-summary-chip__label {
+  color: var(--chip-accent);
+}
+
+/* Acentos por tipo */
+.ga-employee-theme.employees-page .employees-summary-chip--blue { --chip-accent: rgb(59 130 246); }
+.ga-employee-theme.employees-page .employees-summary-chip--cyan { --chip-accent: rgb(8 145 178); }
+.ga-employee-theme.employees-page .employees-summary-chip--emerald { --chip-accent: rgb(16 185 129); }
+.ga-employee-theme.employees-page .employees-summary-chip--slate { --chip-accent: rgb(100 116 139); }
+.ga-employee-theme.employees-page .employees-summary-chip--amber { --chip-accent: rgb(234 88 12); }
+.ga-employee-theme.employees-page .employees-summary-chip--red { --chip-accent: rgb(220 38 38); }
+
+/* Chip "Metas" (apenas ação, sem filtro) */
+.ga-employee-theme.employees-page .employees-summary-chip--ghost {
+  flex: 0 0 auto;
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  border-left-width: 1px;
+  border-style: dashed;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-summary-chip--ghost .employees-summary-chip__icon svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+/* ----- Painel da tabela: cabeçalho compacto ----- */
+.ga-employee-theme.employees-page .employees-table-panel__head--compact {
+  background: var(--emp-surface);
+}
+
+.ga-employee-theme.employees-page .employees-table-panel__hint {
+  font-size: var(--sys-text-xs);
+}
+
+@media (max-width: 640px) {
+  .ga-employee-theme.employees-page .employees-table-panel__hint {
+    display: none;
+  }
+}
+
+/* ----- Ações por linha: Editar + Mais ações ----- */
+.ga-employee-theme.employees-page .employees-data-table .employees-action-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.ga-employee-theme.employees-page .employees-row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  border-radius: var(--sys-radius-md);
+  border: 1px solid var(--emp-border-strong);
+  background: var(--emp-surface);
+  color: var(--emp-text-body);
+  font-size: var(--sys-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.ga-employee-theme.employees-page .employees-row-action--edit {
+  padding: 0 0.85rem;
+}
+
+.ga-employee-theme.employees-page .employees-row-action--edit:hover {
+  border-color: var(--sys-btn-primary-bg);
+  background: var(--sys-alert-info-bg);
+  color: var(--sys-alert-info-fg);
+}
+
+.ga-employee-theme.employees-page .employees-row-action--more {
+  width: 2rem;
+  padding: 0;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-row-action--more svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.ga-employee-theme.employees-page .employees-row-action--more:hover,
+.ga-employee-theme.employees-page .employees-row-action--more[aria-expanded="true"] {
+  border-color: var(--emp-text-muted);
+  background: var(--emp-surface-subtle);
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-row-action:focus-visible {
+  outline: none;
+  box-shadow: var(--emp-focus-ring);
+}
+
+/* ----- Menu único "Mais ações" (posicionado via JS, fixed) ----- */
+.ga-employee-theme.employees-page .employees-row-menu,
+.employees-row-menu {
+  position: fixed;
+  z-index: 19000;
+  min-width: 12rem;
+  max-width: calc(100vw - 1rem);
+  padding: 0.35rem;
+  border: 1px solid var(--emp-border-strong);
+  border-radius: var(--emp-radius);
+  background: var(--emp-surface, #fff);
+  box-shadow: var(--emp-shadow-float, 0 12px 48px rgb(15 23 42 / 0.18));
+}
+
+.employees-row-menu[hidden] {
+  display: none !important;
+}
+
+.ga-employee-theme.employees-page .employees-row-menu__title,
+.employees-row-menu__title {
+  margin: 0;
+  padding: 0.35rem 0.6rem 0.45rem;
+  font-size: var(--sys-text-xs, 0.75rem);
+  font-weight: 700;
+  color: var(--emp-text-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid var(--emp-border, #e5e7eb);
+  margin-bottom: 0.25rem;
+}
+
+.ga-employee-theme.employees-page .employees-row-menu__item,
+.employees-row-menu__item {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: var(--sys-radius-sm, 0.375rem);
+  background: transparent;
+  text-align: left;
+  font-size: var(--sys-text-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--emp-text-body, #334155);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.employees-row-menu__item[hidden] {
+  display: none !important;
+}
+
+.ga-employee-theme.employees-page .employees-row-menu__item:hover,
+.employees-row-menu__item:hover,
+.ga-employee-theme.employees-page .employees-row-menu__item:focus-visible,
+.employees-row-menu__item:focus-visible {
+  outline: none;
+  background: var(--emp-surface-subtle, #f1f5f9);
+  color: var(--emp-text-strong, #0f172a);
+}
+
+.ga-employee-theme.employees-page .employees-row-menu__item--danger,
+.employees-row-menu__item--danger {
+  color: var(--sys-critical-fg, #b91c1c);
+}
+
+.ga-employee-theme.employees-page .employees-row-menu__item--danger:hover,
+.employees-row-menu__item--danger:hover {
+  background: var(--sys-critical-bg, #fef2f2);
+  color: var(--sys-critical-fg, #b91c1c);
+}
+
+.ga-employee-theme.employees-page .employees-row-menu__divider,
+.employees-row-menu__divider {
+  height: 1px;
+  margin: 0.25rem 0.35rem;
+  background: var(--emp-border, #e5e7eb);
+}
+
+html.dark .employees-row-menu {
+  border-color: rgb(55 65 81);
+  background: rgb(17 24 39);
+}
+
+html.dark .employees-row-menu__title {
+  color: rgb(148 163 184);
+  border-bottom-color: rgb(55 65 81);
+}
+
+html.dark .employees-row-menu__item {
+  color: rgb(203 213 225);
+}
+
+html.dark .employees-row-menu__item:hover,
+html.dark .employees-row-menu__item:focus-visible {
+  background: rgb(55 65 81);
+  color: #fff;
+}
+
+html.dark .employees-row-menu__item--danger {
+  color: rgb(252 165 165);
+}
+
+html.dark .employees-row-menu__item--danger:hover {
+  background: rgb(127 29 29 / 0.4);
+  color: rgb(254 202 202);
+}
+
+html.dark .employees-row-menu__divider {
+  background: rgb(55 65 81);
+}
+
+/* ----- Paginação ----- */
+.ga-employee-theme.employees-page .employees-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-top: 1px solid var(--emp-border);
+  background: var(--emp-surface-subtle);
+}
+
+.ga-employee-theme.employees-page .employees-pagination[hidden] {
+  display: none !important;
+}
+
+.ga-employee-theme.employees-page .employees-pagination__info {
+  font-size: var(--sys-text-xs);
+  font-weight: 600;
+  color: var(--emp-text-muted);
+}
+
+.ga-employee-theme.employees-page .employees-pagination__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ga-employee-theme.employees-page .employees-pagination__page {
+  font-size: var(--sys-text-xs);
+  font-weight: 700;
+  color: var(--emp-text-body);
+  min-width: 3.5rem;
+  text-align: center;
+}
+
+.ga-employee-theme.employees-page .employees-pagination__btn {
+  height: 2rem;
+  padding: 0 0.85rem;
+  border-radius: var(--emp-radius);
+  border: 1px solid var(--emp-border-strong);
+  background: var(--emp-surface);
+  font-size: var(--sys-text-sm);
+  font-weight: 600;
+  color: var(--emp-text-body);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.ga-employee-theme.employees-page .employees-pagination__btn:hover:not(:disabled) {
+  border-color: var(--emp-text-muted);
+  background: var(--emp-surface-subtle);
+  color: var(--emp-text-strong);
+}
+
+.ga-employee-theme.employees-page .employees-pagination__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+html.dark .ga-employee-theme.employees-page .employees-pagination {
+  border-top-color: rgb(55 65 81);
+  background: rgb(31 41 55 / 0.5);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-pagination__btn {
+  border-color: rgb(75 85 99);
+  background: rgb(31 41 55);
+  color: rgb(226 232 240);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-pagination__btn:hover:not(:disabled) {
+  border-color: rgb(100 116 139);
+  background: rgb(55 65 81);
+  color: #fff;
+}
+
+/* ----- Estado vazio ----- */
+.ga-employee-theme.employees-page .employees-empty-row.hidden {
+  display: none;
+}
+
+.ga-employee-theme.employees-page .employees-empty-state {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  font-size: var(--sys-text-sm);
+  color: var(--emp-text-muted);
+}
+
+/* Chips de resumo no dark mode */
+html.dark .ga-employee-theme.employees-page .employees-summary-chip {
+  background: rgb(17 24 39);
+  border-color: rgb(55 65 81);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-summary-chip:hover {
+  background: rgb(31 41 55);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-summary-chip__value {
+  color: #f9fafb;
+}
+
+html.dark .ga-employee-theme.employees-page .employees-summary-chip__label,
+html.dark .ga-employee-theme.employees-page .employees-summary-chip__denom {
+  color: rgb(148 163 184);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-toolbar__title {
+  color: #f9fafb;
+}
+
+html.dark .ga-employee-theme.employees-page .employees-table-panel__head--compact {
+  background: rgb(17 24 39);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-row-action {
+  border-color: rgb(75 85 99);
+  background: rgb(31 41 55);
+  color: rgb(226 232 240);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-row-action--edit:hover {
+  background: rgb(30 58 138 / 0.35);
+  color: rgb(191 219 254);
+  border-color: rgb(59 130 246 / 0.6);
+}
+
+html.dark .ga-employee-theme.employees-page .employees-row-action--more:hover,
+html.dark .ga-employee-theme.employees-page .employees-row-action--more[aria-expanded="true"] {
+  background: rgb(55 65 81);
+  color: #fff;
+}
+
+/* ----- Mobile: ações dentro do card ----- */
+@media (max-width: 767px) {
+  .ga-employee-theme.employees-page #employeesTable tr.employee-row td.employee-actions-cell .employees-action-strip {
+    justify-content: flex-start;
+    gap: 0.5rem;
+  }
+
+  .ga-employee-theme.employees-page #employeesTable tr.employee-row .employees-row-action {
+    height: 2.5rem;
+  }
+
+  .ga-employee-theme.employees-page #employeesTable tr.employee-row .employees-row-action--edit {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .ga-employee-theme.employees-page #employeesTable tr.employee-row .employees-row-action--more {
+    width: 2.75rem;
+    flex: 0 0 auto;
+  }
+
+  .ga-employee-theme.employees-page .employees-summary-chip {
+    min-width: 6.25rem;
+  }
+}
