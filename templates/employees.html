@@ -34,7 +34,7 @@
     display: none !important;
   }
 </style>
-<link rel="stylesheet" href="/static/css/pages/employees.css?v=20260528e">
+<link rel="stylesheet" href="/static/css/pages/employees.css?v=20260529a">
 <script src="/static/js/pages/employees-modals.js?v=20260528e" defer></script>
 {% endblock %}
 
@@ -410,7 +410,10 @@
         <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]" id="employeesTable">
             <thead class="employees-data-table__head sticky top-0 z-10 border-b font-semibold backdrop-blur">
                 <tr>
-                    <th class="employees-data-table__th employees-data-table__th--col-name group cursor-pointer select-none px-3 py-2 pl-5 transition-colors" onclick="sortTable('name')">
+                    <th class="employees-data-table__th employees-data-table__th--col-select px-2 py-2 pl-5 text-center align-middle" scope="col">
+                        <input type="checkbox" id="bulkSelectAll" class="emp-bulk-allcb" aria-label="Selecionar todos os colaboradores visíveis" title="Selecionar todos os visíveis">
+                    </th>
+                    <th class="employees-data-table__th employees-data-table__th--col-name group cursor-pointer select-none px-3 py-2 transition-colors" onclick="sortTable('name')">
                         <div class="flex items-center gap-1.5">
                             Colaborador
                             <svg id="sort-icon-name" class="employees-data-table__sort-icon w-3 h-3 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path></svg>
@@ -473,7 +476,10 @@
                     data-photo="{{ emp.photo_url or '' }}" data-center-label="{{ center_label }}"
                     data-schedule="{{ (emp.work_schedule or '')|lower }}"
                     data-emp="{{ emp.model_dump_json() | forceescape }}">
-                    <td class="employee-cell-primary employees-data-table__td--col-name px-3 py-2 pl-5 align-middle" data-label="Colaborador">
+                    <td class="employees-data-table__td--col-select px-2 py-2 pl-5 text-center align-middle" data-label="Selecionar">
+                        <input type="checkbox" name="employee_ids" value="{{ emp.id }}" form="bulkDeleteForm" class="emp-bulk-cb" data-emp-name="{{ emp.name|emp_name }}" aria-label="Selecionar {{ emp.name|emp_name }}">
+                    </td>
+                    <td class="employee-cell-primary employees-data-table__td--col-name px-3 py-2 align-middle" data-label="Colaborador">
                         <div class="employee-primary-content min-w-0">
                             <a href="/employees/{{ emp.id }}"
                                 class="employee-name employees-data-table__name-link block truncate font-medium transition-colors hover:underline employees-text-strong"
@@ -593,7 +599,75 @@
     </div>
     </div>
 
+    <!-- Barra de ação em massa (exclusão) -->
+    <form id="bulkDeleteForm" action="/employees/bulk-delete" method="POST" class="employees-bulk-bar" hidden
+        onsubmit="return employeesBulkConfirm()" aria-label="Ações em massa de colaboradores">
+        <span class="employees-bulk-bar__count"><strong id="bulkCount">0</strong> selecionado(s)</span>
+        <button type="button" id="bulkClear" class="sys-btn sys-btn--secondary">Limpar seleção</button>
+        <button type="submit" class="sys-btn sys-btn--ghost-danger employees-bulk-bar__delete">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            Excluir selecionados
+        </button>
+    </form>
+
 </div>
+
+<script>
+    (function () {
+        const all = document.getElementById('bulkSelectAll');
+        const bar = document.getElementById('bulkDeleteForm');
+        const countEl = document.getElementById('bulkCount');
+        const clearBtn = document.getElementById('bulkClear');
+        const tbody = document.getElementById('tableBody');
+        if (!bar || !tbody) return;
+
+        function cbs() { return Array.prototype.slice.call(tbody.querySelectorAll('.emp-bulk-cb')); }
+        function visibleCbs() {
+            return cbs().filter(function (cb) {
+                const tr = cb.closest('tr');
+                return tr && !tr.classList.contains('hidden');
+            });
+        }
+        function checked() { return cbs().filter(function (cb) { return cb.checked; }); }
+
+        function refresh() {
+            const n = checked().length;
+            if (countEl) countEl.textContent = n;
+            bar.hidden = n === 0;
+            if (all) {
+                const vis = visibleCbs();
+                const visChecked = vis.filter(function (cb) { return cb.checked; }).length;
+                all.checked = vis.length > 0 && visChecked === vis.length;
+                all.indeterminate = visChecked > 0 && visChecked < vis.length;
+            }
+        }
+
+        tbody.addEventListener('change', function (e) {
+            if (e.target && e.target.classList && e.target.classList.contains('emp-bulk-cb')) refresh();
+        });
+        if (all) all.addEventListener('change', function () {
+            const v = all.checked;
+            visibleCbs().forEach(function (cb) { cb.checked = v; });
+            refresh();
+        });
+        if (clearBtn) clearBtn.addEventListener('click', function () {
+            cbs().forEach(function (cb) { cb.checked = false; });
+            refresh();
+        });
+
+        window.employeesBulkConfirm = function () {
+            const names = checked().map(function (cb) { return cb.getAttribute('data-emp-name'); }).filter(Boolean);
+            const n = names.length;
+            if (!n) { alert('Selecione ao menos um colaborador.'); return false; }
+            const sample = names.slice(0, 8).join(', ') + (n > 8 ? (' e mais ' + (n - 8)) : '');
+            return confirm('ATENÇÃO: isso excluirá permanentemente ' + n + ' colaborador(es):\n\n' + sample + '\n\nEssa ação não pode ser desfeita. Continuar?');
+        };
+
+        refresh();
+    })();
+</script>
 {% endblock %}
 
 {% block layout_portal %}

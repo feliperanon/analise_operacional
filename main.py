@@ -33378,6 +33378,42 @@ async def update_employee_status(
     return RedirectResponse(url="/employees", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@app.post("/employees/bulk-delete")
+async def bulk_delete_employees(
+    request: Request,
+    employee_ids: List[int] = Form(default=[]),
+    session: Session = Depends(get_session),
+):
+    """Exclui em massa os colaboradores marcados na lista (cascade, igual à exclusão individual)."""
+    require_login(request)
+    from employees_import import delete_employee_cascade
+
+    ids = []
+    seen = set()
+    for eid in employee_ids:
+        if eid and eid not in seen:
+            seen.add(eid)
+            ids.append(eid)
+
+    if not ids:
+        return RedirectResponse(
+            url="/employees?error=Nenhum colaborador selecionado para exclusão.",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    deleted = 0
+    for eid in ids:
+        emp = session.get(models.Employee, eid)
+        if not emp:
+            continue
+        delete_employee_cascade(session, eid)
+        deleted += 1
+    session.commit()
+
+    msg = f"{deleted} colaborador(es) excluído(s) com sucesso." if deleted else "Nenhum colaborador encontrado para exclusão."
+    return RedirectResponse(url=f"/employees?success={msg}", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @app.post("/employees/{emp_id}/return")
 async def return_employee_from_leave(
     emp_id: int,

@@ -2214,3 +2214,64 @@ html.dark .ga-employee-theme.employees-page .emp-toggle-track {
 }
 
 /* Cabeçalho por empresa (createGroupedView): employees-grouped-head / employees-grouped-title-block / employees-grouped-head__meta — hierarquia sys-section-title + sys-section-heading, ritmo alinhado ao painel da tabela; sem regras extras para não duplicar o DS. */
+
+/* ----- Seleção e exclusão em massa ----- */
+.ga-employee-theme.employees-page .employees-data-table__th--col-select,
+.ga-employee-theme.employees-page .employees-data-table__td--col-select {
+  width: 2.75rem;
+}
+
+.ga-employee-theme.employees-page .emp-bulk-cb,
+.ga-employee-theme.employees-page .emp-bulk-allcb {
+  width: 1.05rem;
+  height: 1.05rem;
+  cursor: pointer;
+  accent-color: rgb(220 38 38);
+  vertical-align: middle;
+}
+
+.ga-employee-theme.employees-page .employees-bulk-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.55rem 0.75rem 0.55rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--emp-border);
+  background: var(--emp-surface);
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.22), var(--emp-shadow-card);
+}
+
+.ga-employee-theme.employees-page .employees-bulk-bar[hidden] {
+  display: none !important;
+}
+
+.ga-employee-theme.employees-page .employees-bulk-bar__count {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  color: var(--emp-text-body);
+}
+
+.ga-employee-theme.employees-page .employees-bulk-bar__count strong {
+  color: var(--emp-text-strong);
+  font-weight: 800;
+}
+
+.ga-employee-theme.employees-page .employees-bulk-bar__delete {
+  gap: 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .ga-employee-theme.employees-page .employees-bulk-bar {
+    left: 0.75rem;
+    right: 0.75rem;
+    transform: none;
+    justify-content: space-between;
+    border-radius: 1rem;
+  }
+}
