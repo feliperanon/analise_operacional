@@ -461,7 +461,7 @@ window.addEventListener("error", function (evt) {
                                 : 0;
                         }
                         if (resolvedH < 120) {
-                            resolvedH = el && el.clientHeight >= 120 ? el.clientHeight : 240;
+                            resolvedH = el && el.clientHeight >= 120 ? el.clientHeight : 160;
                         }
                         return {
                             chart: {
@@ -593,21 +593,49 @@ window.addEventListener("error", function (evt) {
                     var kpi = {};
                     try { kpi = JSON.parse(sj.textContent || '{}'); } catch (e1) { return; }
                     if (!kpi.labels || !kpi.labels.length) return;
+                    function normalizeDevolucaoChartHostStyles() {
+                        el.style.minHeight = '0px';
+                        el.style.maxHeight = '100%';
+                        el.style.overflow = 'hidden';
+                    }
                     function measureDevolucaoChartHost() {
                         if (!el || !el.getBoundingClientRect) return 0;
-                        return Math.floor(el.getBoundingClientRect().height);
+                        normalizeDevolucaoChartHostStyles();
+                        var h = Math.floor(el.getBoundingClientRect().height);
+                        if (h >= 120) return h;
+                        var body = el.closest ? el.closest('.gv-devolucao-kpi-body') : null;
+                        if (body && body.getBoundingClientRect) {
+                            h = Math.floor(body.getBoundingClientRect().height);
+                            if (h >= 120) return h;
+                        }
+                        var card = el.closest ? el.closest('.gv-card--devolucao-kpi') : null;
+                        if (card && card.getBoundingClientRect) {
+                            var cardH = Math.floor(card.getBoundingClientRect().height);
+                            var head = card.querySelector ? card.querySelector('.gv-card-head') : null;
+                            var legend = card.querySelector ? card.querySelector('.gv-devolucao-kpi-legend') : null;
+                            var used = 0;
+                            if (head && head.getBoundingClientRect) used += Math.ceil(head.getBoundingClientRect().height);
+                            if (legend && legend.getBoundingClientRect) used += Math.ceil(legend.getBoundingClientRect().height);
+                            h = cardH - used - 28;
+                            if (h >= 120) return h;
+                        }
+                        return 0;
                     }
                     var chart = new ApexCharts(el, buildKpiChartOptions(kpi, measureDevolucaoChartHost()));
                     function applyDevolucaoChartHeight() {
                         if (!chart) return;
+                        normalizeDevolucaoChartHostStyles();
                         var h = measureDevolucaoChartHost();
                         if (h < 120) h = el.clientHeight;
                         if (h < 120) return;
                         try {
                             chart.updateOptions({ chart: { height: h } }, true, false);
                         } catch (e2) { /* ignore */ }
+                        normalizeDevolucaoChartHostStyles();
                         requestAnimationFrame(function() {
+                            normalizeDevolucaoChartHostStyles();
                             if (chart && typeof chart.resize === 'function') chart.resize();
+                            normalizeDevolucaoChartHostStyles();
                         });
                     }
                     function scheduleDevolucaoChartHeight() {
@@ -616,6 +644,7 @@ window.addEventListener("error", function (evt) {
                         });
                     }
                     chart.render().then(function() {
+                        normalizeDevolucaoChartHostStyles();
                         scheduleDevolucaoChartHeight();
                         setTimeout(applyDevolucaoChartHeight, 50);
                         setTimeout(applyDevolucaoChartHeight, 200);
@@ -633,6 +662,7 @@ window.addEventListener("error", function (evt) {
                         var h = measureDevolucaoChartHost();
                         if (h < 120) h = el.clientHeight;
                         chart.updateOptions(buildKpiChartOptions(k, h >= 120 ? h : null), true, true);
+                        normalizeDevolucaoChartHostStyles();
                         applyDevolucaoChartHeight();
                     };
                 })();

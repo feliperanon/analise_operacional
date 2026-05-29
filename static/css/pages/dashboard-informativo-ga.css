@@ -703,3 +703,129 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
   height: 28px;
   padding: 4px 0 6px;
 }
+
+/* Correção cirúrgica: Comunicado em destaque / Smart TV */
+.informativo-tv-mode #bulletin-carousel-root {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-pane {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-pane[hidden] {
+  display: none !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-split {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 0.34fr) minmax(0, 0.66fr) !important;
+  gap: 18px !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  padding: 12px 16px 10px !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-copy {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-copy-title {
+  margin: 0 !important;
+  font-size: clamp(16px, 1.08vw, 23px) !important;
+  line-height: 1.24 !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  letter-spacing: normal !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-media {
+  display: flex !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  border-radius: 14px !important;
+  background: transparent !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-image {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-split--no-media {
+  grid-template-columns: 1fr !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-split--no-media .gv-bulletin-media {
+  display: none !important;
+}
+
+.informativo-tv-mode #bulletin-carousel-root .gv-bulletin-dots {
+  flex: 0 0 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 4px 0 6px !important;
+}
+
+/* Correção cirúrgica: gráfico mensal não deve carregar o fallback inline de 240px. */
+.informativo-tv-mode #chart-informativo-devolucao {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+
+.informativo-tv-mode #chart-informativo-devolucao .apexcharts-canvas,
+.informativo-tv-mode #chart-informativo-devolucao .apexcharts-svg {
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card--focus {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-col-mid > .gv-card--devolucao-kpi {
+  flex: 0 1 clamp(180px, 24vh, 260px) !important;
+  max-height: clamp(180px, 24vh, 260px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-card--devolucao-kpi .gv-devolucao-kpi-body {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
