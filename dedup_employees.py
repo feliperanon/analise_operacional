@@ -54,9 +54,9 @@ def get_completeness_score(emp: Employee) -> int:
 def main():
     print("Iniciando varredura de duplicados...")
     with Session(engine) as db:
-        # 1) Normaliza IDs (remove sufixo .0) antes de agrupar, para que
-        #    "632886.0" e "632886" sejam tratados como o mesmo colaborador.
-        normalize_employee_ids(db)
+        # A normalizacao de IDs (remover sufixo .0) e feita DEPOIS da
+        # deduplicacao. Se normalizassemos antes, "632886.0" colidiria com
+        # "632886" ja existente, violando o indice unico de registration_id.
 
         employees = db.exec(select(Employee)).all()
         print(f"Total de colaboradores encontrados: {len(employees)}")
@@ -168,9 +168,14 @@ def main():
         
         if deleted_count > 0:
             db.commit()
-            print(f"\\nProcesso concluido! Foram encontrados {duplicates_found} grupos de duplicados e {deleted_count} cadastros indevidos foram removidos.")
+            print(f"\nProcesso concluido! Foram encontrados {duplicates_found} grupos de duplicados e {deleted_count} cadastros indevidos foram removidos.")
         else:
-            print("\\nNenhum colaborador duplicado encontrado ou necessario remover.")
+            print("\nNenhum colaborador duplicado encontrado ou necessario remover.")
+
+        # Agora que os duplicados foram removidos, e seguro normalizar os IDs
+        # restantes (remover sufixo .0) sem risco de violar o indice unico.
+        print("\nNormalizando IDs dos colaboradores restantes...")
+        normalize_employee_ids(db)
 
 if __name__ == "__main__":
     main()
