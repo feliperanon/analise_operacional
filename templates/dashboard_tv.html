@@ -46,6 +46,7 @@
     {%- endif -%}
     {%- endmacro %}
 
+    {% set audio_cfg = audio_cfg or {} %}
     {% set _dev = dashboard.devolucao_dia or {} %}
     {% set _dev_mes = dashboard.devolucao_mes or {} %}
     {% set _dev_n = _dev.count|default(0) %}
@@ -470,6 +471,26 @@
         </div>
     </div>
 </div>
+
+{% if audio_cfg.get('enabled') %}
+    {% if audio_cfg.get('youtube_url') %}
+        <div id="dashboard-bg-youtube-host" data-volume="{{ audio_cfg.get('volume', 0.35) }}"></div>
+        <script id="dashboard-bg-audio-youtube-json" type="application/json">{{ audio_cfg.get('youtube_url') | tojson }}</script>
+        <script src="https://www.youtube.com/iframe_api"></script>
+    {% elif audio_cfg.get('playlist') or audio_cfg.get('url') %}
+        <audio id="dashboard-bg-audio" data-volume="{{ audio_cfg.get('volume', 0.35) }}" preload="auto" playsinline></audio>
+        <script id="dashboard-bg-audio-playlist-json" type="application/json">{{ (audio_cfg.get('playlist') or []) | tojson }}</script>
+    {% endif %}
+
+    {% if audio_cfg.get('youtube_url') or audio_cfg.get('playlist') or audio_cfg.get('url') %}
+        <div id="dashboard-bg-audio-guard" class="fixed bottom-3 right-3 z-40" style="display: none;">
+            <div class="text-[10px] text-slate-500 mb-1 dark:text-slate-400 text-right bg-white/80 dark:bg-black/85 p-1.5 rounded shadow-md border border-slate-200 dark:border-slate-800">Clique para ativar o som do painel</div>
+            <button id="dashboard-bg-audio-btn" type="button" class="sys-btn sys-btn--secondary text-xs w-full">
+                Ativar som
+            </button>
+        </div>
+    {% endif %}
+{% endif %}
 {% endblock %}
 
 {% block body_scripts %}
@@ -938,6 +959,224 @@
     setInterval(updateTvOpenElapsed, 5000);
     fetchTvData();
     setInterval(fetchTvData, 60000);
+})();
+
+(function initDashboardBackgroundAudio() {
+    var audio = document.getElementById('dashboard-bg-audio');
+    var playlistJson = document.getElementById('dashboard-bg-audio-playlist-json');
+    var ytJson = document.getElementById('dashboard-bg-audio-youtube-json');
+    var ytHost = document.getElementById('dashboard-bg-youtube-host');
+    var btn = document.getElementById('dashboard-bg-audio-btn');
+    var guard = document.getElementById('dashboard-bg-audio-guard');
+
+    // Diagnóstico: Se não existe áudio ativo ou elementos
+    if (!audio && !ytHost) {
+        console.warn("[Painel Informativo TV] Áudio desativado ou elementos do player ausentes.");
+        return;
+    }
+
+    var ytUrl = '';
+    if (ytJson) {
+        try { ytUrl = JSON.parse(ytJson.textContent || '""') || ''; } catch (e00) { ytUrl = ''; }
+    }
+    var playlist = [];
+    if (playlistJson) {
+        try { playlist = JSON.parse(playlistJson.textContent || '[]'); } catch (e0) { playlist = []; }
+    }
+    if (!Array.isArray(playlist)) playlist = [];
+    playlist = playlist.filter(function(u) { return typeof u === 'string' && u.trim(); });
+
+    var volumeSource = audio || ytHost;
+    var v = 0.35;
+    if (volumeSource && volumeSource.getAttribute) {
+        v = parseFloat(volumeSource.getAttribute('data-volume') || '0.35');
+    }
+    if (isNaN(v)) v = 0.35;
+    v = Math.max(0, Math.min(1, v));
+
+    var idx = 0;
+    function hideGuard() {
+        if (guard) guard.style.display = 'none';
+    }
+    function showGuard() {
+        if (guard) guard.style.display = 'block';
+    }
+
+    function youtubeVideoIdFromUrl(raw) {
+        if (!raw) return '';
+        try {
+            var u = new URL(raw);
+            var host = (u.hostname || '').toLowerCase();
+            if (host.indexOf('youtu.be') >= 0) {
+                return (u.pathname || '').replace('/', '').trim();
+            }
+            if (host.indexOf('youtube.com') >= 0 || host.indexOf('youtube-nocookie.com') >= 0) {
+                var vId = (u.searchParams.get('v') || '').trim();
+                if (vId) return vId;
+                var parts = (u.pathname || '').split('/').filter(Boolean);
+                if (parts.length >= 2 && (parts[0] === 'shorts' || parts[0] === 'embed' || parts[0] === 'live')) {
+                    return (parts[1] || '').trim();
+                }
+            }
+        } catch (e1) {
+            return '';
+        }
+        return '';
+    }
+
+    var ytVideoId = youtubeVideoIdFromUrl(ytUrl);
+
+    if (ytVideoId && ytHost) {
+        console.warn("[Painel Informativo TV] Inicializando áudio em segundo plano via YouTube. Vídeo ID:", ytVideoId);
+        var ytPlayer = null;
+        function tryPlayYoutube() {
+            if (!ytPlayer || typeof ytPlayer.playVideo !== 'function') return;
+            try {
+                ytPlayer.setVolume(Math.round(v * 100));
+                ytPlayer.unMute();
+                ytPlayer.playVideo();
+            } catch (e2) {
+                console.warn("[Painel Informativo TV] Falha ao executar playVideo/unMute no YouTube:", e2);
+            }
+        }
+        function initYoutubePlayer() {
+            if (!window.YT || !window.YT.Player || ytPlayer) return;
+            try {
+                ytPlayer = new window.YT.Player('dashboard-bg-youtube-host', {
+                    width: '1',
+                    height: '1',
+                    videoId: ytVideoId,
+                    playerVars: {
+                        autoplay: 1,
+                        controls: 0,
+                        disablekb: 1,
+                        fs: 0,
+                        iv_load_policy: 3,
+                        modestbranding: 1,
+                        rel: 0,
+                        playsinline: 1,
+                        loop: 1,
+                        playlist: ytVideoId
+                    },
+                    events: {
+                        onReady: function() {
+                            console.warn("[Painel Informativo TV] Player do YouTube pronto. Tentando tocar áudio.");
+                            try {
+                                ytPlayer.setVolume(Math.round(v * 100));
+                            } catch (e3) {}
+                            tryPlayYoutube();
+                            // Se o navegador bloquear autoplay com som, mostramos o guard
+                            setTimeout(function() {
+                                if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') {
+                                    showGuard();
+                                    return;
+                                }
+                                var state = ytPlayer.getPlayerState();
+                                if (state !== window.YT.PlayerState.PLAYING || ytPlayer.isMuted()) {
+                                    console.warn("[Painel Informativo TV] Autoplay do YouTube bloqueado ou silencioso. Exibindo guard.");
+                                    showGuard();
+                                } else {
+                                    hideGuard();
+                                }
+                            }, 1500);
+                        },
+                        onStateChange: function(ev) {
+                            if (ev && ev.data === window.YT.PlayerState.PLAYING) {
+                                if (ytPlayer && typeof ytPlayer.isMuted === 'function' && !ytPlayer.isMuted()) {
+                                    hideGuard();
+                                } else {
+                                    console.warn("[Painel Informativo TV] YouTube reproduzindo, mas mutado. Mantendo guard.");
+                                    showGuard();
+                                }
+                            }
+                        },
+                        onError: function(err) {
+                            console.warn("[Painel Informativo TV] Erro no player do YouTube (código: " + (err ? err.data : "desconhecido") + ").");
+                        }
+                    }
+                });
+            } catch (errInit) {
+                console.warn("[Painel Informativo TV] Falha ao inicializar YT.Player:", errInit);
+            }
+        }
+
+        var prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = function() {
+            if (typeof prev === 'function') {
+                try { prev(); } catch (e4) {}
+            }
+            initYoutubePlayer();
+        };
+        if (window.YT && window.YT.Player) {
+            initYoutubePlayer();
+        } else {
+            showGuard();
+            console.warn("[Painel Informativo TV] YouTube API ainda não carregou. Guard exibido.");
+        }
+
+        if (btn) {
+            btn.addEventListener('click', function() {
+                console.warn("[Painel Informativo TV] Usuário clicou para ativar som (YouTube).");
+                tryPlayYoutube();
+                // Força ocultação do guard se conseguir tocar com sucesso
+                setTimeout(function() {
+                    if (ytPlayer && typeof ytPlayer.getPlayerState === 'function') {
+                        var state = ytPlayer.getPlayerState();
+                        if (state === window.YT.PlayerState.PLAYING && !ytPlayer.isMuted()) {
+                            hideGuard();
+                        }
+                    }
+                }, 500);
+            });
+        }
+        return;
+    }
+
+    // Se o arquivo foi configurado incorretamente com YouTube no campo comum
+    if (playlist.length > 0 && (playlist[0].indexOf('youtube.com') >= 0 || playlist[0].indexOf('youtu.be') >= 0)) {
+        console.warn("[Painel Informativo TV] Conflito: O campo de áudio geral recebeu link do YouTube por engano.");
+    }
+
+    if (!audio || !playlist.length) {
+        console.warn("[Painel Informativo TV] Nenhuma playlist de áudio direta configurada ou tag <audio> ausente.");
+        return;
+    }
+
+    console.warn("[Painel Informativo TV] Inicializando playlist de áudio local. Total de faixas:", playlist.length);
+    audio.volume = v;
+    function setTrack(i) {
+        idx = ((i % playlist.length) + playlist.length) % playlist.length;
+        audio.src = playlist[idx];
+    }
+    function tryPlay() {
+        var p = audio.play();
+        if (p && typeof p.then === 'function') {
+            p.then(function() {
+                hideGuard();
+            }).catch(function(err) {
+                console.warn("[Painel Informativo TV] Autoplay do áudio local bloqueado pelo navegador. Exibindo guard.", err);
+                showGuard();
+            });
+        } else {
+            hideGuard();
+        }
+    }
+    function nextTrackAndPlay() {
+        console.warn("[Painel Informativo TV] Música finalizada ou erro na reprodução. Mudando para a próxima faixa.");
+        setTrack(idx + 1);
+        tryPlay();
+    }
+    setTrack(0);
+    tryPlay();
+    if (btn) {
+        btn.addEventListener('click', function() {
+            console.warn("[Painel Informativo TV] Usuário clicou para ativar som (Local).");
+            tryPlay();
+        });
+    }
+    audio.addEventListener('play', hideGuard);
+    audio.addEventListener('ended', nextTrackAndPlay);
+    audio.addEventListener('error', nextTrackAndPlay);
 })();
 </script>
 <script>

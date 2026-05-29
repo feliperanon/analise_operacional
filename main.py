@@ -4717,12 +4717,14 @@ async def dashboard_entry(
         template_name = "dashboard_tv_fire.html"
     elif is_tv:
         template_name = "dashboard_tv.html"
+    audio_cfg = _informative_audio_config(session)
     return templates.TemplateResponse(
         template_name,
         {
             "request": request,
             "dashboard": dashboard_payload,
             "informativo": informativo_ctx or {},
+            "audio_cfg": audio_cfg,
             "current_cost_center": selected_cost_center or "Todos",
             "cost_center_options": cost_center_options,
             "current_date": selected_date_str,
@@ -5337,18 +5339,22 @@ async def admin_informativo_panel_config(
 
 @app.post("/admin/informativo/audio-config")
 async def admin_informativo_audio_config(
+    request: Request,
     session: Session = Depends(get_session),
     user=Depends(require_leader),
-    audio_enabled: Optional[str] = Form(None),
-    audio_url: str = Form(""),
-    audio_playlist: str = Form(""),
-    audio_youtube_url: str = Form(""),
-    audio_volume: int = Form(35),
-    audio_file: Optional[UploadFile] = File(None),
 ):
     try:
         # Garante migrações aplicadas mesmo sem restart do processo.
         create_db_and_tables()
+
+        form = await request.form()
+        audio_enabled_raw = form.get("audio_enabled")
+        audio_enabled = audio_enabled_raw is not None and str(audio_enabled_raw).strip() in ("1", "on", "true", "yes")
+        audio_url = str(form.get("audio_url") or "").strip()[:500]
+        audio_playlist = str(form.get("audio_playlist") or "").strip()
+        audio_youtube_url = str(form.get("audio_youtube_url") or "").strip()[:500]
+        audio_volume_raw = form.get("audio_volume")
+        audio_file = form.get("audio_file")
 
         def _is_youtube_url(value: Optional[str]) -> bool:
             raw = (value or "").strip().lower()
@@ -5387,17 +5393,17 @@ async def admin_informativo_audio_config(
             cfg = models.InformativePanelConfig(id=1, carousel_interval_seconds=8)
             session.add(cfg)
 
-        cfg.audio_enabled = bool(audio_enabled)
-        cfg.audio_volume = _safe_volume(audio_volume, fallback=35)
-        next_audio_url = (audio_url or "").strip()[:500] or None
-        next_youtube_url = (audio_youtube_url or "").strip()[:500] or None
-        if not next_youtube_url and _is_youtube_url(next_audio_url):
-            # Permite colar URL do YouTube no campo de áudio comum sem erro.
+        cfg.audio_enabled = audio_enabled
+        cfg.audio_volume = _safe_volume(audio_volume_raw, fallback=35)
+        next_audio_url = audio_url or None
+        next_youtube_url = audio_youtube_url or None
+        if next_audio_url and _is_youtube_url(next_audio_url):
+            # Transfere link do YouTube colado por engano no campo de áudio comum
             next_youtube_url = next_audio_url
             next_audio_url = None
-        raw_list = (audio_playlist or "").strip()
+        raw_list = audio_playlist
         normalized_playlist = _normalize_playlist(raw_list, max_total=4000)
-        if audio_file and (audio_file.filename or "").strip():
+        if audio_file and getattr(audio_file, "filename", None) and str(audio_file.filename).strip():
             try:
                 next_audio_url = await _save_informativo_audio(audio_file)
             except ValueError:
