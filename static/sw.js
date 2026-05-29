@@ -9,7 +9,7 @@
  * - Background Sync → fila de ações offline (IndexedDB)
  */
 
-const SW_VERSION = 'nl-entregas-v1.1.7';
+const SW_VERSION = 'nl-entregas-v1.1.8';
 const ASSETS_CACHE = `${SW_VERSION}-assets`;
 const DATA_CACHE = `${SW_VERSION}-data`;
 const CDN_CACHE = `${SW_VERSION}-cdn`;
