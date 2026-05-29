@@ -156,7 +156,7 @@ window.addEventListener("error", function (evt) {
                 <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido ÷ base R$ das rotas no período; meta ≤ 2%.">Devolução mês passado (% valor · meta 2%)</span>
+                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido ÷ base R$ das rotas no período. Meta ≤ 2%.">Mês passado</span>
                             <p id="hdr-prev-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_prev %}{% if prev_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}{% else %}gv-stat-muted{% endif %}"><span id="hdr-prev-pct" class="gv-header__pct">{% if use_fin_prev %}{{ pf_prev|fmt_br_2 }}{% else %}—{% endif %}</span><span id="hdr-prev-pct-suf">{% if use_fin_prev %}%{% endif %}</span></p>
                         </div>
                         <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -169,7 +169,7 @@ window.addEventListener("error", function (evt) {
                 <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido ÷ base R$ das rotas no período; meta ≤ 2%.">Devolução mês atual (% valor · meta 2%)</span>
+                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="Valor devolvido ÷ base R$ das rotas no período. Meta ≤ 2%.">Mês atual</span>
                             <p id="hdr-curr-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_curr %}{% if curr_p <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}{% else %}gv-stat-muted{% endif %}"><span id="hdr-curr-pct" class="gv-header__pct">{% if use_fin_curr %}{{ pf_curr|fmt_br_2 }}{% else %}—{% endif %}</span><span id="hdr-curr-pct-suf">{% if use_fin_curr %}%{% endif %}</span></p>
                         </div>
                         <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -182,16 +182,16 @@ window.addEventListener("error", function (evt) {
                 <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <span class="sys-kpi-label text-slate-600 dark:text-slate-300">Diferença (mês atual − passado)</span>
-                            <p id="hdr-delta" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_delta %}{% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}{% else %}gv-stat-muted{% endif %}">
+                            <span class="sys-kpi-label text-slate-600 dark:text-slate-300" title="Comparação entre o mês atual e o mês passado.">Variação</span>
+                            <p id="hdr-delta" title="{% if use_fin_delta %}Comparação entre o mês atual e o mês passado.{% else %}Não há base em R$ suficiente para comparar os períodos.{% endif %}" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if use_fin_delta %}{% if curr_p > prev_p %}gv-delta-worse{% elif curr_p < prev_p %}gv-delta-better{% else %}gv-delta-same{% endif %}{% else %}gv-stat-muted{% endif %}">
                                 {% if use_fin_delta %}
                                     {% if curr_p > prev_p %}▲ +{{ (curr_p - prev_p)|fmt_br_2 }} p.p.{% elif curr_p < prev_p %}▼ −{{ (prev_p - curr_p)|fmt_br_2 }} p.p.{% else %}= 0 p.p.{% endif %}
                                 {% elif use_fin_curr and not use_fin_prev %}
-                                    Só mês atual com base R$
+                                    Sem base
                                 {% elif use_fin_prev and not use_fin_curr %}
-                                    Só mês passado com base R$
+                                    Sem base
                                 {% else %}
-                                    Sem base R$ para comparar
+                                    Sem base
                                 {% endif %}
                             </p>
                         </div>
@@ -205,7 +205,7 @@ window.addEventListener("error", function (evt) {
                 <div class="sys-kpi-cell-inner employees-kpi__inner leading-tight">
                     <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
                         <div class="min-w-0">
-                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="{% if use_fin_hoje %}% valor sobre base das rotas; meta ≤ 2%{% else %}% rotas concluídas com devolução{% endif %}">Devolução hoje ({% if use_fin_hoje %}% valor{% else %}% rotas{% endif %})</span>
+                            <span class="sys-kpi-label gv-kpi-label-long text-orange-600 dark:text-orange-300" title="{% if use_fin_hoje %}Valor devolvido ÷ base R$ das rotas no dia. Meta ≤ 2%.{% else %}% de rotas concluídas com devolução no dia.{% endif %}">Hoje</span>
                             <p id="hdr-dev-hoje-line" class="gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi {% if dhoje_f <= 2 %}gv-stat-good{% else %}gv-stat-attn{% endif %}"><span id="hdr-dev-hoje" class="gv-header__pct">{% if use_fin_hoje %}{{ dhoje_f|fmt_br_2 }}{% else %}{{ '%.1f'|format(dhoje_f)|replace('.', ',') }}{% endif %}</span>%</p>
                         </div>
                         <svg class="h-4 w-4 shrink-0 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -217,7 +217,7 @@ window.addEventListener("error", function (evt) {
             <div class="sys-kpi-card employees-kpi group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);">
                 <div class="sys-kpi-cell-inner employees-kpi__inner">
                     <div class="gv-kpi-bar-stack mx-auto w-full max-w-[13rem]">
-                        <span class="sys-kpi-label gv-ring-label">Rota concluída</span>
+                        <span class="sys-kpi-label gv-ring-label" title="% de rotas concluídas no dia.">Rotas concluídas</span>
                         <span id="tonnage-pct-text" class="gv-kpi-bar-pct">{{ '%.0f'|format(pp) }}%</span>
                         <div class="gv-kpi-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ (pp if pp <= 100 else 100)|int }}" aria-labelledby="tonnage-pct-text">
                             <div id="tonnage-bar-fill" class="gv-kpi-bar-fill" style="width: {{ pp if pp <= 100 else 100 }}%;"></div>
@@ -690,7 +690,7 @@ window.addEventListener("error", function (evt) {
                                     <thead>
                                         <tr>
                                             <th>Colaborador</th>
-                                            <th class="text-right">Período</th>
+                                            <th>Período</th>
                                             <th class="text-right">Status</th>
                                         </tr>
                                     </thead>
@@ -701,7 +701,7 @@ window.addEventListener("error", function (evt) {
                                             <td class="gv-rh-date">Até {{ v.until }}</td>
                                             {% set _active_days = v.days_left|default(0)|int %}
                                             <td class="gv-rh-status {% if _active_days <= 1 %}gv-rh-status--warn{% else %}gv-rh-status--ok{% endif %}">
-                                                {% if _active_days <= 1 %}Encerra hoje{% else %}Em gozo{% endif %}
+                                                <span class="gv-rh-status-badge">{% if _active_days <= 1 %}Encerra hoje{% else %}Em gozo{% endif %}</span>
                                             </td>
                                         </tr>
                                         {% endfor %}
@@ -713,7 +713,7 @@ window.addEventListener("error", function (evt) {
                                             {% set _up_days = v.in_days|default(0)|int %}
                                             <td class="gv-rh-date">{% if _up_days <= 0 %}Início hoje{% else %}Início {{ v.start }}{% endif %}</td>
                                             <td class="gv-rh-status {% if _up_days <= 0 %}gv-rh-status--info{% else %}gv-rh-status--muted{% endif %}">
-                                                {% if _up_days <= 0 %}Inicia hoje{% else %}Programada{% endif %}
+                                                <span class="gv-rh-status-badge">{% if _up_days <= 0 %}Inicia hoje{% else %}Programada{% endif %}</span>
                                             </td>
                                         </tr>
                                         {% else %}
@@ -895,13 +895,15 @@ window.addEventListener("error", function (evt) {
                     if (hasPrevFin && hasCurrFin) {
                         dl = fmtDeltaLine(prevV, currV, true);
                     } else if (hasCurrFin && !hasPrevFin) {
-                        dl = { cls: 'gv-stat-muted', text: 'Só mês atual com base R$' };
+                        dl = { cls: 'gv-stat-muted', text: 'Sem base' };
                     } else if (hasPrevFin && !hasCurrFin) {
-                        dl = { cls: 'gv-stat-muted', text: 'Só mês passado com base R$' };
+                        dl = { cls: 'gv-stat-muted', text: 'Sem base' };
                     } else {
-                        dl = { cls: 'gv-stat-muted', text: 'Sem base R$ para comparar' };
+                        dl = { cls: 'gv-stat-muted', text: 'Sem base' };
                     }
+                    if (!(hasPrevFin && hasCurrFin)) dl.text = 'Sem base';
                     hd.textContent = dl.text;
+                    hd.title = (hasPrevFin && hasCurrFin) ? 'Comparação entre o mês atual e o mês passado.' : 'Não há base em R$ suficiente para comparar os períodos.';
                     hd.className = 'gv-kpi-value-line employees-kpi__value mt-1 font-black text-kpi ' + dl.cls;
                 }
                 var hj = document.getElementById('hdr-dev-hoje');
