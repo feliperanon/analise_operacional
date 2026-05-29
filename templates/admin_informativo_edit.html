@@ -43,6 +43,11 @@
                 {% if request.query_params.get('err_image') %}
                 <p class="sys-alert sys-alert--warn">Imagem inválida. Use JPG, PNG ou WEBP com até 8MB.</p>
                 {% endif %}
+                {% if local_missing %}
+                <p class="sys-alert sys-alert--warn font-bold" style="background-color: rgb(254 242 242) !important; color: rgb(185 28 28) !important; border: 1px solid rgb(252 165 165) !important;">
+                    ⚠️ A imagem deste comunicado não foi encontrada física no disco. Por favor, envie o arquivo de imagem novamente ou insira uma URL externa.
+                </p>
+                {% endif %}
 
                 {% if not informativo_has_persistent_uploads %}
                 <p class="admin-inf-alert" role="status">

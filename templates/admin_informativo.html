@@ -133,12 +133,21 @@
                                         <span class="sys-badge {% if b.is_active %}sys-badge--success{% else %}sys-badge--neutral{% endif %} text-[10px]">{% if b.is_active %}Ativo{% else %}Inativo{% endif %}</span>
                                     </div>
                                     <p class="admin-inf-bulletin-title" title="{{ b.title }}">{{ b.title }}</p>
+                                    {% if local_missing %}
+                                    <div class="mt-1 flex items-center gap-1.5 text-xs font-bold text-red-600 dark:text-red-400">
+                                        <span>⚠️ Imagem local não encontrada no servidor!</span>
+                                    </div>
+                                    {% endif %}
                                     {% if bulletin_image %}<p class="admin-inf-bulletin-image-url" title="{{ bulletin_image }}">Imagem: {{ bulletin_image }}</p>{% endif %}
                                     {% if b.link_url %}<p class="admin-inf-bulletin-image-url" title="{{ b.link_url }}">Link: {{ b.link_url }}</p>{% endif %}
                                     {% if b.body %}<p class="admin-inf-bulletin-body">{{ b.body }}</p>{% endif %}
                                 </div>
                                 <div class="admin-inf-bulletin-actions">
+                                    {% if local_missing %}
+                                    <a href="/admin/informativo/{{ b.id }}/edit" class="sys-btn sys-btn--amber inline-flex items-center justify-center text-center text-sm font-medium no-underline" style="background-color: var(--sys-warning-fg, #b45309) !important; color: white !important; border-color: var(--sys-warning-fg, #b45309) !important;" title="Substituir imagem local ausente">Substituir imagem</a>
+                                    {% else %}
                                     <a href="/admin/informativo/{{ b.id }}/edit" class="sys-btn sys-btn--secondary inline-flex items-center justify-center text-center text-sm font-medium no-underline" title="Editar ou substituir imagem">Editar</a>
+                                    {% endif %}
                                     <form method="post" action="/admin/informativo/{{ b.id }}/delete" onsubmit="return confirm('Remover este aviso?');">
                                         <button type="submit" class="sys-btn sys-btn--ghost-danger text-sm font-medium">Excluir</button>
                                     </form>

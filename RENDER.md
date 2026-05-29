@@ -185,3 +185,29 @@ psql "postgresql://..." -f migration_add_indexes.sql
 - **Documentação Render**: [render.com/docs](https://render.com/docs) — mudanças em Blueprint, runtimes e PostgreSQL.
 - **API-First**: Este projeto expõe `/docs` e `/openapi.json`; integrações e usuários API-First devem usar `APP_BASE_URL` como base e consultar a documentação OpenAPI.
 - **Blueprint (`render.yaml`)**: Ao alterar `render.yaml`, faça push para o branch conectado; o Render aplica as mudanças no próximo deploy.
+
+---
+
+## 💾 Armazenamento Persistente de Imagens (Painel Informativo)
+
+Por padrão, os uploads locais de imagens do Painel Informativo são salvos no armazenamento efêmero do Render e desaparecerão após novos deploys ou reinicializações do servidor. Para evitar a perda destas imagens em produção, configure um **Persistent Disk**:
+
+### Passo 1: Criar o disco persistente no Render
+
+1. No painel do Render, vá até o seu **Web Service** → **Disks**.
+2. Clique em **Add Disk**.
+3. Configure os campos:
+   - **Name**: `informativo-media`
+   - **Mount Path**: `/var/data`
+   - **Size**: `1 GB` (tamanho básico é suficiente)
+4. Clique em **Save**.
+
+### Passo 2: Configurar a variável de ambiente
+
+1. Vá em **Web Service** → **Environment**.
+2. Adicione a seguinte variável:
+   - **Key**: `INFORMATIVO_MEDIA_ROOT`
+   - **Value**: `/var/data`
+3. Clique em **Save Changes**.
+
+O FastAPI detectará automaticamente essa variável de ambiente, montará a rota estática pública em `/media` apontando para `/var/data` e salvará os uploads de forma segura no disco físico montado.

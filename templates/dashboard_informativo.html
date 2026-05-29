@@ -24,7 +24,7 @@
 {% block head_extra %}
 <link rel="stylesheet" href="/static/css/pages/employees.css">
 <link rel="stylesheet" href="/static/css/pages/dashboard-informativo.css">
-<link rel="stylesheet" href="/static/css/pages/dashboard-informativo-ga.css?v=4">
+<link rel="stylesheet" href="/static/css/pages/dashboard-informativo-ga.css?v=7">
 {# Smart TV / rede lenta: reduz latência de origens usadas pelo painel (áudio YouTube, imagens externas) #}
 <link rel="dns-prefetch" href="https://www.youtube.com">
 <link rel="dns-prefetch" href="https://i.ytimg.com">
@@ -341,7 +341,7 @@ window.addEventListener("error", function (evt) {
                                     {% if bulletin_image %}
                                     <div class="gv-bulletin-media gv-bulletin-media--contain">
                                         {# eager em todos os slides: evita aviso do Edge sobre lazy+placeholder e garante carrossel estável em TV #}
-                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image" loading="eager" decoding="async"{% if loop.first %} fetchpriority="high"{% endif %} onerror="var img=this;var media=img.closest('.gv-bulletin-media');var split=img.closest('.gv-bulletin-split');var tries=parseInt(img.dataset.retryCount||'0',10)||0;if(tries<2){img.dataset.retryCount=String(tries+1);setTimeout(function(){var sep=img.src.indexOf('?')>=0?'&':'?';img.src=img.src.split('?')[0]+sep+'retry='+(Date.now());},900);return;}img.onerror=null;console.warn('Imagem do informativo indisponível:',img.src);if(media){media.classList.add('gv-bulletin-media--missing');}if(split){split.classList.add('gv-bulletin-split--no-media');}img.style.opacity='0.4';img.style.filter='grayscale(1)';">
+                                        <img src="{{ bulletin_image }}" alt="" class="gv-bulletin-image" loading="eager" decoding="async"{% if loop.first %} fetchpriority="high"{% endif %} onerror="var img=this;var media=img.closest('.gv-bulletin-media');var split=img.closest('.gv-bulletin-split');var tries=parseInt(img.dataset.retryCount||'0',10)||0;if(tries<2){img.dataset.retryCount=String(tries+1);setTimeout(function(){var sep=img.src.indexOf('?')>=0?'&':'?';img.src=img.src.split('?')[0]+sep+'retry='+(Date.now());},900);return;}img.onerror=null;console.warn('Imagem do informativo indisponível:',img.src);if(media){media.style.display='none';}if(split){split.classList.add('gv-bulletin-split--no-media');}img.style.display='none';">
                                     </div>
                                     {% endif %}
                                 </div>

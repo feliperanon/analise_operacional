@@ -1361,3 +1361,191 @@ body.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin
   }
 }
 
+
+/* --- ESTILOS SCOPADOS BLINDADOS PARA COLUNA CENTRAL E CARROSSEL (TV E MODO GERAL) --- */
+
+#informativo-root.dashboard-informativo-ga .gv-col-mid,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-col-mid {
+  display: grid !important;
+  grid-template-rows: minmax(260px, 1.35fr) minmax(240px, 1fr) !important;
+  gap: 0.75rem !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card {
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card--focus,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-col-mid > .sys-card--focus {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 260px !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga .sys-card--focus .gv-card-head,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .sys-card--focus .gv-card-head {
+  flex: 0 0 auto !important;
+  min-height: 2.4rem !important;
+  z-index: 4 !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga #bulletin-carousel-root {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  min-height: 220px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-pane,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-pane {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-pane[hidden],
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga #bulletin-carousel-root .gv-bulletin-pane[hidden] {
+  display: none !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-split,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-split {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-copy,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-copy {
+  display: none !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-media,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-media {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  overflow: hidden !important;
+  background: #f8fafc !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-image,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-image {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-dots,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-dots {
+  position: absolute !important;
+  left: 50% !important;
+  bottom: 0.55rem !important;
+  z-index: 10 !important;
+  transform: translateX(-50%) !important;
+  border: 0 !important;
+  background: rgba(255,255,255,0.75) !important;
+  border-radius: 999px !important;
+  padding: 0.28rem 0.55rem !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-card--devolucao-kpi,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-card--devolucao-kpi {
+  min-height: 230px !important;
+  max-height: 320px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga #chart-informativo-devolucao,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga #chart-informativo-devolucao {
+  min-height: 200px !important;
+  height: 200px !important;
+  overflow: hidden !important;
+}
+
+/* Fallback: Exibir cópia textual se não houver mídia ou se a mídia falhar no carregamento */
+#informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 10 !important;
+  padding: 2.5rem 2rem !important;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important; /* Gradiente escuro premium */
+  color: #f8fafc !important;
+  border-radius: 14px;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy-title,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy-title {
+  color: #ffffff !important;
+  font-size: clamp(20px, 1.8vw, 32px) !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  margin-bottom: 12px !important;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3) !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy-text,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy-text {
+  color: #94a3b8 !important;
+  font-size: clamp(14px, 1vw, 18px) !important;
+  line-height: 1.4 !important;
+  max-width: 85% !important;
+  margin: 0 auto !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 4 !important;
+  line-clamp: 4 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy-link a,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-copy-link a {
+  color: #38bdf8 !important;
+  font-weight: 600 !important;
+  text-decoration: underline !important;
+}
+
+#informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-media,
+.informativo-tv-mode #informativo-root.dashboard-informativo-ga .gv-bulletin-split--no-media .gv-bulletin-media {
+  display: none !important;
+}
+
+

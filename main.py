@@ -797,6 +797,11 @@ def _lifespan_blocking_db_work() -> None:
         sync_sectors_on_startup()
     except Exception as e:
         logger.error(f"Erro ao iniciar sync: {e}")
+    try:
+        with Session(engine) as session:
+            migrate_legacy_informative_images(session)
+    except Exception as e:
+        logger.error(f"Erro ao executar migração de imagens do informativo no startup: {e}")
 
 
 def _path_bypasses_db_readiness(path: str) -> bool:
@@ -1202,19 +1207,104 @@ async def global_exception_handler(request: Request, call_next):
 # Produção (Render): definir INFORMATIVO_MEDIA_ROOT=/var/data (Persistent Disk) e montar o disco nesse caminho.
 # Ficheiros ficam em {INFORMATIVO_MEDIA_ROOT}/informativo/ e URL pública /media/informativo/… (sobrevive a redeploy).
 # Sem isso, upload cai em static/uploads/informativo (efémero no Render) — usar URL externa para comunicados permanentes.
-_INFORMATIVO_MEDIA_ROOT_ENV = (os.getenv("INFORMATIVO_MEDIA_ROOT") or "").strip()
-INFORMATIVO_MEDIA_ROOT = os.path.normpath(_INFORMATIVO_MEDIA_ROOT_ENV) if _INFORMATIVO_MEDIA_ROOT_ENV else ""
+def get_informativo_media_root() -> Optional[Path]:
+    root = os.getenv("INFORMATIVO_MEDIA_ROOT")
+    if not root:
+        return None
+    try:
+        path = Path(root).expanduser().resolve()
+        return path
+    except Exception:
+        return None
+
+def get_informativo_upload_dir() -> Path:
+    media_root = get_informativo_media_root()
+    if media_root:
+        upload_dir = media_root / "informativo"
+    else:
+        upload_dir = BASE_DIR / "static" / "uploads" / "informativo"
+    try:
+        upload_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    return upload_dir
+
+def informativo_image_exists(image_url: str) -> bool:
+    if not image_url:
+        return False
+    u = image_url.split("?", 1)[0].strip()
+    if u.startswith("http://") or u.startswith("https://") or u.startswith("data:"):
+        return True
+    if u.startswith("/media/informativo/"):
+        media_root = get_informativo_media_root()
+        if not media_root:
+            return False
+        filename = u.split("/media/informativo/", 1)[1]
+        try:
+            return (media_root / "informativo" / filename).is_file()
+        except Exception:
+            return False
+    if u.startswith("/static/uploads/informativo/"):
+        filename = u.split("/static/uploads/informativo/", 1)[1]
+        try:
+            return (BASE_DIR / "static" / "uploads" / "informativo" / filename).is_file()
+        except Exception:
+            return False
+    return False
+
+
+def migrate_legacy_informative_images(session: Session) -> None:
+    """Migra imagens locais legadas para o diretório de mídia persistente, se configurado."""
+    media_root = get_informativo_media_root()
+    if not media_root:
+        return
+    upload_dir = media_root / "informativo"
+    try:
+        upload_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f"[Migração] Falha ao criar diretório persistente %s: {e}", upload_dir)
+        return
+    try:
+        bulletins = session.exec(select(models.InformativeBulletin)).all()
+        for b in bulletins:
+            changed = False
+            for attr in ("uploaded_image_path", "image_url"):
+                val = getattr(b, attr, None)
+                if not val:
+                    continue
+                val_str = str(val).strip()
+                if val_str.startswith("/static/uploads/informativo/") or val_str.startswith("static/uploads/informativo/"):
+                    filename = val_str.split("uploads/informativo/", 1)[1]
+                    local_path = BASE_DIR / "static" / "uploads" / "informativo" / filename
+                    if local_path.is_file():
+                        dest_path = upload_dir / filename
+                        try:
+                            import shutil
+                            shutil.copy2(local_path, dest_path)
+                            new_url = f"/media/informativo/{filename}"
+                            setattr(b, attr, new_url)
+                            changed = True
+                            logger.info(f"[Migração] Imagem do comunicado migrada com sucesso: {val_str} -> {new_url}")
+                        except Exception as cp_err:
+                            logger.error(f"[Migração] Falha ao copiar arquivo {local_path} para {dest_path}: {cp_err}")
+            if changed:
+                b.updated_at = datetime.now()
+                session.add(b)
+        session.commit()
+    except Exception as exc:
+        logger.error(f"Falha na migração automática de imagens do informativo: {exc}")
+        session.rollback()
+
+
+# Manter constantes para compatibilidade
+_media_root_env_path = get_informativo_media_root()
+INFORMATIVO_MEDIA_ROOT = str(_media_root_env_path) if _media_root_env_path else ""
+INFORMATIVO_IMAGE_DIR = str(get_informativo_upload_dir())
 if INFORMATIVO_MEDIA_ROOT:
-    INFORMATIVO_IMAGE_DIR = os.path.join(INFORMATIVO_MEDIA_ROOT, "informativo")
     INFORMATIVO_UPLOAD_PUBLIC_PREFIX = "/media/informativo"
 else:
-    _INFORMATIVO_DIR_ENV = (os.getenv("INFORMATIVO_IMAGE_DIR") or "").strip()
-    INFORMATIVO_IMAGE_DIR = (
-        os.path.normpath(_INFORMATIVO_DIR_ENV)
-        if _INFORMATIVO_DIR_ENV
-        else os.path.join(str(BASE_DIR), "static", "uploads", "informativo")
-    )
     INFORMATIVO_UPLOAD_PUBLIC_PREFIX = "/static/uploads/informativo"
+
 try:
     os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
 except OSError:
@@ -2305,7 +2395,7 @@ async def save_ticket_images(files: List[UploadFile]) -> List[str]:
 
 
 async def _save_informativo_image(file: UploadFile) -> str:
-    os.makedirs(INFORMATIVO_IMAGE_DIR, exist_ok=True)
+    upload_dir = get_informativo_upload_dir()
     raw_name = (file.filename or "").strip()
     if not raw_name:
         raise ValueError("Arquivo inválido.")
@@ -2318,10 +2408,15 @@ async def _save_informativo_image(file: UploadFile) -> str:
     if len(content) > INFORMATIVO_MAX_IMAGE_SIZE:
         raise ValueError("Imagem excede 8MB.")
     safe_name = f"informativo_{datetime.now(ZoneInfo('America/Sao_Paulo')).strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}{ext}"
-    file_path = os.path.join(INFORMATIVO_IMAGE_DIR, safe_name)
+    file_path = upload_dir / safe_name
     with open(file_path, "wb") as fp:
         fp.write(content)
-    return f"{INFORMATIVO_UPLOAD_PUBLIC_PREFIX}/{safe_name}"
+    
+    media_root = get_informativo_media_root()
+    if media_root:
+        return f"/media/informativo/{safe_name}"
+    else:
+        return f"/static/uploads/informativo/{safe_name}"
 
 
 async def _save_informativo_audio(file: UploadFile) -> str:
@@ -2477,32 +2572,90 @@ def informativo_local_upload_file_missing(resolved_image_url: Optional[str]) -> 
     """True se a URL é ficheiro servido por este app mas o path no disco não existe."""
     if not resolved_image_url:
         return False
-    u = resolved_image_url.split("?", 1)[0].strip()
-    fn = os.path.basename(u)
-    if not fn or ".." in fn.replace("\\", "/"):
-        return True
-    if u.startswith("/media/informativo/"):
-        path = os.path.join(INFORMATIVO_IMAGE_DIR, fn)
-        return not os.path.isfile(path)
-    if u.startswith("/static/uploads/informativo/"):
-        path = _informativo_legacy_static_disk_path(fn)
-        return not os.path.isfile(path)
-    return False
+    return not informativo_image_exists(resolved_image_url)
 
 
 def _tpl_resolve_bulletin_image(b: Any) -> Optional[str]:
     """Jinja: aceita InformativeBulletin, dict com image_url/uploaded_image_path ou string.
 
-    Mantem a URL cadastrada para que o template renderize o bloco de imagem e o
-    onerror do <img> trate retry/fallback quando o asset estiver indisponivel.
+    Retorna a URL se ela for válida e existir. Se for um arquivo local que não existe
+    fisicamente no disco, retorna None para ativar o fallback de texto do carrossel no servidor.
     """
     url = resolve_bulletin_display_image(b)
     if not url:
+        return None
+    if _is_local_informativo_asset_url(url) and informativo_local_upload_file_missing(url):
         return None
     return url
 
 
 templates.env.globals["resolve_bulletin_image"] = _tpl_resolve_bulletin_image
+
+
+def migrate_bulletin_images_to_persistent_storage(session: Session):
+    """
+    Se INFORMATIVO_MEDIA_ROOT estiver ativo, migra todos os arquivos físicos legados de
+    /static/uploads/informativo/... para o diretório de mídia persistente (/media/informativo/...)
+    e atualiza seus caminhos no banco de dados.
+    """
+    media_root = get_informativo_media_root()
+    if not media_root:
+        return
+    
+    import shutil
+    upload_dir = get_informativo_upload_dir() # /var/data/informativo
+    
+    # Buscar todos os boletins informativos
+    bulletins = session.exec(select(models.InformativeBulletin)).all()
+    updated_any = False
+    
+    for b in bulletins:
+        changed = False
+        
+        # 1. Verificar uploaded_image_path
+        upl = (b.uploaded_image_path or "").strip()
+        if upl.startswith("/static/uploads/informativo/"):
+            filename = upl.split("/static/uploads/informativo/", 1)[1]
+            legacy_path = os.path.join(_DEFAULT_INFORMATIVO_STATIC, filename)
+            if os.path.isfile(legacy_path):
+                dest_path = upload_dir / filename
+                try:
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(legacy_path, dest_path)
+                    b.uploaded_image_path = f"/media/informativo/{filename}"
+                    changed = True
+                except Exception:
+                    pass
+        
+        # 2. Verificar image_url que aponta para caminhos locais (legados)
+        img_url = (b.image_url or "").strip()
+        if img_url.startswith("/static/uploads/informativo/"):
+            filename = img_url.split("/static/uploads/informativo/", 1)[1]
+            legacy_path = os.path.join(_DEFAULT_INFORMATIVO_STATIC, filename)
+            if os.path.isfile(legacy_path):
+                dest_path = upload_dir / filename
+                try:
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(legacy_path, dest_path)
+                    b.uploaded_image_path = f"/media/informativo/{filename}"
+                    b.image_url = None
+                    changed = True
+                except Exception:
+                    pass
+        elif img_url.startswith("/media/informativo/") and not b.uploaded_image_path:
+            b.uploaded_image_path = img_url
+            b.image_url = None
+            changed = True
+            
+        if changed:
+            session.add(b)
+            updated_any = True
+            
+    if updated_any:
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
 
 
 def resolve_equipment(session: Session, code: str) -> models.TranspalletEquipment:
@@ -5063,6 +5216,7 @@ async def admin_informativo_page(
     session: Session = Depends(get_session),
     user=Depends(require_leader),
 ):
+    migrate_bulletin_images_to_persistent_storage(session)
     rows = session.exec(
         select(models.InformativeBulletin).order_by(models.InformativeBulletin.sort_order, models.InformativeBulletin.id)
     ).all()
@@ -5357,9 +5511,20 @@ async def admin_informativo_edit_page(
     session: Session = Depends(get_session),
     user=Depends(require_leader),
 ):
+    migrate_bulletin_images_to_persistent_storage(session)
     b = session.get(models.InformativeBulletin, bulletin_id)
     if not b:
         raise HTTPException(status_code=404, detail="Aviso não encontrado")
+    
+    disp = resolve_bulletin_display_image(b)
+    has_local = _bulletin_has_local_path_record(b)
+    if disp and _is_local_informativo_asset_url(disp):
+        local_missing = informativo_local_upload_file_missing(disp)
+    elif not disp and has_local:
+        local_missing = True
+    else:
+        local_missing = False
+
     return templates.TemplateResponse(
         "admin_informativo_edit.html",
         {
@@ -5367,6 +5532,7 @@ async def admin_informativo_edit_page(
             "bulletin": b,
             "user": user,
             "informativo_has_persistent_uploads": bool(INFORMATIVO_MEDIA_ROOT),
+            "local_missing": local_missing,
         },
     )
 
