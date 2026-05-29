@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block header_subtitle %}
-<p class="text-xs text-gray-500 dark:text-gray-400">Cadastro, grupo comercial e histórico operacional</p>
+<p class="text-xs text-gray-500 dark:text-gray-400">Central de decisão do cliente</p>
 {% endblock %}
 
 {% block head_extra %}
@@ -21,44 +21,46 @@
 {% endblock %}
 
 {% block body_scripts %}
+<script id="cd-vendedores-data" type="application/json">{{ vendedores_lookup|tojson }}</script>
+<script id="cd-history-data" type="application/json">{{ history|tojson }}</script>
 <script>
     (function () {
         function setBodyLock(locked) {
             document.body.classList.toggle('overflow-hidden', !!locked);
         }
 
+        function parseJsonIsland(id) {
+            const el = document.getElementById(id);
+            if (!el) return [];
+            try { return JSON.parse(el.textContent || '[]') || []; } catch (e) { return []; }
+        }
+
+        /* ---------------- WhatsApp / telefone ---------------- */
         function normalizeWhatsappPhoneDigits(value) {
             const raw = String(value || '').trim();
             let digits = raw.replace(/\D/g, '');
             digits = digits.replace(/^0+/, '');
-            // Se o usuario estiver digitando no formato internacional (+55...),
-            // removemos o DDI para evitar duplicacao ao reaplicar o +55.
             if (raw.startsWith('+55') && digits.startsWith('55')) digits = digits.slice(2);
             if (digits.startsWith('55') && digits.length > 11) digits = digits.slice(2);
             if (digits.length > 11) digits = digits.slice(-11);
             return digits;
         }
-
         function formatWhatsappPhoneValue(value) {
             const digits = normalizeWhatsappPhoneDigits(value);
             return digits ? `+55${digits}` : '';
         }
-
         function bindWhatsappPhoneInputs(root) {
             (root || document).querySelectorAll('[data-whatsapp-phone="true"]').forEach((input) => {
                 if (input.dataset.phoneBound === '1') return;
                 input.dataset.phoneBound = '1';
-                const sync = () => {
-                    if (!input.value) return;
-                    input.value = formatWhatsappPhoneValue(input.value);
-                };
+                const sync = () => { if (!input.value) return; input.value = formatWhatsappPhoneValue(input.value); };
                 input.addEventListener('input', sync);
                 input.addEventListener('blur', sync);
                 if (input.value) sync();
             });
         }
 
-        /** Mesma ideia do backend: código numérico compara ignorando zeros à esquerda. */
+        /* ---------------- Setor → Colaborador (venda) via JSON leve ---------------- */
         function normSellerCompare(s) {
             let t = String(s || '').trim();
             if (!t) return '';
@@ -67,41 +69,30 @@
             return t.toLowerCase();
         }
 
-        function findVendedorOptionBySellerCode(selectEl, typed) {
-            const want = normSellerCompare(typed);
-            if (!want || !selectEl) return null;
-            for (let i = 0; i < selectEl.options.length; i++) {
-                const opt = selectEl.options[i];
-                const sc = opt.getAttribute('data-seller-code');
-                if (sc == null || sc === '') continue;
-                if (normSellerCompare(sc) === want) return opt;
-            }
-            return null;
-        }
-
-        function findVendedorOptionById(selectEl, idStr) {
-            const v = String(idStr || '').trim();
-            if (!v || !selectEl) return null;
-            for (let i = 0; i < selectEl.options.length; i++) {
-                const opt = selectEl.options[i];
-                if (opt.value === v) return opt;
-            }
-            return null;
-        }
-
         function bindSetorVendedorSync() {
             const meIn = document.getElementById('edit-client-me');
-            const lookupSel = document.getElementById('edit-client-vendedor-lookup');
             const hidVid = document.getElementById('edit-client-vendedor');
             const disp = document.getElementById('edit-client-vendedor-display');
-            if (!meIn || !lookupSel || !hidVid || !disp || meIn.dataset.setorVendSync === '1') return;
+            if (!meIn || !hidVid || !disp || meIn.dataset.setorVendSync === '1') return;
             meIn.dataset.setorVendSync = '1';
 
-            function updateDisplayFromOption(opt) {
+            const VEND = parseJsonIsland('cd-vendedores-data');
+            const byCode = (typed) => {
+                const want = normSellerCompare(typed);
+                if (!want) return null;
+                return VEND.find((v) => v.code && normSellerCompare(v.code) === want) || null;
+            };
+            const byId = (id) => {
+                const v = String(id || '').trim();
+                if (!v) return null;
+                return VEND.find((x) => String(x.id) === v) || null;
+            };
+
+            function showEntry(entry) {
                 if (!disp) return;
-                if (opt && opt.value) {
-                    const code = (opt.getAttribute('data-seller-code') || '').trim();
-                    const name = (opt.getAttribute('data-emp-name') || '').trim();
+                if (entry && entry.id) {
+                    const code = (entry.code || '').trim();
+                    const name = (entry.name || '').trim();
                     if (name && code) disp.textContent = name + ' — código ' + code;
                     else if (name) disp.textContent = name;
                     else if (code) disp.textContent = 'Código ' + code;
@@ -110,73 +101,36 @@
                     disp.textContent = '— Digite o código no campo Setor';
                 }
             }
+            function applyEntry(entry) { if (!entry) return; hidVid.value = entry.id; showEntry(entry); }
+            function clearVendedor(msg) { hidVid.value = ''; if (msg) disp.textContent = msg; else showEntry(null); }
 
-            function applyMatchedOption(opt) {
-                if (!opt) return;
-                hidVid.value = opt.value;
-                updateDisplayFromOption(opt);
-            }
-
-            function clearVendedor(msg) {
-                hidVid.value = '';
-                if (msg) disp.textContent = msg;
-                else updateDisplayFromOption(null);
-            }
-
-            function syncFromMeInputImmediate() {
+            function syncFromMe() {
                 const raw = (meIn.value || '').trim();
-                if (!raw) {
-                    clearVendedor('');
-                    return;
-                }
-                const opt = findVendedorOptionBySellerCode(lookupSel, raw);
-                if (opt) {
-                    applyMatchedOption(opt);
-                } else {
-                    const digits = raw.replace(/\D/g, '');
-                    if (digits.length > 0 && /^\d+$/.test(digits)) {
-                        clearVendedor('Nenhum colaborador com este código na lista.');
-                    } else {
-                        clearVendedor('');
-                    }
-                }
+                if (!raw) { clearVendedor(''); return; }
+                const entry = byCode(raw);
+                if (entry) { applyEntry(entry); return; }
+                const digits = raw.replace(/\D/g, '');
+                if (digits.length > 0 && /^\d+$/.test(digits)) clearVendedor('Nenhum colaborador com este código na lista.');
+                else clearVendedor('');
             }
 
-            function hydrateFromSavedVendedor() {
+            function hydrate() {
                 const raw = (meIn.value || '').trim();
-                if (raw) {
-                    syncFromMeInputImmediate();
-                    return;
-                }
+                if (raw) { syncFromMe(); return; }
                 const vid = (hidVid.value || '').trim();
-                if (!vid) {
-                    updateDisplayFromOption(null);
-                    return;
-                }
-                const opt = findVendedorOptionById(lookupSel, vid);
-                if (opt) {
-                    updateDisplayFromOption(opt);
-                } else {
-                    hidVid.value = '';
-                    updateDisplayFromOption(null);
-                }
+                if (!vid) { showEntry(null); return; }
+                const entry = byId(vid);
+                if (entry) showEntry(entry);
             }
 
             let deb;
-            meIn.addEventListener('input', function () {
-                clearTimeout(deb);
-                deb = setTimeout(syncFromMeInputImmediate, 150);
-            });
-            meIn.addEventListener('blur', function () {
-                clearTimeout(deb);
-                syncFromMeInputImmediate();
-            });
-
-            window.syncSetorVendedorFromForm = hydrateFromSavedVendedor;
+            meIn.addEventListener('input', function () { clearTimeout(deb); deb = setTimeout(syncFromMe, 150); });
+            meIn.addEventListener('blur', function () { clearTimeout(deb); syncFromMe(); });
+            window.syncSetorVendedorFromForm = hydrate;
         }
-
         bindSetorVendedorSync();
 
+        /* ---------------- Visita → Entrega ---------------- */
         (function bindVisitaEntregaDetail() {
             const ENTREGA_LABELS = ['SEGUNDA-FEIRA', 'TERÇA-FEIRA', 'QUARTA-FEIRA', 'QUINTA-FEIRA', 'SEXTA-FEIRA'];
             function visitaWeekdayIndex(visita) {
@@ -203,37 +157,115 @@
             window.syncEntregaFromVisita = sync;
         })();
 
+        /* ---------------- Histórico de operações (render sob demanda) ---------------- */
+        (function bindHistoryLazy() {
+            const acc = document.getElementById('cd-acc-history');
+            const tbody = document.getElementById('cd-history-tbody');
+            const moreWrap = document.getElementById('cd-history-more-wrap');
+            const moreBtn = document.getElementById('cd-history-more');
+            if (!acc || !tbody) return;
+            const ROWS = parseJsonIsland('cd-history-data');
+            const CHUNK = 50;
+            let rendered = 0;
+            let built = false;
+
+            function badge(type) {
+                if (type === 'devolucao') return '<span class="cd-tag cd-tag--crit">Devolução</span>';
+                return '<span class="cd-tag cd-tag--ok">Entrega</span>';
+            }
+            function rowHtml(r) {
+                const prod = (r.productivity && r.productivity > 0)
+                    ? `<span class="cd-prod">${r.productivity_fmt}</span> <span class="cd-unit">kg/h</span>`
+                    : '<span class="cd-muted">-</span>';
+                return `<tr>
+                    <td class="cd-mono" data-th="Data">${r.date_fmt || '-'}</td>
+                    <td data-th="Colaborador">${(r.employee_name || '-')}</td>
+                    <td class="cd-center" data-th="Tipo">${badge(r.operation_type)}</td>
+                    <td class="cd-right cd-strong" data-th="Peso">${r.tonnage_kg_fmt || '0'} <span class="cd-unit">kg</span></td>
+                    <td class="cd-right" data-th="Valor">R$ ${r.valor_fmt || '0,00'}</td>
+                    <td class="cd-center cd-mono cd-muted" data-th="Duração">${r.duration_fmt || '-'}</td>
+                    <td class="cd-center" data-th="Produtividade">${prod}</td>
+                </tr>`;
+            }
+            function renderChunk() {
+                if (!ROWS.length) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="cd-empty-row">Nenhum registro de operação encontrado.</td></tr>';
+                    if (moreWrap) moreWrap.hidden = true;
+                    return;
+                }
+                const next = ROWS.slice(rendered, rendered + CHUNK);
+                const frag = next.map(rowHtml).join('');
+                tbody.insertAdjacentHTML('beforeend', frag);
+                rendered += next.length;
+                if (moreWrap) {
+                    const remaining = ROWS.length - rendered;
+                    if (remaining > 0) {
+                        moreWrap.hidden = false;
+                        if (moreBtn) moreBtn.textContent = `Carregar mais (${remaining} restantes)`;
+                    } else {
+                        moreWrap.hidden = true;
+                    }
+                }
+            }
+            function build() { if (built) return; built = true; renderChunk(); }
+            acc.addEventListener('toggle', function () { if (acc.open) build(); });
+            if (moreBtn) moreBtn.addEventListener('click', renderChunk);
+            if (acc.open) build();
+        })();
+
+        /* ---------------- Histórico de alterações (ver completo) ---------------- */
+        (function bindAuditToggle() {
+            const btn = document.getElementById('cd-audit-toggle');
+            const extra = document.querySelectorAll('[data-audit-extra="1"]');
+            if (!btn || !extra.length) return;
+            let open = false;
+            btn.addEventListener('click', function () {
+                open = !open;
+                extra.forEach((el) => { el.hidden = !open; });
+                btn.textContent = open ? 'Ver menos' : btn.getAttribute('data-label-more');
+            });
+        })();
+
+        /* ---------------- Modais (acessibilidade) ---------------- */
+        let lastFocused = null;
+        function focusFirst(modal) {
+            const el = modal.querySelector('input, select, textarea, button:not([tabindex="-1"]), a[href]');
+            if (el) { try { el.focus(); } catch (e) { } }
+        }
         window.openEditModal = function () {
             const modal = document.getElementById('editModalShell');
             if (!modal) return;
+            lastFocused = document.activeElement;
             modal.classList.remove('hidden');
+            modal.removeAttribute('aria-hidden');
             setBodyLock(true);
             bindWhatsappPhoneInputs(modal);
             if (window.syncSetorVendedorFromForm) window.syncSetorVendedorFromForm();
             if (window.syncEntregaFromVisita) window.syncEntregaFromVisita();
+            focusFirst(modal);
         };
-
         window.closeEditModal = function () {
             const modal = document.getElementById('editModalShell');
             if (!modal) return;
             modal.classList.add('hidden');
             setBodyLock(false);
+            if (lastFocused) { try { lastFocused.focus(); } catch (e) { } }
         };
-
         window.openDeleteModal = function () {
             const modal = document.getElementById('deleteModalShell');
             if (!modal) return;
+            lastFocused = document.activeElement;
             modal.classList.remove('hidden');
             setBodyLock(true);
+            focusFirst(modal);
         };
-
         window.closeDeleteModal = function () {
             const modal = document.getElementById('deleteModalShell');
             if (!modal) return;
             modal.classList.add('hidden');
             setBodyLock(false);
+            if (lastFocused) { try { lastFocused.focus(); } catch (e) { } }
         };
-
         document.addEventListener('keydown', function (event) {
             if (event.key !== 'Escape') return;
             window.closeEditModal();
@@ -241,296 +273,280 @@
         });
 
         bindWhatsappPhoneInputs(document);
+
+        /* ---------------- Barras de % (largura via data-attr, sem CSS inline) ---------------- */
+        document.querySelectorAll('[data-cd-bar]').forEach(function (el) {
+            var p = parseFloat(el.getAttribute('data-cd-bar')) || 0;
+            if (p < 0) p = 0; if (p > 100) p = 100;
+            el.style.width = p + '%';
+        });
     })();
 </script>
 {% endblock %}
 
 {% block content %}
-<div class="ga-employee-theme employees-shell employees-page employees-page--premium clients-page clients-detail-page space-y-5 pt-2 md:pt-3">
+{% set has_mov = stats.total_routes and stats.total_routes > 0 %}
+{% set diag = client_diagnostico %}
+{% set local_txt = [client.municipio, client.bairro]|select|join(' · ') %}
+<div class="ga-employee-theme employees-shell employees-page clients-page clients-detail-page cd-page space-y-4 pt-2 md:pt-3">
 
-    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
-        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
-        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
-            <div class="flex min-w-0 items-start gap-4">
-                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
-                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                    </svg>
-                </div>
-                <div class="min-w-0">
-                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-                        Ficha operacional
-                    </span>
-                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">{{ client.name }}</h2>
-                    <p class="employees-hero__lead mt-1.5 max-w-2xl text-sm">
-                        Cadastro, grupo comercial e histórico operacional. Contato alinhado à API do WhatsApp.
-                    </p>
-                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
-                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            {% if client.nb %}{{ client.nb|fmt_nb_br }}{% else %}Sem NB{% endif %}
-                        </span>
-                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            {{ client.municipio or 'Município não informado' }}
-                        </span>
-                        {% if client_phone_api_ready %}
-                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
-                            WhatsApp pronto
-                        </span>
-                        {% else %}
-                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            WhatsApp pendente
-                        </span>
-                        {% endif %}
-                    </div>
-                    <div class="clients-detail-hero__meta">
-                        <span>WhatsApp: <strong>{{ client_phone_display or 'Não informado' }}</strong></span>
-                        <span>Razão social: <strong>{{ client.razao_social or client.name }}</strong></span>
-                        <span>Status: <strong>{{ client.status_operacional or 'ATIVO' }}</strong></span>
-                    </div>
-                </div>
-            </div>
-            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-xl xl:flex-shrink-0 xl:justify-end">
-                <a href="/clients" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto">
-                    <span class="employees-cta__icon" aria-hidden="true">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                    </span>
-                    <span class="employees-cta__label">Voltar à lista</span>
-                </a>
-                <button type="button" onclick="openEditModal()" class="employees-cta employees-cta--primary sys-btn sys-btn--primary w-full justify-center sm:w-auto">
-                    <span class="employees-cta__icon" aria-hidden="true">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    </span>
-                    <span class="employees-cta__label">Editar cadastro</span>
-                </button>
-                <button type="button" onclick="openDeleteModal()" class="employees-cta sys-btn sys-btn--secondary w-full justify-center border-rose-200 text-rose-700 hover:border-rose-300 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-200 dark:hover:bg-rose-950/40 sm:w-auto">
-                    <span class="employees-cta__icon text-rose-600 dark:text-rose-300" aria-hidden="true">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </span>
-                    <span class="employees-cta__label">Excluir cliente</span>
-                </button>
+    <!-- 1. CABEÇALHO EXECUTIVO -->
+    <header class="cd-head sys-card sys-card--surface">
+        <div class="cd-head__main">
+            <p class="cd-head__eyebrow">Ficha do cliente</p>
+            <h2 class="cd-head__title">{{ client.nome_fantasia or client.name }}</h2>
+            <p class="cd-head__sub">
+                {{ client.razao_social or client.name }}{% if client.nb %} · NB {{ client.nb|fmt_nb_br }}{% endif %}
+            </p>
+            <div class="cd-chips">
+                {% if local_txt %}
+                <span class="cd-chip cd-chip--info">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    {{ local_txt }}
+                </span>
+                {% endif %}
+                {% set so = client.status_operacional or 'ATIVO' %}
+                <span class="cd-chip {% if so == 'ATIVO' %}cd-chip--ok{% elif so == 'FECHOU' %}cd-chip--crit{% elif so == 'INATIVO' %}cd-chip--neutral{% else %}cd-chip--warn{% endif %}">{{ so }}</span>
+                {% if client_phone_api_ready %}
+                <span class="cd-chip cd-chip--ok"><span class="cd-dot"></span>WhatsApp pronto</span>
+                {% else %}
+                <span class="cd-chip cd-chip--warn">WhatsApp pendente</span>
+                {% endif %}
+                {% if current_client_group %}
+                <span class="cd-chip cd-chip--indigo">Grupo: {{ current_client_group.name }}</span>
+                {% endif %}
+                <span class="cd-chip cd-chip--neutral">Última op.: {{ stats.last_op_date }}</span>
+                <span class="cd-chip cd-chip--{{ 'crit' if diag.level == 'critico' else ('warn' if diag.level == 'atencao' else ('ok' if diag.level == 'ok' else 'neutral')) }}">
+                    Risco devolução: {{ diag.meta_pct|fmt_br }}%
+                </span>
             </div>
         </div>
-    </div>
+        <div class="cd-actions">
+            <a href="/clients" class="sys-btn sys-btn--secondary cd-action">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Voltar
+            </a>
+            <button type="button" onclick="openEditModal()" class="sys-btn sys-btn--primary cd-action">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                Editar
+            </button>
+            <button type="button" onclick="openDeleteModal()" class="sys-btn sys-btn--secondary cd-action cd-action--danger">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Excluir
+            </button>
+        </div>
+    </header>
 
-        <div class="client-detail-layout lg:grid lg:grid-cols-12 lg:items-start lg:gap-6">
-        <div class="client-detail-layout__ficha w-full min-w-0 space-y-6 lg:col-span-12">
-        <!-- Dados + Grupo + Raio-X (cartão unificado, largura total) -->
-        <section class="client-detail-panel" aria-labelledby="client-ficha-aside-heading">
-            <div class="client-detail-panel__head">
-                <svg class="h-5 w-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                <h2 id="client-ficha-aside-heading" class="client-detail-panel__title">Ficha do cliente</h2>
-            </div>
-            <div class="client-detail-panel__body divide-y divide-slate-200 dark:divide-slate-700">
-            <div class="pb-5">
-            <h3 id="client-data-heading" class="client-detail-aside-section__title mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Dados do cliente</h3>
-            {% set card_cadastro = client.nb or client_vendedor_card or client.setor or client.me or client.sa or client.visita or client.nome_fantasia or client.razao_social or client.segmento or client.status_cliente or client.status_operacional %}
-            {% set card_local = client.municipio or client.bairro or endereco_display or client.endereco or client.numero or client.complemento or client.referencia or client.observacoes_acesso or client_phone_display or client_alt_phone_display or client.janela_horario_inicio or client.janela_horario_fim or client.prioridade_logistica or client.lgpd_nao_contatar or client.lgpd_restricao_dados %}
-            {% if not (card_cadastro or card_local) %}
-            <p class="text-slate-500 italic text-center py-4">Nenhum dado adicional cadastrado. Use <strong class="text-slate-400">Editar cadastro</strong> para preencher.</p>
+    <!-- 2. PAINEL DE DECISÃO -->
+    <section class="cd-decision cd-decision--{{ diag.level }}" aria-label="Diagnóstico do cliente">
+        <div class="cd-decision__icon" aria-hidden="true">
+            {% if diag.level == 'critico' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            {% elif diag.level == 'atencao' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86a2 2 0 001.74-2.99l-6.93-12a2 2 0 00-3.48 0l-6.93 12A2 2 0 005.07 19z"/></svg>
+            {% elif diag.level == 'ok' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             {% else %}
-            {% set me_cmp = (client.me or '')|string|trim %}
-            {% set sc_cmp = (client_vendedor_card.seller_code|string|trim) if client_vendedor_card and client_vendedor_card.seller_code else '' %}
-            {% set setor_vend_mismatch = client_vendedor_card and me_cmp and sc_cmp and me_cmp != sc_cmp %}
-            <div class="client-detail-fields-card client-detail-fields-card--unified">
-                <div class="client-detail-kv{% if card_cadastro and card_local %} client-detail-kv--split{% endif %}">
-                    {% if card_cadastro %}
-                    <section class="client-detail-kv__section" aria-label="Cadastro e comercial">
-                        <h4 class="client-detail-kv__heading">Cadastro e comercial</h4>
-                        <dl class="client-detail-kv__grid">
-                            {% if client.nb %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">NB</dt>
-                                <dd class="client-detail-kv__value">{{ client.nb|fmt_nb_br }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client_vendedor_card %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <dt class="client-detail-kv__label">Vendedor</dt>
-                                <dd class="client-detail-kv__value">
-                                    <a href="/employees/{{ client_vendedor_card.id }}">{{ client_vendedor_card.name|emp_name }}</a>
-                                    {% if client_vendedor_card.seller_code %}<span class="client-detail-kv__suffix"> — código {{ client_vendedor_card.seller_code }}</span>{% endif %}
-                                </dd>
-                            </div>
-                            {% if setor_vend_mismatch %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <p class="client-detail-kv__hint">O <strong>Setor</strong> (campo ME, ex.: planilha) pode ser diferente do <strong>código do vendedor</strong> vinculado: o vínculo de venda segue o colaborador acima; o número no Setor é só o que está gravado em ME.</p>
-                            </div>
-                            {% endif %}
-                            {% elif client.setor %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <dt class="client-detail-kv__label">Vendedor (legado)</dt>
-                                <dd class="client-detail-kv__value">Código {{ client.setor }} <span class="client-detail-kv__suffix">(sem vínculo no cadastro de colaboradores)</span></dd>
-                            </div>
-                            {% endif %}
-                            {% if client.me %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Setor (ME)</dt>
-                                <dd class="client-detail-kv__value">{{ client.me }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.sa %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">MESA</dt>
-                                <dd class="client-detail-kv__value">{{ client.sa }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.cnpj_cpf %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">CNPJ/CPF</dt>
-                                <dd class="client-detail-kv__value">{{ client.cnpj_cpf }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.visita %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Visita</dt>
-                                <dd class="client-detail-kv__value">{{ client.visita }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.entrega %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Entrega</dt>
-                                <dd class="client-detail-kv__value">{{ client.entrega }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.nome_fantasia %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <dt class="client-detail-kv__label">Nome fantasia</dt>
-                                <dd class="client-detail-kv__value">{{ client.nome_fantasia }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.razao_social %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <dt class="client-detail-kv__label">Razão social</dt>
-                                <dd class="client-detail-kv__value">{{ client.razao_social }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.segmento %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Segmento</dt>
-                                <dd class="client-detail-kv__value">{{ client.segmento }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.status_cliente %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Status</dt>
-                                <dd class="client-detail-kv__value"><span class="client-detail-kv__status bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span></dd>
-                            </div>
-                            {% endif %}
-                            {% if client.status_operacional %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Status operacional</dt>
-                                <dd class="client-detail-kv__value"><span class="client-detail-kv__status {% if client.status_operacional == 'ATIVO' %}bg-emerald-500/20 text-emerald-400{% elif client.status_operacional == 'FECHOU' %}bg-rose-500/20 text-rose-400{% elif client.status_operacional == 'INATIVO' %}bg-slate-500/20 text-slate-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">{{ client.status_operacional }}</span></dd>
-                            </div>
-                            {% endif %}
-                        </dl>
-                    </section>
-                    {% endif %}
-                    {% if card_local %}
-                    <section class="client-detail-kv__section client-detail-kv__section--contato" aria-label="Endereço e contato">
-                        <h4 class="client-detail-kv__heading">Endereço e contato</h4>
-                        <dl class="client-detail-kv__grid">
-                            {% if client.municipio %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Município</dt>
-                                <dd class="client-detail-kv__value">{{ client.municipio }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.bairro %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Bairro</dt>
-                                <dd class="client-detail-kv__value">{{ client.bairro }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if endereco_display or client.endereco %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <dt class="client-detail-kv__label">Endereço</dt>
-                                <dd class="client-detail-kv__value">{{ endereco_display or client.endereco }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.numero %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Número</dt>
-                                <dd class="client-detail-kv__value">{{ client.numero }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.complemento %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Complemento</dt>
-                                <dd class="client-detail-kv__value">{{ client.complemento }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.referencia %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <dt class="client-detail-kv__label">Referência</dt>
-                                <dd class="client-detail-kv__value">{{ client.referencia }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.observacoes_acesso %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <dt class="client-detail-kv__label">Observações de acesso</dt>
-                                <dd class="client-detail-kv__value">{{ client.observacoes_acesso }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client_phone_display %}
-                            <div class="client-detail-kv__cell client-detail-kv__cell--wide">
-                                <dt class="client-detail-kv__label">WhatsApp principal</dt>
-                                <dd class="client-detail-kv__value">{{ client_phone_display }}{% if client_phone_api_ready %}<span class="client-detail-kv__pill client-detail-kv__pill--ok">API pronta</span>{% endif %}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client_alt_phone_display %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Telefone alternativo</dt>
-                                <dd class="client-detail-kv__value">{{ client_alt_phone_display }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.janela_horario_inicio or client.janela_horario_fim %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Janela de recebimento</dt>
-                                <dd class="client-detail-kv__value">{{ client.janela_horario_inicio or '—' }} – {{ client.janela_horario_fim or '—' }}</dd>
-                            </div>
-                            {% endif %}
-                            {% if client.prioridade_logistica %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">Prioridade logística</dt>
-                                <dd class="client-detail-kv__value"><span class="client-detail-kv__status bg-blue-500/20 text-blue-400">{{ client.prioridade_logistica }}</span></dd>
-                            </div>
-                            {% endif %}
-                            {% if client.lgpd_nao_contatar %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">LGPD</dt>
-                                <dd class="client-detail-kv__value"><span class="text-amber-400 text-xs font-semibold">Não contatar</span></dd>
-                            </div>
-                            {% endif %}
-                            {% if client.lgpd_restricao_dados %}
-                            <div class="client-detail-kv__cell">
-                                <dt class="client-detail-kv__label">LGPD</dt>
-                                <dd class="client-detail-kv__value"><span class="text-amber-400 text-xs font-semibold">Restrição de dados</span></dd>
-                            </div>
-                            {% endif %}
-                        </dl>
-                    </section>
-                    {% endif %}
-                </div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            {% endif %}
+        </div>
+        <div class="cd-decision__body">
+            <p class="cd-decision__title">{{ diag.title }}</p>
+            <p class="cd-decision__msg">{{ diag.message }}</p>
+            <p class="cd-decision__action">Ação sugerida: {{ diag.action }}</p>
+            {% if diag.flags %}
+            <div class="cd-flags">
+                {% for f in diag.flags %}
+                <span class="cd-flag cd-flag--{{ f.level }}">{{ f.text }}</span>
+                {% endfor %}
             </div>
             {% endif %}
-            </div>
+        </div>
+        <div class="cd-decision__meta">
+            <span class="cd-decision__meta-label">Meta devolução</span>
+            <span class="cd-decision__meta-value">≤ 2%</span>
+            <span class="cd-decision__meta-sub">Atenção &gt; 2% · Crítico &gt; 3%</span>
+        </div>
+    </section>
 
-            <div class="client-detail-aside-section border-0 pt-5">
-            <h3 id="client-group-heading" class="client-detail-aside-section__title mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
-                <svg class="h-4 w-4 shrink-0 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                Grupo comercial
-            </h3>
+    <!-- 3. KPIs PRINCIPAIS -->
+    {% if has_mov %}
+    {% set meta_tone = 'crit' if diag.meta_pct > 3 else ('warn' if diag.meta_pct > 2 else 'ok') %}
+    <section class="cd-kpis" aria-label="Indicadores principais do ano">
+        <div class="cd-kpi cd-kpi--emerald">
+            <p class="cd-kpi__label">Valor vendido (ano)</p>
+            <p class="cd-kpi__value">{{ periods_valor.year_fmt }}</p>
+        </div>
+        <div class="cd-kpi cd-kpi--indigo">
+            <p class="cd-kpi__label">Volume (ano)</p>
+            <p class="cd-kpi__value">{{ periods.year_fmt }} <span class="cd-unit">kg</span></p>
+        </div>
+        <div class="cd-kpi cd-kpi--amber">
+            <p class="cd-kpi__label">Devolução R$ (ano)</p>
+            <p class="cd-kpi__value">R$ {{ chart_devolucao.valor_dev_ano_fmt }}</p>
+            <p class="cd-kpi__sub">base R$ {{ chart_devolucao.valor_base_ano_fmt }}</p>
+        </div>
+        <div class="cd-kpi cd-kpi--{{ meta_tone }}">
+            <p class="cd-kpi__label">% devolução valor</p>
+            <p class="cd-kpi__value">{{ chart_devolucao.pct_valor|fmt_br }}%</p>
+            <div class="cd-kpi__bar" role="img" aria-label="Devolução por valor {{ chart_devolucao.pct_valor }}%"><span data-cd-bar="{{ chart_devolucao.pct_valor }}"></span></div>
+        </div>
+        <div class="cd-kpi cd-kpi--rose">
+            <p class="cd-kpi__label">% devolução volume</p>
+            <p class="cd-kpi__value">{{ chart_devolucao.pct_volume|fmt_br }}%</p>
+            <div class="cd-kpi__bar cd-kpi__bar--rose" role="img" aria-label="Devolução por volume {{ chart_devolucao.pct_volume }}%"><span data-cd-bar="{{ chart_devolucao.pct_volume }}"></span></div>
+        </div>
+        <div class="cd-kpi">
+            <p class="cd-kpi__label">Viagens (rotas)</p>
+            <p class="cd-kpi__value">{{ stats.total_routes|fmt_br_int }}</p>
+            <p class="cd-kpi__sub">{{ stats.avg_tonnage_per_route_fmt }} kg/viagem</p>
+        </div>
+        <div class="cd-kpi">
+            <p class="cd-kpi__label">Última operação</p>
+            <p class="cd-kpi__value cd-kpi__value--sm">{{ stats.last_op_date }}</p>
+            <p class="cd-kpi__sub">{{ stats.last_op_days_ago|fmt_br_int }} dias atrás</p>
+        </div>
+        <div class="cd-kpi">
+            <p class="cd-kpi__label">Top colaborador</p>
+            <p class="cd-kpi__value cd-kpi__value--sm" title="{{ stats.top_employee|emp_name }}">{{ (stats.top_employee|emp_name) if stats.top_employee else '—' }}</p>
+            <p class="cd-kpi__sub">{{ stats.top_employee_count|fmt_br_int }} ops.</p>
+        </div>
+    </section>
+    {% else %}
+    <section class="cd-empty" aria-label="Sem indicadores">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <p class="cd-empty__title">Sem dados operacionais no período selecionado.</p>
+        <p class="cd-empty__sub">Quando houver rotas e operações, os indicadores aparecem aqui.</p>
+    </section>
+    {% endif %}
+
+    <!-- 4. MATRIZ POR PERÍODO -->
+    <section class="client-detail-panel cd-matrix-panel" aria-label="Indicadores por período">
+        <div class="client-detail-panel__head">
+            <svg class="h-5 w-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <h3 class="client-detail-panel__title">Indicadores por período</h3>
+        </div>
+        <div class="cd-matrix-scroll">
+            <table class="cd-matrix">
+                <thead>
+                    <tr>
+                        <th scope="col">Indicador</th>
+                        {% for c in periods_matrix.columns %}
+                        <th scope="col" class="cd-right{% if loop.last %} cd-matrix__year{% endif %}">{{ c }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in periods_matrix.rows %}
+                    <tr class="cd-matrix__row cd-matrix__row--{{ row.tone }}">
+                        <th scope="row">{{ row.label }}</th>
+                        {% for cell in row.cells %}
+                        <td class="cd-right{% if loop.last %} cd-matrix__year{% endif %}" data-th="{{ periods_matrix.columns[loop.index0] }}">{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ACORDEÃO: Dados cadastrais -->
+    {% set card_cadastro = client.nb or client_vendedor_card or client.setor or client.me or client.sa or client.visita or client.nome_fantasia or client.razao_social or client.segmento or client.status_cliente or client.status_operacional %}
+    {% set card_local = client.municipio or client.bairro or endereco_display or client.endereco or client.numero or client.complemento or client.referencia or client.observacoes_acesso or client_phone_display or client_alt_phone_display or client.janela_horario_inicio or client.janela_horario_fim or client.prioridade_logistica or client.lgpd_nao_contatar or client.lgpd_restricao_dados %}
+    {% set me_cmp = (client.me or '')|string|trim %}
+    {% set sc_cmp = (client_vendedor_card.seller_code|string|trim) if client_vendedor_card and client_vendedor_card.seller_code else '' %}
+    {% set setor_vend_mismatch = client_vendedor_card and me_cmp and sc_cmp and me_cmp != sc_cmp %}
+    <details class="cd-acc" open>
+        <summary class="cd-acc__summary">
+            <span class="cd-acc__title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Dados cadastrais
+            </span>
+            <svg class="cd-acc__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="cd-acc__body">
+            {% if not (card_cadastro or card_local) %}
+            <p class="cd-muted text-center" style="padding:1rem 0;">Nenhum dado adicional cadastrado. Use <strong>Editar</strong> para preencher.</p>
+            {% else %}
+            <div class="client-detail-kv{% if card_cadastro and card_local %} client-detail-kv--split{% endif %}">
+                {% if card_cadastro %}
+                <section class="client-detail-kv__section" aria-label="Cadastro e comercial">
+                    <h4 class="client-detail-kv__heading">Cadastro e comercial</h4>
+                    <dl class="client-detail-kv__grid">
+                        {% if client.nb %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">NB</dt><dd class="client-detail-kv__value">{{ client.nb|fmt_nb_br }}</dd></div>{% endif %}
+                        {% if client_vendedor_card %}
+                        <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                            <dt class="client-detail-kv__label">Vendedor</dt>
+                            <dd class="client-detail-kv__value">
+                                <a href="/employees/{{ client_vendedor_card.id }}">{{ client_vendedor_card.name|emp_name }}</a>
+                                {% if client_vendedor_card.seller_code %}<span class="client-detail-kv__suffix"> — código {{ client_vendedor_card.seller_code }}</span>{% endif %}
+                            </dd>
+                        </div>
+                        {% if setor_vend_mismatch %}
+                        <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                            <p class="client-detail-kv__hint">O <strong>Setor</strong> (campo ME) pode diferir do <strong>código do vendedor</strong> vinculado: o vínculo de venda segue o colaborador acima.</p>
+                        </div>
+                        {% endif %}
+                        {% elif client.setor %}
+                        <div class="client-detail-kv__cell client-detail-kv__cell--wide">
+                            <dt class="client-detail-kv__label">Vendedor (legado)</dt>
+                            <dd class="client-detail-kv__value">Código {{ client.setor }} <span class="client-detail-kv__suffix">(sem vínculo no cadastro de colaboradores)</span></dd>
+                        </div>
+                        {% endif %}
+                        {% if client.me %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Setor (ME)</dt><dd class="client-detail-kv__value">{{ client.me }}</dd></div>{% endif %}
+                        {% if client.sa %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">MESA</dt><dd class="client-detail-kv__value">{{ client.sa }}</dd></div>{% endif %}
+                        {% if client.cnpj_cpf %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">CNPJ/CPF</dt><dd class="client-detail-kv__value">{{ client.cnpj_cpf }}</dd></div>{% endif %}
+                        {% if client.visita %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Visita</dt><dd class="client-detail-kv__value">{{ client.visita }}</dd></div>{% endif %}
+                        {% if client.entrega %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Entrega</dt><dd class="client-detail-kv__value">{{ client.entrega }}</dd></div>{% endif %}
+                        {% if client.nome_fantasia %}<div class="client-detail-kv__cell client-detail-kv__cell--wide"><dt class="client-detail-kv__label">Nome fantasia</dt><dd class="client-detail-kv__value">{{ client.nome_fantasia }}</dd></div>{% endif %}
+                        {% if client.razao_social %}<div class="client-detail-kv__cell client-detail-kv__cell--wide"><dt class="client-detail-kv__label">Razão social</dt><dd class="client-detail-kv__value">{{ client.razao_social }}</dd></div>{% endif %}
+                        {% if client.segmento %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Segmento</dt><dd class="client-detail-kv__value">{{ client.segmento }}</dd></div>{% endif %}
+                        {% if client.status_cliente %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Status</dt><dd class="client-detail-kv__value"><span class="client-detail-kv__status bg-emerald-500/20 text-emerald-400">{{ client.status_cliente }}</span></dd></div>{% endif %}
+                        {% if client.status_operacional %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Status operacional</dt><dd class="client-detail-kv__value"><span class="client-detail-kv__status {% if client.status_operacional == 'ATIVO' %}bg-emerald-500/20 text-emerald-400{% elif client.status_operacional == 'FECHOU' %}bg-rose-500/20 text-rose-400{% elif client.status_operacional == 'INATIVO' %}bg-slate-500/20 text-slate-400{% else %}bg-amber-500/20 text-amber-400{% endif %}">{{ client.status_operacional }}</span></dd></div>{% endif %}
+                    </dl>
+                </section>
+                {% endif %}
+                {% if card_local %}
+                <section class="client-detail-kv__section client-detail-kv__section--contato" aria-label="Endereço e contato">
+                    <h4 class="client-detail-kv__heading">Endereço e contato</h4>
+                    <dl class="client-detail-kv__grid">
+                        {% if client.municipio %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Município</dt><dd class="client-detail-kv__value">{{ client.municipio }}</dd></div>{% endif %}
+                        {% if client.bairro %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Bairro</dt><dd class="client-detail-kv__value">{{ client.bairro }}</dd></div>{% endif %}
+                        {% if endereco_display or client.endereco %}<div class="client-detail-kv__cell client-detail-kv__cell--wide"><dt class="client-detail-kv__label">Endereço</dt><dd class="client-detail-kv__value">{{ endereco_display or client.endereco }}</dd></div>{% endif %}
+                        {% if client.numero %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Número</dt><dd class="client-detail-kv__value">{{ client.numero }}</dd></div>{% endif %}
+                        {% if client.complemento %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Complemento</dt><dd class="client-detail-kv__value">{{ client.complemento }}</dd></div>{% endif %}
+                        {% if client.referencia %}<div class="client-detail-kv__cell client-detail-kv__cell--wide"><dt class="client-detail-kv__label">Referência</dt><dd class="client-detail-kv__value">{{ client.referencia }}</dd></div>{% endif %}
+                        {% if client.observacoes_acesso %}<div class="client-detail-kv__cell client-detail-kv__cell--wide"><dt class="client-detail-kv__label">Observações de acesso</dt><dd class="client-detail-kv__value">{{ client.observacoes_acesso }}</dd></div>{% endif %}
+                        {% if client_phone_display %}<div class="client-detail-kv__cell client-detail-kv__cell--wide"><dt class="client-detail-kv__label">WhatsApp principal</dt><dd class="client-detail-kv__value">{{ client_phone_display }}{% if client_phone_api_ready %}<span class="client-detail-kv__pill client-detail-kv__pill--ok">API pronta</span>{% endif %}</dd></div>{% endif %}
+                        {% if client_alt_phone_display %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Telefone alternativo</dt><dd class="client-detail-kv__value">{{ client_alt_phone_display }}</dd></div>{% endif %}
+                        {% if client.janela_horario_inicio or client.janela_horario_fim %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Janela de recebimento</dt><dd class="client-detail-kv__value">{{ client.janela_horario_inicio or '—' }} – {{ client.janela_horario_fim or '—' }}</dd></div>{% endif %}
+                        {% if client.prioridade_logistica %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">Prioridade logística</dt><dd class="client-detail-kv__value"><span class="client-detail-kv__status bg-blue-500/20 text-blue-400">{{ client.prioridade_logistica }}</span></dd></div>{% endif %}
+                        {% if client.lgpd_nao_contatar %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">LGPD</dt><dd class="client-detail-kv__value"><span class="text-amber-400 text-xs font-semibold">Não contatar</span></dd></div>{% endif %}
+                        {% if client.lgpd_restricao_dados %}<div class="client-detail-kv__cell"><dt class="client-detail-kv__label">LGPD</dt><dd class="client-detail-kv__value"><span class="text-amber-400 text-xs font-semibold">Restrição de dados</span></dd></div>{% endif %}
+                    </dl>
+                </section>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </details>
+
+    <!-- ACORDEÃO: Comercial e grupo -->
+    <details class="cd-acc">
+        <summary class="cd-acc__summary">
+            <span class="cd-acc__title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                Comercial e grupo
+            </span>
+            {% if current_client_group %}<span class="cd-acc__badge">{{ current_client_group.name }}</span>{% endif %}
+            <svg class="cd-acc__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="cd-acc__body">
             <p class="mb-4 text-sm leading-relaxed text-slate-600 dark:text-slate-400">Agrupe lojas da mesma rede (ex.: EPA, DMA). Nos BIs você vê <strong class="text-slate-800 dark:text-slate-200">só esta loja</strong> ou o <strong class="text-slate-800 dark:text-slate-200">grupo agregado</strong>.</p>
             <form action="/clients/{{ client.id }}/group" method="post" class="flex flex-col md:flex-row flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[200px]">
-                    <label class="block text-xs text-slate-500 mb-1">Grupo existente</label>
-                    <select name="client_group_id" class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm">
+                    <label class="sys-section__label sys-section__label--field" for="cd-group-select">Grupo existente</label>
+                    <select id="cd-group-select" name="client_group_id" class="sys-input w-full">
                         <option value="">— Sem grupo</option>
                         {% for g in client_groups %}
                         <option value="{{ g.id }}" {% if client.client_group_id == g.id %}selected{% endif %}>{{ g.name }}</option>
@@ -538,11 +554,10 @@
                     </select>
                 </div>
                 <div class="flex-1 min-w-[180px]">
-                    <label class="block text-xs text-slate-500 mb-1">Ou criar novo grupo</label>
-                    <input type="text" name="new_group_name" placeholder="Ex.: Rede EPA / DMA"
-                        class="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-600">
+                    <label class="sys-section__label sys-section__label--field" for="cd-group-new">Ou criar novo grupo</label>
+                    <input id="cd-group-new" type="text" name="new_group_name" placeholder="Ex.: Rede EPA / DMA" class="sys-input w-full">
                 </div>
-                <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium">Salvar grupo</button>
+                <button type="submit" class="sys-btn sys-btn--primary justify-center">Salvar grupo</button>
             </form>
             {% if current_client_group %}
             <div class="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
@@ -565,341 +580,158 @@
                 </div>
             </div>
             {% endif %}
-            </div>
-
-            <div class="client-detail-aside-section border-0 pt-5">
-            <h3 id="client-ray-heading" class="client-detail-aside-section__title mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                Raio-X e % devolução no ano
-            </h3>
-            <div class="client-detail-ray-kpi-row">
-            <div class="client-detail-kpi min-h-0">
-                <p class="client-detail-kpi__label">Total movimentado</p>
-                <p class="client-detail-kpi__value text-sm text-blue-600 dark:text-blue-400">{{ stats.total_tonnage_fmt }} <span class="client-detail-kpi__unit">kg</span></p>
-            </div>
-            <div class="client-detail-kpi min-h-0">
-                <p class="client-detail-kpi__label">Tempo médio (carga)</p>
-                <p class="client-detail-kpi__value text-sm text-emerald-600 dark:text-emerald-400">{{ stats.avg_duration_fmt }}</p>
-            </div>
-            <div class="client-detail-kpi min-h-0">
-                <p class="client-detail-kpi__label">Última operação</p>
-                <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.last_op_date }}</p>
-                <p class="client-detail-kpi__sub">{{ stats.last_op_days_ago|fmt_br_int }} dias atrás</p>
-            </div>
-            <div class="client-detail-kpi min-h-0">
-                <p class="client-detail-kpi__label">Top colaborador</p>
-                <p class="client-detail-kpi__value truncate text-sm text-slate-900 dark:text-white" title="{{ stats.top_employee|emp_name }}">{{ (stats.top_employee|emp_name) if stats.top_employee else '—' }}</p>
-                <p class="client-detail-kpi__sub">{{ stats.top_employee_count|fmt_br_int }} ops.</p>
-            </div>
-            <div class="client-detail-kpi min-h-0">
-                <p class="client-detail-kpi__label">Viagens (rotas)</p>
-                <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.total_routes|fmt_br_int }}</p>
-            </div>
-            <div class="client-detail-kpi min-h-0">
-                <p class="client-detail-kpi__label">Média peso / viagem</p>
-                <p class="client-detail-kpi__value text-sm text-slate-900 dark:text-white">{{ stats.avg_tonnage_per_route_fmt }} <span class="client-detail-kpi__unit">kg</span></p>
-            </div>
-            <div class="client-detail-kpi min-h-0">
-                <p class="client-detail-kpi__label">Produtividade média</p>
-                <p class="client-detail-kpi__value text-sm text-emerald-600 dark:text-emerald-400">{{ stats.avg_productivity_fmt }} <span class="client-detail-kpi__unit">kg/h</span></p>
-            </div>
-            <div class="client-detail-kpi client-detail-kpi--devolucao min-h-0">
-                <p class="client-detail-kpi__label">Devolução · volume (ano)</p>
-                <div class="client-detail-pct-bar relative mb-1.5 h-2 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-700" role="img" aria-label="Percentual devolvido por volume: {{ chart_devolucao.pct_volume }} por cento">
-                    <div class="absolute left-0 top-0 h-full min-w-0 rounded-l-lg bg-rose-500/90 transition-[width] duration-300" style="width: {{ chart_devolucao.pct_volume }}%"></div>
-                </div>
-                <p class="client-detail-kpi__value text-sm text-rose-600 dark:text-rose-400">{{ chart_devolucao.pct_volume|fmt_br }}%</p>
-                <p class="client-detail-kpi__sub leading-snug">{{ chart_devolucao.ton_dev_ano_fmt }} kg dev. · base {{ chart_devolucao.ton_base_ano_fmt }} kg</p>
-            </div>
-            <div class="client-detail-kpi client-detail-kpi--devolucao min-h-0">
-                <p class="client-detail-kpi__label">Devolução · valor (ano)</p>
-                <div class="client-detail-pct-bar relative mb-1.5 h-2 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-700" role="img" aria-label="Percentual devolvido por valor: {{ chart_devolucao.pct_valor }} por cento">
-                    <div class="absolute left-0 top-0 h-full min-w-0 rounded-l-lg bg-amber-500/90 transition-[width] duration-300" style="width: {{ chart_devolucao.pct_valor }}%"></div>
-                </div>
-                <p class="client-detail-kpi__value text-sm text-amber-600 dark:text-amber-400">{{ chart_devolucao.pct_valor|fmt_br }}%</p>
-                <p class="client-detail-kpi__sub leading-snug">R$ {{ chart_devolucao.valor_dev_ano_fmt }} / base R$ {{ chart_devolucao.valor_base_ano_fmt }}</p>
-            </div>
-            </div>
-            </div>
-            </div>
-        </section>
         </div>
+    </details>
 
-        <div class="client-detail-layout__main w-full min-w-0 space-y-6 mt-6 lg:col-span-12">
-        <!-- Period Analysis - Linha 1: Volume | Valor Financeiro lado a lado -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-            <section class="client-detail-panel">
-                <div class="client-detail-panel__head">
-                    <svg class="h-5 w-5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                    <h3 class="client-detail-panel__title">Volume por período (kg)</h3>
-                </div>
-                <div class="client-detail-panel__body">
-                <div class="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Hoje</p>
-                        <p class="client-detail-period-cell__value">{{ periods.today_fmt }} kg</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Semana</p>
-                        <p class="client-detail-period-cell__value">{{ periods.week_fmt }} kg</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Mês</p>
-                        <p class="client-detail-period-cell__value">{{ periods.month_fmt }} kg</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Ano</p>
-                        <p class="client-detail-period-cell__value text-indigo-400">{{ periods.year_fmt }} kg</p>
-                    </div>
-                </div>
-                </div>
-            </section>
-            <section class="client-detail-panel">
-                <div class="client-detail-panel__head">
-                    <svg class="h-5 w-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <h3 class="client-detail-panel__title">Valor financeiro (R$)</h3>
-                </div>
-                <div class="client-detail-panel__body">
-                <div class="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Hoje</p>
-                        <p class="client-detail-period-cell__value">{{ periods_valor.today_fmt }}</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Semana</p>
-                        <p class="client-detail-period-cell__value">{{ periods_valor.week_fmt }}</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Mês</p>
-                        <p class="client-detail-period-cell__value">{{ periods_valor.month_fmt }}</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Ano</p>
-                        <p class="client-detail-period-cell__value text-emerald-400">{{ periods_valor.year_fmt }}</p>
-                    </div>
-                </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- Linha 2: Devolução (Volume) | Valor Devolução (R$) lado a lado -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-            <section class="client-detail-panel">
-                <div class="client-detail-panel__head">
-                    <svg class="h-5 w-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-                    </svg>
-                    <h3 class="client-detail-panel__title">Devolução (volume kg)</h3>
-                </div>
-                <div class="client-detail-panel__body">
-                <div class="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Hoje</p>
-                        <p class="client-detail-period-cell__value">{{ periods_devolucao_vol.today_fmt }} kg</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Semana</p>
-                        <p class="client-detail-period-cell__value">{{ periods_devolucao_vol.week_fmt }} kg</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Mês</p>
-                        <p class="client-detail-period-cell__value">{{ periods_devolucao_vol.month_fmt }} kg</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Ano</p>
-                        <p class="client-detail-period-cell__value text-rose-400">{{ periods_devolucao_vol.year_fmt }} kg</p>
-                    </div>
-                </div>
-                </div>
-            </section>
-            <section class="client-detail-panel">
-                <div class="client-detail-panel__head">
-                    <svg class="h-5 w-5 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <h3 class="client-detail-panel__title">Valor devolução (R$)</h3>
-                </div>
-                <div class="client-detail-panel__body">
-                <div class="grid grid-cols-2 gap-2 sm:gap-3">
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Hoje</p>
-                        <p class="client-detail-period-cell__value">{{ periods_valor_devolucao.today_fmt }}</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Semana</p>
-                        <p class="client-detail-period-cell__value">{{ periods_valor_devolucao.week_fmt }}</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Mês</p>
-                        <p class="client-detail-period-cell__value">{{ periods_valor_devolucao.month_fmt }}</p>
-                    </div>
-                    <div class="client-detail-period-cell">
-                        <p class="client-detail-period-cell__label">Ano</p>
-                        <p class="client-detail-period-cell__value text-amber-400">{{ periods_valor_devolucao.year_fmt }}</p>
-                    </div>
-                </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- Lista de Devoluções (registros do módulo Devoluções) -->
-        <section class="client-detail-panel client-detail-panel--table overflow-hidden shadow-lg">
-            <div class="client-detail-panel__head">
-                <div class="flex min-w-0 flex-1 items-center gap-2">
-                    <svg class="h-5 w-5 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-                    </svg>
-                    <h3 class="client-detail-panel__title">Devoluções</h3>
-                </div>
-                <span class="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-medium tabular-nums text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">{{ devolucoes_list|length }} reg.</span>
+    <!-- ACORDEÃO: Devoluções -->
+    <details class="cd-acc"{% if devolucoes_list %} open{% endif %}>
+        <summary class="cd-acc__summary">
+            <span class="cd-acc__title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                Devoluções
+            </span>
+            <span class="cd-acc__badge cd-acc__badge--{{ 'crit' if devolucoes_resumo.total else 'ok' }}">{{ devolucoes_resumo.total }} reg.</span>
+            <svg class="cd-acc__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="cd-acc__body cd-acc__body--flush">
+            {% if devolucoes_list %}
+            <div class="cd-resumo">
+                <div class="cd-resumo__cell"><span class="cd-resumo__label">Total devoluções</span><span class="cd-resumo__value">{{ devolucoes_resumo.total|fmt_br_int }}</span></div>
+                <div class="cd-resumo__cell"><span class="cd-resumo__label">Valor devolvido</span><span class="cd-resumo__value cd-resumo__value--amber">R$ {{ devolucoes_resumo.valor_total_fmt }}</span></div>
+                <div class="cd-resumo__cell"><span class="cd-resumo__label">% sobre vendido (ano)</span><span class="cd-resumo__value cd-resumo__value--{{ 'crit' if devolucoes_resumo.pct_sobre_vendido > 3 else ('warn' if devolucoes_resumo.pct_sobre_vendido > 2 else 'ok') }}">{{ devolucoes_resumo.pct_sobre_vendido|fmt_br }}%</span></div>
+                <div class="cd-resumo__cell"><span class="cd-resumo__label">Maior devolução</span><span class="cd-resumo__value">R$ {{ devolucoes_resumo.maior_valor_fmt }}</span><span class="cd-resumo__sub">{{ devolucoes_resumo.maior_valor_data }}</span></div>
+                <div class="cd-resumo__cell"><span class="cd-resumo__label">Maior motivo</span><span class="cd-resumo__value cd-resumo__value--sm">{{ devolucoes_resumo.maior_motivo }}</span><span class="cd-resumo__sub">{{ devolucoes_resumo.maior_motivo_qtd }}x</span></div>
+                <div class="cd-resumo__cell"><span class="cd-resumo__label">Responsabilidade predominante</span><span class="cd-resumo__value cd-resumo__value--sm">{{ devolucoes_resumo.resp_predominante }}</span><span class="cd-resumo__sub">{{ devolucoes_resumo.resp_predominante_qtd }}x</span></div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full border-collapse text-left">
+            {% if devolucoes_resumo.grupos %}
+            <div class="cd-resp">
+                {% for grp in devolucoes_resumo.grupos %}
+                <span class="cd-resp__chip cd-resp__chip--{% if grp.nome == 'Comercial' %}indigo{% elif grp.nome == 'Logística' %}amber{% elif grp.nome == 'Mercado/Cliente' %}rose{% else %}neutral{% endif %}">
+                    {{ grp.nome }}: <strong>{{ grp.count }}</strong> · R$ {{ grp.valor_fmt }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="cd-table-scroll">
+                <table class="cd-table">
                     <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-                            <th class="px-6 py-4">Data romaneio</th>
-                            <th class="px-6 py-4">Data entrega</th>
-                            <th class="px-6 py-4 text-right">Valor (R$)</th>
-                            <th class="px-6 py-4">Motivo</th>
-                            <th class="px-6 py-4">Responsabilidade</th>
-                            <th class="px-6 py-4">Motorista</th>
-                            <th class="px-6 py-4">Vendedor</th>
-                            <th class="px-6 py-4">Ajudante</th>
-                            <th class="px-6 py-4 text-center">R$ 300+</th>
+                        <tr>
+                            <th>Data romaneio</th>
+                            <th>Data entrega</th>
+                            <th class="cd-right">Valor (R$)</th>
+                            <th>Motivo</th>
+                            <th>Responsabilidade</th>
+                            <th>Motorista</th>
+                            <th>Vendedor</th>
+                            <th>Ajudante</th>
+                            <th class="cd-center">R$ 300+</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 text-sm dark:divide-slate-700">
+                    <tbody>
                         {% for dev in devolucoes_list %}
-                        <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <td class="px-6 py-4 font-mono text-slate-700 dark:text-slate-300">{{ dev.data_romaneio_fmt }}</td>
-                            <td class="px-6 py-4 font-mono text-slate-700 dark:text-slate-300">{{ dev.data_entrega_fmt }}</td>
-                            <td class="px-6 py-4 text-right font-medium text-amber-600 dark:text-amber-400">R$ {{ dev.valor_fmt }}</td>
-                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.motivo }}</td>
-                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.responsabilidade }}</td>
-                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.motorista }}</td>
-                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.vendedor }}</td>
-                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ dev.ajudante }}</td>
-                            <td class="px-6 py-4 text-center">
-                                {% if dev.acima_300 %}
-                                <span class="rounded bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:bg-rose-500/20 dark:text-rose-400">SIM</span>
-                                {% else %}
-                                <span class="text-slate-400">—</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
                         <tr>
-                            <td colspan="9" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400">Nenhuma devolução registrada para este cliente.</td>
+                            <td class="cd-mono" data-th="Data romaneio">{{ dev.data_romaneio_fmt }}</td>
+                            <td class="cd-mono" data-th="Data entrega">{{ dev.data_entrega_fmt }}</td>
+                            <td class="cd-right cd-amber" data-th="Valor (R$)">R$ {{ dev.valor_fmt }}</td>
+                            <td data-th="Motivo">{{ dev.motivo }}</td>
+                            <td data-th="Responsabilidade">{{ dev.responsabilidade }}</td>
+                            <td data-th="Motorista">{{ dev.motorista }}</td>
+                            <td data-th="Vendedor">{{ dev.vendedor }}</td>
+                            <td data-th="Ajudante">{{ dev.ajudante }}</td>
+                            <td class="cd-center" data-th="R$ 300+">
+                                {% if dev.acima_300 %}<span class="cd-tag cd-tag--crit">SIM</span>{% else %}<span class="cd-muted">—</span>{% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </section>
-
-        {% if audit_logs %}
-        <section class="client-detail-panel">
-            <div class="client-detail-panel__head">
-                <svg class="h-5 w-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <h3 class="client-detail-panel__title">Histórico de alterações</h3>
+            {% else %}
+            <div class="cd-empty cd-empty--ok">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p class="cd-empty__title">Nenhuma devolução registrada para este cliente no período.</p>
             </div>
-            <div class="client-detail-panel__body p-0 sm:p-0">
-            <div class="overflow-x-auto px-1 pb-1 sm:px-4 sm:pb-4">
-                <table class="w-full text-left text-sm">
+            {% endif %}
+        </div>
+    </details>
+
+    <!-- ACORDEÃO: Histórico de alterações -->
+    <details class="cd-acc">
+        <summary class="cd-acc__summary">
+            <span class="cd-acc__title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Histórico de alterações
+            </span>
+            <span class="cd-acc__badge">{{ audit_logs|length }}</span>
+            <svg class="cd-acc__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="cd-acc__body cd-acc__body--flush">
+            {% if audit_logs %}
+            <div class="cd-table-scroll">
+                <table class="cd-table">
                     <thead>
-                        <tr class="text-slate-400 text-xs uppercase font-bold border-b border-slate-700">
-                            <th class="py-3">Data</th>
-                            <th class="py-3">Usuário</th>
-                            <th class="py-3">Campo</th>
-                            <th class="py-3">Antes</th>
-                            <th class="py-3">Depois</th>
+                        <tr>
+                            <th>Data</th><th>Usuário</th><th>Campo</th><th>Antes</th><th>Depois</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-700">
+                    <tbody>
                         {% for log in audit_logs %}
-                        <tr>
-                            <td class="py-2 text-slate-400 font-mono">{{ log.changed_at|fmt_br_datetime if log.changed_at else '—' }}</td>
-                            <td class="py-2 text-white">{{ log.changed_by or '-' }}</td>
-                            <td class="py-2 text-slate-300">{{ log.field_name or '-' }}</td>
-                            <td class="py-2 text-slate-400 truncate max-w-[120px]">{{ log.old_value or '-' }}</td>
-                            <td class="py-2 text-slate-300 truncate max-w-[120px]">{{ log.new_value or '-' }}</td>
+                        <tr{% if loop.index > 3 %} data-audit-extra="1" hidden{% endif %}>
+                            <td class="cd-mono cd-muted" data-th="Data">{{ log.changed_at|fmt_br_datetime if log.changed_at else '—' }}</td>
+                            <td data-th="Usuário">{{ log.changed_by or '-' }}</td>
+                            <td data-th="Campo">{{ log.field_name or '-' }}</td>
+                            <td class="cd-muted" data-th="Antes">{{ log.old_value or '-' }}</td>
+                            <td data-th="Depois">{{ log.new_value or '-' }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            {% if audit_logs|length > 3 %}
+            <div class="cd-more-wrap">
+                <button type="button" id="cd-audit-toggle" class="sys-btn sys-btn--secondary" data-label-more="Ver histórico completo ({{ audit_logs|length }})">Ver histórico completo ({{ audit_logs|length }})</button>
             </div>
-        </section>
-        {% endif %}
+            {% endif %}
+            {% else %}
+            <p class="cd-muted text-center" style="padding:1rem 0;">Nenhuma alteração registrada.</p>
+            {% endif %}
+        </div>
+    </details>
 
-        <!-- History Table -->
-        <section class="client-detail-panel client-detail-panel--table overflow-hidden shadow-lg">
-            <div class="client-detail-panel__head">
-                <svg class="h-5 w-5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <h3 class="client-detail-panel__title">Histórico de operações</h3>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
+    <!-- ACORDEÃO: Histórico de operações (render sob demanda) -->
+    <details class="cd-acc" id="cd-acc-history">
+        <summary class="cd-acc__summary">
+            <span class="cd-acc__title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Histórico de operações
+            </span>
+            <span class="cd-acc__badge">{{ history|length }}</span>
+            <svg class="cd-acc__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <div class="cd-acc__body cd-acc__body--flush">
+            <div class="cd-table-scroll">
+                <table class="cd-table">
                     <thead>
-                        <tr class="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-                            <th class="px-6 py-4">Data</th>
-                            <th class="px-6 py-4">Colaborador</th>
-                            <th class="px-6 py-4 text-center">Tipo</th>
-                            <th class="px-6 py-4 text-right">Peso (kg)</th>
-                            <th class="px-6 py-4 text-right">Valor (R$)</th>
-                            <th class="px-6 py-4 text-center">Duração</th>
-                            <th class="px-6 py-4 text-center">Produtividade</th>
+                        <tr>
+                            <th>Data</th>
+                            <th>Colaborador</th>
+                            <th class="cd-center">Tipo</th>
+                            <th class="cd-right">Peso (kg)</th>
+                            <th class="cd-right">Valor (R$)</th>
+                            <th class="cd-center">Duração</th>
+                            <th class="cd-center">Produtividade</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-200 text-sm dark:divide-slate-700">
-                        {% for route in history %}
-                        <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <td class="px-6 py-4 font-mono font-medium text-slate-900 dark:text-white">{{ route.date_fmt }}</td>
-                            <td class="px-6 py-4 text-slate-700 dark:text-slate-300">{{ route.employee_name|emp_name }}</td>
-                            <td class="px-6 py-4 text-center">
-                                {% if route.operation_type == 'devolucao' %}
-                                <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">Devolução</span>
-                                {% else %}
-                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Entrega</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-6 py-4 text-right font-bold text-slate-900 dark:text-white">{{ route.tonnage_kg_fmt }}</td>
-                            <td class="px-6 py-4 text-center font-mono text-slate-500 dark:text-slate-400">{{ route.duration_fmt or '-' }}
-                            </td>
-                            <td class="px-6 py-4 text-center">
-                                {% if route.productivity > 0 %}
-                                <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ route.productivity_fmt }}</span> <span
-                                    class="text-[10px] text-slate-500">kg/h</span>
-                                {% else %}
-                                <span class="text-slate-400">-</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400">Nenhum registro encontrado.
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
+                    <tbody id="cd-history-tbody"></tbody>
                 </table>
             </div>
-        </section>
-
+            <div class="cd-more-wrap" id="cd-history-more-wrap" hidden>
+                <button type="button" id="cd-history-more" class="sys-btn sys-btn--secondary">Carregar mais</button>
+            </div>
         </div>
-        </div>
+    </details>
 
 </div>
-
 {% endblock %}
 
 {% block layout_portal %}
@@ -908,9 +740,7 @@
         <div class="comercial-modal-header flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-6 py-4 dark:border-slate-700">
             <div class="flex min-w-0 flex-1 items-start gap-3 sm:gap-4">
                 <div class="comercial-modal-header__mark hidden sm:flex" aria-hidden="true">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-                    </svg>
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                 </div>
                 <div class="min-w-0 flex-1 pr-1">
                     <p class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Cadastro do cliente</p>
@@ -923,9 +753,7 @@
                 </div>
             </div>
             <button type="button" class="comercial-modal-close mt-0.5 shrink-0" onclick="closeEditModal()" aria-label="Fechar">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
         <div class="comercial-modal-body space-y-5 px-6 py-5">
@@ -962,7 +790,7 @@
                                     <input id="edit-client-nb" type="text" name="nb" value="{{ client.nb or '' }}" maxlength="80" class="sys-input w-full">
                                 </div>
                             </div>
-                            <p class="span-2 text-[11px] text-slate-500 dark:text-slate-400">O <strong class="text-slate-700 dark:text-slate-300">Setor</strong> é o código do colaborador: ao digitar, o <strong class="text-slate-700 dark:text-slate-300">colaborador (venda)</strong> é localizado automaticamente. Não há lista para escolher manualmente. Colaboradores sem código no cadastro não aparecem por Setor.</p>
+                            <p class="span-2 text-[11px] text-slate-500 dark:text-slate-400">O <strong class="text-slate-700 dark:text-slate-300">Setor</strong> é o código do colaborador: ao digitar, o <strong class="text-slate-700 dark:text-slate-300">colaborador (venda)</strong> é localizado automaticamente. Colaboradores sem código no cadastro não aparecem por Setor.</p>
                             <div class="comercial-modal-line comercial-line-venda-setor">
                                 <div class="comercial-venda-setor-card">
                                     <div class="comercial-venda-setor-card__grid">
@@ -976,12 +804,6 @@
                                         </div>
                                     </div>
                                     <input type="hidden" name="vendedor_id" id="edit-client-vendedor" value="{% if vendedor_select_id %}{{ vendedor_select_id }}{% endif %}">
-                                    <select id="edit-client-vendedor-lookup" class="client-vendedor-lookup-select" aria-hidden="true" tabindex="-1">
-                                        <option value="">—</option>
-                                        {% for v in vendedores_list %}
-                                        <option value="{{ v.id }}"{% if v.seller_code %} data-seller-code="{{ v.seller_code|string|e }}"{% endif %} data-emp-name="{{ (v.name|emp_name)|e }}">{{ v.name|emp_name }}{% if v.seller_code %} — código {{ v.seller_code }}{% endif %}</option>
-                                        {% endfor %}
-                                    </select>
                                 </div>
                             </div>
                             <div class="comercial-modal-line comercial-line-mev-fantasia">
@@ -1128,9 +950,7 @@
                 <h3 class="sys-section-heading text-lg leading-snug" id="delete-client-modal-title">Excluir cliente?</h3>
             </div>
             <button type="button" onclick="closeDeleteModal()" class="comercial-modal-close mt-0.5 shrink-0" aria-label="Fechar">
-                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
         <div class="comercial-modal-body px-6 py-5">

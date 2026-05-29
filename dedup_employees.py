@@ -1,4 +1,5 @@
 import json
+import re
 from sqlmodel import Session, select
 from database import engine
 from models import (
@@ -7,6 +8,35 @@ from models import (
     GameXPTransaction, EmployeeAchievement, PalletCount,
     PalletMaintenanceTicket, LeaderTaskResponse, LeaderTask, SubstitutionHistory
 )
+
+
+def normalize_numeric_id(value):
+    """Remove o sufixo decimal (ex.: '201.0' -> '201') de IDs numéricos."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s or s.lower() in ("nan", "none"):
+        return None
+    # Remove .0 / .00 finais apenas quando o valor é numérico inteiro.
+    s = re.sub(r"\.0+$", "", s)
+    return s
+
+
+def normalize_employee_ids(db):
+    """Normaliza registration_id e seller_code de todos os colaboradores."""
+    employees = db.exec(select(Employee)).all()
+    changed = 0
+    for emp in employees:
+        new_reg = normalize_numeric_id(emp.registration_id)
+        new_seller = normalize_numeric_id(emp.seller_code)
+        if new_reg != emp.registration_id or new_seller != emp.seller_code:
+            emp.registration_id = new_reg
+            emp.seller_code = new_seller
+            db.add(emp)
+            changed += 1
+    if changed:
+        db.commit()
+    print(f"Normalizacao concluida: {changed} cadastros ajustados (.0 removido).")
 
 def get_completeness_score(emp: Employee) -> int:
     score = 0
@@ -24,6 +54,10 @@ def get_completeness_score(emp: Employee) -> int:
 def main():
     print("Iniciando varredura de duplicados...")
     with Session(engine) as db:
+        # 1) Normaliza IDs (remove sufixo .0) antes de agrupar, para que
+        #    "632886.0" e "632886" sejam tratados como o mesmo colaborador.
+        normalize_employee_ids(db)
+
         employees = db.exec(select(Employee)).all()
         print(f"Total de colaboradores encontrados: {len(employees)}")
 

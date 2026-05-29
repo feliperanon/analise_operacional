@@ -1717,3 +1717,264 @@ html.dark .ga-employee-theme.employees-page.import-conflicts-page #importConflic
 html.dark .ga-employee-theme.employees-page.import-conflicts-page #importConflictsTable tr.conflict-row td[data-label]::before {
   color: rgb(148 163 184);
 }
+
+/* =====================================================================
+   Ficha do Cliente — Central de decisão (cd-*)
+   Componentes leves, alinhados ao design system (tokens --emp-*).
+   ===================================================================== */
+.cd-page { color: var(--emp-text-body); }
+.cd-page .cd-unit { font-size: 0.72em; font-weight: 600; color: var(--emp-text-muted); }
+.cd-page .cd-mono { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.cd-page .cd-right { text-align: right; }
+.cd-page .cd-center { text-align: center; }
+.cd-page .cd-muted { color: var(--emp-text-muted); }
+.cd-page .cd-strong { font-weight: 700; color: var(--emp-text-strong); }
+.cd-page .cd-amber { color: rgb(180 83 9); font-weight: 600; }
+html.dark .cd-page .cd-amber { color: rgb(251 191 36); }
+.cd-page .cd-prod { font-weight: 700; color: rgb(5 150 105); }
+html.dark .cd-page .cd-prod { color: rgb(52 211 153); }
+
+/* ---------- 1. Cabeçalho executivo ---------- */
+.cd-page .cd-head {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+  gap: 0.85rem 1.25rem; padding: 1rem 1.25rem;
+}
+.cd-page .cd-head__main { min-width: 0; flex: 1 1 22rem; }
+.cd-page .cd-head__eyebrow {
+  margin: 0; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--emp-text-muted);
+}
+.cd-page .cd-head__title {
+  margin: 0.15rem 0 0; font-size: 1.4rem; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em;
+  color: var(--emp-text-strong);
+}
+.cd-page .cd-head__sub { margin: 0.2rem 0 0; font-size: 0.82rem; color: var(--emp-text-muted); }
+.cd-page .cd-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.7rem; }
+.cd-page .cd-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.6rem;
+  border-radius: 999px; font-size: 0.72rem; font-weight: 600; line-height: 1.2;
+  border: 1px solid var(--emp-border); background: var(--emp-surface-subtle); color: var(--emp-text-body);
+}
+.cd-page .cd-chip svg { width: 0.85rem; height: 0.85rem; }
+.cd-page .cd-chip .cd-dot { width: 0.45rem; height: 0.45rem; border-radius: 999px; background: rgb(16 185 129); }
+.cd-page .cd-chip--ok { background: rgb(16 185 129 / 0.12); border-color: rgb(16 185 129 / 0.35); color: rgb(4 120 87); }
+.cd-page .cd-chip--warn { background: rgb(245 158 11 / 0.14); border-color: rgb(245 158 11 / 0.4); color: rgb(180 83 9); }
+.cd-page .cd-chip--crit { background: rgb(244 63 94 / 0.12); border-color: rgb(244 63 94 / 0.4); color: rgb(190 18 60); }
+.cd-page .cd-chip--info { background: rgb(59 130 246 / 0.12); border-color: rgb(59 130 246 / 0.35); color: rgb(29 78 216); }
+.cd-page .cd-chip--indigo { background: rgb(99 102 241 / 0.12); border-color: rgb(99 102 241 / 0.35); color: rgb(67 56 202); }
+.cd-page .cd-chip--neutral { background: var(--emp-surface-subtle); }
+html.dark .cd-page .cd-chip--ok { color: rgb(52 211 153); }
+html.dark .cd-page .cd-chip--warn { color: rgb(251 191 36); }
+html.dark .cd-page .cd-chip--crit { color: rgb(253 164 175); }
+html.dark .cd-page .cd-chip--info { color: rgb(147 197 253); }
+html.dark .cd-page .cd-chip--indigo { color: rgb(165 180 252); }
+.cd-page .cd-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.cd-page .cd-action { gap: 0.4rem; }
+.cd-page .cd-action--danger {
+  border-color: rgb(244 63 94 / 0.45); color: rgb(190 18 60);
+}
+.cd-page .cd-action--danger:hover { background: rgb(244 63 94 / 0.08); }
+html.dark .cd-page .cd-action--danger { color: rgb(253 164 175); border-color: rgb(244 63 94 / 0.4); }
+
+/* ---------- 2. Painel de decisão ---------- */
+.cd-page .cd-decision {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.9rem 1.1rem;
+  padding: 0.9rem 1.15rem; border-radius: var(--emp-radius-lg);
+  border: 1px solid var(--emp-border); background: var(--emp-surface);
+  border-left-width: 4px; box-shadow: var(--emp-shadow-card);
+}
+.cd-page .cd-decision__icon { flex-shrink: 0; width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border-radius: 0.7rem; }
+.cd-page .cd-decision__icon svg { width: 1.4rem; height: 1.4rem; }
+.cd-page .cd-decision__body { min-width: 0; flex: 1 1 18rem; }
+.cd-page .cd-decision__title { margin: 0; font-size: 0.98rem; font-weight: 800; color: var(--emp-text-strong); }
+.cd-page .cd-decision__msg { margin: 0.15rem 0 0; font-size: 0.85rem; color: var(--emp-text-body); }
+.cd-page .cd-decision__action { margin: 0.25rem 0 0; font-size: 0.78rem; color: var(--emp-text-muted); }
+.cd-page .cd-decision__meta {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; text-align: right;
+  padding-left: 1rem; border-left: 1px dashed var(--emp-border);
+}
+.cd-page .cd-decision__meta-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--emp-text-muted); }
+.cd-page .cd-decision__meta-value { font-size: 1.25rem; font-weight: 800; color: var(--emp-text-strong); line-height: 1.1; }
+.cd-page .cd-decision__meta-sub { font-size: 0.68rem; color: var(--emp-text-muted); }
+.cd-page .cd-decision--ok { border-left-color: rgb(16 185 129); }
+.cd-page .cd-decision--ok .cd-decision__icon { background: rgb(16 185 129 / 0.14); color: rgb(4 120 87); }
+.cd-page .cd-decision--atencao { border-left-color: rgb(245 158 11); }
+.cd-page .cd-decision--atencao .cd-decision__icon { background: rgb(245 158 11 / 0.16); color: rgb(180 83 9); }
+.cd-page .cd-decision--critico { border-left-color: rgb(244 63 94); }
+.cd-page .cd-decision--critico .cd-decision__icon { background: rgb(244 63 94 / 0.14); color: rgb(190 18 60); }
+.cd-page .cd-decision--neutro { border-left-color: rgb(100 116 139); }
+.cd-page .cd-decision--neutro .cd-decision__icon { background: rgb(100 116 139 / 0.16); color: rgb(71 85 105); }
+html.dark .cd-page .cd-decision--ok .cd-decision__icon { color: rgb(52 211 153); }
+html.dark .cd-page .cd-decision--atencao .cd-decision__icon { color: rgb(251 191 36); }
+html.dark .cd-page .cd-decision--critico .cd-decision__icon { color: rgb(253 164 175); }
+html.dark .cd-page .cd-decision--neutro .cd-decision__icon { color: rgb(148 163 184); }
+.cd-page .cd-flags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
+.cd-page .cd-flag { display: inline-flex; padding: 0.18rem 0.5rem; border-radius: 999px; font-size: 0.68rem; font-weight: 600; border: 1px solid transparent; }
+.cd-page .cd-flag--critico { background: rgb(244 63 94 / 0.12); color: rgb(190 18 60); border-color: rgb(244 63 94 / 0.3); }
+.cd-page .cd-flag--atencao { background: rgb(245 158 11 / 0.14); color: rgb(180 83 9); border-color: rgb(245 158 11 / 0.3); }
+.cd-page .cd-flag--info { background: rgb(59 130 246 / 0.12); color: rgb(29 78 216); border-color: rgb(59 130 246 / 0.3); }
+html.dark .cd-page .cd-flag--critico { color: rgb(253 164 175); }
+html.dark .cd-page .cd-flag--atencao { color: rgb(251 191 36); }
+html.dark .cd-page .cd-flag--info { color: rgb(147 197 253); }
+
+/* ---------- 3. KPIs ---------- */
+.cd-page .cd-kpis {
+  display: grid; gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr));
+}
+.cd-page .cd-kpi {
+  position: relative; min-width: 0; padding: 0.75rem 0.85rem; border-radius: var(--emp-radius-lg);
+  border: 1px solid var(--emp-border); background: var(--emp-surface); box-shadow: var(--emp-shadow-card);
+  border-top: 3px solid var(--emp-border-strong, var(--emp-border));
+}
+.cd-page .cd-kpi__label { margin: 0; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--emp-text-muted); }
+.cd-page .cd-kpi__value { margin: 0.25rem 0 0; font-size: 1.2rem; font-weight: 800; letter-spacing: -0.01em; color: var(--emp-text-strong); line-height: 1.15; word-break: break-word; }
+.cd-page .cd-kpi__value--sm { font-size: 0.95rem; }
+.cd-page .cd-kpi__sub { margin: 0.15rem 0 0; font-size: 0.68rem; color: var(--emp-text-muted); }
+.cd-page .cd-kpi__bar { margin-top: 0.4rem; height: 0.4rem; border-radius: 999px; background: rgb(148 163 184 / 0.25); overflow: hidden; }
+.cd-page .cd-kpi__bar > span { display: block; height: 100%; border-radius: 999px; background: rgb(245 158 11); }
+.cd-page .cd-kpi__bar--rose > span { background: rgb(244 63 94); }
+.cd-page .cd-kpi--emerald { border-top-color: rgb(16 185 129); }
+.cd-page .cd-kpi--emerald .cd-kpi__value { color: rgb(4 120 87); }
+.cd-page .cd-kpi--indigo { border-top-color: rgb(99 102 241); }
+.cd-page .cd-kpi--indigo .cd-kpi__value { color: rgb(67 56 202); }
+.cd-page .cd-kpi--amber { border-top-color: rgb(245 158 11); }
+.cd-page .cd-kpi--amber .cd-kpi__value { color: rgb(180 83 9); }
+.cd-page .cd-kpi--rose { border-top-color: rgb(244 63 94); }
+.cd-page .cd-kpi--rose .cd-kpi__value { color: rgb(190 18 60); }
+.cd-page .cd-kpi--ok { border-top-color: rgb(16 185 129); }
+.cd-page .cd-kpi--ok .cd-kpi__value { color: rgb(4 120 87); }
+.cd-page .cd-kpi--warn { border-top-color: rgb(245 158 11); }
+.cd-page .cd-kpi--warn .cd-kpi__value { color: rgb(180 83 9); }
+.cd-page .cd-kpi--crit { border-top-color: rgb(244 63 94); }
+.cd-page .cd-kpi--crit .cd-kpi__value { color: rgb(190 18 60); }
+html.dark .cd-page .cd-kpi--emerald .cd-kpi__value, html.dark .cd-page .cd-kpi--ok .cd-kpi__value { color: rgb(52 211 153); }
+html.dark .cd-page .cd-kpi--indigo .cd-kpi__value { color: rgb(165 180 252); }
+html.dark .cd-page .cd-kpi--amber .cd-kpi__value, html.dark .cd-page .cd-kpi--warn .cd-kpi__value { color: rgb(251 191 36); }
+html.dark .cd-page .cd-kpi--rose .cd-kpi__value, html.dark .cd-page .cd-kpi--crit .cd-kpi__value { color: rgb(253 164 175); }
+
+/* ---------- Estado vazio ---------- */
+.cd-page .cd-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.35rem;
+  padding: 1.6rem 1rem; border-radius: var(--emp-radius-lg);
+  border: 1px dashed var(--emp-border); background: var(--emp-surface-subtle); color: var(--emp-text-muted);
+}
+.cd-page .cd-empty svg { width: 2rem; height: 2rem; opacity: 0.6; }
+.cd-page .cd-empty__title { margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--emp-text-body); }
+.cd-page .cd-empty__sub { margin: 0; font-size: 0.78rem; }
+.cd-page .cd-empty--ok { border-style: solid; border-color: rgb(16 185 129 / 0.3); background: rgb(16 185 129 / 0.06); }
+.cd-page .cd-empty--ok svg { color: rgb(5 150 105); opacity: 0.9; }
+.cd-page .cd-empty-row { padding: 2rem 1rem; text-align: center; color: var(--emp-text-muted); }
+
+/* ---------- 4. Matriz por período ---------- */
+.cd-page .cd-matrix-scroll { overflow-x: auto; }
+.cd-page .cd-matrix { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.cd-page .cd-matrix th, .cd-page .cd-matrix td { padding: 0.55rem 0.85rem; white-space: nowrap; }
+.cd-page .cd-matrix thead th {
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--emp-text-muted); border-bottom: 1px solid var(--emp-border); background: var(--emp-surface-subtle);
+  text-align: left;
+}
+.cd-page .cd-matrix tbody th { text-align: left; font-weight: 600; color: var(--emp-text-body); }
+.cd-page .cd-matrix tbody td { color: var(--emp-text-strong); font-variant-numeric: tabular-nums; }
+.cd-page .cd-matrix tbody tr + tr th, .cd-page .cd-matrix tbody tr + tr td { border-top: 1px solid var(--emp-border); }
+.cd-page .cd-matrix__year { background: rgb(99 102 241 / 0.06); font-weight: 700; }
+.cd-page .cd-matrix__row--rose tbody td, .cd-page .cd-matrix__row--rose th { }
+.cd-page .cd-matrix__row--indigo th { color: rgb(67 56 202); }
+.cd-page .cd-matrix__row--emerald th { color: rgb(4 120 87); }
+.cd-page .cd-matrix__row--rose th { color: rgb(190 18 60); }
+.cd-page .cd-matrix__row--amber th { color: rgb(180 83 9); }
+html.dark .cd-page .cd-matrix__row--indigo th { color: rgb(165 180 252); }
+html.dark .cd-page .cd-matrix__row--emerald th { color: rgb(52 211 153); }
+html.dark .cd-page .cd-matrix__row--rose th { color: rgb(253 164 175); }
+html.dark .cd-page .cd-matrix__row--amber th { color: rgb(251 191 36); }
+
+/* ---------- Acordeões ---------- */
+.cd-page .cd-acc {
+  border-radius: var(--emp-radius-lg); border: 1px solid var(--emp-border);
+  background: var(--emp-surface); box-shadow: var(--emp-shadow-card); overflow: hidden;
+}
+.cd-page .cd-acc + .cd-acc { margin-top: 0; }
+.cd-page .cd-acc__summary {
+  display: flex; align-items: center; gap: 0.65rem; padding: 0.85rem 1.1rem; cursor: pointer;
+  list-style: none; user-select: none;
+  background: linear-gradient(180deg, var(--emp-surface-subtle) 0%, var(--emp-surface) 60%);
+}
+.cd-page .cd-acc__summary::-webkit-details-marker { display: none; }
+.cd-page .cd-acc__summary:focus-visible { outline: 2px solid rgb(99 102 241 / 0.5); outline-offset: -2px; }
+.cd-page .cd-acc__title { display: inline-flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; font-size: 0.92rem; font-weight: 700; color: var(--emp-text-strong); }
+.cd-page .cd-acc__title svg { width: 1.1rem; height: 1.1rem; color: var(--emp-text-muted); flex-shrink: 0; }
+.cd-page .cd-acc__badge {
+  flex-shrink: 0; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700;
+  border: 1px solid var(--emp-border); background: var(--emp-surface-subtle); color: var(--emp-text-muted); font-variant-numeric: tabular-nums;
+}
+.cd-page .cd-acc__badge--crit { background: rgb(244 63 94 / 0.12); border-color: rgb(244 63 94 / 0.3); color: rgb(190 18 60); }
+.cd-page .cd-acc__badge--ok { background: rgb(16 185 129 / 0.12); border-color: rgb(16 185 129 / 0.3); color: rgb(4 120 87); }
+html.dark .cd-page .cd-acc__badge--crit { color: rgb(253 164 175); }
+html.dark .cd-page .cd-acc__badge--ok { color: rgb(52 211 153); }
+.cd-page .cd-acc__chevron { width: 1.05rem; height: 1.05rem; color: var(--emp-text-muted); flex-shrink: 0; transition: transform 0.18s ease; }
+.cd-page .cd-acc[open] .cd-acc__chevron { transform: rotate(180deg); }
+.cd-page .cd-acc__body { padding: 1.1rem; border-top: 1px solid var(--emp-border); }
+.cd-page .cd-acc__body--flush { padding: 0; }
+.cd-page .cd-more-wrap { display: flex; justify-content: center; padding: 0.85rem; border-top: 1px solid var(--emp-border); }
+
+/* ---------- Resumo de devoluções ---------- */
+.cd-page .cd-resumo {
+  display: grid; gap: 0.5rem; padding: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr)); border-bottom: 1px solid var(--emp-border);
+}
+.cd-page .cd-resumo__cell { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.55rem 0.65rem; border-radius: 0.6rem; background: var(--emp-surface-subtle); border: 1px solid var(--emp-border); }
+.cd-page .cd-resumo__label { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--emp-text-muted); }
+.cd-page .cd-resumo__value { font-size: 1.05rem; font-weight: 800; color: var(--emp-text-strong); line-height: 1.2; }
+.cd-page .cd-resumo__value--sm { font-size: 0.85rem; font-weight: 700; }
+.cd-page .cd-resumo__value--amber { color: rgb(180 83 9); }
+.cd-page .cd-resumo__value--ok { color: rgb(4 120 87); }
+.cd-page .cd-resumo__value--warn { color: rgb(180 83 9); }
+.cd-page .cd-resumo__value--crit { color: rgb(190 18 60); }
+.cd-page .cd-resumo__sub { font-size: 0.68rem; color: var(--emp-text-muted); }
+html.dark .cd-page .cd-resumo__value--amber, html.dark .cd-page .cd-resumo__value--warn { color: rgb(251 191 36); }
+html.dark .cd-page .cd-resumo__value--ok { color: rgb(52 211 153); }
+html.dark .cd-page .cd-resumo__value--crit { color: rgb(253 164 175); }
+.cd-page .cd-resp { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 0.85rem 1rem; border-bottom: 1px solid var(--emp-border); }
+.cd-page .cd-resp__chip { font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 999px; border: 1px solid var(--emp-border); background: var(--emp-surface-subtle); color: var(--emp-text-body); }
+.cd-page .cd-resp__chip strong { font-weight: 800; }
+.cd-page .cd-resp__chip--indigo { background: rgb(99 102 241 / 0.1); border-color: rgb(99 102 241 / 0.3); }
+.cd-page .cd-resp__chip--amber { background: rgb(245 158 11 / 0.12); border-color: rgb(245 158 11 / 0.3); }
+.cd-page .cd-resp__chip--rose { background: rgb(244 63 94 / 0.1); border-color: rgb(244 63 94 / 0.3); }
+
+/* ---------- Tabela genérica (devoluções, históricos) ---------- */
+.cd-page .cd-table-scroll { overflow-x: auto; }
+.cd-page .cd-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.cd-page .cd-table thead th {
+  padding: 0.7rem 1rem; text-align: left; font-size: 0.64rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--emp-text-muted); background: var(--emp-surface-subtle); border-bottom: 1px solid var(--emp-border); white-space: nowrap;
+}
+.cd-page .cd-table tbody td { padding: 0.6rem 1rem; color: var(--emp-text-body); border-top: 1px solid var(--emp-border); }
+.cd-page .cd-table tbody tr:hover { background: var(--emp-surface-subtle); }
+.cd-page .cd-tag { display: inline-flex; padding: 0.12rem 0.5rem; border-radius: 999px; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.cd-page .cd-tag--ok { background: rgb(16 185 129 / 0.15); color: rgb(4 120 87); }
+.cd-page .cd-tag--crit { background: rgb(244 63 94 / 0.15); color: rgb(190 18 60); }
+html.dark .cd-page .cd-tag--ok { color: rgb(52 211 153); }
+html.dark .cd-page .cd-tag--crit { color: rgb(253 164 175); }
+
+/* ---------- Responsivo: tabelas viram cards ---------- */
+@media (max-width: 640px) {
+  .cd-page .cd-head__title { font-size: 1.2rem; }
+  .cd-page .cd-decision__meta { padding-left: 0; border-left: 0; border-top: 1px dashed var(--emp-border); padding-top: 0.5rem; align-items: flex-start; text-align: left; width: 100%; }
+  .cd-page .cd-actions { width: 100%; }
+  .cd-page .cd-action { flex: 1 1 auto; justify-content: center; }
+
+  .cd-page .cd-table thead, .cd-page .cd-matrix thead { display: none; }
+  .cd-page .cd-table tbody td, .cd-page .cd-matrix tbody td {
+    display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0.9rem; border: 0; text-align: right;
+  }
+  .cd-page .cd-table tbody td::before, .cd-page .cd-matrix tbody td::before {
+    content: attr(data-th); font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--emp-text-muted); text-align: left;
+  }
+  .cd-page .cd-table tbody tr, .cd-page .cd-matrix tbody tr {
+    display: block; padding: 0.55rem 0; border-top: 1px solid var(--emp-border);
+  }
+  .cd-page .cd-matrix tbody th { display: block; padding: 0.35rem 0.9rem 0.1rem; }
+  .cd-page .cd-matrix__year { background: transparent; }
+}

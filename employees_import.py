@@ -90,13 +90,13 @@ def _format_registration_cell(value) -> str:
         return ""
     if isinstance(value, float):
         if value == int(value):
-            return f"{int(value)}.0"
+            return str(int(value))
         return str(value).strip()
     s = str(value).strip()
     if not s or s.lower() == "nan":
         return ""
-    if re.fullmatch(r"\d+", s):
-        return f"{s}.0"
+    # Matrículas inteiras vindas como "210.0" devem virar "210" (sem sufixo decimal).
+    s = re.sub(r"\.0+$", "", s)
     return s
 
 
