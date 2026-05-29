@@ -71,41 +71,13 @@
     </div>
     {% endif %}
 
-    <!-- Destaque: cartão surface (família GA / design system) -->
-    <div class="employees-hero sys-card sys-card--surface sys-card--comfort relative overflow-visible">
-        <div class="employees-hero__glow employees-hero__glow--tr pointer-events-none absolute -right-14 top-0 h-40 w-40 rounded-full blur-3xl"></div>
-        <div class="employees-hero__glow employees-hero__glow--bl pointer-events-none absolute bottom-0 left-1/3 h-32 w-32 rounded-full blur-3xl"></div>
-        <div class="relative flex flex-col gap-5 xl:flex-row xl:items-stretch xl:justify-between xl:gap-8">
-            <div class="flex min-w-0 items-start gap-4">
-                <div class="employees-hero__icon-ring flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl">
-                    <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                    </svg>
-                </div>
-                <div class="min-w-0">
-                    <span class="employees-hero__eyebrow inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
-                        Painel operacional
-                    </span>
-                    <h2 class="employees-hero__title mt-2.5 text-2xl font-semibold tracking-tight sm:text-3xl">Quadro de colaboradores</h2>
-                    <p class="employees-hero__lead mt-1.5 max-w-xl text-sm">
-                        Gestão do quadro de funcionários, admissões, afastamentos e substituições em um fluxo mais claro.
-                    </p>
-                    <div class="employees-hero__chips mt-3 flex flex-wrap gap-2 text-xs font-medium">
-                        <span class="employees-hero__chip employees-hero__chip--success inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"></span>
-                            {{ stats.total_active }} ativos
-                        </span>
-                        <span class="employees-hero__chip employees-hero__chip--neutral inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            {{ stats.centers|length }} centros monitorados
-                        </span>
-                        <span class="employees-hero__chip employees-hero__chip--info inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
-                            {{ stats.total_target }} vagas planejadas
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="employees-hero__toolbar flex w-full flex-col gap-3 sm:flex-row sm:items-stretch xl:ml-auto xl:w-auto xl:max-w-md xl:flex-shrink-0 xl:justify-end">
+    <!-- Toolbar operacional compacta (breadcrumb/título/subtítulo já vêm do cabeçalho da página) -->
+    <div class="employees-toolbar">
+        <div class="employees-toolbar__lead">
+            <h2 class="employees-toolbar__title">Colaboradores</h2>
+            <p class="employees-toolbar__sub">Quadro, admissões, afastamentos e substituições</p>
+        </div>
+        <div class="employees-toolbar__actions">
                 <div x-data="{ open: false }" class="employees-hero__import-wrap relative w-full sm:w-auto sm:min-w-[11rem]">
                     <button type="button" @click="open = !open" class="employees-cta employees-cta--import sys-btn sys-btn--secondary w-full justify-center sm:w-auto" :class="{ 'is-open': open }" aria-haspopup="true" :aria-expanded="open.toString()">
                         <span class="employees-cta__icon" aria-hidden="true">
@@ -187,159 +159,48 @@
                     </span>
                     <span class="employees-cta__label">Novo Colaborador</span>
                 </button>
-            </div>
         </div>
     </div>
 
-    <!-- KPIs por Empresa -->
-    <div class="sys-kpi-shell w-full">
-    <div class="sys-kpi-grid employees-kpi-row" aria-label="Resumo do quadro">
-
-        <!-- Quadro Efetivo -->
-        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(59, 130, 246, 0.72);" onclick="openTargetModal()">
-            <div class="sys-kpi-cell-inner employees-kpi__inner">
-                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-                    <div class="min-w-0">
-                        <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Quadro</span>
-                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                            <span class="employees-kpi__value tabular-nums">{{ stats.total_active }}</span>
-                            <span class="employees-kpi__denom text-sm">/{{ stats.total_target }}</span>
-                        </div>
-                    </div>
-                    <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                    </svg>
-                </div>
-                <div class="employees-kpi__meta">
-                {% if stats.vacancies > 0 %}
-                <span class="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-                    <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"></span>
-                    +{{ stats.vacancies }} vagas
-                </span>
-                {% elif stats.vacancies < 0 %}
-                <span class="font-semibold text-red-600 dark:text-red-400">-{{ stats.vacancies|abs }} abaixo da meta</span>
-                {% else %}
-                <span class="employees-text-muted">Quadro completo</span>
-                {% endif %}
-                </div>
-            </div>
-        </div>
+    <!-- Indicadores: faixa compacta de chips clicáveis (filtram a lista) -->
+    <div class="employees-summary-strip" role="group" aria-label="Resumo do quadro">
+        <button type="button" class="employees-summary-chip employees-summary-chip--blue" data-summary-filter="all" aria-pressed="true" onclick="setFilter('all')">
+            <span class="employees-summary-chip__label">Quadro</span>
+            <strong class="employees-summary-chip__value tabular-nums">{{ stats.total_active }}<span class="employees-summary-chip__denom">/{{ stats.total_target }}</span></strong>
+        </button>
 
         {% for center in stats.centers %}
-        <div
-            class="sys-kpi-card employees-kpi ops-card--interactive group"
-            style="--employees-kpi-accent: {% if center.theme == 'cyan' %}rgba(34, 211, 238, 0.72){% elif center.theme == 'emerald' %}rgba(52, 211, 153, 0.72){% else %}rgba(148, 163, 184, 0.68){% endif %};"
+        <button type="button"
+            class="employees-summary-chip employees-summary-chip--{{ center.theme }}"
             data-summary-filter="{{ center.name }}"
-            role="button"
             aria-pressed="false"
             onclick="setFilter('{{ center.name }}')">
-            <div class="sys-kpi-cell-inner employees-kpi__inner">
-                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-                <div class="min-w-0">
-                    <span class="sys-kpi-label block truncate {% if center.theme == 'cyan' %}text-cyan-600 dark:text-cyan-300{% elif center.theme == 'emerald' %}text-emerald-600 dark:text-emerald-300{% else %}text-slate-600 dark:text-slate-300{% endif %}">{{ center.name }}</span>
-                    <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                        <span class="employees-kpi__value tabular-nums">{{ center.headcount }}</span>
-                        <span class="employees-kpi__denom text-sm">/{{ center.target }}</span>
-                    </div>
-                </div>
-                {% if center.theme == 'cyan' %}
-                <svg class="h-4 w-4 shrink-0 text-cyan-500 transition group-hover:scale-110 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0h2M5 21H3m6-14h1m4 0h1m-5 4h1m4 0h1m-5 4h6"/>
-                </svg>
-                {% elif center.theme == 'emerald' %}
-                <svg class="h-4 w-4 shrink-0 text-emerald-500 transition group-hover:scale-110 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01"/>
-                </svg>
-                {% else %}
-                <svg class="h-4 w-4 shrink-0 text-slate-400 transition group-hover:scale-110 dark:text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z"/>
-                </svg>
-                {% endif %}
-                </div>
-                <div class="employees-kpi__meta">
-                {% if center.vacancies > 0 %}
-                <span class="font-semibold text-emerald-600 dark:text-emerald-400">+{{ center.vacancies }} vagas</span>
-                {% endif %}
-                {% if center.vacation > 0 %}
-                <span class="rounded-full bg-blue-500/15 px-2 py-1 font-medium text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">{{ center.vacation }} férias</span>
-                {% endif %}
-                {% if center.away > 0 %}
-                <span class="rounded-full bg-orange-500/15 px-2 py-1 font-medium text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">{{ center.away }} afastados</span>
-                {% endif %}
-                {% if center.vacancies <= 0 and center.vacation <= 0 and center.away <= 0 %}
-                <span class="employees-text-muted">Operação estável</span>
-                {% endif %}
-                </div>
-            </div>
-        </div>
+            <span class="employees-summary-chip__label">{{ center.name }}</span>
+            <strong class="employees-summary-chip__value tabular-nums">{{ center.headcount }}<span class="employees-summary-chip__denom">/{{ center.target }}</span></strong>
+        </button>
         {% endfor %}
 
-        <!-- Férias -->
-        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(96, 165, 250, 0.72);" data-summary-filter="vacation" role="button" aria-pressed="false" onclick="setFilter('vacation')">
-            <div class="sys-kpi-cell-inner employees-kpi__inner">
-                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-                    <div class="min-w-0">
-                        <span class="sys-kpi-label text-blue-600 dark:text-blue-300">Férias</span>
-                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                            <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--blue tabular-nums">{{ stats.statuses.vacation }}</span>
-                        </div>
-                    </div>
-                    <svg class="h-4 w-4 shrink-0 text-blue-500 transition group-hover:scale-110 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                </div>
-                <div class="employees-kpi__meta">
-                    <span class="employees-text-muted">Programações ativas</span>
-                </div>
-            </div>
-        </div>
+        <button type="button" class="employees-summary-chip employees-summary-chip--blue" data-summary-filter="vacation" aria-pressed="false" onclick="setFilter('vacation')">
+            <span class="employees-summary-chip__label">Férias</span>
+            <strong class="employees-summary-chip__value tabular-nums">{{ stats.statuses.vacation }}</strong>
+        </button>
 
-        <!-- Afastados -->
-        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(251, 146, 60, 0.72);" data-summary-filter="away" role="button" aria-pressed="false" onclick="setFilter('away')">
-            <div class="sys-kpi-cell-inner employees-kpi__inner">
-                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-                    <div class="min-w-0">
-                        <span class="sys-kpi-label text-orange-600 dark:text-orange-300">Afastados</span>
-                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                            <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--amber tabular-nums">{{ stats.statuses.away }}</span>
-                        </div>
-                    </div>
-                    <svg class="h-4 w-4 shrink-0 text-orange-500 transition group-hover:scale-110 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                    </svg>
-                </div>
-                <div class="employees-kpi__meta">
-                    <span class="employees-text-muted">Demandam cobertura</span>
-                    {% if stats.statuses.away > 0 %}
-                    <span class="inline-flex items-center gap-1 rounded-full bg-orange-500/15 px-2 py-1 text-orange-700 dark:bg-orange-500/10 dark:text-orange-300">
-                        <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-orange-500"></span>
-                        atenção
-                    </span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+        <button type="button" class="employees-summary-chip employees-summary-chip--amber" data-summary-filter="away" aria-pressed="false" onclick="setFilter('away')">
+            <span class="employees-summary-chip__label">Afastados</span>
+            <strong class="employees-summary-chip__value tabular-nums">{{ stats.statuses.away }}</strong>
+        </button>
 
-        <!-- Demitidos -->
-        <div class="sys-kpi-card employees-kpi ops-card--interactive group" style="--employees-kpi-accent: rgba(248, 113, 113, 0.7);" data-summary-filter="fired" role="button" aria-pressed="false" onclick="setFilter('fired')">
-            <div class="sys-kpi-cell-inner employees-kpi__inner">
-                <div class="employees-kpi__head flex w-full items-start justify-between gap-2">
-                    <div class="min-w-0">
-                        <span class="sys-kpi-label text-red-600 dark:text-red-300">Demitidos</span>
-                        <div class="mt-1 flex flex-wrap items-baseline gap-1">
-                            <span class="employees-kpi__value employees-kpi__value--state employees-kpi__value--red tabular-nums">{{ stats.statuses.fired }}</span>
-                        </div>
-                    </div>
-                    <svg class="h-4 w-4 shrink-0 text-red-500 transition group-hover:scale-110 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
-                    </svg>
-                </div>
-                <div class="employees-kpi__meta">
-                    <span class="employees-text-muted">Histórico recente</span>
-                </div>
-            </div>
-        </div>
-    </div>
+        <button type="button" class="employees-summary-chip employees-summary-chip--red" data-summary-filter="fired" aria-pressed="false" onclick="setFilter('fired')">
+            <span class="employees-summary-chip__label">Demitidos</span>
+            <strong class="employees-summary-chip__value tabular-nums">{{ stats.statuses.fired }}</strong>
+        </button>
+
+        <button type="button" class="employees-summary-chip employees-summary-chip--ghost" onclick="openTargetModal()" title="Editar metas por empresa">
+            <span class="employees-summary-chip__label">Metas</span>
+            <span class="employees-summary-chip__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </span>
+        </button>
     </div>
 
     <!-- Barra de Pesquisa e Filtros -->
@@ -353,7 +214,7 @@
                     <svg class="h-4 w-4 flex-shrink-0" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
-                    <input type="text" id="searchInput" placeholder="Nome, matrícula ou função" onkeyup="filterTable()" class="ops-toolbar-search__input">
+                    <input type="text" id="searchInput" placeholder="Nome, matrícula ou função" oninput="filterTableDebounced()" class="ops-toolbar-search__input" autocomplete="off">
                 </div>
                 </div>
                 <details id="roleFilterMenu" class="employees-role-details employees-filter-bar__roles group relative flex-shrink-0">
@@ -383,6 +244,7 @@
             </div>
             <div class="employees-filter-bar__divider" aria-hidden="true"></div>
             <div class="employees-filter-bar__secondary">
+                <span id="visibleEmployeesCounter" class="employees-filter-counter employees-filter-counter--toolbar" aria-live="polite">—</span>
                 <button type="button" onclick="setFilter('all')" class="filter-btn ops-toolbar-ghost-btn employees-filter-bar__btn filter-btn--active" data-filter="all" aria-pressed="true">Ver todos</button>
                 <a href="/admin/substitutions" class="employees-filter-bar__link-sub employees-filter-bar__link-sub--toolbar" title="Histórico de substituições">
                     <svg class="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
@@ -395,16 +257,9 @@
 
     <!-- Table -->
     <div id="employees-table-panel" class="sys-card sys-card--surface employees-table-panel overflow-hidden p-0">
-        <div class="employees-table-panel__head flex flex-col gap-3 border-b px-5 py-5 sm:px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-            <div class="min-w-0 flex-1">
-                <p class="employees-table-panel__kicker">Cadastro ativo</p>
-                <h3 class="sys-section-heading employees-table-panel__title mt-1 text-lg sm:text-xl">Lista de colaboradores</h3>
-                <p class="employees-table-panel__lede mt-2 max-w-xl text-sm">Em telas menores, cada linha vira um card com os dados principais e ações rápidas.</p>
-            </div>
-            <div class="employees-table-panel__aside max-w-md text-xs leading-relaxed lg:pt-1 lg:text-right">
-                <span class="employees-text-caption">Demitidos não aparecem aqui por padrão.</span>
-                Use o card <span class="employees-text-danger font-semibold">Demitidos</span> no resumo para listá-los. Reduza a lista com os filtros antes de edições em lote.
-            </div>
+        <div class="employees-table-panel__head employees-table-panel__head--compact flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
+            <h3 class="sys-section-heading employees-table-panel__title text-sm sm:text-base">Lista de colaboradores</h3>
+            <span class="employees-table-panel__hint employees-text-caption">Demitidos só aparecem ao filtrar por <span class="employees-text-danger font-semibold">Demitidos</span>.</span>
         </div>
         <div class="sys-table-wrap sys-table-wrap--x-scroll">
         <table class="employees-data-table employees-data-table--compact w-full min-w-full border-collapse text-left text-sm md:min-w-[920px]" id="employeesTable">
@@ -475,7 +330,7 @@
                     data-role="{{ emp.role }}" data-role-norm="{{ (emp.role or '')|lower }}" data-id="{{ emp.id }}"
                     data-photo="{{ emp.photo_url or '' }}" data-center-label="{{ center_label }}"
                     data-schedule="{{ (emp.work_schedule or '')|lower }}"
-                    data-emp="{{ emp.model_dump_json() | forceescape }}">
+                    data-emp-name="{{ emp.name|emp_name }}">
                     <td class="employees-data-table__td--col-select px-2 py-2 pl-5 text-center align-middle" data-label="Selecionar">
                         <input type="checkbox" name="employee_ids" value="{{ emp.id }}" form="bulkDeleteForm" class="emp-bulk-cb" data-emp-name="{{ emp.name|emp_name }}" aria-label="Selecionar {{ emp.name|emp_name }}">
                     </td>
@@ -512,92 +367,44 @@
                         {% endif %}
                     </td>
                     <td class="employee-actions-cell employees-data-table__td--col-actions px-2 py-2 align-middle" data-label="Ações">
-                        <div class="employee-actions employees-action-strip flex flex-nowrap items-center gap-1">
-                            <!-- Editar -->
-                            <button type="button" data-emp="{{ emp.model_dump_json() | forceescape }}"
-                                onclick='openEditModal(JSON.parse(this.dataset.emp))'
-                                class="employee-action-btn employee-action-btn--edit"
-                                title="Editar">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
-                                    </path>
-                                </svg>
+                        <div class="employee-actions employees-action-strip">
+                            <button type="button" class="employees-row-action employees-row-action--edit" onclick="editEmployeeRow(this)" title="Editar colaborador">Editar</button>
+                            <button type="button" class="employees-row-action employees-row-action--more" onclick="openRowMenu(this)" aria-haspopup="menu" aria-expanded="false" aria-label="Mais ações" title="Mais ações">
+                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg>
                             </button>
-
-                            <!-- Programar Férias -->
-                            <button type="button"
-                                onclick="openVacationModal('{{ emp.id }}', '{{ emp.name|emp_name }}', '{{ emp.registration_id }}')"
-                                class="employee-action-btn employee-action-btn--vacation"
-                                title="Programar Férias">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                                </svg>
-                            </button>
-
-                            {% if emp.status != 'active' %}
-                            <!-- Reativar / Retornar -->
-                            <button type="button"
-                                onclick="openReturnModal('{{ emp.id }}', '{{ emp.name|emp_name }}', '{{ emp.status }}')"
-                                class="employee-action-btn employee-action-btn--return"
-                                title="Reativar / Retornar">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
-                                    </path>
-                                </svg>
-                            </button>
-                            {% endif %}
-
-
-
-                            <!-- Afastar -->
-                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline">
-                                <input type="hidden" name="status_action" value="away">
-                                <button type="submit"
-                                    class="employee-action-btn employee-action-btn--away"
-                                    title="Afastar">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </form>
-
-                            <!-- Demitir -->
-                            <button type="button" onclick="openFireModal('{{ emp.id }}', '{{ emp.name|emp_name }}')"
-                                class="employee-action-btn employee-action-btn--fire" title="Demitir">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6">
-                                    </path>
-                                </svg>
-                            </button>
-
-                            <!-- Excluir -->
-                            <form action="/employees/{{ emp.id }}/status" method="POST" class="inline"
-                                onsubmit="return confirm('ATENÇÃO: Isso excluirá permanentemente {{ emp.name|emp_name }}. Continuar?');">
-                                <input type="hidden" name="status_action" value="delete">
-                                <button type="submit"
-                                    class="employee-action-btn employee-action-btn--delete"
-                                    title="Excluir">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                                        </path>
-                                    </svg>
-                                </button>
-                            </form>
                         </div>
                     </td>
                 </tr>
                 {% endfor %}
+                <tr id="employeesEmptyRow" class="employees-empty-row hidden" aria-hidden="true">
+                    <td colspan="8" class="employees-empty-state">Nenhum colaborador encontrado com os filtros atuais.</td>
+                </tr>
             </tbody>
         </table>
     </div>
+    <div id="employeesPagination" class="employees-pagination" hidden>
+        <span id="employeesPaginationInfo" class="employees-pagination__info" aria-live="polite">—</span>
+        <div class="employees-pagination__controls">
+            <button type="button" id="employeesPrevPage" class="employees-pagination__btn" onclick="changeEmployeesPage(-1)">Anterior</button>
+            <span id="employeesPaginationPage" class="employees-pagination__page">1</span>
+            <button type="button" id="employeesNextPage" class="employees-pagination__btn" onclick="changeEmployeesPage(1)">Próximo</button>
+        </div>
     </div>
+    </div>
+
+    <!-- Menu de ações por colaborador (único, compartilhado por todas as linhas) -->
+    <div id="employeeRowMenu" class="employees-row-menu" role="menu" aria-label="Ações do colaborador" hidden>
+        <p class="employees-row-menu__title" id="employeeRowMenuName">Colaborador</p>
+        <button type="button" role="menuitem" class="employees-row-menu__item" data-emp-act="vacation">Programar férias</button>
+        <button type="button" role="menuitem" class="employees-row-menu__item" data-emp-act="return" hidden>Reativar / Retornar</button>
+        <button type="button" role="menuitem" class="employees-row-menu__item" data-emp-act="away">Afastar</button>
+        <div class="employees-row-menu__divider" role="presentation"></div>
+        <button type="button" role="menuitem" class="employees-row-menu__item employees-row-menu__item--danger" data-emp-act="fire">Demitir</button>
+        <button type="button" role="menuitem" class="employees-row-menu__item employees-row-menu__item--danger" data-emp-act="delete">Excluir</button>
+    </div>
+
+    <!-- Dados dos colaboradores (fonte única → window.employeesById; evita JSON repetido por linha) -->
+    <script type="application/json" id="employeesData">[{% for emp in employees %}{{ emp.model_dump_json()|safe }}{% if not loop.last %},{% endif %}{% endfor %}]</script>
 
     <!-- Barra de ação em massa (exclusão) -->
     <form id="bulkDeleteForm" action="/employees/bulk-delete" method="POST" class="employees-bulk-bar" hidden
@@ -1830,53 +1637,263 @@
         filterTable();
     }
 
+    // --- Cache de linhas + paginação (mantém a página fluida com 500+ colaboradores) ---
+    const EMPLOYEES_PAGE_SIZE = 50;
+    let cachedRows = [];
+    let filteredRows = [];
+    let currentPage = 1;
+    let searchDebounceTimer = null;
+
+    function initEmployeeRowCache() {
+        cachedRows = Array.prototype.slice.call(document.querySelectorAll('.employee-row'));
+        cachedRows.forEach(row => {
+            const name = row.dataset.name || '';
+            const reg = row.dataset.reg || '';
+            const roleNorm = normalizeText(row.dataset.roleNorm || row.dataset.role || '');
+            // Texto normalizado UMA vez por linha (não a cada filtro/tecla)
+            row._empSearch = normalizeText(name + ' ' + reg) + ' ' + roleNorm;
+            row._empRoleNorm = roleNorm;
+            row._empCenter = row.dataset.centerLabel || '';
+            row._empStatus = row.dataset.status || '';
+            row._empFired = isFiredEmployeeStatus(row._empStatus);
+        });
+    }
+
+    function filterTableDebounced() {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(function () {
+            currentPage = 1;
+            filterTable();
+        }, 300);
+    }
+
     function filterTable() {
+        if (!cachedRows.length) initEmployeeRowCache();
         const input = document.getElementById('searchInput');
-        const searchVal = normalizeText(input.value);
-        const rows = document.querySelectorAll('.employee-row');
+        const searchVal = normalizeText(input ? input.value : '');
         const tbody = document.getElementById('tableBody');
         const companyFilters = groupedCenterConfigs.map(center => center.name);
+        const hasRoleFilter = selectedRoles.size > 0;
 
-        let visibleCount = 0;
+        filteredRows = cachedRows.filter(row => {
+            if (searchVal && row._empSearch.indexOf(searchVal) === -1) return false;
+            if (hasRoleFilter && !selectedRoles.has(row._empRoleNorm)) return false;
 
-        rows.forEach(row => {
-            const name = row.dataset.name;
-            const reg = row.dataset.reg;
-            const centerLabel = row.dataset.centerLabel || '';
-            const status = row.dataset.status;
-            const roleNorm = normalizeText(row.dataset.roleNorm || row.dataset.role || '');
-
-            let matchesSearch = !searchVal || normalizeText(name).includes(searchVal) || normalizeText(reg).includes(searchVal) || roleNorm.includes(searchVal);
-            let matchesFilter = false;
-            const matchesRoleFilter = selectedRoles.size === 0 || selectedRoles.has(roleNorm);
-
+            let matchesFilter;
             if (currentFilter === 'all') {
                 matchesFilter = true;
             } else if (companyFilters.includes(currentFilter)) {
-                matchesFilter = centerLabel === currentFilter;
+                matchesFilter = row._empCenter === currentFilter;
             } else if (currentFilter === 'fired') {
-                matchesFilter = isFiredEmployeeStatus(status);
+                matchesFilter = row._empFired;
             } else {
-                matchesFilter = status === currentFilter;
+                matchesFilter = row._empStatus === currentFilter;
             }
-
-            if (isFiredEmployeeStatus(status) && currentFilter !== 'fired') {
-                matchesFilter = false;
-            }
-
-            if (matchesSearch && matchesFilter && matchesRoleFilter) {
-                row.classList.remove('hidden');
-                visibleCount += 1;
-            } else {
-                row.classList.add('hidden');
-            }
+            // Demitidos só aparecem no filtro "Demitidos"
+            if (row._empFired && currentFilter !== 'fired') matchesFilter = false;
+            return matchesFilter;
         });
 
-        tbody.classList.remove('hidden');
-        updateVisibleEmployeesCounter(visibleCount, rows.length);
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / EMPLOYEES_PAGE_SIZE));
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+
+        if (tbody) tbody.classList.remove('hidden');
+        applyPagination();
+        updateVisibleEmployeesCounter(filteredRows.length, cachedRows.length);
         if (currentViewMode === 'grouped') {
             populateGroupedView();
         }
+    }
+
+    function applyPagination() {
+        const start = (currentPage - 1) * EMPLOYEES_PAGE_SIZE;
+        const end = start + EMPLOYEES_PAGE_SIZE;
+        const pageSet = new Set(filteredRows.slice(start, end));
+
+        // Mudanças visuais em lote (rAF) para evitar layout thrash em listas grandes
+        requestAnimationFrame(() => {
+            cachedRows.forEach(row => {
+                if (pageSet.has(row)) row.classList.remove('hidden');
+                else row.classList.add('hidden');
+            });
+            renderEmptyState(filteredRows.length === 0);
+        });
+
+        renderPaginationControls(start, end);
+    }
+
+    function renderEmptyState(isEmpty) {
+        const emptyRow = document.getElementById('employeesEmptyRow');
+        if (emptyRow) emptyRow.classList.toggle('hidden', !isEmpty);
+    }
+
+    function renderPaginationControls(start, end) {
+        const wrap = document.getElementById('employeesPagination');
+        if (!wrap) return;
+        const total = filteredRows.length;
+        const totalPages = Math.max(1, Math.ceil(total / EMPLOYEES_PAGE_SIZE));
+        const showPager = total > EMPLOYEES_PAGE_SIZE;
+        wrap.hidden = !showPager;
+        if (!showPager) return;
+
+        const info = document.getElementById('employeesPaginationInfo');
+        const pageEl = document.getElementById('employeesPaginationPage');
+        const prev = document.getElementById('employeesPrevPage');
+        const next = document.getElementById('employeesNextPage');
+        const from = total === 0 ? 0 : start + 1;
+        const to = Math.min(end, total);
+        if (info) info.textContent = `Exibindo ${from}–${to} de ${total}`;
+        if (pageEl) pageEl.textContent = `${currentPage} / ${totalPages}`;
+        if (prev) prev.disabled = currentPage <= 1;
+        if (next) next.disabled = currentPage >= totalPages;
+    }
+
+    function changeEmployeesPage(delta) {
+        const totalPages = Math.max(1, Math.ceil(filteredRows.length / EMPLOYEES_PAGE_SIZE));
+        const target = Math.min(totalPages, Math.max(1, currentPage + delta));
+        if (target === currentPage) return;
+        currentPage = target;
+        applyPagination();
+        const panel = document.getElementById('employees-table-panel');
+        if (panel && typeof panel.scrollIntoView === 'function') {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // --- Edição: busca dados no mapa único (sem JSON repetido por linha) ---
+    function buildEmployeesById() {
+        window.employeesById = {};
+        const el = document.getElementById('employeesData');
+        if (!el) return;
+        try {
+            const list = JSON.parse(el.textContent || '[]');
+            list.forEach(emp => {
+                if (emp && emp.id != null) window.employeesById[String(emp.id)] = emp;
+            });
+        } catch (e) {
+            console.error('Falha ao carregar dados de colaboradores:', e);
+        }
+    }
+
+    function editEmployeeRow(btn) {
+        const row = btn.closest('tr');
+        if (!row) return;
+        openEditModalById(row.dataset.id);
+    }
+
+    function openEditModalById(id) {
+        const emp = window.employeesById && window.employeesById[String(id)];
+        if (!emp) { alert('Não foi possível carregar os dados do colaborador.'); return; }
+        openEditModal(emp);
+    }
+
+    // --- Submissão centralizada de status (afastar/excluir) preservando endpoint ---
+    function empStatusSubmit(id, action, confirmMsg) {
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/employees/' + id + '/status';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'status_action';
+        input.value = action;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    // --- Menu único "Mais ações" compartilhado por todas as linhas ---
+    let rowMenuContext = null;
+
+    function openRowMenu(btn) {
+        const row = btn.closest('tr');
+        const menu = document.getElementById('employeeRowMenu');
+        if (!row || !menu) return;
+
+        if (rowMenuContext && rowMenuContext.trigger === btn && !menu.hidden) {
+            closeRowMenu();
+            return;
+        }
+
+        rowMenuContext = {
+            trigger: btn,
+            id: row.dataset.id,
+            name: row.dataset.empName || row.dataset.displayName || '',
+            reg: row.dataset.reg || '',
+            status: row.dataset.status || ''
+        };
+
+        const returnItem = menu.querySelector('[data-emp-act="return"]');
+        if (returnItem) returnItem.hidden = (rowMenuContext.status === 'active');
+        const nameEl = document.getElementById('employeeRowMenuName');
+        if (nameEl) nameEl.textContent = rowMenuContext.name;
+
+        menu.hidden = false;
+        btn.setAttribute('aria-expanded', 'true');
+        positionRowMenu(btn, menu);
+
+        const first = menu.querySelector('.employees-row-menu__item:not([hidden])');
+        if (first) { try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); } }
+    }
+
+    function positionRowMenu(btn, menu) {
+        const r = btn.getBoundingClientRect();
+        const mw = menu.offsetWidth || 220;
+        const mh = menu.offsetHeight || 220;
+        let left = r.right - mw;
+        if (left < 8) left = 8;
+        if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+        let top = r.bottom + 6;
+        if (top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+        menu.style.left = left + 'px';
+        menu.style.top = top + 'px';
+    }
+
+    function closeRowMenu() {
+        const menu = document.getElementById('employeeRowMenu');
+        if (!menu || menu.hidden) return;
+        menu.hidden = true;
+        if (rowMenuContext && rowMenuContext.trigger) {
+            rowMenuContext.trigger.setAttribute('aria-expanded', 'false');
+        }
+        rowMenuContext = null;
+    }
+
+    function handleRowAction(act, ctx) {
+        switch (act) {
+            case 'vacation': openVacationModal(ctx.id, ctx.name, ctx.reg); break;
+            case 'return': openReturnModal(ctx.id, ctx.name, ctx.status); break;
+            case 'away': empStatusSubmit(ctx.id, 'away', 'Afastar ' + ctx.name + '?'); break;
+            case 'fire': openFireModal(ctx.id, ctx.name); break;
+            case 'delete': empStatusSubmit(ctx.id, 'delete', 'ATENÇÃO: Isso excluirá permanentemente ' + ctx.name + '. Continuar?'); break;
+        }
+    }
+
+    function initRowActionMenu() {
+        const menu = document.getElementById('employeeRowMenu');
+        if (!menu) return;
+        menu.querySelectorAll('.employees-row-menu__item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (!rowMenuContext) return;
+                const ctx = rowMenuContext;
+                const act = item.dataset.empAct;
+                closeRowMenu();
+                handleRowAction(act, ctx);
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (menu.hidden) return;
+            if (menu.contains(e.target)) return;
+            if (e.target.closest && e.target.closest('.employees-row-action--more')) return;
+            closeRowMenu();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeRowMenu();
+        });
+        window.addEventListener('scroll', closeRowMenu, true);
+        window.addEventListener('resize', closeRowMenu);
     }
 
     let sortDirection = 1;
@@ -1938,11 +1955,10 @@
         });
 
         rows.forEach(row => tbody.appendChild(row));
-        
-        // Se estiver no modo agrupado, precisamos repopular
-        if (typeof currentViewMode !== 'undefined' && currentViewMode === 'grouped') {
-            populateGroupedView();
-        }
+
+        // Reordena o cache para a paginação refletir a nova ordem
+        cachedRows = rows;
+        filterTable();
     }
 
     // --- VIEW MODE Logic (List vs Grouped) ---
@@ -2042,23 +2058,24 @@
     }
     
     function populateGroupedView() {
-        const rows = document.querySelectorAll('.employee-row');
+        // Usa a lista filtrada completa (não só a página visível) — fonte: cache + employeesById
+        const rows = (filteredRows && filteredRows.length)
+            ? filteredRows
+            : cachedRows.filter(r => !r.classList.contains('hidden'));
         const groups = Object.fromEntries(groupedCenterConfigs.map(center => [center.name, []]));
-        
-        rows.forEach(row => {
-            if (row.classList.contains('hidden')) return;
 
+        rows.forEach(row => {
             const centerLabel = row.dataset.centerLabel || 'Sem Centro';
             if (!groups[centerLabel]) {
                 groups[centerLabel] = [];
             }
 
             groups[centerLabel].push({
+                id: row.dataset.id,
                 name: row.dataset.displayName || 'N/A',
                 status: row.dataset.status || 'active',
                 photo: row.dataset.photo || '',
-                initial: (row.dataset.displayName || 'N').charAt(0),
-                payload: row.dataset.emp || '{}'
+                initial: (row.dataset.displayName || 'N').charAt(0)
             });
         });
         
@@ -2076,11 +2093,8 @@
                                        emp.status === 'fired' ? 'ring-2 ring-red-500 opacity-30 ring-offset-2 ring-offset-white dark:ring-offset-gray-900' : '';
                     const statusBadge = emp.status === 'vacation' ? '<span class="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-blue-600 text-[7px] font-bold text-white shadow-sm dark:bg-blue-500" title="Férias">F</span>' :
                                        emp.status === 'away' ? '<span class="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-orange-500 text-[7px] font-bold text-white shadow-sm" title="Afastado">A</span>' : '';
-                    const encodedPayload = encodeURIComponent(emp.payload || '{}');
-                    const payloadArg = JSON.stringify(encodedPayload);
-
                     return `
-                        <div class="employees-grouped-cell group flex cursor-pointer flex-col items-center rounded-lg border border-slate-200 bg-white p-2 transition hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800/60 dark:hover:border-slate-500 dark:hover:bg-slate-800" onclick="openEditModal(JSON.parse(decodeURIComponent(${payloadArg})))">
+                        <div class="employees-grouped-cell group flex cursor-pointer flex-col items-center rounded-lg border border-slate-200 bg-white p-2 transition hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800/60 dark:hover:border-slate-500 dark:hover:bg-slate-800" data-emp-id="${emp.id}" onclick="openEditModalById(this.dataset.empId)">
                             <div class="relative">
                                 ${emp.photo ?
                                     `<img src="${emp.photo}" alt="" class="h-10 w-10 rounded-full object-cover ${statusClass}">` :
@@ -2399,6 +2413,9 @@
 
     // Ensure employee rows are visible on first page load.
     document.addEventListener('DOMContentLoaded', () => {
+        buildEmployeesById();
+        initEmployeeRowCache();
+        initRowActionMenu();
         initRoleFilterOptions();
         filterTable();
 
