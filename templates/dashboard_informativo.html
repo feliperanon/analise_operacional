@@ -332,15 +332,9 @@ window.addEventListener("error", function (evt) {
                                 <div class="gv-bulletin-split{% if not bulletin_image %} gv-bulletin-split--no-media{% endif %}">
                                     <div class="gv-bulletin-copy">
                                         <h4 class="font-semibold gv-aviso-heading gv-bulletin-copy-title">{{ b.title }}</h4>
-                                        {% if b.body or b.link_url %}
-                                        <div class="gv-bulletin-copy-scroll">
-                                            <div class="gv-bulletin-copy-scroll-inner">
-                                                {% if b.body %}<p class="mb-0">{{ b.body }}</p>{% endif %}
-                                                {% if b.link_url %}
-                                                <p class="gv-bulletin-copy-link mt-2 mb-0"><a href="{{ b.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-700 font-medium underline-offset-2 hover:underline">Ver matéria</a></p>
-                                                {% endif %}
-                                            </div>
-                                        </div>
+                                        {% if b.body %}<p class="gv-bulletin-copy-text">{{ b.body }}</p>{% endif %}
+                                        {% if b.link_url %}
+                                        <p class="gv-bulletin-copy-link mt-2 mb-0"><a href="{{ b.link_url }}" target="_blank" rel="noopener noreferrer" class="text-sky-600 hover:text-sky-700 font-medium underline-offset-2 hover:underline">Ver matéria</a></p>
                                         {% endif %}
                                     </div>
                                     {# Painel TV: arte/banner em contain; opt-in .gv-bulletin-media--cover para foto no cadastro futuro. #}
