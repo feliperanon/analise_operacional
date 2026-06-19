@@ -260,7 +260,10 @@ if _engine is None:
 engine = _engine
 
 def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+    # checkfirst=True: verifica se cada tabela já existe antes de tentar criá-la.
+    # Necessário quando o schema foi migrado de outro banco (ex.: Render → Railway)
+    # sem passar pelo Alembic, evitando o erro DuplicateTable no PostgreSQL.
+    SQLModel.metadata.create_all(engine, checkfirst=True)
     _migrate_devolucao_ajuste_responsavel_ajudante()
     _migrate_devolucao_observacao_gestor()
     _migrate_devolucao_duplicate_fields()
